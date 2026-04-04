@@ -18,7 +18,7 @@ src/better_robot/
   core/        — Robot, FK, URDF parsing, Lie ops (foundation — change with care)
   costs/       — Residual functions (pose, limits, rest, …)
   solvers/     — LM (working), GN/Adam/LBFGS (stubs)
-  tasks/       — solve_ik, solve_ik_multi, solve_ik_floating_base (working); solve_trajopt/retarget (stubs)
+  tasks/       — solve_ik (unified, fixed+floating base), IKConfig; solve_trajopt/retarget (stubs)
   collision/   — stubs
   viewer/      — viser wrapper
 ```
@@ -66,16 +66,37 @@ pp.se3(v).Exp().tensor()  # se3 tangent → SE3, grad-preserving
 ```python
 robot = br.Robot.from_urdf(urdf)
 
-# Cold start
-cfg = br.solve_ik(robot, target_link="panda_hand", target_pose=pose, max_iter=50)
+# Fixed-base IK
+cfg = br.solve_ik(
+    robot,
+    targets={"panda_hand": target_pose},
+    cfg=br.IKConfig(rest_weight=0.001),   # optional tuning
+    initial_cfg=cfg,                       # warm start
+    max_iter=20,
+)
 
-# Warm-started loop (interactive, ~10 iters is enough)
-cfg = br.solve_ik(robot, "panda_hand", pose, initial_cfg=cfg, max_iter=10)
+# Floating-base IK (humanoid)
+base_pose, cfg = br.solve_ik(
+    robot,
+    targets={
+        "left_rubber_hand":     p_lh,
+        "right_rubber_hand":    p_rh,
+        "left_ankle_roll_link": p_lf,
+        "right_ankle_roll_link": p_rf,
+    },
+    initial_base_pose=base_pose,  # non-None triggers floating-base path
+    initial_cfg=cfg,
+    max_iter=20,
+)
 ```
 
-**target_pose format**: `[tx, ty, tz, qx, qy, qz, qw]`
+**Pose format**: `[tx, ty, tz, qx, qy, qz, qw]` (same SE3 convention for all poses).
 
-**Initial orientation**: initialize the IK target with the robot's FK orientation at the default config, not identity. Identity orientation causes ~173° orientation error from the default config, which oscillates the solver.
+**Dispatch**: `initial_base_pose is None` → fixed-base path; not None → floating-base path.
+
+**Returns**: Fixed base returns `(n,)` cfg tensor. Floating base returns `(base_pose (7,), cfg (n,))`.
+
+**Initial orientation**: initialize IK targets with the robot's FK orientation at the default config, not identity. Identity orientation causes ~173° error from the default config, which oscillates the solver.
 
 ```python
 fk0 = robot.forward_kinematics(robot._default_cfg)
@@ -83,32 +104,12 @@ nat_q = fk0[robot.get_link_index("panda_hand"), 3:7]  # [qx,qy,qz,qw]
 target = torch.cat([position, nat_q])
 ```
 
-## Floating-Base IK (Humanoid Whole-Body)
-
+**Floating-base setup**:
 ```python
-# Initial base pose: [tx, ty, tz, qx, qy, qz, qw]
 base_pose = torch.tensor([0., 0., 0.78, 0., 0., 0., 1.])  # G1 standing height
 cfg = robot._default_cfg.clone()
-
-# Get natural EE orientations to initialise handles (avoids 180° singularity)
-fk0 = robot.forward_kinematics(cfg, base_pose=base_pose)
-
-# Warm-started loop
-base_pose, cfg = br.solve_ik_floating_base(
-    robot=robot,
-    targets={
-        "left_rubber_hand":      pose_lh,
-        "right_rubber_hand":     pose_rh,
-        "left_ankle_roll_link":  pose_lf,
-        "right_ankle_roll_link": pose_rf,
-    },
-    initial_base_pose=base_pose,
-    initial_cfg=cfg,
-    max_iter=20,
-)
+fk0 = robot.forward_kinematics(cfg, base_pose=base_pose)  # get natural EE orientations
 ```
-
-**base_pose format**: `[tx, ty, tz, qx, qy, qz, qw]` — same SE3 convention as all poses.
 
 **Viser update**: `base_frame.position = base_pose[:3]` and
 `base_frame.wxyz = (qw, qx, qy, qz)`. URDF meshes are parented to `/base`.
