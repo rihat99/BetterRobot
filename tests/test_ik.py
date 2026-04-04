@@ -77,5 +77,7 @@ def test_solve_ik_multi_converges(panda):
     }
     result = solve_ik_multi(panda, targets=targets, initial_cfg=cfg.clone(), max_iter=5)
     fk_result = panda.forward_kinematics(result)
-    pos_err = (fk_result[hand_idx, :3] - fk[hand_idx, :3]).norm().item()
-    assert pos_err < 0.05, f"Position error too large: {pos_err}"
+    pos_err_hand = (fk_result[hand_idx, :3] - fk[hand_idx, :3]).norm().item()
+    pos_err_link6 = (fk_result[link6_idx, :3] - fk[link6_idx, :3]).norm().item()
+    assert pos_err_hand < 0.05, f"Hand position error too large: {pos_err_hand}"
+    assert pos_err_link6 < 0.05, f"Link6 position error too large: {pos_err_link6}"

@@ -106,6 +106,9 @@ def solve_ik_multi(
 
     Returns:
         Shape (num_actuated_joints,). Optimized joint configuration.
+
+    Note:
+        Always uses the LM solver. For collision-aware IK, use `solve_ik` (single-target).
     """
     w = {"pose": 1.0, "limits": 0.1, "rest": 0.01}
     if weights:
