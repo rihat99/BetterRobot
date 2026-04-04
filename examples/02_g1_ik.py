@@ -4,15 +4,18 @@ Controls both hands and both feet simultaneously with a floating base.
 
 Usage:
     uv run python examples/02_g1_ik.py
+    uv run python examples/02_g1_ik.py --profile   # profile first 10 IK calls then exit
 Then open http://localhost:8080 in your browser.
 Drag the coloured transform handles to move the targets.
 """
+import argparse
 import time
 import torch
 import viser
 import viser.extras
 from robot_descriptions.loaders.yourdfpy import load_robot_description
 import better_robot as br
+from better_robot.viewer import wxyz_pos_to_se3, qxyzw_to_wxyz, build_cfg_dict
 
 
 # End-effector handle names and their robot link names
@@ -27,18 +30,11 @@ TARGET_SPECS = [
 INITIAL_BASE_POSE = torch.tensor([0.0, 0.0, 0.78, 0.0, 0.0, 0.0, 1.0])
 
 
-def wxyz_pos_to_se3(wxyz, pos) -> torch.Tensor:
-    """Convert viser wxyz+pos to SE3 [tx, ty, tz, qx, qy, qz, qw]."""
-    w, x, y, z = wxyz
-    return torch.tensor([pos[0], pos[1], pos[2], x, y, z, w], dtype=torch.float32)
-
-
-def qxyzw_to_wxyz(q: torch.Tensor) -> tuple:
-    """Convert [qx, qy, qz, qw] tensor to (w, x, y, z) viser tuple."""
-    return (q[3].item(), q[0].item(), q[1].item(), q[2].item())
-
-
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--profile", action="store_true", help="Profile first 10 IK calls and exit")
+    args = parser.parse_args()
+
     urdf = load_robot_description("g1_description")
     robot = br.Robot.from_urdf(urdf)
     print(f"Loaded G1: {robot.links.num_links} links, {robot.joints.num_actuated_joints} actuated joints")
@@ -52,24 +48,20 @@ def main() -> None:
     base_pose = INITIAL_BASE_POSE.clone()
     cfg = torch.zeros(robot.joints.num_actuated_joints)
 
-    # Get natural FK orientations at default config so handles start
-    # aligned with the robot (avoids 180° orientation singularity)
+    # Get natural FK orientations so handles start aligned with the robot
     fk0 = robot.forward_kinematics(cfg, base_pose=base_pose)
 
     target_controls: list[tuple[str, viser.TransformControlsHandle]] = []
     for name, link_name in TARGET_SPECS:
         link_idx = robot.get_link_index(link_name)
-        nat_pos = fk0[link_idx, :3].detach().numpy()
-        nat_wxyz = qxyzw_to_wxyz(fk0[link_idx, 3:7].detach())
         handle = server.scene.add_transform_controls(
             f"/targets/{name}",
-            position=nat_pos,
-            wxyz=nat_wxyz,
+            position=fk0[link_idx, :3].detach().numpy(),
+            wxyz=qxyzw_to_wxyz(fk0[link_idx, 3:7].detach()),
             scale=0.12,
         )
         target_controls.append((link_name, handle))
 
-    # GUI controls
     with server.gui.add_folder("IK"):
         timing_handle = server.gui.add_number("Elapsed (ms)", 0.001, disabled=True)
         reset_button = server.gui.add_button("Reset Targets")
@@ -85,6 +77,24 @@ def main() -> None:
     print("Open http://localhost:8080 in your browser")
     print("Drag transform handles to set IK targets. Press Ctrl+C to quit.")
 
+    if args.profile:
+        import torch.profiler
+        with torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CPU]) as prof:
+            for _ in range(10):
+                targets = {
+                    link_name: wxyz_pos_to_se3(handle.wxyz, handle.position)
+                    for link_name, handle in target_controls
+                }
+                base_pose, cfg = br.solve_ik(
+                    robot=robot,
+                    targets=targets,
+                    initial_base_pose=base_pose,
+                    initial_cfg=cfg,
+                    max_iter=20,
+                )
+        print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=15))
+        return
+
     while True:
         start = time.time()
 
@@ -93,8 +103,7 @@ def main() -> None:
             for link_name, handle in target_controls
         }
 
-        # Warm-started floating-base IK
-        base_pose, cfg = br.solve_ik_floating_base(
+        base_pose, cfg = br.solve_ik(
             robot=robot,
             targets=targets,
             initial_base_pose=base_pose,
@@ -105,18 +114,11 @@ def main() -> None:
         elapsed_ms = (time.time() - start) * 1000
         timing_handle.value = 0.99 * timing_handle.value + 0.01 * elapsed_ms
 
-        # Update viser: base frame position + robot joint config
         base_frame.position = base_pose[:3].detach().numpy()
         base_frame.wxyz = qxyzw_to_wxyz(base_pose[3:7].detach())
+        urdf_vis.update_cfg(build_cfg_dict(robot, cfg))
 
-        actuated_names = [
-            name for name, jtype in zip(robot.joints.names, robot._fk_joint_types)
-            if jtype in ("revolute", "continuous", "prismatic")
-        ]
-        cfg_np = cfg.detach().cpu().numpy()
-        urdf_vis.update_cfg({name: float(v) for name, v in zip(actuated_names, cfg_np)})
-
-        time.sleep(1.0 / 30.0)  # ~30 Hz
+        time.sleep(1.0 / 30.0)
 
 
 if __name__ == "__main__":
