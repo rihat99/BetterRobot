@@ -48,5 +48,7 @@ def se3_apply_base(base_pose: torch.Tensor, link_poses: torch.Tensor) -> torch.T
     Returns:
         (..., num_links, 7) link poses in world frame.
     """
+    assert base_pose.shape[-1] == 7, f"base_pose last dim must be 7, got {base_pose.shape}"
+    assert link_poses.shape[-1] == 7, f"link_poses last dim must be 7, got {link_poses.shape}"
     base = pp.SE3(base_pose.unsqueeze(-2))    # (..., 1) SE3 LieTensor
     return (base @ pp.SE3(link_poses)).tensor()  # broadcasts over num_links

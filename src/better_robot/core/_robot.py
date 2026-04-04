@@ -148,7 +148,7 @@ class Robot:
                 Defaults to identity (robot root at world origin).
 
         Returns:
-            Shape (*batch, num_links, 7). SE3 poses for each link.
+            Shape (*batch, num_links, 7). SE3 poses [tx, ty, tz, qx, qy, qz, qw] for each link.
         """
         batch_shape = cfg.shape[:-1]
         device, dtype = cfg.device, cfg.dtype

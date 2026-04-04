@@ -71,15 +71,19 @@ def test_forward_kinematics_with_base_pose_shape():
     assert poses_base.shape == poses_orig.shape
 
 
-def test_forward_kinematics_base_pose_shifts_root():
-    """Root link pose equals base_pose when base_pose is provided."""
+def test_forward_kinematics_base_pose_translates_all_links():
+    """A pure-translation base_pose shifts every link position by the same offset."""
     robot = _load_panda()
     n = robot.joints.num_actuated_joints
-    cfg = torch.zeros(n)
-    base_pose = torch.tensor([1.0, 2.0, 3.0, 0.0, 0.0, 0.0, 1.0])
-    poses = robot.forward_kinematics(cfg, base_pose=base_pose)
-    root_pose = poses[robot._root_link_idx]
-    assert torch.allclose(root_pose, base_pose, atol=1e-5)
+    cfg = robot._default_cfg
+    offset = torch.tensor([1.0, 2.0, 3.0])
+    base_pose = torch.tensor([1.0, 2.0, 3.0, 0.0, 0.0, 0.0, 1.0])  # identity rotation
+    poses_orig = robot.forward_kinematics(cfg)
+    poses_base = robot.forward_kinematics(cfg, base_pose=base_pose)
+    # Every link should be shifted by (1, 2, 3) in position (first 3 dims)
+    # Orientation should be unchanged (base rotation is identity)
+    assert torch.allclose(poses_base[..., :3], poses_orig[..., :3] + offset, atol=1e-4)
+    assert torch.allclose(poses_base[..., 3:], poses_orig[..., 3:], atol=1e-4)
 
 
 def test_forward_kinematics_none_base_unchanged():
