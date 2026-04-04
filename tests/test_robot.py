@@ -96,3 +96,35 @@ def test_forward_kinematics_none_base_unchanged():
         robot.forward_kinematics(cfg),
         atol=1e-6,
     )
+
+
+import pytest
+
+
+@pytest.fixture(scope="session")
+def panda():
+    return _load_panda()
+
+
+def test_get_chain_panda_hand(panda):
+    """Chain from root to panda_hand has exactly 7 actuated joints."""
+    hand_idx = panda.get_link_index("panda_hand")
+    chain = panda.get_chain(hand_idx)
+    assert len(chain) == 7
+    # All returned indices are actuated joints
+    assert all(panda._fk_cfg_indices[j] >= 0 for j in chain)
+
+
+def test_get_chain_root_link(panda):
+    """Chain to root link is empty."""
+    chain = panda.get_chain(panda._root_link_idx)
+    assert chain == []
+
+
+def test_get_chain_ordering(panda):
+    """Chain is in root→EE topological order (parent joint before child joint)."""
+    hand_idx = panda.get_link_index("panda_hand")
+    chain = panda.get_chain(hand_idx)
+    # cfg indices should be 0,1,2,... (BFS order for Panda arm)
+    cfg_indices = [panda._fk_cfg_indices[j] for j in chain]
+    assert cfg_indices == sorted(cfg_indices)

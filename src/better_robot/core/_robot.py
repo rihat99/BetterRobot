@@ -212,3 +212,31 @@ class Robot:
             raise ValueError(
                 f"Link '{link_name}' not found. Available: {list(self.links.names)}"
             )
+
+    def get_chain(self, link_idx: int) -> list[int]:
+        """Joint indices (actuated only) on the path from root to link_idx.
+
+        Args:
+            link_idx: Target link index.
+
+        Returns:
+            List of joint indices in root→EE order (only actuated joints).
+            Empty list if link_idx is the root.
+        """
+        # Map child_link → joint_index for fast lookup
+        child_to_joint: dict[int, int] = {
+            child: j for j, child in enumerate(self._fk_joint_child_link)
+        }
+
+        chain: list[int] = []
+        current = link_idx
+        while current != self._root_link_idx:
+            if current not in child_to_joint:
+                break
+            j = child_to_joint[current]
+            if self._fk_cfg_indices[j] >= 0:   # actuated joints only
+                chain.append(j)
+            current = self._fk_joint_parent_link[j]
+
+        chain.reverse()   # was built EE→root, reverse to root→EE
+        return chain
