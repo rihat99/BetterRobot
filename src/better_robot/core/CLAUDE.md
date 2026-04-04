@@ -25,6 +25,7 @@ Never use `.data` on a PyPose LieTensor inside a differentiable path — it deta
 - For each joint: compose parent world pose with fixed origin, then with the joint's motion transform
 - Motion transforms: `_revolute_transform(axis, angle)` and `_prismatic_transform(axis, displacement)`
 - Gradient flows through `cfg → T_motion → se3_compose → link_world`
+- Optional `base_pose: Tensor | None = None` (7,) SE3: when provided, `se3_apply_base` composes it with all link poses at the end. Existing callers unaffected (default `None`).
 
 ## URDF Parser Notes
 
@@ -38,3 +39,16 @@ Never use `.data` on a PyPose LieTensor inside a differentiable path — it deta
 In `_urdf_parser.py`, twists are stored as `[rx, ry, rz, 0, 0, 0]` for revolute and `[0, 0, 0, tx, ty, tz]` for prismatic. In `_robot.py`, axes are extracted:
 - Revolute/continuous: `joints.twists[j, :3]`
 - Prismatic: `joints.twists[j, 3:]`
+
+## `se3_apply_base` (`_lie_ops.py`)
+
+Applies a base SE3 to a full set of link poses via PyPose broadcasting:
+
+```python
+se3_apply_base(base_pose, link_poses)
+# base_pose: (..., 7), link_poses: (..., num_links, 7) -> (..., num_links, 7)
+# pp.SE3(base_pose.unsqueeze(-2)) @ pp.SE3(link_poses)
+```
+
+Shape asserts on both inputs (`last dim == 7`) give clear diagnostics on misuse.
+All Lie group operations still go through `_lie_ops.py`.

@@ -18,7 +18,7 @@ src/better_robot/
   core/        — Robot, FK, URDF parsing, Lie ops (foundation — change with care)
   costs/       — Residual functions (pose, limits, rest, …)
   solvers/     — LM (working), GN/Adam/LBFGS (stubs)
-  tasks/       — solve_ik (working), solve_trajopt/retarget (stubs)
+  tasks/       — solve_ik, solve_ik_multi, solve_ik_floating_base (working); solve_trajopt/retarget (stubs)
   collision/   — stubs
   viewer/      — viser wrapper
 ```
@@ -82,6 +82,36 @@ fk0 = robot.forward_kinematics(robot._default_cfg)
 nat_q = fk0[robot.get_link_index("panda_hand"), 3:7]  # [qx,qy,qz,qw]
 target = torch.cat([position, nat_q])
 ```
+
+## Floating-Base IK (Humanoid Whole-Body)
+
+```python
+# Initial base pose: [tx, ty, tz, qx, qy, qz, qw]
+base_pose = torch.tensor([0., 0., 0.78, 0., 0., 0., 1.])  # G1 standing height
+cfg = robot._default_cfg.clone()
+
+# Get natural EE orientations to initialise handles (avoids 180° singularity)
+fk0 = robot.forward_kinematics(cfg, base_pose=base_pose)
+
+# Warm-started loop
+base_pose, cfg = br.solve_ik_floating_base(
+    robot=robot,
+    targets={
+        "left_rubber_hand":      pose_lh,
+        "right_rubber_hand":     pose_rh,
+        "left_ankle_roll_link":  pose_lf,
+        "right_ankle_roll_link": pose_rf,
+    },
+    initial_base_pose=base_pose,
+    initial_cfg=cfg,
+    max_iter=20,
+)
+```
+
+**base_pose format**: `[tx, ty, tz, qx, qy, qz, qw]` — same SE3 convention as all poses.
+
+**Viser update**: `base_frame.position = base_pose[:3]` and
+`base_frame.wxyz = (qw, qx, qy, qz)`. URDF meshes are parented to `/base`.
 
 ## Tests
 
