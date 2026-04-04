@@ -15,12 +15,12 @@ from robot_descriptions.loaders.yourdfpy import load_robot_description
 import better_robot as br
 
 
-# End-effector link names and initial handle positions (world frame, metres)
+# End-effector handle names and their robot link names
 TARGET_SPECS = [
-    ("left_hand",  "left_rubber_hand",      ( 0.35,  0.28, 0.95)),
-    ("right_hand", "right_rubber_hand",     ( 0.35, -0.28, 0.95)),
-    ("left_foot",  "left_ankle_roll_link",  ( 0.00,  0.10, 0.02)),
-    ("right_foot", "right_ankle_roll_link", ( 0.00, -0.10, 0.02)),
+    ("left_hand",  "left_rubber_hand"),
+    ("right_hand", "right_rubber_hand"),
+    ("left_foot",  "left_ankle_roll_link"),
+    ("right_foot", "right_ankle_roll_link"),
 ]
 
 # G1 standing height: pelvis ~0.78 m above ground
@@ -57,12 +57,13 @@ def main() -> None:
     fk0 = robot.forward_kinematics(cfg, base_pose=base_pose)
 
     target_controls: list[tuple[str, viser.TransformControlsHandle]] = []
-    for name, link_name, position in TARGET_SPECS:
+    for name, link_name in TARGET_SPECS:
         link_idx = robot.get_link_index(link_name)
+        nat_pos = fk0[link_idx, :3].detach().numpy()
         nat_wxyz = qxyzw_to_wxyz(fk0[link_idx, 3:7].detach())
         handle = server.scene.add_transform_controls(
             f"/targets/{name}",
-            position=position,
+            position=nat_pos,
             wxyz=nat_wxyz,
             scale=0.12,
         )
@@ -76,9 +77,9 @@ def main() -> None:
     @reset_button.on_click
     def _(_) -> None:
         fk_curr = robot.forward_kinematics(cfg, base_pose=base_pose)
-        for (link_name, handle), (_, _, position) in zip(target_controls, TARGET_SPECS):
+        for link_name, handle in target_controls:
             link_idx = robot.get_link_index(link_name)
-            handle.position = position
+            handle.position = fk_curr[link_idx, :3].detach().numpy()
             handle.wxyz = qxyzw_to_wxyz(fk_curr[link_idx, 3:7].detach())
 
     print("Open http://localhost:8080 in your browser")
