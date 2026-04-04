@@ -178,3 +178,50 @@ def test_solve_ik_analytic_matches_autodiff(panda):
     fk_an = panda.forward_kinematics(cfg_analytic)
     err_diff = (fk_ad[hand_idx, :3] - fk_an[hand_idx, :3]).norm().item()
     assert err_diff < 0.01, f"Solutions differ by {err_diff:.4f} m"
+
+
+# --- Floating-base analytic tests ---
+
+def test_solve_ik_floating_analytic_converges(panda):
+    """Floating-base IK with jacobian='analytic' converges to a reachable target."""
+    cfg0 = panda._default_cfg
+    hand_idx = panda.get_link_index("panda_hand")
+    identity_base = torch.tensor([0., 0., 0., 0., 0., 0., 1.])
+    target = panda.forward_kinematics(cfg0)[hand_idx].detach()
+
+    base_pose, cfg = solve_ik(
+        panda,
+        targets={"panda_hand": target},
+        cfg=IKConfig(jacobian="analytic"),
+        initial_base_pose=identity_base,
+        initial_cfg=cfg0.clone(),
+        max_iter=5,
+    )
+    fk = panda.forward_kinematics(cfg, base_pose=base_pose)
+    pos_err = (fk[hand_idx, :3] - target[:3]).norm().item()
+    assert pos_err < 0.05, f"Floating analytic pos_err={pos_err:.4f}"
+
+
+def test_solve_ik_floating_analytic_matches_autodiff(panda):
+    """Floating analytic and PyPose LM give solutions within 2 cm."""
+    cfg0 = panda._default_cfg
+    hand_idx = panda.get_link_index("panda_hand")
+    identity_base = torch.tensor([0., 0., 0., 0., 0., 0., 1.])
+    target = panda.forward_kinematics(cfg0)[hand_idx].detach().clone()
+    target[0] += 0.05
+
+    base_pp, cfg_pp = solve_ik(
+        panda, targets={"panda_hand": target},
+        cfg=IKConfig(jacobian="autodiff"),
+        initial_base_pose=identity_base.clone(), initial_cfg=cfg0.clone(), max_iter=20,
+    )
+    base_an, cfg_an = solve_ik(
+        panda, targets={"panda_hand": target},
+        cfg=IKConfig(jacobian="analytic"),
+        initial_base_pose=identity_base.clone(), initial_cfg=cfg0.clone(), max_iter=20,
+    )
+
+    fk_pp = panda.forward_kinematics(cfg_pp, base_pose=base_pp)
+    fk_an = panda.forward_kinematics(cfg_an, base_pose=base_an)
+    diff = (fk_pp[hand_idx, :3] - fk_an[hand_idx, :3]).norm().item()
+    assert diff < 0.02, f"Floating solutions differ by {diff:.4f} m"

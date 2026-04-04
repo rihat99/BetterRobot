@@ -9,9 +9,10 @@ import pypose.optim as ppo
 import pypose.optim.strategy as ppo_strategy
 
 from ..core._robot import Robot
-from ..core._lie_ops import se3_identity, se3_log, se3_compose, se3_inverse
+from ..core._lie_ops import se3_identity, se3_log, se3_compose, se3_inverse, se3_exp, adjoint_se3
 from ..costs._limits import limit_residual
 from ..costs._regularization import rest_residual
+from ..costs._jacobian import pose_jacobian, limit_jacobian, rest_jacobian
 from ._config import IKConfig
 
 
@@ -58,6 +59,110 @@ class _FloatingBaseIKModule(nn.Module):
         return torch.cat(residuals)
 
 
+def _fb_residual(
+    cfg: torch.Tensor,
+    base: torch.Tensor,
+    robot: Robot,
+    target_link_indices: list[int],
+    target_poses: list[torch.Tensor],
+    ik_cfg: IKConfig,
+    rest: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Compute (fk, residual_vector) for floating-base IK."""
+    fk = robot.forward_kinematics(cfg, base_pose=base)
+    parts = []
+    for link_idx, tp in zip(target_link_indices, target_poses):
+        T_err = se3_compose(se3_inverse(tp), fk[link_idx])
+        log_e = se3_log(T_err)
+        parts.append(
+            torch.cat([log_e[:3] * ik_cfg.pos_weight, log_e[3:] * ik_cfg.ori_weight])
+            * ik_cfg.pose_weight
+        )
+    parts.append(limit_residual(cfg, robot) * ik_cfg.limit_weight)
+    parts.append(rest_residual(cfg, rest) * ik_cfg.rest_weight)
+    return fk, torch.cat(parts)
+
+
+def _run_floating_base_lm_analytic(
+    robot: Robot,
+    targets: dict[str, torch.Tensor],
+    ik_cfg: IKConfig,
+    initial_cfg: torch.Tensor | None,
+    initial_base_pose: torch.Tensor,
+    max_iter: int,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Floating-base LM using the analytical Jacobian.
+
+    Variables: [cfg (n,) | base_tangent (6,)].
+    Base updated via SE3 retraction: base_new = se3_exp(delta_base) @ base.
+    """
+    base = initial_base_pose.clone().float()
+    cfg = (
+        initial_cfg.clone().float()
+        if initial_cfg is not None
+        else robot._default_cfg.clone().float()
+    )
+    rest = robot._default_cfg.clone().float()
+    lo = robot.joints.lower_limits.float()
+    hi = robot.joints.upper_limits.float()
+
+    target_link_indices = [robot.get_link_index(name) for name in targets]
+    target_poses = [tp.float() for tp in targets.values()]
+
+    n = robot.joints.num_actuated_joints
+    lam = 1e-4
+    factor = 2.0
+    reject = 16
+    w_vec = cfg.new_tensor([ik_cfg.pos_weight] * 3 + [ik_cfg.ori_weight] * 3)
+
+    for _ in range(max_iter):
+        fk, r = _fb_residual(cfg, base, robot, target_link_indices, target_poses, ik_cfg, rest)
+
+        # Build Jacobian: (m, n+6) — joint cols first, then 6 base cols
+        J_rows = []
+        for link_idx, target_pose in zip(target_link_indices, target_poses):
+            J_joints = pose_jacobian(
+                cfg, robot, link_idx, target_pose,
+                ik_cfg.pos_weight, ik_cfg.ori_weight, base_pose=base,
+            ) * ik_cfg.pose_weight                                             # (6, n)
+            T_ee_local = se3_compose(se3_inverse(base), fk[link_idx])
+            Ad = adjoint_se3(se3_inverse(T_ee_local))                          # (6, 6)
+            J_base = w_vec.unsqueeze(1) * Ad * ik_cfg.pose_weight              # (6, 6)
+            J_rows.append(torch.cat([J_joints, J_base], dim=1))                # (6, n+6)
+
+        J_lim = torch.cat([
+            limit_jacobian(cfg, robot) * ik_cfg.limit_weight,
+            torch.zeros(2 * n, 6, dtype=cfg.dtype, device=cfg.device),
+        ], dim=1)
+        J_rest = torch.cat([
+            rest_jacobian(cfg, rest) * ik_cfg.rest_weight,
+            torch.zeros(n, 6, dtype=cfg.dtype, device=cfg.device),
+        ], dim=1)
+        J = torch.cat(J_rows + [J_lim, J_rest], dim=0)                        # (m, n+6)
+
+        JtJ = J.T @ J
+        Jtr = J.T @ r
+
+        for _ in range(reject):
+            A = JtJ + lam * torch.eye(n + 6, dtype=cfg.dtype, device=cfg.device)
+            delta = torch.linalg.solve(A, -Jtr)
+
+            cfg_new = (cfg + delta[:n]).clamp(lo, hi)
+            base_new = se3_compose(se3_exp(delta[n:]), base)
+            base_new = torch.cat([base_new[:3], base_new[3:7] / base_new[3:7].norm()])
+
+            _, r_new = _fb_residual(
+                cfg_new, base_new, robot, target_link_indices, target_poses, ik_cfg, rest
+            )
+            if r_new.norm() <= r.norm():
+                cfg, base = cfg_new, base_new
+                lam = max(lam / factor, 1e-7)
+                break
+            lam = min(lam * factor, 1e7)
+
+    return base.detach(), cfg.detach()
+
+
 def _run_floating_base_lm(
     robot: Robot,
     targets: dict[str, torch.Tensor],
@@ -67,6 +172,11 @@ def _run_floating_base_lm(
     max_iter: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Entry point called by solve_ik when initial_base_pose is not None."""
+    if ik_cfg.jacobian == "analytic":
+        return _run_floating_base_lm_analytic(
+            robot, targets, ik_cfg, initial_cfg, initial_base_pose, max_iter
+        )
+
     initial_base = initial_base_pose.clone().float()
     initial_cfg_t = (
         initial_cfg.clone().float()
