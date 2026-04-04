@@ -36,3 +36,17 @@ def se3_log(t: torch.Tensor) -> torch.Tensor:
 def se3_exp(tangent: torch.Tensor) -> torch.Tensor:
     """tangent: (..., 6) [tx, ty, tz, rx, ry, rz] -> (..., 7)."""
     return pp.se3(tangent).Exp().tensor()
+
+
+def se3_apply_base(base_pose: torch.Tensor, link_poses: torch.Tensor) -> torch.Tensor:
+    """Apply a base SE3 transform to all link poses.
+
+    Args:
+        base_pose: (..., 7) SE3 base transform [tx, ty, tz, qx, qy, qz, qw].
+        link_poses: (..., num_links, 7) link poses in robot frame.
+
+    Returns:
+        (..., num_links, 7) link poses in world frame.
+    """
+    base = pp.SE3(base_pose.unsqueeze(-2))    # (..., 1) SE3 LieTensor
+    return (base @ pp.SE3(link_poses)).tensor()  # broadcasts over num_links

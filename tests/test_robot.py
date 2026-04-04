@@ -58,3 +58,37 @@ def test_get_link_index_invalid():
     import pytest
     with pytest.raises(ValueError, match="not found"):
         robot.get_link_index("nonexistent_link")
+
+
+def test_forward_kinematics_with_base_pose_shape():
+    """FK with base_pose returns same shape as without."""
+    robot = _load_panda()
+    n = robot.joints.num_actuated_joints
+    cfg = torch.zeros(n)
+    base_pose = torch.tensor([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])  # translate x=1
+    poses_base = robot.forward_kinematics(cfg, base_pose=base_pose)
+    poses_orig = robot.forward_kinematics(cfg)
+    assert poses_base.shape == poses_orig.shape
+
+
+def test_forward_kinematics_base_pose_shifts_root():
+    """Root link pose equals base_pose when base_pose is provided."""
+    robot = _load_panda()
+    n = robot.joints.num_actuated_joints
+    cfg = torch.zeros(n)
+    base_pose = torch.tensor([1.0, 2.0, 3.0, 0.0, 0.0, 0.0, 1.0])
+    poses = robot.forward_kinematics(cfg, base_pose=base_pose)
+    root_pose = poses[robot._root_link_idx]
+    assert torch.allclose(root_pose, base_pose, atol=1e-5)
+
+
+def test_forward_kinematics_none_base_unchanged():
+    """base_pose=None is identical to omitting base_pose."""
+    robot = _load_panda()
+    n = robot.joints.num_actuated_joints
+    cfg = robot._default_cfg
+    assert torch.allclose(
+        robot.forward_kinematics(cfg, base_pose=None),
+        robot.forward_kinematics(cfg),
+        atol=1e-6,
+    )

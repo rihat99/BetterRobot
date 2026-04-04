@@ -5,7 +5,7 @@ from __future__ import annotations
 import torch
 import yourdfpy
 
-from ._lie_ops import se3_compose, se3_identity
+from ._lie_ops import se3_compose, se3_identity, se3_apply_base
 from ._urdf_parser import JointInfo, LinkInfo, RobotURDFParser
 
 
@@ -136,14 +136,19 @@ class Robot:
     def forward_kinematics(
         self,
         cfg: torch.Tensor,
+        base_pose: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Compute world poses of all links.
 
         Args:
             cfg: Shape (*batch, num_actuated_joints). Joint configuration.
+            base_pose: Shape (*batch, 7). Optional SE3 base transform
+                [tx, ty, tz, qx, qy, qz, qw]. When provided, all link poses
+                are expressed in the base frame's world coordinates.
+                Defaults to identity (robot root at world origin).
 
         Returns:
-            Shape (*batch, num_links, 7). SE3 poses (wxyz+xyz) for each link.
+            Shape (*batch, num_links, 7). SE3 poses for each link.
         """
         batch_shape = cfg.shape[:-1]
         device, dtype = cfg.device, cfg.dtype
@@ -182,9 +187,12 @@ class Robot:
             link_world[child_link] = T
 
         # Stack in link index order
-        return torch.stack(
+        result = torch.stack(
             [link_world[i] for i in range(self.links.num_links)], dim=-2
         )
+        if base_pose is not None:
+            result = se3_apply_base(base_pose, result)
+        return result
 
     def get_link_index(self, link_name: str) -> int:
         """Return the index of a link by name.
