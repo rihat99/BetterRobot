@@ -48,9 +48,9 @@ def main() -> None:
     base_frame = server.scene.add_frame("/base", show_axes=False)
     urdf_vis = viser.extras.ViserUrdf(server, urdf, root_node_name="/base")
 
-    # Warm start: default joint config + initial base pose
+    # Warm start: zero joint config (natural standing) + initial base pose
     base_pose = INITIAL_BASE_POSE.clone()
-    cfg = robot._default_cfg.clone()
+    cfg = torch.zeros(robot.joints.num_actuated_joints)
 
     # Get natural FK orientations at default config so handles start
     # aligned with the robot (avoids 180° orientation singularity)
