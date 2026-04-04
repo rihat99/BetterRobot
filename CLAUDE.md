@@ -116,4 +116,4 @@ fk0 = robot.forward_kinematics(cfg, base_pose=base_pose)  # get natural EE orien
 
 ## Tests
 
-Run with `uv run pytest tests/ -v`. All 24 tests must pass before any commit. Tests load the real Panda URDF via `robot_descriptions`.
+Run with `uv run pytest tests/ -v`. All 34 tests must pass before any commit. Tests load the real Panda URDF via `robot_descriptions`.
