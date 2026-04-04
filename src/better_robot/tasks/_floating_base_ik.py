@@ -12,17 +12,11 @@ from ..core._robot import Robot
 from ..core._lie_ops import se3_identity, se3_log, se3_compose, se3_inverse
 from ..costs._limits import limit_residual
 from ..costs._regularization import rest_residual
+from ._config import IKConfig
 
 
 class _FloatingBaseIKModule(nn.Module):
-    """LM-compatible module for whole-body IK with a floating base.
-
-    Optimizes two parameters simultaneously:
-    - self.base: pp.Parameter(pp.SE3) — base frame SE3 pose in world
-    - self.cfg:  nn.Parameter          — joint angles
-
-    The residual is: [pose_errors..., limit_violations, rest_deviation].
-    """
+    """LM-compatible module for whole-body IK with a floating base."""
 
     def __init__(
         self,
@@ -32,11 +26,7 @@ class _FloatingBaseIKModule(nn.Module):
         initial_base: torch.Tensor,
         initial_cfg: torch.Tensor,
         rest_cfg: torch.Tensor,
-        pose_weight: float,
-        limit_weight: float,
-        rest_weight: float,
-        pos_weight: float,
-        ori_weight: float,
+        ik_cfg: IKConfig,
     ) -> None:
         super().__init__()
         self.base = pp.Parameter(pp.SE3(initial_base.float()))
@@ -45,11 +35,7 @@ class _FloatingBaseIKModule(nn.Module):
         self._target_link_indices = target_link_indices
         self._target_poses = [tp.float() for tp in target_poses]
         self._rest_cfg = rest_cfg.float()
-        self._pose_weight = pose_weight
-        self._limit_weight = limit_weight
-        self._rest_weight = rest_weight
-        self._pos_weight = pos_weight
-        self._ori_weight = ori_weight
+        self._ik_cfg = ik_cfg
 
     def forward(self, _input: torch.Tensor) -> torch.Tensor:
         fk = self._robot.forward_kinematics(self.cfg, base_pose=self.base.tensor())
@@ -61,54 +47,27 @@ class _FloatingBaseIKModule(nn.Module):
             T_err = se3_compose(se3_inverse(target_pose), actual_pose)
             log_err = se3_log(T_err)  # (6,) [tx, ty, tz, rx, ry, rz]
             weighted = torch.cat([
-                log_err[:3] * self._pos_weight,
-                log_err[3:] * self._ori_weight,
-            ]) * self._pose_weight
+                log_err[:3] * self._ik_cfg.pos_weight,
+                log_err[3:] * self._ik_cfg.ori_weight,
+            ]) * self._ik_cfg.pose_weight
             residuals.append(weighted)
 
-        residuals.append(limit_residual(self.cfg, self._robot) * self._limit_weight)
-        residuals.append(rest_residual(self.cfg, self._rest_cfg) * self._rest_weight)
+        residuals.append(limit_residual(self.cfg, self._robot) * self._ik_cfg.limit_weight)
+        residuals.append(rest_residual(self.cfg, self._rest_cfg) * self._ik_cfg.rest_weight)
 
         return torch.cat(residuals)
 
 
-def solve_ik_floating_base(
+def _run_floating_base_lm(
     robot: Robot,
     targets: dict[str, torch.Tensor],
-    initial_base_pose: torch.Tensor | None = None,
-    initial_cfg: torch.Tensor | None = None,
-    weights: dict[str, float] | None = None,
-    max_iter: int = 100,
+    ik_cfg: IKConfig,
+    initial_cfg: torch.Tensor | None,
+    initial_base_pose: torch.Tensor,
+    max_iter: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Solve whole-body IK with a floating base.
-
-    Both joint angles and the robot base pose are optimized. Use this for
-    humanoids or mobile manipulators where the root can move freely.
-
-    Args:
-        robot: Robot instance.
-        targets: {link_name: (7,) SE3 target [tx, ty, tz, qx, qy, qz, qw]}.
-        initial_base_pose: (7,) SE3 initial base pose. Defaults to identity
-            (robot root at world origin).
-        initial_cfg: (n,) initial joint config. Defaults to robot._default_cfg.
-        weights: Cost weights. Keys: 'pose', 'limits', 'rest'.
-            Defaults: {'pose': 1.0, 'limits': 0.1, 'rest': 0.01}.
-        max_iter: Solver iterations.
-
-    Returns:
-        Tuple (base_pose, cfg):
-            base_pose: (7,) optimized SE3 base pose.
-            cfg: (num_actuated_joints,) optimized joint configuration.
-    """
-    w = {"pose": 1.0, "limits": 0.1, "rest": 0.01}
-    if weights:
-        w.update(weights)
-
-    initial_base = (
-        initial_base_pose.clone().float()
-        if initial_base_pose is not None
-        else se3_identity()
-    )
+    """Entry point called by solve_ik when initial_base_pose is not None."""
+    initial_base = initial_base_pose.clone().float()
     initial_cfg_t = (
         initial_cfg.clone().float()
         if initial_cfg is not None
@@ -129,11 +88,7 @@ def solve_ik_floating_base(
         initial_base=initial_base,
         initial_cfg=initial_cfg_t,
         rest_cfg=rest_cfg,
-        pose_weight=w["pose"],
-        limit_weight=w["limits"],
-        rest_weight=w["rest"],
-        pos_weight=1.0,
-        ori_weight=0.1,
+        ik_cfg=ik_cfg,
     )
 
     strategy = ppo_strategy.Adaptive(damping=1e-4)
@@ -143,14 +98,10 @@ def solve_ik_floating_base(
     for _ in range(max_iter):
         optimizer.step(input=dummy)
         with torch.no_grad():
-            # Hard joint limit enforcement (nn.Parameter — .data is safe here)
             module.cfg.data.clamp_(
                 lo.to(device=module.cfg.device),
                 hi.to(device=module.cfg.device),
             )
-            # Renormalize base quaternion to unit length.
-            # SE3 layout: [tx, ty, tz, qx, qy, qz, qw] — quaternion at indices 3:7.
-            # Use copy_ via .tensor() to stay within PyPose's expected access patterns.
             raw = module.base.tensor().clone()
             raw[3:7] = raw[3:7] / raw[3:7].norm()
             module.base.data.copy_(raw)

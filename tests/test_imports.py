@@ -6,7 +6,6 @@ def test_top_level_imports() -> None:
 
     assert hasattr(br, "Robot")
     assert hasattr(br, "solve_ik")
-    assert hasattr(br, "solve_ik_floating_base")
     assert hasattr(br, "solve_trajopt")
     assert hasattr(br, "retarget")
     assert hasattr(br, "collision")
