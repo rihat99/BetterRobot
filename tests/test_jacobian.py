@@ -67,6 +67,15 @@ def test_limit_jacobian_violated_lower(panda):
     assert torch.allclose(J[:n], torch.diag(torch.full((n,), -1.0)), atol=1e-6)
 
 
+def test_limit_jacobian_violated_upper(panda):
+    """Above upper limit: upper violation row has +1 on diagonal."""
+    cfg = panda.joints.upper_limits.clone() + 0.1  # above upper limit
+    J = limit_jacobian(cfg, panda)
+    n = panda.joints.num_actuated_joints
+    # Upper violation rows (bottom n): diagonal should be +1
+    assert torch.allclose(J[n:], torch.diag(torch.full((n,), 1.0)), atol=1e-6)
+
+
 def test_rest_jacobian_is_identity(panda):
     cfg = panda._default_cfg
     rest = panda._default_cfg.clone()
