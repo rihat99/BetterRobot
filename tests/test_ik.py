@@ -50,3 +50,32 @@ def test_solve_ik_with_custom_weights(panda):
         max_iter=30
     )
     assert result.shape == (panda.joints.num_actuated_joints,)
+
+def test_solve_ik_multi_shape(panda):
+    """solve_ik_multi returns (num_actuated_joints,) tensor."""
+    from better_robot.tasks._ik import solve_ik_multi
+    cfg = panda._default_cfg
+    fk = panda.forward_kinematics(cfg)
+    targets = {
+        "panda_link6": fk[panda.get_link_index("panda_link6")].detach(),
+        "panda_hand":  fk[panda.get_link_index("panda_hand")].detach(),
+    }
+    result = solve_ik_multi(panda, targets=targets, max_iter=5)
+    assert result.shape == (panda.joints.num_actuated_joints,)
+
+
+def test_solve_ik_multi_converges(panda):
+    """solve_ik_multi converges when targets are FK of default config."""
+    from better_robot.tasks._ik import solve_ik_multi
+    cfg = panda._default_cfg
+    fk = panda.forward_kinematics(cfg)
+    hand_idx = panda.get_link_index("panda_hand")
+    link6_idx = panda.get_link_index("panda_link6")
+    targets = {
+        "panda_link6": fk[link6_idx].detach(),
+        "panda_hand":  fk[hand_idx].detach(),
+    }
+    result = solve_ik_multi(panda, targets=targets, initial_cfg=cfg.clone(), max_iter=5)
+    fk_result = panda.forward_kinematics(result)
+    pos_err = (fk_result[hand_idx, :3] - fk[hand_idx, :3]).norm().item()
+    assert pos_err < 0.05, f"Position error too large: {pos_err}"
