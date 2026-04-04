@@ -15,6 +15,10 @@ Returns shape `(*batch, 6)` = `[pos_err*pos_weight, ori_err*ori_weight]`.
 
 **Weight defaults**: `pos_weight=1.0`, `ori_weight=0.1`. The low ori_weight is intentional — the Panda's default config has ~173° orientation from identity, which puts the SO3 log map near its singularity. Increasing ori_weight causes the optimizer to oscillate.
 
+**`base_pose` arg**: optional `(*batch, 7)` SE3 passthrough to `forward_kinematics`.
+Default `None` (fixed base, all existing callers unchanged). Always pass as keyword
+argument (`base_pose=...`) when constructing `functools.partial` bindings.
+
 ### `_limits.py` — `limit_residual`
 Returns `torch.clamp(lo - cfg, min=0)` and `torch.clamp(cfg - hi, min=0)` concatenated.
 

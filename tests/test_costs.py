@@ -72,6 +72,10 @@ def test_pose_residual_with_base_pose_zero_at_fk(panda):
     fk = panda.forward_kinematics(cfg, base_pose=base_pose)
     hand_idx = panda.get_link_index("panda_hand")
     target = fk[hand_idx].detach()
+    # With matching base_pose: residual should be near zero
     res = pose_residual(cfg, panda, hand_idx, target, base_pose=base_pose)
     assert res.shape == (6,)
     assert res.abs().max().item() < 1e-4
+    # Without base_pose: residual must be large (proves base_pose is actually forwarded)
+    res_no_base = pose_residual(cfg, panda, hand_idx, target)
+    assert res_no_base.abs().max().item() > 0.1
