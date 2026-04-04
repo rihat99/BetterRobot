@@ -11,6 +11,7 @@ Drag the coloured transform handles to move the targets.
 import argparse
 import time
 import torch
+import torch.profiler
 import viser
 import viser.extras
 from robot_descriptions.loaders.yourdfpy import load_robot_description
@@ -78,7 +79,6 @@ def main() -> None:
     print("Drag transform handles to set IK targets. Press Ctrl+C to quit.")
 
     if args.profile:
-        import torch.profiler
         with torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CPU]) as prof:
             for _ in range(10):
                 targets = {
