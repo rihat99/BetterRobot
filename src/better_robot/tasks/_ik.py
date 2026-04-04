@@ -10,6 +10,7 @@ from ..core._robot import Robot
 from ..costs._pose import pose_residual
 from ..costs._limits import limit_residual
 from ..costs._regularization import rest_residual
+from ..costs._jacobian import pose_jacobian, limit_jacobian, rest_jacobian
 from ..solvers._base import CostTerm, Problem
 from ..solvers import SOLVER_REGISTRY
 from ._config import IKConfig
@@ -82,12 +83,43 @@ def _solve_fixed(
         ),
     ]
 
+    jac_fn = None
+    if ik_cfg.jacobian == "analytic":
+        jac_fn = _build_fixed_jacobian_fn(robot, targets, ik_cfg, rest)
+
     problem = Problem(
         variables=initial,
         costs=costs,
         lower_bounds=robot.joints.lower_limits.clone(),
         upper_bounds=robot.joints.upper_limits.clone(),
+        jacobian_fn=jac_fn,
     )
     return SOLVER_REGISTRY["lm"]().solve(problem, max_iter=max_iter)
+
+
+def _build_fixed_jacobian_fn(
+    robot: Robot,
+    targets: dict[str, torch.Tensor],
+    ik_cfg: IKConfig,
+    rest: torch.Tensor,
+):
+    """Build analytical Jacobian for the full IK problem (fixed base)."""
+    target_specs = [
+        (robot.get_link_index(name), pose) for name, pose in targets.items()
+    ]
+
+    def jacobian_fn(cfg: torch.Tensor) -> torch.Tensor:
+        rows = []
+        for link_idx, target_pose in target_specs:
+            J = pose_jacobian(
+                cfg, robot, link_idx, target_pose,
+                ik_cfg.pos_weight, ik_cfg.ori_weight,
+            )
+            rows.append(J * ik_cfg.pose_weight)
+        rows.append(limit_jacobian(cfg, robot) * ik_cfg.limit_weight)
+        rows.append(rest_jacobian(cfg, rest) * ik_cfg.rest_weight)
+        return torch.cat(rows, dim=0)
+
+    return jacobian_fn
 
 

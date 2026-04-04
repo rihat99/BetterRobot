@@ -136,3 +136,45 @@ def test_solve_ik_floating_base_base_moves(panda):
         max_iter=30,
     )
     assert base_pose[0].abs().item() > 0.1, f"Base did not translate: {base_pose}"
+
+
+# --- Analytic Jacobian IK tests ---
+
+def test_solve_ik_analytic_converges(panda):
+    """IKConfig(jacobian='analytic') gives correct solution for a reachable target."""
+    cfg0 = panda._default_cfg
+    hand_idx = panda.get_link_index("panda_hand")
+    target = panda.forward_kinematics(cfg0)[hand_idx].detach()
+
+    cfg_analytic = solve_ik(
+        panda,
+        targets={"panda_hand": target},
+        cfg=IKConfig(jacobian="analytic"),
+        initial_cfg=cfg0.clone(),
+        max_iter=5,
+    )
+    fk = panda.forward_kinematics(cfg_analytic)
+    pos_err = (fk[hand_idx, :3] - target[:3]).norm().item()
+    assert pos_err < 0.05, f"Analytic IK pos_err={pos_err:.4f}"
+
+
+def test_solve_ik_analytic_matches_autodiff(panda):
+    """Analytic and autodiff IK reach solutions within 1 cm of each other."""
+    cfg0 = panda._default_cfg
+    hand_idx = panda.get_link_index("panda_hand")
+    target = panda.forward_kinematics(cfg0)[hand_idx].detach().clone()
+    target[0] += 0.05
+
+    cfg_autodiff = solve_ik(
+        panda, targets={"panda_hand": target},
+        cfg=IKConfig(jacobian="autodiff"), initial_cfg=cfg0.clone(), max_iter=20,
+    )
+    cfg_analytic = solve_ik(
+        panda, targets={"panda_hand": target},
+        cfg=IKConfig(jacobian="analytic"), initial_cfg=cfg0.clone(), max_iter=20,
+    )
+
+    fk_ad = panda.forward_kinematics(cfg_autodiff)
+    fk_an = panda.forward_kinematics(cfg_analytic)
+    err_diff = (fk_ad[hand_idx, :3] - fk_an[hand_idx, :3]).norm().item()
+    assert err_diff < 0.01, f"Solutions differ by {err_diff:.4f} m"

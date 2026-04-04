@@ -1,6 +1,7 @@
 """IK solver configuration."""
 
 from dataclasses import dataclass
+from typing import Literal
 
 
 @dataclass
@@ -16,3 +17,9 @@ class IKConfig:
     pose_weight: float = 1.0   # overall pose cost scale
     limit_weight: float = 0.1  # soft joint limit penalty
     rest_weight: float = 0.01  # pull toward robot._default_cfg
+    jacobian: Literal["autodiff", "analytic"] = "autodiff"
+    """Jacobian computation mode.
+
+    "autodiff": torch.func.jacrev (default, works for all cost terms).
+    "analytic": geometric Jacobian (faster; fixed-base and floating-base supported).
+    """
