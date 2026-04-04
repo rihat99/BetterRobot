@@ -81,3 +81,30 @@ def test_solve_ik_multi_converges(panda):
     pos_err_link6 = (fk_result[link6_idx, :3] - fk[link6_idx, :3]).norm().item()
     assert pos_err_hand < 0.05, f"Hand position error too large: {pos_err_hand}"
     assert pos_err_link6 < 0.05, f"Link6 position error too large: {pos_err_link6}"
+
+
+def test_solve_ik_floating_base_return_shapes(panda):
+    """solve_ik_floating_base returns (base(7), cfg(n)) with correct shapes."""
+    from better_robot.tasks._floating_base_ik import solve_ik_floating_base
+    targets = {"panda_hand": panda.forward_kinematics(panda._default_cfg)[panda.get_link_index("panda_hand")].detach()}
+    base_pose, cfg = solve_ik_floating_base(panda, targets=targets, max_iter=3)
+    assert base_pose.shape == (7,)
+    assert cfg.shape == (panda.joints.num_actuated_joints,)
+
+
+def test_solve_ik_floating_base_converges(panda):
+    """solve_ik_floating_base converges when target is FK of default config."""
+    from better_robot.tasks._floating_base_ik import solve_ik_floating_base
+    cfg0 = panda._default_cfg
+    hand_idx = panda.get_link_index("panda_hand")
+    fk0 = panda.forward_kinematics(cfg0)
+    target = fk0[hand_idx].detach()
+    base_pose, cfg = solve_ik_floating_base(
+        panda,
+        targets={"panda_hand": target},
+        initial_cfg=cfg0.clone(),
+        max_iter=5,
+    )
+    fk_result = panda.forward_kinematics(cfg, base_pose=base_pose)
+    pos_err = (fk_result[hand_idx, :3] - target[:3]).norm().item()
+    assert pos_err < 0.05, f"Position error: {pos_err}"
