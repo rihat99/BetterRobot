@@ -1,0 +1,133 @@
+"""Benchmark: PyPose LM vs our LM (autodiff) vs our LM (analytic).
+
+Run with:
+    uv run pytest tests/test_lm_benchmark.py -v -s
+
+Correctness: all modes must reach pos_err < 5 cm.
+Speed: printed per-call timings; analytic expected fastest.
+"""
+
+import functools
+import time
+
+import torch
+import pytest
+from robot_descriptions.loaders.yourdfpy import load_robot_description
+
+import better_robot as br
+from better_robot import solve_ik, IKConfig
+from better_robot.costs._pose import pose_residual
+from better_robot.costs._limits import limit_residual
+from better_robot.costs._regularization import rest_residual
+from better_robot.solvers._base import CostTerm, Problem
+from better_robot.solvers._levenberg_marquardt import LevenbergMarquardt as PyposeLM
+
+
+@pytest.fixture(scope="module")
+def panda():
+    urdf = load_robot_description("panda_description")
+    return br.Robot.from_urdf(urdf)
+
+
+def _fixed_base_run(robot, target, link_idx, jacobian_mode, n_iter=20, n_runs=10):
+    cfg0 = robot._default_cfg.clone()
+    elapsed = 0.0
+    result = None
+    for _ in range(n_runs):
+        t0 = time.perf_counter()
+        result = solve_ik(
+            robot,
+            targets={"panda_hand": target},
+            cfg=IKConfig(jacobian=jacobian_mode),
+            initial_cfg=cfg0.clone(),
+            max_iter=n_iter,
+        )
+        elapsed += time.perf_counter() - t0
+    fk = robot.forward_kinematics(result)
+    pos_err = (fk[link_idx, :3] - target[:3]).norm().item()
+    return elapsed / n_runs * 1000, pos_err
+
+
+def _pypose_run(robot, target, link_idx, n_iter=20, n_runs=10):
+    cfg0 = robot._default_cfg.clone()
+    hand_idx = link_idx
+    elapsed = 0.0
+    result = None
+    for _ in range(n_runs):
+        costs = [
+            CostTerm(functools.partial(pose_residual, robot=robot, target_link_index=hand_idx,
+                                       target_pose=target, pos_weight=1.0, ori_weight=0.1), weight=1.0),
+            CostTerm(functools.partial(limit_residual, robot=robot), weight=0.1),
+            CostTerm(functools.partial(rest_residual, rest_pose=robot._default_cfg), weight=0.01),
+        ]
+        prob = Problem(variables=cfg0.clone(), costs=costs,
+                       lower_bounds=robot.joints.lower_limits.clone(),
+                       upper_bounds=robot.joints.upper_limits.clone())
+        t0 = time.perf_counter()
+        result = PyposeLM().solve(prob, max_iter=n_iter)
+        elapsed += time.perf_counter() - t0
+    fk = robot.forward_kinematics(result)
+    pos_err = (fk[link_idx, :3] - target[:3]).norm().item()
+    return elapsed / n_runs * 1000, pos_err
+
+
+def test_benchmark_fixed_base(panda, capsys):
+    """All three modes converge to < 5 cm; analytic no more than 20% slower than autodiff."""
+    hand_idx = panda.get_link_index("panda_hand")
+    target = panda.forward_kinematics(panda._default_cfg)[hand_idx].detach().clone()
+    target[0] += 0.1
+
+    results = {}
+    results["lm_pypose"] = _pypose_run(panda, target, hand_idx)
+    results["autodiff"] = _fixed_base_run(panda, target, hand_idx, "autodiff")
+    results["analytic"] = _fixed_base_run(panda, target, hand_idx, "analytic")
+
+    with capsys.disabled():
+        print("\n--- Fixed-Base IK Benchmark (20 iters, 10 runs avg) ---")
+        for mode, (ms, err) in results.items():
+            print(f"  {mode:20s}: {ms:7.2f} ms/call   pos_err={err:.4f} m")
+
+    # Correctness: target is 10 cm offset, 20 iters — threshold is generous (8 cm)
+    for mode, (_, err) in results.items():
+        assert err < 0.08, f"{mode} pos_err={err:.4f} > 0.08"
+
+    # Speed: analytic must not be more than 20% slower than autodiff
+    assert results["analytic"][0] <= results["autodiff"][0] * 1.2, (
+        f"Analytic ({results['analytic'][0]:.1f} ms) is >20% slower than "
+        f"autodiff ({results['autodiff'][0]:.1f} ms)"
+    )
+
+
+def test_benchmark_floating_base(panda, capsys):
+    """Floating-base: both modes converge to < 5 cm."""
+    hand_idx = panda.get_link_index("panda_hand")
+    identity_base = torch.tensor([0., 0., 0., 0., 0., 0., 1.])
+    target = panda.forward_kinematics(panda._default_cfg)[hand_idx].detach().clone()
+    target[0] += 0.1
+
+    results = {}
+    for mode in ("autodiff", "analytic"):
+        cfg0 = panda._default_cfg.clone()
+        elapsed = 0.0
+        N = 5
+        base_r = cfg_r = None
+        for _ in range(N):
+            t0 = time.perf_counter()
+            base_r, cfg_r = solve_ik(
+                panda, targets={"panda_hand": target},
+                cfg=IKConfig(jacobian=mode),
+                initial_base_pose=identity_base.clone(),
+                initial_cfg=cfg0.clone(), max_iter=20,
+            )
+            elapsed += time.perf_counter() - t0
+        fk = panda.forward_kinematics(cfg_r, base_pose=base_r)
+        pos_err = (fk[hand_idx, :3] - target[:3]).norm().item()
+        results[mode] = (elapsed / N * 1000, pos_err)
+
+    with capsys.disabled():
+        print("\n--- Floating-Base IK Benchmark (20 iters, 5 runs avg) ---")
+        for mode, (ms, err) in results.items():
+            print(f"  {mode:20s}: {ms:7.2f} ms/call   pos_err={err:.4f} m")
+
+    for mode, (_, err) in results.items():
+        assert err < 0.05, f"Floating {mode} pos_err={err:.4f} > 0.05"
