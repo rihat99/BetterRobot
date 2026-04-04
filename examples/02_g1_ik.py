@@ -80,7 +80,7 @@ def main() -> None:
 
     if args.profile:
         with torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CPU]) as prof:
-            for _ in range(10):
+            for _ in range(1):
                 targets = {
                     link_name: wxyz_pos_to_se3(handle.wxyz, handle.position)
                     for link_name, handle in target_controls

@@ -15,7 +15,7 @@ import pypose as pp
 import torch
 
 from ..core._robot import Robot
-from ..core._lie_ops import se3_compose, adjoint_se3
+from ..core._lie_ops import se3_compose
 
 
 def pose_jacobian(
@@ -68,17 +68,18 @@ def pose_jacobian(
 
         jtype = robot._fk_joint_types[j]
         if jtype in ("revolute", "continuous"):
-            # Body Jacobian: velocity of EE origin expressed in EE frame
-            # v_body = R_ee^T @ (omega_world × (p_ee - p_j))
-            # w_body = R_ee^T @ omega_world
+            # Body-frame Jacobian: pose_residual = log(T_target^{-1} @ T_actual) is a
+            # RIGHT log error, so its Jacobian at zero error is the body (EE) frame screw.
+            # J_body[:3] = R_ee^T @ (ω × (p_ee - p_j))  (EE linear)
+            # J_body[3:]  = R_ee^T @ ω                   (EE angular)
             lin_world = torch.linalg.cross(axis_world, p_ee - p_j)
-            v_body = R_ee.T @ lin_world
-            w_body = R_ee.T @ axis_world
-            J[:, cfg_idx] = torch.cat([v_body * pos_weight, w_body * ori_weight])
-        else:  # prismatic
-            v_body = R_ee.T @ axis_world
             J[:, cfg_idx] = torch.cat([
-                v_body * pos_weight,
+                R_ee.T @ lin_world * pos_weight,
+                R_ee.T @ axis_world * ori_weight,
+            ])
+        else:  # prismatic
+            J[:, cfg_idx] = torch.cat([
+                R_ee.T @ axis_world * pos_weight,
                 torch.zeros(3, dtype=dtype, device=device),
             ])
 

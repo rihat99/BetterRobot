@@ -24,7 +24,7 @@ def test_pose_jacobian_shape(panda):
 
 def test_pose_jacobian_finite_diff(panda):
     """Analytical Jacobian matches central finite differences."""
-    eps = 1e-3
+    eps = 1e-3  # float32: eps < 1e-4 causes catastrophic cancellation in se3_log
     cfg = panda._default_cfg.clone()
     link_idx = panda.get_link_index("panda_hand")
     target = panda.forward_kinematics(cfg)[link_idx].detach()
