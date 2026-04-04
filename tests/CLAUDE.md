@@ -5,7 +5,7 @@ All tests use real robot data (Panda URDF via `robot_descriptions`). No mocking 
 ## Running
 
 ```bash
-uv run pytest tests/ -v          # all 24 tests
+uv run pytest tests/ -v          # all 34 tests
 uv run pytest tests/test_ik.py   # IK tests only
 ```
 

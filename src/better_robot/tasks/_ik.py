@@ -18,7 +18,7 @@ from ._config import IKConfig
 def solve_ik(
     robot: Robot,
     targets: dict[str, torch.Tensor],
-    cfg: IKConfig = IKConfig(),
+    cfg: IKConfig | None = None,
     initial_cfg: torch.Tensor | None = None,
     initial_base_pose: torch.Tensor | None = None,
     max_iter: int = 100,
@@ -38,6 +38,8 @@ def solve_ik(
         Fixed base: (num_actuated_joints,) optimized joint config tensor.
         Floating base: tuple (base_pose (7,), cfg (num_actuated_joints,)).
     """
+    if cfg is None:
+        cfg = IKConfig()
     if initial_base_pose is not None:
         from ._floating_base_ik import _run_floating_base_lm
         return _run_floating_base_lm(robot, targets, cfg, initial_cfg, initial_base_pose, max_iter)
