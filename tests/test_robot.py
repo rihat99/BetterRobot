@@ -1,5 +1,6 @@
 """Tests for Robot and forward kinematics."""
 
+import pytest
 import torch
 from better_robot import Robot
 from robot_descriptions.loaders.yourdfpy import load_robot_description
@@ -55,7 +56,6 @@ def test_get_link_index():
 def test_get_link_index_invalid():
     """get_link_index should raise ValueError for unknown link."""
     robot = _load_panda()
-    import pytest
     with pytest.raises(ValueError, match="not found"):
         robot.get_link_index("nonexistent_link")
 
@@ -96,9 +96,6 @@ def test_forward_kinematics_none_base_unchanged():
         robot.forward_kinematics(cfg),
         atol=1e-6,
     )
-
-
-import pytest
 
 
 @pytest.fixture(scope="session")

@@ -232,7 +232,10 @@ class Robot:
         current = link_idx
         while current != self._root_link_idx:
             if current not in child_to_joint:
-                break
+                raise ValueError(
+                    f"Link index {link_idx} is not reachable from root "
+                    f"(stuck at link {current}). Possible orphaned link."
+                )
             j = child_to_joint[current]
             if self._fk_cfg_indices[j] >= 0:   # actuated joints only
                 chain.append(j)
