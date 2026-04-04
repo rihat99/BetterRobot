@@ -108,3 +108,19 @@ def test_solve_ik_floating_base_converges(panda):
     fk_result = panda.forward_kinematics(cfg, base_pose=base_pose)
     pos_err = (fk_result[hand_idx, :3] - target[:3]).norm().item()
     assert pos_err < 0.05, f"Position error: {pos_err}"
+
+
+def test_solve_ik_floating_base_base_moves(panda):
+    """Base pose changes when target requires the base to translate."""
+    from better_robot.tasks._floating_base_ik import solve_ik_floating_base
+    cfg0 = panda._default_cfg
+    fk0 = panda.forward_kinematics(cfg0)
+    hand_idx = panda.get_link_index("panda_hand")
+    # Shift target 1 m in X — only reachable by moving the base
+    target = fk0[hand_idx].detach().clone()
+    target[0] += 1.0
+    base_pose, cfg = solve_ik_floating_base(
+        panda, targets={"panda_hand": target}, max_iter=30
+    )
+    # Base must have translated significantly in X
+    assert base_pose[0].abs().item() > 0.1, f"Base did not translate: base_pose={base_pose}"

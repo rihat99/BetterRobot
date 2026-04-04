@@ -57,7 +57,7 @@ class _FloatingBaseIKModule(nn.Module):
         residuals = []
 
         for link_idx, target_pose in zip(self._target_link_indices, self._target_poses):
-            actual_pose = fk[link_idx]
+            actual_pose = fk[..., link_idx, :]
             T_err = se3_compose(se3_inverse(target_pose), actual_pose)
             log_err = se3_log(T_err)  # (6,) [tx, ty, tz, rx, ry, rz]
             weighted = torch.cat([
@@ -143,13 +143,16 @@ def solve_ik_floating_base(
     for _ in range(max_iter):
         optimizer.step(input=dummy)
         with torch.no_grad():
-            # Hard joint limit enforcement
+            # Hard joint limit enforcement (nn.Parameter — .data is safe here)
             module.cfg.data.clamp_(
                 lo.to(device=module.cfg.device),
                 hi.to(device=module.cfg.device),
             )
-            # Keep base quaternion unit-norm (indices 3:7 are qx,qy,qz,qw)
-            q = module.base.data[3:7]
-            module.base.data[3:7] = q / q.norm()
+            # Renormalize base quaternion to unit length.
+            # SE3 layout: [tx, ty, tz, qx, qy, qz, qw] — quaternion at indices 3:7.
+            # Use copy_ via .tensor() to stay within PyPose's expected access patterns.
+            raw = module.base.tensor().clone()
+            raw[3:7] = raw[3:7] / raw[3:7].norm()
+            module.base.data.copy_(raw)
 
     return module.base.tensor().detach(), module.cfg.detach()
