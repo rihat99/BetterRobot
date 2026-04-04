@@ -14,6 +14,13 @@ def test_top_level_imports() -> None:
     assert hasattr(br, "solvers")
     assert hasattr(br, "costs")
     assert hasattr(br, "viewer")
+    from better_robot import IKConfig
+    cfg = IKConfig()
+    assert cfg.pos_weight == 1.0
+    assert cfg.ori_weight == 0.1
+    assert cfg.pose_weight == 1.0
+    assert cfg.limit_weight == 0.1
+    assert cfg.rest_weight == 0.01
 
 
 def test_collision_imports() -> None:
