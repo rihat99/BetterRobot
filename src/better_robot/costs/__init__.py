@@ -20,6 +20,11 @@ from ._collision import (
     world_collision_residual as world_collision_residual,
 )
 from ._manipulability import manipulability_residual as manipulability_residual
+from ._jacobian import (
+    pose_jacobian as pose_jacobian,
+    limit_jacobian as limit_jacobian,
+    rest_jacobian as rest_jacobian,
+)
 
 __all__ = [
     "pose_residual",
@@ -32,4 +37,7 @@ __all__ = [
     "self_collision_residual",
     "world_collision_residual",
     "manipulability_residual",
+    "pose_jacobian",
+    "limit_jacobian",
+    "rest_jacobian",
 ]
