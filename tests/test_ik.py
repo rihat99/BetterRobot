@@ -1,107 +1,118 @@
+"""Tests for the unified solve_ik API."""
+
 import torch
 import pytest
 from robot_descriptions.loaders.yourdfpy import load_robot_description
-from better_robot import Robot, solve_ik
+from better_robot import Robot, solve_ik, IKConfig
+
 
 @pytest.fixture(scope="module")
 def panda():
     urdf = load_robot_description("panda_description")
     return Robot.from_urdf(urdf)
 
+
+# --- Fixed-base tests ---
+
 def test_solve_ik_returns_correct_shape(panda):
-    target = torch.tensor([0.3, 0.0, 0.5, 0., 0., 0., 1.])  # some target pose
-    result = solve_ik(panda, target_link="panda_hand", target_pose=target, max_iter=30)
+    target = torch.tensor([0.3, 0.0, 0.5, 0., 0., 0., 1.])
+    result = solve_ik(panda, targets={"panda_hand": target}, max_iter=30)
     assert result.shape == (panda.joints.num_actuated_joints,)
+
 
 def test_solve_ik_respects_joint_limits(panda):
     target = torch.tensor([0.3, 0.0, 0.5, 0., 0., 0., 1.])
-    result = solve_ik(panda, target_link="panda_hand", target_pose=target, max_iter=50)
+    result = solve_ik(panda, targets={"panda_hand": target}, max_iter=50)
     lo = panda.joints.lower_limits
     hi = panda.joints.upper_limits
-    # Should be within limits (with some numerical tolerance)
     assert (result >= lo - 0.1).all(), f"Below lower limits: {result}"
     assert (result <= hi + 0.1).all(), f"Above upper limits: {result}"
 
+
 def test_solve_ik_converges_to_reachable_pose(panda):
-    """When target is reachable (FK of default config), IK should return near-zero pose error."""
+    """Target is FK of default config — guaranteed reachable, should converge in few iters."""
     cfg_default = panda._default_cfg
     fk = panda.forward_kinematics(cfg_default)
     hand_idx = panda.get_link_index("panda_hand")
     target = fk[hand_idx].detach()
 
     result = solve_ik(
-        panda, target_link="panda_hand", target_pose=target,
-        initial_cfg=cfg_default.clone(), max_iter=5  # should need few iterations
+        panda,
+        targets={"panda_hand": target},
+        initial_cfg=cfg_default.clone(),
+        max_iter=5,
     )
-
-    # Check that resulting config gives close FK to target
     fk_result = panda.forward_kinematics(result)
-    actual = fk_result[hand_idx]
-
-    # Position error should be small
-    pos_error = (actual[:3] - target[:3]).norm().item()
+    pos_error = (fk_result[hand_idx, :3] - target[:3]).norm().item()
     assert pos_error < 0.05, f"Position error too large: {pos_error}"
 
-def test_solve_ik_with_custom_weights(panda):
+
+def test_solve_ik_with_custom_config(panda):
     target = torch.tensor([0.4, 0.0, 0.4, 0., 0., 0., 1.])
     result = solve_ik(
-        panda, target_link="panda_hand", target_pose=target,
-        weights={"pose": 2.0, "limits": 0.5, "rest": 0.001},
-        max_iter=30
+        panda,
+        targets={"panda_hand": target},
+        cfg=IKConfig(pose_weight=2.0, limit_weight=0.5, rest_weight=0.001),
+        max_iter=30,
     )
     assert result.shape == (panda.joints.num_actuated_joints,)
 
-def test_solve_ik_multi_shape(panda):
-    """solve_ik_multi returns (num_actuated_joints,) tensor."""
-    from better_robot.tasks._ik import solve_ik_multi
+
+def test_solve_ik_multi_target_shape(panda):
+    """Multi-target is just solve_ik with multiple keys in targets dict."""
     cfg = panda._default_cfg
     fk = panda.forward_kinematics(cfg)
     targets = {
         "panda_link6": fk[panda.get_link_index("panda_link6")].detach(),
-        "panda_hand":  fk[panda.get_link_index("panda_hand")].detach(),
+        "panda_hand": fk[panda.get_link_index("panda_hand")].detach(),
     }
-    result = solve_ik_multi(panda, targets=targets, max_iter=5)
+    result = solve_ik(panda, targets=targets, max_iter=5)
     assert result.shape == (panda.joints.num_actuated_joints,)
 
 
-def test_solve_ik_multi_converges(panda):
-    """solve_ik_multi converges when targets are FK of default config."""
-    from better_robot.tasks._ik import solve_ik_multi
+def test_solve_ik_multi_target_converges(panda):
     cfg = panda._default_cfg
     fk = panda.forward_kinematics(cfg)
     hand_idx = panda.get_link_index("panda_hand")
     link6_idx = panda.get_link_index("panda_link6")
     targets = {
         "panda_link6": fk[link6_idx].detach(),
-        "panda_hand":  fk[hand_idx].detach(),
+        "panda_hand": fk[hand_idx].detach(),
     }
-    result = solve_ik_multi(panda, targets=targets, initial_cfg=cfg.clone(), max_iter=5)
+    result = solve_ik(panda, targets=targets, initial_cfg=cfg.clone(), max_iter=5)
     fk_result = panda.forward_kinematics(result)
-    pos_err_hand = (fk_result[hand_idx, :3] - fk[hand_idx, :3]).norm().item()
-    pos_err_link6 = (fk_result[link6_idx, :3] - fk[link6_idx, :3]).norm().item()
-    assert pos_err_hand < 0.05, f"Hand position error too large: {pos_err_hand}"
-    assert pos_err_link6 < 0.05, f"Link6 position error too large: {pos_err_link6}"
+    assert (fk_result[hand_idx, :3] - fk[hand_idx, :3]).norm().item() < 0.05
+    assert (fk_result[link6_idx, :3] - fk[link6_idx, :3]).norm().item() < 0.05
 
+
+# --- Floating-base tests ---
 
 def test_solve_ik_floating_base_return_shapes(panda):
-    """solve_ik_floating_base returns (base(7), cfg(n)) with correct shapes."""
-    from better_robot.tasks._floating_base_ik import solve_ik_floating_base
-    targets = {"panda_hand": panda.forward_kinematics(panda._default_cfg)[panda.get_link_index("panda_hand")].detach()}
-    base_pose, cfg = solve_ik_floating_base(panda, targets=targets, max_iter=3)
+    """Floating-base solve_ik returns (base_pose(7), cfg(n)) tuple."""
+    identity_base = torch.tensor([0., 0., 0., 0., 0., 0., 1.])
+    hand_idx = panda.get_link_index("panda_hand")
+    fk = panda.forward_kinematics(panda._default_cfg)
+    targets = {"panda_hand": fk[hand_idx].detach()}
+
+    base_pose, cfg = solve_ik(
+        panda, targets=targets, initial_base_pose=identity_base, max_iter=3
+    )
     assert base_pose.shape == (7,)
     assert cfg.shape == (panda.joints.num_actuated_joints,)
 
 
 def test_solve_ik_floating_base_converges(panda):
-    """solve_ik_floating_base converges when target is FK of default config."""
-    from better_robot.tasks._floating_base_ik import solve_ik_floating_base
+    """Target is FK of default config at identity base — should converge quickly."""
     cfg0 = panda._default_cfg
     hand_idx = panda.get_link_index("panda_hand")
     fk0 = panda.forward_kinematics(cfg0)
     target = fk0[hand_idx].detach()
-    base_pose, cfg = solve_ik_floating_base(
+    identity_base = torch.tensor([0., 0., 0., 0., 0., 0., 1.])
+
+    base_pose, cfg = solve_ik(
         panda,
         targets={"panda_hand": target},
+        initial_base_pose=identity_base,
         initial_cfg=cfg0.clone(),
         max_iter=5,
     )
@@ -111,16 +122,17 @@ def test_solve_ik_floating_base_converges(panda):
 
 
 def test_solve_ik_floating_base_base_moves(panda):
-    """Base pose changes when target requires the base to translate."""
-    from better_robot.tasks._floating_base_ik import solve_ik_floating_base
+    """Target 1 m in X from default FK — only reachable by translating the base."""
     cfg0 = panda._default_cfg
     fk0 = panda.forward_kinematics(cfg0)
     hand_idx = panda.get_link_index("panda_hand")
-    # Shift target 1 m in X — only reachable by moving the base
     target = fk0[hand_idx].detach().clone()
     target[0] += 1.0
-    base_pose, cfg = solve_ik_floating_base(
-        panda, targets={"panda_hand": target}, max_iter=30
+    identity_base = torch.tensor([0., 0., 0., 0., 0., 0., 1.])
+
+    base_pose, _ = solve_ik(
+        panda, targets={"panda_hand": target},
+        initial_base_pose=identity_base,
+        max_iter=30,
     )
-    # Base must have translated significantly in X
-    assert base_pose[0].abs().item() > 0.1, f"Base did not translate: base_pose={base_pose}"
+    assert base_pose[0].abs().item() > 0.1, f"Base did not translate: {base_pose}"

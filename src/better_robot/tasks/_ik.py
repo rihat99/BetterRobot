@@ -1,119 +1,56 @@
-"""Inverse kinematics task."""
+"""Inverse kinematics — unified fixed-base and floating-base solver."""
 
 from __future__ import annotations
 
 import functools
-from typing import Literal
 
 import torch
 
 from ..core._robot import Robot
-from ..collision._robot_collision import RobotCollision
-from ..collision._geometry import CollGeom
 from ..costs._pose import pose_residual
 from ..costs._limits import limit_residual
 from ..costs._regularization import rest_residual
 from ..solvers._base import CostTerm, Problem
 from ..solvers import SOLVER_REGISTRY
+from ._config import IKConfig
 
 
 def solve_ik(
     robot: Robot,
-    target_link: str,
-    target_pose: torch.Tensor,
-    solver: Literal["lm", "gn", "adam", "lbfgs"] = "lm",
-    robot_coll: RobotCollision | None = None,
-    world_coll: list[CollGeom] | None = None,
-    weights: dict[str, float] | None = None,
-    max_iter: int = 100,
+    targets: dict[str, torch.Tensor],
+    cfg: IKConfig = IKConfig(),
     initial_cfg: torch.Tensor | None = None,
-) -> torch.Tensor:
-    """Solve inverse kinematics for a single end-effector target.
+    initial_base_pose: torch.Tensor | None = None,
+    max_iter: int = 100,
+) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+    """Solve inverse kinematics for one or more end-effector targets.
 
     Args:
         robot: Robot instance.
-        target_link: Name of the target link (e.g. 'panda_hand').
-        target_pose: Shape (7,). Target SE3 pose as wxyz+xyz.
-        solver: Which solver to use. Default 'lm'.
-        robot_coll: Optional robot collision model for collision avoidance.
-        world_coll: Optional list of world collision geometries.
-        weights: Cost weights. Keys: 'pose', 'limits', 'rest', 'collision'.
-            Defaults: {'pose': 1.0, 'limits': 0.1, 'rest': 0.01}.
-        max_iter: Maximum solver iterations.
-        initial_cfg: Shape (num_actuated_joints,). Starting config.
-            Defaults to robot's default joint config.
+        targets: {link_name: (7,) SE3 target [tx, ty, tz, qx, qy, qz, qw]}.
+        cfg: IK configuration (weights, position/orientation balance).
+        initial_cfg: (n,) starting joint config. Defaults to robot._default_cfg.
+        initial_base_pose: (7,) SE3 initial base pose. When provided, the base
+            is also optimized (floating-base mode). Default None = fixed base.
+        max_iter: Solver iterations.
 
     Returns:
-        Shape (num_actuated_joints,). Optimized joint configuration.
+        Fixed base: (num_actuated_joints,) optimized joint config tensor.
+        Floating base: tuple (base_pose (7,), cfg (num_actuated_joints,)).
     """
-    w = {"pose": 1.0, "limits": 0.1, "rest": 0.01}
-    if weights:
-        w.update(weights)
-
-    target_link_index = robot.get_link_index(target_link)
-    initial = initial_cfg.clone() if initial_cfg is not None else robot._default_cfg.clone()
-    rest = robot._default_cfg.clone()
-
-    costs = [
-        CostTerm(
-            residual_fn=functools.partial(
-                pose_residual,
-                robot=robot,
-                target_link_index=target_link_index,
-                target_pose=target_pose,
-                pos_weight=1.0,
-                ori_weight=0.1,
-            ),
-            weight=w["pose"],
-        ),
-        CostTerm(
-            residual_fn=functools.partial(limit_residual, robot=robot),
-            weight=w["limits"],
-        ),
-        CostTerm(
-            residual_fn=functools.partial(rest_residual, rest_pose=rest),
-            weight=w["rest"],
-        ),
-    ]
-
-    problem = Problem(
-        variables=initial,
-        costs=costs,
-        lower_bounds=robot.joints.lower_limits.clone(),
-        upper_bounds=robot.joints.upper_limits.clone(),
-    )
-    solver_cls = SOLVER_REGISTRY[solver]
-    return solver_cls().solve(problem, max_iter=max_iter)
+    if initial_base_pose is not None:
+        from ._floating_base_ik import _run_floating_base_lm
+        return _run_floating_base_lm(robot, targets, cfg, initial_cfg, initial_base_pose, max_iter)
+    return _solve_fixed(robot, targets, cfg, initial_cfg, max_iter)
 
 
-def solve_ik_multi(
+def _solve_fixed(
     robot: Robot,
     targets: dict[str, torch.Tensor],
-    weights: dict[str, float] | None = None,
-    max_iter: int = 100,
-    initial_cfg: torch.Tensor | None = None,
+    ik_cfg: IKConfig,
+    initial_cfg: torch.Tensor | None,
+    max_iter: int,
 ) -> torch.Tensor:
-    """Solve IK for multiple end-effector targets simultaneously (fixed base).
-
-    Args:
-        robot: Robot instance.
-        targets: {link_name: (7,) SE3 target pose [tx, ty, tz, qx, qy, qz, qw]}.
-        weights: Cost weights. Keys: 'pose', 'limits', 'rest'.
-            Defaults: {'pose': 1.0, 'limits': 0.1, 'rest': 0.01}.
-        max_iter: Maximum solver iterations.
-        initial_cfg: Shape (num_actuated_joints,). Starting config.
-            Defaults to robot._default_cfg.
-
-    Returns:
-        Shape (num_actuated_joints,). Optimized joint configuration.
-
-    Note:
-        Always uses the LM solver. For collision-aware IK, use `solve_ik` (single-target).
-    """
-    w = {"pose": 1.0, "limits": 0.1, "rest": 0.01}
-    if weights:
-        w.update(weights)
-
     initial = initial_cfg.clone() if initial_cfg is not None else robot._default_cfg.clone()
     rest = robot._default_cfg.clone()
 
@@ -126,20 +63,20 @@ def solve_ik_multi(
                 robot=robot,
                 target_link_index=link_idx,
                 target_pose=target_pose,
-                pos_weight=1.0,
-                ori_weight=0.1,
+                pos_weight=ik_cfg.pos_weight,
+                ori_weight=ik_cfg.ori_weight,
             ),
-            weight=w["pose"],
+            weight=ik_cfg.pose_weight,
         ))
 
     costs += [
         CostTerm(
             residual_fn=functools.partial(limit_residual, robot=robot),
-            weight=w["limits"],
+            weight=ik_cfg.limit_weight,
         ),
         CostTerm(
             residual_fn=functools.partial(rest_residual, rest_pose=rest),
-            weight=w["rest"],
+            weight=ik_cfg.rest_weight,
         ),
     ]
 
@@ -149,5 +86,24 @@ def solve_ik_multi(
         lower_bounds=robot.joints.lower_limits.clone(),
         upper_bounds=robot.joints.upper_limits.clone(),
     )
-    solver_cls = SOLVER_REGISTRY["lm"]
-    return solver_cls().solve(problem, max_iter=max_iter)
+    return SOLVER_REGISTRY["lm"]().solve(problem, max_iter=max_iter)
+
+
+# Keep solve_ik_multi as a compatibility shim (Task 5 will remove the export)
+def solve_ik_multi(
+    robot: Robot,
+    targets: dict[str, torch.Tensor],
+    weights: dict[str, float] | None = None,
+    max_iter: int = 100,
+    initial_cfg: torch.Tensor | None = None,
+) -> torch.Tensor:
+    """Compatibility shim — delegates to solve_ik (fixed-base)."""
+    ik_cfg = IKConfig()
+    if weights:
+        if "pose" in weights:
+            ik_cfg.pose_weight = weights["pose"]
+        if "limits" in weights:
+            ik_cfg.limit_weight = weights["limits"]
+        if "rest" in weights:
+            ik_cfg.rest_weight = weights["rest"]
+    return solve_ik(robot, targets=targets, cfg=ik_cfg, initial_cfg=initial_cfg, max_iter=max_iter)
