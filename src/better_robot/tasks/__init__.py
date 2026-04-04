@@ -1,7 +1,9 @@
-"""Tasks layer: high-level solve_ik, solve_trajopt, retarget APIs."""
+"""Tasks layer: high-level solve_ik, solve_ik_multi, solve_ik_floating_base APIs."""
 
 from ._ik import solve_ik as solve_ik
+from ._ik import solve_ik_multi as solve_ik_multi
+from ._floating_base_ik import solve_ik_floating_base as solve_ik_floating_base
 from ._trajopt import solve_trajopt as solve_trajopt
 from ._retarget import retarget as retarget
 
-__all__ = ["solve_ik", "solve_trajopt", "retarget"]
+__all__ = ["solve_ik", "solve_ik_multi", "solve_ik_floating_base", "solve_trajopt", "retarget"]
