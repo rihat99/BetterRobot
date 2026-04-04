@@ -51,11 +51,26 @@ pp.se3(v).Exp().tensor()  # se3 tangent → SE3, grad-preserving
 
 ## Solver Notes
 
-**LM solver** (`solvers/_levenberg_marquardt.py`):
-- Uses `pypose.optim.LevenbergMarquardt` with `vectorize=True` and `Adaptive` damping strategy
-- `vectorize=True` works with our FK and is ~3.4x faster than `vectorize=False`
-- Projects variables onto `problem.lower_bounds / upper_bounds` after each step (hard joint limit enforcement)
-- `reject=16` (default) enables adaptive damping with up to 16 retries per step
+**Our LM** (`solvers/_lm.py`) — registered as `"lm"` (default):
+- Uses `torch.func.jacrev` for autodiff mode (when `problem.jacobian_fn is None`)
+- Uses `problem.jacobian_fn(x)` for analytic mode (set by `IKConfig(jacobian="analytic")`)
+- Adaptive damping: `damping=1e-4`, `factor=2.0`, `reject=16`
+- Clamps to `problem.lower_bounds / upper_bounds` after each accepted step
+
+**PyPose LM** (`solvers/_levenberg_marquardt.py`) — registered as `"lm_pypose"`:
+- Always uses PyPose autograd for J; ignores `jacobian_fn`
+- Kept for benchmarking; no longer the default
+
+**Jacobian mode** (`IKConfig.jacobian`):
+- `"autodiff"` (default): `jacrev` — works for all cost terms including custom ones
+- `"analytic"`: geometric body-frame Jacobian from `costs/_jacobian.py` — faster; supported for both fixed and floating base
+
+**Floating-base base Jacobian** (the "smart trick"):
+```python
+T_ee_local = se3_compose(se3_inverse(base), fk_world[link_idx])
+J_base = diag([pos_w]*3 + [ori_w]*3) * adjoint_se3(se3_inverse(T_ee_local)) * pose_weight
+```
+No extra FK call; `adjoint_se3` is in `core/_lie_ops.py`.
 
 **Limit cost** (`costs/_limits.py`): uses `torch.clamp(..., min=0)` — zero within limits, penalizes only violations. Do NOT remove the clamp; un-clamped limit residuals act as a centering force that overwhelms the pose cost.
 

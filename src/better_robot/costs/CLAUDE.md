@@ -32,6 +32,24 @@ Returns `(cfg - rest_pose) * weight`. Used to keep the robot near a comfortable 
 ### `_collision.py`, `_manipulability.py`
 Stubs — not implemented.
 
+### `_jacobian.py` — Analytical Jacobian Functions
+
+**`pose_jacobian(cfg, robot, target_link_index, target_pose, pos_weight, ori_weight, base_pose=None) → (6, n)`**
+
+Geometric (analytical) Jacobian of `pose_residual` wrt `cfg`. Body-frame convention (matches `log(T_target^{-1} @ T_actual)` right log error). Uses cross-product formula:
+- Revolute/continuous joint j: `J[:,j] = R_ee^T @ [ω_j × (p_ee - p_j); ω_j]` with weights applied
+- Prismatic joint j: `J[:,j] = R_ee^T @ [d_j; 0]`
+
+`robot.get_chain(target_link_index)` determines which joints contribute.
+
+**jlog approximation**: `jlog(T_err) ≈ I` (identity). Valid for errors < ~30°. For large errors the analytical J is an approximation; the solver still converges but may take more iterations.
+
+**`limit_jacobian(cfg, robot) → (2n, n)`**
+Diagonal: `-1` where `cfg < lo`, `+1` where `cfg > hi`, `0` inside limits. Matches `limit_residual`.
+
+**`rest_jacobian(cfg, rest_pose) → (n, n)`**
+Identity matrix. Matches `rest_residual = cfg - rest_pose`.
+
 ## Adding a New Cost
 
 1. Write `my_cost(cfg: Tensor, ...) -> Tensor` returning a 1D residual

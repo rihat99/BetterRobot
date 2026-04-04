@@ -40,6 +40,30 @@ In `_urdf_parser.py`, twists are stored as `[rx, ry, rz, 0, 0, 0]` for revolute 
 - Revolute/continuous: `joints.twists[j, :3]`
 - Prismatic: `joints.twists[j, 3:]`
 
+## `Robot.get_chain(link_idx) -> list[int]` (`_robot.py`)
+
+Returns joint indices (actuated only) on the path from root to `link_idx`, in root→EE topological order. Uses `_fk_joint_child_link` / `_fk_joint_parent_link` for traversal. Returns `[]` for the root link. Raises `ValueError` if the link is orphaned.
+
+Used by `pose_jacobian` to determine which joints affect a target EE.
+
+## `adjoint_se3(T: Tensor) -> Tensor` (`_lie_ops.py`)
+
+6×6 Adjoint matrix for SE3 pose `T = [tx, ty, tz, qx, qy, qz, qw]`:
+
+```
+Ad(T) = [[R,          skew(p) @ R],
+          [zeros(3,3), R          ]]
+```
+
+Convention: PyPose se3 tangent `[tx, ty, tz, rx, ry, rz]` (translation first).
+
+Used for the floating-base Jacobian smart trick:
+```python
+T_ee_local = se3_compose(se3_inverse(base), fk_world[link_idx])
+J_base = diag([pos_w]*3 + [ori_w]*3) * adjoint_se3(se3_inverse(T_ee_local)) * pose_weight
+```
+No extra FK call needed — `T_ee_local` is derived from the already-computed world FK.
+
 ## `se3_apply_base` (`_lie_ops.py`)
 
 Applies a base SE3 to a full set of link poses via PyPose broadcasting:
