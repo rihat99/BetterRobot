@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "better-robot"
+version = "0.1.0"
+description = "PyTorch-native robot kinematics, IK, trajectory optimization, and retargeting"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.1.0",
+    "pypose>=0.7.0",
+    "yourdfpy>=0.0.14",
+    "trimesh>=4.0.0",
+    "viser>=0.2.0",
+    "robot_descriptions>=1.0.0",
+    "numpy>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff",
+    "pyright",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/better_robot"]
+
+[tool.ruff.lint]
+select = ["E", "F", "PLC", "PLE", "PLR", "PLW"]
+ignore = ["E501", "PLR0913", "PLR2004"]
