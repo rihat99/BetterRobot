@@ -40,7 +40,7 @@ def test_solver_imports() -> None:
     assert hasattr(solvers, "AdamSolver")
     assert hasattr(solvers, "LBFGSSolver")
     assert hasattr(solvers, "SOLVER_REGISTRY")
-    assert set(solvers.SOLVER_REGISTRY.keys()) == {"lm", "gn", "adam", "lbfgs"}
+    assert set(solvers.SOLVER_REGISTRY.keys()) == {"lm", "lm_pypose", "gn", "adam", "lbfgs"}
 
 
 def test_costs_imports() -> None:

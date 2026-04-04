@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Callable, Literal
+from typing import Callable, Literal, Optional
 
 import torch
 
@@ -39,6 +39,13 @@ class Problem:
 
     upper_bounds: torch.Tensor | None = None
     """Optional upper bounds for variables (same shape as variables)."""
+
+    jacobian_fn: Optional[Callable[[torch.Tensor], torch.Tensor]] = None
+    """Optional analytical Jacobian function.
+
+    If provided, our LM calls jacobian_fn(x) -> (m, n) Tensor instead of
+    computing J via torch.func.jacrev. The PyPose LM ignores this field.
+    """
 
     def total_residual(self, x: torch.Tensor) -> torch.Tensor:
         """Concatenate all weighted soft residuals into a single vector.
