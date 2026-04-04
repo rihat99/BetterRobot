@@ -125,3 +125,34 @@ def test_get_chain_ordering(panda):
     # cfg indices should be 0,1,2,... (BFS order for Panda arm)
     cfg_indices = [panda._fk_cfg_indices[j] for j in chain]
     assert cfg_indices == sorted(cfg_indices)
+
+
+import torch
+from better_robot.core._lie_ops import adjoint_se3, se3_identity, se3_inverse
+
+
+def test_adjoint_se3_identity():
+    """Ad(identity) = I_6."""
+    T = se3_identity()
+    Ad = adjoint_se3(T)
+    assert Ad.shape == (6, 6)
+    assert torch.allclose(Ad, torch.eye(6), atol=1e-6)
+
+
+def test_adjoint_se3_pure_translation():
+    """Ad([1,0,0, 0,0,0,1]) has skew(p)@R in top-right block."""
+    T = torch.tensor([1.0, 0.0, 0.0,  0.0, 0.0, 0.0, 1.0])  # x=1, identity rotation
+    Ad = adjoint_se3(T)
+    # Top-left: R = I
+    assert torch.allclose(Ad[:3, :3], torch.eye(3), atol=1e-6)
+    # Bottom-right: R = I
+    assert torch.allclose(Ad[3:, 3:], torch.eye(3), atol=1e-6)
+    # Bottom-left: zeros
+    assert torch.allclose(Ad[3:, :3], torch.zeros(3, 3), atol=1e-6)
+    # Top-right: skew([1,0,0]) @ I = [[0,0,0],[0,0,-1],[0,1,0]]
+    expected_top_right = torch.tensor([
+        [ 0.,  0.,  0.],
+        [ 0.,  0., -1.],
+        [ 0.,  1.,  0.],
+    ])
+    assert torch.allclose(Ad[:3, 3:], expected_top_right, atol=1e-6)
