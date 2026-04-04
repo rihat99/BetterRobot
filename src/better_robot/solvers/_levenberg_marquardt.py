@@ -1,17 +1,32 @@
-"""Levenberg-Marquardt solver via pypose.optim.LevenbergMarquardt."""
+"""Levenberg-Marquardt solver using PyPose's optimizer."""
 
 from __future__ import annotations
 
 import torch
+import torch.nn as nn
+import pypose.optim as ppo
+import pypose.optim.strategy as ppo_strategy
 
 from ._base import Problem, Solver
 
 
-class LevenbergMarquardt(Solver):
-    """LM solver wrapping pypose.optim.LevenbergMarquardt.
+class _ProblemModule(nn.Module):
+    """Wraps a Problem so PyPose's LM optimizer can call it."""
 
-    Default solver. Handles Lie group manifold updates natively.
-    Suitable for IK and trajectory optimization.
+    def __init__(self, problem: Problem) -> None:
+        super().__init__()
+        self.x = nn.Parameter(problem.variables.clone().float())
+        self._problem = problem
+
+    def forward(self, _input: torch.Tensor) -> torch.Tensor:
+        return self._problem.total_residual(self.x)
+
+
+class LevenbergMarquardt(Solver):
+    """LM solver using pypose.optim.LevenbergMarquardt.
+
+    vectorize=False is required because the FK loop has conditional branches
+    that are incompatible with torch.vmap (used by vectorize=True).
     """
 
     def solve(
@@ -19,16 +34,25 @@ class LevenbergMarquardt(Solver):
         problem: Problem,
         max_iter: int = 100,
         damping: float = 1e-4,
-        **kwargs: object,
+        **kwargs,
     ) -> torch.Tensor:
-        """Run Levenberg-Marquardt optimization.
+        module = _ProblemModule(problem)
+        strategy = ppo_strategy.Adaptive(damping=damping)
+        optimizer = ppo.LevenbergMarquardt(module, strategy=strategy, vectorize=True)
 
-        Args:
-            problem: Problem instance.
-            max_iter: Maximum iterations.
-            damping: Initial LM damping factor.
+        lo = problem.lower_bounds
+        hi = problem.upper_bounds
+        dummy = torch.zeros(1)
 
-        Returns:
-            Optimized variable tensor.
-        """
-        raise NotImplementedError
+        for _ in range(max_iter):
+            optimizer.step(input=dummy)
+
+            # Project onto joint limits after each step
+            if lo is not None and hi is not None:
+                with torch.no_grad():
+                    module.x.data.clamp_(
+                        lo.to(dtype=module.x.dtype, device=module.x.device),
+                        hi.to(dtype=module.x.dtype, device=module.x.device),
+                    )
+
+        return module.x.detach()

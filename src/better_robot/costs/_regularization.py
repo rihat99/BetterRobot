@@ -20,7 +20,7 @@ def rest_residual(
     Returns:
         Shape (num_actuated_joints,). Weighted deviation from rest.
     """
-    raise NotImplementedError
+    return (cfg - rest_pose.to(device=cfg.device, dtype=cfg.dtype)) * weight
 
 
 def smoothness_residual(
@@ -38,4 +38,4 @@ def smoothness_residual(
     Returns:
         Shape (num_actuated_joints,). Weighted config difference.
     """
-    raise NotImplementedError
+    return (cfg - cfg_prev.to(device=cfg.device, dtype=cfg.dtype)) * weight

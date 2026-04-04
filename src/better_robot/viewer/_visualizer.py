@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import torch
 import yourdfpy
+import viser
+import viser.extras
 
 
 class Visualizer:
@@ -16,7 +18,8 @@ class Visualizer:
             urdf: Loaded yourdfpy.URDF.
             port: Port for the viser web server.
         """
-        raise NotImplementedError
+        self._server = viser.ViserServer(port=port)
+        self._urdf_handle = viser.extras.ViserUrdf(self._server, urdf)
 
     def update_cfg(self, cfg: torch.Tensor) -> None:
         """Update the robot visualization to a new joint configuration.
@@ -24,4 +27,5 @@ class Visualizer:
         Args:
             cfg: Shape (num_actuated_joints,). Joint configuration.
         """
-        raise NotImplementedError
+        cfg_np = cfg.detach().cpu().numpy()
+        self._urdf_handle.update_cfg(cfg_np)

@@ -24,7 +24,15 @@ def limit_residual(
     Returns:
         Shape (2 * num_actuated_joints,). Upper and lower violations concatenated.
     """
-    raise NotImplementedError
+    lo = robot.joints.lower_limits.to(device=cfg.device, dtype=cfg.dtype)
+    hi = robot.joints.upper_limits.to(device=cfg.device, dtype=cfg.dtype)
+
+    # Lower violation: positive only when cfg < lo, zero within limits
+    lower_viol = torch.clamp(lo - cfg, min=0.0) * weight
+    # Upper violation: positive only when cfg > hi, zero within limits
+    upper_viol = torch.clamp(cfg - hi, min=0.0) * weight
+
+    return torch.cat([lower_viol, upper_viol], dim=-1)
 
 
 def velocity_residual(

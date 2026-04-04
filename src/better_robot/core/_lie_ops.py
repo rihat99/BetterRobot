@@ -1,70 +1,38 @@
 """Lie group operations wrapping PyPose SE3/SO3.
 
 All Lie group operations in BetterRobot go through this module.
-To switch to a pure-PyTorch backend, only this file needs changing.
+To switch to a different backend, only this file needs changing.
+
+Convention
+----------
+SE3 pose:    [tx, ty, tz, qx, qy, qz, qw]  (PyPose native)
+SE3 tangent: [tx, ty, tz, rx, ry, rz]       (PyPose native)
 """
-
 from __future__ import annotations
-
+import pypose as pp
 import torch
-
-# Convention: SE3 tangent vectors follow PyPose ordering: [rotation (3,), translation (3,)]
-
-
-def se3_exp(tangent: torch.Tensor) -> torch.Tensor:
-    """Map se(3) tangent vector to SE3 transform.
-
-    Args:
-        tangent: Shape (..., 6). Lie algebra element following PyPose convention:
-            [rx, ry, rz, tx, ty, tz] (rotation first, then translation).
-
-    Returns:
-        Shape (..., 7). SE3 transform as wxyz+xyz quaternion+translation.
-    """
-    raise NotImplementedError
-
-
-def se3_compose(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
-    """Compose two SE3 transforms: result = a @ b.
-
-    Args:
-        a: Shape (..., 7). Left SE3 transform.
-        b: Shape (..., 7). Right SE3 transform.
-
-    Returns:
-        Shape (..., 7). Composed SE3 transform.
-    """
-    raise NotImplementedError
-
-
-def se3_inverse(t: torch.Tensor) -> torch.Tensor:
-    """Invert an SE3 transform.
-
-    Args:
-        t: Shape (..., 7). SE3 transform.
-
-    Returns:
-        Shape (..., 7). Inverse SE3 transform.
-    """
-    raise NotImplementedError
-
-
-def se3_log(t: torch.Tensor) -> torch.Tensor:
-    """Map SE3 transform to se(3) tangent vector.
-
-    Args:
-        t: Shape (..., 7). SE3 transform.
-
-    Returns:
-        Shape (..., 6). Lie algebra element.
-    """
-    raise NotImplementedError
 
 
 def se3_identity() -> torch.Tensor:
-    """Return the SE3 identity transform.
+    """Identity SE3: zero translation, identity quaternion."""
+    return torch.tensor([0., 0., 0., 0., 0., 0., 1.])
 
-    Returns:
-        Shape (7,). Identity: wxyz=[1,0,0,0], xyz=[0,0,0].
-    """
-    raise NotImplementedError
+
+def se3_compose(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+    """a: (..., 7), b: (..., 7) -> (..., 7). Result = a @ b."""
+    return (pp.SE3(a) @ pp.SE3(b)).tensor()
+
+
+def se3_inverse(t: torch.Tensor) -> torch.Tensor:
+    """t: (..., 7) -> (..., 7)."""
+    return pp.SE3(t).Inv().tensor()
+
+
+def se3_log(t: torch.Tensor) -> torch.Tensor:
+    """t: (..., 7) -> (..., 6) tangent [tx, ty, tz, rx, ry, rz]."""
+    return pp.SE3(t).Log().tensor()
+
+
+def se3_exp(tangent: torch.Tensor) -> torch.Tensor:
+    """tangent: (..., 6) [tx, ty, tz, rx, ry, rz] -> (..., 7)."""
+    return pp.se3(tangent).Exp().tensor()

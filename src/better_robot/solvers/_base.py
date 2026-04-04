@@ -34,6 +34,12 @@ class Problem:
     costs: list[CostTerm] = field(default_factory=list)
     """List of cost/constraint terms."""
 
+    lower_bounds: torch.Tensor | None = None
+    """Optional lower bounds for variables (same shape as variables)."""
+
+    upper_bounds: torch.Tensor | None = None
+    """Optional upper bounds for variables (same shape as variables)."""
+
     def total_residual(self, x: torch.Tensor) -> torch.Tensor:
         """Concatenate all weighted soft residuals into a single vector.
 
@@ -43,7 +49,14 @@ class Problem:
         Returns:
             1D residual vector.
         """
-        raise NotImplementedError
+        parts = []
+        for ct in self.costs:
+            if ct.kind == "soft":
+                r = ct.residual_fn(x)
+                parts.append(r * ct.weight)
+        if not parts:
+            return torch.zeros(0, dtype=x.dtype, device=x.device)
+        return torch.cat(parts, dim=0)
 
     def constraint_residual(self, x: torch.Tensor) -> torch.Tensor:
         """Concatenate all constraint_leq_zero residuals into a single vector.
@@ -58,7 +71,14 @@ class Problem:
             1D residual vector of all constraint terms (should be <= 0 when satisfied).
             Returns empty tensor if no constraint terms exist.
         """
-        raise NotImplementedError
+        parts = []
+        for ct in self.costs:
+            if ct.kind == "constraint_leq_zero":
+                r = ct.residual_fn(x)
+                parts.append(r * ct.weight)
+        if not parts:
+            return torch.zeros(0, dtype=x.dtype, device=x.device)
+        return torch.cat(parts, dim=0)
 
 
 class Solver(ABC):
