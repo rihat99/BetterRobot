@@ -156,3 +156,16 @@ def test_adjoint_se3_pure_translation():
         [ 0.,  1.,  0.],
     ])
     assert torch.allclose(Ad[:3, 3:], expected_top_right, atol=1e-6)
+
+
+def test_adjoint_se3_inverse_consistency():
+    """Ad(T) @ Ad(T^{-1}) = I_6 for an arbitrary non-trivial pose."""
+    import pypose as pp
+    # 90-degree rotation around Z + translation
+    T = torch.tensor([0.5, -0.3, 0.1,  0.0, 0.0, 0.7071068, 0.7071068])  # ~90° around Z
+    T_inv = se3_inverse(T)
+    Ad = adjoint_se3(T)
+    Ad_inv = adjoint_se3(T_inv)
+    product = Ad @ Ad_inv
+    assert torch.allclose(product, torch.eye(6), atol=1e-5), \
+        f"Ad(T) @ Ad(T^-1) != I: max_err={( product - torch.eye(6)).abs().max():.6f}"
