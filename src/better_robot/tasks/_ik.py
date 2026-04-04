@@ -89,21 +89,3 @@ def _solve_fixed(
     return SOLVER_REGISTRY["lm"]().solve(problem, max_iter=max_iter)
 
 
-# Keep solve_ik_multi as a compatibility shim (Task 5 will remove the export)
-def solve_ik_multi(
-    robot: Robot,
-    targets: dict[str, torch.Tensor],
-    weights: dict[str, float] | None = None,
-    max_iter: int = 100,
-    initial_cfg: torch.Tensor | None = None,
-) -> torch.Tensor:
-    """Compatibility shim — delegates to solve_ik (fixed-base)."""
-    ik_cfg = IKConfig()
-    if weights:
-        if "pose" in weights:
-            ik_cfg.pose_weight = weights["pose"]
-        if "limits" in weights:
-            ik_cfg.limit_weight = weights["limits"]
-        if "rest" in weights:
-            ik_cfg.rest_weight = weights["rest"]
-    return solve_ik(robot, targets=targets, cfg=ik_cfg, initial_cfg=initial_cfg, max_iter=max_iter)
