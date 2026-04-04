@@ -55,3 +55,30 @@ def test_costs_imports() -> None:
         "world_collision_residual", "manipulability_residual",
     ]:
         assert hasattr(costs, name), f"Missing: {name}"
+
+
+def test_viewer_helpers() -> None:
+    import torch
+    from better_robot.viewer import wxyz_pos_to_se3, qxyzw_to_wxyz, build_cfg_dict
+    from better_robot import Robot
+    from robot_descriptions.loaders.yourdfpy import load_robot_description
+
+    # wxyz_pos_to_se3
+    se3 = wxyz_pos_to_se3((1.0, 0.0, 0.0, 0.0), (0.1, 0.2, 0.3))
+    assert se3.shape == (7,)
+    assert abs(se3[0].item() - 0.1) < 1e-6  # tx
+    assert abs(se3[6].item() - 1.0) < 1e-6  # qw
+
+    # qxyzw_to_wxyz
+    q = torch.tensor([0.0, 0.0, 0.0, 1.0])  # identity [qx,qy,qz,qw]
+    wxyz = qxyzw_to_wxyz(q)
+    assert wxyz == (1.0, 0.0, 0.0, 0.0)
+
+    # build_cfg_dict
+    urdf = load_robot_description("panda_description")
+    robot = Robot.from_urdf(urdf)
+    cfg = robot._default_cfg.clone()
+    d = build_cfg_dict(robot, cfg)
+    assert isinstance(d, dict)
+    assert len(d) == robot.joints.num_actuated_joints
+    assert all(isinstance(v, float) for v in d.values())
