@@ -17,6 +17,8 @@ class IKConfig:
     pose_weight: float = 1.0   # overall pose cost scale
     limit_weight: float = 0.1  # soft joint limit penalty
     rest_weight: float = 0.01  # pull toward robot._default_cfg
+    base_pos_weight: float = 2.0   # pull base position toward reference (floating-base only)
+    base_ori_weight: float = 0.5   # pull base orientation toward reference (floating-base only)
     jacobian: Literal["autodiff", "analytic"] = "autodiff"
     """Jacobian computation mode.
 

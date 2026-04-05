@@ -16,6 +16,22 @@ from ..costs._jacobian import pose_jacobian, limit_jacobian, rest_jacobian
 from ._config import IKConfig
 
 
+def _base_reg_residual(
+    base: torch.Tensor,
+    default_base: torch.Tensor,
+    base_pos_weight: float,
+    base_ori_weight: float,
+) -> torch.Tensor:
+    """6D residual pulling the base toward default_base.
+
+    Uses SE3 log map error, weighted separately for translation (base_pos_weight)
+    and rotation (base_ori_weight).  Mirrors pyroki's rest_with_base_residual.
+    """
+    T_err = se3_compose(se3_inverse(default_base), base)
+    log_err = se3_log(T_err)   # (6,) [tx, ty, tz, rx, ry, rz]
+    return torch.cat([log_err[:3] * base_pos_weight, log_err[3:] * base_ori_weight])
+
+
 class _FloatingBaseIKModule(nn.Module):
     """LM-compatible module for whole-body IK with a floating base."""
 
@@ -37,6 +53,8 @@ class _FloatingBaseIKModule(nn.Module):
         self._target_poses = [tp.float() for tp in target_poses]
         self._rest_cfg = rest_cfg.float()
         self._ik_cfg = ik_cfg
+        # Reference base used for base regularization (frozen at construction time).
+        self.register_buffer("_default_base", initial_base.float().clone())
 
     def forward(self, _input: torch.Tensor) -> torch.Tensor:
         fk = self._robot.forward_kinematics(self.cfg, base_pose=self.base.tensor())
@@ -55,6 +73,14 @@ class _FloatingBaseIKModule(nn.Module):
 
         residuals.append(limit_residual(self.cfg, self._robot) * self._ik_cfg.limit_weight)
         residuals.append(rest_residual(self.cfg, self._rest_cfg) * self._ik_cfg.rest_weight)
+        residuals.append(
+            _base_reg_residual(
+                self.base.tensor(),
+                self._default_base,
+                self._ik_cfg.base_pos_weight,
+                self._ik_cfg.base_ori_weight,
+            )
+        )
 
         return torch.cat(residuals)
 
@@ -67,6 +93,7 @@ def _fb_residual(
     target_poses: list[torch.Tensor],
     ik_cfg: IKConfig,
     rest: torch.Tensor,
+    default_base: torch.Tensor,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Compute (fk, residual_vector) for floating-base IK."""
     fk = robot.forward_kinematics(cfg, base_pose=base)
@@ -80,6 +107,9 @@ def _fb_residual(
         )
     parts.append(limit_residual(cfg, robot) * ik_cfg.limit_weight)
     parts.append(rest_residual(cfg, rest) * ik_cfg.rest_weight)
+    parts.append(
+        _base_reg_residual(base, default_base, ik_cfg.base_pos_weight, ik_cfg.base_ori_weight)
+    )
     return fk, torch.cat(parts)
 
 
@@ -97,6 +127,7 @@ def _run_floating_base_lm_analytic(
     Base updated via SE3 retraction: base_new = se3_exp(delta_base) @ base.
     """
     base = initial_base_pose.clone().float()
+    default_base = initial_base_pose.clone().float()   # frozen reference for regularization
     cfg = (
         initial_cfg.clone().float()
         if initial_cfg is not None
@@ -114,9 +145,15 @@ def _run_floating_base_lm_analytic(
     factor = 2.0
     reject = 16
     w_vec = cfg.new_tensor([ik_cfg.pos_weight] * 3 + [ik_cfg.ori_weight] * 3)
+    # Diagonal weights for the base regularization Jacobian block (6,).
+    w_base_vec = cfg.new_tensor(
+        [ik_cfg.base_pos_weight] * 3 + [ik_cfg.base_ori_weight] * 3
+    )
 
     for _ in range(max_iter):
-        fk, r = _fb_residual(cfg, base, robot, target_link_indices, target_poses, ik_cfg, rest)
+        fk, r = _fb_residual(
+            cfg, base, robot, target_link_indices, target_poses, ik_cfg, rest, default_base
+        )
 
         # Build Jacobian: (m, n+6) — joint cols first, then 6 base cols
         # Reuse fk already computed by _fb_residual — no extra FK call needed.
@@ -139,7 +176,14 @@ def _run_floating_base_lm_analytic(
             rest_jacobian(cfg, rest) * ik_cfg.rest_weight,
             torch.zeros(n, 6, dtype=cfg.dtype, device=cfg.device),
         ], dim=1)
-        J = torch.cat(J_rows + [J_lim, J_rest], dim=0)                        # (m, n+6)
+        # Base regularization Jacobian: zero for joint DoF, diag(w_base) for base DoF.
+        # The Jacobian of log(default_base^{-1} @ base) w.r.t. the base tangent δ is
+        # approximately I_6 when base ≈ default_base (same approximation used for joints).
+        J_base_reg = torch.cat([
+            torch.zeros(6, n, dtype=cfg.dtype, device=cfg.device),
+            torch.diag(w_base_vec),
+        ], dim=1)                                                               # (6, n+6)
+        J = torch.cat(J_rows + [J_lim, J_rest, J_base_reg], dim=0)            # (m, n+6)
 
         JtJ = J.T @ J
         Jtr = J.T @ r
@@ -153,7 +197,8 @@ def _run_floating_base_lm_analytic(
             base_new = torch.cat([base_new[:3], base_new[3:7] / base_new[3:7].norm()])
 
             _, r_new = _fb_residual(
-                cfg_new, base_new, robot, target_link_indices, target_poses, ik_cfg, rest
+                cfg_new, base_new, robot, target_link_indices, target_poses, ik_cfg, rest,
+                default_base,
             )
             if r_new.norm() <= r.norm():
                 cfg, base = cfg_new, base_new
