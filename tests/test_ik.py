@@ -3,13 +3,13 @@
 import torch
 import pytest
 from robot_descriptions.loaders.yourdfpy import load_robot_description
-from better_robot import Robot, solve_ik, IKConfig
+from better_robot import load_urdf, solve_ik, IKConfig
 
 
 @pytest.fixture(scope="module")
 def panda():
     urdf = load_robot_description("panda_description")
-    return Robot.from_urdf(urdf)
+    return load_urdf(urdf)
 
 
 # --- Fixed-base tests ---
@@ -33,7 +33,7 @@ def test_solve_ik_converges_to_reachable_pose(panda):
     """Target is FK of default config — guaranteed reachable, should converge in few iters."""
     cfg_default = panda._default_cfg
     fk = panda.forward_kinematics(cfg_default)
-    hand_idx = panda.get_link_index("panda_hand")
+    hand_idx = panda.link_index("panda_hand")
     target = fk[hand_idx].detach()
 
     result = solve_ik(
@@ -63,8 +63,8 @@ def test_solve_ik_multi_target_shape(panda):
     cfg = panda._default_cfg
     fk = panda.forward_kinematics(cfg)
     targets = {
-        "panda_link6": fk[panda.get_link_index("panda_link6")].detach(),
-        "panda_hand": fk[panda.get_link_index("panda_hand")].detach(),
+        "panda_link6": fk[panda.link_index("panda_link6")].detach(),
+        "panda_hand": fk[panda.link_index("panda_hand")].detach(),
     }
     result = solve_ik(panda, targets=targets, max_iter=5)
     assert result.shape == (panda.joints.num_actuated_joints,)
@@ -73,8 +73,8 @@ def test_solve_ik_multi_target_shape(panda):
 def test_solve_ik_multi_target_converges(panda):
     cfg = panda._default_cfg
     fk = panda.forward_kinematics(cfg)
-    hand_idx = panda.get_link_index("panda_hand")
-    link6_idx = panda.get_link_index("panda_link6")
+    hand_idx = panda.link_index("panda_hand")
+    link6_idx = panda.link_index("panda_link6")
     targets = {
         "panda_link6": fk[link6_idx].detach(),
         "panda_hand": fk[hand_idx].detach(),
@@ -90,7 +90,7 @@ def test_solve_ik_multi_target_converges(panda):
 def test_solve_ik_floating_base_return_shapes(panda):
     """Floating-base solve_ik returns (base_pose(7), cfg(n)) tuple."""
     identity_base = torch.tensor([0., 0., 0., 0., 0., 0., 1.])
-    hand_idx = panda.get_link_index("panda_hand")
+    hand_idx = panda.link_index("panda_hand")
     fk = panda.forward_kinematics(panda._default_cfg)
     targets = {"panda_hand": fk[hand_idx].detach()}
 
@@ -104,7 +104,7 @@ def test_solve_ik_floating_base_return_shapes(panda):
 def test_solve_ik_floating_base_converges(panda):
     """Target is FK of default config at identity base — should converge quickly."""
     cfg0 = panda._default_cfg
-    hand_idx = panda.get_link_index("panda_hand")
+    hand_idx = panda.link_index("panda_hand")
     fk0 = panda.forward_kinematics(cfg0)
     target = fk0[hand_idx].detach()
     identity_base = torch.tensor([0., 0., 0., 0., 0., 0., 1.])
@@ -125,7 +125,7 @@ def test_solve_ik_floating_base_base_moves(panda):
     """Target 1 m in X from default FK — only reachable by translating the base."""
     cfg0 = panda._default_cfg
     fk0 = panda.forward_kinematics(cfg0)
-    hand_idx = panda.get_link_index("panda_hand")
+    hand_idx = panda.link_index("panda_hand")
     target = fk0[hand_idx].detach().clone()
     target[0] += 1.0
     identity_base = torch.tensor([0., 0., 0., 0., 0., 0., 1.])
@@ -143,7 +143,7 @@ def test_solve_ik_floating_base_base_moves(panda):
 def test_solve_ik_analytic_converges(panda):
     """IKConfig(jacobian='analytic') gives correct solution for a reachable target."""
     cfg0 = panda._default_cfg
-    hand_idx = panda.get_link_index("panda_hand")
+    hand_idx = panda.link_index("panda_hand")
     target = panda.forward_kinematics(cfg0)[hand_idx].detach()
 
     cfg_analytic = solve_ik(
@@ -161,7 +161,7 @@ def test_solve_ik_analytic_converges(panda):
 def test_solve_ik_analytic_matches_autodiff(panda):
     """Analytic and autodiff IK reach solutions within 1 cm of each other."""
     cfg0 = panda._default_cfg
-    hand_idx = panda.get_link_index("panda_hand")
+    hand_idx = panda.link_index("panda_hand")
     target = panda.forward_kinematics(cfg0)[hand_idx].detach().clone()
     target[0] += 0.05
 
@@ -185,7 +185,7 @@ def test_solve_ik_analytic_matches_autodiff(panda):
 def test_solve_ik_floating_analytic_converges(panda):
     """Floating-base IK with jacobian='analytic' converges to a reachable target."""
     cfg0 = panda._default_cfg
-    hand_idx = panda.get_link_index("panda_hand")
+    hand_idx = panda.link_index("panda_hand")
     identity_base = torch.tensor([0., 0., 0., 0., 0., 0., 1.])
     target = panda.forward_kinematics(cfg0)[hand_idx].detach()
 
@@ -205,7 +205,7 @@ def test_solve_ik_floating_analytic_converges(panda):
 def test_solve_ik_floating_analytic_matches_autodiff(panda):
     """Floating analytic and PyPose LM give solutions within 2 cm."""
     cfg0 = panda._default_cfg
-    hand_idx = panda.get_link_index("panda_hand")
+    hand_idx = panda.link_index("panda_hand")
     identity_base = torch.tensor([0., 0., 0., 0., 0., 0., 1.])
     target = panda.forward_kinematics(cfg0)[hand_idx].detach().clone()
     target[0] += 0.05

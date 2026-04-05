@@ -15,65 +15,62 @@ import pytest
 from robot_descriptions.loaders.yourdfpy import load_robot_description
 
 import better_robot as br
-from better_robot import solve_ik, IKConfig
-from better_robot.costs._pose import pose_residual
-from better_robot.costs._limits import limit_residual
-from better_robot.costs._regularization import rest_residual
-from better_robot.solvers._base import CostTerm, Problem
-from better_robot.solvers._levenberg_marquardt import LevenbergMarquardt as PyposeLM
+from better_robot import load_urdf, solve_ik, IKConfig
+from better_robot.costs import pose_residual, limit_residual, rest_residual, CostTerm
+from better_robot.solvers import Problem, PyposeLevenbergMarquardt
 
 
 @pytest.fixture(scope="module")
 def panda():
     urdf = load_robot_description("panda_description")
-    return br.Robot.from_urdf(urdf)
+    return load_urdf(urdf)
 
 
-def _fixed_base_run(robot, target, link_idx, jacobian_mode, n_iter=20, n_runs=10):
-    cfg0 = robot._default_cfg.clone()
+def _fixed_base_run(model, target, link_idx, jacobian_mode, n_iter=20, n_runs=10):
+    cfg0 = model._default_cfg.clone()
     elapsed = 0.0
     result = None
     for _ in range(n_runs):
         t0 = time.perf_counter()
         result = solve_ik(
-            robot,
+            model,
             targets={"panda_hand": target},
             cfg=IKConfig(jacobian=jacobian_mode),
             initial_cfg=cfg0.clone(),
             max_iter=n_iter,
         )
         elapsed += time.perf_counter() - t0
-    fk = robot.forward_kinematics(result)
+    fk = model.forward_kinematics(result)
     pos_err = (fk[link_idx, :3] - target[:3]).norm().item()
     return elapsed / n_runs * 1000, pos_err
 
 
-def _pypose_run(robot, target, link_idx, n_iter=20, n_runs=10):
-    cfg0 = robot._default_cfg.clone()
+def _pypose_run(model, target, link_idx, n_iter=20, n_runs=10):
+    cfg0 = model._default_cfg.clone()
     hand_idx = link_idx
     elapsed = 0.0
     result = None
     for _ in range(n_runs):
         costs = [
-            CostTerm(functools.partial(pose_residual, robot=robot, target_link_index=hand_idx,
+            CostTerm(functools.partial(pose_residual, robot=model, target_link_index=hand_idx,
                                        target_pose=target, pos_weight=1.0, ori_weight=0.1), weight=1.0),
-            CostTerm(functools.partial(limit_residual, robot=robot), weight=0.1),
-            CostTerm(functools.partial(rest_residual, rest_pose=robot._default_cfg), weight=0.01),
+            CostTerm(functools.partial(limit_residual, robot=model), weight=0.1),
+            CostTerm(functools.partial(rest_residual, rest_pose=model._default_cfg), weight=0.01),
         ]
         prob = Problem(variables=cfg0.clone(), costs=costs,
-                       lower_bounds=robot.joints.lower_limits.clone(),
-                       upper_bounds=robot.joints.upper_limits.clone())
+                       lower_bounds=model.joints.lower_limits.clone(),
+                       upper_bounds=model.joints.upper_limits.clone())
         t0 = time.perf_counter()
-        result = PyposeLM().solve(prob, max_iter=n_iter)
+        result = PyposeLevenbergMarquardt().solve(prob, max_iter=n_iter)
         elapsed += time.perf_counter() - t0
-    fk = robot.forward_kinematics(result)
+    fk = model.forward_kinematics(result)
     pos_err = (fk[link_idx, :3] - target[:3]).norm().item()
     return elapsed / n_runs * 1000, pos_err
 
 
 def test_benchmark_fixed_base(panda, capsys):
     """All three modes converge to < 5 cm; analytic no more than 20% slower than autodiff."""
-    hand_idx = panda.get_link_index("panda_hand")
+    hand_idx = panda.link_index("panda_hand")
     target = panda.forward_kinematics(panda._default_cfg)[hand_idx].detach().clone()
     target[0] += 0.1
 
@@ -100,7 +97,7 @@ def test_benchmark_fixed_base(panda, capsys):
 
 def test_benchmark_floating_base(panda, capsys):
     """Floating-base: both modes converge to < 5 cm."""
-    hand_idx = panda.get_link_index("panda_hand")
+    hand_idx = panda.link_index("panda_hand")
     identity_base = torch.tensor([0., 0., 0., 0., 0., 0., 1.])
     target = panda.forward_kinematics(panda._default_cfg)[hand_idx].detach().clone()
     target[0] += 0.1

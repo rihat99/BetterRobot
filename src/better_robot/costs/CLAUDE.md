@@ -1,57 +1,89 @@
-# costs/ — Residual Functions
+# costs/ — Residual Functions and Cost Terms
 
-Each function maps `(cfg, ...)` → residual vector. Residuals are minimized in least-squares sense by the solvers.
+Differentiable cost functions. Depends on `math/`, `models/`, `algorithms/`.
 
-## Signature Contract
+## Design Pattern
 
-All residual functions passed to `CostTerm.residual_fn` must have signature `(x: Tensor) -> Tensor`. Use `functools.partial` to bind extra args (robot, target, etc.) before passing.
+Each cost module provides two levels:
+1. **Raw residual** `my_residual(cfg, ...) → Tensor` — pure function, used directly or via `functools.partial`
+2. **Factory function** `my_cost(...) → CostTerm` — returns a ready-to-use `CostTerm` for use in `Problem`
 
-## Files
+## Public API
 
-### `_pose.py` — `pose_residual`
-Computes `log(T_target^{-1} @ T_actual(cfg))` in se3 tangent space.
+```python
+from better_robot.costs import (
+    CostTerm,
+    pose_residual, pose_cost,
+    limit_residual, limit_cost,
+    rest_residual, rest_cost, smoothness_residual,
+    self_collision_residual, world_collision_residual,   # stubs
+    manipulability_residual,                             # stub
+)
+```
 
-Returns shape `(*batch, 6)` = `[pos_err*pos_weight, ori_err*ori_weight]`.
+## `CostTerm` (`cost_term.py`)
 
-**Weight defaults**: `pos_weight=1.0`, `ori_weight=0.1`. The low ori_weight is intentional — the Panda's default config has ~173° orientation from identity, which puts the SO3 log map near its singularity. Increasing ori_weight causes the optimizer to oscillate.
+```python
+@dataclass
+class CostTerm:
+    residual_fn: Callable[[Tensor], Tensor]    # signature: (x,) → residual vector
+    weight: float = 1.0
+    kind: Literal["soft", "constraint_leq_zero"] = "soft"
+```
 
-**`base_pose` arg**: optional `(*batch, 7)` SE3 passthrough to `forward_kinematics`.
-Default `None` (fixed base, all existing callers unchanged). Always pass as keyword
-argument (`base_pose=...`) when constructing `functools.partial` bindings.
+`Problem.total_residual(x)` concatenates all `soft` residuals weighted by `weight`.
 
-### `_limits.py` — `limit_residual`
-Returns `torch.clamp(lo - cfg, min=0)` and `torch.clamp(cfg - hi, min=0)` concatenated.
+## `pose.py` — `pose_residual` / `pose_cost`
 
-**Critical**: the clamp is not optional. Without it, the residuals are nonzero even within limits, acting as a quadratic centering force that overwhelms the pose cost (18 limit dims vs 6 pose dims for a 9-DOF robot).
+**`pose_residual(cfg, robot, target_link_index, target_pose, pos_weight=1.0, ori_weight=1.0, base_pose=None) → (6,)`**
 
-Joint limits are also enforced by hard projection in the LM solver (via `Problem.lower_bounds/upper_bounds`). The soft cost here provides gradients near the boundary.
+Computes `log(T_target⁻¹ @ T_actual(cfg))` in se3 tangent space.
 
-### `_regularization.py` — `rest_residual`
-Returns `(cfg - rest_pose) * weight`. Used to keep the robot near a comfortable pose and resolve null-space redundancy.
+- Weights: `pos_weight` on `[:3]`, `ori_weight` on `[3:]`
+- `base_pose`: optional `(*batch, 7)` passthrough to `forward_kinematics`
 
-### `_collision.py`, `_manipulability.py`
-Stubs — not implemented.
+**`pose_cost(robot, target_link_index, target_pose, pos_weight, ori_weight, pose_weight, base_pose) → CostTerm`**
 
-### `_jacobian.py` — Analytical Jacobian Functions
+Factory. Returns `CostTerm` with `functools.partial` already applied.
 
-**`pose_jacobian(cfg, robot, target_link_index, target_pose, pos_weight, ori_weight, base_pose=None) → (6, n)`**
+**Default weights**: `ori_weight=0.1` is intentional — Panda default config has ~173° from identity, which puts SO3 log near singularity. Higher `ori_weight` causes oscillation.
 
-Geometric (analytical) Jacobian of `pose_residual` wrt `cfg`. Body-frame convention (matches `log(T_target^{-1} @ T_actual)` right log error). Uses cross-product formula:
-- Revolute/continuous joint j: `J[:,j] = R_ee^T @ [ω_j × (p_ee - p_j); ω_j]` with weights applied
-- Prismatic joint j: `J[:,j] = R_ee^T @ [d_j; 0]`
+## `limits.py` — `limit_residual` / `limit_cost`
 
-`robot.get_chain(target_link_index)` determines which joints contribute.
+**`limit_residual(cfg, robot, weight=1.0) → (2n,)`**
 
-**jlog approximation**: `jlog(T_err) ≈ I` (identity). Valid for errors < ~30°. For large errors the analytical J is an approximation; the solver still converges but may take more iterations.
+Returns `[clamp(lo - cfg, min=0), clamp(cfg - hi, min=0)]`.
 
-**`limit_jacobian(cfg, robot) → (2n, n)`**
-Diagonal: `-1` where `cfg < lo`, `+1` where `cfg > hi`, `0` inside limits. Matches `limit_residual`.
+**Critical:** `torch.clamp(min=0)` must never be removed. Without it, residuals are nonzero even within limits, creating a centering force that overwhelms the pose cost (18 limit dims vs 6 pose dims for a 9-DOF robot). Hard projection in the LM solver (`lower_bounds/upper_bounds`) handles the geometric constraint; the soft cost provides gradients near the boundary.
 
-**`rest_jacobian(cfg, rest_pose) → (n, n)`**
-Identity matrix. Matches `rest_residual = cfg - rest_pose`.
+Stubs (not implemented): `velocity_residual`, `acceleration_residual`, `jerk_residual`.
+
+## `regularization.py` — `rest_residual` / `rest_cost`
+
+**`rest_residual(cfg, rest_pose, weight=1.0) → (n,)`**
+
+Returns `(cfg - rest_pose) * weight`. Keeps robot near a comfortable null-space pose.
+
+**`smoothness_residual(cfg_t, cfg_t1, weight=1.0) → (n,)`**
+
+Penalizes large joint velocity between adjacent configs. Used in trajectory optimization.
+
+## `collision.py`, `manipulability.py`
+
+Stubs — raise `NotImplementedError`. Planned to use `algorithms/geometry/distance.py` once implemented.
 
 ## Adding a New Cost
 
-1. Write `my_cost(cfg: Tensor, ...) -> Tensor` returning a 1D residual
-2. Use `functools.partial(my_cost, ...)` to bind non-cfg args
-3. Wrap in `CostTerm(residual_fn=..., weight=...)` and add to `Problem.costs`
+```python
+def my_residual(cfg: Tensor, param_a, param_b) -> Tensor:
+    ...
+
+# Bind extra args with partial, wrap in CostTerm:
+from functools import partial
+from better_robot.costs import CostTerm
+
+term = CostTerm(
+    residual_fn=partial(my_residual, param_a=..., param_b=...),
+    weight=1.0,
+)
+```

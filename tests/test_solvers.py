@@ -1,8 +1,14 @@
 """Tests for solvers."""
 
+import functools
+
 import torch
 import pytest
-from better_robot.solvers import LevenbergMarquardt, Problem, CostTerm
+from robot_descriptions.loaders.yourdfpy import load_robot_description
+import better_robot as br
+from better_robot.costs import CostTerm, pose_residual, limit_residual, rest_residual
+from better_robot.solvers import LevenbergMarquardt, PyposeLevenbergMarquardt, Problem
+from better_robot.algorithms.kinematics import compute_jacobian, limit_jacobian, rest_jacobian
 
 
 def test_lm_solves_simple_quadratic():
@@ -72,22 +78,10 @@ def test_problem_constraint_residual():
     assert torch.allclose(cr, torch.tensor([3.0, 3.0]))
 
 
-import functools
-import pytest
-from robot_descriptions.loaders.yourdfpy import load_robot_description
-import better_robot as br
-from better_robot.solvers._lm import LevenbergMarquardt as OurLM
-from better_robot.solvers._levenberg_marquardt import LevenbergMarquardt as PyposeLM
-from better_robot.costs._pose import pose_residual
-from better_robot.costs._limits import limit_residual
-from better_robot.costs._regularization import rest_residual
-from better_robot.costs._jacobian import pose_jacobian, limit_jacobian, rest_jacobian
-
-
 @pytest.fixture(scope="module")
 def panda():
     urdf = load_robot_description("panda_description")
-    return br.Robot.from_urdf(urdf)
+    return br.load_urdf(urdf)
 
 
 def test_our_lm_converges_quadratic():
@@ -103,7 +97,7 @@ def test_our_lm_converges_quadratic():
         lower_bounds=None,
         upper_bounds=None,
     )
-    result = OurLM().solve(problem, max_iter=10)
+    result = LevenbergMarquardt().solve(problem, max_iter=10)
     assert torch.allclose(result, b, atol=1e-4), f"Expected {b}, got {result}"
 
 
@@ -125,14 +119,14 @@ def test_problem_jacobian_fn_is_called():
         upper_bounds=None,
         jacobian_fn=jac_fn,
     )
-    OurLM().solve(problem, max_iter=1)
+    LevenbergMarquardt().solve(problem, max_iter=1)
     assert len(calls) >= 1, "jacobian_fn was never called"
 
 
 def test_our_lm_autodiff_matches_pypose_lm(panda):
     """Our LM (autodiff) and PyPose LM reach comparable IK solutions (within 1 cm)."""
     cfg0 = panda._default_cfg
-    hand_idx = panda.get_link_index("panda_hand")
+    hand_idx = panda.link_index("panda_hand")
     target = panda.forward_kinematics(cfg0)[hand_idx].detach().clone()
     target[0] += 0.05
 
@@ -147,8 +141,8 @@ def test_our_lm_autodiff_matches_pypose_lm(panda):
                        lower_bounds=panda.joints.lower_limits.clone(),
                        upper_bounds=panda.joints.upper_limits.clone())
 
-    result_ours = OurLM().solve(make_problem(), max_iter=20)
-    result_pypose = PyposeLM().solve(make_problem(), max_iter=20)
+    result_ours = LevenbergMarquardt().solve(make_problem(), max_iter=20)
+    result_pypose = PyposeLevenbergMarquardt().solve(make_problem(), max_iter=20)
 
     fk_ours = panda.forward_kinematics(result_ours)
     fk_pypose = panda.forward_kinematics(result_pypose)
@@ -161,7 +155,7 @@ def test_our_lm_autodiff_matches_pypose_lm(panda):
 def test_our_lm_uses_jacobian_fn_when_provided(panda):
     """Our LM with jacobian_fn gives correct IK solution."""
     cfg0 = panda._default_cfg
-    hand_idx = panda.get_link_index("panda_hand")
+    hand_idx = panda.link_index("panda_hand")
     target = panda.forward_kinematics(cfg0)[hand_idx].detach()
     rest = panda._default_cfg.clone()
 
@@ -174,7 +168,7 @@ def test_our_lm_uses_jacobian_fn_when_provided(panda):
 
     def jac_fn(cfg):
         rows = [
-            pose_jacobian(cfg, panda, hand_idx, target, 1.0, 0.1) * 1.0,
+            compute_jacobian(panda, cfg, hand_idx, target, 1.0, 0.1) * 1.0,
             limit_jacobian(cfg, panda) * 0.1,
             rest_jacobian(cfg, rest) * 0.01,
         ]
@@ -186,6 +180,6 @@ def test_our_lm_uses_jacobian_fn_when_provided(panda):
         upper_bounds=panda.joints.upper_limits.clone(),
         jacobian_fn=jac_fn,
     )
-    result = OurLM().solve(problem, max_iter=5)
+    result = LevenbergMarquardt().solve(problem, max_iter=5)
     fk = panda.forward_kinematics(result)
     assert (fk[hand_idx, :3] - target[:3]).norm().item() < 0.05

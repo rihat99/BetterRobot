@@ -4,14 +4,18 @@
 def test_top_level_imports() -> None:
     import better_robot as br
 
-    assert hasattr(br, "Robot")
+    assert hasattr(br, "RobotModel")
+    assert hasattr(br, "load_urdf")
     assert hasattr(br, "solve_ik")
     assert hasattr(br, "solve_trajopt")
     assert hasattr(br, "retarget")
-    assert hasattr(br, "collision")
+    assert hasattr(br, "forward_kinematics")
+    assert hasattr(br, "compute_jacobian")
     assert hasattr(br, "solvers")
     assert hasattr(br, "costs")
     assert hasattr(br, "viewer")
+    assert hasattr(br, "models")
+    assert hasattr(br, "algorithms")
     from better_robot import IKConfig
     cfg = IKConfig()
     assert cfg.pos_weight == 1.0
@@ -21,15 +25,13 @@ def test_top_level_imports() -> None:
     assert cfg.rest_weight == 0.01
 
 
-def test_collision_imports() -> None:
-    from better_robot import collision
-
-    assert hasattr(collision, "RobotCollision")
-    assert hasattr(collision, "Sphere")
-    assert hasattr(collision, "Capsule")
-    assert hasattr(collision, "Box")
-    assert hasattr(collision, "HalfSpace")
-    assert hasattr(collision, "Heightmap")
+def test_geometry_imports() -> None:
+    from better_robot.algorithms.geometry import primitives
+    assert hasattr(primitives, "Sphere")
+    assert hasattr(primitives, "Capsule")
+    assert hasattr(primitives, "Box")
+    assert hasattr(primitives, "HalfSpace")
+    assert hasattr(primitives, "Heightmap")
 
 
 def test_solver_imports() -> None:
@@ -39,8 +41,8 @@ def test_solver_imports() -> None:
     assert hasattr(solvers, "GaussNewton")
     assert hasattr(solvers, "AdamSolver")
     assert hasattr(solvers, "LBFGSSolver")
-    assert hasattr(solvers, "SOLVER_REGISTRY")
-    assert set(solvers.SOLVER_REGISTRY.keys()) == {"lm", "lm_pypose", "gn", "adam", "lbfgs"}
+    assert hasattr(solvers, "SOLVERS")
+    assert set(solvers.SOLVERS.list()) == {"lm", "lm_pypose", "gn", "adam", "lbfgs"}
 
 
 def test_costs_imports() -> None:
@@ -58,7 +60,7 @@ def test_costs_imports() -> None:
 def test_viewer_helpers() -> None:
     import torch
     from better_robot.viewer import wxyz_pos_to_se3, qxyzw_to_wxyz, build_cfg_dict
-    from better_robot import Robot
+    from better_robot import load_urdf
     from robot_descriptions.loaders.yourdfpy import load_robot_description
 
     # wxyz_pos_to_se3
@@ -74,9 +76,9 @@ def test_viewer_helpers() -> None:
 
     # build_cfg_dict
     urdf = load_robot_description("panda_description")
-    robot = Robot.from_urdf(urdf)
-    cfg = robot._default_cfg.clone()
-    d = build_cfg_dict(robot, cfg)
+    model = load_urdf(urdf)
+    cfg = model._default_cfg.clone()
+    d = build_cfg_dict(model, cfg)
     assert isinstance(d, dict)
-    assert len(d) == robot.joints.num_actuated_joints
+    assert len(d) == model.joints.num_actuated_joints
     assert all(isinstance(v, float) for v in d.values())

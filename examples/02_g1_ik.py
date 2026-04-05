@@ -35,19 +35,19 @@ def main() -> None:
     args = parser.parse_args()
 
     urdf = load_robot_description("g1_description")
-    robot = br.Robot.from_urdf(urdf)
-    print(f"Loaded G1: {robot.links.num_links} links, {robot.joints.num_actuated_joints} actuated joints")
+    model = br.load_urdf(urdf)
+    print(f"Loaded G1: {model.links.num_links} links, {model.joints.num_actuated_joints} actuated joints")
 
-    vis = br.Visualizer(urdf, robot, floating_base=True)
+    vis = br.Visualizer(urdf, model, floating_base=True)
     vis.add_grid()
     for link_name in TARGET_LINKS:
         vis.add_target(link_name)
     vis.add_timing_display()
     vis.add_restart_button()
 
-    cfg = torch.zeros(robot.joints.num_actuated_joints)
+    cfg = torch.zeros(model.joints.num_actuated_joints)
     base_pose = INITIAL_BASE_POSE.clone()
-    vis.reset_targets(robot, cfg, base_pose)
+    vis.reset_targets(model, cfg, base_pose)
     vis.update(cfg, base_pose=base_pose)
 
     print("Drag transform handles to set IK targets. Press Ctrl+C to quit.")
@@ -55,7 +55,7 @@ def main() -> None:
     if args.profile:
         with torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CPU]) as prof:
             base_pose, cfg = br.solve_ik(
-                robot,
+                model,
                 targets=vis.get_targets(),
                 cfg=br.IKConfig(jacobian="analytic"),
                 initial_base_pose=base_pose,
@@ -67,13 +67,13 @@ def main() -> None:
 
     while True:
         if vis.restart_requested:
-            cfg = torch.zeros(robot.joints.num_actuated_joints)
+            cfg = torch.zeros(model.joints.num_actuated_joints)
             base_pose = INITIAL_BASE_POSE.clone()
-            vis.reset_targets(robot, cfg, base_pose)
+            vis.reset_targets(model, cfg, base_pose)
 
         t0 = time.perf_counter()
         base_pose, cfg = br.solve_ik(
-            robot,
+            model,
             targets=vis.get_targets(),
             cfg=br.IKConfig(jacobian="analytic"),
             initial_base_pose=base_pose,

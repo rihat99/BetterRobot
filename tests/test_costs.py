@@ -3,19 +3,19 @@
 import pytest
 import torch
 from robot_descriptions.loaders.yourdfpy import load_robot_description
-from better_robot import Robot
+from better_robot import load_urdf
 from better_robot.costs import pose_residual, limit_residual, rest_residual
 
 
 @pytest.fixture(scope="module")
 def panda():
     urdf = load_robot_description("panda_description")
-    return Robot.from_urdf(urdf)
+    return load_urdf(urdf)
 
 
 def test_pose_residual_shape(panda):
     cfg = panda._default_cfg
-    hand_idx = panda.get_link_index("panda_hand")
+    hand_idx = panda.link_index("panda_hand")
     # Get FK at default config to use as target (should give ~zero residual)
     fk = panda.forward_kinematics(cfg)
     target = fk[hand_idx].detach()
@@ -26,7 +26,7 @@ def test_pose_residual_shape(panda):
 
 def test_pose_residual_zero_at_target(panda):
     cfg = panda._default_cfg
-    hand_idx = panda.get_link_index("panda_hand")
+    hand_idx = panda.link_index("panda_hand")
     fk = panda.forward_kinematics(cfg)
     target = fk[hand_idx].detach()
 
@@ -36,7 +36,7 @@ def test_pose_residual_zero_at_target(panda):
 
 def test_pose_residual_gradient(panda):
     cfg = panda._default_cfg.clone().requires_grad_(True)
-    hand_idx = panda.get_link_index("panda_hand")
+    hand_idx = panda.link_index("panda_hand")
     target = torch.tensor([0.3, 0.0, 0.5, 0., 0., 0., 1.])
 
     res = pose_residual(cfg, panda, hand_idx, target)
@@ -70,7 +70,7 @@ def test_pose_residual_with_base_pose_zero_at_fk(panda):
     cfg = panda._default_cfg
     base_pose = torch.tensor([0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
     fk = panda.forward_kinematics(cfg, base_pose=base_pose)
-    hand_idx = panda.get_link_index("panda_hand")
+    hand_idx = panda.link_index("panda_hand")
     target = fk[hand_idx].detach()
     # With matching base_pose: residual should be near zero
     res = pose_residual(cfg, panda, hand_idx, target, base_pose=base_pose)

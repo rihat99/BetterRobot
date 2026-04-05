@@ -1,23 +1,17 @@
-"""Solver layer: swappable optimization backends."""
+"""Solvers layer: optimization backends for robotics problems."""
+from .problem import Problem
+from .base import Solver
+from .registry import SOLVERS, Registry
 
-from ._base import CostTerm as CostTerm, Problem as Problem, Solver as Solver
-from ._lm import LevenbergMarquardt as LevenbergMarquardt
-from ._levenberg_marquardt import LevenbergMarquardt as PyposeLevenbergMarquardt
-from ._gauss_newton import GaussNewton as GaussNewton
-from ._adam import AdamSolver as AdamSolver
-from ._lbfgs import LBFGSSolver as LBFGSSolver
-
-SOLVER_REGISTRY: dict[str, type[Solver]] = {
-    "lm": LevenbergMarquardt,               # our LM (autodiff or analytic via jacobian_fn)
-    "lm_pypose": PyposeLevenbergMarquardt,  # PyPose LM (kept for comparison)
-    "gn": GaussNewton,
-    "adam": AdamSolver,
-    "lbfgs": LBFGSSolver,
-}
+# Import solver classes to trigger registry registration
+from .levenberg_marquardt import LevenbergMarquardt
+from .levenberg_marquardt_pypose import PyposeLevenbergMarquardt
+from .gauss_newton import GaussNewton
+from .adam import AdamSolver
+from .lbfgs import LBFGSSolver
 
 __all__ = [
-    "CostTerm", "Problem", "Solver",
+    "Problem", "Solver", "SOLVERS", "Registry",
     "LevenbergMarquardt", "PyposeLevenbergMarquardt",
     "GaussNewton", "AdamSolver", "LBFGSSolver",
-    "SOLVER_REGISTRY",
 ]

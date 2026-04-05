@@ -4,21 +4,21 @@ import torch
 import pytest
 from robot_descriptions.loaders.yourdfpy import load_robot_description
 import better_robot as br
-from better_robot.costs._jacobian import pose_jacobian, limit_jacobian, rest_jacobian
-from better_robot.costs._pose import pose_residual
+from better_robot.algorithms.kinematics import compute_jacobian, limit_jacobian, rest_jacobian
+from better_robot.costs import pose_residual
 
 
 @pytest.fixture(scope="module")
 def panda():
     urdf = load_robot_description("panda_description")
-    return br.Robot.from_urdf(urdf)
+    return br.load_urdf(urdf)
 
 
 def test_pose_jacobian_shape(panda):
     cfg = panda._default_cfg
-    link_idx = panda.get_link_index("panda_hand")
+    link_idx = panda.link_index("panda_hand")
     target = panda.forward_kinematics(cfg)[link_idx].detach()
-    J = pose_jacobian(cfg, panda, link_idx, target, 1.0, 0.1)
+    J = compute_jacobian(panda, cfg, link_idx, target, 1.0, 0.1)
     assert J.shape == (6, panda.joints.num_actuated_joints)
 
 
@@ -26,10 +26,10 @@ def test_pose_jacobian_finite_diff(panda):
     """Analytical Jacobian matches central finite differences."""
     eps = 1e-3  # float32: eps < 1e-4 causes catastrophic cancellation in se3_log
     cfg = panda._default_cfg.clone()
-    link_idx = panda.get_link_index("panda_hand")
+    link_idx = panda.link_index("panda_hand")
     target = panda.forward_kinematics(cfg)[link_idx].detach()
 
-    J_analytic = pose_jacobian(cfg, panda, link_idx, target, 1.0, 0.1)
+    J_analytic = compute_jacobian(panda, cfg, link_idx, target, 1.0, 0.1)
 
     n = len(cfg)
     J_fd = torch.zeros(6, n)

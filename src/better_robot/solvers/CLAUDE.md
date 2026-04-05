@@ -1,67 +1,95 @@
 # solvers/ — Optimization Backends
 
-## Abstractions (`_base.py`)
+Registry-driven solver layer. Depends on `costs/` (for `CostTerm`).
+
+## Public API
+
+```python
+from better_robot.solvers import (
+    SOLVERS, Registry,
+    Problem, Solver,
+    LevenbergMarquardt, PyposeLevenbergMarquardt,
+    GaussNewton, AdamSolver, LBFGSSolver,
+)
+```
+
+## Core Abstractions
+
+### `CostTerm` (lives in `costs/cost_term.py`)
 
 ```python
 @dataclass
 class CostTerm:
-    residual_fn: Callable[[Tensor], Tensor]  # (x,) -> residual vector
+    residual_fn: Callable[[Tensor], Tensor]   # (x,) → residual vector
     weight: float = 1.0
     kind: Literal["soft", "constraint_leq_zero"] = "soft"
-
-@dataclass
-class Problem:
-    variables: Tensor          # initial value / warm start
-    costs: list[CostTerm]
-    lower_bounds: Tensor | None  # joint lower limits (for projection)
-    upper_bounds: Tensor | None  # joint upper limits (for projection)
-    jacobian_fn: Callable[[Tensor], Tensor] | None = None
-    # None  → our LM computes J via torch.func.jacrev(total_residual)(x)
-    # not None → our LM calls jacobian_fn(x) directly → (m, n) Tensor
 ```
 
-`Problem.total_residual(x)` concatenates all `soft` cost residuals (weighted). The LM solver minimizes `||total_residual(x)||^2`.
+### `Problem` (`problem.py`)
 
-## LM Solver — OUR IMPLEMENTATION (`_lm.py`) — DEFAULT
+```python
+@dataclass
+class Problem:
+    variables: Tensor             # initial value / warm start
+    costs: list[CostTerm]
+    lower_bounds: Tensor | None   # joint limits for hard projection
+    upper_bounds: Tensor | None
+    jacobian_fn: Callable | None = None
+    # None  → LM uses torch.func.jacrev(total_residual)(x)
+    # not None → LM calls jacobian_fn(x) → (m, n) Tensor
+```
 
-`SOLVER_REGISTRY["lm"]` → `LevenbergMarquardt` from `_lm.py`.
+`problem.total_residual(x)` — concatenates all weighted `soft` residuals.
+`problem.constraint_residual(x)` — concatenates all `constraint_leq_zero` residuals.
+
+### `Solver` ABC (`base.py`)
+
+```python
+class Solver(ABC):
+    @abstractmethod
+    def solve(self, problem: Problem, max_iter: int = 100, **kwargs) -> Tensor: ...
+```
+
+## Registry (`registry.py`)
+
+```python
+SOLVERS: Registry   # global instance
+
+@SOLVERS.register("lm")
+class LevenbergMarquardt(Solver): ...
+
+# Usage
+solver = SOLVERS.get("lm")(damping=1e-3)    # instantiate with custom params
+solver = SOLVERS.get("lm")()                 # default params
+solvers_available = SOLVERS.list()           # ["lm", "lm_pypose", "gn", "adam", "lbfgs"]
+```
+
+To add a new solver: create a file, decorate the class, and add the import to `__init__.py`.
+
+## LM Solver (`levenberg_marquardt.py`) — DEFAULT `"lm"`
 
 ```python
 LevenbergMarquardt(damping=1e-4, factor=2.0, reject=16).solve(problem, max_iter=100)
 ```
 
-- `jacobian_fn=None` → uses `torch.func.jacrev(problem.total_residual)(x)` (autodiff)
-- `jacobian_fn=fn` → calls `fn(x)` directly (analytic or custom)
-- Adaptive damping: accept step if `||r_new|| <= ||r||`, else multiply λ × factor (up to `reject` retries)
+- `jacobian_fn=None` → `torch.func.jacrev` (autodiff)
+- `jacobian_fn=fn` → calls `fn(x)` (analytic or custom)
+- Adaptive damping: accept step if `‖r_new‖ ≤ ‖r‖`, else multiply λ×factor (up to `reject` retries)
 - Bounds enforced via `.clamp()` after each accepted step
 
-## LM Solver — PYPOSE (`_levenberg_marquardt.py`) — COMPARISON
+## PyPose LM (`levenberg_marquardt_pypose.py`) — `"lm_pypose"`
 
-`SOLVER_REGISTRY["lm_pypose"]` → PyPose-based LM. Always uses autograd for J. Ignores `jacobian_fn`.
+Always uses PyPose autograd for J; ignores `jacobian_fn`. Kept for benchmarking.
 
-Use this only for comparison/benchmarking. The new default is `_lm.py`.
+**Key gotcha:** uses `vectorize=True` (torch.vmap). Works because FK only branches on fixed joint-type data. If FK branching ever depends on tensor values, `vectorize=True` may break.
 
-### Key gotcha: `vectorize=True` vs `vectorize=False`
+## Stub Solvers
 
-The PyPose LM uses `vectorize=True` (torch.vmap for batched Jacobian). This works because FK only branches on fixed joint-type data. If FK branching ever depends on tensor values, `vectorize=True` may break.
+`gauss_newton.py`, `adam.py`, `lbfgs.py` — registered as `"gn"`, `"adam"`, `"lbfgs"`. All raise `NotImplementedError`.
 
-## Registry
+When implementing:
+- **GN**: same structure as LM, set `lam=0`
+- **Adam**: `torch.optim.Adam([x], lr=...)` with scalar loss `0.5 * ‖r‖²`
+- **LBFGS**: `torch.optim.LBFGS([x], ...)` with closure
 
-```python
-SOLVER_REGISTRY = {
-    "lm":        LevenbergMarquardt,           # our LM (default)
-    "lm_pypose": PyposeLevenbergMarquardt,     # PyPose LM (comparison)
-    "gn":        GaussNewton,                  # stub
-    "adam":      AdamSolver,                   # stub
-    "lbfgs":     LBFGSSolver,                  # stub
-}
-```
-
-## Other Solvers — STUBS
-
-`_gauss_newton.py`, `_adam.py`, `_lbfgs.py` raise `NotImplementedError`. When implementing:
-- GN: same structure as LM but without damping (`lambda=0`)
-- Adam: use `torch.optim.Adam([x], lr=...)` with scalar loss `0.5 * ||r||^2`
-- LBFGS: use `torch.optim.LBFGS([x], ...)` with closure
-
-All must respect `problem.lower_bounds/upper_bounds` via clamping.
+All must respect `problem.lower_bounds / upper_bounds` via clamping.
