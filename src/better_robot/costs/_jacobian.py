@@ -26,6 +26,7 @@ def pose_jacobian(
     pos_weight: float,
     ori_weight: float,
     base_pose: torch.Tensor | None = None,
+    fk: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Geometric Jacobian of pose_residual wrt cfg.
 
@@ -38,6 +39,9 @@ def pose_jacobian(
         pos_weight: Weight on position rows (matches pose_residual).
         ori_weight: Weight on orientation rows (matches pose_residual).
         base_pose: (7,) optional floating base SE3. Passed to forward_kinematics.
+        fk: (num_links, 7) pre-computed FK result. When provided, the FK call is
+            skipped. Pass this when you already have FK from the residual computation
+            to avoid redundant forward passes.
 
     Returns:
         (6, num_actuated_joints) Jacobian matrix.
@@ -45,7 +49,8 @@ def pose_jacobian(
     device, dtype = cfg.device, cfg.dtype
     n = robot.joints.num_actuated_joints
 
-    fk = robot.forward_kinematics(cfg, base_pose=base_pose)   # (num_links, 7)
+    if fk is None:
+        fk = robot.forward_kinematics(cfg, base_pose=base_pose)   # (num_links, 7)
     T_ee = fk[target_link_index]
     p_ee = T_ee[:3]
     R_ee = pp.SO3(T_ee[3:7]).matrix()                                    # (3, 3) EE rotation

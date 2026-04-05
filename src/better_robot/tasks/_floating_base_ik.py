@@ -119,11 +119,12 @@ def _run_floating_base_lm_analytic(
         fk, r = _fb_residual(cfg, base, robot, target_link_indices, target_poses, ik_cfg, rest)
 
         # Build Jacobian: (m, n+6) — joint cols first, then 6 base cols
+        # Reuse fk already computed by _fb_residual — no extra FK call needed.
         J_rows = []
         for link_idx, target_pose in zip(target_link_indices, target_poses):
             J_joints = pose_jacobian(
                 cfg, robot, link_idx, target_pose,
-                ik_cfg.pos_weight, ik_cfg.ori_weight, base_pose=base,
+                ik_cfg.pos_weight, ik_cfg.ori_weight, base_pose=base, fk=fk,
             ) * ik_cfg.pose_weight                                             # (6, n)
             T_ee_local = se3_compose(se3_inverse(base), fk[link_idx])
             Ad = adjoint_se3(se3_inverse(T_ee_local))                          # (6, 6)

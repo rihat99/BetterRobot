@@ -20,6 +20,7 @@ from .tasks._config import IKConfig as IKConfig
 from .tasks._ik import solve_ik as solve_ik
 from .tasks._trajopt import solve_trajopt as solve_trajopt
 from .tasks._retarget import retarget as retarget
+from .viewer._visualizer import Visualizer as Visualizer
 from . import collision as collision
 from . import solvers as solvers
 from . import costs as costs
@@ -33,6 +34,7 @@ __all__ = [
     "solve_ik",
     "solve_trajopt",
     "retarget",
+    "Visualizer",
     "collision",
     "solvers",
     "costs",

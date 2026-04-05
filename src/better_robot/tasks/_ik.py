@@ -109,11 +109,12 @@ def _build_fixed_jacobian_fn(
     ]
 
     def jacobian_fn(cfg: torch.Tensor) -> torch.Tensor:
+        fk = robot.forward_kinematics(cfg)  # compute once, share across all targets
         rows = []
         for link_idx, target_pose in target_specs:
             J = pose_jacobian(
                 cfg, robot, link_idx, target_pose,
-                ik_cfg.pos_weight, ik_cfg.ori_weight,
+                ik_cfg.pos_weight, ik_cfg.ori_weight, fk=fk,
             )
             rows.append(J * ik_cfg.pose_weight)
         rows.append(limit_jacobian(cfg, robot) * ik_cfg.limit_weight)
