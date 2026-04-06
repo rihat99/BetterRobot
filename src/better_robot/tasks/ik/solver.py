@@ -6,6 +6,7 @@ import functools
 import torch
 
 from ...models.robot_model import RobotModel
+from ...models.data import RobotData
 from ...math.se3 import (
     se3_identity, se3_log, se3_compose, se3_inverse, se3_exp, se3_normalize
 )
@@ -30,7 +31,7 @@ def solve_ik(
     initial_q: torch.Tensor | None = None,
     initial_base_pose: torch.Tensor | None = None,
     max_iter: int = 100,
-) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+) -> "RobotData":
     """Solve inverse kinematics for one or more end-effector targets.
 
     Args:
@@ -43,8 +44,7 @@ def solve_ik(
         max_iter: Solver iterations.
 
     Returns:
-        Fixed base: (num_actuated_joints,) optimized joint config tensor.
-        Floating base: tuple (base_pose (7,), q (num_actuated_joints,)).
+        RobotData with .q populated (and .base_pose if floating-base).
     """
     if config is None:
         config = IKConfig()
@@ -104,7 +104,8 @@ def _solve_fixed(
         upper_bounds=model.joints.upper_limits.clone(),
         jacobian_fn=jac_fn,
     )
-    return SOLVERS.get(config.solver)(**config.solver_params).solve(problem, max_iter=max_iter)
+    q_result = SOLVERS.get(config.solver)(**config.solver_params).solve(problem, max_iter=max_iter)
+    return model.create_data(q=q_result)
 
 
 def _build_fixed_jacobian_fn(
@@ -251,7 +252,7 @@ def _solve_floating_autodiff(
                 break
             lam = min(lam * factor, 1e7)
 
-    return base.detach(), q.detach()
+    return model.create_data(q=q.detach(), base_pose=base.detach())
 
 
 def _solve_floating_analytic(
@@ -336,4 +337,4 @@ def _solve_floating_analytic(
                 break
             lam = min(lam * factor, 1e7)
 
-    return base.detach(), q.detach()
+    return model.create_data(q=q.detach(), base_pose=base.detach())

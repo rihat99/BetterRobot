@@ -37,6 +37,31 @@ class RobotModel:
         self.joints = joints
         self.links = links
 
+    @property
+    def q_default(self) -> torch.Tensor:
+        """Default joint configuration (midpoint of limits)."""
+        return self._q_default
+
+    @property
+    def q_lower(self) -> torch.Tensor:
+        """Lower joint position limits."""
+        return self.joints.lower_limits
+
+    @property
+    def q_upper(self) -> torch.Tensor:
+        """Upper joint position limits."""
+        return self.joints.upper_limits
+
+    @property
+    def n_joints(self) -> int:
+        """Number of actuated joints."""
+        return self.joints.num_actuated_joints
+
+    @property
+    def n_links(self) -> int:
+        """Number of links."""
+        return self.links.num_links
+
     def create_data(
         self,
         q: "torch.Tensor | None" = None,
