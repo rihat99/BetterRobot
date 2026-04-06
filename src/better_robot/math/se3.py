@@ -44,6 +44,60 @@ def se3_exp(tangent: torch.Tensor) -> torch.Tensor:
     return pp.se3(tangent).Exp().tensor()
 
 
+def se3_from_axis_angle(axis: torch.Tensor, angle: torch.Tensor) -> torch.Tensor:
+    """SE3 pose from pure rotation about an axis.
+
+    Supports batched angles: angle can be (*batch,) and axis is (3,).
+
+    Args:
+        axis: (3,) unit rotation axis.
+        angle: (*batch,) rotation angle(s) in radians.
+
+    Returns:
+        (*batch, 7) SE3 pose [tx, ty, tz, qx, qy, qz, qw] with zero translation.
+    """
+    half = angle / 2.0
+    cos_h = torch.cos(half)
+    sin_h = torch.sin(half)
+    qxyz = sin_h.unsqueeze(-1) * axis
+    zeros = torch.zeros(*angle.shape, 3, device=angle.device, dtype=angle.dtype)
+    return torch.cat([zeros, qxyz, cos_h.unsqueeze(-1)], dim=-1)
+
+
+def se3_from_translation(axis: torch.Tensor, displacement: torch.Tensor) -> torch.Tensor:
+    """SE3 pose from pure translation along an axis.
+
+    Supports batched displacements: displacement can be (*batch,) and axis is (3,).
+
+    Args:
+        axis: (3,) translation direction.
+        displacement: (*batch,) displacement magnitude(s).
+
+    Returns:
+        (*batch, 7) SE3 pose [tx, ty, tz, qx, qy, qz, qw] with identity rotation.
+    """
+    batch_shape = displacement.shape
+    device, dtype = displacement.device, displacement.dtype
+    trans = displacement.unsqueeze(-1) * axis.to(device=device, dtype=dtype)
+    qxyz = torch.zeros(*batch_shape, 3, device=device, dtype=dtype)
+    qw = torch.ones(*batch_shape, 1, device=device, dtype=dtype)
+    return torch.cat([trans, qxyz, qw], dim=-1)
+
+
+def se3_normalize(pose: torch.Tensor) -> torch.Tensor:
+    """Normalize the quaternion part of an SE3 pose.
+
+    Args:
+        pose: (..., 7) SE3 pose tensor [tx, ty, tz, qx, qy, qz, qw].
+
+    Returns:
+        (..., 7) SE3 pose with normalized quaternion.
+    """
+    q = pose[..., 3:7]
+    q_normed = q / q.norm(dim=-1, keepdim=True).clamp(min=1e-8)
+    return torch.cat([pose[..., :3], q_normed], dim=-1)
+
+
 def se3_apply_base(base_pose: torch.Tensor, link_poses: torch.Tensor) -> torch.Tensor:
     """Apply a base SE3 transform to all link poses.
 

@@ -2,31 +2,12 @@
 from __future__ import annotations
 import torch
 from ...models.robot_model import RobotModel
-from ...math.se3 import se3_compose, se3_identity, se3_apply_base
+from ...math.se3 import se3_compose, se3_identity, se3_apply_base, se3_from_axis_angle, se3_from_translation
 
 __all__ = [
     "forward_kinematics",
 ]
 
-
-def _revolute_transform(axis: torch.Tensor, angle: torch.Tensor) -> torch.Tensor:
-    """Pure rotation SE3: [0, 0, 0, sin*ax, sin*ay, sin*az, cos(a/2)]."""
-    half = angle / 2.0
-    cos_h = torch.cos(half)
-    sin_h = torch.sin(half)
-    qxyz = sin_h.unsqueeze(-1) * axis
-    zeros = torch.zeros(*angle.shape, 3, device=angle.device, dtype=angle.dtype)
-    return torch.cat([zeros, qxyz, cos_h.unsqueeze(-1)], dim=-1)
-
-
-def _prismatic_transform(axis: torch.Tensor, displacement: torch.Tensor) -> torch.Tensor:
-    """Pure translation SE3: [d*ax, d*ay, d*az, 0, 0, 0, 1]."""
-    batch_shape = displacement.shape
-    device, dtype = displacement.device, displacement.dtype
-    trans = displacement.unsqueeze(-1) * axis.to(device=device, dtype=dtype)
-    qxyz = torch.zeros(*batch_shape, 3, device=device, dtype=dtype)
-    qw = torch.ones(*batch_shape, 1, device=device, dtype=dtype)
-    return torch.cat([trans, qxyz, qw], dim=-1)
 
 
 def _fk_impl(
@@ -60,9 +41,9 @@ def _fk_impl(
             axis = model._fk_joint_axes[j_idx].to(device=device, dtype=dtype)
             jtype = model._fk_joint_types[j_idx]
             if jtype in ('revolute', 'continuous'):
-                T_motion = _revolute_transform(axis, angle)
+                T_motion = se3_from_axis_angle(axis, angle)
             else:
-                T_motion = _prismatic_transform(axis, angle)
+                T_motion = se3_from_translation(axis, angle)
             T = se3_compose(T, T_motion)
 
         link_world[child_link] = T

@@ -7,7 +7,7 @@ import torch
 
 from ...models.robot_model import RobotModel
 from ...math.se3 import (
-    se3_identity, se3_log, se3_compose, se3_inverse, se3_exp
+    se3_identity, se3_log, se3_compose, se3_inverse, se3_exp, se3_normalize
 )
 from ...math.spatial import adjoint_se3
 from ...costs.pose import pose_residual
@@ -230,9 +230,7 @@ def _solve_floating_autodiff(
         def total_res_flat(x: torch.Tensor) -> torch.Tensor:
             q_x = x[:n]
             delta_base = x[n:]
-            new_base = se3_compose(se3_exp(delta_base), base)
-            quat = new_base[3:7]
-            new_base = torch.cat([new_base[:3], quat / quat.norm().clamp(min=1e-8)])
+            new_base = se3_normalize(se3_compose(se3_exp(delta_base), base))
             _, res = _fb_residual(q_x, new_base, model, target_link_indices, target_poses, config, q_rest, default_base)
             return res
 
@@ -245,9 +243,7 @@ def _solve_floating_autodiff(
             A = JtJ + lam * torch.eye(n + 6, dtype=q.dtype, device=q.device)
             delta = torch.linalg.solve(A, -Jtr)
             q_new = (q + delta[:n]).clamp(lo, hi)
-            new_base = se3_compose(se3_exp(delta[n:]), base)
-            quat = new_base[3:7]
-            base_new = torch.cat([new_base[:3], quat / quat.norm().clamp(min=1e-8)])
+            base_new = se3_normalize(se3_compose(se3_exp(delta[n:]), base))
             _, r_new = _fb_residual(q_new, base_new, model, target_link_indices, target_poses, config, q_rest, default_base)
             if r_new.norm() <= r.norm():
                 q, base = q_new, base_new
@@ -328,8 +324,7 @@ def _solve_floating_analytic(
             delta = torch.linalg.solve(A, -Jtr)
 
             q_new = (q + delta[:n]).clamp(lo, hi)
-            base_new = se3_compose(se3_exp(delta[n:]), base)
-            base_new = torch.cat([base_new[:3], base_new[3:7] / base_new[3:7].norm()])
+            base_new = se3_normalize(se3_compose(se3_exp(delta[n:]), base))
 
             _, r_new = _fb_residual(
                 q_new, base_new, model, target_link_indices, target_poses, config, q_rest,
