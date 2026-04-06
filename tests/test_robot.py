@@ -223,6 +223,18 @@ def test_forward_kinematics_with_data(panda_model):
     assert data.fk_poses is not None
     assert data.fk_poses.shape[-1] == 7
     assert torch.allclose(result, data.fk_poses)
+    # Cache hit: sentinel value should NOT be overwritten
+    sentinel = torch.full_like(data.fk_poses, 42.0)
+    data.fk_poses = sentinel
+    result2 = br.forward_kinematics(panda_model, data)
+    assert torch.allclose(result2, sentinel), "Cache hit should return existing fk_poses"
+
+
+def test_forward_kinematics_method_with_data(panda_model):
+    data = panda_model.create_data()
+    result = panda_model.forward_kinematics(data)
+    assert data.fk_poses is not None
+    assert torch.allclose(result, data.fk_poses)
 
 
 def test_forward_kinematics_tensor_backward_compat(panda_model):

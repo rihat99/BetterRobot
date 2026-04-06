@@ -95,8 +95,8 @@ def forward_kinematics(
     from ...models.data import RobotData
     if isinstance(q_or_data, RobotData):
         data = q_or_data
-        result = _fk_impl(model, data.q, data.base_pose)
-        data.fk_poses = result
-        return result
+        if data.fk_poses is None:
+            data.fk_poses = _fk_impl(model, data.q, data.base_pose)
+        return data.fk_poses
     cfg = q_or_data
     return _fk_impl(model, cfg, base_pose)
