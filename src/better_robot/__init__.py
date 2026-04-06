@@ -9,10 +9,10 @@ Quick start::
     model = br.load_urdf(urdf)
 
     # Fixed base — single or multiple targets
-    cfg = br.solve_ik(model, targets={"panda_hand": pose})
+    q = br.solve_ik(model, targets={"panda_hand": pose})
 
     # Floating base (humanoid whole-body IK)
-    base_pose, cfg = br.solve_ik(
+    base_pose, q = br.solve_ik(
         model,
         targets={"left_rubber_hand": p_lh, "right_rubber_hand": p_rh},
         initial_base_pose=torch.tensor([0., 0., 0.78, 0., 0., 0., 1.]),

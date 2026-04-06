@@ -19,7 +19,7 @@ def solve_trajopt(
     Args:
         model: RobotModel instance.
         targets: {link_name: (7,) SE3 target}.
-        cfg: Trajectory optimization configuration.
+        config: Trajectory optimization configuration.
         initial_traj: (horizon, num_joints) initial trajectory.
         max_iter: Solver iterations.
 

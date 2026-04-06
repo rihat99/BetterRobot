@@ -42,8 +42,8 @@ def test_forward_kinematics_batch():
     """FK should support batch dimensions."""
     model = _load_panda()
     n = model.joints.num_actuated_joints
-    cfg = torch.zeros(3, 4, n)
-    poses = model.forward_kinematics(cfg)
+    q = torch.zeros(3, 4, n)
+    poses = model.forward_kinematics(q)
     assert poses.shape == (3, 4, model.links.num_links, 7)
 
 
@@ -66,10 +66,10 @@ def test_forward_kinematics_with_base_pose_shape():
     """FK with base_pose returns same shape as without."""
     model = _load_panda()
     n = model.joints.num_actuated_joints
-    cfg = torch.zeros(n)
+    q = torch.zeros(n)
     base_pose = torch.tensor([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])  # translate x=1
-    poses_base = model.forward_kinematics(cfg, base_pose=base_pose)
-    poses_orig = model.forward_kinematics(cfg)
+    poses_base = model.forward_kinematics(q, base_pose=base_pose)
+    poses_orig = model.forward_kinematics(q)
     assert poses_base.shape == poses_orig.shape
 
 

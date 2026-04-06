@@ -59,7 +59,7 @@ def test_costs_imports() -> None:
 
 def test_viewer_helpers() -> None:
     import torch
-    from better_robot.viewer import wxyz_pos_to_se3, qxyzw_to_wxyz, build_cfg_dict
+    from better_robot.viewer import wxyz_pos_to_se3, qxyzw_to_wxyz, build_joint_dict, build_cfg_dict
     from better_robot import load_urdf
     from robot_descriptions.loaders.yourdfpy import load_robot_description
 
@@ -70,15 +70,19 @@ def test_viewer_helpers() -> None:
     assert abs(se3[6].item() - 1.0) < 1e-6  # qw
 
     # qxyzw_to_wxyz
-    q = torch.tensor([0.0, 0.0, 0.0, 1.0])  # identity [qx,qy,qz,qw]
-    wxyz = qxyzw_to_wxyz(q)
+    quat = torch.tensor([0.0, 0.0, 0.0, 1.0])  # identity [qx,qy,qz,qw]
+    wxyz = qxyzw_to_wxyz(quat)
     assert wxyz == (1.0, 0.0, 0.0, 0.0)
 
-    # build_cfg_dict
+    # build_joint_dict (primary function)
     urdf = load_robot_description("panda_description")
     model = load_urdf(urdf)
-    cfg = model._q_default.clone()
-    d = build_cfg_dict(model, cfg)
+    q = model._q_default.clone()
+    d = build_joint_dict(model, q)
     assert isinstance(d, dict)
     assert len(d) == model.joints.num_actuated_joints
     assert all(isinstance(v, float) for v in d.values())
+
+    # build_cfg_dict (deprecated alias — must still work)
+    d2 = build_cfg_dict(model, q)
+    assert d2 == d

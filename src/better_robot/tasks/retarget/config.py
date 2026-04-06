@@ -18,4 +18,4 @@ class RetargetConfig:
     """Weight on orientation matching."""
 
     rest_weight: float = 0.01
-    """Pull toward robot._default_cfg."""
+    """Pull toward model._q_default."""

@@ -31,7 +31,7 @@ class IKConfig:
     """Soft joint limit penalty weight."""
 
     rest_weight: float = 0.01
-    """Pull toward robot._default_cfg."""
+    """Pull toward model._q_default."""
 
     base_pos_weight: float = 2.0
     """Pull base position toward reference (floating-base only)."""

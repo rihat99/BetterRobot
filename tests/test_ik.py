@@ -60,8 +60,8 @@ def test_solve_ik_with_custom_config(panda):
 
 def test_solve_ik_multi_target_shape(panda):
     """Multi-target is just solve_ik with multiple keys in targets dict."""
-    cfg = panda._q_default
-    fk = panda.forward_kinematics(cfg)
+    q = panda._q_default
+    fk = panda.forward_kinematics(q)
     targets = {
         "panda_link6": fk[panda.link_index("panda_link6")].detach(),
         "panda_hand": fk[panda.link_index("panda_hand")].detach(),
@@ -71,15 +71,15 @@ def test_solve_ik_multi_target_shape(panda):
 
 
 def test_solve_ik_multi_target_converges(panda):
-    cfg = panda._q_default
-    fk = panda.forward_kinematics(cfg)
+    q = panda._q_default
+    fk = panda.forward_kinematics(q)
     hand_idx = panda.link_index("panda_hand")
     link6_idx = panda.link_index("panda_link6")
     targets = {
         "panda_link6": fk[link6_idx].detach(),
         "panda_hand": fk[hand_idx].detach(),
     }
-    result = solve_ik(panda, targets=targets, initial_q=cfg.clone(), max_iter=5)
+    result = solve_ik(panda, targets=targets, initial_q=q.clone(), max_iter=5)
     fk_result = panda.forward_kinematics(result)
     assert (fk_result[hand_idx, :3] - fk[hand_idx, :3]).norm().item() < 0.05
     assert (fk_result[link6_idx, :3] - fk[link6_idx, :3]).norm().item() < 0.05
@@ -88,7 +88,7 @@ def test_solve_ik_multi_target_converges(panda):
 # --- Floating-base tests ---
 
 def test_solve_ik_floating_base_return_shapes(panda):
-    """Floating-base solve_ik returns (base_pose(7), cfg(n)) tuple."""
+    """Floating-base solve_ik returns RobotData with .q and .base_pose."""
     identity_base = torch.tensor([0., 0., 0., 0., 0., 0., 1.])
     hand_idx = panda.link_index("panda_hand")
     fk = panda.forward_kinematics(panda._q_default)

@@ -18,7 +18,7 @@ def retarget(
     Args:
         model: RobotModel instance.
         source_motion: (T, num_joints) source motion sequence.
-        cfg: Retargeting configuration.
+        config: Retargeting configuration.
         max_iter: Solver iterations per frame.
 
     Returns:

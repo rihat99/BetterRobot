@@ -125,9 +125,9 @@ def test_problem_jacobian_fn_is_called():
 
 def test_our_lm_autodiff_matches_pypose_lm(panda):
     """Our LM (autodiff) and PyPose LM reach comparable IK solutions (within 1 cm)."""
-    cfg0 = panda._q_default
+    q0 = panda._q_default
     hand_idx = panda.link_index("panda_hand")
-    target = panda.forward_kinematics(cfg0)[hand_idx].detach().clone()
+    target = panda.forward_kinematics(q0)[hand_idx].detach().clone()
     target[0] += 0.05
 
     def make_problem():
@@ -137,7 +137,7 @@ def test_our_lm_autodiff_matches_pypose_lm(panda):
             CostTerm(functools.partial(limit_residual, robot=panda), weight=0.1),
             CostTerm(functools.partial(rest_residual, q_rest=panda._q_default), weight=0.01),
         ]
-        return Problem(variables=cfg0.clone(), costs=costs,
+        return Problem(variables=q0.clone(), costs=costs,
                        lower_bounds=panda.joints.lower_limits.clone(),
                        upper_bounds=panda.joints.upper_limits.clone())
 
@@ -154,9 +154,9 @@ def test_our_lm_autodiff_matches_pypose_lm(panda):
 
 def test_our_lm_uses_jacobian_fn_when_provided(panda):
     """Our LM with jacobian_fn gives correct IK solution."""
-    cfg0 = panda._q_default
+    q0 = panda._q_default
     hand_idx = panda.link_index("panda_hand")
-    target = panda.forward_kinematics(cfg0)[hand_idx].detach()
+    target = panda.forward_kinematics(q0)[hand_idx].detach()
     rest = panda._q_default.clone()
 
     costs = [
@@ -175,7 +175,7 @@ def test_our_lm_uses_jacobian_fn_when_provided(panda):
         return torch.cat(rows, dim=0)
 
     problem = Problem(
-        variables=cfg0.clone(), costs=costs,
+        variables=q0.clone(), costs=costs,
         lower_bounds=panda.joints.lower_limits.clone(),
         upper_bounds=panda.joints.upper_limits.clone(),
         jacobian_fn=jac_fn,
