@@ -11,7 +11,7 @@ from .cost_term import CostTerm
 
 def self_collision_residual(
     q: torch.Tensor,
-    robot: RobotModel,
+    model: RobotModel,
     robot_coll: RobotCollision,
     margin: float = 0.02,
     weight: float = 1.0,
@@ -21,7 +21,7 @@ def self_collision_residual(
     Returns:
         Shape (num_active_pairs,). Violation per pair (higher = worse).
     """
-    dists = robot_coll.compute_self_collision_distance(robot, q)
+    dists = robot_coll.compute_self_collision_distance(model, q)
     # Convert to cost: negative colldist_from_sdf means collision
     cost = -colldist_from_sdf(dists, activation_dist=margin)
     return cost * weight
@@ -29,7 +29,7 @@ def self_collision_residual(
 
 def world_collision_residual(
     q: torch.Tensor,
-    robot: RobotModel,
+    model: RobotModel,
     robot_coll: RobotCollision,
     world_geom: list[CollGeom],
     margin: float = 0.02,
@@ -40,13 +40,13 @@ def world_collision_residual(
     Returns:
         Shape (num_robot_spheres * len(world_geom),). Violation per pair.
     """
-    dists = robot_coll.compute_world_collision_distance(robot, q, world_geom)
+    dists = robot_coll.compute_world_collision_distance(model, q, world_geom)
     cost = -colldist_from_sdf(dists, activation_dist=margin)
     return cost * weight
 
 
 def self_collision_cost(
-    robot: RobotModel,
+    model: RobotModel,
     robot_coll: RobotCollision,
     margin: float = 0.02,
     weight: float = 1.0,
@@ -55,7 +55,7 @@ def self_collision_cost(
     return CostTerm(
         residual_fn=functools.partial(
             self_collision_residual,
-            robot=robot,
+            model=model,
             robot_coll=robot_coll,
             margin=margin,
             weight=weight,
@@ -65,7 +65,7 @@ def self_collision_cost(
 
 
 def world_collision_cost(
-    robot: RobotModel,
+    model: RobotModel,
     robot_coll: RobotCollision,
     world_geom: list[CollGeom],
     margin: float = 0.02,
@@ -75,7 +75,7 @@ def world_collision_cost(
     return CostTerm(
         residual_fn=functools.partial(
             world_collision_residual,
-            robot=robot,
+            model=model,
             robot_coll=robot_coll,
             world_geom=world_geom,
             margin=margin,

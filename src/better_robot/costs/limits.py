@@ -19,7 +19,7 @@ __all__ = [
 
 def limit_residual(
     q: torch.Tensor,
-    robot: RobotModel,
+    model: RobotModel,
     weight: float = 1.0,
 ) -> torch.Tensor:
     """Compute joint limit violation residual.
@@ -30,23 +30,23 @@ def limit_residual(
 
     Args:
         q: Shape (num_actuated_joints,). Current configuration.
-        robot: RobotModel instance.
+        model: RobotModel instance.
         weight: Scalar weight.
 
     Returns:
         Shape (2 * num_actuated_joints,). Upper and lower violations.
     """
-    lo = robot.joints.lower_limits.to(device=q.device, dtype=q.dtype)
-    hi = robot.joints.upper_limits.to(device=q.device, dtype=q.dtype)
+    lo = model.joints.lower_limits.to(device=q.device, dtype=q.dtype)
+    hi = model.joints.upper_limits.to(device=q.device, dtype=q.dtype)
     lower_viol = torch.clamp(lo - q, min=0.0) * weight
     upper_viol = torch.clamp(q - hi, min=0.0) * weight
     return torch.cat([lower_viol, upper_viol], dim=-1)
 
 
-def limit_cost(robot: RobotModel, weight: float = 0.1) -> CostTerm:
+def limit_cost(model: RobotModel, weight: float = 0.1) -> CostTerm:
     """Create a joint limit cost term."""
     return CostTerm(
-        residual_fn=functools.partial(limit_residual, robot=robot),
+        residual_fn=functools.partial(limit_residual, model=model),
         weight=weight,
         kind="soft",
     )
@@ -55,7 +55,7 @@ def limit_cost(robot: RobotModel, weight: float = 0.1) -> CostTerm:
 def velocity_residual(
     q: torch.Tensor,
     q_prev: torch.Tensor,
-    robot: RobotModel,
+    model: RobotModel,
     dt: float,
     weight: float = 1.0,
 ) -> torch.Tensor:

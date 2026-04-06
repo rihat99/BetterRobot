@@ -132,9 +132,9 @@ def test_our_lm_autodiff_matches_pypose_lm(panda):
 
     def make_problem():
         costs = [
-            CostTerm(functools.partial(pose_residual, robot=panda, target_link_index=hand_idx,
+            CostTerm(functools.partial(pose_residual, model=panda, target_link_index=hand_idx,
                                        target_pose=target, pos_weight=1.0, ori_weight=0.1), weight=1.0),
-            CostTerm(functools.partial(limit_residual, robot=panda), weight=0.1),
+            CostTerm(functools.partial(limit_residual, model=panda), weight=0.1),
             CostTerm(functools.partial(rest_residual, q_rest=panda._q_default), weight=0.01),
         ]
         return Problem(variables=q0.clone(), costs=costs,
@@ -160,9 +160,9 @@ def test_our_lm_uses_jacobian_fn_when_provided(panda):
     rest = panda._q_default.clone()
 
     costs = [
-        CostTerm(functools.partial(pose_residual, robot=panda, target_link_index=hand_idx,
+        CostTerm(functools.partial(pose_residual, model=panda, target_link_index=hand_idx,
                                    target_pose=target, pos_weight=1.0, ori_weight=0.1), weight=1.0),
-        CostTerm(functools.partial(limit_residual, robot=panda), weight=0.1),
+        CostTerm(functools.partial(limit_residual, model=panda), weight=0.1),
         CostTerm(functools.partial(rest_residual, q_rest=rest), weight=0.01),
     ]
 

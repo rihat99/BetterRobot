@@ -17,7 +17,7 @@ __all__ = [
 
 def pose_residual(
     q: torch.Tensor,
-    robot: RobotModel,
+    model: RobotModel,
     target_link_index: int,
     target_pose: torch.Tensor,
     pos_weight: float = 1.0,
@@ -28,8 +28,8 @@ def pose_residual(
 
     Args:
         q: Shape (*batch, num_actuated_joints). Current joint configuration.
-        robot: RobotModel instance.
-        target_link_index: Index into robot.links.names for the target link.
+        model: RobotModel instance.
+        target_link_index: Index into model.links.names for the target link.
         target_pose: Shape (7,). Target SE3 pose [tx, ty, tz, qx, qy, qz, qw].
         pos_weight: Weight on position error (first 3 dims of log).
         ori_weight: Weight on orientation error (last 3 dims of log).
@@ -38,7 +38,7 @@ def pose_residual(
     Returns:
         Shape (*batch, 6). Weighted SE3 log error [pos*w, ori*w].
     """
-    fk = robot.forward_kinematics(q, base_pose=base_pose)
+    fk = model.forward_kinematics(q, base_pose=base_pose)
     actual_pose = fk[..., target_link_index, :]
     T_err = se3_compose(se3_inverse(target_pose), actual_pose)
     log_err = se3_log(T_err)
@@ -48,7 +48,7 @@ def pose_residual(
 
 
 def pose_cost(
-    robot: RobotModel,
+    model: RobotModel,
     target_link_index: int,
     target_pose: torch.Tensor,
     pos_weight: float = 1.0,
@@ -61,7 +61,7 @@ def pose_cost(
     Returns a ready-to-use CostTerm with functools.partial already applied.
 
     Args:
-        robot: RobotModel instance.
+        model: RobotModel instance.
         target_link_index: Index of the target link.
         target_pose: Shape (7,). Target SE3 pose.
         pos_weight: Weight on position error.
@@ -75,7 +75,7 @@ def pose_cost(
     return CostTerm(
         residual_fn=functools.partial(
             pose_residual,
-            robot=robot,
+            model=model,
             target_link_index=target_link_index,
             target_pose=target_pose,
             pos_weight=pos_weight,

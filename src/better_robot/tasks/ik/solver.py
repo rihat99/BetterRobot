@@ -73,7 +73,7 @@ def _solve_fixed(
         costs.append(CostTerm(
             residual_fn=functools.partial(
                 pose_residual,
-                robot=model,
+                model=model,
                 target_link_index=link_idx,
                 target_pose=target_pose,
                 pos_weight=config.pos_weight,
@@ -84,7 +84,7 @@ def _solve_fixed(
 
     costs += [
         CostTerm(
-            residual_fn=functools.partial(limit_residual, robot=model),
+            residual_fn=functools.partial(limit_residual, model=model),
             weight=config.limit_weight,
         ),
         CostTerm(

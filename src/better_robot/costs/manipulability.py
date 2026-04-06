@@ -12,7 +12,7 @@ from .cost_term import CostTerm
 
 def manipulability_residual(
     q: torch.Tensor,
-    robot: RobotModel,
+    model: RobotModel,
     target_link_index: int,
     weight: float = 1.0,
 ) -> torch.Tensor:
@@ -26,7 +26,7 @@ def manipulability_residual(
     """
     # Compute Jacobian with unit weights so we get the geometric Jacobian
     J = compute_jacobian(
-        robot, q, target_link_index,
+        model, q, target_link_index,
         target_pose=torch.zeros(7, dtype=q.dtype, device=q.device),
         pos_weight=1.0,
         ori_weight=0.0,
@@ -38,7 +38,7 @@ def manipulability_residual(
 
 
 def manipulability_cost(
-    robot: RobotModel,
+    model: RobotModel,
     target_link_index: int,
     weight: float = 1.0,
 ) -> CostTerm:
@@ -46,7 +46,7 @@ def manipulability_cost(
     return CostTerm(
         residual_fn=functools.partial(
             manipulability_residual,
-            robot=robot,
+            model=model,
             target_link_index=target_link_index,
             weight=weight,
         ),

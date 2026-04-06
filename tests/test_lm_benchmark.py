@@ -52,9 +52,9 @@ def _pypose_run(model, target, link_idx, n_iter=20, n_runs=10):
     result = None
     for _ in range(n_runs):
         costs = [
-            CostTerm(functools.partial(pose_residual, robot=model, target_link_index=hand_idx,
+            CostTerm(functools.partial(pose_residual, model=model, target_link_index=hand_idx,
                                        target_pose=target, pos_weight=1.0, ori_weight=0.1), weight=1.0),
-            CostTerm(functools.partial(limit_residual, robot=model), weight=0.1),
+            CostTerm(functools.partial(limit_residual, model=model), weight=0.1),
             CostTerm(functools.partial(rest_residual, q_rest=model._q_default), weight=0.01),
         ]
         prob = Problem(variables=cfg0.clone(), costs=costs,
