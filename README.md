@@ -1,19 +1,23 @@
 # BetterRobot
 
-PyTorch-native library for robot kinematics and inverse kinematics.
+PyTorch-native library for robot kinematics
 
 ## Installation
 
+Requires [uv](https://docs.astral.sh/uv/):
+
 ```bash
-git clone https://github.com/rikhat/BetterRobot
+git clone https://github.com/rihat99/BetterRobot
 cd BetterRobot
 uv sync
+uv add -e .
 ```
 
-Requires [uv](https://docs.astral.sh/uv/). As a local editable dependency:
+## Examples
 
 ```bash
-uv add --editable /Users/rikhat.akizhanov/Desktop/cources/PhD/ROB803/assignment_3/BetterRobot
+uv run python examples/01_basic_ik.py   # Franka Panda — open http://localhost:8080
+uv run python examples/02_g1_ik.py     # Unitree G1 whole-body IK (floating base)
 ```
 
 ## Quick Start
@@ -37,13 +41,6 @@ base_pose, cfg = br.solve_ik(
 ```
 
 Poses: `[tx, ty, tz, qx, qy, qz, qw]` (scalar-last quaternion).
-
-## Examples
-
-```bash
-uv run python examples/01_basic_ik.py   # Franka Panda — open http://localhost:8080
-uv run python examples/02_g1_ik.py     # Unitree G1 whole-body IK (floating base)
-```
 
 ## Dependencies
 
