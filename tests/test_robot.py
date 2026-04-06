@@ -241,3 +241,19 @@ def test_forward_kinematics_tensor_backward_compat(panda_model):
     q = panda_model._default_cfg.clone()
     result = br.forward_kinematics(panda_model, q)
     assert result.shape[-1] == 7
+
+
+def test_forward_kinematics_data_with_base_pose_raises(panda_model):
+    data = panda_model.create_data()
+    with pytest.raises(ValueError, match="base_pose must not be passed"):
+        br.forward_kinematics(panda_model, data, base_pose=torch.zeros(7))
+
+
+def test_forward_kinematics_data_wrong_model_raises(panda_model):
+    data = panda_model.create_data()
+    import better_robot as br2
+    # Create data with wrong model_id
+    from better_robot.models.data import RobotData
+    bad_data = RobotData(q=data.q.clone(), _model_id=id(object()))  # wrong id
+    with pytest.raises(ValueError, match="different RobotModel"):
+        br.forward_kinematics(panda_model, bad_data)

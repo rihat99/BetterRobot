@@ -94,9 +94,19 @@ def forward_kinematics(
     """
     from ...models.data import RobotData
     if isinstance(q_or_data, RobotData):
+        if base_pose is not None:
+            raise ValueError(
+                "base_pose must not be passed when q_or_data is RobotData; "
+                "set data.base_pose instead."
+            )
         data = q_or_data
+        if data._model_id != -1 and data._model_id != id(model):
+            raise ValueError(
+                "RobotData was created from a different RobotModel. "
+                "Use model.create_data() to create data for this model."
+            )
         if data.fk_poses is None:
             data.fk_poses = _fk_impl(model, data.q, data.base_pose)
         return data.fk_poses
-    cfg = q_or_data
-    return _fk_impl(model, cfg, base_pose)
+    q = q_or_data
+    return _fk_impl(model, q, base_pose)
