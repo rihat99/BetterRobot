@@ -1,7 +1,11 @@
 """Spatial algebra: adjoint matrix and skew-symmetric operations."""
 from __future__ import annotations
-import pypose as pp
 import torch
+from .so3 import so3_rotation_matrix
+
+__all__ = [
+    "adjoint_se3",
+]
 
 
 def adjoint_se3(T: torch.Tensor) -> torch.Tensor:
@@ -21,7 +25,7 @@ def adjoint_se3(T: torch.Tensor) -> torch.Tensor:
         (6, 6) Adjoint matrix.
     """
     p = T[:3]
-    R = pp.SO3(T[3:7]).matrix()   # (3, 3)
+    R = so3_rotation_matrix(T[3:7])   # (3, 3)
 
     skew = torch.zeros(3, 3, dtype=T.dtype, device=T.device)
     skew[0, 1] = -p[2];  skew[0, 2] =  p[1]

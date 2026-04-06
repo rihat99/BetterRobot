@@ -9,6 +9,11 @@ from ..models.robot_model import RobotModel
 from ..math.se3 import se3_compose, se3_inverse, se3_log
 from .cost_term import CostTerm
 
+__all__ = [
+    "pose_residual",
+    "pose_cost",
+]
+
 
 def pose_residual(
     cfg: torch.Tensor,

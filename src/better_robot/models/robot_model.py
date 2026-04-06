@@ -4,29 +4,12 @@ from __future__ import annotations
 import torch
 import yourdfpy
 
-from ..math.se3 import se3_compose, se3_identity, se3_apply_base
 from .joint_info import JointInfo
 from .link_info import LinkInfo
 
-
-def _revolute_transform(axis: torch.Tensor, angle: torch.Tensor) -> torch.Tensor:
-    """Pure rotation SE3: [0, 0, 0, sin*ax, sin*ay, sin*az, cos(a/2)]."""
-    half = angle / 2.0
-    cos_h = torch.cos(half)
-    sin_h = torch.sin(half)
-    qxyz = sin_h.unsqueeze(-1) * axis
-    zeros = torch.zeros(*angle.shape, 3, device=angle.device, dtype=angle.dtype)
-    return torch.cat([zeros, qxyz, cos_h.unsqueeze(-1)], dim=-1)
-
-
-def _prismatic_transform(axis: torch.Tensor, displacement: torch.Tensor) -> torch.Tensor:
-    """Pure translation SE3: [d*ax, d*ay, d*az, 0, 0, 0, 1]."""
-    batch_shape = displacement.shape
-    device, dtype = displacement.device, displacement.dtype
-    trans = displacement.unsqueeze(-1) * axis.to(device=device, dtype=dtype)
-    qxyz = torch.zeros(*batch_shape, 3, device=device, dtype=dtype)
-    qw = torch.ones(*batch_shape, 1, device=device, dtype=dtype)
-    return torch.cat([trans, qxyz, qw], dim=-1)
+__all__ = [
+    "RobotModel",
+]
 
 
 class RobotModel:
@@ -43,6 +26,12 @@ class RobotModel:
 
     joints: JointInfo
     links: LinkInfo
+    _frozen: bool = False
+
+    def __setattr__(self, name: str, value: object) -> None:
+        if getattr(self, '_frozen', False) and name != '_frozen':
+            raise AttributeError(f"RobotModel is immutable. Cannot set '{name}'.")
+        super().__setattr__(name, value)
 
     def __init__(self, joints: JointInfo, links: LinkInfo) -> None:
         self.joints = joints
@@ -118,6 +107,7 @@ class RobotModel:
         else:
             model._default_cfg = default_joint_cfg
 
+        model._frozen = True
         return model
 
     def forward_kinematics(
@@ -135,44 +125,8 @@ class RobotModel:
         Returns:
             Shape (*batch, num_links, 7). SE3 poses for each link.
         """
-        batch_shape = cfg.shape[:-1]
-        device, dtype = cfg.device, cfg.dtype
-
-        link_world: dict[int, torch.Tensor] = {}
-        link_world[self._root_link_idx] = (
-            se3_identity()
-            .to(device=device, dtype=dtype)
-            .expand(*batch_shape, 7)
-            .clone()
-        )
-
-        for j_idx in self._fk_joint_order:
-            parent_link = self._fk_joint_parent_link[j_idx]
-            child_link = self._fk_joint_child_link[j_idx]
-
-            T_parent = link_world[parent_link]
-            T_origin = self._fk_joint_origins[j_idx].to(device=device, dtype=dtype)
-            T = se3_compose(T_parent, T_origin.expand_as(T_parent))
-
-            cfg_idx = self._fk_cfg_indices[j_idx]
-            if cfg_idx >= 0:
-                q = cfg[..., cfg_idx]
-                axis = self._fk_joint_axes[j_idx].to(device=device, dtype=dtype)
-                jtype = self._fk_joint_types[j_idx]
-                if jtype in ('revolute', 'continuous'):
-                    T_motion = _revolute_transform(axis, q)
-                else:
-                    T_motion = _prismatic_transform(axis, q)
-                T = se3_compose(T, T_motion)
-
-            link_world[child_link] = T
-
-        result = torch.stack(
-            [link_world[i] for i in range(self.links.num_links)], dim=-2
-        )
-        if base_pose is not None:
-            result = se3_apply_base(base_pose, result)
-        return result
+        from ..algorithms.kinematics.forward import forward_kinematics
+        return forward_kinematics(self, cfg, base_pose)
 
     def link_index(self, link_name: str) -> int:
         """Return the index of a link by name.
@@ -203,20 +157,5 @@ class RobotModel:
             List of joint indices in root->EE order (actuated joints only).
             Empty list if link_idx is the root.
         """
-        child_to_joint: dict[int, int] = {
-            child: j for j, child in enumerate(self._fk_joint_child_link)
-        }
-        chain: list[int] = []
-        current = link_idx
-        while current != self._root_link_idx:
-            if current not in child_to_joint:
-                raise ValueError(
-                    f"Link index {link_idx} is not reachable from root "
-                    f"(stuck at link {current}). Possible orphaned link."
-                )
-            j = child_to_joint[current]
-            if self._fk_cfg_indices[j] >= 0:
-                chain.append(j)
-            current = self._fk_joint_parent_link[j]
-        chain.reverse()
-        return chain
+        from ..algorithms.kinematics.chain import get_chain
+        return get_chain(self, link_idx)

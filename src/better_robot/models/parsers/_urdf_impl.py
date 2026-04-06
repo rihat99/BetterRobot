@@ -6,20 +6,19 @@ from collections import deque
 from dataclasses import dataclass
 
 import numpy as np
-import pypose as pp
 import torch
 import yourdfpy
 
 from ..joint_info import JointInfo
 from ..link_info import LinkInfo
+from ...math.so3 import so3_from_matrix
 
 
 def _transform_to_se3(T: np.ndarray) -> list[float]:
     """Convert 4x4 numpy transform to [tx, ty, tz, qx, qy, qz, qw]."""
     t = T[:3, 3]
     R = torch.from_numpy(T[:3, :3].astype(np.float32))
-    so3 = pp.mat2SO3(R)
-    q = so3.tensor()
+    q = so3_from_matrix(R)
     return [float(t[0]), float(t[1]), float(t[2]),
             float(q[0]), float(q[1]), float(q[2]), float(q[3])]
 

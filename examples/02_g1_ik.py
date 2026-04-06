@@ -9,6 +9,14 @@ Usage:
 Open http://localhost:8080 in your browser.
 Drag the coloured transform handles to move the targets.
 Click *Restart* to reset the robot and all targets to the initial standing pose.
+
+Solver options (pass via IKConfig):
+    jacobian="analytic"   — geometric Jacobian (faster, default here)
+    jacobian="autodiff"   — torch.func.jacrev (works for any custom cost)
+    solver="lm"           — Levenberg-Marquardt (default)
+    solver="gn"           — Gauss-Newton (no damping, faster on easy problems)
+    solver="adam"         — Adam gradient descent
+    solver="lbfgs"        — L-BFGS with strong Wolfe line search
 """
 import argparse
 import time
@@ -45,6 +53,8 @@ def main() -> None:
     vis.add_timing_display()
     vis.add_restart_button()
 
+    ik_cfg = br.IKConfig(jacobian="analytic")
+
     cfg = torch.zeros(model.joints.num_actuated_joints)
     base_pose = INITIAL_BASE_POSE.clone()
     vis.reset_targets(model, cfg, base_pose)
@@ -57,7 +67,7 @@ def main() -> None:
             base_pose, cfg = br.solve_ik(
                 model,
                 targets=vis.get_targets(),
-                cfg=br.IKConfig(jacobian="analytic"),
+                cfg=ik_cfg,
                 initial_base_pose=base_pose,
                 initial_cfg=cfg,
                 max_iter=20,
@@ -75,14 +85,14 @@ def main() -> None:
         base_pose, cfg = br.solve_ik(
             model,
             targets=vis.get_targets(),
-            cfg=br.IKConfig(jacobian="analytic"),
+            cfg=ik_cfg,
             initial_base_pose=base_pose,
             initial_cfg=cfg,
             max_iter=20,
         )
         vis.set_timing((time.perf_counter() - t0) * 1000)
         vis.update(cfg, base_pose=base_pose)
-        # time.sleep(1.0 / 30.0)
+        time.sleep(1.0 / 30.0)
 
 
 if __name__ == "__main__":

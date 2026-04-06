@@ -17,7 +17,7 @@ from .limits import (
 )
 from .regularization import rest_residual, rest_cost, smoothness_residual
 from .collision import self_collision_residual, world_collision_residual
-from .manipulability import manipulability_residual
+from .manipulability import manipulability_residual, manipulability_cost
 
 __all__ = [
     "CostTerm",
@@ -26,5 +26,5 @@ __all__ = [
     "velocity_residual", "acceleration_residual", "jerk_residual",
     "rest_residual", "rest_cost", "smoothness_residual",
     "self_collision_residual", "world_collision_residual",
-    "manipulability_residual",
+    "manipulability_residual", "manipulability_cost",
 ]

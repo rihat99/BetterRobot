@@ -2,6 +2,11 @@
 from __future__ import annotations
 import torch
 
+__all__ = [
+    "qxyzw_to_wxyz",
+    "wxyz_to_qxyzw",
+]
+
 
 def qxyzw_to_wxyz(q: torch.Tensor) -> tuple:
     """Convert [qx, qy, qz, qw] tensor to viser (w, x, y, z) tuple."""

@@ -4,10 +4,6 @@ from __future__ import annotations
 import functools
 
 import torch
-import torch.nn as nn
-import pypose as pp
-import pypose.optim as ppo
-import pypose.optim.strategy as ppo_strategy
 
 from ...models.robot_model import RobotModel
 from ...math.se3 import (
@@ -24,6 +20,7 @@ from ...algorithms.kinematics.jacobian import (
 from ...solvers.problem import Problem
 from ...solvers.registry import SOLVERS
 from .config import IKConfig
+from .variable import IKVariable
 
 
 def solve_ik(
@@ -52,7 +49,7 @@ def solve_ik(
     if cfg is None:
         cfg = IKConfig()
     if initial_base_pose is not None:
-        return _run_floating_base_lm(model, targets, cfg, initial_cfg, initial_base_pose, max_iter)
+        return _solve_floating(model, targets, cfg, initial_cfg, initial_base_pose, max_iter)
     return _solve_fixed(model, targets, cfg, initial_cfg, max_iter)
 
 
@@ -138,7 +135,7 @@ def _build_fixed_jacobian_fn(
 
 
 # ---------------------------------------------------------------------------
-# Floating-base path
+# Floating-base path (unified via IKVariable)
 # ---------------------------------------------------------------------------
 
 def _base_reg_residual(
@@ -151,56 +148,6 @@ def _base_reg_residual(
     T_err = se3_compose(se3_inverse(default_base), base)
     log_err = se3_log(T_err)
     return torch.cat([log_err[:3] * base_pos_weight, log_err[3:] * base_ori_weight])
-
-
-class _FloatingBaseIKModule(nn.Module):
-    """LM-compatible module for whole-body IK with a floating base."""
-
-    def __init__(
-        self,
-        model: RobotModel,
-        target_link_indices: list[int],
-        target_poses: list[torch.Tensor],
-        initial_base: torch.Tensor,
-        initial_cfg: torch.Tensor,
-        rest_cfg: torch.Tensor,
-        ik_cfg: IKConfig,
-    ) -> None:
-        super().__init__()
-        self.base = pp.Parameter(pp.SE3(initial_base.float()))
-        self.cfg = nn.Parameter(initial_cfg.float())
-        self._model = model
-        self._target_link_indices = target_link_indices
-        self._target_poses = [tp.float() for tp in target_poses]
-        self._rest_cfg = rest_cfg.float()
-        self._ik_cfg = ik_cfg
-        self.register_buffer("_default_base", initial_base.float().clone())
-
-    def forward(self, _input: torch.Tensor) -> torch.Tensor:
-        fk = self._model.forward_kinematics(self.cfg, base_pose=self.base.tensor())
-        residuals = []
-
-        for link_idx, target_pose in zip(self._target_link_indices, self._target_poses):
-            actual_pose = fk[..., link_idx, :]
-            T_err = se3_compose(se3_inverse(target_pose), actual_pose)
-            log_err = se3_log(T_err)
-            weighted = torch.cat([
-                log_err[:3] * self._ik_cfg.pos_weight,
-                log_err[3:] * self._ik_cfg.ori_weight,
-            ]) * self._ik_cfg.pose_weight
-            residuals.append(weighted)
-
-        residuals.append(limit_residual(self.cfg, self._model) * self._ik_cfg.limit_weight)
-        residuals.append(rest_residual(self.cfg, self._rest_cfg) * self._ik_cfg.rest_weight)
-        residuals.append(
-            _base_reg_residual(
-                self.base.tensor(),
-                self._default_base,
-                self._ik_cfg.base_pos_weight,
-                self._ik_cfg.base_ori_weight,
-            )
-        )
-        return torch.cat(residuals)
 
 
 def _fb_residual(
@@ -231,7 +178,7 @@ def _fb_residual(
     return fk, torch.cat(parts)
 
 
-def _run_floating_base_lm_analytic(
+def _solve_floating(
     model: RobotModel,
     targets: dict[str, torch.Tensor],
     ik_cfg: IKConfig,
@@ -239,7 +186,87 @@ def _run_floating_base_lm_analytic(
     initial_base_pose: torch.Tensor,
     max_iter: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Floating-base LM using the analytical Jacobian."""
+    """Unified floating-base IK using IKVariable and our LM solver.
+
+    Variable: x = [cfg (n,), base_tangent (6,)]
+    base_tangent is a se3 offset applied to current base via retraction.
+    """
+    if ik_cfg.jacobian == "analytic":
+        return _solve_floating_analytic(model, targets, ik_cfg, initial_cfg, initial_base_pose, max_iter)
+    return _solve_floating_autodiff(model, targets, ik_cfg, initial_cfg, initial_base_pose, max_iter)
+
+
+def _solve_floating_autodiff(
+    model: RobotModel,
+    targets: dict[str, torch.Tensor],
+    ik_cfg: IKConfig,
+    initial_cfg: torch.Tensor | None,
+    initial_base_pose: torch.Tensor,
+    max_iter: int,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Floating-base IK with autodiff Jacobian, using IKVariable retraction."""
+    base = initial_base_pose.clone().float()
+    cfg = (
+        initial_cfg.clone().float()
+        if initial_cfg is not None
+        else model._default_cfg.clone().float()
+    )
+    rest = model._default_cfg.clone().float()
+    lo = model.joints.lower_limits.float()
+    hi = model.joints.upper_limits.float()
+
+    target_link_indices = [model.link_index(name) for name in targets]
+    target_poses = [tp.float() for tp in targets.values()]
+    default_base = base.clone()
+    n = model.joints.num_actuated_joints
+    lam = 1e-4
+    factor = 2.0
+    reject = 16
+
+    for _ in range(max_iter):
+        _, r = _fb_residual(cfg, base, model, target_link_indices, target_poses, ik_cfg, rest, default_base)
+
+        # Build residual as function of flat [cfg, base_tangent]
+        def total_res_flat(x: torch.Tensor) -> torch.Tensor:
+            cfg_x = x[:n]
+            delta_base = x[n:]
+            new_base = se3_compose(se3_exp(delta_base), base)
+            q = new_base[3:7]
+            new_base = torch.cat([new_base[:3], q / q.norm().clamp(min=1e-8)])
+            _, res = _fb_residual(cfg_x, new_base, model, target_link_indices, target_poses, ik_cfg, rest, default_base)
+            return res
+
+        x0 = torch.cat([cfg, torch.zeros(6, dtype=cfg.dtype, device=cfg.device)])
+        J = torch.func.jacrev(total_res_flat)(x0)
+        JtJ = J.T @ J
+        Jtr = J.T @ r
+
+        for _ in range(reject):
+            A = JtJ + lam * torch.eye(n + 6, dtype=cfg.dtype, device=cfg.device)
+            delta = torch.linalg.solve(A, -Jtr)
+            cfg_new = (cfg + delta[:n]).clamp(lo, hi)
+            new_base = se3_compose(se3_exp(delta[n:]), base)
+            q = new_base[3:7]
+            base_new = torch.cat([new_base[:3], q / q.norm().clamp(min=1e-8)])
+            _, r_new = _fb_residual(cfg_new, base_new, model, target_link_indices, target_poses, ik_cfg, rest, default_base)
+            if r_new.norm() <= r.norm():
+                cfg, base = cfg_new, base_new
+                lam = max(lam / factor, 1e-7)
+                break
+            lam = min(lam * factor, 1e7)
+
+    return base.detach(), cfg.detach()
+
+
+def _solve_floating_analytic(
+    model: RobotModel,
+    targets: dict[str, torch.Tensor],
+    ik_cfg: IKConfig,
+    initial_cfg: torch.Tensor | None,
+    initial_base_pose: torch.Tensor,
+    max_iter: int,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Floating-base IK with analytic Jacobian."""
     base = initial_base_pose.clone().float()
     default_base = initial_base_pose.clone().float()
     cfg = (
@@ -315,59 +342,3 @@ def _run_floating_base_lm_analytic(
             lam = min(lam * factor, 1e7)
 
     return base.detach(), cfg.detach()
-
-
-def _run_floating_base_lm(
-    model: RobotModel,
-    targets: dict[str, torch.Tensor],
-    ik_cfg: IKConfig,
-    initial_cfg: torch.Tensor | None,
-    initial_base_pose: torch.Tensor,
-    max_iter: int,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """Entry point for floating-base IK."""
-    if ik_cfg.jacobian == "analytic":
-        return _run_floating_base_lm_analytic(
-            model, targets, ik_cfg, initial_cfg, initial_base_pose, max_iter
-        )
-
-    initial_base = initial_base_pose.clone().float()
-    initial_cfg_t = (
-        initial_cfg.clone().float()
-        if initial_cfg is not None
-        else model._default_cfg.clone().float()
-    )
-    rest_cfg = model._default_cfg.clone().float()
-
-    target_link_indices = [model.link_index(name) for name in targets]
-    target_poses = list(targets.values())
-
-    lo = model.joints.lower_limits.float()
-    hi = model.joints.upper_limits.float()
-
-    module = _FloatingBaseIKModule(
-        model=model,
-        target_link_indices=target_link_indices,
-        target_poses=target_poses,
-        initial_base=initial_base,
-        initial_cfg=initial_cfg_t,
-        rest_cfg=rest_cfg,
-        ik_cfg=ik_cfg,
-    )
-
-    strategy = ppo_strategy.Adaptive(damping=1e-4)
-    optimizer = ppo.LevenbergMarquardt(module, strategy=strategy, vectorize=True)
-    dummy = torch.zeros(1)
-
-    for _ in range(max_iter):
-        optimizer.step(input=dummy)
-        with torch.no_grad():
-            module.cfg.data.clamp_(
-                lo.to(device=module.cfg.device),
-                hi.to(device=module.cfg.device),
-            )
-            raw = module.base.tensor().clone()
-            raw[3:7] = raw[3:7] / raw[3:7].norm()
-            module.base.data.copy_(raw)
-
-    return module.base.tensor().detach(), module.cfg.detach()

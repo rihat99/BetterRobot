@@ -183,3 +183,48 @@ def test_our_lm_uses_jacobian_fn_when_provided(panda):
     result = LevenbergMarquardt().solve(problem, max_iter=5)
     fk = panda.forward_kinematics(result)
     assert (fk[hand_idx, :3] - target[:3]).norm().item() < 0.05
+
+
+def test_gn_solves_simple_quadratic():
+    """GN should solve min 0.5*||x - target||^2."""
+    from better_robot.solvers import SOLVERS
+    from better_robot.solvers.problem import Problem
+    from better_robot.costs.cost_term import CostTerm
+    import torch
+    target = torch.tensor([1.0, 2.0, 3.0])
+    ct = CostTerm(residual_fn=lambda x: x - target, weight=1.0)
+    problem = Problem(variables=torch.zeros(3), costs=[ct])
+    solver = SOLVERS.get("gn")()
+    result = solver.solve(problem, max_iter=20)
+    assert result.shape == (3,)
+    assert torch.allclose(result, target, atol=1e-3)
+
+
+def test_adam_solves_simple_quadratic():
+    """Adam should minimize ||x - target||^2."""
+    from better_robot.solvers import SOLVERS
+    from better_robot.solvers.problem import Problem
+    from better_robot.costs.cost_term import CostTerm
+    import torch
+    target = torch.tensor([1.0, 2.0, 3.0])
+    ct = CostTerm(residual_fn=lambda x: x - target, weight=1.0)
+    problem = Problem(variables=torch.zeros(3), costs=[ct])
+    solver = SOLVERS.get("adam")(lr=0.1)
+    result = solver.solve(problem, max_iter=200)
+    assert result.shape == (3,)
+    assert torch.allclose(result, target, atol=0.1)
+
+
+def test_lbfgs_solves_simple_quadratic():
+    """LBFGS should solve min 0.5*||x - target||^2."""
+    from better_robot.solvers import SOLVERS
+    from better_robot.solvers.problem import Problem
+    from better_robot.costs.cost_term import CostTerm
+    import torch
+    target = torch.tensor([1.0, 2.0, 3.0])
+    ct = CostTerm(residual_fn=lambda x: x - target, weight=1.0)
+    problem = Problem(variables=torch.zeros(3), costs=[ct])
+    solver = SOLVERS.get("lbfgs")()
+    result = solver.solve(problem, max_iter=40)
+    assert result.shape == (3,)
+    assert torch.allclose(result, target, atol=1e-3)

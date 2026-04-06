@@ -6,6 +6,14 @@ Usage:
 Open http://localhost:8080 in your browser.
 Drag the transform handle to move the target end-effector pose.
 Click *Restart* to reset the robot and target to the default configuration.
+
+Solver options (pass via IKConfig):
+    jacobian="analytic"   — geometric Jacobian (faster, default here)
+    jacobian="autodiff"   — torch.func.jacrev (works for any custom cost)
+    solver="lm"           — Levenberg-Marquardt (default)
+    solver="gn"           — Gauss-Newton (no damping, faster on easy problems)
+    solver="adam"         — Adam gradient descent
+    solver="lbfgs"        — L-BFGS with strong Wolfe line search
 """
 import time
 import better_robot as br
@@ -19,7 +27,10 @@ def main() -> None:
 
     vis = br.Visualizer(urdf, model)
     vis.add_target("panda_hand", scale=0.15)
+    vis.add_timing_display()
     vis.add_restart_button()
+
+    ik_cfg = br.IKConfig(rest_weight=0.001, jacobian="analytic")
 
     cfg = model._default_cfg.clone()
     vis.reset_targets(model, cfg)
@@ -32,13 +43,15 @@ def main() -> None:
             cfg = model._default_cfg.clone()
             vis.reset_targets(model, cfg)
 
+        t0 = time.perf_counter()
         cfg = br.solve_ik(
             model,
             targets=vis.get_targets(),
-            cfg=br.IKConfig(rest_weight=0.001, jacobian="analytic"),
+            cfg=ik_cfg,
             initial_cfg=cfg,
             max_iter=20,
         )
+        vis.set_timing((time.perf_counter() - t0) * 1000)
         vis.update(cfg)
         time.sleep(1.0 / 30.0)
 

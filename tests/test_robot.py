@@ -102,6 +102,11 @@ def panda():
     return _load_panda()
 
 
+@pytest.fixture(scope="session")
+def panda_model():
+    return _load_panda()
+
+
 def test_get_chain_panda_hand(panda):
     """Chain from root to panda_hand has exactly 7 actuated joints."""
     hand_idx = panda.link_index("panda_hand")
@@ -163,3 +168,8 @@ def test_adjoint_se3_inverse_consistency():
     product = Ad @ Ad_inv
     assert torch.allclose(product, torch.eye(6), atol=1e-5), \
         f"Ad(T) @ Ad(T^-1) != I: max_err={( product - torch.eye(6)).abs().max():.6f}"
+
+
+def test_robot_model_is_immutable(panda_model):
+    with pytest.raises(AttributeError, match="immutable"):
+        panda_model.joints = None

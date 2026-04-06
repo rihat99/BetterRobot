@@ -4,6 +4,12 @@ from __future__ import annotations
 import torch
 
 from ..models.robot_model import RobotModel
+from ..math.transforms import qxyzw_to_wxyz
+
+__all__ = [
+    "wxyz_pos_to_se3",
+    "build_cfg_dict",
+]
 
 
 def wxyz_pos_to_se3(wxyz: tuple, pos: tuple | list) -> torch.Tensor:
@@ -18,18 +24,6 @@ def wxyz_pos_to_se3(wxyz: tuple, pos: tuple | list) -> torch.Tensor:
     """
     w, x, y, z = wxyz
     return torch.tensor([pos[0], pos[1], pos[2], x, y, z, w], dtype=torch.float32)
-
-
-def qxyzw_to_wxyz(q: torch.Tensor) -> tuple:
-    """Convert [qx, qy, qz, qw] tensor to viser (w, x, y, z) tuple.
-
-    Args:
-        q: Shape (4,) quaternion tensor [qx, qy, qz, qw].
-
-    Returns:
-        Viser scalar-first quaternion (w, x, y, z).
-    """
-    return (q[3].item(), q[0].item(), q[1].item(), q[2].item())
 
 
 def build_cfg_dict(model: RobotModel, cfg: torch.Tensor) -> dict[str, float]:

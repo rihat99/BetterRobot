@@ -7,6 +7,12 @@ import torch
 
 from .cost_term import CostTerm
 
+__all__ = [
+    "rest_residual",
+    "rest_cost",
+    "smoothness_residual",
+]
+
 
 def rest_residual(
     cfg: torch.Tensor,

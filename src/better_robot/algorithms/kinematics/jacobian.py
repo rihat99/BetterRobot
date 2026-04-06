@@ -7,11 +7,17 @@ Convention
 """
 from __future__ import annotations
 
-import pypose as pp
 import torch
 
 from ...models.robot_model import RobotModel
 from ...math.se3 import se3_compose
+from ...math.so3 import so3_rotation_matrix, so3_act
+
+__all__ = [
+    "compute_jacobian",
+    "limit_jacobian",
+    "rest_jacobian",
+]
 
 
 def compute_jacobian(
@@ -46,7 +52,7 @@ def compute_jacobian(
         fk = model.forward_kinematics(cfg, base_pose=base_pose)
     T_ee = fk[target_link_index]
     p_ee = T_ee[:3]
-    R_ee = pp.SO3(T_ee[3:7]).matrix()
+    R_ee = so3_rotation_matrix(T_ee[3:7])
 
     chain = model.get_chain(target_link_index)
     J = torch.zeros(6, n, dtype=dtype, device=device)
@@ -61,7 +67,7 @@ def compute_jacobian(
 
         p_j = T_j[:3]
         local_axis = model._fk_joint_axes[j].to(device=device, dtype=dtype)
-        axis_world = pp.SO3(T_j[3:7]).Act(local_axis)
+        axis_world = so3_act(T_j[3:7], local_axis)
 
         jtype = model._fk_joint_types[j]
         if jtype in ("revolute", "continuous"):
