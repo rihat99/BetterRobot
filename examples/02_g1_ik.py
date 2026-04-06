@@ -64,7 +64,7 @@ def main() -> None:
 
     if args.profile:
         with torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CPU]) as prof:
-            base_pose, q = br.solve_ik(
+            data = br.solve_ik(
                 model,
                 targets=vis.get_targets(),
                 config=config,
@@ -82,7 +82,7 @@ def main() -> None:
             vis.reset_targets(model, q, base_pose)
 
         t0 = time.perf_counter()
-        base_pose, q = br.solve_ik(
+        data = br.solve_ik(
             model,
             targets=vis.get_targets(),
             config=config,
@@ -91,6 +91,8 @@ def main() -> None:
             max_iter=20,
         )
         vis.set_timing((time.perf_counter() - t0) * 1000)
+        q = data.q
+        base_pose = data.base_pose
         vis.update(q, base_pose=base_pose)
         time.sleep(1.0 / 30.0)
 

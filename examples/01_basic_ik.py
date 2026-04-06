@@ -32,7 +32,7 @@ def main() -> None:
 
     config = br.IKConfig(rest_weight=0.001, jacobian="analytic")
 
-    q = model._q_default.clone()
+    q = model.q_default.clone()
     vis.reset_targets(model, q)
     vis.update(q)
 
@@ -40,11 +40,11 @@ def main() -> None:
 
     while True:
         if vis.restart_requested:
-            q = model._q_default.clone()
+            q = model.q_default.clone()
             vis.reset_targets(model, q)
 
         t0 = time.perf_counter()
-        q = br.solve_ik(
+        data = br.solve_ik(
             model,
             targets=vis.get_targets(),
             config=config,
@@ -52,6 +52,7 @@ def main() -> None:
             max_iter=20,
         )
         vis.set_timing((time.perf_counter() - t0) * 1000)
+        q = data.q
         vis.update(q)
         time.sleep(1.0 / 30.0)
 

@@ -8,15 +8,17 @@ Quick start::
     urdf = yourdfpy.URDF.load("robot.urdf")
     model = br.load_urdf(urdf)
 
-    # Fixed base — single or multiple targets
-    q = br.solve_ik(model, targets={"panda_hand": pose})
+    # Fixed base IK
+    data = br.solve_ik(model, targets={"panda_hand": pose})
+    fk = br.forward_kinematics(model, data.q)
 
     # Floating base (humanoid whole-body IK)
-    base_pose, q = br.solve_ik(
+    data = br.solve_ik(
         model,
         targets={"left_rubber_hand": p_lh, "right_rubber_hand": p_rh},
         initial_base_pose=torch.tensor([0., 0., 0.78, 0., 0., 0., 1.]),
     )
+    print(data.q, data.base_pose)
 """
 
 # Model loading
