@@ -20,7 +20,7 @@ Quick start::
 """
 
 # Model loading
-from .models import RobotModel, load_urdf
+from .models import RobotModel, RobotData, load_urdf
 from .models import JointInfo, LinkInfo
 
 # Algorithms (convenience re-exports)
@@ -42,6 +42,7 @@ __version__ = "0.1.0"
 __all__ = [
     # Model loading
     "RobotModel",
+    "RobotData",
     "load_urdf",
     "JointInfo",
     "LinkInfo",

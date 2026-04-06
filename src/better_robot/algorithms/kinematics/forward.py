@@ -29,21 +29,12 @@ def _prismatic_transform(axis: torch.Tensor, displacement: torch.Tensor) -> torc
     return torch.cat([trans, qxyz, qw], dim=-1)
 
 
-def forward_kinematics(
+def _fk_impl(
     model: RobotModel,
     q: torch.Tensor,
     base_pose: torch.Tensor | None = None,
 ) -> torch.Tensor:
-    """Compute world poses of all links.
-
-    Args:
-        model: Robot model (immutable kinematic structure).
-        q: Joint configuration (*batch, num_actuated_joints).
-        base_pose: Optional base transform (*batch, 7). Default None.
-
-    Returns:
-        Link poses (*batch, num_links, 7) in [tx, ty, tz, qx, qy, qz, qw].
-    """
+    """Core FK implementation operating on raw tensors."""
     batch_shape = q.shape[:-1]
     device, dtype = q.device, q.dtype
 
@@ -82,3 +73,30 @@ def forward_kinematics(
     if base_pose is not None:
         result = se3_apply_base(base_pose, result)
     return result
+
+
+def forward_kinematics(
+    model: RobotModel,
+    q_or_data: "torch.Tensor | RobotData",
+    base_pose: torch.Tensor | None = None,
+) -> torch.Tensor:
+    """Compute world poses of all links.
+
+    Args:
+        model: Robot model (immutable kinematic structure).
+        q_or_data: Joint configuration (*batch, num_actuated_joints), or a
+            RobotData instance (uses data.q and data.base_pose).
+        base_pose: Optional base transform (*batch, 7). Ignored if q_or_data
+            is RobotData. Default None.
+
+    Returns:
+        Link poses (*batch, num_links, 7) in [tx, ty, tz, qx, qy, qz, qw].
+    """
+    from ...models.data import RobotData
+    if isinstance(q_or_data, RobotData):
+        data = q_or_data
+        result = _fk_impl(model, data.q, data.base_pose)
+        data.fk_poses = result
+        return result
+    cfg = q_or_data
+    return _fk_impl(model, cfg, base_pose)

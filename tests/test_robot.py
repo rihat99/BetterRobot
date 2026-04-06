@@ -2,6 +2,7 @@
 
 import pytest
 import torch
+import better_robot as br
 from better_robot import RobotModel, load_urdf
 from better_robot.math import adjoint_se3, se3_identity, se3_inverse
 from robot_descriptions.loaders.yourdfpy import load_robot_description
@@ -173,3 +174,58 @@ def test_adjoint_se3_inverse_consistency():
 def test_robot_model_is_immutable(panda_model):
     with pytest.raises(AttributeError, match="immutable"):
         panda_model.joints = None
+
+
+# --- Phase 21: RobotData tests ---
+
+def test_create_data_default_q(panda_model):
+    data = panda_model.create_data()
+    assert isinstance(data, br.RobotData)
+    assert data.q.shape == panda_model._default_cfg.shape
+    assert torch.allclose(data.q, panda_model._default_cfg)
+
+
+def test_create_data_custom_q(panda_model):
+    custom_q = torch.zeros(panda_model._default_cfg.shape)
+    data = panda_model.create_data(q=custom_q)
+    assert torch.allclose(data.q, custom_q)
+    # ensure it's a clone, not the same tensor
+    custom_q[0] = 999.0
+    assert data.q[0] != 999.0
+
+
+def test_create_data_model_id(panda_model):
+    data = panda_model.create_data()
+    assert data._model_id == id(panda_model)
+
+
+def test_robot_data_clone(panda_model):
+    data = panda_model.create_data()
+    data.fk_poses = torch.zeros(10, 7)  # fake cache
+    cloned = data.clone()
+    assert torch.allclose(cloned.q, data.q)
+    # independent copy
+    cloned.q[0] = 999.0
+    assert data.q[0] != 999.0
+    assert cloned.fk_poses is not None
+
+
+def test_robot_data_invalidate_cache(panda_model):
+    data = panda_model.create_data()
+    data.fk_poses = torch.zeros(10, 7)
+    data.invalidate_cache()
+    assert data.fk_poses is None
+
+
+def test_forward_kinematics_with_data(panda_model):
+    data = panda_model.create_data()
+    result = br.forward_kinematics(panda_model, data)
+    assert data.fk_poses is not None
+    assert data.fk_poses.shape[-1] == 7
+    assert torch.allclose(result, data.fk_poses)
+
+
+def test_forward_kinematics_tensor_backward_compat(panda_model):
+    q = panda_model._default_cfg.clone()
+    result = br.forward_kinematics(panda_model, q)
+    assert result.shape[-1] == 7

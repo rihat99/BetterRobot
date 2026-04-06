@@ -37,6 +37,27 @@ class RobotModel:
         self.joints = joints
         self.links = links
 
+    def create_data(
+        self,
+        q: "torch.Tensor | None" = None,
+        base_pose: "torch.Tensor | None" = None,
+    ) -> "RobotData":
+        """Create a RobotData instance for this model.
+
+        Args:
+            q: Initial joint positions. Defaults to model._default_cfg.
+            base_pose: Initial base pose for floating base. Default None.
+
+        Returns:
+            RobotData with q initialized.
+        """
+        from .data import RobotData
+        return RobotData(
+            q=q.clone() if q is not None else self._default_cfg.clone(),
+            base_pose=base_pose.clone() if base_pose is not None else None,
+            _model_id=id(self),
+        )
+
     @staticmethod
     def from_urdf(
         urdf: yourdfpy.URDF,
@@ -112,21 +133,21 @@ class RobotModel:
 
     def forward_kinematics(
         self,
-        cfg: torch.Tensor,
+        q_or_data: "torch.Tensor | RobotData",
         base_pose: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Compute world poses of all links.
 
         Args:
-            cfg: Shape (*batch, num_actuated_joints). Joint configuration.
-            base_pose: Shape (*batch, 7). Optional SE3 base transform
-                [tx, ty, tz, qx, qy, qz, qw]. Default None (robot at world origin).
+            q_or_data: Either (num_actuated_joints,) joint config tensor, or a
+                RobotData instance (uses data.q and data.base_pose).
+            base_pose: SE3 base transform (7,). Ignored if q_or_data is RobotData.
 
         Returns:
-            Shape (*batch, num_links, 7). SE3 poses for each link.
+            Shape (num_links, 7). SE3 poses for each link.
         """
         from ..algorithms.kinematics.forward import forward_kinematics
-        return forward_kinematics(self, cfg, base_pose)
+        return forward_kinematics(self, q_or_data, base_pose)
 
     def link_index(self, link_name: str) -> int:
         """Return the index of a link by name.
