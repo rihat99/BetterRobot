@@ -8,14 +8,14 @@ import torch
 class IKVariable:
     """Represents the optimization variables for IK.
 
-    For fixed-base IK: cfg is (n,), base_pose is None.
-    For floating-base IK: cfg is (n,), base_pose is (7,).
+    For fixed-base IK: q is (n,), base_pose is None.
+    For floating-base IK: q is (n,), base_pose is (7,).
 
-    The flat representation concatenates [cfg (n,), base_tangent (6,)] for floating-base,
-    or just [cfg (n,)] for fixed-base.
+    The flat representation concatenates [q (n,), base_tangent (6,)] for floating-base,
+    or just [q (n,)] for fixed-base.
     """
 
-    cfg: torch.Tensor
+    q: torch.Tensor
     """Shape (n,). Joint configuration."""
 
     base_pose: torch.Tensor | None = None
@@ -28,12 +28,12 @@ class IKVariable:
     def to_flat(self) -> torch.Tensor:
         """Flatten to optimization variable.
 
-        Fixed-base: returns cfg (n,)
-        Floating-base: returns cat([cfg, zeros(6)]) — base tangent starts at zero
+        Fixed-base: returns q (n,)
+        Floating-base: returns cat([q, zeros(6)]) — base tangent starts at zero
         """
         if self.base_pose is None:
-            return self.cfg
-        return torch.cat([self.cfg, torch.zeros(6, dtype=self.cfg.dtype, device=self.cfg.device)])
+            return self.q
+        return torch.cat([self.q, torch.zeros(6, dtype=self.q.dtype, device=self.q.device)])
 
     @staticmethod
     def from_flat(
@@ -47,14 +47,14 @@ class IKVariable:
             The base is updated by SE3 retraction: new_base = exp(flat[n:]) @ base_pose
         """
         if base_pose is None:
-            return IKVariable(cfg=flat, base_pose=None)
+            return IKVariable(q=flat, base_pose=None)
         from ...math.se3 import se3_compose, se3_exp
         n = flat.shape[0] - 6
-        cfg = flat[:n]
+        q = flat[:n]
         delta_base = flat[n:]
         new_base = se3_compose(se3_exp(delta_base), base_pose)
         # Normalize quaternion
-        q = new_base[3:7]
-        q_norm = q / q.norm().clamp(min=1e-8)
-        new_base = torch.cat([new_base[:3], q_norm])
-        return IKVariable(cfg=cfg, base_pose=new_base)
+        quat = new_base[3:7]
+        quat_norm = quat / quat.norm().clamp(min=1e-8)
+        new_base = torch.cat([new_base[:3], quat_norm])
+        return IKVariable(q=q, base_pose=new_base)

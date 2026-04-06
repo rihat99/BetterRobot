@@ -76,7 +76,7 @@ def test_forward_kinematics_with_base_pose_shape():
 def test_forward_kinematics_base_pose_translates_all_links():
     """A pure-translation base_pose shifts every link position by the same offset."""
     model = _load_panda()
-    cfg = model._default_cfg
+    cfg = model._q_default
     offset = torch.tensor([1.0, 2.0, 3.0])
     base_pose = torch.tensor([1.0, 2.0, 3.0, 0.0, 0.0, 0.0, 1.0])  # identity rotation
     poses_orig = model.forward_kinematics(cfg)
@@ -90,7 +90,7 @@ def test_forward_kinematics_base_pose_translates_all_links():
 def test_forward_kinematics_none_base_unchanged():
     """base_pose=None is identical to omitting base_pose."""
     model = _load_panda()
-    cfg = model._default_cfg
+    cfg = model._q_default
     assert torch.allclose(
         model.forward_kinematics(cfg, base_pose=None),
         model.forward_kinematics(cfg),
@@ -181,12 +181,12 @@ def test_robot_model_is_immutable(panda_model):
 def test_create_data_default_q(panda_model):
     data = panda_model.create_data()
     assert isinstance(data, br.RobotData)
-    assert data.q.shape == panda_model._default_cfg.shape
-    assert torch.allclose(data.q, panda_model._default_cfg)
+    assert data.q.shape == panda_model._q_default.shape
+    assert torch.allclose(data.q, panda_model._q_default)
 
 
 def test_create_data_custom_q(panda_model):
-    custom_q = torch.zeros(panda_model._default_cfg.shape)
+    custom_q = torch.zeros(panda_model._q_default.shape)
     data = panda_model.create_data(q=custom_q)
     assert torch.allclose(data.q, custom_q)
     # ensure it's a clone, not the same tensor
@@ -238,7 +238,7 @@ def test_forward_kinematics_method_with_data(panda_model):
 
 
 def test_forward_kinematics_tensor_backward_compat(panda_model):
-    q = panda_model._default_cfg.clone()
+    q = panda_model._q_default.clone()
     result = br.forward_kinematics(panda_model, q)
     assert result.shape[-1] == 7
 

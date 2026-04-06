@@ -15,7 +15,7 @@ def panda():
 
 
 def test_pose_jacobian_shape(panda):
-    cfg = panda._default_cfg
+    cfg = panda._q_default
     link_idx = panda.link_index("panda_hand")
     target = panda.forward_kinematics(cfg)[link_idx].detach()
     J = compute_jacobian(panda, cfg, link_idx, target, 1.0, 0.1)
@@ -25,7 +25,7 @@ def test_pose_jacobian_shape(panda):
 def test_pose_jacobian_finite_diff(panda):
     """Analytical Jacobian matches central finite differences."""
     eps = 1e-3  # float32: eps < 1e-4 causes catastrophic cancellation in se3_log
-    cfg = panda._default_cfg.clone()
+    cfg = panda._q_default.clone()
     link_idx = panda.link_index("panda_hand")
     target = panda.forward_kinematics(cfg)[link_idx].detach()
 
@@ -45,7 +45,7 @@ def test_pose_jacobian_finite_diff(panda):
 
 
 def test_limit_jacobian_shape(panda):
-    cfg = panda._default_cfg
+    cfg = panda._q_default
     J = limit_jacobian(cfg, panda)
     n = panda.joints.num_actuated_joints
     assert J.shape == (2 * n, n)
@@ -53,7 +53,7 @@ def test_limit_jacobian_shape(panda):
 
 def test_limit_jacobian_inside_limits_is_zero(panda):
     """Within limits, limit_jacobian rows are all zero."""
-    cfg = panda._default_cfg  # midpoint — guaranteed inside limits
+    cfg = panda._q_default  # midpoint — guaranteed inside limits
     J = limit_jacobian(cfg, panda)
     assert torch.all(J == 0.0)
 
@@ -77,8 +77,8 @@ def test_limit_jacobian_violated_upper(panda):
 
 
 def test_rest_jacobian_is_identity(panda):
-    cfg = panda._default_cfg
-    rest = panda._default_cfg.clone()
+    cfg = panda._q_default
+    rest = panda._q_default.clone()
     J = rest_jacobian(cfg, rest)
     n = panda.joints.num_actuated_joints
     assert J.shape == (n, n)

@@ -45,7 +45,7 @@ class RobotModel:
         """Create a RobotData instance for this model.
 
         Args:
-            q: Initial joint positions. Defaults to model._default_cfg.
+            q: Initial joint positions. Defaults to model._q_default.
             base_pose: Initial base pose for floating base. Default None.
 
         Returns:
@@ -53,7 +53,7 @@ class RobotModel:
         """
         from .data import RobotData
         return RobotData(
-            q=q.clone() if q is not None else self._default_cfg.clone(),
+            q=q.clone() if q is not None else self._q_default.clone(),
             base_pose=base_pose.clone() if base_pose is not None else None,
             _model_id=id(self),
         )
@@ -124,9 +124,9 @@ class RobotModel:
         model._fk_joint_axes = axes
 
         if default_joint_cfg is None:
-            model._default_cfg = (joints.lower_limits + joints.upper_limits) / 2.0
+            model._q_default = (joints.lower_limits + joints.upper_limits) / 2.0
         else:
-            model._default_cfg = default_joint_cfg
+            model._q_default = default_joint_cfg
 
         model._frozen = True
         return model

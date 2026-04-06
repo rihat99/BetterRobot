@@ -53,23 +53,23 @@ def main() -> None:
     vis.add_timing_display()
     vis.add_restart_button()
 
-    ik_cfg = br.IKConfig(jacobian="analytic")
+    config = br.IKConfig(jacobian="analytic")
 
-    cfg = torch.zeros(model.joints.num_actuated_joints)
+    q = torch.zeros(model.joints.num_actuated_joints)
     base_pose = INITIAL_BASE_POSE.clone()
-    vis.reset_targets(model, cfg, base_pose)
-    vis.update(cfg, base_pose=base_pose)
+    vis.reset_targets(model, q, base_pose)
+    vis.update(q, base_pose=base_pose)
 
     print("Drag transform handles to set IK targets. Press Ctrl+C to quit.")
 
     if args.profile:
         with torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CPU]) as prof:
-            base_pose, cfg = br.solve_ik(
+            base_pose, q = br.solve_ik(
                 model,
                 targets=vis.get_targets(),
-                cfg=ik_cfg,
+                config=config,
                 initial_base_pose=base_pose,
-                initial_cfg=cfg,
+                initial_q=q,
                 max_iter=20,
             )
         print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=15))
@@ -77,21 +77,21 @@ def main() -> None:
 
     while True:
         if vis.restart_requested:
-            cfg = torch.zeros(model.joints.num_actuated_joints)
+            q = torch.zeros(model.joints.num_actuated_joints)
             base_pose = INITIAL_BASE_POSE.clone()
-            vis.reset_targets(model, cfg, base_pose)
+            vis.reset_targets(model, q, base_pose)
 
         t0 = time.perf_counter()
-        base_pose, cfg = br.solve_ik(
+        base_pose, q = br.solve_ik(
             model,
             targets=vis.get_targets(),
-            cfg=ik_cfg,
+            config=config,
             initial_base_pose=base_pose,
-            initial_cfg=cfg,
+            initial_q=q,
             max_iter=20,
         )
         vis.set_timing((time.perf_counter() - t0) * 1000)
-        vis.update(cfg, base_pose=base_pose)
+        vis.update(q, base_pose=base_pose)
         time.sleep(1.0 / 30.0)
 
 

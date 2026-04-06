@@ -14,7 +14,7 @@ def panda():
 
 
 def test_pose_residual_shape(panda):
-    cfg = panda._default_cfg
+    cfg = panda._q_default
     hand_idx = panda.link_index("panda_hand")
     # Get FK at default config to use as target (should give ~zero residual)
     fk = panda.forward_kinematics(cfg)
@@ -25,7 +25,7 @@ def test_pose_residual_shape(panda):
 
 
 def test_pose_residual_zero_at_target(panda):
-    cfg = panda._default_cfg
+    cfg = panda._q_default
     hand_idx = panda.link_index("panda_hand")
     fk = panda.forward_kinematics(cfg)
     target = fk[hand_idx].detach()
@@ -35,7 +35,7 @@ def test_pose_residual_zero_at_target(panda):
 
 
 def test_pose_residual_gradient(panda):
-    cfg = panda._default_cfg.clone().requires_grad_(True)
+    cfg = panda._q_default.clone().requires_grad_(True)
     hand_idx = panda.link_index("panda_hand")
     target = torch.tensor([0.3, 0.0, 0.5, 0., 0., 0., 1.])
 
@@ -47,27 +47,27 @@ def test_pose_residual_gradient(panda):
 
 
 def test_limit_residual_shape(panda):
-    cfg = panda._default_cfg
+    cfg = panda._q_default
     res = limit_residual(cfg, panda)
     assert res.shape == (2 * panda.joints.num_actuated_joints,)
 
 
 def test_limit_residual_no_violation_at_default(panda):
-    cfg = panda._default_cfg
+    cfg = panda._q_default
     res = limit_residual(cfg, panda)
     # Default config is midpoint of limits, should have no violations
     assert (res <= 0).all(), f"Unexpected violations: {res}"
 
 
 def test_rest_residual_zero_at_rest(panda):
-    cfg = panda._default_cfg
+    cfg = panda._q_default
     res = rest_residual(cfg, cfg)
     assert res.abs().max() < 1e-6
 
 
 def test_pose_residual_with_base_pose_zero_at_fk(panda):
     """pose_residual with base_pose=fk-target is zero when cfg matches."""
-    cfg = panda._default_cfg
+    cfg = panda._q_default
     base_pose = torch.tensor([0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
     fk = panda.forward_kinematics(cfg, base_pose=base_pose)
     hand_idx = panda.link_index("panda_hand")
@@ -83,7 +83,7 @@ def test_pose_residual_with_base_pose_zero_at_fk(panda):
 
 def test_manipulability_residual_shape(panda):
     from better_robot.costs.manipulability import manipulability_residual
-    cfg = panda._default_cfg.clone()
+    cfg = panda._q_default.clone()
     link_idx = panda.link_index("panda_hand")
     r = manipulability_residual(cfg, panda, link_idx)
     assert r.shape == (1,)
@@ -96,6 +96,6 @@ def test_manipulability_cost_factory(panda):
     link_idx = panda.link_index("panda_hand")
     ct = manipulability_cost(panda, link_idx, weight=2.0)
     assert isinstance(ct, CostTerm)
-    cfg = panda._default_cfg.clone()
+    cfg = panda._q_default.clone()
     r = ct.residual_fn(cfg)
     assert r.shape == (1,)

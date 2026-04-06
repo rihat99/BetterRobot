@@ -103,9 +103,9 @@ class RobotCollision:
             _active_pairs_j=tuple(idx_j),
         )
 
-    def _get_world_spheres(self, model: RobotModel, cfg: torch.Tensor) -> list[Sphere]:
+    def _get_world_spheres(self, model: RobotModel, q: torch.Tensor) -> list[Sphere]:
         """Get all spheres transformed to world frame given joint config."""
-        fk = model.forward_kinematics(cfg)  # (num_links, 7)
+        fk = model.forward_kinematics(q)  # (num_links, 7)
         spheres = []
         for i in range(len(self._radii)):
             link_idx = int(self._link_indices[i].item())
@@ -119,14 +119,14 @@ class RobotCollision:
     def compute_self_collision_distance(
         self,
         model: RobotModel,
-        cfg: torch.Tensor,
+        q: torch.Tensor,
     ) -> torch.Tensor:
         """Compute signed distances for all active self-collision pairs.
 
         Returns:
             Shape (num_active_pairs,). Positive = separated, negative = penetrating.
         """
-        spheres = self._get_world_spheres(model, cfg)
+        spheres = self._get_world_spheres(model, q)
         dists = []
         for i, j in zip(self._active_pairs_i, self._active_pairs_j):
             dists.append(compute_distance(spheres[i], spheres[j]))
@@ -137,7 +137,7 @@ class RobotCollision:
     def compute_world_collision_distance(
         self,
         model: RobotModel,
-        cfg: torch.Tensor,
+        q: torch.Tensor,
         world_geom: list[CollGeom],
     ) -> torch.Tensor:
         """Compute signed distances from each robot sphere to all world geometries.
@@ -145,7 +145,7 @@ class RobotCollision:
         Returns:
             Shape (num_robot_spheres * len(world_geom),). Negative = penetrating.
         """
-        spheres = self._get_world_spheres(model, cfg)
+        spheres = self._get_world_spheres(model, q)
         dists = []
         for sphere in spheres:
             for wg in world_geom:

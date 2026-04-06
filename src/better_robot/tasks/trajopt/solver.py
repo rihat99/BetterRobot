@@ -10,7 +10,7 @@ from .config import TrajOptConfig
 def solve_trajopt(
     model: RobotModel,
     targets: dict[str, torch.Tensor],
-    cfg: TrajOptConfig | None = None,
+    config: TrajOptConfig | None = None,
     initial_traj: torch.Tensor | None = None,
     max_iter: int = 100,
 ) -> torch.Tensor:

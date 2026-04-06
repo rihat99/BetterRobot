@@ -10,7 +10,7 @@ from .config import RetargetConfig
 def retarget(
     model: RobotModel,
     source_motion: torch.Tensor,
-    cfg: RetargetConfig | None = None,
+    config: RetargetConfig | None = None,
     max_iter: int = 100,
 ) -> torch.Tensor:
     """Retarget a motion sequence to a robot.

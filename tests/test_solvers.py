@@ -125,7 +125,7 @@ def test_problem_jacobian_fn_is_called():
 
 def test_our_lm_autodiff_matches_pypose_lm(panda):
     """Our LM (autodiff) and PyPose LM reach comparable IK solutions (within 1 cm)."""
-    cfg0 = panda._default_cfg
+    cfg0 = panda._q_default
     hand_idx = panda.link_index("panda_hand")
     target = panda.forward_kinematics(cfg0)[hand_idx].detach().clone()
     target[0] += 0.05
@@ -135,7 +135,7 @@ def test_our_lm_autodiff_matches_pypose_lm(panda):
             CostTerm(functools.partial(pose_residual, robot=panda, target_link_index=hand_idx,
                                        target_pose=target, pos_weight=1.0, ori_weight=0.1), weight=1.0),
             CostTerm(functools.partial(limit_residual, robot=panda), weight=0.1),
-            CostTerm(functools.partial(rest_residual, rest_pose=panda._default_cfg), weight=0.01),
+            CostTerm(functools.partial(rest_residual, q_rest=panda._q_default), weight=0.01),
         ]
         return Problem(variables=cfg0.clone(), costs=costs,
                        lower_bounds=panda.joints.lower_limits.clone(),
@@ -154,23 +154,23 @@ def test_our_lm_autodiff_matches_pypose_lm(panda):
 
 def test_our_lm_uses_jacobian_fn_when_provided(panda):
     """Our LM with jacobian_fn gives correct IK solution."""
-    cfg0 = panda._default_cfg
+    cfg0 = panda._q_default
     hand_idx = panda.link_index("panda_hand")
     target = panda.forward_kinematics(cfg0)[hand_idx].detach()
-    rest = panda._default_cfg.clone()
+    rest = panda._q_default.clone()
 
     costs = [
         CostTerm(functools.partial(pose_residual, robot=panda, target_link_index=hand_idx,
                                    target_pose=target, pos_weight=1.0, ori_weight=0.1), weight=1.0),
         CostTerm(functools.partial(limit_residual, robot=panda), weight=0.1),
-        CostTerm(functools.partial(rest_residual, rest_pose=rest), weight=0.01),
+        CostTerm(functools.partial(rest_residual, q_rest=rest), weight=0.01),
     ]
 
-    def jac_fn(cfg):
+    def jac_fn(q):
         rows = [
-            compute_jacobian(panda, cfg, hand_idx, target, 1.0, 0.1) * 1.0,
-            limit_jacobian(cfg, panda) * 0.1,
-            rest_jacobian(cfg, rest) * 0.01,
+            compute_jacobian(panda, q, hand_idx, target, 1.0, 0.1) * 1.0,
+            limit_jacobian(q, panda) * 0.1,
+            rest_jacobian(q, rest) * 0.01,
         ]
         return torch.cat(rows, dim=0)
 

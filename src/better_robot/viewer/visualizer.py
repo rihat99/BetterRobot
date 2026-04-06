@@ -7,7 +7,7 @@ import viser
 import viser.extras
 
 from ..models.robot_model import RobotModel
-from .helpers import wxyz_pos_to_se3, qxyzw_to_wxyz, build_cfg_dict
+from .helpers import wxyz_pos_to_se3, qxyzw_to_wxyz, build_joint_dict
 
 
 class Visualizer:
@@ -18,14 +18,14 @@ class Visualizer:
         vis = Visualizer(urdf, model)
         vis.add_target("panda_hand")
         vis.add_restart_button()
-        vis.reset_targets(model, cfg)
+        vis.reset_targets(model, q)
 
         while True:
             if vis.restart_requested:
-                cfg = model._default_cfg.clone()
-                vis.reset_targets(model, cfg)
-            cfg = solve_ik(model, targets=vis.get_targets(), ...)
-            vis.update(cfg)
+                q = model._q_default.clone()
+                vis.reset_targets(model, q)
+            q = solve_ik(model, targets=vis.get_targets(), ...)
+            vis.update(q)
 
     Typical usage (floating-base)::
 
@@ -34,15 +34,15 @@ class Visualizer:
         vis.add_target("left_rubber_hand")
         vis.add_timing_display()
         vis.add_restart_button()
-        vis.reset_targets(model, cfg, base_pose)
+        vis.reset_targets(model, q, base_pose)
 
         while True:
             if vis.restart_requested:
-                cfg, base_pose = zeros_cfg, initial_base_pose
-                vis.reset_targets(model, cfg, base_pose)
-            base_pose, cfg = solve_ik(model, targets=vis.get_targets(), ...)
+                q, base_pose = zeros_q, initial_base_pose
+                vis.reset_targets(model, q, base_pose)
+            base_pose, q = solve_ik(model, targets=vis.get_targets(), ...)
             vis.set_timing(elapsed_ms)
-            vis.update(cfg, base_pose=base_pose)
+            vis.update(q, base_pose=base_pose)
     """
 
     def __init__(
@@ -133,19 +133,19 @@ class Visualizer:
     def reset_targets(
         self,
         model: RobotModel,
-        cfg: torch.Tensor,
+        q: torch.Tensor,
         base_pose: torch.Tensor | None = None,
     ) -> None:
         """Snap all target handles to the robot's FK poses.
 
         Args:
             model: RobotModel instance (used to compute FK).
-            cfg: Current joint configuration, shape (n_joints,).
+            q: Current joint configuration, shape (n_joints,).
             base_pose: Current base pose [tx, ty, tz, qx, qy, qz, qw],
                 required for floating-base robots.
         """
-        fk = model.forward_kinematics(cfg, base_pose=base_pose) if base_pose is not None \
-            else model.forward_kinematics(cfg)
+        fk = model.forward_kinematics(q, base_pose=base_pose) if base_pose is not None \
+            else model.forward_kinematics(q)
         for link_name, handle in self._targets.items():
             idx = model.link_index(link_name)
             handle.position = fk[idx, :3].detach().numpy()
@@ -164,20 +164,20 @@ class Visualizer:
 
     def update(
         self,
-        cfg: torch.Tensor,
+        q: torch.Tensor,
         base_pose: torch.Tensor | None = None,
     ) -> None:
         """Update the robot mesh to reflect a new configuration.
 
         Args:
-            cfg: Joint configuration, shape (n_joints,).
+            q: Joint configuration, shape (n_joints,).
             base_pose: Base pose [tx, ty, tz, qx, qy, qz, qw],
                 required for floating-base robots.
         """
         if self._floating_base and base_pose is not None and self._base_frame is not None:
             self._base_frame.position = base_pose[:3].detach().numpy()
             self._base_frame.wxyz = qxyzw_to_wxyz(base_pose[3:7].detach())
-        self._urdf_handle.update_cfg(build_cfg_dict(self._model, cfg))
+        self._urdf_handle.update_cfg(build_joint_dict(self._model, q))
 
     def set_timing(self, elapsed_ms: float) -> None:
         """Update the timing display with an exponential moving average.

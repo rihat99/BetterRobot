@@ -16,7 +16,7 @@ __all__ = [
 
 
 def pose_residual(
-    cfg: torch.Tensor,
+    q: torch.Tensor,
     robot: RobotModel,
     target_link_index: int,
     target_pose: torch.Tensor,
@@ -27,7 +27,7 @@ def pose_residual(
     """Compute SE3 log-space error between actual and target link pose.
 
     Args:
-        cfg: Shape (*batch, num_actuated_joints). Current joint configuration.
+        q: Shape (*batch, num_actuated_joints). Current joint configuration.
         robot: RobotModel instance.
         target_link_index: Index into robot.links.names for the target link.
         target_pose: Shape (7,). Target SE3 pose [tx, ty, tz, qx, qy, qz, qw].
@@ -38,7 +38,7 @@ def pose_residual(
     Returns:
         Shape (*batch, 6). Weighted SE3 log error [pos*w, ori*w].
     """
-    fk = robot.forward_kinematics(cfg, base_pose=base_pose)
+    fk = robot.forward_kinematics(q, base_pose=base_pose)
     actual_pose = fk[..., target_link_index, :]
     T_err = se3_compose(se3_inverse(target_pose), actual_pose)
     log_err = se3_log(T_err)

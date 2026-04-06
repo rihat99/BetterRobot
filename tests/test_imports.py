@@ -77,7 +77,7 @@ def test_viewer_helpers() -> None:
     # build_cfg_dict
     urdf = load_robot_description("panda_description")
     model = load_urdf(urdf)
-    cfg = model._default_cfg.clone()
+    cfg = model._q_default.clone()
     d = build_cfg_dict(model, cfg)
     assert isinstance(d, dict)
     assert len(d) == model.joints.num_actuated_joints

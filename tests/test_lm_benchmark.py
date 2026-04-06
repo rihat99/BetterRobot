@@ -27,7 +27,7 @@ def panda():
 
 
 def _fixed_base_run(model, target, link_idx, jacobian_mode, n_iter=20, n_runs=10):
-    cfg0 = model._default_cfg.clone()
+    cfg0 = model._q_default.clone()
     elapsed = 0.0
     result = None
     for _ in range(n_runs):
@@ -35,8 +35,8 @@ def _fixed_base_run(model, target, link_idx, jacobian_mode, n_iter=20, n_runs=10
         result = solve_ik(
             model,
             targets={"panda_hand": target},
-            cfg=IKConfig(jacobian=jacobian_mode),
-            initial_cfg=cfg0.clone(),
+            config=IKConfig(jacobian=jacobian_mode),
+            initial_q=cfg0.clone(),
             max_iter=n_iter,
         )
         elapsed += time.perf_counter() - t0
@@ -46,7 +46,7 @@ def _fixed_base_run(model, target, link_idx, jacobian_mode, n_iter=20, n_runs=10
 
 
 def _pypose_run(model, target, link_idx, n_iter=20, n_runs=10):
-    cfg0 = model._default_cfg.clone()
+    cfg0 = model._q_default.clone()
     hand_idx = link_idx
     elapsed = 0.0
     result = None
@@ -55,7 +55,7 @@ def _pypose_run(model, target, link_idx, n_iter=20, n_runs=10):
             CostTerm(functools.partial(pose_residual, robot=model, target_link_index=hand_idx,
                                        target_pose=target, pos_weight=1.0, ori_weight=0.1), weight=1.0),
             CostTerm(functools.partial(limit_residual, robot=model), weight=0.1),
-            CostTerm(functools.partial(rest_residual, rest_pose=model._default_cfg), weight=0.01),
+            CostTerm(functools.partial(rest_residual, q_rest=model._q_default), weight=0.01),
         ]
         prob = Problem(variables=cfg0.clone(), costs=costs,
                        lower_bounds=model.joints.lower_limits.clone(),
@@ -71,7 +71,7 @@ def _pypose_run(model, target, link_idx, n_iter=20, n_runs=10):
 def test_benchmark_fixed_base(panda, capsys):
     """All three modes converge to < 5 cm; analytic no more than 20% slower than autodiff."""
     hand_idx = panda.link_index("panda_hand")
-    target = panda.forward_kinematics(panda._default_cfg)[hand_idx].detach().clone()
+    target = panda.forward_kinematics(panda._q_default)[hand_idx].detach().clone()
     target[0] += 0.1
 
     results = {}
@@ -99,12 +99,12 @@ def test_benchmark_floating_base(panda, capsys):
     """Floating-base: both modes converge to < 5 cm."""
     hand_idx = panda.link_index("panda_hand")
     identity_base = torch.tensor([0., 0., 0., 0., 0., 0., 1.])
-    target = panda.forward_kinematics(panda._default_cfg)[hand_idx].detach().clone()
+    target = panda.forward_kinematics(panda._q_default)[hand_idx].detach().clone()
     target[0] += 0.1
 
     results = {}
     for mode in ("autodiff", "analytic"):
-        cfg0 = panda._default_cfg.clone()
+        cfg0 = panda._q_default.clone()
         elapsed = 0.0
         N = 5
         base_r = cfg_r = None
@@ -112,9 +112,9 @@ def test_benchmark_floating_base(panda, capsys):
             t0 = time.perf_counter()
             base_r, cfg_r = solve_ik(
                 panda, targets={"panda_hand": target},
-                cfg=IKConfig(jacobian=mode),
+                config=IKConfig(jacobian=mode),
                 initial_base_pose=identity_base.clone(),
-                initial_cfg=cfg0.clone(), max_iter=20,
+                initial_q=cfg0.clone(), max_iter=20,
             )
             elapsed += time.perf_counter() - t0
         fk = panda.forward_kinematics(cfg_r, base_pose=base_r)

@@ -22,7 +22,7 @@ __all__ = [
 
 def compute_jacobian(
     model: RobotModel,
-    cfg: torch.Tensor,
+    q: torch.Tensor,
     target_link_index: int,
     target_pose: torch.Tensor,
     pos_weight: float,
@@ -30,11 +30,11 @@ def compute_jacobian(
     base_pose: torch.Tensor | None = None,
     fk: torch.Tensor | None = None,
 ) -> torch.Tensor:
-    """Geometric (body-frame) Jacobian of the pose residual wrt cfg.
+    """Geometric (body-frame) Jacobian of the pose residual wrt q.
 
     Args:
         model: Robot model.
-        cfg: (num_actuated_joints,) current joint config.
+        q: (num_actuated_joints,) current joint config.
         target_link_index: Index of the target link.
         target_pose: (7,) SE3 target. Kept for API symmetry; unused in Jacobian.
         pos_weight: Weight on position rows.
@@ -45,11 +45,11 @@ def compute_jacobian(
     Returns:
         (6, num_actuated_joints) Jacobian matrix.
     """
-    device, dtype = cfg.device, cfg.dtype
+    device, dtype = q.device, q.dtype
     n = model.joints.num_actuated_joints
 
     if fk is None:
-        fk = model.forward_kinematics(cfg, base_pose=base_pose)
+        fk = model.forward_kinematics(q, base_pose=base_pose)
     T_ee = fk[target_link_index]
     p_ee = T_ee[:3]
     R_ee = so3_rotation_matrix(T_ee[3:7])
@@ -85,30 +85,30 @@ def compute_jacobian(
     return J
 
 
-def limit_jacobian(cfg: torch.Tensor, model: RobotModel) -> torch.Tensor:
-    """Jacobian of limit_residual wrt cfg.
+def limit_jacobian(q: torch.Tensor, model: RobotModel) -> torch.Tensor:
+    """Jacobian of limit_residual wrt q.
 
     Returns:
         (2 * num_actuated_joints, num_actuated_joints) diagonal Jacobian.
     """
     n = model.joints.num_actuated_joints
-    lo = model.joints.lower_limits.to(device=cfg.device, dtype=cfg.dtype)
-    hi = model.joints.upper_limits.to(device=cfg.device, dtype=cfg.dtype)
+    lo = model.joints.lower_limits.to(device=q.device, dtype=q.dtype)
+    hi = model.joints.upper_limits.to(device=q.device, dtype=q.dtype)
 
-    lower_grad = torch.where(cfg < lo, torch.full_like(cfg, -1.0), torch.zeros_like(cfg))
-    upper_grad = torch.where(cfg > hi, torch.ones_like(cfg), torch.zeros_like(cfg))
+    lower_grad = torch.where(q < lo, torch.full_like(q, -1.0), torch.zeros_like(q))
+    upper_grad = torch.where(q > hi, torch.ones_like(q), torch.zeros_like(q))
 
-    J = torch.zeros(2 * n, n, dtype=cfg.dtype, device=cfg.device)
+    J = torch.zeros(2 * n, n, dtype=q.dtype, device=q.device)
     J[:n] = torch.diag(lower_grad)
     J[n:] = torch.diag(upper_grad)
     return J
 
 
-def rest_jacobian(cfg: torch.Tensor, rest_pose: torch.Tensor) -> torch.Tensor:
-    """Jacobian of rest_residual wrt cfg. Returns identity matrix.
+def rest_jacobian(q: torch.Tensor, q_rest: torch.Tensor) -> torch.Tensor:
+    """Jacobian of rest_residual wrt q. Returns identity matrix.
 
     Returns:
         (num_actuated_joints, num_actuated_joints) identity.
     """
-    n = len(cfg)
-    return torch.eye(n, dtype=cfg.dtype, device=cfg.device)
+    n = len(q)
+    return torch.eye(n, dtype=q.dtype, device=q.device)

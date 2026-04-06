@@ -30,29 +30,29 @@ def main() -> None:
     vis.add_timing_display()
     vis.add_restart_button()
 
-    ik_cfg = br.IKConfig(rest_weight=0.001, jacobian="analytic")
+    config = br.IKConfig(rest_weight=0.001, jacobian="analytic")
 
-    cfg = model._default_cfg.clone()
-    vis.reset_targets(model, cfg)
-    vis.update(cfg)
+    q = model._q_default.clone()
+    vis.reset_targets(model, q)
+    vis.update(q)
 
     print("Drag the transform handle to set the IK target. Press Ctrl+C to quit.")
 
     while True:
         if vis.restart_requested:
-            cfg = model._default_cfg.clone()
-            vis.reset_targets(model, cfg)
+            q = model._q_default.clone()
+            vis.reset_targets(model, q)
 
         t0 = time.perf_counter()
-        cfg = br.solve_ik(
+        q = br.solve_ik(
             model,
             targets=vis.get_targets(),
-            cfg=ik_cfg,
-            initial_cfg=cfg,
+            config=config,
+            initial_q=q,
             max_iter=20,
         )
         vis.set_timing((time.perf_counter() - t0) * 1000)
-        vis.update(cfg)
+        vis.update(q)
         time.sleep(1.0 / 30.0)
 
 

@@ -10,7 +10,7 @@ from .cost_term import CostTerm
 
 
 def self_collision_residual(
-    cfg: torch.Tensor,
+    q: torch.Tensor,
     robot: RobotModel,
     robot_coll: RobotCollision,
     margin: float = 0.02,
@@ -21,14 +21,14 @@ def self_collision_residual(
     Returns:
         Shape (num_active_pairs,). Violation per pair (higher = worse).
     """
-    dists = robot_coll.compute_self_collision_distance(robot, cfg)
+    dists = robot_coll.compute_self_collision_distance(robot, q)
     # Convert to cost: negative colldist_from_sdf means collision
     cost = -colldist_from_sdf(dists, activation_dist=margin)
     return cost * weight
 
 
 def world_collision_residual(
-    cfg: torch.Tensor,
+    q: torch.Tensor,
     robot: RobotModel,
     robot_coll: RobotCollision,
     world_geom: list[CollGeom],
@@ -40,7 +40,7 @@ def world_collision_residual(
     Returns:
         Shape (num_robot_spheres * len(world_geom),). Violation per pair.
     """
-    dists = robot_coll.compute_world_collision_distance(robot, cfg, world_geom)
+    dists = robot_coll.compute_world_collision_distance(robot, q, world_geom)
     cost = -colldist_from_sdf(dists, activation_dist=margin)
     return cost * weight
 

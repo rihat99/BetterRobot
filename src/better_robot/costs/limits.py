@@ -18,7 +18,7 @@ __all__ = [
 
 
 def limit_residual(
-    cfg: torch.Tensor,
+    q: torch.Tensor,
     robot: RobotModel,
     weight: float = 1.0,
 ) -> torch.Tensor:
@@ -29,17 +29,17 @@ def limit_residual(
     everywhere and act as a centering force that overwhelms pose costs.
 
     Args:
-        cfg: Shape (num_actuated_joints,). Current configuration.
+        q: Shape (num_actuated_joints,). Current configuration.
         robot: RobotModel instance.
         weight: Scalar weight.
 
     Returns:
         Shape (2 * num_actuated_joints,). Upper and lower violations.
     """
-    lo = robot.joints.lower_limits.to(device=cfg.device, dtype=cfg.dtype)
-    hi = robot.joints.upper_limits.to(device=cfg.device, dtype=cfg.dtype)
-    lower_viol = torch.clamp(lo - cfg, min=0.0) * weight
-    upper_viol = torch.clamp(cfg - hi, min=0.0) * weight
+    lo = robot.joints.lower_limits.to(device=q.device, dtype=q.dtype)
+    hi = robot.joints.upper_limits.to(device=q.device, dtype=q.dtype)
+    lower_viol = torch.clamp(lo - q, min=0.0) * weight
+    upper_viol = torch.clamp(q - hi, min=0.0) * weight
     return torch.cat([lower_viol, upper_viol], dim=-1)
 
 
@@ -53,8 +53,8 @@ def limit_cost(robot: RobotModel, weight: float = 0.1) -> CostTerm:
 
 
 def velocity_residual(
-    cfg: torch.Tensor,
-    cfg_prev: torch.Tensor,
+    q: torch.Tensor,
+    q_prev: torch.Tensor,
     robot: RobotModel,
     dt: float,
     weight: float = 1.0,
@@ -64,11 +64,11 @@ def velocity_residual(
 
 
 def acceleration_residual(
-    cfg: torch.Tensor,
-    cfg_tp2: torch.Tensor,
-    cfg_tp1: torch.Tensor,
-    cfg_tm1: torch.Tensor,
-    cfg_tm2: torch.Tensor,
+    q: torch.Tensor,
+    q_tp2: torch.Tensor,
+    q_tp1: torch.Tensor,
+    q_tm1: torch.Tensor,
+    q_tm2: torch.Tensor,
     dt: float,
     weight: float = 1.0,
 ) -> torch.Tensor:
@@ -77,12 +77,12 @@ def acceleration_residual(
 
 
 def jerk_residual(
-    cfg_tp3: torch.Tensor,
-    cfg_tp2: torch.Tensor,
-    cfg_tp1: torch.Tensor,
-    cfg_tm1: torch.Tensor,
-    cfg_tm2: torch.Tensor,
-    cfg_tm3: torch.Tensor,
+    q_tp3: torch.Tensor,
+    q_tp2: torch.Tensor,
+    q_tp1: torch.Tensor,
+    q_tm1: torch.Tensor,
+    q_tm2: torch.Tensor,
+    q_tm3: torch.Tensor,
     dt: float,
     weight: float = 1.0,
 ) -> torch.Tensor:
