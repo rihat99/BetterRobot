@@ -107,16 +107,17 @@ def test_benchmark_floating_base(panda, capsys):
         cfg0 = panda._q_default.clone()
         elapsed = 0.0
         N = 5
-        base_r = cfg_r = None
+        data_r = None
         for _ in range(N):
             t0 = time.perf_counter()
-            base_r, cfg_r = solve_ik(
+            data_r = solve_ik(
                 panda, targets={"panda_hand": target},
                 config=IKConfig(jacobian=mode),
                 initial_base_pose=identity_base.clone(),
                 initial_q=cfg0.clone(), max_iter=20,
             )
             elapsed += time.perf_counter() - t0
+        cfg_r, base_r = data_r.q, data_r.base_pose
         fk = panda.forward_kinematics(cfg_r, base_pose=base_r)
         pos_err = (fk[hand_idx, :3] - target[:3]).norm().item()
         results[mode] = (elapsed / N * 1000, pos_err)

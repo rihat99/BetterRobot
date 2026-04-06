@@ -257,3 +257,27 @@ def test_forward_kinematics_data_wrong_model_raises(panda_model):
     bad_data = RobotData(q=data.q.clone(), _model_id=id(object()))  # wrong id
     with pytest.raises(ValueError, match="different RobotModel"):
         br.forward_kinematics(panda_model, bad_data)
+
+
+# --- Phase 25: New properties and RobotData return from solve_ik ---
+
+def test_robot_model_properties(panda_model):
+    assert panda_model.q_default.shape == panda_model._q_default.shape
+    assert torch.allclose(panda_model.q_default, panda_model._q_default)
+    assert panda_model.q_lower.shape == panda_model.q_upper.shape
+    assert (panda_model.q_lower <= panda_model.q_upper).all()
+    assert panda_model.n_joints == panda_model.joints.num_actuated_joints
+    assert panda_model.n_links == panda_model.links.num_links
+    assert isinstance(panda_model.n_joints, int)
+    assert isinstance(panda_model.n_links, int)
+
+
+def test_solve_ik_returns_robot_data(panda_model):
+    import better_robot as br
+    target_fk = br.forward_kinematics(panda_model, panda_model.q_default)
+    link_idx = panda_model.link_index("panda_hand")
+    pose = target_fk[link_idx]
+    data = br.solve_ik(panda_model, targets={"panda_hand": pose})
+    assert isinstance(data, br.RobotData)
+    assert data.q.shape == panda_model.q_default.shape
+    assert data.base_pose is None  # fixed base
