@@ -40,6 +40,7 @@ def pose_residual(
     """
     fk = model.forward_kinematics(q, base_pose=base_pose)
     actual_pose = fk[..., target_link_index, :]
+    target_pose = target_pose.to(device=q.device, dtype=q.dtype)
     T_err = se3_compose(se3_inverse(target_pose), actual_pose)
     log_err = se3_log(T_err)
     pos_err = log_err[..., :3] * pos_weight

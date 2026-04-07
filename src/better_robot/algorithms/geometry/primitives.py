@@ -107,8 +107,11 @@ class Capsule(CollGeom):
         tf = result["transform"]  # 4x4 ndarray; cylinder center at tf[:3,3], axis = tf[:3,2]
         center = torch.tensor(tf[:3, 3], dtype=torch.float32)
         axis = torch.tensor(tf[:3, 2], dtype=torch.float32)  # Z-column
-        half = (height / 2.0) * axis
-        return Capsule(point_a=center - half, point_b=center + half, radius=radius)
+        # Inset endpoints by radius so the hemispherical caps don't extend
+        # beyond the bounding cylinder.  When height < 2*radius the capsule
+        # degenerates to a sphere at the center.
+        half_seg = max(0.0, height / 2.0 - radius) * axis
+        return Capsule(point_a=center - half_seg, point_b=center + half_seg, radius=radius)
 
     def decompose_to_spheres(self, n_segments: int = 5) -> list[Sphere]:
         """Decompose capsule into n_segments spheres along the axis.

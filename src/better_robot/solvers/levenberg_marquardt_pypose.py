@@ -44,7 +44,7 @@ class PyposeLevenbergMarquardt(Solver):
 
         lo = problem.lower_bounds
         hi = problem.upper_bounds
-        dummy = torch.zeros(1)
+        dummy = torch.zeros(1, device=module.x.device)
 
         for _ in range(max_iter):
             optimizer.step(input=dummy)

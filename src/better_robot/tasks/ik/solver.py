@@ -160,6 +160,7 @@ def _base_reg_residual(
     base_ori_weight: float,
 ) -> torch.Tensor:
     """6D residual pulling the base toward default_base."""
+    default_base = default_base.to(device=base.device, dtype=base.dtype)
     T_err = se3_compose(se3_inverse(default_base), base)
     log_err = se3_log(T_err)
     return torch.cat([log_err[:3] * base_pos_weight, log_err[3:] * base_ori_weight])
@@ -180,6 +181,7 @@ def _fb_residual(
     fk = model.forward_kinematics(q, base_pose=base)
     parts = []
     for link_idx, tp in zip(target_link_indices, target_poses):
+        tp = tp.to(device=q.device, dtype=q.dtype)
         T_err = se3_compose(se3_inverse(tp), fk[link_idx])
         log_e = se3_log(T_err)
         parts.append(
@@ -431,18 +433,19 @@ def _solve_floating_autodiff(
     robot_coll: "RobotCollision | None" = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Floating-base IK with autodiff Jacobian, using IKVariable retraction."""
+    device = initial_base_pose.device
     base = initial_base_pose.clone().float()
     q = (
         initial_q.clone().float()
         if initial_q is not None
-        else model._q_default.clone().float()
+        else model._q_default.clone().to(device=device).float()
     )
-    q_rest = model._q_default.clone().float()
-    lo = model.joints.lower_limits.float()
-    hi = model.joints.upper_limits.float()
+    q_rest = model._q_default.clone().to(device=device).float()
+    lo = model.joints.lower_limits.to(device=device).float()
+    hi = model.joints.upper_limits.to(device=device).float()
 
     target_link_indices = [model.link_index(name) for name in targets]
-    target_poses = [tp.float() for tp in targets.values()]
+    target_poses = [tp.to(device=device).float() for tp in targets.values()]
     default_base = base.clone()
     n = model.joints.num_actuated_joints
     lam = 1e-4
@@ -495,19 +498,20 @@ def _solve_floating_analytic(
     only pairs within ``config.collision_margin`` receive non-zero rows, cutting
     the number of autodiff backward passes from O(all_pairs) to O(active_pairs).
     """
+    device = initial_base_pose.device
     base = initial_base_pose.clone().float()
     default_base = initial_base_pose.clone().float()
     q = (
         initial_q.clone().float()
         if initial_q is not None
-        else model._q_default.clone().float()
+        else model._q_default.clone().to(device=device).float()
     )
-    q_rest = model._q_default.clone().float()
-    lo = model.joints.lower_limits.float()
-    hi = model.joints.upper_limits.float()
+    q_rest = model._q_default.clone().to(device=device).float()
+    lo = model.joints.lower_limits.to(device=device).float()
+    hi = model.joints.upper_limits.to(device=device).float()
 
     target_link_indices = [model.link_index(name) for name in targets]
-    target_poses = [tp.float() for tp in targets.values()]
+    target_poses = [tp.to(device=device).float() for tp in targets.values()]
 
     n = model.joints.num_actuated_joints
     lam = 1e-4

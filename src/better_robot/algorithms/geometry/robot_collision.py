@@ -543,7 +543,7 @@ class RobotCollision:
             for wg in world_geom:
                 dists.append(compute_distance(wg, rg))
         if not dists:
-            return torch.zeros(0)
+            return torch.zeros(0, dtype=q.dtype, device=q.device)
         return torch.stack(dists)
 
     # ------------------------------------------------------------------ #

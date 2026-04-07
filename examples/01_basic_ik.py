@@ -2,8 +2,7 @@
 
 Usage:
     uv run python examples/01_basic_ik.py
-    uv run python examples/01_basic_ik.py --collision           # capsules from URDF (default)
-    uv run python examples/01_basic_ik.py --collision --spheres # legacy sphere decomposition
+    uv run python examples/01_basic_ik.py --collision           # capsules from URDF
 
 Open http://localhost:8080 in your browser.
 Drag the transform handle to move the target end-effector pose.
@@ -19,23 +18,10 @@ Solver options (pass via IKConfig):
 """
 import argparse
 import time
+import torch
 import better_robot as br
 from better_robot.algorithms.geometry.robot_collision import RobotCollision
 from robot_descriptions.loaders.yourdfpy import load_robot_description
-
-# Sphere decomposition for the Panda arm (legacy / --spheres flag).
-# Each entry approximates one link with one or more spheres (center in link-local frame, radius in metres).
-# Adjacent links are automatically excluded from collision checking by RobotCollision.
-PANDA_SPHERES = {
-    "panda_link0": {"center": [0.0,  0.0,  0.05], "radius": 0.08},
-    "panda_link2": {"center": [0.0,  0.0,  0.0],  "radius": 0.07},
-    "panda_link3": {"centers": [[0.0, 0.0, -0.06], [0.0, 0.0, 0.06]], "radii": [0.06, 0.06]},
-    "panda_link4": {"centers": [[0.0, 0.0, -0.04], [0.0, 0.0, 0.04]], "radii": [0.06, 0.06]},
-    "panda_link5": {"center": [0.0,  0.0,  0.0],  "radius": 0.06},
-    "panda_link6": {"center": [0.0,  0.0,  0.0],  "radius": 0.05},
-    "panda_link7": {"center": [0.0,  0.0,  0.03], "radius": 0.05},
-    "panda_hand":  {"center": [0.0,  0.0,  0.06], "radius": 0.05},
-}
 
 
 def main() -> None:
@@ -45,10 +31,13 @@ def main() -> None:
         help="Enable self-collision avoidance (uses autodiff Jacobian)",
     )
     parser.add_argument(
-        "--spheres", action="store_true",
-        help="Use legacy sphere decomposition instead of URDF capsules (requires --collision)",
+        "--device", type=str, default="cpu",
+        help="Torch device to use (default: cpu, e.g. cuda, cuda:0)",
     )
     args = parser.parse_args()
+
+    device = torch.device(args.device)
+    print(f"Using device: {device}")
 
     urdf = load_robot_description("panda_description")
     model = br.load_urdf(urdf)
@@ -56,13 +45,9 @@ def main() -> None:
 
     robot_coll = None
     if args.collision:
-        if args.spheres:
-            robot_coll = RobotCollision.from_sphere_decomposition(PANDA_SPHERES, model)
-            print("Self-collision avoidance enabled (sphere mode). Spheres shown in red.")
-        else:
-            robot_coll = RobotCollision.from_urdf(urdf, model)
-            n_pairs = len(robot_coll._active_pairs_i)
-            print(f"Self-collision avoidance enabled (capsule mode, {n_pairs} active pairs). Capsules shown in red.")
+        robot_coll = RobotCollision.from_urdf(urdf, model)
+        n_pairs = len(robot_coll._active_pairs_i)
+        print(f"Self-collision avoidance enabled (capsule mode, {n_pairs} active pairs). Capsules shown in red.")
 
     vis = br.Visualizer(urdf, model)
     vis.add_target("panda_hand", scale=0.15)
@@ -72,24 +57,25 @@ def main() -> None:
     # Use analytic Jacobian when collision is off (faster); autodiff is used automatically when collision is on.
     config = br.IKConfig(rest_weight=0.001, jacobian="analytic")
 
-    q = model.q_default.clone()
-    vis.reset_targets(model, q)
-    vis.update(q)
+    q = model.q_default.clone().to(device)
+    vis.reset_targets(model, q.cpu())
+    vis.update(q.cpu())
 
     if robot_coll is not None:
-        vis.add_collision_geometry(robot_coll, q)
+        vis.add_collision_geometry(robot_coll, q.cpu())
 
     print("Drag the transform handle to set the IK target. Press Ctrl+C to quit.")
 
     while True:
         if vis.restart_requested:
-            q = model.q_default.clone()
-            vis.reset_targets(model, q)
+            q = model.q_default.clone().to(device)
+            vis.reset_targets(model, q.cpu())
 
         t0 = time.perf_counter()
+        targets = {k: v.to(device) for k, v in vis.get_targets().items()}
         data = br.solve_ik(
             model,
-            targets=vis.get_targets(),
+            targets=targets,
             config=config,
             initial_q=q,
             max_iter=20,
@@ -97,8 +83,8 @@ def main() -> None:
         )
         vis.set_timing((time.perf_counter() - t0) * 1000)
         q = data.q
-        vis.update(q)
-        vis.update_collision_geometry(q)
+        vis.update(q.cpu())
+        vis.update_collision_geometry(q.cpu())
         time.sleep(1.0 / 30.0)
 
 
