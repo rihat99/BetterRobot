@@ -58,3 +58,9 @@ class IKConfig:
 
     Example: IKConfig(solver="lm", solver_params={"damping": 1e-3, "reject": 8})
     """
+
+    collision_weight: float = 1.0
+    """Weight on self-collision avoidance cost. Only active when robot_coll is passed to solve_ik."""
+
+    collision_margin: float = 0.02
+    """Activation distance in metres for self-collision cost (cost activates when spheres are closer than this)."""

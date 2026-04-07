@@ -3,7 +3,7 @@
 import torch
 import pytest
 from robot_descriptions.loaders.yourdfpy import load_robot_description
-from better_robot import load_urdf, solve_ik, IKConfig, RobotData
+from better_robot import load_urdf, solve_ik, IKConfig, RobotData, RobotCollision
 
 
 @pytest.fixture(scope="module")
@@ -244,3 +244,49 @@ def test_solve_ik_floating_analytic_matches_autodiff(panda):
     fk_an = panda.forward_kinematics(cfg_an, base_pose=base_an)
     diff = (fk_pp[hand_idx, :3] - fk_an[hand_idx, :3]).norm().item()
     assert diff < 0.02, f"Floating solutions differ by {diff:.4f} m"
+
+
+# ---------------------------------------------------------------------------
+# Collision-aware IK tests
+# ---------------------------------------------------------------------------
+
+# Minimal sphere decomposition for Panda: skip link1 (adjacent to link0)
+_PANDA_SPHERES_MINIMAL = {
+    "panda_link0": {"center": [0.0, 0.0, 0.05], "radius": 0.08},
+    "panda_link3": {"center": [0.0, 0.0, 0.0],  "radius": 0.06},
+    "panda_link5": {"center": [0.0, 0.0, 0.0],  "radius": 0.06},
+    "panda_hand":  {"center": [0.0, 0.0, 0.06], "radius": 0.05},
+}
+
+
+def test_solve_ik_with_collision_returns_valid(panda):
+    """solve_ik with robot_coll must complete and return correct shapes."""
+    robot_coll = RobotCollision.from_sphere_decomposition(_PANDA_SPHERES_MINIMAL, panda)
+    target = torch.tensor([0.3, 0.0, 0.5, 0., 0., 0., 1.])
+    data = solve_ik(panda, targets={"panda_hand": target}, max_iter=30, robot_coll=robot_coll)
+    assert data.q.shape == (panda.joints.num_actuated_joints,)
+
+
+def test_solve_ik_with_collision_respects_limits(panda):
+    """Collision-aware IK must still respect joint limits."""
+    robot_coll = RobotCollision.from_sphere_decomposition(_PANDA_SPHERES_MINIMAL, panda)
+    target = torch.tensor([0.3, 0.0, 0.5, 0., 0., 0., 1.])
+    data = solve_ik(panda, targets={"panda_hand": target}, max_iter=50, robot_coll=robot_coll)
+    lo = panda.joints.lower_limits
+    hi = panda.joints.upper_limits
+    assert (data.q >= lo - 0.1).all()
+    assert (data.q <= hi + 0.1).all()
+
+
+def test_solve_ik_collision_result_matches_no_collision_on_easy_target(panda):
+    """On a target that is the FK of the default config, collision IK should still converge."""
+    robot_coll = RobotCollision.from_sphere_decomposition(_PANDA_SPHERES_MINIMAL, panda)
+    cfg_default = panda._q_default
+    fk = panda.forward_kinematics(cfg_default)
+    hand_idx = panda.link_index("panda_hand")
+    target = fk[hand_idx].detach()
+
+    data = solve_ik(panda, targets={"panda_hand": target}, max_iter=50, robot_coll=robot_coll)
+    fk_result = panda.forward_kinematics(data.q)
+    pos_err = (fk_result[hand_idx, :3] - target[:3]).norm().item()
+    assert pos_err < 0.05, f"Position error {pos_err:.4f} m too large"

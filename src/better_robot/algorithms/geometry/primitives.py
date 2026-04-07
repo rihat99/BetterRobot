@@ -75,6 +75,41 @@ class Capsule(CollGeom):
         """Create capsule from two endpoint positions."""
         return Capsule(point_a=p0, point_b=p1, radius=radius)
 
+    @staticmethod
+    def from_trimesh(mesh: "trimesh.Trimesh") -> "Capsule":
+        """Create capsule as the minimum bounding cylinder of a trimesh.
+
+        If the mesh is empty, returns a degenerate zero-radius capsule at the origin.
+        The capsule endpoints are derived from the cylinder axis (Z-column of the
+        bounding-cylinder transform) and half-height.
+
+        Args:
+            mesh: Input trimesh. Typically the merged collision geometry of one robot link.
+
+        Returns:
+            Capsule in the mesh's local frame.
+        """
+        try:
+            import trimesh as tm
+        except ImportError as exc:
+            raise ImportError(
+                "trimesh is required for Capsule.from_trimesh(). "
+                "Install it with: pip install trimesh"
+            ) from exc
+
+        if mesh.is_empty:
+            z = torch.zeros(3, dtype=torch.float32)
+            return Capsule(point_a=z, point_b=z.clone(), radius=0.0)
+
+        result = tm.bounds.minimum_cylinder(mesh)
+        radius = float(result["radius"])
+        height = float(result["height"])
+        tf = result["transform"]  # 4x4 ndarray; cylinder center at tf[:3,3], axis = tf[:3,2]
+        center = torch.tensor(tf[:3, 3], dtype=torch.float32)
+        axis = torch.tensor(tf[:3, 2], dtype=torch.float32)  # Z-column
+        half = (height / 2.0) * axis
+        return Capsule(point_a=center - half, point_b=center + half, radius=radius)
+
     def decompose_to_spheres(self, n_segments: int = 5) -> list[Sphere]:
         """Decompose capsule into n_segments spheres along the axis.
 

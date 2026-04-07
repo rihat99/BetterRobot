@@ -15,14 +15,23 @@ def self_collision_residual(
     robot_coll: RobotCollision,
     margin: float = 0.02,
     weight: float = 1.0,
+    base_pose: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Compute self-collision violation residual.
+
+    Args:
+        q: Joint configuration ``(num_actuated,)``.
+        model: RobotModel.
+        robot_coll: Collision model (capsule or sphere mode).
+        margin: Activation distance in metres.
+        weight: Scalar weight applied to the residual.
+        base_pose: Optional base pose ``[tx,ty,tz,qx,qy,qz,qw]`` for
+            floating-base robots.
 
     Returns:
         Shape (num_active_pairs,). Violation per pair (higher = worse).
     """
-    dists = robot_coll.compute_self_collision_distance(model, q)
-    # Convert to cost: negative colldist_from_sdf means collision
+    dists = robot_coll.compute_self_collision_distance(model, q, base_pose=base_pose)
     cost = -colldist_from_sdf(dists, activation_dist=margin)
     return cost * weight
 
@@ -34,13 +43,23 @@ def world_collision_residual(
     world_geom: list[CollGeom],
     margin: float = 0.02,
     weight: float = 1.0,
+    base_pose: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Compute world-collision violation residual.
 
+    Args:
+        q: Joint configuration.
+        model: RobotModel.
+        robot_coll: Collision model.
+        world_geom: List of world collision primitives.
+        margin: Activation distance in metres.
+        weight: Scalar weight.
+        base_pose: Optional base pose for floating-base robots.
+
     Returns:
-        Shape (num_robot_spheres * len(world_geom),). Violation per pair.
+        Shape (num_robot_geoms * len(world_geom),). Violation per pair.
     """
-    dists = robot_coll.compute_world_collision_distance(model, q, world_geom)
+    dists = robot_coll.compute_world_collision_distance(model, q, world_geom, base_pose=base_pose)
     cost = -colldist_from_sdf(dists, activation_dist=margin)
     return cost * weight
 

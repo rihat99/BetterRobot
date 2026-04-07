@@ -27,6 +27,7 @@ from .models import JointInfo, LinkInfo
 
 # Algorithms (convenience re-exports)
 from .algorithms.kinematics import forward_kinematics, compute_jacobian
+from .algorithms.geometry.robot_collision import RobotCollision
 
 # Tasks (high-level API)
 from .tasks.ik import solve_ik, IKConfig
@@ -51,6 +52,7 @@ __all__ = [
     # Algorithms
     "forward_kinematics",
     "compute_jacobian",
+    "RobotCollision",
     # Tasks
     "solve_ik",
     "IKConfig",
