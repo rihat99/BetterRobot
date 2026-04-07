@@ -13,9 +13,5 @@ build/
 
 docs/superpowers/
 
-# Claude Code context files — local only
-CLAUDE.md
-**/CLAUDE.md
-
 # Internal docs — local only
 docs/*.md
