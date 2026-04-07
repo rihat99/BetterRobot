@@ -10,7 +10,6 @@ Requires [uv](https://docs.astral.sh/uv/):
 git clone https://github.com/rihat99/BetterRobot
 cd BetterRobot
 uv sync
-uv add -e .
 ```
 
 ## Examples
