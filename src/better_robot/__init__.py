@@ -1,73 +1,80 @@
-"""BetterRobot: PyTorch-native robot kinematics and optimization.
+"""``better_robot`` — PyTorch-native robotics library, phase-1 skeleton.
 
-Quick start::
+The public surface is intentionally small: **25 symbols** (the ceiling in
+``docs/01_ARCHITECTURE.md``). Everything else is internal and may be
+reshaped without a deprecation. See
+``docs/01_ARCHITECTURE.md §Public API contract``.
 
-    import better_robot as br
-    import yourdfpy
+Layered DAG (arrows point from dependent to dependency)::
 
-    urdf = yourdfpy.URDF.load("robot.urdf")
-    model = br.load_urdf(urdf)
+    tasks → optim → residuals → kinematics ↴
+                                  │         dynamics ↴
+                                  ▼                   ▼
+                                 data_model ── spatial ── lie ── backends
 
-    # Fixed base IK
-    data = br.solve_ik(model, targets={"panda_hand": pose})
-    fk = br.forward_kinematics(model, data.q)
-
-    # Floating base (humanoid whole-body IK)
-    data = br.solve_ik(
-        model,
-        targets={"left_rubber_hand": p_lh, "right_rubber_hand": p_rh},
-        initial_base_pose=torch.tensor([0., 0., 0.78, 0., 0., 0., 1.]),
-    )
-    print(data.q, data.base_pose)
+    io → data_model           (io reads nothing from optim or tasks)
+    viewer → tasks            (topmost; no-one imports from viewer)
 """
 
-# Model loading
-from .models import RobotModel, RobotData, load_urdf
-from .models import JointInfo, LinkInfo
+from __future__ import annotations
 
-# Algorithms (convenience re-exports)
-from .algorithms.kinematics import forward_kinematics, compute_jacobian
-from .algorithms.geometry.robot_collision import RobotCollision
+from .costs import CostStack
+from .data_model import Body, Data, Frame, Joint, Model
+from .dynamics import (
+    aba,
+    center_of_mass,
+    compute_centroidal_map,
+    crba,
+    rnea,
+)
+from .io import load
+from .kinematics import (
+    JacobianStrategy,
+    compute_joint_jacobians,
+    forward_kinematics,
+    get_frame_jacobian,
+    get_joint_jacobian,
+    update_frame_placements,
+)
+from .optim import LeastSquaresProblem, solve
+from .residuals import register_residual
+from .tasks import Trajectory, retarget, solve_ik, solve_trajopt
 
-# Tasks (high-level API)
-from .tasks.ik import solve_ik, IKConfig
-from .tasks.trajopt import solve_trajopt, TrajOptConfig
-from .tasks.retarget import retarget, RetargetConfig
-
-# Visualization
-from .viewer import Visualizer
-
-# Submodule access
-from . import models, algorithms, math, costs, solvers, tasks, viewer
-
-__version__ = "0.1.0"
-
+# Exactly 25 symbols — the non-negotiable ceiling.
 __all__ = [
-    # Model loading
-    "RobotModel",
-    "RobotData",
-    "load_urdf",
-    "JointInfo",
-    "LinkInfo",
-    # Algorithms
+    # data_model (5)
+    "Model",
+    "Data",
+    "Frame",
+    "Joint",
+    "Body",
+    # io (1)
+    "load",
+    # kinematics (6)
     "forward_kinematics",
-    "compute_jacobian",
-    "RobotCollision",
-    # Tasks
+    "update_frame_placements",
+    "compute_joint_jacobians",
+    "get_joint_jacobian",
+    "get_frame_jacobian",
+    "JacobianStrategy",
+    # dynamics (5)
+    "rnea",
+    "aba",
+    "crba",
+    "center_of_mass",
+    "compute_centroidal_map",
+    # residuals (1)
+    "register_residual",
+    # costs (1)
+    "CostStack",
+    # optim (2)
+    "LeastSquaresProblem",
+    "solve",
+    # tasks (4)
     "solve_ik",
-    "IKConfig",
     "solve_trajopt",
-    "TrajOptConfig",
     "retarget",
-    "RetargetConfig",
-    # Visualization
-    "Visualizer",
-    # Submodules
-    "models",
-    "algorithms",
-    "math",
-    "costs",
-    "solvers",
-    "tasks",
-    "viewer",
+    "Trajectory",
 ]
+
+assert len(__all__) == 25, f"better_robot.__all__ must have 25 symbols, not {len(__all__)}"

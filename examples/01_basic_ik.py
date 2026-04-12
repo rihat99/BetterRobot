@@ -1,91 +1,71 @@
-"""Interactive IK example for Franka Panda.
+"""Interactive IK for Franka Panda.
+
+Drag the SE(3) gizmo in the browser to move the end-effector.
 
 Usage:
-    uv run python examples/01_basic_ik.py
-    uv run python examples/01_basic_ik.py --collision           # capsules from URDF
-
-Open http://localhost:8080 in your browser.
-Drag the transform handle to move the target end-effector pose.
-Click *Restart* to reset the robot and target to the default configuration.
-
-Solver options (pass via IKConfig):
-    jacobian="analytic"   — geometric Jacobian (faster, default here)
-    jacobian="autodiff"   — torch.func.jacrev (works for any custom cost)
-    solver="lm"           — Levenberg-Marquardt (default)
-    solver="gn"           — Gauss-Newton (no damping, faster on easy problems)
-    solver="adam"         — Adam gradient descent
-    solver="lbfgs"        — L-BFGS with strong Wolfe line search
+    uv run python examples/01_basic_ik.py [--no-viewer]
 """
 import argparse
+import math
 import time
+
 import torch
 import better_robot as br
-from better_robot.algorithms.geometry.robot_collision import RobotCollision
-from robot_descriptions.loaders.yourdfpy import load_robot_description
+from better_robot.tasks.ik import IKCostConfig, OptimizerConfig, solve_ik
+from robot_descriptions import panda_description
+
+# Bent-elbow "ready" pose — away from singularities.
+PANDA_READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4,
+               0.0, math.pi / 2, math.pi / 4, 0.04, 0.04]
+
+EE_FRAME = "body_panda_hand"
+COST = IKCostConfig(limit_weight=0.1, rest_weight=0.001)
+OPT = OptimizerConfig(max_iter=30)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--collision", action="store_true",
-        help="Enable self-collision avoidance (uses autodiff Jacobian)",
-    )
-    parser.add_argument(
-        "--device", type=str, default="cpu",
-        help="Torch device to use (default: cpu, e.g. cuda, cuda:0)",
-    )
-    args = parser.parse_args()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--no-viewer", action="store_true")
+    args = ap.parse_args()
 
-    device = torch.device(args.device)
-    print(f"Using device: {device}")
+    model = br.load(panda_description.URDF_PATH)
+    q0 = torch.tensor(PANDA_READY).clamp(model.lower_pos_limit,
+                                          model.upper_pos_limit)
 
-    urdf = load_robot_description("panda_description")
-    model = br.load_urdf(urdf)
-    print(f"Loaded Panda: {model.links.num_links} links, {model.joints.num_actuated_joints} actuated joints")
+    # FK to get a reachable initial target
+    data = br.forward_kinematics(model, q0, compute_frames=True)
+    T_target = data.oMf[model.frame_id(EE_FRAME)].clone()
 
-    robot_coll = None
-    if args.collision:
-        robot_coll = RobotCollision.from_urdf(urdf, model)
-        n_pairs = len(robot_coll._active_pairs_i)
-        print(f"Self-collision avoidance enabled (capsule mode, {n_pairs} active pairs). Capsules shown in red.")
+    result = solve_ik(model, targets={EE_FRAME: T_target},
+                      initial_q=q0, cost_cfg=COST, optimizer_cfg=OPT)
+    print(f"Initial IK: converged={result.converged}  pos_err="
+          f"{(result.fk().oMf[model.frame_id(EE_FRAME)][:3] - T_target[:3]).norm():.4f} m")
 
-    vis = br.Visualizer(urdf, model)
-    vis.add_target("panda_hand", scale=0.15)
-    vis.add_timing_display()
-    vis.add_restart_button()
+    if args.no_viewer:
+        return
 
-    # Use analytic Jacobian when collision is off (faster); autodiff is used automatically when collision is on.
-    config = br.IKConfig(rest_weight=0.001, jacobian="analytic")
+    from better_robot.viewer import Visualizer
 
-    q = model.q_default.clone().to(device)
-    vis.reset_targets(model, q.cpu())
-    vis.update(q.cpu())
+    viewer = Visualizer(model, port=8080)
+    viewer.update(result.q)
+    overlay = viewer.add_ik_targets({EE_FRAME: T_target}, scale=0.15)
+    viewer.show(block=False)
 
-    if robot_coll is not None:
-        vis.add_collision_geometry(robot_coll, q.cpu())
+    print("Viewer at http://localhost:8080  — drag the gizmo, Ctrl-C to exit.")
 
-    print("Drag the transform handle to set the IK target. Press Ctrl+C to quit.")
-
-    while True:
-        if vis.restart_requested:
-            q = model.q_default.clone().to(device)
-            vis.reset_targets(model, q.cpu())
-
-        t0 = time.perf_counter()
-        targets = {k: v.to(device) for k, v in vis.get_targets().items()}
-        data = br.solve_ik(
-            model,
-            targets=targets,
-            config=config,
-            initial_q=q,
-            max_iter=20,
-            robot_coll=robot_coll,
-        )
-        vis.set_timing((time.perf_counter() - t0) * 1000)
-        q = data.q
-        vis.update(q.cpu())
-        vis.update_collision_geometry(q.cpu())
-        time.sleep(1.0 / 30.0)
+    last = {k: v.clone() for k, v in overlay.live_targets().items()}
+    try:
+        while True:
+            cur = overlay.live_targets()
+            if any(not torch.allclose(cur[k], last[k], atol=1e-4)
+                   for k in cur):
+                r = solve_ik(model, targets=cur, initial_q=viewer.last_q,
+                             cost_cfg=COST, optimizer_cfg=OPT)
+                viewer.update(r.q)
+                last = {k: v.clone() for k, v in cur.items()}
+            time.sleep(0.02)
+    except KeyboardInterrupt:
+        print("\nExit.")
 
 
 if __name__ == "__main__":

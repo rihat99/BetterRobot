@@ -1,0 +1,218 @@
+"""``Inertia`` — packed spatial inertia of a rigid body.
+
+Stored as a ``(..., 10)`` tensor
+``[mass, cx, cy, cz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]``.
+
+See ``docs/03_LIE_AND_SPATIAL.md §7``.
+"""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass
+
+import torch
+
+
+@dataclass(frozen=True)
+class Inertia:
+    """Spatial inertia of a rigid body in a single ``(..., 10)`` packed tensor."""
+
+    data: torch.Tensor  # (..., 10)
+
+    # ---- accessors ----
+
+    @property
+    def mass(self) -> torch.Tensor:
+        return self.data[..., 0]
+
+    @property
+    def com(self) -> torch.Tensor:
+        return self.data[..., 1:4]
+
+    @property
+    def inertia_matrix(self) -> torch.Tensor:
+        """Expand the packed Symmetric3 portion to ``(..., 3, 3)``."""
+        from .symmetric3 import Symmetric3
+        return Symmetric3(self.data[..., 4:10]).to_matrix()
+
+    # ---- named-constructor factories (Pinocchio style) ----
+
+    @classmethod
+    def zero(
+        cls,
+        *,
+        batch_shape: tuple[int, ...] = (),
+        device: torch.device | None = None,
+        dtype: torch.dtype = torch.float32,
+    ) -> "Inertia":
+        return cls(torch.zeros((*batch_shape, 10), device=device, dtype=dtype))
+
+    @classmethod
+    def from_sphere(cls, mass: float, radius: float) -> "Inertia":
+        """Solid sphere inertia. I = 2/5 * m * r^2 on diagonal, com at origin."""
+        I_diag = (2.0 / 5.0) * mass * radius ** 2
+        # packing: [mass, cx, cy, cz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]
+        data = torch.tensor([mass, 0.0, 0.0, 0.0,
+                             I_diag, I_diag, I_diag, 0.0, 0.0, 0.0],
+                            dtype=torch.float32)
+        return cls(data)
+
+    @classmethod
+    def from_box(cls, mass: float, size: torch.Tensor) -> "Inertia":
+        """Box inertia. ``size`` = full edge lengths (lx, ly, lz).
+
+        Ixx = m/12*(ly²+lz²), Iyy = m/12*(lx²+lz²), Izz = m/12*(lx²+ly²).
+        """
+        lx, ly, lz = float(size[0]), float(size[1]), float(size[2])
+        k = mass / 12.0
+        Ixx = k * (ly ** 2 + lz ** 2)
+        Iyy = k * (lx ** 2 + lz ** 2)
+        Izz = k * (lx ** 2 + ly ** 2)
+        data = torch.tensor([mass, 0.0, 0.0, 0.0,
+                             Ixx, Iyy, Izz, 0.0, 0.0, 0.0],
+                            dtype=torch.float32)
+        return cls(data)
+
+    @classmethod
+    def from_capsule(cls, mass: float, radius: float, length: float) -> "Inertia":
+        """Capsule (cylinder + 2 hemispheres) inertia along the Z axis.
+
+        Uses Pinocchio's formula:
+          m_cyl  = pi*r²*l*rho,  m_hemi = (2/3)*pi*r³*rho
+          total  = mass
+          I_axial (z): m_cyl/2 * r² + 2*m_hemi*(2/5*r²)
+          I_lateral (x,y): m_cyl*(l²/12 + r²/4) + m_hemi*(2/5*r² + l/2*(3/4*l + r))
+        """
+        vol_cyl  = math.pi * radius ** 2 * length
+        vol_hemi = (2.0 / 3.0) * math.pi * radius ** 3
+        vol_total = vol_cyl + 2.0 * vol_hemi
+        m_cyl  = mass * vol_cyl  / vol_total
+        m_hemi = mass * vol_hemi / vol_total
+
+        I_zz = 0.5 * m_cyl * radius ** 2 + 2 * m_hemi * 0.4 * radius ** 2
+        I_xx = (m_cyl * (length ** 2 / 12.0 + radius ** 2 / 4.0) +
+                2 * m_hemi * (0.4 * radius ** 2 + (length / 2.0) * (0.75 * length + radius)))
+        I_yy = I_xx
+        data = torch.tensor([mass, 0.0, 0.0, 0.0,
+                             I_xx, I_yy, I_zz, 0.0, 0.0, 0.0],
+                            dtype=torch.float32)
+        return cls(data)
+
+    @classmethod
+    def from_ellipsoid(cls, mass: float, radii: torch.Tensor) -> "Inertia":
+        """Ellipsoid inertia with principal radii (a, b, c).
+
+        I = diag(2/5*m*(b²+c²), 2/5*m*(a²+c²), 2/5*m*(a²+b²)).
+        """
+        a, b, c = float(radii[0]), float(radii[1]), float(radii[2])
+        k = 0.4 * mass
+        Ixx = k * (b ** 2 + c ** 2)
+        Iyy = k * (a ** 2 + c ** 2)
+        Izz = k * (a ** 2 + b ** 2)
+        data = torch.tensor([mass, 0.0, 0.0, 0.0,
+                             Ixx, Iyy, Izz, 0.0, 0.0, 0.0],
+                            dtype=torch.float32)
+        return cls(data)
+
+    @classmethod
+    def from_mass_com_sym3(
+        cls,
+        mass: torch.Tensor,
+        com: torch.Tensor,
+        sym3: torch.Tensor,
+    ) -> "Inertia":
+        """Construct from raw ``(mass, com, symmetric3)`` arrays.
+
+        ``mass``: scalar or (B...,)
+        ``com``: (..., 3)
+        ``sym3``: (..., 6)  [Ixx, Iyy, Izz, Ixy, Ixz, Iyz]
+        """
+        m = mass.unsqueeze(-1) if mass.dim() == 0 else mass[..., None]
+        data = torch.cat([m, com, sym3], dim=-1)
+        return cls(data)
+
+    # ---- algebra ----
+
+    def _to_6x6(self) -> torch.Tensor:
+        """Expand to a full 6×6 spatial inertia matrix (Pinocchio convention).
+
+        M_6x6 = [[I + m*hat(c)@hat(c)^T,  m*hat(c)],
+                  [m*hat(c)^T,              m*I3    ]]
+
+        where c = com, I = inertia_matrix (about com).
+        Note: hat(c)^T = -hat(c), and hat(c)@hat(c)^T can be simplified.
+        Actually using the standard formula:
+        The spatial inertia in Featherstone notation:
+        M = [[I_c - m*hat(c)^2,  m*hat(c)],
+              [m*hat(c)^T,         m*I3   ]]
+        where I_c is inertia about origin (parallel-axis theorem pre-applied here we use I about COM + shift).
+        For simplicity here we expand directly.
+        """
+        from ..lie.tangents import hat_so3
+        m = self.mass                  # (...)
+        c = self.com                   # (..., 3)
+        I3_body = self.inertia_matrix  # (..., 3, 3)  about COM
+
+        hatc = hat_so3(c)              # (..., 3, 3)
+        hatcT = hatc.transpose(-1, -2) # (..., 3, 3) = -hatc
+
+        # Inertia about origin via parallel-axis: I_o = I_c + m*(c^T c I - c c^T)
+        # Equivalently: I_o = I_c - m * hat(c)^2
+        I_o = I3_body - m[..., None, None] * (hatc @ hatc)  # (..., 3, 3)
+
+        m_I3 = m[..., None, None] * torch.eye(3, dtype=self.data.dtype,
+                                               device=self.data.device)
+        m_hatc = m[..., None, None] * hatc
+        m_hatcT = m[..., None, None] * hatcT
+
+        top    = torch.cat([I_o,      m_hatc ], dim=-1)
+        bottom = torch.cat([m_hatcT,  m_I3   ], dim=-1)
+        return torch.cat([top, bottom], dim=-2)   # (..., 6, 6)
+
+    def se3_action(self, T: torch.Tensor) -> "Inertia":
+        """Transform the inertia by an SE3 pose.
+
+        I_new = Ad(T)^{-T} * I_6x6 * Ad(T)^{-1}, then repack.
+        """
+        from ..lie import se3 as _se3
+        Ad_inv = _se3.adjoint_inv(T)          # (..., 6, 6)
+        M = self._to_6x6()                    # (..., 6, 6)
+        M_new = Ad_inv.transpose(-1, -2) @ M @ Ad_inv
+
+        # Extract mass (unchanged), new com, new sym3
+        m = self.mass
+        # com: from the off-diagonal block M_new[3:6, 0:3] = m * hat(c_new)
+        # Extract skew-symmetric: c_new = vee(-M_new[3:6, 0:3] / m)
+        # Actually c_new from the (3:6, 0:3) block which is m * hat(c)^T = -m * hat(c)
+        # hat(c)[i,j] from block (0:3, 3:6) = m * hat(c) → c = vee(M_new[0:3, 3:6] / m)
+        from ..lie.tangents import vee_so3
+        m_safe = m.clamp(min=1e-12)
+        hatc_new = M_new[..., :3, 3:6] / m_safe[..., None, None]
+        c_new = vee_so3(hatc_new)  # (..., 3) from skew
+
+        # Inertia about origin (top-left 3x3), then shift back to COM:
+        # I_o_new = M_new[:3, :3]
+        # I_c_new = I_o_new + m * hat(c_new)^2
+        from ..lie.tangents import hat_so3
+        hatc_n = hat_so3(c_new)
+        I_o_new = M_new[..., :3, :3]
+        I_c_new = I_o_new + m[..., None, None] * (hatc_n @ hatc_n)
+
+        from .symmetric3 import Symmetric3
+        sym3 = Symmetric3.from_matrix(I_c_new).data
+
+        m_vec = m.unsqueeze(-1)
+        data = torch.cat([m_vec, c_new, sym3], dim=-1)
+        return Inertia(data)
+
+    def apply(self, v) -> "Force":  # v: Motion
+        """``I * v`` — spatial inertia times twist = spatial momentum."""
+        from .force import Force
+        M = self._to_6x6()   # (..., 6, 6)
+        momentum = (M @ v.data.unsqueeze(-1)).squeeze(-1)
+        return Force(momentum)
+
+    def add(self, other: "Inertia") -> "Inertia":
+        """Composite-rigid-body inertia addition (element-wise on packed 10-vector)."""
+        return Inertia(self.data + other.data)
