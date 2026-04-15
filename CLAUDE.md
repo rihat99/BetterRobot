@@ -10,7 +10,7 @@ PyTorch-native, GPU-ready library for robot kinematics and optimization. Pinocch
 ## Commands
 
 ```bash
-uv run pytest tests/ -v                        # run all tests (227 pass)
+uv run pytest tests/ -v                        # run all tests (297 pass)
 uv run python examples/01_basic_ik.py          # Panda IK demo
 uv run python examples/02_g1_ik.py             # G1 humanoid floating-base IK
 ```
@@ -144,10 +144,23 @@ model.integrate(q, dv)  # SE3-aware retraction: q ⊕ dv
 - After each accepted step: clamps `x_new` to `[lower, upper]`.
 - Initial `x0` is **not** clamped — caller must provide feasible `x0` if limits matter.
 
+## Batching Rules
+
+All tensors carry a leading batch dimension. No "unbatched mode" — single poses are `(1, nq)`. No `if x.dim() == 1:` branches in hot paths. Shape convention: `(B..., feature)` for configs, `(B..., njoints, 7)` for FK output, `(B..., 6, nv)` for Jacobians.
+
+## torch.compile Friendliness
+
+- Loops over `model.topo_order` are static (unroll cleanly)
+- No Python branching on tensor values
+- No `.item()` calls in hot paths
+- Joint-type dispatch at compile time (tuple lookup, not tensor operation)
+
 ## Tests
 
 ```bash
-uv run pytest tests/ -v    # 227 tests, all must pass
+uv run pytest tests/ -v    # 297 tests, all must pass
 ```
 
 Tests use real Panda URDF via `robot_descriptions`. No mocking of FK or URDF parsing.
+`test_layer_dependencies.py` enforces the dependency DAG via AST parsing.
+`test_public_api.py` enforces exactly 25 symbols in `__all__`.
