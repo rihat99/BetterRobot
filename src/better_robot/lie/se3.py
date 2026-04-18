@@ -89,3 +89,25 @@ def normalize(t: torch.Tensor) -> torch.Tensor:
 def apply_base(base: torch.Tensor, poses: torch.Tensor) -> torch.Tensor:
     """Compose a base transform with ``(..., N, 7)`` link poses."""
     return _pp.se3_apply_base(base, poses)
+
+
+def sclerp(
+    T1: torch.Tensor, T2: torch.Tensor, t: torch.Tensor | float
+) -> torch.Tensor:
+    """SE3 screw-linear interpolation. ``(..., 7), (..., 7), (...) → (..., 7)``.
+
+    Geodesic on SE3: ``T1 · exp(t · log(T1⁻¹ · T2))``. Equivalent to the
+    screw-axis (Chasles) motion between the two poses. ``t`` broadcasts
+    against the leading batch of the inputs. ``t`` outside ``[0, 1]``
+    extrapolates along the screw axis.
+
+    Note: gradients through ``T1``/``T2`` inherit the PyPose
+    ``SE3.Log().backward()`` factor-of-2 bug — use central finite
+    differences when exact Jacobians are required.
+    """
+    t = torch.as_tensor(t, dtype=T1.dtype, device=T1.device)
+    while t.dim() < T1.dim():
+        t = t.unsqueeze(-1)
+
+    xi = log(compose(inverse(T1), T2))  # (..., 6)
+    return compose(T1, exp(t * xi))

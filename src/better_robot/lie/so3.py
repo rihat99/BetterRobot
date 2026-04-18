@@ -71,3 +71,40 @@ def from_axis_angle(axis: torch.Tensor, angle: torch.Tensor) -> torch.Tensor:
 def normalize(q: torch.Tensor) -> torch.Tensor:
     """Re-normalize the quaternion to unit length."""
     return _pp.so3_normalize(q)
+
+
+def slerp(
+    q1: torch.Tensor, q2: torch.Tensor, t: torch.Tensor | float
+) -> torch.Tensor:
+    """SO3 spherical linear interpolation. ``(..., 4), (..., 4), (...) → (..., 4)``.
+
+    Classical quaternion SLERP along the shortest arc. Falls back to
+    normalized LERP when the two quaternions are nearly parallel to avoid
+    a ``0/sin(0)`` division. ``t`` is broadcast against the leading batch
+    of ``q1``/``q2`` (scalar or tensor accepted; ``t`` outside ``[0, 1]``
+    extrapolates along the geodesic).
+    """
+    t = torch.as_tensor(t, dtype=q1.dtype, device=q1.device)
+    while t.dim() < q1.dim():
+        t = t.unsqueeze(-1)
+
+    dot = (q1 * q2).sum(dim=-1, keepdim=True)
+    q2 = torch.where(dot < 0, -q2, q2)
+    dot = dot.abs()
+
+    # Clamp before acos so the backward through the unselected branch stays finite.
+    dot_safe = dot.clamp(-1.0 + 1e-7, 1.0 - 1e-7)
+    theta = torch.acos(dot_safe)
+    sin_theta = torch.sin(theta).clamp(min=1e-10)
+
+    w1_slerp = torch.sin((1.0 - t) * theta) / sin_theta
+    w2_slerp = torch.sin(t * theta) / sin_theta
+    w1_lerp = 1.0 - t
+    w2_lerp = t
+
+    near_parallel = dot > 1.0 - 1e-6
+    w1 = torch.where(near_parallel, w1_lerp, w1_slerp)
+    w2 = torch.where(near_parallel, w2_lerp, w2_slerp)
+
+    out = w1 * q1 + w2 * q2
+    return normalize(out)

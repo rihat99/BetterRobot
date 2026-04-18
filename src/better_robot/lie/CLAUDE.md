@@ -22,7 +22,7 @@ PyPose's `SE3.Log().backward()` has an incorrect factor-of-2 in the quaternion g
 
 ## Modules
 
-- `se3.py` — `compose`, `inverse`, `log`, `exp`, `act`, `adjoint`, `from_axis_angle`, `from_translation`, `normalize`
-- `so3.py` — same pattern + `from_matrix`, `to_matrix`
+- `se3.py` — `compose`, `inverse`, `log`, `exp`, `act`, `adjoint`, `from_axis_angle`, `from_translation`, `normalize`, `sclerp`
+- `so3.py` — same pattern + `from_matrix`, `to_matrix`, `slerp`
 - `tangents.py` — right/left Jacobians of SO3/SE3 exp/log, `hat`/`vee` maps
 - `_pypose_backend.py` — sole PyPose import point
