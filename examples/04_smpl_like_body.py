@@ -9,7 +9,7 @@ Usage:
 import argparse
 import torch
 import better_robot as br
-from better_robot.io.builders.smpl_like import build_smpl_like_model
+from better_robot.io.builders.smpl_like import make_smpl_like_model
 
 
 def main() -> None:
@@ -18,7 +18,7 @@ def main() -> None:
                         help="Skip the viser viewer (useful in CI)")
     args = parser.parse_args()
 
-    model = build_smpl_like_model()
+    model = make_smpl_like_model()
     print(f"SMPL-like body: njoints={model.njoints}, nq={model.nq}, nframes={model.nframes}")
 
     # Forward kinematics at neutral pose

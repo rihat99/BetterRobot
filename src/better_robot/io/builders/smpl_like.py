@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import torch
 
+from ...data_model.model import Model
+from ..build_model import build_model
 from ..ir import IRModel
 from ..parsers.programmatic import ModelBuilder
 
@@ -144,3 +146,16 @@ def make_smpl_like_body(
         )
 
     return b.finalize()
+
+
+def make_smpl_like_model(
+    height: float = 1.75,
+    mass: float = 70.0,
+    *,
+    shape_params: torch.Tensor | None = None,
+    device: torch.device | None = None,
+    dtype: torch.dtype = torch.float32,
+) -> Model:
+    """Build an SMPL-topology frozen ``Model`` (free-flyer root + 23 ball joints)."""
+    ir = make_smpl_like_body(height=height, mass=mass, shape_params=shape_params)
+    return build_model(ir, device=device, dtype=dtype)
