@@ -10,7 +10,7 @@ See ``docs/02_DATA_MODEL.md §4``.
 
 from __future__ import annotations
 
-from typing import Literal, Protocol
+from typing import Literal, Protocol, runtime_checkable
 
 import torch
 
@@ -36,8 +36,12 @@ JointKind = Literal[
 ]
 
 
+@runtime_checkable
 class JointModel(Protocol):
     """Protocol for per-joint dispatch objects.
+
+    Marked ``@runtime_checkable`` so callers can assert ``isinstance(jm,
+    JointModel)`` when wiring custom joint types (docs/15_EXTENSION.md §2).
 
     Attributes
     ----------

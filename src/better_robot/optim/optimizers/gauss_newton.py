@@ -1,9 +1,9 @@
 """Gauss-Newton optimiser.
 
 Undamped Gauss-Newton with a tiny Tikhonov regularisation for rank
-deficiency.  Shares the same plug-in linear-solver interface as LM so
-the outer shell of ``minimize`` is almost identical — the only
-difference is the fixed (near-zero) damping.
+deficiency. Shares the same plug-in linear-solver interface as LM so the
+outer shell of ``minimize`` is almost identical — the only difference is
+the fixed (near-zero) damping.
 
 See ``docs/07_RESIDUALS_COSTS_SOLVERS.md §5``.
 """
@@ -13,10 +13,10 @@ from __future__ import annotations
 import torch
 
 from ..problem import LeastSquaresProblem
-from .base import OptimizationResult, Optimizer
+from ..state import SolverState
 
 
-class GaussNewton(Optimizer):
+class GaussNewton:
     """Undamped Gauss-Newton with tiny regularization for rank deficiency."""
 
     def __init__(self, *, tol: float = 1e-6, eps: float = 1e-8) -> None:
@@ -32,7 +32,7 @@ class GaussNewton(Optimizer):
         kernel=None,
         strategy=None,
         scheduler=None,
-    ) -> OptimizationResult:
+    ) -> SolverState:
         """Run Gauss-Newton until convergence or ``max_iter`` is reached.
 
         See docs/07_RESIDUALS_COSTS_SOLVERS.md §5.
@@ -40,38 +40,35 @@ class GaussNewton(Optimizer):
         from ..solvers.cholesky import Cholesky
 
         solver = linear_solver if linear_solver is not None else Cholesky()
-
-        x = problem.x0.clone().detach()
+        state = SolverState.from_problem(problem)
         nv = problem._nv
 
-        r = problem.residual(x)
-        history: list[dict] = []
-        converged = False
-        it = 0
-
+        it = -1
         for it in range(max_iter):
-            J = problem.jacobian(x)                                    # (dim, nv)
-            JtJ = J.mT @ J                                             # (nv, nv)
-            Jtr = J.mT @ r                                             # (nv,)
+            J = problem.jacobian(state.x)                                # (dim, nv)
+            JtJ = J.mT @ J                                               # (nv, nv)
+            Jtr = J.mT @ state.residual                                  # (nv,)
             H = JtJ + self.eps * torch.eye(nv, dtype=J.dtype, device=J.device)
-            delta_v = solver.solve(H, -Jtr)                            # (nv,)
+            delta_v = solver.solve(H, -Jtr)                              # (nv,)
 
-            x_new = problem.step(x, delta_v)
+            x_new = problem.step(state.x, delta_v)
             if problem.lower is not None:
                 x_new = x_new.clamp(
                     min=problem.lower.to(x_new.device, x_new.dtype),
                     max=problem.upper.to(x_new.device, x_new.dtype),
                 )
 
-            x = x_new
-            r = problem.residual(x)
-            cost = float(0.5 * (r @ r).sum())
-            history.append({"iter": it, "cost": cost})
+            state.x = x_new
+            state.residual = problem.residual(x_new)
+            cost = float(0.5 * (state.residual @ state.residual).sum())
+            state.residual_norm = torch.as_tensor(cost)
+            state.history.append({"iter": it, "cost": cost})
 
             if float(Jtr.norm()) < self.tol:
-                converged = True
-                break
+                state.status = "converged"
+                state.iters = it + 1
+                return state
 
-        return OptimizationResult(
-            x=x, residual=r, iters=it + 1, converged=converged, history=history
-        )
+        state.iters = it + 1
+        state.status = "maxiter"
+        return state

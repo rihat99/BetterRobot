@@ -59,8 +59,8 @@ class FrameAxesOverlay:
             name = f"{ns}/frame_{fid}"
             backend.add_frame(name, axes_length=self._axes_length)
 
-        # Set initial poses if oMf is available
-        if data.oMf is not None:
+        # Set initial poses if frame_pose_world is available
+        if data.frame_pose_world is not None:
             self._set_poses(data)
 
         # Start hidden by default
@@ -68,7 +68,7 @@ class FrameAxesOverlay:
             self.set_visible(False)
 
     def update(self, data: "Data") -> None:
-        if self._ctx is None or data.oMf is None:
+        if self._ctx is None or data.frame_pose_world is None:
             return
         self._set_poses(data)
 
@@ -94,13 +94,13 @@ class FrameAxesOverlay:
         backend = self._ctx.backend
         ns = self._ctx.namespace
         b = self._ctx.batch_index
-        oMf = data.oMf
+        frame_pose_world = data.frame_pose_world
         for fid in self._frame_ids:
             name = f"{ns}/frame_{fid}"
-            if oMf.dim() == 2:
-                pose = oMf[fid]
-            elif oMf.dim() == 3:
-                pose = oMf[b, fid]
+            if frame_pose_world.dim() == 2:
+                pose = frame_pose_world[fid]
+            elif frame_pose_world.dim() == 3:
+                pose = frame_pose_world[b, fid]
             else:
-                pose = oMf[b, fid]
+                pose = frame_pose_world[b, fid]
             backend.set_transform(name, pose)

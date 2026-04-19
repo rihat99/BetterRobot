@@ -19,6 +19,7 @@ from ..data_model.model import Model
 from ..kinematics.forward import forward_kinematics
 from ..kinematics.jacobian_strategy import JacobianStrategy
 from ..optim.optimizers.adam import Adam
+from ..optim.optimizers.composite import LMThenLBFGS
 from ..optim.optimizers.gauss_newton import GaussNewton
 from ..optim.optimizers.lbfgs import LBFGS
 from ..optim.optimizers.levenberg_marquardt import LevenbergMarquardt
@@ -49,15 +50,23 @@ class IKCostConfig:
 
 @dataclass
 class OptimizerConfig:
-    """Optimizer selection + hyperparameters."""
+    """Optimizer selection + hyperparameters.
 
-    optimizer: Literal["lm", "gn", "adam", "lbfgs"] = "lm"
+    The ``lm_then_lbfgs`` option (from docs/08_TASKS.md) runs Levenberg-
+    Marquardt for a coarse solve, then L-BFGS for final refinement.
+    ``refine_disabled_items`` names cost-stack entries to drop in stage 2
+    — the typical use is ``("collision",)`` once LM has the configuration
+    inside free space.
+    """
+
+    optimizer: Literal["lm", "gn", "adam", "lbfgs", "lm_then_lbfgs"] = "lm"
     max_iter: int = 100
     jacobian_strategy: JacobianStrategy = JacobianStrategy.AUTO
     linear_solver: Literal["cholesky", "lstsq", "cg"] = "cholesky"
     kernel: Literal["l2", "huber", "cauchy", "tukey"] = "l2"
     damping: Literal["constant", "adaptive", "trust_region"] = "adaptive"
     tol: float = 1e-6
+    refine_disabled_items: tuple[str, ...] = ()
 
 
 @dataclass
@@ -84,7 +93,7 @@ class IKResult:
         """
         data = self.fk()
         frame_id = self.model.frame_id(name)
-        return data.oMf[..., frame_id, :]
+        return data.frame_pose_world[..., frame_id, :]
 
     def q_only(self) -> torch.Tensor:
         return self.q
@@ -178,6 +187,13 @@ def solve_ik(
         opt = Adam(tol=optimizer_cfg.tol)
     elif opt_name == "lbfgs":
         opt = LBFGS(tol=optimizer_cfg.tol)
+    elif opt_name == "lm_then_lbfgs":
+        opt = LMThenLBFGS(
+            stage1_max_iter=optimizer_cfg.max_iter // 2,
+            stage2_max_iter=optimizer_cfg.max_iter - optimizer_cfg.max_iter // 2,
+            stage2_disabled_items=optimizer_cfg.refine_disabled_items,
+            tol=optimizer_cfg.tol,
+        )
     else:
         raise ValueError(f"Unknown optimizer {opt_name!r}")
     result = opt.minimize(problem, max_iter=optimizer_cfg.max_iter)

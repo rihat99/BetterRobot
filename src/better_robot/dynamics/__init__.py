@@ -32,15 +32,17 @@ from .integrators import (
     symplectic_euler,
 )
 from .rnea import (
+    bias_forces,
     compute_coriolis_matrix,
     compute_generalized_gravity,
-    nle,
+    nle,  # deprecated alias for bias_forces — remove in v1.1
     rnea,
 )
 
 __all__ = [
     "rnea",
-    "nle",
+    "bias_forces",
+    "nle",  # deprecated alias
     "compute_generalized_gravity",
     "compute_coriolis_matrix",
     "aba",

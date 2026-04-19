@@ -72,7 +72,7 @@ def test_compute_joint_jacobians_shape(arm):
     q = arm.q_neutral
     data = forward_kinematics(arm, q)
     compute_joint_jacobians(arm, data)
-    assert data.J.shape == (arm.njoints, 6, arm.nv)
+    assert data.joint_jacobians.shape == (arm.njoints, 6, arm.nv)
 
 
 def test_get_frame_jacobian_shape(arm):
@@ -105,7 +105,7 @@ def test_chain_jacobian_shape(chain):
 def _analytic_vs_autodiff(model, q, frame_id, rtol=1e-3, atol=1e-4):
     """Helper: compare analytic and autodiff Jacobian for PoseResidual."""
     data = forward_kinematics(model, q, compute_frames=True)
-    T_target = data.oMf[frame_id].clone()  # use current pose as target → r≈0 near neutral
+    T_target = data.frame_pose_world[frame_id].clone()  # use current pose as target → r≈0 near neutral
 
     residual = PoseResidual(frame_id=frame_id, target=T_target)
     state = ResidualState(model=model, data=data, variables=q)

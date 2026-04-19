@@ -2,8 +2,8 @@
 
 Pinocchio-style frame indirection: operational frames (tool tips, IMUs, IK
 targets) live on a joint with a fixed local placement. Frame *placements*
-(the world pose of each frame) live on ``Data.oMf``; this struct is
-metadata only.
+(the world pose of each frame) live on ``Data.frame_pose_world``; this
+struct is metadata only.
 
 See ``docs/02_DATA_MODEL.md §6``.
 """

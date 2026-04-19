@@ -19,11 +19,12 @@ from .registry import register_residual
 
 
 def _get_frame_pose(state: ResidualState, frame_id: int) -> torch.Tensor:
-    """Get world pose of ``frame_id`` from ``data.oMf`` or compute on-the-fly."""
-    if state.data.oMf is not None:
-        return state.data.oMf[..., frame_id, :]  # (B..., 7)
+    """Get world pose of ``frame_id`` from ``data.frame_pose_world`` or
+    compute on-the-fly."""
+    if state.data.frame_pose_world is not None:
+        return state.data.frame_pose_world[..., frame_id, :]  # (B..., 7)
     frame = state.model.frames[frame_id]
-    T_parent = state.data.oMi[..., frame.parent_joint, :]
+    T_parent = state.data.joint_pose_world[..., frame.parent_joint, :]
     T_local = frame.joint_placement.to(
         device=state.variables.device, dtype=state.variables.dtype
     )

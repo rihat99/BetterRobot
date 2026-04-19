@@ -82,11 +82,33 @@ def test_model_has_frozen_dataclass_shape() -> None:
 
 
 def test_data_has_core_fields() -> None:
+    """Data exposes the readable field names defined in docs/13_NAMING.md."""
     data_cls = br.Data
     fields = {f.name for f in data_cls.__dataclass_fields__.values()}
-    required = {"q", "v", "a", "tau", "liMi", "oMi", "oMf", "M", "J"}
+    required = {
+        "q", "v", "a", "tau",
+        "joint_pose_local", "joint_pose_world", "frame_pose_world",
+        "mass_matrix", "joint_jacobians",
+    }
     missing = required - fields
     assert not missing, f"Data missing dataclass fields: {missing}"
+
+
+def test_data_exposes_deprecated_aliases() -> None:
+    """Old cryptic names (oMi / oMf / liMi / nle / Ag / M / J …) still resolve
+    via the one-release deprecation shim.
+
+    See docs/02_DATA_MODEL.md §11 and docs/13_NAMING.md §6.
+    """
+    import warnings
+    d = br.Data(_model_id=0, q=__import__("torch").zeros(3))
+    for old in ("oMi", "oMf", "liMi", "nle", "Ag", "hg", "M", "J", "com"):
+        descriptor = getattr(br.Data, old, None)
+        assert isinstance(descriptor, property), f"{old} should be a @property shim"
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            _ = getattr(d, old)
+        assert any(issubclass(w.category, DeprecationWarning) for w in caught), old
 
 
 def test_jacobian_strategy_enum_values() -> None:

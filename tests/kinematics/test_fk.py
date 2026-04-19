@@ -44,32 +44,32 @@ def arm():
 
 def test_fk_raw_shapes(arm):
     q = arm.q_neutral
-    oMi, liMi = forward_kinematics_raw(arm, q)
-    assert oMi.shape == (arm.njoints, 7)
-    assert liMi.shape == (arm.njoints, 7)
+    joint_pose_world, joint_pose_local = forward_kinematics_raw(arm, q)
+    assert joint_pose_world.shape == (arm.njoints, 7)
+    assert joint_pose_local.shape == (arm.njoints, 7)
 
 
 def test_fk_data_shapes(arm):
     q = arm.q_neutral
     data = forward_kinematics(arm, q)
-    assert data.oMi.shape == (arm.njoints, 7)
-    assert data.liMi.shape == (arm.njoints, 7)
+    assert data.joint_pose_world.shape == (arm.njoints, 7)
+    assert data.joint_pose_local.shape == (arm.njoints, 7)
 
 
 def test_fk_batched_shapes(arm):
     B = 4
     q = arm.q_neutral.unsqueeze(0).expand(B, -1).clone()
-    oMi, liMi = forward_kinematics_raw(arm, q)
-    assert oMi.shape == (B, arm.njoints, 7)
-    assert liMi.shape == (B, arm.njoints, 7)
+    joint_pose_world, joint_pose_local = forward_kinematics_raw(arm, q)
+    assert joint_pose_world.shape == (B, arm.njoints, 7)
+    assert joint_pose_local.shape == (B, arm.njoints, 7)
 
 
 # ── correctness at neutral ────────────────────────────────────────────────────
 
 def test_universe_joint_is_identity(arm):
     q = arm.q_neutral
-    oMi, _ = forward_kinematics_raw(arm, q)
-    T0 = oMi[0]
+    joint_pose_world, _ = forward_kinematics_raw(arm, q)
+    T0 = joint_pose_world[0]
     assert T0[:3].norm() < 1e-6, "universe translation should be zero"
     assert abs(float(T0[6]) - 1.0) < 1e-6, "universe quaternion w should be 1"
 
@@ -77,8 +77,8 @@ def test_universe_joint_is_identity(arm):
 def test_joint1_at_neutral(arm):
     """Root joint (fixed) at neutral has identity pose."""
     q = arm.q_neutral
-    oMi, _ = forward_kinematics_raw(arm, q)
-    T1 = oMi[1]
+    joint_pose_world, _ = forward_kinematics_raw(arm, q)
+    T1 = joint_pose_world[1]
     # root_joint is fixed, joint_placements[1] is identity
     assert T1[:3].norm() < 1e-5
 
@@ -86,8 +86,8 @@ def test_joint1_at_neutral(arm):
 def test_joint2_translation_at_neutral(arm):
     """Joint 2 (j1 revolute) should be at z=0.1 at neutral (q=0)."""
     q = arm.q_neutral
-    oMi, _ = forward_kinematics_raw(arm, q)
-    T2 = oMi[2]
+    joint_pose_world, _ = forward_kinematics_raw(arm, q)
+    T2 = joint_pose_world[2]
     assert abs(float(T2[2]) - 0.1) < 1e-5, f"Expected z=0.1, got {float(T2[2])}"
 
 
@@ -95,8 +95,8 @@ def test_revolute_z_rotation(arm):
     """Rotating joint 2 by π/2 around Z should change X→Y direction."""
     q = arm.q_neutral.clone()
     q[0] = math.pi / 2  # rotate j1 by 90 degrees
-    oMi, _ = forward_kinematics_raw(arm, q)
-    T2 = oMi[2]
+    joint_pose_world, _ = forward_kinematics_raw(arm, q)
+    T2 = joint_pose_world[2]
     # Rotation part: qz should be ~sin(π/4), qw should be ~cos(π/4)
     qz = float(T2[5])
     qw = float(T2[6])
@@ -109,8 +109,8 @@ def test_revolute_z_rotation(arm):
 def test_update_frame_placements_shape(arm):
     q = arm.q_neutral
     data = forward_kinematics(arm, q, compute_frames=True)
-    assert data.oMf is not None
-    assert data.oMf.shape == (arm.nframes, 7)
+    assert data.frame_pose_world is not None
+    assert data.frame_pose_world.shape == (arm.nframes, 7)
 
 
 def test_body_frame_is_at_joint(arm):
@@ -118,7 +118,7 @@ def test_body_frame_is_at_joint(arm):
     q = arm.q_neutral
     data = forward_kinematics(arm, q, compute_frames=True)
     f_id = arm.frame_id("body_universe")
-    T_f = data.oMf[f_id]
+    T_f = data.frame_pose_world[f_id]
     assert T_f[:3].norm() < 1e-6
 
 
@@ -135,19 +135,19 @@ def panda_model():
 def test_panda_fk_neutral_shape(panda_model):
     q = panda_model.q_neutral
     data = forward_kinematics(panda_model, q, compute_frames=True)
-    assert data.oMi.shape == (panda_model.njoints, 7)
-    assert data.oMf.shape == (panda_model.nframes, 7)
+    assert data.joint_pose_world.shape == (panda_model.njoints, 7)
+    assert data.frame_pose_world.shape == (panda_model.nframes, 7)
 
 
 def test_panda_fk_universe_is_identity(panda_model):
     q = panda_model.q_neutral
-    oMi, _ = forward_kinematics_raw(panda_model, q)
-    T0 = oMi[0]
+    joint_pose_world, _ = forward_kinematics_raw(panda_model, q)
+    T0 = joint_pose_world[0]
     assert T0[:3].norm() < 1e-6
     assert abs(float(T0[6]) - 1.0) < 1e-6
 
 
 def test_panda_fk_dtype_preserved(panda_model):
     q = panda_model.q_neutral.double()
-    oMi, _ = forward_kinematics_raw(panda_model, q)
-    assert oMi.dtype == torch.float64
+    joint_pose_world, _ = forward_kinematics_raw(panda_model, q)
+    assert joint_pose_world.dtype == torch.float64

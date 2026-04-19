@@ -16,10 +16,10 @@ from __future__ import annotations
 import torch
 
 from ..problem import LeastSquaresProblem
-from .base import OptimizationResult, Optimizer
+from ..state import SolverState
 
 
-class Adam(Optimizer):
+class Adam:
     """Adam on ``0.5 * ||r(x)||^2`` driven by ``problem.jacobian``."""
 
     def __init__(
@@ -46,26 +46,22 @@ class Adam(Optimizer):
         kernel=None,
         strategy=None,
         scheduler=None,
-    ) -> OptimizationResult:
+    ) -> SolverState:
         """Run Adam until convergence or ``max_iter`` is reached.
 
         See docs/07_RESIDUALS_COSTS_SOLVERS.md §5.
         """
-        x = problem.x0.clone().detach()
+        state = SolverState.from_problem(problem)
         nv = problem._nv
-        device, dtype = x.device, x.dtype
+        device, dtype = state.x.device, state.x.dtype
 
         m = torch.zeros(nv, dtype=dtype, device=device)
         v = torch.zeros(nv, dtype=dtype, device=device)
 
-        history: list[dict] = []
-        converged = False
         it = 0
-        r = problem.residual(x)
-
         for it in range(1, max_iter + 1):
-            J = problem.jacobian(x)          # (dim, nv)
-            grad = J.mT @ r                  # (nv,)  — ∇ (½‖r‖²)
+            J = problem.jacobian(state.x)        # (dim, nv)
+            grad = J.mT @ state.residual        # (nv,) — ∇ (½‖r‖²)
 
             m = self.beta1 * m + (1.0 - self.beta1) * grad
             v = self.beta2 * v + (1.0 - self.beta2) * (grad * grad)
@@ -73,21 +69,23 @@ class Adam(Optimizer):
             v_hat = v / (1.0 - self.beta2 ** it)
             delta_v = -self.lr * m_hat / (torch.sqrt(v_hat) + self.eps)
 
-            x = problem.step(x, delta_v)
+            x_new = problem.step(state.x, delta_v)
             if problem.lower is not None:
-                x = x.clamp(
-                    min=problem.lower.to(x.device, x.dtype),
-                    max=problem.upper.to(x.device, x.dtype),
+                x_new = x_new.clamp(
+                    min=problem.lower.to(x_new.device, x_new.dtype),
+                    max=problem.upper.to(x_new.device, x_new.dtype),
                 )
-
-            r = problem.residual(x)
-            cost = float(0.5 * (r @ r).sum())
-            history.append({"iter": it, "cost": cost})
+            state.x = x_new
+            state.residual = problem.residual(state.x)
+            cost = float(0.5 * (state.residual @ state.residual).sum())
+            state.residual_norm = torch.as_tensor(cost)
+            state.history.append({"iter": it, "cost": cost})
 
             if float(grad.norm()) < self.tol:
-                converged = True
-                break
+                state.status = "converged"
+                state.iters = it
+                return state
 
-        return OptimizationResult(
-            x=x, residual=r, iters=it, converged=converged, history=history
-        )
+        state.iters = it
+        state.status = "maxiter"
+        return state

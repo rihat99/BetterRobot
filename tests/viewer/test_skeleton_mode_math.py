@@ -1,4 +1,5 @@
-"""Tests that SkeletonMode sphere/cylinder transforms match data.oMi.
+"""Tests that SkeletonMode sphere/cylinder transforms match
+``data.joint_pose_world``.
 
 Uses MockBackend — no viser, no pyrender.
 
@@ -49,7 +50,7 @@ def test_cylinders_created_for_links(panda):
     assert len(cyl_calls) >= 7
 
 
-def test_sphere_transforms_match_oMi(panda):
+def test_sphere_transforms_match_joint_pose_world(panda):
     backend = MockBackend()
     ctx = RenderContext(backend=backend, namespace="/test", theme=DEFAULT_THEME)
     q0 = panda.q_neutral.clone().clamp(panda.lower_pos_limit, panda.upper_pos_limit)
@@ -57,12 +58,13 @@ def test_sphere_transforms_match_oMi(panda):
     mode = SkeletonMode()
     mode.attach(ctx, panda, data)
 
-    # For each sphere joint, the set_transform position must match data.oMi
+    # For each sphere joint, the set_transform position must match
+    # data.joint_pose_world
     for j in mode._sphere_joints:
         name = f"/test/sphere_{j}"
         pose = backend.last_transform(name)
         assert pose is not None, f"No transform set for sphere_{j}"
-        expected_pos = data.oMi[j, :3]
+        expected_pos = data.joint_pose_world[j, :3]
         assert torch.allclose(pose[:3], expected_pos, atol=1e-5), \
             f"Sphere {j}: pos {pose[:3]} != expected {expected_pos}"
 
@@ -80,8 +82,8 @@ def test_cylinder_midpoint_correct(panda):
         name = f"/test/link_{j}"
         pose = backend.last_transform(name)
         assert pose is not None
-        p_j = data.oMi[j, :3]
-        p_p = data.oMi[p_idx, :3]
+        p_j = data.joint_pose_world[j, :3]
+        p_p = data.joint_pose_world[p_idx, :3]
         expected_mid = (p_j + p_p) / 2
         assert torch.allclose(pose[:3], expected_mid, atol=1e-5), \
             f"Cylinder {j}: midpoint {pose[:3]} != expected {expected_mid}"

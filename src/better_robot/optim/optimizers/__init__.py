@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from .adam import Adam
 from .base import OptimizationResult, Optimizer
+from .composite import LMThenLBFGS
 from .gauss_newton import GaussNewton
 from .lbfgs import LBFGS
 from .levenberg_marquardt import LevenbergMarquardt
@@ -18,4 +19,5 @@ __all__ = [
     "GaussNewton",
     "Adam",
     "LBFGS",
+    "LMThenLBFGS",
 ]

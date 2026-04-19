@@ -25,10 +25,11 @@ ReferenceFrame = Literal["world", "local", "local_world_aligned"]
 
 
 def compute_joint_jacobians(model: Model, data: Data) -> Data:
-    """Populate ``data.J`` with the spatial Jacobian of every joint.
+    """Populate ``data.joint_jacobians`` with the spatial Jacobian of every joint.
 
-    Shape: ``data.J = (B..., njoints, 6, nv)``. Requires ``data.oMi`` to be
-    populated (call ``forward_kinematics`` first).
+    Shape: ``data.joint_jacobians = (B..., njoints, 6, nv)``. Requires
+    ``data.joint_pose_world`` to be populated (call
+    :func:`forward_kinematics` first).
 
     Uses the propagation trick: ``J[j] = J[parent[j]]`` then adds the
     contribution of joint ``j`` itself.  This is equivalent to iterating
@@ -36,8 +37,10 @@ def compute_joint_jacobians(model: Model, data: Data) -> Data:
 
     See docs/05_KINEMATICS.md §3.
     """
-    assert data.oMi is not None, "call forward_kinematics before compute_joint_jacobians"
-    oMi = data.oMi  # (B..., njoints, 7)
+    assert data.joint_pose_world is not None, (
+        "call forward_kinematics before compute_joint_jacobians"
+    )
+    joint_pose_world = data.joint_pose_world  # (B..., njoints, 7)
     q = data.q
     *batch, _ = q.shape
     device, dtype = q.device, q.dtype
@@ -55,10 +58,10 @@ def compute_joint_jacobians(model: Model, data: Data) -> Data:
         if nv_j == 0:
             continue
 
-        T_j = oMi[..., j, :]          # (B..., 7)
-        p_j = T_j[..., :3]             # (B..., 3)
-        R_j = so3.to_matrix(T_j[..., 3:])  # (B..., 3, 3)
-        hat_p = hat_so3(p_j)            # (B..., 3, 3)
+        T_j = joint_pose_world[..., j, :]   # (B..., 7)
+        p_j = T_j[..., :3]                  # (B..., 3)
+        R_j = so3.to_matrix(T_j[..., 3:])   # (B..., 3, 3)
+        hat_p = hat_so3(p_j)                # (B..., 3, 3)
 
         nq_j = model.nqs[j]
         q_j = q[..., model.idx_qs[j] : model.idx_qs[j] + nq_j]
@@ -68,7 +71,7 @@ def compute_joint_jacobians(model: Model, data: Data) -> Data:
         S_lin = S_local[..., :3, :]  # (B..., 3, nv_j)
         S_ang = S_local[..., 3:, :]  # (B..., 3, nv_j)
 
-        # Ad(oMi[j]) @ S_local = [R @ S_lin + hat(p) @ R @ S_ang; R @ S_ang]
+        # Ad(joint_pose_world[j]) @ S_local = [R @ S_lin + hat(p) @ R @ S_ang; R @ S_ang]
         R_S_lin = torch.matmul(R_j, S_lin)            # (B..., 3, nv_j)
         R_S_ang = torch.matmul(R_j, S_ang)            # (B..., 3, nv_j)
         hat_p_R_S_ang = torch.matmul(hat_p, R_S_ang)  # (B..., 3, nv_j)
@@ -76,7 +79,7 @@ def compute_joint_jacobians(model: Model, data: Data) -> Data:
         J[..., j, :3, v_j : v_j + nv_j] = R_S_lin + hat_p_R_S_ang
         J[..., j, 3:, v_j : v_j + nv_j] = R_S_ang
 
-    data.J = J
+    data.joint_jacobians = J
     return data
 
 
@@ -87,22 +90,22 @@ def get_joint_jacobian(
     *,
     reference: ReferenceFrame = "world",
 ) -> torch.Tensor:
-    """Extract the spatial Jacobian of a single joint from ``data.J``.
+    """Extract the spatial Jacobian of a single joint from ``data.joint_jacobians``.
 
     Shape: ``(B..., 6, nv)``. Reference frames mirror Pinocchio's
     ``ReferenceFrame`` enum.
 
     See docs/05_KINEMATICS.md §3.
     """
-    if data.J is None:
+    if data.joint_jacobians is None:
         compute_joint_jacobians(model, data)
 
-    J_j = data.J[..., joint_id, :, :]  # (B..., 6, nv)
+    J_j = data.joint_jacobians[..., joint_id, :, :]  # (B..., 6, nv)
 
     if reference == "world":
         return J_j
     elif reference == "local":
-        T_j = data.oMi[..., joint_id, :]
+        T_j = data.joint_pose_world[..., joint_id, :]
         return torch.matmul(se3.adjoint_inv(T_j), J_j)
     else:
         raise ValueError(f"Unsupported reference frame: {reference!r}")
@@ -117,26 +120,28 @@ def get_frame_jacobian(
 ) -> torch.Tensor:
     """Spatial Jacobian of an arbitrary frame.
 
-    Computes the Jacobian from ``data.oMi`` using the support chain, then
-    adjusts for the frame's local placement offset.
+    Computes the Jacobian from ``data.joint_pose_world`` using the support
+    chain, then adjusts for the frame's local placement offset.
 
     Shape: ``(B..., 6, nv)``.
 
     See docs/05_KINEMATICS.md §3.
     """
-    assert data.oMi is not None, "call forward_kinematics before get_frame_jacobian"
+    assert data.joint_pose_world is not None, (
+        "call forward_kinematics before get_frame_jacobian"
+    )
 
     frame = model.frames[frame_id]
     parent_joint = frame.parent_joint
     q = data.q
     *batch, _ = q.shape
     device, dtype = q.device, q.dtype
-    oMi = data.oMi
+    joint_pose_world = data.joint_pose_world
 
     # -- Build the parent joint's world-frame Jacobian --
-    # Use data.J if already computed; otherwise compute directly.
-    if data.J is not None:
-        J_parent = data.J[..., parent_joint, :, :]  # (B..., 6, nv)
+    # Use data.joint_jacobians if already computed; otherwise compute directly.
+    if data.joint_jacobians is not None:
+        J_parent = data.joint_jacobians[..., parent_joint, :, :]  # (B..., 6, nv)
     else:
         J_parent = torch.zeros(*batch, 6, model.nv, device=device, dtype=dtype)
         support = model.get_support(parent_joint)
@@ -145,7 +150,7 @@ def get_frame_jacobian(
             v_j = model.idx_vs[j]
             if nv_j == 0:
                 continue
-            T_j = oMi[..., j, :]
+            T_j = joint_pose_world[..., j, :]
             p_j = T_j[..., :3]
             R_j = so3.to_matrix(T_j[..., 3:])
             hat_p = hat_so3(p_j)
@@ -171,7 +176,7 @@ def get_frame_jacobian(
     #   = J_lin + hat(J_ang) @ p_f = J_lin + (-hat(p_f)) @ J_ang (via cross product)
     # So: J_frame_lin = J_lin - hat(p_f) @ J_ang
     T_local = frame.joint_placement.to(device=device, dtype=dtype)
-    T_parent = oMi[..., parent_joint, :]
+    T_parent = joint_pose_world[..., parent_joint, :]
     T_frame = se3.compose(T_parent, T_local)   # (B..., 7) world frame pose
     p_frame = T_frame[..., :3]                 # (B..., 3) world position
 

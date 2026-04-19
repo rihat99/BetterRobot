@@ -13,15 +13,61 @@ from __future__ import annotations
 import torch
 
 from ..data_model.data import Data
+from ..data_model.joint_models import JointFreeFlyer
 from ..data_model.model import Model
+from ..exceptions import DeviceMismatchError, QuaternionNormError, ShapeError
 from ..lie import se3
+
+
+#: Tolerance on quaternion norm at a public entry point.
+#: Anything within this band of 1.0 is re-normalised silently by downstream
+#: code; anything outside is rejected (see docs/17_CONTRACTS.md §1.3).
+_QUAT_NORM_TOL = 0.1
+
+
+def _validate_q(model: Model, q: torch.Tensor) -> None:
+    """Sanity-check a configuration tensor at a public entry point.
+
+    Raises
+    ------
+    ShapeError
+        If ``q.shape[-1] != model.nq``.
+    DeviceMismatchError
+        If ``q.device`` differs from the model's tensor device.
+    QuaternionNormError
+        If the model has a free-flyer root and ``q[..., 3:7]`` is outside
+        ``[1 - TOL, 1 + TOL]``.
+
+    See ``docs/17_CONTRACTS.md §1``.
+    """
+    if q.shape[-1] != model.nq:
+        raise ShapeError(
+            f"q has trailing size {q.shape[-1]}, expected model.nq={model.nq}"
+        )
+    model_device = model.joint_placements.device
+    if q.device != model_device:
+        raise DeviceMismatchError(
+            f"q.device={q.device} != model.device={model_device}. "
+            f"Call model.to(q.device) or q.to(model.device) first."
+        )
+    if model.njoints >= 2 and isinstance(model.joint_models[1], JointFreeFlyer):
+        # Free-flyer q layout: [tx, ty, tz, qx, qy, qz, qw]
+        quat = q[..., 3:7]
+        norm = quat.norm(dim=-1)
+        if bool(((norm - 1.0).abs() > _QUAT_NORM_TOL).any()):
+            bad = float(norm.min()), float(norm.max())
+            raise QuaternionNormError(
+                f"free-flyer quaternion norm outside [{1 - _QUAT_NORM_TOL}, "
+                f"{1 + _QUAT_NORM_TOL}] (observed range {bad}). "
+                f"Normalise before passing."
+            )
 
 
 def forward_kinematics_raw(
     model: Model,
     q: torch.Tensor,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Tensor-only FK primitive — returns ``(oMi, liMi)`` without touching ``Data``.
+    """Tensor-only FK primitive — returns world/local joint placements.
 
     Autograd-safe: uses list accumulation + ``torch.stack`` instead of
     in-place writes so PyPose's backward can trace through the composition.
@@ -33,11 +79,14 @@ def forward_kinematics_raw(
 
     Returns
     -------
-    oMi : (B..., njoints, 7)   world-frame joint placements
-    liMi : (B..., njoints, 7)  parent-frame joint placements
+    joint_pose_world : (B..., njoints, 7)
+        World-frame joint placements (the quantity historically called ``oMi``).
+    joint_pose_local : (B..., njoints, 7)
+        Parent-frame joint placements (``liMi``).
 
-    See docs/05_KINEMATICS.md §6.
+    See docs/05_KINEMATICS.md §6 and docs/13_NAMING.md for the rename.
     """
+    _validate_q(model, q)
     *batch, _ = q.shape
     device, dtype = q.device, q.dtype
 
@@ -47,8 +96,8 @@ def forward_kinematics_raw(
         torch.ones(1, device=device, dtype=dtype),
     ])
 
-    oMi_list: list[torch.Tensor] = [None] * model.njoints  # type: ignore[list-item]
-    liMi_list: list[torch.Tensor] = [None] * model.njoints  # type: ignore[list-item]
+    world_list: list[torch.Tensor] = [None] * model.njoints  # type: ignore[list-item]
+    local_list: list[torch.Tensor] = [None] * model.njoints  # type: ignore[list-item]
 
     for j in model.topo_order:
         nq_j = model.nqs[j]
@@ -61,21 +110,21 @@ def forward_kinematics_raw(
             # nq=0 joints (fixed, universe) contribute identity transform
             T_j = _id7.expand(*batch, 7) if batch else _id7
 
-        # liMi[j] = T_placement ∘ T_j  (parent-frame joint placement)
-        liMi_j = se3.compose(T_placement, T_j)  # (B..., 7)
-        liMi_list[j] = liMi_j
+        # joint_pose_local[j] = T_placement ∘ T_j  (parent-frame placement)
+        local_j = se3.compose(T_placement, T_j)  # (B..., 7)
+        local_list[j] = local_j
 
         parent = model.parents[j]
         if parent < 0:
-            oMi_list[j] = liMi_j
+            world_list[j] = local_j
         else:
-            oMi_list[j] = se3.compose(oMi_list[parent], liMi_j)  # (B..., 7)
+            world_list[j] = se3.compose(world_list[parent], local_j)  # (B..., 7)
 
     # Stack along the joints dimension (len(batch) = q.ndim - 1)
     stack_dim = len(batch)
-    oMi = torch.stack(oMi_list, dim=stack_dim)   # (B..., njoints, 7)
-    liMi = torch.stack(liMi_list, dim=stack_dim)
-    return oMi, liMi
+    joint_pose_world = torch.stack(world_list, dim=stack_dim)  # (B..., njoints, 7)
+    joint_pose_local = torch.stack(local_list, dim=stack_dim)
+    return joint_pose_world, joint_pose_local
 
 
 def forward_kinematics(
@@ -94,12 +143,13 @@ def forward_kinematics(
         Either a flat configuration tensor of shape ``(B..., nq)`` or a
         pre-allocated ``Data`` whose ``q`` field is populated.
     compute_frames : bool
-        If true, also populate ``data.oMf``.
+        If true, also populate ``data.frame_pose_world``.
 
     Returns
     -------
     Data
-        Data with ``liMi``, ``oMi`` (and optionally ``oMf``) filled.
+        ``Data`` with ``joint_pose_local`` and ``joint_pose_world`` populated
+        (and ``frame_pose_world`` if ``compute_frames=True``).
 
     See docs/05_KINEMATICS.md §2.
     """
@@ -115,9 +165,10 @@ def forward_kinematics(
         )
         data.q = q
 
-    oMi, liMi = forward_kinematics_raw(model, q)
-    data.oMi = oMi
-    data.liMi = liMi
+    # ``forward_kinematics_raw`` re-validates, so no need to guard here.
+    joint_pose_world, joint_pose_local = forward_kinematics_raw(model, q)
+    data.joint_pose_world = joint_pose_world
+    data.joint_pose_local = joint_pose_local
     data._kinematics_level = 1
 
     if compute_frames:
@@ -127,24 +178,28 @@ def forward_kinematics(
 
 
 def update_frame_placements(model: Model, data: Data) -> Data:
-    """Populate ``data.oMf`` from ``data.oMi`` and the model's frame metadata.
+    """Populate ``data.frame_pose_world`` from ``data.joint_pose_world``
+    and the model's frame metadata.
 
-    Requires ``data.oMi`` to be populated (call ``forward_kinematics`` first).
+    Requires ``data.joint_pose_world`` to be populated (call
+    :func:`forward_kinematics` first).
 
     See docs/05_KINEMATICS.md §2.
     """
-    oMi = data.oMi
-    assert oMi is not None, "call forward_kinematics before update_frame_placements"
+    joint_pose_world = data.joint_pose_world
+    assert joint_pose_world is not None, (
+        "call forward_kinematics before update_frame_placements"
+    )
 
     *batch, _ = data.q.shape
     device, dtype = data.q.device, data.q.dtype
 
-    oMf = torch.zeros(*batch, model.nframes, 7, device=device, dtype=dtype)
+    frame_pose_world = torch.zeros(*batch, model.nframes, 7, device=device, dtype=dtype)
 
     for f_id, frame in enumerate(model.frames):
-        T_parent = oMi[..., frame.parent_joint, :]  # (B..., 7)
+        T_parent = joint_pose_world[..., frame.parent_joint, :]         # (B..., 7)
         T_local = frame.joint_placement.to(device=device, dtype=dtype)  # (7,)
-        oMf[..., f_id, :] = se3.compose(T_parent, T_local)  # (B..., 7)
+        frame_pose_world[..., f_id, :] = se3.compose(T_parent, T_local) # (B..., 7)
 
-    data.oMf = oMf
+    data.frame_pose_world = frame_pose_world
     return data

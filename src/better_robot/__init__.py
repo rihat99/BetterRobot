@@ -18,6 +18,7 @@ Layered DAG (arrows point from dependent to dependency)::
 
 from __future__ import annotations
 
+from . import exceptions
 from .costs import CostStack
 from .data_model import Body, Data, Frame, Joint, Model
 from .dynamics import (

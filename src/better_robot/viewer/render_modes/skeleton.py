@@ -1,7 +1,8 @@
 """``render_modes/skeleton.py`` — abstract kinematic skeleton render mode.
 
 Draws one sphere per articulated joint and one cylinder per link.
-Always available: only requires ``model.parents`` and ``data.oMi``.
+Always available: only requires ``model.parents`` and
+``data.joint_pose_world``.
 
 See ``docs/12_VIEWER.md §4.3``.
 """
@@ -48,9 +49,9 @@ def _align_z_to_vec(direction: torch.Tensor) -> torch.Tensor:
 class SkeletonMode:
     """Abstract kinematic skeleton — a sphere per joint, a cylinder per link.
 
-    Always available: works off ``model.parents`` and ``data.oMi`` alone.
-    This is the mode used for programmatically-built robots that never go
-    through a URDF.
+    Always available: works off ``model.parents`` and
+    ``data.joint_pose_world`` alone. This is the mode used for
+    programmatically-built robots that never go through a URDF.
     """
 
     name = "Skeleton"
@@ -94,14 +95,14 @@ class SkeletonMode:
 
         # Pick the batch slice to use for initial attach geometry
         b = context.batch_index
-        oMi = data.oMi  # (B..., njoints, 7) or (njoints, 7)
+        joint_pose_world = data.joint_pose_world  # (B..., njoints, 7) or (njoints, 7)
 
         for j in range(model.njoints):
             jm = model.joint_models[j]
             # Sphere: articulated joints (nv > 0) + optionally the universe joint
             if jm.nv > 0 or (j == 0 and self._show_root):
                 name = f"{ns}/sphere_{j}"
-                pose = self._get_joint_pose(oMi, j, b)
+                pose = self._get_joint_pose(joint_pose_world, j, b)
                 backend.add_sphere(name, radius=self._joint_radius,
                                    rgba=self._colour_for_joint(j, model, joint_rgba))
                 backend.set_transform(name, pose)
@@ -111,8 +112,8 @@ class SkeletonMode:
             if j > 0:
                 p = model.parents[j]
                 name = f"{ns}/link_{j}"
-                p_j = self._get_joint_pos(oMi, j, b)
-                p_p = self._get_joint_pos(oMi, p, b)
+                p_j = self._get_joint_pos(joint_pose_world, j, b)
+                p_p = self._get_joint_pos(joint_pose_world, p, b)
                 length = float((p_j - p_p).norm())
                 if length > 1e-4:
                     backend.add_cylinder(name, radius=self._link_radius,
@@ -128,18 +129,18 @@ class SkeletonMode:
         ns = self._ctx.namespace
         b = self._ctx.batch_index
         model = self._model
-        oMi = data.oMi
+        joint_pose_world = data.joint_pose_world
 
         for j in self._sphere_joints:
             name = f"{ns}/sphere_{j}"
-            pose = self._get_joint_pose(oMi, j, b)
+            pose = self._get_joint_pose(joint_pose_world, j, b)
             backend.set_transform(name, pose)
 
         for j in self._cylinder_joints:
             p = model.parents[j]
             name = f"{ns}/link_{j}"
-            p_j = self._get_joint_pos(oMi, j, b)
-            p_p = self._get_joint_pos(oMi, p, b)
+            p_j = self._get_joint_pos(joint_pose_world, j, b)
+            p_p = self._get_joint_pos(joint_pose_world, p, b)
             if float((p_j - p_p).norm()) > 1e-4:
                 mid_pose = self._link_pose(p_p, p_j)
                 backend.set_transform(name, mid_pose)
@@ -171,17 +172,18 @@ class SkeletonMode:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _get_joint_pose(self, oMi: torch.Tensor, j: int, b: int) -> torch.Tensor:
-        """Extract the 7-vector pose for joint j from oMi, handling batch dims."""
-        if oMi.dim() == 2:
-            return oMi[j]
-        elif oMi.dim() == 3:
-            return oMi[b, j]
+    def _get_joint_pose(self, poses: torch.Tensor, j: int, b: int) -> torch.Tensor:
+        """Extract the 7-vector pose for joint ``j`` from ``joint_pose_world``,
+        handling batch dims."""
+        if poses.dim() == 2:
+            return poses[j]
+        elif poses.dim() == 3:
+            return poses[b, j]
         else:
-            return oMi[b, j]
+            return poses[b, j]
 
-    def _get_joint_pos(self, oMi: torch.Tensor, j: int, b: int) -> torch.Tensor:
-        return self._get_joint_pose(oMi, j, b)[:3]
+    def _get_joint_pos(self, poses: torch.Tensor, j: int, b: int) -> torch.Tensor:
+        return self._get_joint_pose(poses, j, b)[:3]
 
     def _link_pose(self, p_parent: torch.Tensor, p_child: torch.Tensor) -> torch.Tensor:
         """Compute a 7-vector pose for a cylinder between two joint positions."""

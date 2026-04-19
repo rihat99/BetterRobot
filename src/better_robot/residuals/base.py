@@ -11,7 +11,7 @@ See ``docs/07_RESIDUALS_COSTS_SOLVERS.md §2`` and
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 import torch
 
@@ -28,8 +28,8 @@ class ResidualState:
     model : Model
         Immutable Model.
     data : Data
-        Per-query Data whose ``oMi``/``oMf`` are populated (for residuals
-        that reach into kinematics).
+        Per-query ``Data`` whose ``joint_pose_world`` (and
+        ``frame_pose_world`` for frame-based residuals) are populated.
     variables : torch.Tensor
         Flat optimisation variable tensor ``(B..., nx)``.
     """
@@ -39,8 +39,13 @@ class ResidualState:
     variables: torch.Tensor
 
 
+@runtime_checkable
 class Residual(Protocol):
-    """Protocol every residual class implements."""
+    """Protocol every residual class implements.
+
+    Marked ``@runtime_checkable`` so the extension-seam docs can advertise
+    ``isinstance(obj, Residual)`` as a valid contract check (docs/15_EXTENSION.md §1).
+    """
 
     name: str
     dim: int

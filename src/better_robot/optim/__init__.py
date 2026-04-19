@@ -13,6 +13,7 @@ from __future__ import annotations
 from .jacobian_spec import ResidualSpec
 from .optimizers.base import OptimizationResult, Optimizer
 from .problem import LeastSquaresProblem
+from .state import SolverState
 
 
 def solve(
@@ -24,7 +25,7 @@ def solve(
     kernel=None,
     strategy=None,
     scheduler=None,
-) -> OptimizationResult:
+) -> SolverState:
     """One-shot convenience wrapper — build the default LM optimiser and run it.
 
     See docs/07_RESIDUALS_COSTS_SOLVERS.md §5.
@@ -45,7 +46,8 @@ def solve(
 __all__ = [
     "LeastSquaresProblem",
     "Optimizer",
-    "OptimizationResult",
+    "OptimizationResult",  # deprecated alias for SolverState
+    "SolverState",
     "ResidualSpec",
     "solve",
 ]

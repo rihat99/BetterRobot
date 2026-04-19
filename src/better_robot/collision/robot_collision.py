@@ -2,7 +2,7 @@
 
 Each collision capsule is attached to a *frame* (not a joint) via a local
 ``(a, b, radius)`` triple. At query time, ``RobotCollision`` uses
-``data.oMf`` to transform the capsules into the world frame.
+``data.frame_pose_world`` to transform the capsules into the world frame.
 
 See ``docs/09_COLLISION_GEOMETRY.md §5``.
 """

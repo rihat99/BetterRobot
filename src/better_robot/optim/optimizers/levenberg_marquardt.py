@@ -5,6 +5,10 @@ agnostic to the residual shape — it calls ``problem.residual(x)`` and
 ``problem.jacobian(x)`` and uses ``problem.step(x, delta_v)`` for the
 manifold-aware update.
 
+Returns a :class:`~better_robot.optim.state.SolverState` whose
+``status`` is ``"converged"`` when the gradient norm drops below ``tol``
+and ``"maxiter"`` otherwise.
+
 See ``docs/07_RESIDUALS_COSTS_SOLVERS.md §5``.
 """
 
@@ -13,10 +17,10 @@ from __future__ import annotations
 import torch
 
 from ..problem import LeastSquaresProblem
-from .base import OptimizationResult, Optimizer
+from ..state import SolverState
 
 
-class LevenbergMarquardt(Optimizer):
+class LevenbergMarquardt:
     """Damped Gauss-Newton with adaptive lambda and pluggable components."""
 
     def __init__(
@@ -39,7 +43,7 @@ class LevenbergMarquardt(Optimizer):
         kernel=None,
         strategy=None,
         scheduler=None,
-    ) -> OptimizationResult:
+    ) -> SolverState:
         """Run LM until convergence or ``max_iter`` is reached.
 
         See docs/07_RESIDUALS_COSTS_SOLVERS.md §5.
@@ -52,27 +56,23 @@ class LevenbergMarquardt(Optimizer):
             lam0=self.lam0, factor=self.factor
         )
 
-        x = problem.x0.clone().detach()
-        lam = strat.init(problem)
+        state = SolverState.from_problem(problem)
+        state.damping = strat.init(problem)
         nv = problem._nv
+        cost = float(state.residual_norm)
 
-        # Initial residual
-        r = problem.residual(x)
-        cost = float(0.5 * (r @ r).sum())
-        converged = False
-        history: list[dict] = []
-
+        it = -1
         for it in range(max_iter):
-            J = problem.jacobian(x)  # (dim, nv)
+            J = problem.jacobian(state.x)  # (dim, nv)
 
             # Normal equations: (J^T J + lam * I) delta_v = -J^T r
-            JtJ = J.mT @ J                                    # (nv, nv)
-            Jtr = J.mT @ r                                    # (nv,)
-            H = JtJ + lam * torch.eye(nv, dtype=J.dtype, device=J.device)
-            delta_v = solver.solve(H, -Jtr)                   # (nv,)
+            JtJ = J.mT @ J                                           # (nv, nv)
+            Jtr = J.mT @ state.residual                              # (nv,)
+            H = JtJ + state.damping * torch.eye(nv, dtype=J.dtype, device=J.device)
+            delta_v = solver.solve(H, -Jtr)                          # (nv,)
 
             # Manifold-aware update
-            x_new = problem.step(x, delta_v)
+            x_new = problem.step(state.x, delta_v)
 
             # Clamp to box bounds (no-op for ±inf)
             if problem.lower is not None:
@@ -84,21 +84,27 @@ class LevenbergMarquardt(Optimizer):
             r_new = problem.residual(x_new)
             cost_new = float(0.5 * (r_new @ r_new).sum())
 
-            history.append({"iter": it, "cost": cost, "lam": lam})
+            state.history.append({"iter": it, "cost": cost, "lam": state.damping})
 
             if cost_new < cost:
-                x = x_new
-                r = r_new
+                # Gain ratio = (actual decrease) / (predicted decrease).
+                predicted = float(-delta_v @ Jtr - 0.5 * (delta_v @ (JtJ @ delta_v)))
+                state.gain_ratio = (cost - cost_new) / predicted if predicted > 0 else None
+
+                state.x = x_new
+                state.residual = r_new
+                state.residual_norm = torch.as_tensor(cost_new)
                 cost = cost_new
-                lam = strat.accept(lam)
+                state.damping = strat.accept(state.damping)
 
                 # Convergence check on gradient norm
                 if float(Jtr.norm()) < self.tol:
-                    converged = True
-                    break
+                    state.status = "converged"
+                    state.iters = it + 1
+                    return state
             else:
-                lam = strat.reject(lam)
+                state.damping = strat.reject(state.damping)
 
-        return OptimizationResult(
-            x=x, residual=r, iters=it + 1, converged=converged, history=history
-        )
+        state.iters = it + 1
+        state.status = "maxiter"
+        return state

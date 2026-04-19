@@ -9,6 +9,11 @@ in ``optim/optimizers/adam.py``.
 A simple Armijo backtracking line search guards against divergence on
 nonconvex objectives.
 
+Returns a :class:`~better_robot.optim.state.SolverState`; ``status`` is
+``"converged"`` when the gradient norm drops below ``tol``,
+``"stalled"`` when the line search cannot find a descent direction, and
+``"maxiter"`` otherwise.
+
 See ``docs/07_RESIDUALS_COSTS_SOLVERS.md §5``.
 """
 
@@ -17,10 +22,10 @@ from __future__ import annotations
 import torch
 
 from ..problem import LeastSquaresProblem
-from .base import OptimizationResult, Optimizer
+from ..state import SolverState
 
 
-class LBFGS(Optimizer):
+class LBFGS:
     """L-BFGS with Armijo backtracking, evaluated in tangent space."""
 
     def __init__(
@@ -47,30 +52,27 @@ class LBFGS(Optimizer):
         kernel=None,
         strategy=None,
         scheduler=None,
-    ) -> OptimizationResult:
+    ) -> SolverState:
         """Run L-BFGS until convergence or ``max_iter`` is reached.
 
         See docs/07_RESIDUALS_COSTS_SOLVERS.md §5.
         """
-        x = problem.x0.clone().detach()
+        state = SolverState.from_problem(problem)
 
         s_hist: list[torch.Tensor] = []
         y_hist: list[torch.Tensor] = []
         rho_hist: list[torch.Tensor] = []
 
-        r = problem.residual(x)
-        J = problem.jacobian(x)
-        g = J.mT @ r                                    # current gradient (nv,)
-        cost = float(0.5 * (r @ r).sum())
+        J = problem.jacobian(state.x)
+        g = J.mT @ state.residual                  # current gradient (nv,)
+        cost = float(state.residual_norm)
 
-        history: list[dict] = []
-        converged = False
-        it = 0
-
+        it = -1
         for it in range(max_iter):
             if float(g.norm()) < self.tol:
-                converged = True
-                break
+                state.status = "converged"
+                state.iters = it
+                return state
 
             # ── two-loop recursion: d = -H_k * g ─────────────────────────────
             q = g.clone()
@@ -101,13 +103,13 @@ class LBFGS(Optimizer):
                 dir_dot_grad = -float(g @ g)
                 s_hist.clear(); y_hist.clear(); rho_hist.clear()
 
-            x_new = x
-            r_new = r
+            x_new = state.x
+            r_new = state.residual
             cost_new = cost
             accepted = False
             for _ls in range(self.max_ls):
                 delta_v = step_size * direction
-                x_try = problem.step(x, delta_v)
+                x_try = problem.step(state.x, delta_v)
                 if problem.lower is not None:
                     x_try = x_try.clamp(
                         min=problem.lower.to(x_try.device, x_try.dtype),
@@ -122,8 +124,10 @@ class LBFGS(Optimizer):
                 step_size *= 0.5
 
             if not accepted:
-                # Line search failed — bail out.
-                break
+                # Line search failed — bail out with "stalled".
+                state.iters = it + 1
+                state.status = "stalled"
+                return state
 
             # ── update curvature pair ───────────────────────────────────────
             J_new = problem.jacobian(x_new)
@@ -140,12 +144,13 @@ class LBFGS(Optimizer):
                     y_hist.pop(0)
                     rho_hist.pop(0)
 
-            x = x_new
-            r = r_new
+            state.x = x_new
+            state.residual = r_new
+            state.residual_norm = torch.as_tensor(cost_new)
             g = g_new
             cost = cost_new
-            history.append({"iter": it, "cost": cost})
+            state.history.append({"iter": it, "cost": cost})
 
-        return OptimizationResult(
-            x=x, residual=r, iters=it + 1, converged=converged, history=history
-        )
+        state.iters = it + 1
+        state.status = "maxiter"
+        return state

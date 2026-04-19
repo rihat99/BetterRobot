@@ -153,10 +153,10 @@ def test_data_batch_shape():
 
 def test_data_reset():
     d = Data(_model_id=0, q=torch.zeros(5))
-    d.oMi = torch.zeros(4, 7)
+    d.joint_pose_world = torch.zeros(4, 7)
     d._kinematics_level = 2
     d.reset()
-    assert d.oMi is None
+    assert d.joint_pose_world is None
     assert d._kinematics_level == 0
     # q should still be there
     assert d.q is not None
@@ -164,7 +164,7 @@ def test_data_reset():
 
 def test_data_clone():
     d = Data(_model_id=42, q=torch.tensor([1., 2., 3.]))
-    d.com = torch.tensor([0.1, 0.2, 0.3])
+    d.com_position = torch.tensor([0.1, 0.2, 0.3])
     d_clone = d.clone()
     assert d_clone._model_id == 42
     assert torch.allclose(d_clone.q, d.q)

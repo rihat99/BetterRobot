@@ -11,7 +11,3 @@ build/
 *.pyc
 .DS_Store
 
-docs/superpowers/
-
-# Internal docs — local only
-docs/*.md

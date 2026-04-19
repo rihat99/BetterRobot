@@ -18,7 +18,7 @@ def crba(
 ) -> torch.Tensor:
     """Joint-space inertia matrix ``M(q)``. Shape: ``(B..., nv, nv)``.
 
-    Populates ``data.M``.
+    Populates ``data.mass_matrix``.
 
     TODO(milestone D3). See docs/06_DYNAMICS.md §2.
     """

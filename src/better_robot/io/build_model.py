@@ -10,6 +10,7 @@ from collections import deque
 import torch
 
 from ..data_model.frame import Frame
+from ..exceptions import ModelInconsistencyError
 from ..data_model.joint_models import (
     JointFixed,
     JointFreeFlyer,
@@ -41,6 +42,56 @@ _WORLD_SENTINEL = "world"
 
 _EPS = 1e-6
 _IDENTITY_SE3_VALS = [0., 0., 0., 0., 0., 0., 1.]
+
+
+def _check_topology_invariants(
+    *,
+    parents: tuple[int, ...],
+    nqs: tuple[int, ...],
+    nvs: tuple[int, ...],
+    idx_qs: tuple[int, ...],
+    idx_vs: tuple[int, ...],
+    nq_total: int,
+    nv_total: int,
+) -> None:
+    """Validate the four topology invariants from ``docs/17_CONTRACTS.md §1.5``.
+
+    Raises :class:`~better_robot.exceptions.ModelInconsistencyError` at
+    build time so the caller never sees a ``Model`` in an inconsistent
+    state.
+    """
+    # 1. Universe joint is rooted at -1.
+    if parents[0] != -1:
+        raise ModelInconsistencyError(
+            f"parents[0] must be -1 (universe), got {parents[0]}"
+        )
+    # 2. Topologically sorted: parents[i] < i for i > 0.
+    for i, p in enumerate(parents[1:], start=1):
+        if p >= i:
+            raise ModelInconsistencyError(
+                f"parents[{i}]={p} >= {i}; topological sort violated"
+            )
+    # 3. sum(nqs) == nq, sum(nvs) == nv.
+    if sum(nqs) != nq_total:
+        raise ModelInconsistencyError(
+            f"sum(nqs)={sum(nqs)} != nq={nq_total}"
+        )
+    if sum(nvs) != nv_total:
+        raise ModelInconsistencyError(
+            f"sum(nvs)={sum(nvs)} != nv={nv_total}"
+        )
+    # 4. Contiguous slicing: idx_qs[i] + nqs[i] == idx_qs[i+1] (and same for v).
+    for i in range(len(nqs) - 1):
+        if idx_qs[i] + nqs[i] != idx_qs[i + 1]:
+            raise ModelInconsistencyError(
+                f"idx_qs[{i}] + nqs[{i}] = {idx_qs[i] + nqs[i]} "
+                f"!= idx_qs[{i+1}]={idx_qs[i+1]} (q-slicing gap)"
+            )
+        if idx_vs[i] + nvs[i] != idx_vs[i + 1]:
+            raise ModelInconsistencyError(
+                f"idx_vs[{i}] + nvs[{i}] = {idx_vs[i] + nvs[i]} "
+                f"!= idx_vs[{i+1}]={idx_vs[i+1]} (v-slicing gap)"
+            )
 
 # ─────────────────────────────── helpers ─────────────────────────────────��───
 
@@ -479,7 +530,18 @@ def build_model(
         q_neutral = _dev(q_neutral)
         gravity = _dev(gravity)
 
-    # ── 18. Return frozen Model ───────────────────────────────────────────────
+    # ── 18. Enforce topology invariants (docs/17_CONTRACTS.md §1.5) ───────────
+    _check_topology_invariants(
+        parents=parents,
+        nqs=nqs,
+        nvs=nvs,
+        idx_qs=idx_qs,
+        idx_vs=idx_vs,
+        nq_total=nq_total,
+        nv_total=nv_total,
+    )
+
+    # ── 19. Return frozen Model ───────────────────────────────────────────────
     return Model(
         njoints=n_model_joints,
         nbodies=n_model_joints,

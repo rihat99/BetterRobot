@@ -34,12 +34,12 @@ def main() -> None:
 
     # FK to get a reachable initial target
     data = br.forward_kinematics(model, q0, compute_frames=True)
-    T_target = data.oMf[model.frame_id(EE_FRAME)].clone()
+    T_target = data.frame_pose_world[model.frame_id(EE_FRAME)].clone()
 
     result = solve_ik(model, targets={EE_FRAME: T_target},
                       initial_q=q0, cost_cfg=COST, optimizer_cfg=OPT)
     print(f"Initial IK: converged={result.converged}  pos_err="
-          f"{(result.fk().oMf[model.frame_id(EE_FRAME)][:3] - T_target[:3]).norm():.4f} m")
+          f"{(result.fk().frame_pose_world[model.frame_id(EE_FRAME)][:3] - T_target[:3]).norm():.4f} m")
 
     if args.no_viewer:
         return

@@ -44,7 +44,7 @@ def test_solve_ik_returns_ik_result(panda):
     q = panda.q_neutral
     data = forward_kinematics(panda, q, compute_frames=True)
     frame_name = _ee_frame(panda)
-    T_target = data.oMf[panda.frame_id(frame_name)].clone()
+    T_target = data.frame_pose_world[panda.frame_id(frame_name)].clone()
 
     result = solve_ik(panda, {frame_name: T_target}, initial_q=q)
     assert result.q is not None
@@ -55,7 +55,7 @@ def test_solve_ik_q_shape(panda):
     q = panda.q_neutral
     frame_name = _ee_frame(panda)
     data = forward_kinematics(panda, q, compute_frames=True)
-    T_target = data.oMf[panda.frame_id(frame_name)].clone()
+    T_target = data.frame_pose_world[panda.frame_id(frame_name)].clone()
     result = solve_ik(panda, {frame_name: T_target})
     assert result.q.shape == (panda.nq,)
 
@@ -65,7 +65,7 @@ def test_solve_ik_at_neutral_converges(panda):
     q = panda.q_neutral
     data = forward_kinematics(panda, q, compute_frames=True)
     frame_name = _ee_frame(panda)
-    T_target = data.oMf[panda.frame_id(frame_name)].clone()
+    T_target = data.frame_pose_world[panda.frame_id(frame_name)].clone()
 
     result = solve_ik(
         panda,
@@ -76,7 +76,7 @@ def test_solve_ik_at_neutral_converges(panda):
     )
     # At the target, pose residual should be small
     data_sol = forward_kinematics(panda, result.q, compute_frames=True)
-    T_sol = data_sol.oMf[panda.frame_id(frame_name)]
+    T_sol = data_sol.frame_pose_world[panda.frame_id(frame_name)]
     # Position error < 1cm
     pos_err = float((T_sol[:3] - T_target[:3]).norm())
     assert pos_err < 0.01, f"Position error too large: {pos_err:.4f} m"
@@ -91,7 +91,7 @@ def test_solve_ik_reachable_target(panda):
     q_ref[0] = 0.3
     data = forward_kinematics(panda, q_ref, compute_frames=True)
     frame_name = _ee_frame(panda)
-    T_target = data.oMf[panda.frame_id(frame_name)].clone()
+    T_target = data.frame_pose_world[panda.frame_id(frame_name)].clone()
 
     result = solve_ik(
         panda,
@@ -100,7 +100,7 @@ def test_solve_ik_reachable_target(panda):
         optimizer_cfg=OptimizerConfig(max_iter=100),
     )
     data_sol = forward_kinematics(panda, result.q, compute_frames=True)
-    T_sol = data_sol.oMf[panda.frame_id(frame_name)]
+    T_sol = data_sol.frame_pose_world[panda.frame_id(frame_name)]
     pos_err = float((T_sol[:3] - T_target[:3]).norm())
     assert pos_err < 0.01, f"Position error: {pos_err:.4f} m"
 
@@ -112,7 +112,7 @@ def test_solve_ik_limits_respected(panda):
     q = _feasible_q(panda)
     data = forward_kinematics(panda, q, compute_frames=True)
     frame_name = _ee_frame(panda)
-    T_target = data.oMf[panda.frame_id(frame_name)].clone()
+    T_target = data.frame_pose_world[panda.frame_id(frame_name)].clone()
 
     result = solve_ik(panda, {frame_name: T_target}, initial_q=q)
     lo = panda.lower_pos_limit
@@ -128,12 +128,12 @@ def test_ik_result_fk(panda):
     q = panda.q_neutral
     data = forward_kinematics(panda, q, compute_frames=True)
     frame_name = _ee_frame(panda)
-    T_target = data.oMf[panda.frame_id(frame_name)].clone()
+    T_target = data.frame_pose_world[panda.frame_id(frame_name)].clone()
 
     result = solve_ik(panda, {frame_name: T_target}, initial_q=q)
     fk_data = result.fk()
-    assert fk_data.oMi is not None
-    assert fk_data.oMi.shape == (panda.njoints, 7)
+    assert fk_data.joint_pose_world is not None
+    assert fk_data.joint_pose_world.shape == (panda.njoints, 7)
 
 
 def test_ik_result_frame_pose(panda):
@@ -141,7 +141,7 @@ def test_ik_result_frame_pose(panda):
     q = panda.q_neutral
     data = forward_kinematics(panda, q, compute_frames=True)
     frame_name = _ee_frame(panda)
-    T_target = data.oMf[panda.frame_id(frame_name)].clone()
+    T_target = data.frame_pose_world[panda.frame_id(frame_name)].clone()
 
     result = solve_ik(panda, {frame_name: T_target}, initial_q=q)
     T = result.frame_pose(frame_name)
@@ -157,7 +157,7 @@ def test_solve_ik_optimizers_reach_target(panda, optimizer):
     q_ref[0] = 0.3
     data = forward_kinematics(panda, q_ref, compute_frames=True)
     frame_name = _ee_frame(panda)
-    T_target = data.oMf[panda.frame_id(frame_name)].clone()
+    T_target = data.frame_pose_world[panda.frame_id(frame_name)].clone()
 
     # Adam needs more iterations and a higher lr than the defaults; keep the
     # test quick by giving every solver enough budget.
@@ -170,7 +170,7 @@ def test_solve_ik_optimizers_reach_target(panda, optimizer):
         optimizer_cfg=OptimizerConfig(optimizer=optimizer, max_iter=max_iter),
     )
     data_sol = forward_kinematics(panda, result.q, compute_frames=True)
-    T_sol = data_sol.oMf[panda.frame_id(frame_name)]
+    T_sol = data_sol.frame_pose_world[panda.frame_id(frame_name)]
     pos_err = float((T_sol[:3] - T_target[:3]).norm())
     assert pos_err < 0.05, f"{optimizer}: position error {pos_err:.4f} m too large"
 
@@ -213,7 +213,7 @@ def test_solve_ik_floating_base_with_limits(g1):
         "body_right_ankle_roll_link",
     ]
     ee = next((c for c in candidates if c in g1.frame_name_to_id), g1.frame_names[-1])
-    T_target = data.oMf[g1.frame_id(ee)].clone()
+    T_target = data.frame_pose_world[g1.frame_id(ee)].clone()
 
     result = solve_ik(
         g1,
@@ -225,7 +225,7 @@ def test_solve_ik_floating_base_with_limits(g1):
     assert result.q.shape == (g1.nq,)
     # We gave the solver FK(q0) as the target, so it should reach it.
     data_sol = forward_kinematics(g1, result.q, compute_frames=True)
-    T_sol = data_sol.oMf[g1.frame_id(ee)]
+    T_sol = data_sol.frame_pose_world[g1.frame_id(ee)]
     pos_err = float((T_sol[:3] - T_target[:3]).norm())
     assert pos_err < 0.05, f"G1 floating-base IK pos_err = {pos_err:.4f} m"
 

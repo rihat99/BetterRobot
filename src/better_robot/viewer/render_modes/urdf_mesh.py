@@ -161,11 +161,11 @@ class URDFMeshMode:
                 self._nodes[node_name] = (mjidx, geom.origin)
 
         # Set initial transforms
-        if data.oMi is not None:
+        if data.joint_pose_world is not None:
             self._set_transforms(data, b_idx)
 
     def update(self, data: "Data") -> None:
-        if self._ctx is None or data.oMi is None:
+        if self._ctx is None or data.joint_pose_world is None:
             return
         self._set_transforms(data, self._ctx.batch_index)
 
@@ -191,13 +191,13 @@ class URDFMeshMode:
 
     def _set_transforms(self, data: "Data", b: int) -> None:
         backend = self._ctx.backend
-        oMi = data.oMi  # (B..., njoints, 7) or (njoints, 7)
+        joint_pose_world = data.joint_pose_world  # (B..., njoints, 7) or (njoints, 7)
         for name, (mjidx, local_pose) in self._nodes.items():
             # Get body world pose
-            if oMi.dim() == 2:
-                body_world = oMi[mjidx]
+            if joint_pose_world.dim() == 2:
+                body_world = joint_pose_world[mjidx]
             else:
-                body_world = oMi[b, mjidx]
+                body_world = joint_pose_world[b, mjidx]
             # Compose with local geom offset
             from ...lie.se3 import compose
             world_pose = compose(body_world, local_pose.to(body_world.device))

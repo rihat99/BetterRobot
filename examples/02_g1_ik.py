@@ -41,7 +41,7 @@ def main() -> None:
     # FK to get reachable initial targets
     data = br.forward_kinematics(model, q0, compute_frames=True)
     available = [f for f in TARGET_FRAMES if f in model.frame_name_to_id]
-    targets = {n: data.oMf[model.frame_id(n)].clone() for n in available}
+    targets = {n: data.frame_pose_world[model.frame_id(n)].clone() for n in available}
 
     result = solve_ik(model, targets=targets, initial_q=q0,
                       cost_cfg=COST, optimizer_cfg=OPT)

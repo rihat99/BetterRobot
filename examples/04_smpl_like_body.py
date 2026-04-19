@@ -24,7 +24,7 @@ def main() -> None:
     # Forward kinematics at neutral pose
     q0 = model.q_neutral
     data = br.forward_kinematics(model, q0, compute_frames=True)
-    print(f"Root position: {data.oMi[0, :3]}")
+    print(f"Root position: {data.joint_pose_world[0, :3]}")
 
     if not args.no_viewer:
         from better_robot.viewer import Visualizer
