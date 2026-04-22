@@ -14,9 +14,11 @@ from .collision import SelfCollisionResidual, WorldCollisionResidual
 from .limits import JointAccelLimit, JointPositionLimit, JointVelocityLimit
 from .manipulability import YoshikawaResidual
 from .pose import OrientationResidual, PoseResidual, PositionResidual
-from .regularization import NullspaceResidual, RestResidual
+from .contact import ContactConsistencyResidual
+from .regularization import NullspaceResidual, ReferenceTrajectoryResidual, RestResidual
+from .temporal import TimeIndexedResidual
 from .registry import get_residual, register_residual, registered_residuals
-from .smoothness import Accel5pt, Jerk5pt, Velocity5pt
+from .smoothness import AccelerationResidual, JerkResidual, VelocityResidual
 
 __all__ = [
     "Residual",
@@ -32,9 +34,12 @@ __all__ = [
     "JointAccelLimit",
     "RestResidual",
     "NullspaceResidual",
-    "Velocity5pt",
-    "Accel5pt",
-    "Jerk5pt",
+    "ReferenceTrajectoryResidual",
+    "ContactConsistencyResidual",
+    "TimeIndexedResidual",
+    "VelocityResidual",
+    "AccelerationResidual",
+    "JerkResidual",
     "YoshikawaResidual",
     "SelfCollisionResidual",
     "WorldCollisionResidual",

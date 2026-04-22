@@ -23,6 +23,7 @@ dev = [
     "pytest>=8.0",
     "ruff",
     "pyright",
+    "pin>=2.7",
 ]
 
 [tool.hatch.build.targets.wheel]

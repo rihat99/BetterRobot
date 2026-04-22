@@ -141,4 +141,31 @@ class CostStack:
                 dtype=state.variables.dtype,
                 device=state.variables.device,
             )
-        return torch.cat(parts, dim=-2)  # (B..., total_dim, nv)
+        return torch.cat(parts, dim=-2)
+
+    def gradient(self, state: ResidualState) -> torch.Tensor:
+        """Gradient of ``0.5 · ‖stack.residual(state)‖²`` without materialising ``J``.
+
+        Residuals that implement ``apply_jac_transpose(state, r)`` contribute
+        via that sparse path; anything else falls back to a dense
+        ``J^T @ r`` through ``jacobian()``. This is the entry point trajectory
+        optimisation uses when the full Jacobian is too large (multi-GB for
+        long clips) to materialise.
+        """
+        from ..kinematics.jacobian import residual_jacobian
+
+        g: torch.Tensor | None = None
+        for item in self.items.values():
+            if not item.active:
+                continue
+            r_i = item.residual(state)                          # (dim_i,) — internally weighted
+            if hasattr(item.residual, "apply_jac_transpose"):
+                g_i = item.residual.apply_jac_transpose(state, r_i)
+            else:
+                J_i = residual_jacobian(item.residual, state)
+                g_i = J_i.mT @ r_i
+            contrib = (item.weight ** 2) * g_i
+            g = contrib if g is None else g + contrib
+        if g is None:
+            return torch.zeros_like(state.variables).reshape(-1)
+        return g  # (B..., total_dim, nv)

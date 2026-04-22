@@ -15,7 +15,7 @@ from __future__ import annotations
 from .ik import IKCostConfig, IKResult, OptimizerConfig, solve_ik
 from .retarget import RetargetCostConfig, retarget
 from .trajectory import Trajectory
-from .trajopt import TrajOptCostConfig, TrajOptResult, solve_trajopt
+from .trajopt import TrajOptResult, solve_trajopt
 
 __all__ = [
     "solve_ik",
@@ -25,7 +25,6 @@ __all__ = [
     "IKCostConfig",
     "IKResult",
     "OptimizerConfig",
-    "TrajOptCostConfig",
     "TrajOptResult",
     "RetargetCostConfig",
 ]

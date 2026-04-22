@@ -116,14 +116,23 @@ def get_frame_jacobian(
     data: Data,
     frame_id: int,
     *,
-    reference: ReferenceFrame = "world",
+    reference: ReferenceFrame = "local_world_aligned",
 ) -> torch.Tensor:
     """Spatial Jacobian of an arbitrary frame.
 
-    Computes the Jacobian from ``data.joint_pose_world`` using the support
-    chain, then adjusts for the frame's local placement offset.
+    Three pinocchio-style reference frames — all returning ``(B..., 6, nv)``:
 
-    Shape: ``(B..., 6, nv)``.
+    - ``"local_world_aligned"`` (default): linear rows are the velocity of the
+      frame origin expressed in the world frame; angular rows are the angular
+      velocity expressed in the world frame. This matches Pinocchio's
+      ``LOCAL_WORLD_ALIGNED`` and is the natural basis for position/pose
+      residuals.
+    - ``"world"``: linear rows are the velocity of the world-coincident point
+      of the frame (i.e. the spatial velocity at the world origin); angular
+      rows are the angular velocity in world frame. Matches Pinocchio's
+      ``WORLD``.
+    - ``"local"``: both linear and angular rows expressed in the body-local
+      frame of this frame. Matches Pinocchio's ``LOCAL``.
 
     See docs/05_KINEMATICS.md §3.
     """
@@ -139,6 +148,7 @@ def get_frame_jacobian(
     joint_pose_world = data.joint_pose_world
 
     # -- Build the parent joint's world-frame Jacobian --
+    # This is the WORLD Jacobian of the parent joint (velocity at world origin).
     # Use data.joint_jacobians if already computed; otherwise compute directly.
     if data.joint_jacobians is not None:
         J_parent = data.joint_jacobians[..., parent_joint, :, :]  # (B..., 6, nv)
@@ -170,28 +180,33 @@ def get_frame_jacobian(
             J_parent[..., :3, v_j : v_j + nv_j] = R_S_lin + hat_p_R_S_ang
             J_parent[..., 3:, v_j : v_j + nv_j] = R_S_ang
 
-    # -- Adjust for frame offset from parent joint origin to frame position --
-    # J_world[parent] has linear velocity at world origin: v_lin_origin = hat(p_i) @ a_world
-    # Velocity at frame position p_f: v_at_pf = v_lin_origin + omega × p_f
-    #   = J_lin + hat(J_ang) @ p_f = J_lin + (-hat(p_f)) @ J_ang (via cross product)
-    # So: J_frame_lin = J_lin - hat(p_f) @ J_ang
+    # -- Compute the frame's world pose (needed for LWA and LOCAL adjustments) --
     T_local = frame.joint_placement.to(device=device, dtype=dtype)
     T_parent = joint_pose_world[..., parent_joint, :]
     T_frame = se3.compose(T_parent, T_local)   # (B..., 7) world frame pose
     p_frame = T_frame[..., :3]                 # (B..., 3) world position
 
-    hat_pf = hat_so3(p_frame)                  # (B..., 3, 3)
-    J_lin = J_parent[..., :3, :] - torch.matmul(hat_pf, J_parent[..., 3:, :])
-    J_frame_world = torch.cat([J_lin, J_parent[..., 3:, :]], dim=-2)  # (B..., 6, nv)
-
     if reference == "world":
-        return J_frame_world
+        # Spatial velocity at world origin: frame's WORLD Jacobian equals its
+        # parent joint's (rigid attachment). Pose-offset does not affect it.
+        return J_parent
+
+    # Both LWA and LOCAL start from LWA: linear rows = velocity of the frame
+    # origin in world frame. v_at_pf = v_at_world_origin + ω × p_f
+    #                               = J_parent_lin - hat(p_f) @ J_parent_ang.
+    hat_pf = hat_so3(p_frame)                                          # (B..., 3, 3)
+    J_lwa_lin = J_parent[..., :3, :] - torch.matmul(hat_pf, J_parent[..., 3:, :])
+    J_lwa = torch.cat([J_lwa_lin, J_parent[..., 3:, :]], dim=-2)       # (B..., 6, nv)
+
+    if reference == "local_world_aligned":
+        return J_lwa
     elif reference == "local":
-        # Body-frame Jacobian: J_local = Ad(T_frame^{-1}) @ J_world
-        return torch.matmul(se3.adjoint_inv(T_frame), J_frame_world)
-    elif reference == "local_world_aligned":
-        # Linear in world frame, angular in world frame (same as world here)
-        return J_frame_world
+        # Body-frame Jacobian: rotate the LWA rows by R_frame^T.
+        # Do NOT apply full Ad(T_frame^{-1}) — that would subtract hat(p) twice.
+        R_frame = so3.to_matrix(T_frame[..., 3:])                      # (B..., 3, 3)
+        J_local_lin = torch.matmul(R_frame.mT, J_lwa[..., :3, :])
+        J_local_ang = torch.matmul(R_frame.mT, J_lwa[..., 3:, :])
+        return torch.cat([J_local_lin, J_local_ang], dim=-2)
     else:
         raise ValueError(f"Unsupported reference frame: {reference!r}")
 
