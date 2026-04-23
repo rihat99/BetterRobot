@@ -154,6 +154,61 @@ def test_topo_order_parent_before_child():
             assert order.index(p) < i
 
 
+def _branching_tree_ir():
+    """Y-shape with two-level depth on each arm.
+
+    Tree (joints declared left-branch first, both levels):
+        root → left_j1 → left_j2
+        root → right_j1 → right_j2
+
+    Under DFS, the left arm is fully traversed before the right — so joint 3
+    is ``left_j2`` (not ``right_j1``). Under BFS, siblings are visited before
+    grandchildren, so joint 3 would be ``right_j1``.
+    """
+    b = ModelBuilder("y_tree")
+    b.add_body("root")
+    b.add_body("left_link1")
+    b.add_body("left_link2")
+    b.add_body("right_link1")
+    b.add_body("right_link2")
+    b.add_joint("left_j1", kind="revolute", parent="root", child="left_link1",
+                origin=_id7(), axis=torch.tensor([0., 0., 1.]),
+                lower=-1., upper=1.)
+    b.add_joint("left_j2", kind="revolute", parent="left_link1", child="left_link2",
+                origin=_id7(), axis=torch.tensor([0., 0., 1.]),
+                lower=-1., upper=1.)
+    b.add_joint("right_j1", kind="revolute", parent="root", child="right_link1",
+                origin=_id7(), axis=torch.tensor([0., 0., 1.]),
+                lower=-1., upper=1.)
+    b.add_joint("right_j2", kind="revolute", parent="right_link1", child="right_link2",
+                origin=_id7(), axis=torch.tensor([0., 0., 1.]),
+                lower=-1., upper=1.)
+    return b.finalize()
+
+
+def test_idx_qs_dfs_order_on_branching_tree():
+    """Exact DFS-ordered ``joint_names``/``idx_qs`` on a Y-shape.
+
+    Under DFS, the left arm is fully descended before the right sibling:
+    ``(universe, root, left_j1, left_j2, right_j1, right_j2)``. Under BFS
+    it would be ``(..., left_j1, right_j1, left_j2, right_j2)`` — this
+    test would fail under the old ordering.
+    """
+    model = build_model(_branching_tree_ir())
+    assert model.joint_names == (
+        "universe", "root_joint",
+        "left_j1", "left_j2", "right_j1", "right_j2",
+    )
+    # Four revolute joints → idx_qs increments 1 per joint after the fixed root
+    assert model.idx_qs == (0, 0, 0, 1, 2, 3)
+    assert model.idx_vs == (0, 0, 0, 1, 2, 3)
+    # DFS signature: topo_order is the identity tuple
+    assert model.topo_order == (0, 1, 2, 3, 4, 5)
+    # DFS signature: each subtree is a contiguous range of topo_order positions
+    assert model.subtrees[2] == (2, 3)  # left_j1 subtree = {left_j1, left_j2}
+    assert model.subtrees[4] == (4, 5)  # right_j1 subtree = {right_j1, right_j2}
+
+
 def test_free_flyer_root_joint():
     ir = _simple_arm_ir()
     model = build_model(ir, root_joint=JointFreeFlyer())

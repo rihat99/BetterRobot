@@ -5,8 +5,6 @@ See ``docs/04_PARSERS.md §3`` for the 10 responsibilities.
 
 from __future__ import annotations
 
-from collections import deque
-
 import torch
 
 from ..data_model.frame import Frame
@@ -163,7 +161,7 @@ def _ir_topo_sort(
     root_body: str,
     ir_indices: list[int],
 ) -> list[int]:
-    """BFS topological sort of IR joint subset (by body traversal).
+    """DFS topological sort of IR joint subset (by body traversal).
 
     Only joints whose indices are in ``ir_indices`` are considered.
     ``root_body`` is the body from which the traversal starts.
@@ -174,18 +172,20 @@ def _ir_topo_sort(
         parent_to_joints.setdefault(j.parent_body, []).append(i)
 
     sorted_indices: list[int] = []
-    queue: deque[str] = deque([root_body])
+    stack: list[tuple[str, int | None]] = [(root_body, None)]
     visited: set[str] = {root_body}
 
-    while queue:
-        body = queue.popleft()
-        for ji in sorted(parent_to_joints.get(body, [])):
+    while stack:
+        body, incoming_ji = stack.pop()
+        if incoming_ji is not None:
+            sorted_indices.append(incoming_ji)
+        # Push children in reverse-sorted order so smallest IR-joint-index pops first
+        for ji in reversed(sorted(parent_to_joints.get(body, []))):
             child = ir.joints[ji].child_body
             if child in visited:
                 raise IRError(f"Cycle detected: body {child!r} reachable via multiple paths")
             visited.add(child)
-            sorted_indices.append(ji)
-            queue.append(child)
+            stack.append((child, ji))
 
     if len(sorted_indices) != len(ir_indices):
         disconnected = set(ir_indices) - set(sorted_indices)

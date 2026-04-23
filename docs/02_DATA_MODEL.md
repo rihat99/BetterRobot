@@ -70,7 +70,9 @@ class Model:
     children:   tuple[tuple[int, ...], ...]
     subtrees:   tuple[tuple[int, ...], ...]
     supports:   tuple[tuple[int, ...], ...]
-    topo_order: tuple[int, ...]         # depth-first traversal order (parents first)
+    topo_order: tuple[int, ...]         # depth-first traversal order (parents first);
+                                         # equals tuple(range(njoints)) for URDF-loaded models,
+                                         # since joint indices are assigned in DFS order
 
     # ──────────── joint models (dispatch tables, not python objects per joint) ────────────
     joint_models: tuple[JointModel, ...]    # length njoints, joint_models[0] == JointUniverse

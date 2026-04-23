@@ -8,23 +8,22 @@ See ``docs/02_DATA_MODEL.md §2``.
 
 from __future__ import annotations
 
-from collections import deque
-
 
 def topo_sort(parents: tuple[int, ...]) -> tuple[int, ...]:
     """Return a topological order where every parent precedes its children.
 
     Joint 0 (universe, ``parents[0] == -1``) comes first.
-    Uses breadth-first traversal for deterministic ordering.
+    Uses depth-first traversal for deterministic ordering.
     """
     children = build_children(parents)
     order: list[int] = []
-    queue: deque[int] = deque([0])
-    while queue:
-        j = queue.popleft()
+    stack: list[int] = [0]
+    while stack:
+        j = stack.pop()
         order.append(j)
-        for child in children[j]:
-            queue.append(child)
+        # Push children reversed so they pop in ascending (sorted) order
+        for child in reversed(children[j]):
+            stack.append(child)
     return tuple(order)
 
 
