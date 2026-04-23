@@ -59,6 +59,7 @@ _CLEARABLE_FIELDS: tuple[str, ...] = (
     "joint_pose_local", "joint_pose_world", "frame_pose_world",
     "joint_velocity_world", "joint_velocity_local",
     "joint_acceleration_world", "joint_acceleration_local",
+    "joint_forces",
     "joint_jacobians", "joint_jacobians_dot",
     "mass_matrix", "coriolis_matrix", "gravity_torque", "bias_forces", "ddq",
     "centroidal_momentum_matrix", "centroidal_momentum",
@@ -97,6 +98,8 @@ class Data:
     joint_velocity_local:     Optional[torch.Tensor] = None   # (B..., njoints, 6)
     joint_acceleration_world: Optional[torch.Tensor] = None   # (B..., njoints, 6)
     joint_acceleration_local: Optional[torch.Tensor] = None   # (B..., njoints, 6)
+    # RNEA / ABA internal spatial wrench per joint, body-frame (Pinocchio's data.f).
+    joint_forces:             Optional[torch.Tensor] = None   # (B..., njoints, 6)
 
     # ──────────── jacobians ────────────
     joint_jacobians:     Optional[torch.Tensor] = None    # (B..., njoints, 6, nv)

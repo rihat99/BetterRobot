@@ -151,16 +151,22 @@ def parse_urdf(source: str | Path | Any) -> IRModel:
                 )
             if link.inertial.inertia is not None:
                 ii = link.inertial.inertia
-                ixx = float(getattr(ii, "ixx", 0.0) or 0.0)
-                iyy = float(getattr(ii, "iyy", 0.0) or 0.0)
-                izz = float(getattr(ii, "izz", 0.0) or 0.0)
-                ixy = float(getattr(ii, "ixy", 0.0) or 0.0)
-                ixz = float(getattr(ii, "ixz", 0.0) or 0.0)
-                iyz = float(getattr(ii, "iyz", 0.0) or 0.0)
-                inertia = torch.tensor(
-                    [[ixx, ixy, ixz], [ixy, iyy, iyz], [ixz, iyz, izz]],
-                    dtype=torch.float32,
-                )
+                # yourdfpy exposes ``link.inertial.inertia`` as a numpy 3×3 ndarray.
+                # Fall back to object-attribute lookup (ixx/iyy/.../iyz) if the
+                # backend ever switches to a field-style object.
+                if isinstance(ii, np.ndarray):
+                    inertia = torch.tensor(np.asarray(ii, dtype=np.float32))
+                else:
+                    ixx = float(getattr(ii, "ixx", 0.0) or 0.0)
+                    iyy = float(getattr(ii, "iyy", 0.0) or 0.0)
+                    izz = float(getattr(ii, "izz", 0.0) or 0.0)
+                    ixy = float(getattr(ii, "ixy", 0.0) or 0.0)
+                    ixz = float(getattr(ii, "ixz", 0.0) or 0.0)
+                    iyz = float(getattr(ii, "iyz", 0.0) or 0.0)
+                    inertia = torch.tensor(
+                        [[ixx, ixy, ixz], [ixy, iyy, iyz], [ixz, iyz, izz]],
+                        dtype=torch.float32,
+                    )
 
         fn_handler = getattr(urdf, "_filename_handler", None)
         mat_map = getattr(urdf, "_material_map", None)

@@ -135,19 +135,18 @@ class Inertia:
     # ---- algebra ----
 
     def _to_6x6(self) -> torch.Tensor:
-        """Expand to a full 6×6 spatial inertia matrix (Pinocchio convention).
+        """Expand to a full 6×6 spatial inertia matrix — Pinocchio linear-first.
 
-        M_6x6 = [[I + m*hat(c)@hat(c)^T,  m*hat(c)],
-                  [m*hat(c)^T,              m*I3    ]]
+        Motion/Force store 6-vectors as ``[v_lin, ω]`` / ``[f_lin, τ]``, so the
+        block layout is::
 
-        where c = com, I = inertia_matrix (about com).
-        Note: hat(c)^T = -hat(c), and hat(c)@hat(c)^T can be simplified.
-        Actually using the standard formula:
-        The spatial inertia in Featherstone notation:
-        M = [[I_c - m*hat(c)^2,  m*hat(c)],
-              [m*hat(c)^T,         m*I3   ]]
-        where I_c is inertia about origin (parallel-axis theorem pre-applied here we use I about COM + shift).
-        For simplicity here we expand directly.
+            M = [[ m·I3,       −m·hat(c) ],
+                 [ m·hat(c),    I_o      ]]
+
+        where ``c = com`` and ``I_o = I_c − m·hat(c)²`` is the inertia about
+        the origin of the body frame (parallel-axis theorem applied to the
+        CoM inertia ``I_c``). Verifies against Pinocchio's explicit formula
+        ``f = m·(v − c×ω)``, ``τ = I_c·ω + c×f``.
         """
         from ..lie.tangents import hat_so3
         m = self.mass                  # (...)
@@ -155,51 +154,46 @@ class Inertia:
         I3_body = self.inertia_matrix  # (..., 3, 3)  about COM
 
         hatc = hat_so3(c)              # (..., 3, 3)
-        hatcT = hatc.transpose(-1, -2) # (..., 3, 3) = -hatc
 
-        # Inertia about origin via parallel-axis: I_o = I_c + m*(c^T c I - c c^T)
-        # Equivalently: I_o = I_c - m * hat(c)^2
+        # I_o = I_c − m · hat(c)² (= I_c + m·(|c|²I − c cᵀ), parallel-axis shift)
         I_o = I3_body - m[..., None, None] * (hatc @ hatc)  # (..., 3, 3)
 
-        m_I3 = m[..., None, None] * torch.eye(3, dtype=self.data.dtype,
-                                               device=self.data.device)
+        m_I3 = m[..., None, None] * torch.eye(
+            3, dtype=self.data.dtype, device=self.data.device
+        )
         m_hatc = m[..., None, None] * hatc
-        m_hatcT = m[..., None, None] * hatcT
 
-        top    = torch.cat([I_o,      m_hatc ], dim=-1)
-        bottom = torch.cat([m_hatcT,  m_I3   ], dim=-1)
+        top    = torch.cat([m_I3,       -m_hatc], dim=-1)
+        bottom = torch.cat([m_hatc,      I_o  ], dim=-1)
         return torch.cat([top, bottom], dim=-2)   # (..., 6, 6)
 
     def se3_action(self, T: torch.Tensor) -> "Inertia":
         """Transform the inertia by an SE3 pose.
 
-        I_new = Ad(T)^{-T} * I_6x6 * Ad(T)^{-1}, then repack.
+        ``I_new = Ad(T)^{-T} · I_6×6 · Ad(T)^{-1}``, then repack. Blocks are
+        extracted under the linear-first layout set by :meth:`_to_6x6`:
+        ``M = [[m·I3, −m·hat(c)], [m·hat(c), I_o]]``.
         """
         from ..lie import se3 as _se3
+        from ..lie.tangents import hat_so3, vee_so3
+        from .symmetric3 import Symmetric3
+
         Ad_inv = _se3.adjoint_inv(T)          # (..., 6, 6)
         M = self._to_6x6()                    # (..., 6, 6)
         M_new = Ad_inv.transpose(-1, -2) @ M @ Ad_inv
 
-        # Extract mass (unchanged), new com, new sym3
         m = self.mass
-        # com: from the off-diagonal block M_new[3:6, 0:3] = m * hat(c_new)
-        # Extract skew-symmetric: c_new = vee(-M_new[3:6, 0:3] / m)
-        # Actually c_new from the (3:6, 0:3) block which is m * hat(c)^T = -m * hat(c)
-        # hat(c)[i,j] from block (0:3, 3:6) = m * hat(c) → c = vee(M_new[0:3, 3:6] / m)
-        from ..lie.tangents import vee_so3
         m_safe = m.clamp(min=1e-12)
-        hatc_new = M_new[..., :3, 3:6] / m_safe[..., None, None]
-        c_new = vee_so3(hatc_new)  # (..., 3) from skew
+        # Top-right block of M_new equals −m·hat(c_new), so c_new = vee(−top_right / m).
+        hatc_new = -M_new[..., :3, 3:6] / m_safe[..., None, None]
+        c_new = vee_so3(hatc_new)             # (..., 3)
 
-        # Inertia about origin (top-left 3x3), then shift back to COM:
-        # I_o_new = M_new[:3, :3]
-        # I_c_new = I_o_new + m * hat(c_new)^2
-        from ..lie.tangents import hat_so3
+        # Bottom-right block of M_new is I_o (inertia about origin). Shift back to
+        # inertia-about-COM via the parallel-axis theorem: I_c = I_o + m·hat(c)².
         hatc_n = hat_so3(c_new)
-        I_o_new = M_new[..., :3, :3]
+        I_o_new = M_new[..., 3:, 3:]
         I_c_new = I_o_new + m[..., None, None] * (hatc_n @ hatc_n)
 
-        from .symmetric3 import Symmetric3
         sym3 = Symmetric3.from_matrix(I_c_new).data
 
         m_vec = m.unsqueeze(-1)
