@@ -194,3 +194,130 @@ def test_build_model_runs_on_generic_tree():
     # 3 user bodies + 1 universe body
     assert model.nbodies == 4
     assert model.q_neutral.shape == (model.nq,)
+
+
+# ---------------------------------------------------------------------------
+# com_per_body / inertia_per_body kwargs
+# ---------------------------------------------------------------------------
+
+
+def _tiny_tree_kwargs():
+    return dict(
+        name="tiny",
+        joint_names=["a", "b", "c"],
+        parents=[-1, 0, 1],
+        translations=torch.zeros(3, 3, dtype=torch.float32),
+    )
+
+
+def test_per_body_com_and_inertia_round_trip_through_ir():
+    """Packed COM and inertia land on the IRBody fields intact."""
+    coms = torch.tensor(
+        [[0.01, 0.0, 0.0], [0.0, 0.02, 0.0], [0.0, 0.0, 0.03]], dtype=torch.float32
+    )
+    I0 = torch.diag(torch.tensor([1e-3, 2e-3, 3e-3]))
+    I1 = torch.diag(torch.tensor([4e-3, 5e-3, 6e-3]))
+    I2 = torch.diag(torch.tensor([7e-3, 8e-3, 9e-3]))
+    inertias = torch.stack([I0, I1, I2], dim=0).to(torch.float32)
+
+    ir = build_kinematic_tree_body(
+        **_tiny_tree_kwargs(),
+        mass_per_body=[1.0, 2.0, 3.0],
+        com_per_body=coms,
+        inertia_per_body=inertias,
+    )
+    assert torch.allclose(ir.bodies[0].com, coms[0])
+    assert torch.allclose(ir.bodies[1].com, coms[1])
+    assert torch.allclose(ir.bodies[2].com, coms[2])
+    assert torch.allclose(ir.bodies[0].inertia, I0)
+    assert torch.allclose(ir.bodies[1].inertia, I1)
+    assert torch.allclose(ir.bodies[2].inertia, I2)
+
+
+def test_per_body_com_and_inertia_packed_into_model_body_inertias():
+    """Values survive the (IRBody → _pack_inertia → body_inertias) pipeline."""
+    from better_robot.spatial.inertia import Inertia
+
+    coms = torch.tensor(
+        [[0.10, 0.0, 0.0], [0.0, 0.20, 0.0], [0.0, 0.0, 0.30]], dtype=torch.float32
+    )
+    inertias = torch.stack(
+        [
+            torch.diag(torch.tensor([1.0, 2.0, 3.0])),
+            torch.diag(torch.tensor([4.0, 5.0, 6.0])),
+            torch.diag(torch.tensor([7.0, 8.0, 9.0])),
+        ],
+        dim=0,
+    ).to(torch.float32)
+
+    model = build_kinematic_tree_model(
+        **_tiny_tree_kwargs(),
+        mass_per_body=[1.0, 2.0, 3.0],
+        com_per_body=coms,
+        inertia_per_body=inertias,
+    )
+    # Body 0 is the universe (zero inertia); body 1..3 are our three bodies.
+    for j in range(3):
+        I = Inertia(model.body_inertias[j + 1])
+        assert float(I.mass) == pytest.approx(float(j + 1))
+        assert torch.allclose(I.com, coms[j])
+        assert torch.allclose(I.inertia_matrix, inertias[j])
+
+
+def test_com_per_body_shape_mismatch_raises():
+    with pytest.raises(ValueError, match="com_per_body shape"):
+        build_kinematic_tree_body(
+            **_tiny_tree_kwargs(),
+            com_per_body=torch.zeros(2, 3),
+        )
+
+
+def test_com_per_body_sequence_length_mismatch_raises():
+    with pytest.raises(ValueError, match="com_per_body length"):
+        build_kinematic_tree_body(
+            **_tiny_tree_kwargs(),
+            com_per_body=[torch.zeros(3), torch.zeros(3)],
+        )
+
+
+def test_com_per_body_bad_element_shape_raises():
+    with pytest.raises(ValueError, match=r"com_per_body\[1\]"):
+        build_kinematic_tree_body(
+            **_tiny_tree_kwargs(),
+            com_per_body=[torch.zeros(3), torch.zeros(2), torch.zeros(3)],
+        )
+
+
+def test_inertia_per_body_shape_mismatch_raises():
+    with pytest.raises(ValueError, match="inertia_per_body shape"):
+        build_kinematic_tree_body(
+            **_tiny_tree_kwargs(),
+            inertia_per_body=torch.zeros(2, 3, 3),
+        )
+
+
+def test_inertia_per_body_sequence_length_mismatch_raises():
+    with pytest.raises(ValueError, match="inertia_per_body length"):
+        build_kinematic_tree_body(
+            **_tiny_tree_kwargs(),
+            inertia_per_body=[torch.eye(3), torch.eye(3)],
+        )
+
+
+def test_inertia_per_body_bad_element_shape_raises():
+    with pytest.raises(ValueError, match=r"inertia_per_body\[0\]"):
+        build_kinematic_tree_body(
+            **_tiny_tree_kwargs(),
+            inertia_per_body=[torch.zeros(3), torch.eye(3), torch.eye(3)],
+        )
+
+
+def test_com_and_inertia_defaults_preserve_existing_behavior():
+    """Without the new kwargs, the old zero-COM / zero-inertia defaults still hold."""
+    ir = build_kinematic_tree_body(
+        **_tiny_tree_kwargs(),
+        mass_per_body=[1.0, 2.0, 3.0],
+    )
+    for body in ir.bodies:
+        assert torch.equal(body.com, torch.zeros(3))
+        assert torch.equal(body.inertia, torch.zeros(3, 3))

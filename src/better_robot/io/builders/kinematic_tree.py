@@ -44,6 +44,64 @@ def _normalize_mass(mass_per_body: float | Sequence[float], n: int) -> list[floa
     return masses
 
 
+def _normalize_com(
+    com_per_body: torch.Tensor | Sequence[torch.Tensor] | None,
+    n: int,
+    dtype: torch.dtype,
+) -> list[torch.Tensor | None]:
+    """Accept a ``(N, 3)`` tensor or a length-N sequence of ``(3,)`` tensors.
+
+    Returns a length-N list of ``(3,)`` tensors (cast to *dtype*) or all
+    ``None`` when ``com_per_body is None``.
+    """
+    if com_per_body is None:
+        return [None] * n
+    if isinstance(com_per_body, torch.Tensor):
+        if tuple(com_per_body.shape) != (n, 3):
+            raise ValueError(
+                f"com_per_body shape {tuple(com_per_body.shape)} must be ({n}, 3)"
+            )
+        return [com_per_body[i].to(dtype=dtype) for i in range(n)]
+    coms = list(com_per_body)
+    if len(coms) != n:
+        raise ValueError(
+            f"com_per_body length {len(coms)} does not match number of bodies {n}"
+        )
+    out: list[torch.Tensor | None] = []
+    for i, c in enumerate(coms):
+        if not isinstance(c, torch.Tensor) or tuple(c.shape) != (3,):
+            raise ValueError(f"com_per_body[{i}] must be a (3,) tensor")
+        out.append(c.to(dtype=dtype))
+    return out
+
+
+def _normalize_inertia(
+    inertia_per_body: torch.Tensor | Sequence[torch.Tensor] | None,
+    n: int,
+    dtype: torch.dtype,
+) -> list[torch.Tensor | None]:
+    """Accept a ``(N, 3, 3)`` tensor or a length-N sequence of ``(3, 3)`` tensors."""
+    if inertia_per_body is None:
+        return [None] * n
+    if isinstance(inertia_per_body, torch.Tensor):
+        if tuple(inertia_per_body.shape) != (n, 3, 3):
+            raise ValueError(
+                f"inertia_per_body shape {tuple(inertia_per_body.shape)} must be ({n}, 3, 3)"
+            )
+        return [inertia_per_body[i].to(dtype=dtype) for i in range(n)]
+    inertias = list(inertia_per_body)
+    if len(inertias) != n:
+        raise ValueError(
+            f"inertia_per_body length {len(inertias)} does not match number of bodies {n}"
+        )
+    out: list[torch.Tensor | None] = []
+    for i, I in enumerate(inertias):
+        if not isinstance(I, torch.Tensor) or tuple(I.shape) != (3, 3):
+            raise ValueError(f"inertia_per_body[{i}] must be a (3, 3) tensor")
+        out.append(I.to(dtype=dtype))
+    return out
+
+
 def build_kinematic_tree_body(
     *,
     name: str,
@@ -53,6 +111,8 @@ def build_kinematic_tree_body(
     root_kind: str = "free_flyer",
     child_kind: str = "spherical",
     mass_per_body: float | Sequence[float] = 0.0,
+    com_per_body: torch.Tensor | Sequence[torch.Tensor] | None = None,
+    inertia_per_body: torch.Tensor | Sequence[torch.Tensor] | None = None,
 ) -> IRModel:
     """Build an ``IRModel`` for a kinematic tree described by arrays.
 
@@ -75,6 +135,16 @@ def build_kinematic_tree_body(
         Joint kind for every non-root joint. Default ``"spherical"``.
     mass_per_body
         Uniform mass in kg, or a length-``N`` sequence for per-body mass.
+    com_per_body
+        Optional ``(N, 3)`` tensor (or length-``N`` sequence of ``(3,)``
+        tensors) — offset from each body's joint origin to its COM, in the
+        body's link-frame axes. Defaults to zeros.
+    inertia_per_body
+        Optional ``(N, 3, 3)`` tensor (or length-``N`` sequence of ``(3, 3)``
+        tensors) — rotational inertia **at the COM**, in the body's
+        link-frame axes (Pinocchio convention). ``Inertia._to_6x6`` applies
+        the parallel-axis shift internally when unpacking; the caller must
+        NOT pre-shift. Defaults to zeros.
     """
     n = len(joint_names)
     if len(parents) != n:
@@ -89,10 +159,12 @@ def build_kinematic_tree_body(
         )
     masses = _normalize_mass(mass_per_body, n)
     dtype = translations.dtype
+    coms = _normalize_com(com_per_body, n, dtype)
+    inertias = _normalize_inertia(inertia_per_body, n, dtype)
 
     b = ModelBuilder(name)
-    for jname, m in zip(joint_names, masses):
-        b.add_body(jname, mass=m)
+    for jname, m, c, I in zip(joint_names, masses, coms, inertias):
+        b.add_body(jname, mass=m, com=c, inertia=I)
 
     b.add_joint(
         "root",
@@ -128,6 +200,8 @@ def build_kinematic_tree_model(
     root_kind: str = "free_flyer",
     child_kind: str = "spherical",
     mass_per_body: float | Sequence[float] = 0.0,
+    com_per_body: torch.Tensor | Sequence[torch.Tensor] | None = None,
+    inertia_per_body: torch.Tensor | Sequence[torch.Tensor] | None = None,
     device: torch.device | str | None = None,
     dtype: torch.dtype = torch.float32,
 ) -> Model:
@@ -140,5 +214,7 @@ def build_kinematic_tree_model(
         root_kind=root_kind,
         child_kind=child_kind,
         mass_per_body=mass_per_body,
+        com_per_body=com_per_body,
+        inertia_per_body=inertia_per_body,
     )
     return build_model(ir, device=device, dtype=dtype)

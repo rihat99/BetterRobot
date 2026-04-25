@@ -119,6 +119,47 @@ class ViserBackend:
         node = self._server.scene.add_frame(name, axes_length=axes_length)
         self._nodes[name] = node
 
+    def add_arrow(
+        self,
+        name: str,
+        *,
+        length: float,
+        shaft_radius: float,
+        head_length: float,
+        head_radius: float,
+        rgba: tuple[float, float, float, float],
+        parent: Any = None,
+    ) -> None:
+        """Add / replace an arrow pointing along its local +Z axis.
+
+        The arrow's tail (shaft base) sits at the local origin; the tip is
+        at ``(0, 0, length)``. ``length`` is the total tip-to-tail
+        distance. If ``length <= head_length`` the shaft is omitted and the
+        cone is scaled to the full length.
+
+        Re-calling with the same ``name`` replaces the existing geometry.
+        """
+        import numpy as np
+
+        if name in self._nodes:
+            self.remove(name)
+
+        verts, faces = self._arrow_mesh(
+            length=float(length),
+            shaft_radius=float(shaft_radius),
+            head_length=float(head_length),
+            head_radius=float(head_radius),
+        )
+        colour = tuple(int(c * 255) for c in rgba[:3])
+        node = self._server.scene.add_mesh_simple(
+            name,
+            vertices=verts,
+            faces=faces,
+            color=colour,
+            opacity=float(rgba[3]),
+        )
+        self._nodes[name] = node
+
     def add_grid(self, name: str, **kwargs: Any) -> None:
         node = self._server.scene.add_grid(name, **kwargs)
         self._nodes[name] = node
@@ -266,3 +307,61 @@ class ViserBackend:
             # top cap
             faces.append([ct_idx, n + i, n + j])
         return np.array(faces, dtype=np.uint32)
+
+    @staticmethod
+    def _arrow_mesh(
+        *,
+        length: float,
+        shaft_radius: float,
+        head_length: float,
+        head_radius: float,
+        n: int = 12,
+    ) -> tuple["np.ndarray", "np.ndarray"]:  # type: ignore[name-defined]  # noqa: F821
+        """Build an arrow mesh along +Z, tail at origin, tip at (0, 0, length).
+
+        Returns ``(vertices, faces)`` suitable for ``add_mesh_simple``. The
+        geometry is: a cylindrical shaft of length ``max(length - head_length, 0)``
+        topped by a cone of length ``min(head_length, length)``.
+        """
+        import numpy as np
+
+        shaft_len = max(length - head_length, 0.0)
+        head_len = min(head_length, length)
+        angles = np.linspace(0.0, 2 * np.pi, n, endpoint=False, dtype=np.float32)
+        cos_a = np.cos(angles)
+        sin_a = np.sin(angles)
+
+        # Shaft ring vertices (bottom + top) — may collapse to zero length.
+        shaft_bot = np.stack(
+            [cos_a * shaft_radius, sin_a * shaft_radius, np.zeros(n, dtype=np.float32)],
+            axis=1,
+        )
+        shaft_top = np.stack(
+            [cos_a * shaft_radius, sin_a * shaft_radius, np.full(n, shaft_len, dtype=np.float32)],
+            axis=1,
+        )
+        # Cone base ring (wider) at z=shaft_len, apex at z=length.
+        cone_base = np.stack(
+            [cos_a * head_radius, sin_a * head_radius, np.full(n, shaft_len, dtype=np.float32)],
+            axis=1,
+        )
+        apex = np.array([[0.0, 0.0, shaft_len + head_len]], dtype=np.float32)
+        tail_center = np.array([[0.0, 0.0, 0.0]], dtype=np.float32)
+
+        verts = np.concatenate([shaft_bot, shaft_top, cone_base, apex, tail_center], axis=0)
+
+        # Index layout: [0..n): shaft_bot, [n..2n): shaft_top,
+        # [2n..3n): cone_base, [3n]: apex, [3n+1]: tail_center.
+        apex_idx = 3 * n
+        tail_idx = 3 * n + 1
+        faces: list[list[int]] = []
+        for i in range(n):
+            j = (i + 1) % n
+            # shaft side (two triangles per segment)
+            faces.append([i, j, n + j])
+            faces.append([i, n + j, n + i])
+            # cone side (apex + two adjacent base verts)
+            faces.append([2 * n + i, 2 * n + j, apex_idx])
+            # tail cap (fan from tail_center)
+            faces.append([tail_idx, j, i])
+        return verts, np.array(faces, dtype=np.uint32)

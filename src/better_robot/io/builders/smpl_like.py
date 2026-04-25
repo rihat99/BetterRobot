@@ -7,12 +7,18 @@ data model is expressive enough to host an SMPL-like body without any
 SMPL-specific code in the core.
 
 Internally delegates to ``build_kinematic_tree_body`` — the generic
-array-driven builder in this package.
+array-driven builder in this package. Callers who want realistic per-body
+mass / COM / rotational inertia can supply ``mass_per_body`` / ``com_per_body``
+/ ``inertia_per_body`` explicitly (computed however they like — e.g., via an
+SMPL mesh integrator outside BetterRobot). Leaving those kwargs as their
+defaults reproduces the legacy uniform-``mass / 24`` behavior.
 
 See ``docs/04_PARSERS.md §6`` (``SMPL-like body as motivation``).
 """
 
 from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 
@@ -97,26 +103,39 @@ def make_smpl_like_body(
     height: float = 1.75,
     mass: float = 70.0,
     *,
+    name: str = "smpl_body",
     shape_params: torch.Tensor | None = None,
     joint_offsets: torch.Tensor | None = None,
+    mass_per_body: float | Sequence[float] | None = None,
+    com_per_body: torch.Tensor | Sequence[torch.Tensor] | None = None,
+    inertia_per_body: torch.Tensor | Sequence[torch.Tensor] | None = None,
 ) -> IRModel:
     """Build an SMPL-topology ``IRModel`` (free-flyer root + 23 ball joints).
 
     If ``joint_offsets`` (``(24, 3)`` tensor) is supplied, it overrides the
     height-scaled default proportions — useful for shape-aware callers that
     derive offsets from SMPL ``betas``.
+
+    ``mass_per_body`` / ``com_per_body`` / ``inertia_per_body`` are passed
+    straight through to :func:`build_kinematic_tree_body`. Supply them when
+    you have per-body inertial parameters (e.g. computed from an SMPL mesh
+    by an external tool); leave them ``None`` to fall back to the legacy
+    uniform-``mass / 24`` default.
     """
     offsets = (
         joint_offsets if joint_offsets is not None else _default_offsets_tensor(height)
     )
+    mass_kw = mass_per_body if mass_per_body is not None else mass / 24.0
     return build_kinematic_tree_body(
-        name="smpl_body",
+        name=name,
         joint_names=JOINT_NAMES,
         parents=PARENTS,
         translations=offsets,
         root_kind="free_flyer",
         child_kind="spherical",
-        mass_per_body=mass / 24.0,
+        mass_per_body=mass_kw,
+        com_per_body=com_per_body,
+        inertia_per_body=inertia_per_body,
     )
 
 
@@ -124,23 +143,30 @@ def make_smpl_like_model(
     height: float = 1.75,
     mass: float = 70.0,
     *,
+    name: str = "smpl_body",
     shape_params: torch.Tensor | None = None,
     joint_offsets: torch.Tensor | None = None,
+    mass_per_body: float | Sequence[float] | None = None,
+    com_per_body: torch.Tensor | Sequence[torch.Tensor] | None = None,
+    inertia_per_body: torch.Tensor | Sequence[torch.Tensor] | None = None,
     device: torch.device | None = None,
     dtype: torch.dtype = torch.float32,
 ) -> Model:
-    """Build an SMPL-topology frozen ``Model`` (free-flyer root + 23 ball joints)."""
+    """Build an SMPL-topology frozen ``Model``. See :func:`make_smpl_like_body`."""
     offsets = (
         joint_offsets if joint_offsets is not None else _default_offsets_tensor(height)
     )
+    mass_kw = mass_per_body if mass_per_body is not None else mass / 24.0
     return build_kinematic_tree_model(
-        name="smpl_body",
+        name=name,
         joint_names=JOINT_NAMES,
         parents=PARENTS,
         translations=offsets,
         root_kind="free_flyer",
         child_kind="spherical",
-        mass_per_body=mass / 24.0,
+        mass_per_body=mass_kw,
+        com_per_body=com_per_body,
+        inertia_per_body=inertia_per_body,
         device=device,
         dtype=dtype,
     )
