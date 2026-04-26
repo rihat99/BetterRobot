@@ -40,6 +40,7 @@ dev = [
     "sphinx-copybutton>=0.5",
     "sphinxcontrib-bibtex>=2.6",
     "sphinx-tabs>=3.4",
+    "ghp-import>=2.1",
     "ruff",
     "pyright",
     "mypy>=1.10",

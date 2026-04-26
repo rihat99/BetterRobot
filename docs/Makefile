@@ -6,13 +6,14 @@
 #   make linkcheck     # validate external links
 #   make strict        # build with warnings-as-errors (nitpicky)
 #   make serve         # run a local server at http://localhost:8000
+#   make publish       # build (-W) and push _build/html → gh-pages branch
 
 SPHINXOPTS    ?=
 SPHINXBUILD   ?= sphinx-build
 SOURCEDIR     = .
 BUILDDIR      = _build
 
-.PHONY: help html clean linkcheck strict serve
+.PHONY: help html clean linkcheck strict serve publish
 
 help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)
@@ -32,3 +33,9 @@ strict:
 serve: html
 	@echo "Serving docs at http://localhost:8000  (Ctrl-C to stop)"
 	@cd "$(BUILDDIR)/html" && python -m http.server 8000
+
+publish:
+	@echo "Building $(BUILDDIR)/html (warnings-as-errors, no nitpicky)"
+	$(SPHINXBUILD) -W --keep-going -b html "$(SOURCEDIR)" "$(BUILDDIR)/html" $(SPHINXOPTS)
+	@echo "Publishing $(BUILDDIR)/html -> gh-pages branch on origin"
+	ghp-import -n -p -f -m "docs: deploy $$(git rev-parse --short HEAD)" "$(BUILDDIR)/html"
