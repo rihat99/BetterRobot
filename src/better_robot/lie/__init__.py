@@ -1,14 +1,16 @@
 """``better_robot.lie`` — SE3/SO3 group operations and tangent algebra.
 
-All pypose imports in the project live exclusively under
-``better_robot.lie._pypose_backend``. The rest of the codebase uses the
-functional facades in ``lie.se3``, ``lie.so3``, and ``lie.tangents``.
+The pure-PyTorch implementation lives in ``lie._torch_native_backend``.
+The rest of the codebase uses the functional facades in ``lie.se3``,
+``lie.so3``, and ``lie.tangents``, plus the typed value classes in
+``lie.types``.
 
-See ``docs/03_LIE_AND_SPATIAL.md``.
+See ``docs/design/03_LIE_AND_SPATIAL.md``.
 """
 
 from __future__ import annotations
 
 from . import se3, so3, tangents
+from .types import SE3, SO3, Pose
 
-__all__ = ["se3", "so3", "tangents"]
+__all__ = ["se3", "so3", "tangents", "SE3", "SO3", "Pose"]

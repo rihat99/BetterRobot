@@ -3,7 +3,7 @@
 Stored as a ``(..., 6)`` tensor ``[vx, vy, vz, wx, wy, wz]``. Methods return
 new ``Motion`` instances (value-typed dataclass).
 
-See ``docs/03_LIE_AND_SPATIAL.md §7``.
+See ``docs/design/03_LIE_AND_SPATIAL.md §7``.
 """
 
 from __future__ import annotations
@@ -85,9 +85,17 @@ class Motion:
         ang_out = (H_wv @ fa.unsqueeze(-1)).squeeze(-1) + (H_vv @ fl.unsqueeze(-1)).squeeze(-1)
         return Force(torch.cat([lin_out, ang_out], dim=-1))
 
-    def se3_action(self, T: torch.Tensor) -> "Motion":
-        """Apply an SE3 transform via the adjoint: Ad(T) * v."""
+    def se3_action(self, T) -> "Motion":
+        """Apply an SE3 transform via the adjoint: ``Ad(T) * v``.
+
+        ``T`` may be a raw ``(..., 7)`` tensor or an
+        :class:`~better_robot.lie.types.SE3` value (its ``.tensor`` is
+        unwrapped).
+        """
         from ..lie import se3 as _se3
+        from ..lie.types import SE3 as _SE3
+        if isinstance(T, _SE3):
+            T = T.tensor
         Ad = _se3.adjoint(T)   # (..., 6, 6)
         return Motion((Ad @ self.data.unsqueeze(-1)).squeeze(-1))
 

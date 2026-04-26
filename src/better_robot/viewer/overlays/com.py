@@ -1,6 +1,6 @@
 """overlays/com.py — stub.
 
-See docs/12_VIEWER.md §5.
+See docs/design/12_VIEWER.md §5.
 """
 
 from __future__ import annotations
@@ -18,20 +18,20 @@ class ComOverlay:
     """Stub — not yet implemented."""
 
     name = "com"
-    description = "See docs/12_VIEWER.md §5"
+    description = "See docs/design/12_VIEWER.md §5"
 
     @classmethod
     def is_available(cls, model: "Model", data: "Data") -> bool:
         return True
 
     def attach(self, context: RenderContext, model: "Model", data: "Data") -> None:
-        raise NotImplementedError("see docs/12_VIEWER.md §5")
+        raise NotImplementedError("see docs/design/12_VIEWER.md §5")
 
     def update(self, data: "Data") -> None:
-        raise NotImplementedError("see docs/12_VIEWER.md §5")
+        raise NotImplementedError("see docs/design/12_VIEWER.md §5")
 
     def set_visible(self, visible: bool) -> None:
-        raise NotImplementedError("see docs/12_VIEWER.md §5")
+        raise NotImplementedError("see docs/design/12_VIEWER.md §5")
 
     def detach(self) -> None:
-        raise NotImplementedError("see docs/12_VIEWER.md §5")
+        raise NotImplementedError("see docs/design/12_VIEWER.md §5")

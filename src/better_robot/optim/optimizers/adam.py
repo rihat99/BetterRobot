@@ -2,13 +2,14 @@
 
 Runs Adam over ``0.5 * ||r(x)||²``. The gradient is pulled from
 ``problem.jacobian(x)`` — specifically ``Jᵀ r`` — instead of routing
-autograd through the residual. This sidesteps PyPose's known
-factor-of-2 bug in the quaternion ``Log().backward()`` path (see
-``docs/05_KINEMATICS.md §3``) and makes Adam work identically on
-fixed-base and free-flyer robots: every moment is tracked in ``nv``
-space and applied through ``problem.step`` (the manifold retraction).
+autograd through the residual. The ``problem.gradient(x)`` route is
+preferred because it amortises the Jacobian build with the LM/GN
+warm-up stage in ``MultiStageOptimizer``. Both fixed-base and
+free-flyer robots use the same code path: every moment is tracked in
+``nv`` space and applied through ``problem.step`` (the manifold
+retraction).
 
-See ``docs/07_RESIDUALS_COSTS_SOLVERS.md §5``.
+See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5``.
 """
 
 from __future__ import annotations
@@ -21,6 +22,10 @@ from ..state import SolverState
 
 class Adam:
     """Adam on ``0.5 * ||r(x)||^2`` driven by ``problem.jacobian``."""
+
+    # Read by ``MultiStageOptimizer`` to suppress top-level kwarg forwarding
+    # — warning is intended for direct user calls, not internal wrappers.
+    _ignores_normal_eqn_kwargs: bool = True
 
     def __init__(
         self,
@@ -49,8 +54,19 @@ class Adam:
     ) -> SolverState:
         """Run Adam until convergence or ``max_iter`` is reached.
 
-        See docs/07_RESIDUALS_COSTS_SOLVERS.md §5.
+        See docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5.
         """
+        import warnings
+        for _name, _val in (("linear_solver", linear_solver),
+                            ("kernel", kernel),
+                            ("strategy", strategy)):
+            if _val is not None:
+                warnings.warn(
+                    f"Adam ignores {_name}={_val!r} — first-order method has "
+                    f"no normal-equation step. See docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5.",
+                    UserWarning,
+                    stacklevel=2,
+                )
         state = SolverState.from_problem(problem)
         nv = problem._nv
         device, dtype = state.x.device, state.x.dtype

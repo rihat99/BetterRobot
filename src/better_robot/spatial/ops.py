@@ -4,7 +4,7 @@ These bind the value types in ``spatial/`` to the functional facade in
 ``lie/`` so callers above the spatial layer never have to know which lives
 where.
 
-See ``docs/03_LIE_AND_SPATIAL.md §8``.
+See ``docs/design/03_LIE_AND_SPATIAL.md §8``.
 """
 
 from __future__ import annotations

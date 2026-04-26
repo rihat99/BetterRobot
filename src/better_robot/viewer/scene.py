@@ -5,9 +5,9 @@ visible flags, and routes every ``update()`` to exactly the visible
 modes. It is the extensibility point for future render modes.
 
 V1 intentionally drops the robot_collision argument and the
-batch-axis picker — see ``docs/12_VIEWER.md §6`` and §10.9.
+batch-axis picker — see ``docs/design/12_VIEWER.md §6`` and §10.9.
 
-See ``docs/12_VIEWER.md §6``.
+See ``docs/design/12_VIEWER.md §6``.
 """
 
 from __future__ import annotations

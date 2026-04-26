@@ -4,7 +4,7 @@ Draws one sphere per articulated joint and one cylinder per link.
 Always available: only requires ``model.parents`` and
 ``data.joint_pose_world``.
 
-See ``docs/12_VIEWER.md §4.3``.
+See ``docs/design/12_VIEWER.md §4.3``.
 """
 
 from __future__ import annotations

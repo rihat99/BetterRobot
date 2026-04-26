@@ -1,49 +1,129 @@
-"""``better_robot.backends`` — runtime backend selector.
+"""``better_robot.backends`` — runtime backend registry.
 
-The default backend is ``torch_native``. Users can switch to the Warp
-backend once it lands with ``set_backend("warp")``.
+The default backend is :mod:`better_robot.backends.torch_native`. Library
+hot paths obtain it via :func:`default_backend`; user code can switch the
+global default with :func:`set_backend` or pass a different
+:class:`~better_robot.backends.protocol.Backend` instance directly via
+the public functions' ``backend=`` kwarg (no global mutation).
 
-See ``docs/10_BATCHING_AND_BACKENDS.md §7``.
+See ``docs/design/10_BATCHING_AND_BACKENDS.md §7`` and
+``docs/UPDATE_PHASES.md §P1``.
 """
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
-_CURRENT: str = "torch_native"
+from ..exceptions import BackendNotAvailableError
+from .protocol import Backend, DynamicsOps, KinematicsOps, LieOps
+
+if TYPE_CHECKING:
+    pass
+
+# ──────────────────────────────────────────────────────────────────────
+# Registry
+# ──────────────────────────────────────────────────────────────────────
 
 BackendName = Literal["torch_native", "warp"]
 
+_KNOWN_BACKENDS: tuple[str, ...] = ("torch_native", "warp")
+_DEFAULT_NAME: str = "torch_native"
+_INSTANCES: dict[str, Backend] = {}
+
+
+def _ensure_warp_available() -> None:
+    """Raise :class:`BackendNotAvailableError` if ``warp`` cannot be imported."""
+    try:
+        import warp  # noqa: F401  pylint: disable=import-outside-toplevel
+    except ImportError as exc:
+        raise BackendNotAvailableError(
+            "Warp backend requested but `warp-lang` is not installed. "
+            "Install with `pip install better-robot[warp]`."
+        ) from exc
+
+
+def _load(name: str) -> Backend:
+    """Construct (or return cached) :class:`Backend` named ``name``."""
+    if name in _INSTANCES:
+        return _INSTANCES[name]
+
+    if name == "torch_native":
+        from .torch_native import BACKEND as _torch_native_backend
+        _INSTANCES[name] = _torch_native_backend
+        return _torch_native_backend
+
+    if name == "warp":
+        _ensure_warp_available()
+        # Warp backend lands in P11; until then this is unreachable past
+        # the availability check above (warp-lang is not a dependency).
+        raise BackendNotAvailableError(
+            "Warp backend module is not implemented yet — see P11 of "
+            "docs/UPDATE_PHASES.md."
+        )
+
+    raise BackendNotAvailableError(
+        f"Unknown backend {name!r}; valid: {_KNOWN_BACKENDS}"
+    )
+
+
+def get_backend(name: str) -> Backend:
+    """Return the :class:`Backend` instance for ``name``, loading it on demand.
+
+    Raises :class:`BackendNotAvailableError` if the backend's underlying
+    dependency is not importable.
+    """
+    return _load(name)
+
+
+def default_backend() -> Backend:
+    """Return the currently active default :class:`Backend`."""
+    return _load(_DEFAULT_NAME)
+
 
 def current_backend() -> str:
-    """Return the name of the currently active backend."""
-    return _CURRENT
+    """Return the *name* of the currently active default backend."""
+    return _DEFAULT_NAME
 
 
-def set_backend(name: BackendName) -> None:
-    """Switch the active backend.
+def current() -> Backend:
+    """Alias for :func:`default_backend`."""
+    return default_backend()
 
-    Valid values: ``"torch_native"`` (default) or ``"warp"`` (once
-    ``better_robot.backends.warp`` lands). See
-    ``docs/10_BATCHING_AND_BACKENDS.md §7``.
+
+def set_backend(name: str) -> None:
+    """Switch the global default backend.
+
+    Raises :class:`BackendNotAvailableError` if the named backend is not
+    available; ``_DEFAULT_NAME`` is left unchanged on the failure path.
     """
-    global _CURRENT
-    if name not in ("torch_native", "warp"):
-        raise ValueError(f"unknown backend: {name!r}")
-    if name == "warp":
-        raise NotImplementedError(
-            "Warp backend is not available yet — see docs/10_BATCHING_AND_BACKENDS.md §7"
+    global _DEFAULT_NAME
+    if name not in _KNOWN_BACKENDS:
+        raise BackendNotAvailableError(
+            f"Unknown backend {name!r}; valid: {_KNOWN_BACKENDS}"
         )
-    _CURRENT = name
+    # Force-load *before* mutating the default — so a failure doesn't leave
+    # the registry inconsistent.
+    _load(name)
+    _DEFAULT_NAME = name
 
 
 def graph_capture(fn):
-    """Decorator: wrap ``fn`` in a CUDA graph capture if the Warp backend is active.
-
-    With ``torch_native`` (default) this is a no-op. See
-    ``docs/10_BATCHING_AND_BACKENDS.md §7``.
+    """Decorator: wrap ``fn`` in a CUDA graph capture if the active backend
+    supports it. With ``torch_native`` (default) this is a no-op.
     """
     return fn
 
 
-__all__ = ["current_backend", "set_backend", "graph_capture", "BackendName"]
+__all__ = [
+    "Backend",
+    "LieOps",
+    "KinematicsOps",
+    "DynamicsOps",
+    "BackendName",
+    "default_backend",
+    "current",
+    "current_backend",
+    "set_backend",
+    "get_backend",
+    "graph_capture",
+]

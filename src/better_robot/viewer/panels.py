@@ -1,6 +1,6 @@
 """``panels.py`` — GUI panel builders for the viser interactive session.
 
-See ``docs/12_VIEWER.md §10.2``.
+See ``docs/design/12_VIEWER.md §10.2``.
 """
 
 from __future__ import annotations

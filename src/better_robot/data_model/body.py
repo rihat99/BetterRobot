@@ -4,7 +4,7 @@ Bodies carry inertial properties; ``Model.body_inertias`` stores them as a
 packed ``(nbodies, 10)`` tensor. This struct is the metadata (name, parent
 joint, optional geometry index).
 
-See ``docs/02_DATA_MODEL.md §9``.
+See ``docs/design/02_DATA_MODEL.md §9``.
 """
 
 from __future__ import annotations

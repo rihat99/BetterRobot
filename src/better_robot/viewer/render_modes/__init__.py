@@ -1,6 +1,6 @@
 """``render_modes`` — render mode registry.
 
-See ``docs/12_VIEWER.md §4.5``.
+See ``docs/design/12_VIEWER.md §4.5``.
 """
 
 from __future__ import annotations

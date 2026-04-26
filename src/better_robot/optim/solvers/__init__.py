@@ -1,6 +1,6 @@
 """``better_robot.optim.solvers`` — linear solvers.
 
-See ``docs/07_RESIDUALS_COSTS_SOLVERS.md §5``.
+See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5``.
 """
 
 from __future__ import annotations

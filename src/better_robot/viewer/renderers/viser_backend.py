@@ -3,7 +3,7 @@
 ``viser`` is imported lazily here and ONLY here. No other viewer file
 may import viser.
 
-See ``docs/12_VIEWER.md §9.3``.
+See ``docs/design/12_VIEWER.md §9.3``.
 """
 
 from __future__ import annotations
@@ -190,10 +190,10 @@ class ViserBackend:
             node.visible = visible
 
     def set_camera(self, camera: Any) -> None:
-        raise NotImplementedError("see docs/12_VIEWER.md §9")
+        raise NotImplementedError("see docs/design/12_VIEWER.md §9")
 
     def capture_frame(self) -> "np.ndarray":  # type: ignore[name-defined]  # noqa: F821
-        raise NotImplementedError("see docs/12_VIEWER.md §9.6")
+        raise NotImplementedError("see docs/design/12_VIEWER.md §9.6")
 
     # ------------------------------------------------------------------
     # GUI controls

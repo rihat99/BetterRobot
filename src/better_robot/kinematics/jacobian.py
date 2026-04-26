@@ -3,7 +3,7 @@
 Pinocchio-style canonical functions — a single dispatch path that replaces
 the legacy four-way fixed/floating × analytic/autodiff mess.
 
-See ``docs/05_KINEMATICS.md §3``.
+See ``docs/design/05_KINEMATICS.md §3``.
 """
 
 from __future__ import annotations
@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING, Literal
 
 import torch
 
+from ..backends import default_backend
+from ..data_model import KinematicsLevel
 from ..data_model.data import Data
 from ..data_model.model import Model
 from ..lie import se3, so3
@@ -19,23 +21,18 @@ from ..lie.tangents import hat_so3
 from .jacobian_strategy import JacobianStrategy
 
 if TYPE_CHECKING:
+    from ..backends.protocol import Backend
     from ..residuals.base import Residual, ResidualState
 
 ReferenceFrame = Literal["world", "local", "local_world_aligned"]
 
 
-def compute_joint_jacobians(model: Model, data: Data) -> Data:
-    """Populate ``data.joint_jacobians`` with the spatial Jacobian of every joint.
-
-    Shape: ``data.joint_jacobians = (B..., njoints, 6, nv)``. Requires
-    ``data.joint_pose_world`` to be populated (call
-    :func:`forward_kinematics` first).
+def _compute_joint_jacobians_raw(model: Model, data: Data) -> torch.Tensor:
+    """Tensor-only joint-Jacobian primitive — returns the stack ``(B..., njoints, 6, nv)``.
 
     Uses the propagation trick: ``J[j] = J[parent[j]]`` then adds the
-    contribution of joint ``j`` itself.  This is equivalent to iterating
-    over the support chain for every joint.
-
-    See docs/05_KINEMATICS.md §3.
+    contribution of joint ``j`` itself. Requires ``data.joint_pose_world``
+    populated (call :func:`forward_kinematics` first).
     """
     assert data.joint_pose_world is not None, (
         "call forward_kinematics before compute_joint_jacobians"
@@ -79,7 +76,24 @@ def compute_joint_jacobians(model: Model, data: Data) -> Data:
         J[..., j, :3, v_j : v_j + nv_j] = R_S_lin + hat_p_R_S_ang
         J[..., j, 3:, v_j : v_j + nv_j] = R_S_ang
 
-    data.joint_jacobians = J
+    return J
+
+
+def compute_joint_jacobians(
+    model: Model, data: Data, *, backend: "Backend | None" = None,
+) -> Data:
+    """Populate ``data.joint_jacobians`` with the spatial Jacobian of every joint.
+
+    Shape: ``data.joint_jacobians = (B..., njoints, 6, nv)``. Requires
+    ``data`` to hold at least ``KinematicsLevel.PLACEMENTS`` — call
+    :func:`forward_kinematics` first; otherwise raises
+    :class:`~better_robot.exceptions.StaleCacheError`.
+
+    See docs/design/05_KINEMATICS.md §3.
+    """
+    data.require(KinematicsLevel.PLACEMENTS)
+    backend = backend or default_backend()
+    data.joint_jacobians = backend.kinematics.compute_joint_jacobians(model, data)
     return data
 
 
@@ -95,8 +109,9 @@ def get_joint_jacobian(
     Shape: ``(B..., 6, nv)``. Reference frames mirror Pinocchio's
     ``ReferenceFrame`` enum.
 
-    See docs/05_KINEMATICS.md §3.
+    See docs/design/05_KINEMATICS.md §3.
     """
+    data.require(KinematicsLevel.PLACEMENTS)
     if data.joint_jacobians is None:
         compute_joint_jacobians(model, data)
 
@@ -134,8 +149,9 @@ def get_frame_jacobian(
     - ``"local"``: both linear and angular rows expressed in the body-local
       frame of this frame. Matches Pinocchio's ``LOCAL``.
 
-    See docs/05_KINEMATICS.md §3.
+    See docs/design/05_KINEMATICS.md §3.
     """
+    data.require(KinematicsLevel.PLACEMENTS)
     assert data.joint_pose_world is not None, (
         "call forward_kinematics before get_frame_jacobian"
     )
@@ -223,7 +239,7 @@ def residual_jacobian(
     where analytic/autodiff coexist cleanly — the solver never writes
     Jacobian code itself.
 
-    See docs/05_KINEMATICS.md §3.
+    See docs/design/05_KINEMATICS.md §3.
     """
     from ..residuals.base import ResidualState as RS
 
@@ -240,10 +256,10 @@ def residual_jacobian(
                 f"(strategy=ANALYTIC requires one)"
             )
 
-    # Autodiff: finite-difference through model.integrate and FK.
-    # Note: torch.autograd.functional.jacobian through PyPose's Log() gives
-    # incorrect gradients (factor-of-2 error in quaternion backward), so we
-    # use central finite differences which are always correct.
+    # Fallback: central finite differences through model.integrate and FK.
+    # Kept as the AUTO-fallback because it matches analytic Jacobians to
+    # numerical noise and is robust across joint kinds without relying on
+    # autograd through SE3 retraction.
     model = state.model
     q = state.variables
 

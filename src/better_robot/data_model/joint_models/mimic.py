@@ -4,7 +4,7 @@ The mimic relationship is evaluated via a vectorised gather on the ``Model``
 side (``mimic_multiplier``/``mimic_offset``/``mimic_source``), not as a
 per-joint branch in the hot path.
 
-See ``docs/02_DATA_MODEL.md §5``.
+See ``docs/design/02_DATA_MODEL.md §5``.
 """
 
 from __future__ import annotations

@@ -1,6 +1,6 @@
 """Adaptive damping strategy — the legacy BetterRobot LM behaviour.
 
-See ``docs/07_RESIDUALS_COSTS_SOLVERS.md §5``.
+See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5``.
 """
 
 from __future__ import annotations

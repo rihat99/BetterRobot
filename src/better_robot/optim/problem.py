@@ -4,7 +4,7 @@ Holds a ``CostStack``, a ``state_factory`` that wraps raw ``x`` into a
 ``ResidualState``, initial ``x0``, and optional box bounds. The solvers in
 ``optim/optimizers/`` own the iteration strategy.
 
-See ``docs/07_RESIDUALS_COSTS_SOLVERS.md §4``.
+See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §4``.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ class LeastSquaresProblem:
 
         Returns ``(dim,)`` for unbatched ``x``, ``(B..., dim)`` otherwise.
 
-        See docs/07_RESIDUALS_COSTS_SOLVERS.md §4.
+        See docs/design/07_RESIDUALS_COSTS_SOLVERS.md §4.
         """
         state = self.state_factory(x)
         return self.cost_stack.residual(state)
@@ -54,7 +54,7 @@ class LeastSquaresProblem:
 
         Returns ``(dim, nv)`` for unbatched ``x``.
 
-        See docs/07_RESIDUALS_COSTS_SOLVERS.md §4.
+        See docs/design/07_RESIDUALS_COSTS_SOLVERS.md §4.
         """
         state = self.state_factory(x)
         return self.cost_stack.jacobian(state, strategy=self.jacobian_strategy)
@@ -68,3 +68,38 @@ class LeastSquaresProblem:
             return self.retract(x, delta_v)
         # Euclidean fallback (valid when nq == nv)
         return x + delta_v
+
+    def gradient(self, x: torch.Tensor) -> torch.Tensor:
+        """Matrix-free gradient of ``0.5 · ‖r(x)‖²`` w.r.t. tangent variables.
+
+        Iterates over active items in the cost stack; each contributes
+        ``w² · J_iᵀ r_i``. Residuals that override ``apply_jac_transpose``
+        skip the dense Jacobian; everything else falls back to
+        ``J_iᵀ @ r_i`` through ``residual_jacobian``.
+
+        Returns ``(nv,)`` for unbatched ``x``. See
+        ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §8``.
+        """
+        state = self.state_factory(x)
+        return self.cost_stack.gradient(state)
+
+    def jacobian_blocks(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Per-item Jacobian dictionary for block-sparse trajopt solvers.
+
+        Returns ``{name: J_i}`` where each ``J_i`` already includes the
+        cost-stack item weight. Inactive items are omitted. Solvers that
+        ignore this method continue to work via the dense
+        :meth:`jacobian` path.
+
+        See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §8``.
+        """
+        from ..kinematics.jacobian import residual_jacobian
+
+        state = self.state_factory(x)
+        blocks: dict[str, torch.Tensor] = {}
+        for name, item in self.cost_stack.items.items():
+            if not item.active:
+                continue
+            J_i = residual_jacobian(item.residual, state, strategy=self.jacobian_strategy)
+            blocks[name] = J_i * item.weight
+        return blocks

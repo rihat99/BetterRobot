@@ -3,7 +3,7 @@
 ``assert_close_manifold``, ``fk_regression``, and other helpers used across
 ``tests_v2/``.
 
-See ``docs/01_ARCHITECTURE.md``.
+See ``docs/design/01_ARCHITECTURE.md``.
 """
 
 from __future__ import annotations
@@ -20,6 +20,6 @@ def assert_close_manifold(
 ) -> None:
     """Assert two SE3 / SO3 tensors are close on the manifold.
 
-    See docs/01_ARCHITECTURE.md.
+    See docs/design/01_ARCHITECTURE.md.
     """
-    raise NotImplementedError("see docs/01_ARCHITECTURE.md — utils/testing")
+    raise NotImplementedError("see docs/design/01_ARCHITECTURE.md — utils/testing")

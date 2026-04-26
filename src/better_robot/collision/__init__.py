@@ -5,7 +5,7 @@ Collision lives in its own layer parallel to ``kinematics``/``dynamics`` and
 is **optional**: a user who only cares about IK pays nothing for the
 collision machinery.
 
-See ``docs/09_COLLISION_GEOMETRY.md``.
+See ``docs/design/09_COLLISION_GEOMETRY.md``.
 """
 
 from __future__ import annotations

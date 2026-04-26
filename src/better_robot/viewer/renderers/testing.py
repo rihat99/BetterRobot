@@ -5,7 +5,7 @@ into a log. Render-mode unit tests attach a mode to a ``MockBackend``, call
 ``update(data)``, and assert on the recorded calls. No viser, no pyrender,
 no ffmpeg needed.
 
-See ``docs/12_VIEWER.md §13``.
+See ``docs/design/12_VIEWER.md §13``.
 """
 
 from __future__ import annotations

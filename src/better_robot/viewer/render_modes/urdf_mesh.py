@@ -2,7 +2,7 @@
 
 ``trimesh`` is imported lazily here and ONLY here.
 
-See ``docs/12_VIEWER.md §4.2``.
+See ``docs/design/12_VIEWER.md §4.2``.
 """
 
 from __future__ import annotations

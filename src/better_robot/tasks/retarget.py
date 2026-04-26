@@ -3,7 +3,7 @@
 Reduces to ``solve_trajopt`` with ``keyframes`` built from per-step source
 frame poses. Skeleton only in v1.
 
-See ``docs/08_TASKS.md §4``.
+See ``docs/design/08_TASKS.md §4``.
 """
 
 from __future__ import annotations
@@ -36,6 +36,6 @@ def retarget(
 ) -> TrajOptResult:
     """Find a target-model trajectory that tracks source-model frame poses.
 
-    See docs/08_TASKS.md §4.
+    See docs/design/08_TASKS.md §4.
     """
-    raise NotImplementedError("see docs/08_TASKS.md §4")
+    raise NotImplementedError("see docs/design/08_TASKS.md §4")

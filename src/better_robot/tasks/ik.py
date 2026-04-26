@@ -4,7 +4,7 @@ Single code path. Floating-base robots are those whose ``joint_models[1]``
 is ``JointFreeFlyer`` — the solver does not need to know. All seven
 quaternion-xyz values of the free-flyer live inside ``q``.
 
-See ``docs/08_TASKS.md §1``.
+See ``docs/design/08_TASKS.md §1``.
 """
 
 from __future__ import annotations
@@ -19,10 +19,10 @@ from ..data_model.model import Model
 from ..kinematics.forward import forward_kinematics
 from ..kinematics.jacobian_strategy import JacobianStrategy
 from ..optim.optimizers.adam import Adam
-from ..optim.optimizers.composite import LMThenLBFGS
 from ..optim.optimizers.gauss_newton import GaussNewton
 from ..optim.optimizers.lbfgs import LBFGS
 from ..optim.optimizers.levenberg_marquardt import LevenbergMarquardt
+from ..optim.optimizers.lm_then_lbfgs import LMThenLBFGS
 from ..optim.problem import LeastSquaresProblem
 from ..residuals.base import ResidualState
 from ..residuals.limits import JointPositionLimit
@@ -52,7 +52,7 @@ class IKCostConfig:
 class OptimizerConfig:
     """Optimizer selection + hyperparameters.
 
-    The ``lm_then_lbfgs`` option (from docs/08_TASKS.md) runs Levenberg-
+    The ``lm_then_lbfgs`` option (from docs/design/08_TASKS.md) runs Levenberg-
     Marquardt for a coarse solve, then L-BFGS for final refinement.
     ``refine_disabled_items`` names cost-stack entries to drop in stage 2
     — the typical use is ``("collision",)`` once LM has the configuration
@@ -82,14 +82,14 @@ class IKResult:
     def fk(self) -> "Data":
         """Return the FK ``Data`` at the solution.
 
-        See docs/08_TASKS.md §1.
+        See docs/design/08_TASKS.md §1.
         """
         return forward_kinematics(self.model, self.q, compute_frames=True)
 
     def frame_pose(self, name: str) -> torch.Tensor:
         """Look up a frame pose by name on the FK result.
 
-        See docs/08_TASKS.md §1.
+        See docs/design/08_TASKS.md §1.
         """
         data = self.fk()
         frame_id = self.model.frame_id(name)
@@ -97,6 +97,54 @@ class IKResult:
 
     def q_only(self) -> torch.Tensor:
         return self.q
+
+
+def _make_linear_solver(name: str):
+    """Return a fresh ``LinearSolver`` instance for the named string."""
+    from ..optim.solvers.cg import CG
+    from ..optim.solvers.cholesky import Cholesky
+    from ..optim.solvers.lstsq import LSTSQ
+
+    table = {"cholesky": Cholesky, "lstsq": LSTSQ, "cg": CG}
+    if name not in table:
+        raise ValueError(
+            f"Unknown linear_solver {name!r}; expected one of {sorted(table)}"
+        )
+    return table[name]()
+
+
+def _make_robust_kernel(name: str):
+    """Return a fresh ``RobustKernel`` instance for the named string.
+
+    ``"l2"`` returns ``None`` so the optimiser can take the fast path
+    (no per-row reweighting work).
+    """
+    if name == "l2":
+        return None
+    from ..optim.kernels.cauchy import Cauchy
+    from ..optim.kernels.huber import Huber
+    from ..optim.kernels.tukey import Tukey
+
+    table = {"huber": Huber, "cauchy": Cauchy, "tukey": Tukey}
+    if name not in table:
+        raise ValueError(
+            f"Unknown kernel {name!r}; expected 'l2' or one of {sorted(table)}"
+        )
+    return table[name]()
+
+
+def _make_damping_strategy(name: str):
+    """Return a fresh ``DampingStrategy`` instance for the named string."""
+    from ..optim.strategies.adaptive import Adaptive
+    from ..optim.strategies.constant import Constant
+    from ..optim.strategies.trust_region import TrustRegion
+
+    table = {"adaptive": Adaptive, "constant": Constant, "trust_region": TrustRegion}
+    if name not in table:
+        raise ValueError(
+            f"Unknown damping {name!r}; expected one of {sorted(table)}"
+        )
+    return table[name]()
 
 
 def solve_ik(
@@ -126,7 +174,7 @@ def solve_ik(
     -------
     IKResult
 
-    See docs/08_TASKS.md §1.
+    See docs/design/08_TASKS.md §1.
     """
     if cost_cfg is None:
         cost_cfg = IKCostConfig()
@@ -196,7 +244,18 @@ def solve_ik(
         )
     else:
         raise ValueError(f"Unknown optimizer {opt_name!r}")
-    result = opt.minimize(problem, max_iter=optimizer_cfg.max_iter)
+
+    linear_solver = _make_linear_solver(optimizer_cfg.linear_solver)
+    kernel = _make_robust_kernel(optimizer_cfg.kernel)
+    strategy = _make_damping_strategy(optimizer_cfg.damping)
+
+    result = opt.minimize(
+        problem,
+        max_iter=optimizer_cfg.max_iter,
+        linear_solver=linear_solver,
+        kernel=kernel,
+        strategy=strategy,
+    )
 
     return IKResult(
         q=result.x,

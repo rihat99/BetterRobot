@@ -5,11 +5,15 @@ agnostic to the residual shape — it calls ``problem.residual(x)`` and
 ``problem.jacobian(x)`` and uses ``problem.step(x, delta_v)`` for the
 manifold-aware update.
 
+If a non-trivial ``kernel`` is supplied, the residual and Jacobian are
+re-weighted IRLS-style each iteration: every row ``i`` is scaled by
+``sqrt(kernel.weight(r_i²))`` before forming the normal equations.
+
 Returns a :class:`~better_robot.optim.state.SolverState` whose
 ``status`` is ``"converged"`` when the gradient norm drops below ``tol``
 and ``"maxiter"`` otherwise.
 
-See ``docs/07_RESIDUALS_COSTS_SOLVERS.md §5``.
+See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5``.
 """
 
 from __future__ import annotations
@@ -18,6 +22,26 @@ import torch
 
 from ..problem import LeastSquaresProblem
 from ..state import SolverState
+
+
+def _apply_kernel(
+    r: torch.Tensor,
+    J: torch.Tensor,
+    kernel,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Return ``(sqrt(w)·r, sqrt(w)·J)`` for IRLS reweighting.
+
+    ``kernel.weight(r_i²)`` produces a per-row weight; the standard
+    equivalence between ``argmin Σ ρ(r_i²)`` and ``argmin Σ w_i r_i²`` is
+    realised by scaling each residual row and the matching Jacobian row by
+    ``sqrt(w_i)`` (Triggs et al. 2000, §4).
+    """
+    if kernel is None:
+        return r, J
+    sq = r * r
+    w = kernel.weight(sq)
+    sw = torch.sqrt(w.clamp(min=0.0))
+    return r * sw, J * sw.unsqueeze(-1)
 
 
 class LevenbergMarquardt:
@@ -46,7 +70,7 @@ class LevenbergMarquardt:
     ) -> SolverState:
         """Run LM until convergence or ``max_iter`` is reached.
 
-        See docs/07_RESIDUALS_COSTS_SOLVERS.md §5.
+        See docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5.
         """
         from ..solvers.cholesky import Cholesky
         from ..strategies.adaptive import Adaptive
@@ -63,13 +87,14 @@ class LevenbergMarquardt:
 
         it = -1
         for it in range(max_iter):
-            J = problem.jacobian(state.x)  # (dim, nv)
+            J = problem.jacobian(state.x)                                 # (dim, nv)
+            r_w, J_w = _apply_kernel(state.residual, J, kernel)
 
             # Normal equations: (J^T J + lam * I) delta_v = -J^T r
-            JtJ = J.mT @ J                                           # (nv, nv)
-            Jtr = J.mT @ state.residual                              # (nv,)
+            JtJ = J_w.mT @ J_w                                            # (nv, nv)
+            Jtr = J_w.mT @ r_w                                            # (nv,)
             H = JtJ + state.damping * torch.eye(nv, dtype=J.dtype, device=J.device)
-            delta_v = solver.solve(H, -Jtr)                          # (nv,)
+            delta_v = solver.solve(H, -Jtr)                               # (nv,)
 
             # Manifold-aware update
             x_new = problem.step(state.x, delta_v)

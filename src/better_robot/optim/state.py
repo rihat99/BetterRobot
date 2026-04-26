@@ -1,6 +1,6 @@
 """``SolverState`` — shared iteration record passed through every optimiser.
 
-Docs: ``docs/07_RESIDUALS_COSTS_SOLVERS.md §5``. The same struct serves as:
+Docs: ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5``. The same struct serves as:
 
 1. the **iteration state** mutated by :meth:`Optimizer.minimize` each step;
 2. the **terminal return value** of :meth:`Optimizer.minimize`;

@@ -11,7 +11,7 @@ This is the common primitive behind ``make_smpl_like_body`` and the
 recommended entry point for programmatic construction of any tree of bodies
 connected by uniform free-flyer / spherical / fixed joints.
 
-See ``docs/04_PARSERS.md §6``.
+See ``docs/design/04_PARSERS.md §6``.
 """
 
 from __future__ import annotations
@@ -166,12 +166,18 @@ def build_kinematic_tree_body(
     for jname, m, c, I in zip(joint_names, masses, coms, inertias):
         b.add_body(jname, mass=m, com=c, inertia=I)
 
-    b.add_joint(
+    # Internal builder: drop straight to ``_push_joint`` so the named-helper
+    # contract still applies to user-facing callers of ``ModelBuilder``.
+    b._push_joint(
         "root",
         kind=root_kind,
         parent="world",
         child=joint_names[0],
         origin=_origin_from_translation(translations[0], dtype),
+        axis=None,
+        lower=None, upper=None,
+        velocity_limit=None, effort_limit=None,
+        mimic_source=None, mimic_multiplier=1.0, mimic_offset=0.0,
     )
 
     for idx in range(1, n):
@@ -180,12 +186,16 @@ def build_kinematic_tree_body(
             raise ValueError(
                 f"parents[{idx}] = {pidx} must reference an earlier index in [0, {idx})"
             )
-        b.add_joint(
+        b._push_joint(
             joint_names[idx],
             kind=child_kind,
             parent=joint_names[pidx],
             child=joint_names[idx],
             origin=_origin_from_translation(translations[idx], dtype),
+            axis=None,
+            lower=None, upper=None,
+            velocity_limit=None, effort_limit=None,
+            mimic_source=None, mimic_multiplier=1.0, mimic_offset=0.0,
         )
 
     return b.finalize()

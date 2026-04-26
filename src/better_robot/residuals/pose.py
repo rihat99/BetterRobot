@@ -4,8 +4,8 @@ Analytic Jacobians via ``get_frame_jacobian`` composed with
 ``right_jacobian_inv_se3(log_err)``. Replaces the legacy ``Jlog ≈ I``
 approximation.
 
-See ``docs/05_KINEMATICS.md §5`` and
-``docs/07_RESIDUALS_COSTS_SOLVERS.md §2``.
+See ``docs/design/05_KINEMATICS.md §5`` and
+``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §2``.
 """
 
 from __future__ import annotations
@@ -68,8 +68,9 @@ class PoseResidual:
     def jacobian(self, state: ResidualState) -> torch.Tensor | None:
         """Analytic Jacobian: ``Jr^{-1}(r) @ Ad(T_ee^{-1}) @ J_frame_world``.
 
-        See docs/05_KINEMATICS.md §5.
+        See docs/design/05_KINEMATICS.md §5.
         """
+        from ..kinematics import ReferenceFrame
         from ..kinematics.jacobian import get_frame_jacobian
 
         T_target = self.target.to(
@@ -81,7 +82,7 @@ class PoseResidual:
 
         # World-frame spatial Jacobian of the end-effector frame
         # (LOCAL_WORLD_ALIGNED convention: [v_frame_origin_world, omega_world])
-        J_world = get_frame_jacobian(state.model, state.data, self.frame_id, reference="local_world_aligned")  # (B..., 6, nv)
+        J_world = get_frame_jacobian(state.model, state.data, self.frame_id, reference=ReferenceFrame.LOCAL_WORLD_ALIGNED)  # (B..., 6, nv)
 
         # Body-frame Jacobian: just rotate both halves by R_ee^T.
         # get_frame_jacobian returns the velocity of the frame origin (not the world
@@ -134,9 +135,10 @@ class PositionResidual:
         return (p_ee - p_target) * self.weight
 
     def jacobian(self, state: ResidualState) -> torch.Tensor | None:
+        from ..kinematics import ReferenceFrame
         from ..kinematics.jacobian import get_frame_jacobian
 
-        J_world = get_frame_jacobian(state.model, state.data, self.frame_id, reference="local_world_aligned")  # (B..., 6, nv)
+        J_world = get_frame_jacobian(state.model, state.data, self.frame_id, reference=ReferenceFrame.LOCAL_WORLD_ALIGNED)  # (B..., 6, nv)
         return J_world[..., :3, :] * self.weight  # (B..., 3, nv)
 
 
@@ -172,6 +174,7 @@ class OrientationResidual:
         return r_so3 * self.weight
 
     def jacobian(self, state: ResidualState) -> torch.Tensor | None:
+        from ..kinematics import ReferenceFrame
         from ..kinematics.jacobian import get_frame_jacobian
 
         T_target = self.target.to(
@@ -182,7 +185,7 @@ class OrientationResidual:
         q_ee = T_ee[..., 3:]
         r = so3.log(so3.compose(so3.inverse(q_target), q_ee))  # (B..., 3)
 
-        J_world = get_frame_jacobian(state.model, state.data, self.frame_id, reference="local_world_aligned")
+        J_world = get_frame_jacobian(state.model, state.data, self.frame_id, reference=ReferenceFrame.LOCAL_WORLD_ALIGNED)
         J_ang = J_world[..., 3:, :]  # angular rows (B..., 3, nv)
 
         Jr_inv = right_jacobian_inv_so3(r)  # (B..., 3, 3)

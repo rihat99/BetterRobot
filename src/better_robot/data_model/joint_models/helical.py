@@ -1,6 +1,6 @@
 """``JointHelical`` — pitch-coupled rotation + translation. ``nq = nv = 1``.
 
-See ``docs/02_DATA_MODEL.md §5``.
+See ``docs/design/02_DATA_MODEL.md §5``.
 """
 
 from __future__ import annotations

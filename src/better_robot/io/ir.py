@@ -5,7 +5,7 @@ All parsers (URDF, MJCF, programmatic builder) emit an ``IRModel``. A single
 The IR is flat and ordering-unconstrained; topology/idx_q/idx_v assignment
 is ``build_model``'s job.
 
-See ``docs/04_PARSERS.md §2``.
+See ``docs/design/04_PARSERS.md §2``.
 """
 
 from __future__ import annotations
@@ -67,6 +67,14 @@ class IRFrame:
     frame_type: str = "op"
 
 
+#: The schema version this build of ``better_robot`` was compiled against.
+#: ``build_model`` rejects any ``IRModel`` whose instance attribute
+#: ``schema_version`` does not equal this constant. Bump in lockstep with
+#: any breaking change to ``IRJoint``/``IRBody``/``IRFrame``/``IRModel`` or
+#: their semantics. See ``docs/design/04_PARSERS.md §2.1``.
+IR_SCHEMA_VERSION: int = 1
+
+
 @dataclass
 class IRModel:
     """Flat, unordered intermediate representation of a robot."""
@@ -79,6 +87,12 @@ class IRModel:
     gravity: torch.Tensor = field(
         default_factory=lambda: torch.tensor([0.0, 0.0, -9.81, 0.0, 0.0, 0.0])
     )
+    #: Per-instance schema version; must equal ``IR_SCHEMA_VERSION`` at
+    #: ``build_model`` time. Pickled IRs from older library versions
+    #: are rejected with :class:`~better_robot.exceptions.IRSchemaVersionError`.
+    schema_version: int = IR_SCHEMA_VERSION
+    #: Free-form parser metadata, e.g. ``{"asset_resolver": ..., "source_path": ...}``.
+    meta: dict = field(default_factory=dict)
 
 
 class IRError(ValueError):

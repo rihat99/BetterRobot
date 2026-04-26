@@ -2,7 +2,7 @@
 
 The public entry point is ``load`` — a thin suffix/type dispatcher.
 
-See ``docs/04_PARSERS.md``.
+See ``docs/design/04_PARSERS.md``.
 """
 
 from __future__ import annotations
@@ -14,8 +14,16 @@ import torch
 
 from ..data_model.joint_models.base import JointModel
 from ..data_model.model import Model
+from .assets import (
+    AssetResolver,
+    CachedDownloadResolver,
+    CompositeResolver,
+    FilesystemResolver,
+    PackageResolver,
+)
 from .build_model import build_model
 from .ir import (
+    IR_SCHEMA_VERSION,
     IRBody,
     IRError,
     IRFrame,
@@ -33,7 +41,7 @@ _PARSERS: dict[str, Callable[..., IRModel]] = {
 
 
 def register_parser(suffix: str, fn: Callable[..., IRModel]) -> None:
-    """Register a new format parser at runtime. See docs/04_PARSERS.md §7."""
+    """Register a new format parser at runtime. See docs/design/04_PARSERS.md §7."""
     _PARSERS[suffix] = fn
 
 
@@ -69,7 +77,7 @@ def load(
     Passing ``free_flyer=True`` (or ``root_joint=JointFreeFlyer()``) turns
     any fixed-base URDF into a floating-base robot.
 
-    See docs/04_PARSERS.md §1.
+    See docs/design/04_PARSERS.md §1.
     """
     from ..data_model.joint_models import JointFreeFlyer
 
@@ -112,5 +120,11 @@ __all__ = [
     "IRFrame",
     "IRGeom",
     "IRError",
+    "IR_SCHEMA_VERSION",
     "ModelBuilder",
+    "AssetResolver",
+    "FilesystemResolver",
+    "PackageResolver",
+    "CompositeResolver",
+    "CachedDownloadResolver",
 ]

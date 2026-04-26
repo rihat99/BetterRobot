@@ -5,23 +5,30 @@ Replaces the legacy split between ``_fk_impl`` and the
 ``model.topo_order`` and calls ``joint_models[j].joint_transform``. A
 free-flyer root is not a special case — it's the joint at index 1.
 
-See ``docs/05_KINEMATICS.md §2``.
+See ``docs/design/05_KINEMATICS.md §2``.
 """
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import torch
 
+from ..backends import default_backend
+from ..data_model import KinematicsLevel
 from ..data_model.data import Data
 from ..data_model.joint_models import JointFreeFlyer
 from ..data_model.model import Model
 from ..exceptions import DeviceMismatchError, QuaternionNormError, ShapeError
 from ..lie import se3
 
+if TYPE_CHECKING:
+    from ..backends.protocol import Backend
+
 
 #: Tolerance on quaternion norm at a public entry point.
 #: Anything within this band of 1.0 is re-normalised silently by downstream
-#: code; anything outside is rejected (see docs/17_CONTRACTS.md §1.3).
+#: code; anything outside is rejected (see docs/conventions/17_CONTRACTS.md §1.3).
 _QUAT_NORM_TOL = 0.1
 
 
@@ -38,7 +45,7 @@ def _validate_q(model: Model, q: torch.Tensor) -> None:
         If the model has a free-flyer root and ``q[..., 3:7]`` is outside
         ``[1 - TOL, 1 + TOL]``.
 
-    See ``docs/17_CONTRACTS.md §1``.
+    See ``docs/conventions/17_CONTRACTS.md §1``.
     """
     if q.shape[-1] != model.nq:
         raise ShapeError(
@@ -70,7 +77,8 @@ def forward_kinematics_raw(
     """Tensor-only FK primitive — returns world/local joint placements.
 
     Autograd-safe: uses list accumulation + ``torch.stack`` instead of
-    in-place writes so PyPose's backward can trace through the composition.
+    in-place writes so the backward pass can trace through every SE3
+    composition cleanly.
 
     Parameters
     ----------
@@ -84,7 +92,7 @@ def forward_kinematics_raw(
     joint_pose_local : (B..., njoints, 7)
         Parent-frame joint placements (``liMi``).
 
-    See docs/05_KINEMATICS.md §6 and docs/13_NAMING.md for the rename.
+    See docs/design/05_KINEMATICS.md §6 and docs/conventions/13_NAMING.md for the rename.
     """
     _validate_q(model, q)
     *batch, _ = q.shape
@@ -132,6 +140,7 @@ def forward_kinematics(
     q_or_data: torch.Tensor | Data,
     *,
     compute_frames: bool = False,
+    backend: "Backend | None" = None,
 ) -> Data:
     """Compute joint (and optionally frame) placements.
 
@@ -144,6 +153,9 @@ def forward_kinematics(
         pre-allocated ``Data`` whose ``q`` field is populated.
     compute_frames : bool
         If true, also populate ``data.frame_pose_world``.
+    backend : Backend, optional
+        Backend instance to dispatch through. ``None`` uses the active
+        default (see :func:`better_robot.backends.default_backend`).
 
     Returns
     -------
@@ -151,7 +163,7 @@ def forward_kinematics(
         ``Data`` with ``joint_pose_local`` and ``joint_pose_world`` populated
         (and ``frame_pose_world`` if ``compute_frames=True``).
 
-    See docs/05_KINEMATICS.md §2.
+    See docs/design/05_KINEMATICS.md §2.
     """
     if isinstance(q_or_data, Data):
         data = q_or_data
@@ -165,11 +177,13 @@ def forward_kinematics(
         )
         data.q = q
 
-    # ``forward_kinematics_raw`` re-validates, so no need to guard here.
-    joint_pose_world, joint_pose_local = forward_kinematics_raw(model, q)
+    # Validate at the public boundary; the backend impl trusts inputs.
+    _validate_q(model, q)
+    backend = backend or default_backend()
+    joint_pose_world, joint_pose_local = backend.kinematics.forward_kinematics(model, q)
     data.joint_pose_world = joint_pose_world
     data.joint_pose_local = joint_pose_local
-    data._kinematics_level = 1
+    object.__setattr__(data, "_kinematics_level", KinematicsLevel.PLACEMENTS)
 
     if compute_frames:
         update_frame_placements(model, data)
@@ -184,7 +198,7 @@ def update_frame_placements(model: Model, data: Data) -> Data:
     Requires ``data.joint_pose_world`` to be populated (call
     :func:`forward_kinematics` first).
 
-    See docs/05_KINEMATICS.md §2.
+    See docs/design/05_KINEMATICS.md §2.
     """
     joint_pose_world = data.joint_pose_world
     assert joint_pose_world is not None, (

@@ -5,9 +5,9 @@ frame of a ``(B, T, nq)`` ``Trajectory`` to a ``Scene``, and how to run
 a straight loop across all frames at a fixed fps. There is no scrub
 bar, speed, loop toggle, ghost/trace overlay, manifold interpolation
 between keyframes, or batch-axis picker — each of those is listed as
-future work in ``docs/12_VIEWER.md §10.3``.
+future work in ``docs/design/12_VIEWER.md §10.3``.
 
-See ``docs/12_VIEWER.md §8``.
+See ``docs/design/12_VIEWER.md §8``.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 _FUTURE_MSG = (
     "Transport controls (seek/step/speed/loop/ghost/trace) are future "
-    "work — see docs/12_VIEWER.md §10.3."
+    "work — see docs/design/12_VIEWER.md §10.3."
 )
 
 

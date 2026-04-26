@@ -36,7 +36,7 @@ class JacobianStrategy(str, Enum):
     AUTO = "auto"             # prefer analytic, fall back to autodiff
 ```
 
-`residual_jacobian` uses central finite differences (not torch.autograd) due to PyPose quaternion gradient bug.
+`residual_jacobian`'s AUTO fallback uses central finite differences. The pure-PyTorch Lie backend has clean autograd, so `torch.autograd.functional.jacobian` is also valid; FD is kept because it's joint-kind-agnostic and matches analytic Jacobians to numerical noise.
 
 ## FK Hot Path
 

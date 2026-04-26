@@ -1,6 +1,6 @@
 """``JointFixed`` / ``JointUniverse`` — zero-DOF joints.
 
-See ``docs/02_DATA_MODEL.md §5``.
+See ``docs/design/02_DATA_MODEL.md §5``.
 """
 
 from __future__ import annotations

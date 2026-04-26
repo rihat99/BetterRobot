@@ -4,19 +4,22 @@ The ``yourdfpy`` import is confined to this file. Mimic joints, continuous
 joints, and multi-child links are handled at IR level. Free-flyer is not
 added here — ``build_model(root_joint=JointFreeFlyer())`` adds it.
 
-See ``docs/04_PARSERS.md §4``.
+See ``docs/design/04_PARSERS.md §4``.
 """
 
 from __future__ import annotations
 
 import math
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
 
 from ..ir import IRBody, IRFrame, IRGeom, IRJoint, IRModel
+
+if TYPE_CHECKING:
+    from ..assets import AssetResolver
 
 
 def _mat4_to_se3(T: np.ndarray) -> torch.Tensor:
@@ -123,15 +126,39 @@ def _extract_geoms(
     return result
 
 
-def parse_urdf(source: str | Path | Any) -> IRModel:
+def parse_urdf(
+    source: str | Path | Any,
+    *,
+    resolver: "AssetResolver | None" = None,
+) -> IRModel:
     """Parse a URDF file, path, or ``yourdfpy.URDF`` object into an ``IRModel``.
 
-    See docs/04_PARSERS.md §4.
+    Parameters
+    ----------
+    source : str | Path | yourdfpy.URDF
+    resolver : AssetResolver, optional
+        Resolves mesh / texture references encountered inside the URDF.
+        Defaults to a :class:`~better_robot.io.assets.FilesystemResolver`
+        rooted at the URDF file's parent directory (when ``source`` is a
+        path). The resolver is forwarded to ``IRModel.meta["asset_resolver"]``
+        and through ``build_model`` to ``Model.meta["asset_resolver"]``.
+
+    See docs/design/04_PARSERS.md §4.
     """
-    import yourdfpy
+    try:
+        import yourdfpy
+    except ImportError as exc:
+        from ...exceptions import BackendNotAvailableError
+        raise BackendNotAvailableError(
+            "URDF parsing requires the optional 'yourdfpy' dependency. "
+            "Install with: pip install better-robot[urdf]"
+        ) from exc
 
     if isinstance(source, (str, Path)):
         urdf = yourdfpy.URDF.load(str(source))
+        if resolver is None:
+            from ..assets import FilesystemResolver
+            resolver = FilesystemResolver(base_path=Path(source).parent)
     else:
         urdf = source
 
@@ -256,9 +283,14 @@ def parse_urdf(source: str | Path | Any) -> IRModel:
     # ── model name ────────────────────────────────────────────────────
     name = getattr(urdf, "name", "") or ""
 
+    meta: dict = {}
+    if resolver is not None:
+        meta["asset_resolver"] = resolver
+
     return IRModel(
         name=name,
         bodies=ir_bodies,
         joints=ir_joints,
         root_body=root_body,
+        meta=meta,
     )

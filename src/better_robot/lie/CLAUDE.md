@@ -11,18 +11,17 @@ Functional API (no classes). Plain tensors in, plain tensors out.
 | SO3 quaternion | `(..., 4)` | `[qx, qy, qz, qw]` — scalar last |
 | SO3 tangent | `(..., 3)` | axis-angle |
 
-## PyPose Isolation Rule
+## Backend
 
-**All `import pypose` statements live in exactly one file: `_pypose_backend.py`.**
-A lint test enforces this. Every other module in the library uses `se3.py` and `so3.py` wrappers. Swapping PyPose for Warp = replace `_pypose_backend.py` only.
+Pure-PyTorch SE3/SO3 implementation lives in `_torch_native_backend.py`. There is one backend; PyPose was removed in P10-D. Swapping for a future runtime (e.g. Warp) = add a same-shaped backend module and reroute `lie/se3.py` / `lie/so3.py`.
 
-## Known PyPose Bug
+## Numerics
 
-PyPose's `SE3.Log().backward()` has an incorrect factor-of-2 in the quaternion gradient. This is why `residual_jacobian` in `kinematics/` uses central finite differences instead of `torch.autograd.functional.jacobian`. FD epsilon: `1e-3` for float32, `1e-7` for float64.
+`_torch_native_backend.py` stitches Taylor expansions at `θ → 0` via `torch.where` against a `θ²` cutoff (1e-8) so SE3/SO3 `exp` and `log` stay smooth and differentiable across the singularity. `_matrix_to_quat` uses Shepperd 1978 four-branch selection for stable conversion when `qw → 0`. fp64 `gradcheck` covers `se3_{log,exp,inverse,compose,act}` and `so3_{exp,log}`.
 
 ## Modules
 
 - `se3.py` — `compose`, `inverse`, `log`, `exp`, `act`, `adjoint`, `from_axis_angle`, `from_translation`, `normalize`, `sclerp`
 - `so3.py` — same pattern + `from_matrix`, `to_matrix`, `slerp`
 - `tangents.py` — right/left Jacobians of SO3/SE3 exp/log, `hat`/`vee` maps
-- `_pypose_backend.py` — sole PyPose import point
+- `_torch_native_backend.py` — pure-PyTorch backend (the only one)

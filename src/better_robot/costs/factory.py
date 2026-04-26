@@ -3,7 +3,7 @@
 Lets users pass a plain function as a residual by wrapping it in a
 throwaway ``Residual`` class (autodiff Jacobian only).
 
-See ``docs/07_RESIDUALS_COSTS_SOLVERS.md``.
+See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md``.
 """
 
 from __future__ import annotations
@@ -23,6 +23,6 @@ def factory(
 ) -> Residual:
     """Wrap a plain function ``state → residual`` as a ``Residual`` object.
 
-    See docs/07_RESIDUALS_COSTS_SOLVERS.md.
+    See docs/design/07_RESIDUALS_COSTS_SOLVERS.md.
     """
-    raise NotImplementedError("see docs/07_RESIDUALS_COSTS_SOLVERS.md")
+    raise NotImplementedError("see docs/design/07_RESIDUALS_COSTS_SOLVERS.md")

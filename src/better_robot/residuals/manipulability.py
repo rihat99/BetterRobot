@@ -4,7 +4,7 @@ Scalar-valued (``dim = 1``); maximises the Yoshikawa index
 ``sqrt(det(J J^T))`` as a cost. Analytic Jacobian is expensive — v1 uses
 autodiff (``.jacobian() → None``).
 
-See ``docs/07_RESIDUALS_COSTS_SOLVERS.md §2``.
+See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §2``.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ class YoshikawaResidual(Residual):
         self.dim = 1
 
     def __call__(self, state: ResidualState) -> torch.Tensor:
-        raise NotImplementedError("see docs/07_RESIDUALS_COSTS_SOLVERS.md §2")
+        raise NotImplementedError("see docs/design/07_RESIDUALS_COSTS_SOLVERS.md §2")
 
     def jacobian(self, state: ResidualState) -> torch.Tensor | None:
         """No analytic form in v1 — return ``None`` so the solver falls back to autodiff."""

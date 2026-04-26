@@ -3,9 +3,9 @@
 Undamped Gauss-Newton with a tiny Tikhonov regularisation for rank
 deficiency. Shares the same plug-in linear-solver interface as LM so the
 outer shell of ``minimize`` is almost identical — the only difference is
-the fixed (near-zero) damping.
+the fixed (near-zero) damping. Honours ``kernel`` via IRLS reweighting.
 
-See ``docs/07_RESIDUALS_COSTS_SOLVERS.md §5``.
+See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5``.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ import torch
 
 from ..problem import LeastSquaresProblem
 from ..state import SolverState
+from .levenberg_marquardt import _apply_kernel
 
 
 class GaussNewton:
@@ -35,7 +36,7 @@ class GaussNewton:
     ) -> SolverState:
         """Run Gauss-Newton until convergence or ``max_iter`` is reached.
 
-        See docs/07_RESIDUALS_COSTS_SOLVERS.md §5.
+        See docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5.
         """
         from ..solvers.cholesky import Cholesky
 
@@ -46,8 +47,9 @@ class GaussNewton:
         it = -1
         for it in range(max_iter):
             J = problem.jacobian(state.x)                                # (dim, nv)
-            JtJ = J.mT @ J                                               # (nv, nv)
-            Jtr = J.mT @ state.residual                                  # (nv,)
+            r_w, J_w = _apply_kernel(state.residual, J, kernel)
+            JtJ = J_w.mT @ J_w                                           # (nv, nv)
+            Jtr = J_w.mT @ r_w                                           # (nv,)
             H = JtJ + self.eps * torch.eye(nv, dtype=J.dtype, device=J.device)
             delta_v = solver.solve(H, -Jtr)                              # (nv,)
 

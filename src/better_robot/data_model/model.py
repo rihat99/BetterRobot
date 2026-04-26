@@ -5,7 +5,7 @@ Every tensor buffer is device/dtype polymorphic via ``.to()``. The static
 vs floating-base distinction **disappears**: a floating base is simply
 ``joint_models[1] = JointFreeFlyer``.
 
-See ``docs/02_DATA_MODEL.md §2``.
+See ``docs/design/02_DATA_MODEL.md §2``.
 """
 
 from __future__ import annotations
@@ -143,6 +143,11 @@ class Model:
     def body_id(self, name: str) -> int:
         """Return the integer id of the named body."""
         return self.body_name_to_id[name]
+
+    def body_inertia(self, body_id: int):
+        """Typed accessor returning a single body's :class:`~better_robot.spatial.Inertia`."""
+        from ..spatial.inertia import Inertia
+        return Inertia(self.body_inertias[body_id])
 
     def get_subtree(self, joint_id: int) -> tuple[int, ...]:
         """Return the subtree rooted at ``joint_id``."""

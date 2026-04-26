@@ -5,7 +5,7 @@ Implementations live beside this file under ``optim/solvers/`` (``Cholesky``,
 if it provides a ``solve(A, b) -> Tensor`` method with the right signature;
 ``@runtime_checkable`` lets callers verify that with ``isinstance``.
 
-See ``docs/07_RESIDUALS_COSTS_SOLVERS.md §5`` and ``docs/15_EXTENSION.md §5``.
+See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5`` and ``docs/conventions/15_EXTENSION.md §5``.
 """
 
 from __future__ import annotations

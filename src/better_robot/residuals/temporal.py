@@ -6,7 +6,7 @@ single configuration. When the optimization variable is a whole trajectory
 residual, and — for the analytic Jacobian — scatter the resulting block
 into the correct columns of a ``(dim_inner, T*nv)`` matrix.
 
-See ``docs/07_RESIDUALS_COSTS_SOLVERS.md §2``.
+See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §2``.
 """
 
 from __future__ import annotations
@@ -50,6 +50,8 @@ class TimeIndexedResidual:
 
         # Slice the single-timestep view of Data. frame_pose_world is (T, nframes, 7);
         # joint_pose_world is (T, njoints, 7). Any fields that are None stay None.
+        from ..data_model._kinematics_level import KinematicsLevel
+
         data_sliced = Data(
             _model_id=state.data._model_id,
             q=q[self.t_idx],
@@ -65,6 +67,11 @@ class TimeIndexedResidual:
             ),
             joint_jacobians=None,  # recompute if needed at this timestep
         )
+        # The slice carries already-populated FK fields, so promote the
+        # cache-level so downstream residuals (PoseResidual, frame Jacobians)
+        # don't trip the StaleCacheError guard.
+        if state.data.joint_pose_world is not None:
+            object.__setattr__(data_sliced, "_kinematics_level", KinematicsLevel.PLACEMENTS)
         return ResidualState(model=state.model, data=data_sliced, variables=q[self.t_idx])
 
     def __call__(self, state: ResidualState) -> torch.Tensor:
@@ -86,3 +93,34 @@ class TimeIndexedResidual:
         J = torch.zeros(dim, T * nv, device=q.device, dtype=q.dtype)
         J[:, self.t_idx * nv:(self.t_idx + 1) * nv] = J_inner
         return J
+
+    def apply_jac_transpose(
+        self, state: ResidualState, vec: torch.Tensor
+    ) -> torch.Tensor:
+        """Sparse ``J^T @ vec`` — only ``t_idx`` knot is non-zero.
+
+        Avoids allocating the dense ``(dim, T·nv)`` Jacobian — important
+        for long trajectories where ``T·nv`` can be tens of thousands.
+        """
+        sub = self._slice_state(state)
+        J_inner = self.inner.jacobian(sub)
+        if J_inner is None:
+            from .base import default_apply_jac_transpose
+
+            return default_apply_jac_transpose(self, state, vec)
+        T = state.variables.shape[0]
+        nv = state.model.nv
+        out = torch.zeros(T * nv, device=vec.device, dtype=vec.dtype)
+        out[self.t_idx * nv:(self.t_idx + 1) * nv] = J_inner.mT @ vec
+        return out
+
+    @property
+    def spec(self):
+        from ..optim.jacobian_spec import ResidualSpec
+
+        return ResidualSpec(
+            dim=self.dim,
+            structure="block",
+            time_coupling="single",
+            affected_knots=(self.t_idx,),
+        )

@@ -5,7 +5,7 @@ weights and per-item on/off flags. The stack concatenates the weighted
 residuals of all active items into a single vector and provides slice maps
 so solvers can compute per-item Jacobians in place.
 
-See ``docs/07_RESIDUALS_COSTS_SOLVERS.md §3``.
+See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §3``.
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ class CostStack:
     ) -> None:
         """Add a residual to the stack under ``name``.
 
-        See docs/07_RESIDUALS_COSTS_SOLVERS.md §3.
+        See docs/design/07_RESIDUALS_COSTS_SOLVERS.md §3.
         """
         if name in self.items:
             raise ValueError(f"cost item {name!r} already in stack")
@@ -77,7 +77,7 @@ class CostStack:
     def total_dim(self) -> int:
         """Return the concatenated residual dimension over all active items.
 
-        See docs/07_RESIDUALS_COSTS_SOLVERS.md §3.
+        See docs/design/07_RESIDUALS_COSTS_SOLVERS.md §3.
         """
         return sum(
             item.residual.dim
@@ -88,7 +88,7 @@ class CostStack:
     def slice_map(self) -> dict[str, slice]:
         """Return the ``{name: slice}`` map into the flat residual buffer.
 
-        See docs/07_RESIDUALS_COSTS_SOLVERS.md §3.
+        See docs/design/07_RESIDUALS_COSTS_SOLVERS.md §3.
         """
         slices: dict[str, slice] = {}
         offset = 0
@@ -104,7 +104,7 @@ class CostStack:
     def residual(self, state: ResidualState) -> torch.Tensor:
         """Flatten every active residual into a ``(B..., total_dim)`` buffer.
 
-        See docs/07_RESIDUALS_COSTS_SOLVERS.md §3.
+        See docs/design/07_RESIDUALS_COSTS_SOLVERS.md §3.
         """
         parts: list[torch.Tensor] = []
         for item in self.items.values():
@@ -124,7 +124,7 @@ class CostStack:
     ) -> torch.Tensor:
         """Per-item Jacobian dispatch, stacked into ``(B..., total_dim, nv)``.
 
-        See docs/07_RESIDUALS_COSTS_SOLVERS.md §3.
+        See docs/design/07_RESIDUALS_COSTS_SOLVERS.md §3.
         """
         from ..kinematics.jacobian import residual_jacobian
 

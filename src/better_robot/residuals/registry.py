@@ -4,7 +4,7 @@ Third-party users add residuals by decorating a class. The solver has no
 idea the registry exists — residuals are composed into a ``CostStack`` and
 the stack is passed to the solver.
 
-See ``docs/07_RESIDUALS_COSTS_SOLVERS.md §2``.
+See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §2``.
 """
 
 from __future__ import annotations

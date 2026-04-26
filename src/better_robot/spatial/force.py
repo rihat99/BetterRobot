@@ -2,7 +2,7 @@
 
 Stored as ``(..., 6)`` tensor ``[fx, fy, fz, tx, ty, tz]``.
 
-See ``docs/03_LIE_AND_SPATIAL.md §7``.
+See ``docs/design/03_LIE_AND_SPATIAL.md §7``.
 """
 
 from __future__ import annotations
@@ -39,25 +39,31 @@ class Force:
         return self.data[..., 3:]
 
     def cross_motion(self, other) -> "Motion":  # other: Motion
-        """Force cross Motion — dual of Motion.cross_force.
+        """Not a standard spatial operation — use :meth:`Motion.cross_force`.
 
-        Defined so that <f, m.cross_motion(v)> = <m.cross_force(v), f>.
+        ``Force × Motion`` is not part of the spatial-algebra primitives.
+        The dual of :meth:`Motion.cross_force` is what callers usually want.
         """
-        from .motion import Motion
-        # This is ad^*(f) applied via the dual structure
-        # f × m: not a standard operation; raise for now
         raise NotImplementedError(
             "Force.cross_motion is not a standard spatial operation. "
-            "Use Motion.cross_force instead."
+            "Use Motion.cross_force instead — see "
+            "docs/design/03_LIE_AND_SPATIAL.md §7."
         )
 
-    def se3_action(self, T: torch.Tensor) -> "Force":
+    def se3_action(self, T) -> "Force":
         """Apply an SE3 transform to the wrench (dual adjoint action).
 
-        F_new = Ad(T)^{-T} * F = Ad^*(T) * F
-        For spatial forces: Ad^*(T) = Ad(T^{-1})^T
+        ``T`` may be a raw ``(..., 7)`` tensor or an
+        :class:`~better_robot.lie.types.SE3` value (its ``.tensor`` is
+        unwrapped).
+
+        ``F_new = Ad(T)^{-T} * F = Ad^*(T) * F``;
+        for spatial forces ``Ad^*(T) = Ad(T^{-1})^T``.
         """
         from ..lie import se3 as _se3
+        from ..lie.types import SE3 as _SE3
+        if isinstance(T, _SE3):
+            T = T.tensor
         # Dual action: Ad^{-T}(T) * f = Ad(T^{-1})^T * f
         Ad_inv = _se3.adjoint_inv(T)    # (..., 6, 6)  = Ad(T^{-1})
         Ad_inv_T = Ad_inv.transpose(-1, -2)  # (..., 6, 6)

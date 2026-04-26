@@ -8,17 +8,21 @@ it.
 Covered: bodies, joints (hinge/slide/ball/free), sites (→ frames).
 Not covered (deferred to future work): mesh loading, tendons, actuators.
 
-See ``docs/04_PARSERS.md §5``.
+See ``docs/design/04_PARSERS.md §5``.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
 
 from ..ir import IRBody, IRFrame, IRGeom, IRJoint, IRModel
+
+if TYPE_CHECKING:
+    from ..assets import AssetResolver
 
 
 def _pos_quat_to_se3(pos: np.ndarray | None, quat: np.ndarray | None) -> torch.Tensor:
@@ -38,14 +42,29 @@ def _pos_quat_to_se3(pos: np.ndarray | None, quat: np.ndarray | None) -> torch.T
     return torch.cat([t, q])
 
 
-def parse_mjcf(source: str | Path) -> IRModel:
+def parse_mjcf(
+    source: str | Path,
+    *,
+    resolver: "AssetResolver | None" = None,
+) -> IRModel:
     """Parse an MJCF file into an ``IRModel``.
 
     Requires ``mujoco`` to be installed. Imports lazily so the rest of the
     library does not depend on it.
 
-    See docs/04_PARSERS.md §5.
+    Parameters
+    ----------
+    source : str | Path
+    resolver : AssetResolver, optional
+        Resolves mesh / texture references encountered inside the MJCF.
+        Defaults to a :class:`~better_robot.io.assets.FilesystemResolver`
+        rooted at the MJCF file's parent directory.
+
+    See docs/design/04_PARSERS.md §5.
     """
+    if resolver is None:
+        from ..assets import FilesystemResolver
+        resolver = FilesystemResolver(base_path=Path(source).parent)
     try:
         import mujoco
     except ImportError as exc:
@@ -195,10 +214,15 @@ def parse_mjcf(source: str | Path) -> IRModel:
 
     name = getattr(spec, "modelname", "") or Path(source).stem
 
+    meta: dict = {}
+    if resolver is not None:
+        meta["asset_resolver"] = resolver
+
     return IRModel(
         name=name,
         bodies=ir_bodies,
         joints=ir_joints,
         frames=ir_frames,
         root_body=root_body,
+        meta=meta,
     )

@@ -1,6 +1,6 @@
 """``render_modes/collision.py`` — collision capsule render mode (stub).
 
-See ``docs/12_VIEWER.md §4.4``.
+See ``docs/design/12_VIEWER.md §4.4``.
 """
 
 from __future__ import annotations
@@ -33,13 +33,13 @@ class CollisionMode:
         return robot_collision is not None
 
     def attach(self, context: RenderContext, model: "Model", data: "Data") -> None:
-        raise NotImplementedError("see docs/12_VIEWER.md §4.4")
+        raise NotImplementedError("see docs/design/12_VIEWER.md §4.4")
 
     def update(self, data: "Data") -> None:
-        raise NotImplementedError("see docs/12_VIEWER.md §4.4")
+        raise NotImplementedError("see docs/design/12_VIEWER.md §4.4")
 
     def set_visible(self, visible: bool) -> None:
-        raise NotImplementedError("see docs/12_VIEWER.md §4.4")
+        raise NotImplementedError("see docs/design/12_VIEWER.md §4.4")
 
     def detach(self) -> None:
-        raise NotImplementedError("see docs/12_VIEWER.md §4.4")
+        raise NotImplementedError("see docs/design/12_VIEWER.md §4.4")

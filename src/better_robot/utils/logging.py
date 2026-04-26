@@ -1,6 +1,6 @@
 """Library-wide logger.
 
-See ``docs/01_ARCHITECTURE.md``.
+See ``docs/design/01_ARCHITECTURE.md``.
 """
 
 from __future__ import annotations

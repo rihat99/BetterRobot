@@ -5,13 +5,20 @@ functions populate the optional fields lazily — this avoids the mjwarp
 280-field god-dataclass trap.
 
 Field naming follows the ``<entity>_<quantity>_<frame>`` convention
-documented in ``docs/13_NAMING.md``. Pinocchio-style short aliases
+documented in ``docs/conventions/13_NAMING.md``. Pinocchio-style short aliases
 (``oMi``, ``oMf``, ``liMi``, ``nle``, ``Ag``, …) remain available as
 deprecated ``@property`` shims for one release (see §11 of
-``docs/02_DATA_MODEL.md``); they forward read / write to the renamed
+``docs/design/02_DATA_MODEL.md``); they forward read / write to the renamed
 storage field and emit :class:`DeprecationWarning`.
 
-See ``docs/02_DATA_MODEL.md §3`` for the field inventory.
+The ``_kinematics_level`` field tracks how far the recursion has been
+advanced: ``NONE`` < ``PLACEMENTS`` < ``VELOCITIES`` < ``ACCELERATIONS``.
+Reassigning :attr:`q` / :attr:`v` / :attr:`a` invalidates strictly-higher
+caches (see ``docs/design/02_DATA_MODEL.md §3.1``). In-place mutation
+(``data.q[..., 0] += 1.0``) is *not* detected — that is a documented
+limitation.
+
+See ``docs/design/02_DATA_MODEL.md §3``.
 """
 
 from __future__ import annotations
@@ -22,12 +29,14 @@ from typing import Optional
 
 import torch
 
+from ._kinematics_level import KinematicsLevel
+
 # ──────────────────────────────────────────────────────────────────────
 # Old-name → new-name mapping. The module installs ``@property`` shims
 # for every entry below, post-``@dataclass`` decoration, so the old
 # names keep working one more release.
 #
-# Removal ticket: docs/13_NAMING.md §6 (target: v1.1).
+# Removal ticket: docs/conventions/13_NAMING.md §6 (target: v1.1).
 # ──────────────────────────────────────────────────────────────────────
 
 _DEPRECATED_ALIASES: tuple[tuple[str, str], ...] = (
@@ -52,18 +61,34 @@ _DEPRECATED_ALIASES: tuple[tuple[str, str], ...] = (
 )
 
 
-# The set of optional fields that :meth:`Data.reset` clears back to
-# ``None``. Kept separate so the rename diff is grep-friendly.
+# Cache buckets per kinematic level. A field is at level ``L`` if its
+# value depends on inputs through level ``L`` (see §3.1).
+_PLACEMENT_CACHES: tuple[str, ...] = (
+    "joint_pose_local", "joint_pose_world", "frame_pose_world",
+    "joint_jacobians",
+    "mass_matrix", "gravity_torque",
+    "centroidal_momentum_matrix",
+    "com_position",
+)
+_VELOCITY_CACHES: tuple[str, ...] = (
+    "joint_velocity_world", "joint_velocity_local",
+    "joint_jacobians_dot",
+    "coriolis_matrix", "bias_forces",
+    "centroidal_momentum",
+    "com_velocity",
+)
+_ACCELERATION_CACHES: tuple[str, ...] = (
+    "joint_acceleration_world", "joint_acceleration_local",
+    "joint_forces", "ddq",
+    "com_acceleration",
+)
+
+# Aggregate, used by :meth:`Data.reset`.
 _CLEARABLE_FIELDS: tuple[str, ...] = (
     "v", "a", "tau",
-    "joint_pose_local", "joint_pose_world", "frame_pose_world",
-    "joint_velocity_world", "joint_velocity_local",
-    "joint_acceleration_world", "joint_acceleration_local",
-    "joint_forces",
-    "joint_jacobians", "joint_jacobians_dot",
-    "mass_matrix", "coriolis_matrix", "gravity_torque", "bias_forces", "ddq",
-    "centroidal_momentum_matrix", "centroidal_momentum",
-    "com_position", "com_velocity", "com_acceleration",
+    *_PLACEMENT_CACHES,
+    *_VELOCITY_CACHES,
+    *_ACCELERATION_CACHES,
 )
 
 
@@ -72,9 +97,9 @@ class Data:
     """Mutable per-query workspace carrying leading batch dims ``B...``.
 
     Unused cache slots stay ``None``. ``_kinematics_level`` tracks how far
-    the kinematic recursion has been run (0=nothing, 1=placements,
-    2=velocities, 3=accelerations) so functions that need level-2 can
-    assert it has been computed.
+    the kinematic recursion has been run (``KinematicsLevel`` enum) so
+    functions that need a level can call :meth:`require` and raise
+    :class:`~better_robot.exceptions.StaleCacheError` on a mismatch.
     """
 
     _model_id: int
@@ -120,15 +145,69 @@ class Data:
     com_acceleration:           Optional[torch.Tensor] = None   # (B..., 3)
 
     # ──────────── cache bookkeeping ────────────
-    _kinematics_level: int = 0
+    _kinematics_level: KinematicsLevel = KinematicsLevel.NONE
 
     # ────────────────────────── methods ──────────────────────────
+
+    def __setattr__(self, name: str, value) -> None:
+        object.__setattr__(self, name, value)
+        # Skip during dataclass ``__init__`` — the cache-bookkeeping field
+        # is the *last* declared field, so its absence flags "not yet
+        # constructed". Once it appears, q/v/a reassignment triggers
+        # cache invalidation.
+        if not hasattr(self, "_kinematics_level"):
+            return
+        if name == "q":
+            self.invalidate(KinematicsLevel.NONE)
+        elif name == "v":
+            self.invalidate(KinematicsLevel.PLACEMENTS)
+        elif name == "a":
+            self.invalidate(KinematicsLevel.VELOCITIES)
 
     def reset(self) -> None:
         """Set every optional tensor field to ``None`` and reset kinematics level."""
         for f in _CLEARABLE_FIELDS:
             object.__setattr__(self, f, None)
-        object.__setattr__(self, "_kinematics_level", 0)
+        object.__setattr__(self, "_kinematics_level", KinematicsLevel.NONE)
+
+    def invalidate(self, level: KinematicsLevel = KinematicsLevel.NONE) -> None:
+        """Demote the kinematics level to ``level``, clearing strictly-higher caches.
+
+        If ``level == NONE`` (the default) every cache field is reset.
+        """
+        target = int(level)
+        if target < int(KinematicsLevel.ACCELERATIONS):
+            for f in _ACCELERATION_CACHES:
+                object.__setattr__(self, f, None)
+        if target < int(KinematicsLevel.VELOCITIES):
+            for f in _VELOCITY_CACHES:
+                object.__setattr__(self, f, None)
+        if target < int(KinematicsLevel.PLACEMENTS):
+            for f in _PLACEMENT_CACHES:
+                object.__setattr__(self, f, None)
+        # Demote to ``level`` if currently above it; otherwise leave alone.
+        current = int(self._kinematics_level)
+        if current > target:
+            object.__setattr__(self, "_kinematics_level", level)
+
+    def require(self, level: KinematicsLevel) -> None:
+        """Raise :class:`StaleCacheError` if the held kinematics level is below ``level``.
+
+        Call this at the entry point of any function that depends on a
+        specific level (e.g. ``compute_joint_jacobians`` requires
+        ``PLACEMENTS``).
+        """
+        if int(self._kinematics_level) < int(level):
+            from ..exceptions import StaleCacheError
+            held = (
+                self._kinematics_level.name
+                if isinstance(self._kinematics_level, KinematicsLevel)
+                else str(self._kinematics_level)
+            )
+            raise StaleCacheError(
+                f"Data is at kinematics level {held}; need {level.name}. "
+                f"Call forward_kinematics first."
+            )
 
     def clone(self) -> "Data":
         """Return a deep copy, sharing ``_model_id``."""
@@ -140,17 +219,49 @@ class Data:
         """Leading batch shape, i.e. ``q.shape[:-1]``."""
         return tuple(self.q.shape[:-1])
 
+    def joint_pose(self, joint_id: int):
+        """Typed accessor for a single joint's world-frame pose.
+
+        Returns an :class:`~better_robot.lie.types.SE3` value. Raises
+        :class:`~better_robot.exceptions.StaleCacheError` if forward
+        kinematics has not been computed yet.
+        """
+        if self.joint_pose_world is None:
+            from ..exceptions import StaleCacheError
+            raise StaleCacheError(
+                "Data.joint_pose_world is None; call forward_kinematics first."
+            )
+        from ..lie.types import SE3
+        return SE3(self.joint_pose_world[..., joint_id, :])
+
+    def frame_pose(self, frame_id: int):
+        """Typed accessor for a single frame's world-frame pose.
+
+        Returns an :class:`~better_robot.lie.types.SE3` value. Raises
+        :class:`~better_robot.exceptions.StaleCacheError` if frame
+        placements have not been computed yet (call ``forward_kinematics``
+        with ``compute_frames=True`` or ``update_frame_placements``).
+        """
+        if self.frame_pose_world is None:
+            from ..exceptions import StaleCacheError
+            raise StaleCacheError(
+                "Data.frame_pose_world is None; call forward_kinematics "
+                "with compute_frames=True (or update_frame_placements)."
+            )
+        from ..lie.types import SE3
+        return SE3(self.frame_pose_world[..., frame_id, :])
+
 
 # ══════════════════════════════════════════════════════════════════════
 # Deprecated aliases (removed in v1.1).
 # Installed post-``@dataclass`` so they don't participate in ``__init__``.
-# See ``docs/02_DATA_MODEL.md §11`` and ``docs/13_NAMING.md §6``.
+# See ``docs/design/02_DATA_MODEL.md §11`` and ``docs/conventions/13_NAMING.md §6``.
 # ══════════════════════════════════════════════════════════════════════
 
 def _make_alias(old: str, new: str) -> property:
     msg = (
         f"Data.{old} is deprecated; use Data.{new}. "
-        f"Will be removed in v1.1. See docs/13_NAMING.md §6."
+        f"Will be removed in v1.1. See docs/conventions/13_NAMING.md §6."
     )
 
     def _get(self: "Data") -> Optional[torch.Tensor]:

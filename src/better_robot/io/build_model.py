@@ -1,6 +1,6 @@
 """``build_model(ir, root_joint=...)`` — IR → frozen ``Model`` factory.
 
-See ``docs/04_PARSERS.md §3`` for the 10 responsibilities.
+See ``docs/design/04_PARSERS.md §3`` for the 10 responsibilities.
 """
 
 from __future__ import annotations
@@ -31,7 +31,8 @@ from ..data_model.joint_models import (
 from ..data_model.joint_models.base import JointModel
 from ..data_model.model import Model
 from ..data_model.topology import build_children, build_subtrees, build_supports, topo_sort
-from .ir import IRBody, IRJoint, IRModel, IRError
+from ..exceptions import IRSchemaVersionError
+from .ir import IR_SCHEMA_VERSION, IRBody, IRJoint, IRModel, IRError
 
 # ──────────────────────────────── constants ──────────────────────────────────
 
@@ -52,7 +53,7 @@ def _check_topology_invariants(
     nq_total: int,
     nv_total: int,
 ) -> None:
-    """Validate the four topology invariants from ``docs/17_CONTRACTS.md §1.5``.
+    """Validate the four topology invariants from ``docs/conventions/17_CONTRACTS.md §1.5``.
 
     Raises :class:`~better_robot.exceptions.ModelInconsistencyError` at
     build time so the caller never sees a ``Model`` in an inconsistent
@@ -207,7 +208,7 @@ def build_model(
 ) -> Model:
     """Consume an ``IRModel`` and return a frozen ``Model``.
 
-    Responsibilities (see docs/04_PARSERS.md §3):
+    Responsibilities (see docs/design/04_PARSERS.md §3):
 
     1.  Replace the root body's parent joint with ``root_joint`` if supplied
         (default: ``JointFixed``).
@@ -228,6 +229,12 @@ def build_model(
     it).  This lets programmatic builders embed a ``JointFreeFlyer`` root
     without extra ``load(…, free_flyer=True)`` kwargs.
     """
+    if ir.schema_version != IR_SCHEMA_VERSION:
+        raise IRSchemaVersionError(
+            f"IRModel.schema_version={ir.schema_version} does not match the "
+            f"version this build expects (IR_SCHEMA_VERSION={IR_SCHEMA_VERSION}). "
+            f"Re-build the IR with the parser shipped in this `better_robot` release."
+        )
     identity_se3 = torch.tensor(_IDENTITY_SE3_VALS, dtype=dtype)
 
     # ── 1. Identify root structure ────────────────────────────────────────────
@@ -530,7 +537,7 @@ def build_model(
         q_neutral = _dev(q_neutral)
         gravity = _dev(gravity)
 
-    # ── 18. Enforce topology invariants (docs/17_CONTRACTS.md §1.5) ───────────
+    # ── 18. Enforce topology invariants (docs/conventions/17_CONTRACTS.md §1.5) ───────────
     _check_topology_invariants(
         parents=parents,
         nqs=nqs,
@@ -581,5 +588,5 @@ def build_model(
         mimic_source=mimic_source,
         frames=frames,
         q_neutral=q_neutral,
-        meta={"ir": ir},
+        meta={"ir": ir, **dict(getattr(ir, "meta", {}) or {})},
     )

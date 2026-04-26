@@ -16,21 +16,22 @@ All inputs and outputs carry a leading batch shape ``(B...,)``.
 
 Known limitations:
 
-* The per-joint bias acceleration ``c_J`` is assumed zero. This is correct
-  for every current joint type (revolute, prismatic, spherical, free-flyer)
-  because their motion subspaces are body-frame constant. Joints whose
-  ``S(q)`` depends on ``q`` will need a new ``JointModel.joint_bias_acceleration``
-  hook before being added to this code path.
+* The per-joint bias acceleration ``c_J = Ṡ · v`` is dispatched through
+  ``JointModel.joint_bias_acceleration`` (added in P11-pre). It is zero
+  for every current joint type because their motion subspaces are body-
+  frame constant; joints with ``q``-dependent subspaces only need to
+  override the hook to plug in correctly.
 * :func:`compute_coriolis_matrix` remains a stub — it requires a separate
   world-frame recursion (Pinocchio ``rnea.hxx`` §CoriolisMatrixForwardStep).
 
-See ``docs/06_DYNAMICS.md §2``.
+See ``docs/design/06_DYNAMICS.md §2``.
 """
 from __future__ import annotations
 
 import torch
 
 from ..data_model.data import Data
+from ..data_model.joint_models.base import joint_bias_acceleration
 from ..data_model.model import Model
 from ..kinematics.forward import forward_kinematics_raw
 from ..lie import se3
@@ -143,11 +144,13 @@ def rnea(
             S_i = jm.joint_motion_subspace(q_i)                     # (B..., 6, nv_i)
             vJ = jm.joint_velocity(q_i, v_i_slice)                  # (B..., 6)
             aJ = (S_i @ a_i_slice.unsqueeze(-1)).squeeze(-1)        # (B..., 6)
+            cJ = joint_bias_acceleration(jm, q_i, v_i_slice)        # (B..., 6)
         else:
             # Fixed / zero-DoF joint: no velocity contribution, no subspace.
-            S_i = torch.zeros((*batch, 6, 0), device=device, dtype=dtype)
+            S_i = torch.zeros((*batch, 6, 0), device=device, dtype=dtype)  # bench-ok: zero-DoF placeholder, not allocated per-iter
             vJ = zero6
             aJ = zero6
+            cJ = zero6
         S_cache[i] = S_i
 
         # Parent motion transport: Ad(liMi⁻¹) expresses a parent-frame
@@ -157,8 +160,8 @@ def rnea(
         a_parent_local = (Ad_inv @ a_body[p].unsqueeze(-1)).squeeze(-1)
 
         v_i = v_parent_local + vJ
-        # Featherstone: a_i = parent_transported + v_i × vJ + S·ddq (+ c_J=0).
-        a_i = a_parent_local + _cross_motion(v_i, vJ) + aJ
+        # Featherstone: a_i = parent_transported + v_i × vJ + S·ddq + c_J.
+        a_i = a_parent_local + _cross_motion(v_i, vJ) + aJ + cJ
 
         # Inertial wrench in body frame: f_i = I_i·a_i + v_i ×* (I_i·v_i).
         M_i = Inertia(model.body_inertias[i].to(device=device, dtype=dtype))._to_6x6()
@@ -222,7 +225,7 @@ def bias_forces(
     return tau
 
 
-# Deprecated alias — remove in v1.1. See docs/13_NAMING.md.
+# Deprecated alias — remove in v1.1. See docs/conventions/13_NAMING.md.
 nle = bias_forces
 
 
@@ -255,5 +258,5 @@ def compute_coriolis_matrix(
     """
     raise NotImplementedError(
         "compute_coriolis_matrix is a separate recursion; deferred to a later "
-        "dynamics milestone — see docs/06_DYNAMICS.md §2."
+        "dynamics milestone — see docs/design/06_DYNAMICS.md §2."
     )

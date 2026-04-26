@@ -4,7 +4,7 @@ Given a contact mask ``c ∈ (T, K)`` over ``K`` target frames, the residual
 penalises the per-frame linear velocity of each contact frame — measured
 as the world-frame displacement of the frame origin between consecutive
 timesteps. This is exactly the linear part of the frame's
-``LOCAL_WORLD_ALIGNED`` spatial velocity (see ``docs/05_KINEMATICS.md §3``):
+``LOCAL_WORLD_ALIGNED`` spatial velocity (see ``docs/design/05_KINEMATICS.md §3``):
 
     r_{t,k,:3} = c_{t,k} * (p_k(q_{t+1}) - p_k(q_t)) / dt
 
@@ -13,7 +13,7 @@ where ``p_k(q) = data.frame_pose_world[t, frame_ids[k], :3]``.
 Output dim: ``3 * K * (T - 1)`` — linear only in v1. The ``angular`` flag
 is reserved as an expansion hook.
 
-See ``docs/07_RESIDUALS_COSTS_SOLVERS.md §2``.
+See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §2``.
 """
 
 from __future__ import annotations
@@ -101,6 +101,7 @@ class ContactConsistencyResidual:
             ∂r_{t,k} / ∂q_t     = -w_pair_{t,k} * J_k_LWA_lin(q_t) / dt
             ∂r_{t,k} / ∂q_{t+1} = +w_pair_{t,k} * J_k_LWA_lin(q_{t+1}) / dt
         """
+        from ..kinematics import ReferenceFrame
         from ..kinematics.jacobian import get_frame_jacobian
 
         q = state.variables
@@ -119,7 +120,7 @@ class ContactConsistencyResidual:
             # get_frame_jacobian reads data.q and joint_pose_world at the
             # whole batch; it returns (T, 6, nv).
             J_lwa_all = get_frame_jacobian(
-                state.model, state.data, fid, reference="local_world_aligned"
+                state.model, state.data, fid, reference=ReferenceFrame.LOCAL_WORLD_ALIGNED
             )  # (T, 6, nv)
             J_lin_all = J_lwa_all[..., :3, :]  # (T, 3, nv)
 
@@ -139,6 +140,7 @@ class ContactConsistencyResidual:
         the 3×nv LWA linear Jacobian block to the corresponding 3-vector
         slice of ``r``.
         """
+        from ..kinematics import ReferenceFrame
         from ..kinematics.jacobian import get_frame_jacobian
 
         q = state.variables
@@ -155,7 +157,7 @@ class ContactConsistencyResidual:
         g = torch.zeros(T, nv, dtype=dtype, device=device)
         for k, fid in enumerate(self.frame_ids):
             J_lwa_all = get_frame_jacobian(
-                state.model, state.data, fid, reference="local_world_aligned"
+                state.model, state.data, fid, reference=ReferenceFrame.LOCAL_WORLD_ALIGNED
             )  # (T, 6, nv)
             J_lin_all = J_lwa_all[..., :3, :]                         # (T, 3, nv)
             wk = (scale * w_pair[:, k]).unsqueeze(-1)                 # (T-1, 1)

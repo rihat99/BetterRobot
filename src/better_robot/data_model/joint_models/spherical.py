@@ -1,7 +1,7 @@
 """``JointSpherical`` — SO3 ball joint. ``nq = 4`` (``[qx,qy,qz,qw]``),
 ``nv = 3``.
 
-See ``docs/02_DATA_MODEL.md §5``.
+See ``docs/design/02_DATA_MODEL.md §5``.
 """
 
 from __future__ import annotations

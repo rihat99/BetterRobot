@@ -10,7 +10,7 @@ no pose-target / keyframe / smoothness-weight kwargs of its own. Keyframes
 are expressed as ``TimeIndexedResidual(PoseResidual(...), t_idx=i)`` in
 the cost stack; this matches ``solve_ik``'s "target is a cost" convention.
 
-Future expansion path (``docs/08_TASKS.md §3`` — dynamics milestone):
+Future expansion path (``docs/design/08_TASKS.md §3`` — dynamics milestone):
 dynamics residuals slot into the same ``CostStack``. Torque-as-variable
 scenarios will warrant a sibling ``solve_dyn_trajopt`` task.
 """
@@ -28,7 +28,41 @@ from ..kinematics.jacobian_strategy import JacobianStrategy
 from ..optim.optimizers.base import Optimizer
 from ..optim.problem import LeastSquaresProblem
 from ..residuals.base import ResidualState
+from .parameterization import (
+    BSplineTrajectory,
+    KnotTrajectory,
+    TrajectoryParameterization,
+)
 from .trajectory import Trajectory
+
+
+class _ChainRuleProblem(LeastSquaresProblem):
+    """Wraps a parameterised trajopt problem in a chain-ruled Jacobian.
+
+    ``state.variables`` holds the *expanded* ``q_traj`` (so existing
+    residuals are unmodified). The optimisation variable is the smaller
+    ``z``. We keep the standard ``residual`` definition and override
+    ``jacobian`` to post-multiply by ``dq_traj/dz`` — turning a
+    ``(dim, T·nq)`` residual Jacobian into ``(dim, C·nq)`` in z-space.
+    """
+
+    def __init__(self, *, dq_dz: torch.Tensor, **kwargs) -> None:
+        # ``dq_dz`` has shape ``(T·nq, C·nq)`` — Kronecker block diag of
+        # the per-feature basis with the identity. Stored as a tensor for
+        # straight matmul.
+        super().__init__(**kwargs)
+        self._dq_dz = dq_dz
+
+    def jacobian(self, x):
+        from ..residuals.base import ResidualState
+
+        # Build state in z-space: variables=z (so residuals operating on
+        # parameter-space see the right shape) — but FK uses expanded q_traj.
+        state = self.state_factory(x)
+        from ..costs.stack import CostStack
+        cs: CostStack = self.cost_stack
+        J_q = cs.jacobian(state, strategy=self.jacobian_strategy)  # (dim, T*nq)
+        return J_q @ self._dq_dz  # (dim, C*nq)
 
 
 @dataclass
@@ -59,6 +93,7 @@ def solve_trajopt(
     jacobian_strategy: JacobianStrategy = JacobianStrategy.AUTO,
     lower: torch.Tensor | None = None,
     upper: torch.Tensor | None = None,
+    parameterization: TrajectoryParameterization | None = None,
 ) -> TrajOptResult:
     """Kinematic trajectory optimisation.
 
@@ -88,7 +123,7 @@ def solve_trajopt(
     -------
     TrajOptResult
 
-    See ``docs/08_TASKS.md §3``.
+    See ``docs/design/08_TASKS.md §3``.
     """
     if initial_q_traj.dim() != 2:
         raise ValueError(
@@ -107,18 +142,31 @@ def solve_trajopt(
     nv = model.nv
     device, dtype = initial_q_traj.device, initial_q_traj.dtype
 
-    # Flat x vector: (T * nq,); tangent step: (T * nv,).
-    x0 = initial_q_traj.detach().clone().reshape(-1)
+    if parameterization is None:
+        parameterization = KnotTrajectory()
+
+    # ``z`` is the optimisation variable; ``q_traj = parameterization.expand(z)``.
+    z0 = parameterization.init(initial_q_traj)
+    z_shape = tuple(z0.shape)
+    x0 = z0.detach().clone().reshape(-1)
 
     def _state_factory(x: torch.Tensor) -> ResidualState:
-        q_traj = x.reshape(T, nq)
+        z = x.reshape(z_shape)
+        q_traj = parameterization.expand(z, T=T, nq=nq)
         data = forward_kinematics(model, q_traj, compute_frames=True)
         return ResidualState(model=model, data=data, variables=q_traj)
 
     def _retract(x: torch.Tensor, dv: torch.Tensor) -> torch.Tensor:
-        q_flat = x.reshape(T, nq)
-        dv_flat = dv.reshape(T, nv)
-        return model.integrate(q_flat, dv_flat).reshape(-1)
+        # When the parameterisation is identity (KnotTrajectory) we still
+        # apply the per-knot ``Model.integrate`` retraction. Otherwise we
+        # use Euclidean addition on the control points — the spline basis
+        # carries the smoothness, and the SE3 residuals see the expanded
+        # trajectory through ``state_factory``.
+        if isinstance(parameterization, KnotTrajectory):
+            q_flat = x.reshape(T, nq)
+            dv_flat = dv.reshape(T, nv)
+            return model.integrate(q_flat, dv_flat).reshape(-1)
+        return x + dv
 
     # Per-timestep box constraints, tiled across T.
     def _tile_limit(lim: torch.Tensor | None) -> torch.Tensor | None:
@@ -128,20 +176,44 @@ def solve_trajopt(
             raise ValueError(f"expected limit of shape ({nq},); got {tuple(lim.shape)}")
         return lim.repeat(T)
 
-    problem = LeastSquaresProblem(
-        cost_stack=cost_stack,
-        state_factory=_state_factory,
-        x0=x0,
-        lower=_tile_limit(lower),
-        upper=_tile_limit(upper),
-        jacobian_strategy=jacobian_strategy,
-        nv=T * nv,
-        retract=_retract,
-    )
+    if isinstance(parameterization, KnotTrajectory):
+        problem = LeastSquaresProblem(
+            cost_stack=cost_stack,
+            state_factory=_state_factory,
+            x0=x0,
+            lower=_tile_limit(lower),
+            upper=_tile_limit(upper),
+            jacobian_strategy=jacobian_strategy,
+            nv=T * nv,
+            retract=_retract,
+        )
+    else:
+        # Build dq_traj / dz Jacobian: q_flat = B_block @ z_flat where
+        # B_block = kron(B, I_nq). For BSplineTrajectory the basis is
+        # cached after .init().
+        if not hasattr(parameterization, "_basis") or parameterization._basis is None:
+            raise RuntimeError(
+                f"{type(parameterization).__name__} does not expose a basis "
+                f"matrix needed for the Jacobian chain rule"
+            )
+        B = parameterization._basis  # (T, C)
+        I_nq = torch.eye(nq, dtype=dtype, device=device)
+        dq_dz = torch.kron(B, I_nq)  # (T*nq, C*nq)
+        problem = _ChainRuleProblem(
+            dq_dz=dq_dz,
+            cost_stack=cost_stack,
+            state_factory=_state_factory,
+            x0=x0,
+            lower=None, upper=None,
+            jacobian_strategy=jacobian_strategy,
+            nv=int(z0.numel()),
+            retract=_retract,
+        )
 
     solver_state = optimizer.minimize(problem, max_iter=max_iter)
 
-    q_opt = solver_state.x.detach().reshape(T, nq)
+    z_opt = solver_state.x.detach().reshape(z_shape)
+    q_opt = parameterization.expand(z_opt, T=T, nq=nq)
     t_axis = torch.linspace(0.0, (T - 1) * dt, T, dtype=dtype, device=device)
     trajectory = Trajectory(
         t=t_axis.unsqueeze(0),                          # (1, T)

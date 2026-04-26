@@ -1,9 +1,11 @@
 """``better_robot.kinematics`` — forward kinematics, frame updates, Jacobians.
 
-See ``docs/05_KINEMATICS.md``.
+See ``docs/design/05_KINEMATICS.md``.
 """
 
 from __future__ import annotations
+
+from enum import Enum
 
 from .forward import (
     forward_kinematics,
@@ -18,6 +20,21 @@ from .jacobian import (
 )
 from .jacobian_strategy import JacobianStrategy
 
+
+class ReferenceFrame(str, Enum):
+    """Pinocchio-style reference frame for spatial Jacobians.
+
+    The string values match the ``reference=`` keyword accepted by
+    :func:`get_frame_jacobian` and :func:`get_joint_jacobian`. Plain strings
+    are still accepted (``str`` subclass), so existing call sites keep
+    working.
+    """
+
+    WORLD = "world"
+    LOCAL = "local"
+    LOCAL_WORLD_ALIGNED = "local_world_aligned"
+
+
 __all__ = [
     "forward_kinematics",
     "forward_kinematics_raw",
@@ -27,4 +44,5 @@ __all__ = [
     "get_frame_jacobian",
     "residual_jacobian",
     "JacobianStrategy",
+    "ReferenceFrame",
 ]

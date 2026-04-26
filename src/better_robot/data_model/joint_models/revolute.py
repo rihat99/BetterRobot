@@ -2,7 +2,7 @@
 ``JointRevoluteUnaligned`` (arbitrary 3-vector axis), and
 ``JointRevoluteUnbounded`` (continuous, ``(cos θ, sin θ)`` parameterisation).
 
-See ``docs/02_DATA_MODEL.md §5``.
+See ``docs/design/02_DATA_MODEL.md §5``.
 """
 
 from __future__ import annotations

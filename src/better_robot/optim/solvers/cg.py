@@ -1,6 +1,6 @@
 """Conjugate-gradient linear solver — large-sparse option.
 
-See ``docs/07_RESIDUALS_COSTS_SOLVERS.md §5``.
+See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5``.
 """
 
 from __future__ import annotations
@@ -16,4 +16,4 @@ class CG:
         self.tol = tol
 
     def solve(self, A: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError("see docs/07_RESIDUALS_COSTS_SOLVERS.md §5")
+        raise NotImplementedError("see docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5")

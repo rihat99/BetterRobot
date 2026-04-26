@@ -5,7 +5,7 @@ targets) live on a joint with a fixed local placement. Frame *placements*
 (the world pose of each frame) live on ``Data.frame_pose_world``; this
 struct is metadata only.
 
-See ``docs/02_DATA_MODEL.md §6``.
+See ``docs/design/02_DATA_MODEL.md §6``.
 """
 
 from __future__ import annotations

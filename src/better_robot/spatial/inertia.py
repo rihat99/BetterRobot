@@ -3,7 +3,7 @@
 Stored as a ``(..., 10)`` tensor
 ``[mass, cx, cy, cz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]``.
 
-See ``docs/03_LIE_AND_SPATIAL.md §7``.
+See ``docs/design/03_LIE_AND_SPATIAL.md §7``.
 """
 
 from __future__ import annotations
@@ -132,6 +132,24 @@ class Inertia:
         data = torch.cat([m, com, sym3], dim=-1)
         return cls(data)
 
+    @classmethod
+    def from_mass_com_matrix(
+        cls,
+        mass: torch.Tensor,
+        com: torch.Tensor,
+        I: torch.Tensor,
+    ) -> "Inertia":
+        """Construct from ``(mass, com, 3×3 inertia matrix)``.
+
+        ``mass`` is a scalar or ``(B...,)``; ``com`` is ``(..., 3)``;
+        ``I`` is ``(..., 3, 3)`` and is assumed symmetric (the upper
+        triangle is read).
+        """
+        from .symmetric3 import Symmetric3
+
+        sym3 = Symmetric3.from_matrix(I).data
+        return cls.from_mass_com_sym3(mass, com, sym3)
+
     # ---- algebra ----
 
     def _to_6x6(self) -> torch.Tensor:
@@ -167,8 +185,11 @@ class Inertia:
         bottom = torch.cat([m_hatc,      I_o  ], dim=-1)
         return torch.cat([top, bottom], dim=-2)   # (..., 6, 6)
 
-    def se3_action(self, T: torch.Tensor) -> "Inertia":
+    def se3_action(self, T) -> "Inertia":
         """Transform the inertia by an SE3 pose.
+
+        ``T`` may be either a raw ``(..., 7)`` tensor or an :class:`SE3`
+        value-class instance (the ``.tensor`` attribute is unwrapped).
 
         ``I_new = Ad(T)^{-T} · I_6×6 · Ad(T)^{-1}``, then repack. Blocks are
         extracted under the linear-first layout set by :meth:`_to_6x6`:
@@ -176,7 +197,11 @@ class Inertia:
         """
         from ..lie import se3 as _se3
         from ..lie.tangents import hat_so3, vee_so3
+        from ..lie.types import SE3
         from .symmetric3 import Symmetric3
+
+        if isinstance(T, SE3):
+            T = T.tensor
 
         Ad_inv = _se3.adjoint_inv(T)          # (..., 6, 6)
         M = self._to_6x6()                    # (..., 6, 6)

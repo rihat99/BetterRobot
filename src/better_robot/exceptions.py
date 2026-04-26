@@ -1,6 +1,6 @@
 """Typed exceptions raised by ``better_robot``.
 
-See ``docs/17_CONTRACTS.md §2`` for the normative taxonomy.
+See ``docs/conventions/17_CONTRACTS.md §2`` for the normative taxonomy.
 
 All library-raised errors inherit from :class:`BetterRobotError`. Where
 possible, they also inherit from a standard-library exception class
@@ -33,7 +33,7 @@ class BetterRobotError(Exception):
 class ModelInconsistencyError(BetterRobotError, ValueError):
     """Parsed ``Model`` violates one of the topology invariants.
 
-    Invariants (see ``docs/17_CONTRACTS.md §1.5``):
+    Invariants (see ``docs/conventions/17_CONTRACTS.md §1.5``):
 
     * ``parents[0] == -1`` — joint 0 is the universe.
     * ``parents[i] < i`` for ``i > 0`` — topologically sorted.
@@ -97,10 +97,36 @@ class BackendNotAvailableError(BetterRobotError, ImportError):
     """
 
 
+class IRSchemaVersionError(BetterRobotError, ValueError):
+    """Parsed ``IRModel.schema_version`` does not match the version
+    ``build_model`` was compiled against.
+
+    Build a fresh ``IRModel`` from the parser shipped with this
+    ``better_robot`` release. The IR is an *internal* boundary; users
+    rebuilding their own ``IRModel`` from a serialised form must match
+    the current schema version.
+
+    See ``docs/design/04_PARSERS.md §2.1``.
+    """
+
+
+class StaleCacheError(BetterRobotError, RuntimeError):
+    """A ``Data`` cache field was read at a stricter ``KinematicsLevel``
+    than has been computed.
+
+    Remediation: call the relevant kinematics function (``forward_kinematics``
+    for placements, ``compute_joint_jacobians``-equivalents for velocities,
+    etc.). This is raised by ``Data.require(level)`` when the held level is
+    too low.
+
+    See ``docs/design/02_DATA_MODEL.md §3.1``.
+    """
+
+
 class UnsupportedJointError(BetterRobotError, ValueError):
     """URDF/MJCF declared a joint kind without a built-in ``JointModel``.
 
-    Register a custom ``JointModel`` — see ``docs/15_EXTENSION.md §2``.
+    Register a custom ``JointModel`` — see ``docs/conventions/15_EXTENSION.md §2``.
     """
 
 
@@ -121,6 +147,8 @@ __all__ = [
     "ShapeError",
     "ConvergenceError",
     "BackendNotAvailableError",
+    "IRSchemaVersionError",
+    "StaleCacheError",
     "UnsupportedJointError",
     "SingularityWarning",
 ]

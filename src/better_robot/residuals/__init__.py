@@ -4,7 +4,7 @@ Every residual is a callable object with an optional analytic
 ``.jacobian()``. Compose them into a ``CostStack``, and the stack is what
 the solver sees.
 
-See ``docs/07_RESIDUALS_COSTS_SOLVERS.md``.
+See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md``.
 """
 
 from __future__ import annotations

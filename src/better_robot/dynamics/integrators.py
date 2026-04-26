@@ -4,7 +4,7 @@
 and therefore the per-joint ``JointModel.integrate`` routines). The
 dynamics integrators wait on ``aba``.
 
-See ``docs/06_DYNAMICS.md §8``.
+See ``docs/design/06_DYNAMICS.md §8``.
 """
 
 from __future__ import annotations
@@ -24,9 +24,9 @@ def integrate_q(
     """Retract ``q`` by ``dt * v`` via ``model.integrate``. ``q ⊕ dt v``.
 
     Milestone D0 — implementable today; skeleton at phase 1.
-    See docs/06_DYNAMICS.md §8.
+    See docs/design/06_DYNAMICS.md §8.
     """
-    raise NotImplementedError("see docs/06_DYNAMICS.md §8")
+    raise NotImplementedError("see docs/design/06_DYNAMICS.md §8")
 
 
 def semi_implicit_euler(
@@ -41,9 +41,9 @@ def semi_implicit_euler(
 ):
     """Semi-implicit Euler: ``v_{k+1} = v_k + dt * aba(...)``, ``q_{k+1} = q_k ⊕ dt * v_{k+1}``.
 
-    TODO(milestone D4+). See docs/06_DYNAMICS.md §8.
+    TODO(milestone D4+). See docs/design/06_DYNAMICS.md §8.
     """
-    raise NotImplementedError("TODO(milestone D4+) — see docs/06_DYNAMICS.md §8")
+    raise NotImplementedError("TODO(milestone D4+) — see docs/design/06_DYNAMICS.md §8")
 
 
 def symplectic_euler(
@@ -58,9 +58,9 @@ def symplectic_euler(
 ):
     """Symplectic Euler variant.
 
-    TODO(milestone D4+). See docs/06_DYNAMICS.md §8.
+    TODO(milestone D4+). See docs/design/06_DYNAMICS.md §8.
     """
-    raise NotImplementedError("TODO(milestone D4+) — see docs/06_DYNAMICS.md §8")
+    raise NotImplementedError("TODO(milestone D4+) — see docs/design/06_DYNAMICS.md §8")
 
 
 def rk4(
@@ -75,6 +75,6 @@ def rk4(
 ):
     """4th-order Runge-Kutta over the state manifold.
 
-    TODO(milestone D4+). See docs/06_DYNAMICS.md §8.
+    TODO(milestone D4+). See docs/design/06_DYNAMICS.md §8.
     """
-    raise NotImplementedError("TODO(milestone D4+) — see docs/06_DYNAMICS.md §8")
+    raise NotImplementedError("TODO(milestone D4+) — see docs/design/06_DYNAMICS.md §8")

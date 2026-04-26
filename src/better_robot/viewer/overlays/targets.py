@@ -12,7 +12,7 @@ updated ``dict[str, torch.Tensor]`` every time a gizmo is dragged —
 the usual pattern is to re-solve IK inside the callback and push the
 new configuration via ``Visualizer.update``.
 
-See ``docs/12_VIEWER.md §7.1``.
+See ``docs/design/12_VIEWER.md §7.1``.
 """
 
 from __future__ import annotations

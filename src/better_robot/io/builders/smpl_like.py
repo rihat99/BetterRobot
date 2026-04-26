@@ -13,7 +13,7 @@ mass / COM / rotational inertia can supply ``mass_per_body`` / ``com_per_body``
 SMPL mesh integrator outside BetterRobot). Leaving those kwargs as their
 defaults reproduces the legacy uniform-``mass / 24`` behavior.
 
-See ``docs/04_PARSERS.md §6`` (``SMPL-like body as motivation``).
+See ``docs/design/04_PARSERS.md §6`` (``SMPL-like body as motivation``).
 """
 
 from __future__ import annotations

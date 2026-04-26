@@ -5,7 +5,7 @@ optimiser takes a problem, a linear solver, a robust kernel, a damping
 strategy, and an optional stop scheduler. Replacing one knob swaps one
 class.
 
-See ``docs/07_RESIDUALS_COSTS_SOLVERS.md``.
+See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md``.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ def solve(
 ) -> SolverState:
     """One-shot convenience wrapper — build the default LM optimiser and run it.
 
-    See docs/07_RESIDUALS_COSTS_SOLVERS.md §5.
+    See docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5.
     """
     from .optimizers.levenberg_marquardt import LevenbergMarquardt
 

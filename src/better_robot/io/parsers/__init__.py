@@ -1,6 +1,6 @@
 """``better_robot.io.parsers`` — URDF / MJCF / programmatic parsers.
 
-See ``docs/04_PARSERS.md``.
+See ``docs/design/04_PARSERS.md``.
 """
 
 from __future__ import annotations
