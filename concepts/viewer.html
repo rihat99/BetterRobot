@@ -1,0 +1,1269 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Viewer &#8212; BetterRobot</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=17638015" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=06af8975"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=c57da192"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'concepts/viewer';</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Conventions" href="../conventions/index.html" />
+    <link rel="prev" title="Batching and Backends" href="batching_and_backends.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.2" />
+    <meta name="docbuild:last-update" content="Apr 26, 2026"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">BetterRobot</p>
+  
+</a></div>
+        <div class="sidebar-primary-item"><ul class="navbar-icon-links"
+    aria-label="Quick Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/rihat99/BetterRobot" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/better-robot/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-python fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">PyPI</span></a>
+        </li>
+</ul></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../getting_started/index.html">Getting started</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/forward_kinematics.html">Forward kinematics on Panda</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/inverse_kinematics.html">Inverse kinematics on Panda</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/floating_base.html">Floating-base IK on the G1 humanoid</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Concepts</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="index.html">Concepts</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="vision.html">Vision</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture.html">Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model_and_data.html">Model and Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="joints_bodies_frames.html">Joints, Bodies, and Frames</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lie_and_spatial.html">Lie Groups and Spatial Algebra</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parsers_and_ir.html">Parsers and the IR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kinematics.html">Kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dynamics.html">Dynamics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="residuals_and_costs.html">Residuals and Costs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="solver_stack.html">The Solver Stack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tasks.html">Tasks — IK, Trajectory Optimisation, Retargeting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="collision_and_geometry.html">Collision and Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="batching_and_backends.html">Batching and Backends</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">Viewer</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Conventions</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../conventions/index.html">Conventions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/naming.html">Naming</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/performance.html">Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/extension.html">Extension Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/testing.html">Testing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/contracts.html">Contracts &amp; Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/style.html">Coding Style</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/packaging.html">Packaging</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../reference/index.html">Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.builders.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io.builders</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.parsers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io.parsers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.ir.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io.ir</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.assets.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io.assets</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.build_model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io.build_model</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.renderers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.renderers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.render_modes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.render_modes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.overlays.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.overlays</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.trajectory_player.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.trajectory_player</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.interaction.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.interaction</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.visualizer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.visualizer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.panels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.panels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.camera.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.camera</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.recorder.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.recorder</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.scene.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.scene</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.helpers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.helpers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.themes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.themes</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.temporal</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.registry.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.registry</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.base.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.base</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.manipulability.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.manipulability</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.collision</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.pose.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.pose</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.smoothness.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.smoothness</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.motion.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial.motion</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.ops.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial.ops</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.symmetric3.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial.symmetric3</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.inertia.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial.inertia</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.force.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial.force</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.collision</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.collision.geometry.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.collision.geometry</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.collision.pairs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.collision.pairs</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.collision.closest_pts.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.collision.closest_pts</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.collision.robot_collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.collision.robot_collision</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.action.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.action</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.integrators.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.integrators</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.crba.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.crba</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.rnea.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.rnea</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.aba.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.aba</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.centroidal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.centroidal</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.state_manifold.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.state_manifold</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.derivatives.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.derivatives</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.strategies.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.strategies</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.state.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.state</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.jacobian_spec.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.jacobian_spec</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.stack</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.factory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.factory</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.testing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.testing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.batching.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.batching</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.logging.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.logging</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.broadcasting.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.broadcasting</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.ik.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.ik</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.parameterization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.parameterization</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.trajectory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajectory</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.retarget.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.retarget</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.trajopt.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajopt</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.so3.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.so3</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.se3.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.se3</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.types.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.types</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.tangents.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.tangents</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian_strategy.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian_strategy</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.chain.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.chain</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.forward.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.forward</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.joint_models.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint_models</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.body.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.body</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.joint.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.frame.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.frame</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.topology.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.topology</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.indexing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.indexing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.data.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.data</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.torch_native.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.torch_native</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.warp.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.warp</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.protocol.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.protocol</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/better_robot/better_robot.exceptions.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.exceptions</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/changelog.html">Changelog</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/roadmap.html">Roadmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Project Links</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference external" href="https://github.com/rihat99/BetterRobot">GitHub</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://pypi.org/project/better-robot/">PyPI</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/rihat99/BetterRobot" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/rihat99/BetterRobot/edit/main/docs/concepts/viewer.md" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/rihat99/BetterRobot/issues/new?title=Issue%20on%20page%20%2Fconcepts/viewer.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/concepts/viewer.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Viewer</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v1-scope">V1 scope</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#directory-layout">Directory layout</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#render-modes-the-layer-system">Render modes — the layer system</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#rendermode-protocol"><code class="docutils literal notranslate"><span class="pre">RenderMode</span></code> Protocol</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#skeletonmode"><code class="docutils literal notranslate"><span class="pre">SkeletonMode</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#urdfmeshmode"><code class="docutils literal notranslate"><span class="pre">URDFMeshMode</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mode-registry">Mode registry</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#overlays">Overlays</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#scene-layer-composition"><code class="docutils literal notranslate"><span class="pre">Scene</span></code> — layer composition</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#visualizer-top-level-facade"><code class="docutils literal notranslate"><span class="pre">Visualizer</span></code> — top-level facade</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#interactive-ik-with-add-ik-targets">Interactive IK with <code class="docutils literal notranslate"><span class="pre">add_ik_targets</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#trajectory-playback">Trajectory playback</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#rendererbackend-protocol"><code class="docutils literal notranslate"><span class="pre">RendererBackend</span></code> Protocol</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#viserbackend"><code class="docutils literal notranslate"><span class="pre">ViserBackend</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mockbackend"><code class="docutils literal notranslate"><span class="pre">MockBackend</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#future-expansion">Future expansion</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dependency-hygiene">Dependency hygiene</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#public-api">Public API</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sharp-edges">Sharp edges</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#where-to-look-next">Where to look next</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="viewer">
+<h1>Viewer<a class="headerlink" href="#viewer" title="Link to this heading">#</a></h1>
+<p>The viewer is the topmost layer in the DAG: nothing imports from it.
+Its job is to turn <code class="docutils literal notranslate"><span class="pre">Model</span></code>, <code class="docutils literal notranslate"><span class="pre">Data</span></code>, and <code class="docutils literal notranslate"><span class="pre">Trajectory</span></code> into something a
+user can see in a browser — without dragging any visualisation
+dependency into the core. A user who never calls
+<code class="docutils literal notranslate"><span class="pre">Visualizer.show()</span></code> should not pay for <code class="docutils literal notranslate"><span class="pre">viser</span></code>, <code class="docutils literal notranslate"><span class="pre">trimesh</span></code>, or any of
+the rendering machinery on <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">better_robot</span></code>.</p>
+<p>The deliberate choice is to ship a small, opinionated V1: an
+interactive viser-backed renderer with two render modes (skeleton,
+URDF mesh), a small overlay set (grid, frame axes, force vectors,
+draggable IK target gizmos), and a minimal trajectory player that
+can <code class="docutils literal notranslate"><span class="pre">show_frame(k)</span></code> and <code class="docutils literal notranslate"><span class="pre">play(fps=30)</span></code>. Everything more ambitious —
+video recording, offscreen rendering, scrub-bar transport controls,
+COM / path-trace / residual-plot overlays, multi-robot sessions,
+camera paths — is reserved as a placeholder. The placeholders raise
+<code class="docutils literal notranslate"><span class="pre">NotImplementedError</span></code> with a pointer to <a class="reference internal" href="../reference/roadmap.html"><span class="doc">Roadmap</span></a>,
+so user code that imports them keeps working at static-analysis time
+even before the body lands.</p>
+<p>This chapter covers what V1 does and the seams that make later
+expansion additive rather than disruptive.</p>
+<section id="v1-scope">
+<h2>V1 scope<a class="headerlink" href="#v1-scope" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><strong>Interactive browser visualisation only.</strong> <code class="docutils literal notranslate"><span class="pre">Visualizer(model).show()</span></code>
+opens a viser session and draws the robot. That is the one happy
+path.</p></li>
+<li><p><strong>Two render modes.</strong> <code class="docutils literal notranslate"><span class="pre">SkeletonMode</span></code> works on any <code class="docutils literal notranslate"><span class="pre">Model</span></code>.
+<code class="docutils literal notranslate"><span class="pre">URDFMeshMode</span></code> is selected automatically when the robot was loaded
+from a URDF / MJCF (i.e. <code class="docutils literal notranslate"><span class="pre">model.meta[&quot;ir&quot;]</span></code> is populated).</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">Scene</span></code> composes render modes.</strong> Users (or <code class="docutils literal notranslate"><span class="pre">Scene.default</span></code>) attach
+zero-or-more modes; the scene routes kinematics updates to each
+one. This is the extensibility point for future modes.</p></li>
+<li><p><strong>Draggable IK target gizmos.</strong> <code class="docutils literal notranslate"><span class="pre">add_ik_targets</span></code> drops a
+<code class="docutils literal notranslate"><span class="pre">TargetsOverlay</span></code> that renders each target as a frame triad plus a
+draggable SE(3) transform control. On every drag, an <code class="docutils literal notranslate"><span class="pre">on_change</span></code>
+callback fires with the updated targets dict, so callers can
+re-solve IK in the loop.</p></li>
+<li><p><strong>Straight-through trajectory playback.</strong> A <code class="docutils literal notranslate"><span class="pre">TrajectoryPlayer</span></code>
+pushes a given frame of a <code class="docutils literal notranslate"><span class="pre">(B,</span> <span class="pre">T,</span> <span class="pre">nq)</span></code> <code class="docutils literal notranslate"><span class="pre">Trajectory</span></code> to the scene.
+No scrub bar, no speed control, no loop toggle — just <code class="docutils literal notranslate"><span class="pre">show_frame</span></code>
+and <code class="docutils literal notranslate"><span class="pre">play</span></code>. (Transport controls are reserved for a later
+milestone.)</p></li>
+<li><p><strong>Backend-agnostic render modes.</strong> Modes speak only to the
+<code class="docutils literal notranslate"><span class="pre">RendererBackend</span></code> Protocol. V1 ships one real backend
+(<code class="docutils literal notranslate"><span class="pre">ViserBackend</span></code>) plus <code class="docutils literal notranslate"><span class="pre">MockBackend</span></code> for tests. Additional backends
+(offscreen pyrender, playwright capture) land later as drop-ins.</p></li>
+<li><p><strong>No viser import at package import time.</strong> <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">better_robot</span></code>
+and <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">better_robot.viewer</span></code> work on machines without viser
+installed; the import only fires when <code class="docutils literal notranslate"><span class="pre">Visualizer.show()</span></code> (or
+direct <code class="docutils literal notranslate"><span class="pre">ViserBackend(...)</span></code>) is first called.</p></li>
+<li><p><strong>Public API ceiling preserved.</strong> <code class="docutils literal notranslate"><span class="pre">Visualizer</span></code> lives at
+<code class="docutils literal notranslate"><span class="pre">better_robot.viewer.Visualizer</span></code>, not in <code class="docutils literal notranslate"><span class="pre">better_robot.__all__</span></code>.</p></li>
+</ul>
+</section>
+<section id="directory-layout">
+<h2>Directory layout<a class="headerlink" href="#directory-layout" title="Link to this heading">#</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>src/better_robot/viewer/
+├── visualizer.py              # Visualizer — thin facade
+├── scene.py                   # Scene — render-mode composition
+├── trajectory_player.py       # TrajectoryPlayer — show_frame / play
+├── camera.py                  # Camera dataclass (+ CameraPath stubs)
+├── themes.py                  # Theme dataclass + DEFAULT_THEME
+├── helpers.py                 # xyzw ↔ wxyz quaternion conversions
+├── panels.py                  # build_joint_panel (viser-only sliders)
+├── interaction.py             # GizmoHandle / FramePicker
+├── recorder.py                # VideoRecorder + render_trajectory (stub)
+│
+├── renderers/
+│   ├── base.py                # RendererBackend protocol
+│   ├── viser_backend.py       # V1 — real implementation (lazy viser import)
+│   ├── offscreen_backend.py   # stub
+│   └── testing.py             # MockBackend — records every call
+│
+├── render_modes/
+│   ├── base.py                # RenderMode protocol + RenderContext
+│   ├── skeleton.py            # V1 — always available
+│   ├── urdf_mesh.py           # V1 — trimesh-backed, available iff URDF-loaded
+│   └── collision.py           # stub
+│
+└── overlays/
+    ├── grid.py                # V1 — ground grid + world triad
+    ├── frame_axes.py          # V1 — coordinate triads on named frames
+    ├── targets.py             # V1 — draggable IK gizmos
+    ├── force_vectors.py       # V1 — force-vector arrows
+    ├── path_trace.py          # stub
+    ├── com.py                 # stub
+    └── residual_plot.py       # stub
+</pre></div>
+</div>
+</section>
+<section id="render-modes-the-layer-system">
+<h2>Render modes — the layer system<a class="headerlink" href="#render-modes-the-layer-system" title="Link to this heading">#</a></h2>
+<p>The central abstraction is <code class="docutils literal notranslate"><span class="pre">RenderMode</span></code>: a small object that knows
+how to attach itself to a backend for a given <code class="docutils literal notranslate"><span class="pre">Model</span></code>, how to update
+its nodes from a new <code class="docutils literal notranslate"><span class="pre">Data</span></code>, and how to tear itself down. A <code class="docutils literal notranslate"><span class="pre">Scene</span></code>
+holds any number of render modes — typically one “primary” mode plus
+zero or more overlays — and routes each update to exactly the
+visible modes.</p>
+<section id="rendermode-protocol">
+<h3><code class="docutils literal notranslate"><span class="pre">RenderMode</span></code> Protocol<a class="headerlink" href="#rendermode-protocol" title="Link to this heading">#</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">RenderContext</span><span class="p">:</span>
+    <span class="n">backend</span><span class="p">:</span> <span class="n">Any</span>                    <span class="c1"># RendererBackend instance</span>
+    <span class="n">namespace</span><span class="p">:</span> <span class="nb">str</span>                  <span class="c1"># e.g. &quot;/robot/skeleton&quot;</span>
+    <span class="n">batch_index</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">theme</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span>
+
+<span class="nd">@runtime_checkable</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">RenderMode</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+    <span class="n">name</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="n">description</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_available</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Data</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span> <span class="o">...</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">attach</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="n">RenderContext</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Data</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Data</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_visible</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">visible</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">detach</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+</pre></div>
+</div>
+<p>Source: <code class="docutils literal notranslate"><span class="pre">src/better_robot/viewer/render_modes/base.py</span></code>. <code class="docutils literal notranslate"><span class="pre">is_available</span></code>
+is what makes the UI show a toggle for a mode <em>iff</em> the loaded robot
+can support it. <code class="docutils literal notranslate"><span class="pre">Scene</span></code> queries it once per registered mode at
+attach time and quietly skips modes that cannot render the given
+robot.</p>
+</section>
+<section id="skeletonmode">
+<h3><code class="docutils literal notranslate"><span class="pre">SkeletonMode</span></code><a class="headerlink" href="#skeletonmode" title="Link to this heading">#</a></h3>
+<p>Always available. For every articulated joint <code class="docutils literal notranslate"><span class="pre">j</span></code> (<code class="docutils literal notranslate"><span class="pre">nv</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>), draws
+a sphere at <code class="docutils literal notranslate"><span class="pre">data.joint_pose_world[j,</span> <span class="pre">:3]</span></code>. For every non-root joint
+with parent <code class="docutils literal notranslate"><span class="pre">p</span></code>, draws a cylinder between
+<code class="docutils literal notranslate"><span class="pre">data.joint_pose_world[p,</span> <span class="pre">:3]</span></code> and <code class="docutils literal notranslate"><span class="pre">data.joint_pose_world[j,</span> <span class="pre">:3]</span></code>.
+Degenerate (zero-length) cylinders are skipped. This is the only
+mode that works for programmatically-built robots (SMPL-like bodies,
+Python-DSL humanoids) that never go through a URDF.</p>
+</section>
+<section id="urdfmeshmode">
+<h3><code class="docutils literal notranslate"><span class="pre">URDFMeshMode</span></code><a class="headerlink" href="#urdfmeshmode" title="Link to this heading">#</a></h3>
+<p>Loads <code class="docutils literal notranslate"><span class="pre">IRBody.visual_geoms</span></code> off the <code class="docutils literal notranslate"><span class="pre">IRModel</span></code> captured at load time
+(<code class="docutils literal notranslate"><span class="pre">model.meta[&quot;ir&quot;]</span></code>). Mesh URIs resolve through the <code class="docutils literal notranslate"><span class="pre">AssetResolver</span></code>
+on <code class="docutils literal notranslate"><span class="pre">model.meta[&quot;asset_resolver&quot;]</span></code> (set by the URDF / MJCF parser at
+parse time). The viewer never re-implements URDF path logic; it
+delegates to the resolver:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">URDFMeshMode</span><span class="p">(</span><span class="n">RenderMode</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">resolver</span><span class="p">:</span> <span class="n">AssetResolver</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_resolver</span> <span class="o">=</span> <span class="n">resolver</span>  <span class="c1"># if None, read model.meta[&quot;asset_resolver&quot;]</span>
+</pre></div>
+</div>
+<p>Each geom is tessellated through <code class="docutils literal notranslate"><span class="pre">trimesh</span></code> and pushed to the backend
+via <code class="docutils literal notranslate"><span class="pre">add_mesh</span></code>. Analytical primitives (<code class="docutils literal notranslate"><span class="pre">&lt;box&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;cylinder&gt;</span></code>,
+<code class="docutils literal notranslate"><span class="pre">&lt;sphere&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;capsule&gt;</span></code>) are handled by <code class="docutils literal notranslate"><span class="pre">trimesh.creation.*</span></code>.
+Loading failures skip the geom silently rather than crashing the
+whole viewer.</p>
+</section>
+<section id="mode-registry">
+<h3>Mode registry<a class="headerlink" href="#mode-registry" title="Link to this heading">#</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">MODE_REGISTRY</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">type</span><span class="p">[</span><span class="n">RenderMode</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">register_mode</span><span class="p">(</span><span class="bp">cls</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">RenderMode</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">type</span><span class="p">[</span><span class="n">RenderMode</span><span class="p">]:</span>
+    <span class="n">MODE_REGISTRY</span><span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="p">]</span> <span class="o">=</span> <span class="bp">cls</span>
+    <span class="k">return</span> <span class="bp">cls</span>
+</pre></div>
+</div>
+<p>Built-in modes register themselves at import time. Third-party modes
+use the same decorator; <code class="docutils literal notranslate"><span class="pre">Scene</span></code> iterates <code class="docutils literal notranslate"><span class="pre">MODE_REGISTRY.values()</span></code> at
+attach time, so future custom modes show up automatically.</p>
+</section>
+</section>
+<section id="overlays">
+<h2>Overlays<a class="headerlink" href="#overlays" title="Link to this heading">#</a></h2>
+<p>Overlays are <code class="docutils literal notranslate"><span class="pre">RenderMode</span></code>s with a different mental category: they
+paint <em>on top of</em> a primary mode, they are small, and they compose
+freely.</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Overlay</p></th>
+<th class="head"><p>Status</p></th>
+<th class="head"><p>Pulls from</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">GridOverlay</span></code></p></td>
+<td><p>V1</p></td>
+<td><p>static — ground plane + world-frame triad</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">FrameAxesOverlay</span></code></p></td>
+<td><p>V1</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">data.frame_pose_world[frame_id]</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">TargetsOverlay</span></code></p></td>
+<td><p>V1</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">dict[str,</span> <span class="pre">SE3]</span></code> — draggable IK gizmos</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ForceVectorsOverlay</span></code></p></td>
+<td><p>V1</p></td>
+<td><p>per-frame wrench vectors</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">PathTraceOverlay</span></code></p></td>
+<td><p>stub</p></td>
+<td><p>trajectory + frame_id</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ComOverlay</span></code></p></td>
+<td><p>stub</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">dynamics.center_of_mass</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ResidualPlotOverlay</span></code></p></td>
+<td><p>stub</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">optim.history</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="scene-layer-composition">
+<h2><code class="docutils literal notranslate"><span class="pre">Scene</span></code> — layer composition<a class="headerlink" href="#scene-layer-composition" title="Link to this heading">#</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Scene</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">backend</span><span class="p">:</span> <span class="n">RendererBackend</span><span class="p">,</span>
+        <span class="n">namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;/robot&quot;</span><span class="p">,</span>
+        <span class="n">theme</span><span class="p">:</span> <span class="n">Theme</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="n">RenderMode</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">remove_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mode_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">available_modes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span> <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_mode_visible</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mode_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">visible</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Data</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">update_from_q</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run FK (+ update_frame_placements) and push to all modes.&quot;&quot;&quot;</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">default</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">backend</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Scene&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Attach URDFMeshMode if available else SkeletonMode, plus</span>
+<span class="sd">        GridOverlay and FrameAxesOverlay.&quot;&quot;&quot;</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Scene.default(...)</span></code> is what <code class="docutils literal notranslate"><span class="pre">Visualizer</span></code> uses. Power users who want
+a non-default composition construct a <code class="docutils literal notranslate"><span class="pre">Scene</span></code> by hand and <code class="docutils literal notranslate"><span class="pre">add_mode</span></code>
+their own.</p>
+</section>
+<section id="visualizer-top-level-facade">
+<h2><code class="docutils literal notranslate"><span class="pre">Visualizer</span></code> — top-level facade<a class="headerlink" href="#visualizer-top-level-facade" title="Link to this heading">#</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Visualizer</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Top-level viser-backed visualiser.</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    -------</span>
+<span class="sd">    &gt;&gt;&gt; viewer = Visualizer(model, port=8080)</span>
+<span class="sd">    &gt;&gt;&gt; viewer.show()                   # opens browser, blocks for lifetime</span>
+<span class="sd">    &gt;&gt;&gt; viewer.update(q)                # single-pose update</span>
+<span class="sd">    &gt;&gt;&gt; viewer.add_trajectory(traj)     # play through the sequence</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8080</span><span class="p">,</span>
+                 <span class="n">theme</span><span class="p">:</span> <span class="n">Theme</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">block</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_or_data</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="n">Data</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">last_q</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_trajectory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trajectory</span><span class="p">:</span> <span class="n">Trajectory</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;TrajectoryPlayer&quot;</span><span class="p">:</span> <span class="o">...</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_ik_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="n">IKResult</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_ik_targets</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">targets</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">on_change</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.15</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;TargetsOverlay&quot;</span><span class="p">:</span> <span class="o">...</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Visualizer</span></code> is intentionally thin: it owns one <code class="docutils literal notranslate"><span class="pre">ViserBackend</span></code>, one
+<code class="docutils literal notranslate"><span class="pre">Scene.default</span></code>, and forwards <code class="docutils literal notranslate"><span class="pre">update</span></code> to the scene. <code class="docutils literal notranslate"><span class="pre">ViserBackend</span></code>
+is constructed lazily inside <code class="docutils literal notranslate"><span class="pre">_ensure_server()</span></code> — the first call to
+<code class="docutils literal notranslate"><span class="pre">show()</span></code> / <code class="docutils literal notranslate"><span class="pre">update()</span></code> / <code class="docutils literal notranslate"><span class="pre">add_trajectory()</span></code> triggers the viser
+import. <code class="docutils literal notranslate"><span class="pre">record</span></code>, <code class="docutils literal notranslate"><span class="pre">add_robot</span></code>, and <code class="docutils literal notranslate"><span class="pre">set_batch_index</span></code> live as stubs
+that raise <code class="docutils literal notranslate"><span class="pre">NotImplementedError</span></code> pointing at the roadmap.</p>
+<section id="interactive-ik-with-add-ik-targets">
+<h3>Interactive IK with <code class="docutils literal notranslate"><span class="pre">add_ik_targets</span></code><a class="headerlink" href="#interactive-ik-with-add-ik-targets" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">add_ik_targets</span></code> drops a <code class="docutils literal notranslate"><span class="pre">TargetsOverlay</span></code> onto the active scene
+through the same <code class="docutils literal notranslate"><span class="pre">Scene.add_mode</span></code> lifecycle as any other render mode.
+Each target renders as a frame triad (visible everywhere) plus a
+draggable SE(3) transform control (on interactive backends only). On
+every drag the overlay updates its internal targets dict and fires
+the caller’s <code class="docutils literal notranslate"><span class="pre">on_change</span></code> hook with the full updated dict — the
+caller re-solves IK and pushes the new configuration via
+<code class="docutils literal notranslate"><span class="pre">Visualizer.update</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">viewer</span> <span class="o">=</span> <span class="n">Visualizer</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+<span class="n">viewer</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">q0</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">on_move</span><span class="p">(</span><span class="n">new_targets</span><span class="p">):</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">solve_ik</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">new_targets</span><span class="p">,</span> <span class="n">initial_q</span><span class="o">=</span><span class="n">viewer</span><span class="o">.</span><span class="n">last_q</span><span class="p">)</span>
+    <span class="n">viewer</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">q</span><span class="p">)</span>
+
+<span class="n">viewer</span><span class="o">.</span><span class="n">add_ik_targets</span><span class="p">({</span><span class="n">ee_frame</span><span class="p">:</span> <span class="n">T_target</span><span class="p">},</span> <span class="n">on_change</span><span class="o">=</span><span class="n">on_move</span><span class="p">)</span>
+<span class="n">viewer</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">examples/01_basic_ik.py</span></code> is the single-target Panda version;
+<code class="docutils literal notranslate"><span class="pre">examples/02_g1_ik.py</span></code> is the floating-base G1 version with four
+simultaneous whole-body targets. Both warm-start each IK solve from
+the previous configuration so interactive dragging converges in
+milliseconds.</p>
+<p>On non-interactive backends (<code class="docutils literal notranslate"><span class="pre">MockBackend</span></code>) the overlay still draws
+the frame triads but no gizmos — useful for static rendering of an
+IK target dataset. Callbacks never fire on those backends.</p>
+</section>
+</section>
+<section id="trajectory-playback">
+<h2>Trajectory playback<a class="headerlink" href="#trajectory-playback" title="Link to this heading">#</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">TrajectoryPlayer</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Drives a Scene through a (B, T, nq) Trajectory frame-by-frame.</span>
+
+<span class="sd">    V1 is deliberately tiny: show a given frame index, or loop</span>
+<span class="sd">    through all frames at a fixed fps. No scrub bar, no speed, no</span>
+<span class="sd">    loop toggle, no ghost / trace, no manifold interpolation between</span>
+<span class="sd">    keyframes.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scene</span><span class="p">:</span> <span class="n">Scene</span><span class="p">,</span> <span class="n">trajectory</span><span class="p">:</span> <span class="n">Trajectory</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">horizon</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span> <span class="o">...</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">show_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">play</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">fps</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">30.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+</pre></div>
+</div>
+<p>That is it — no seek, no step, no speed, no loop. Users who want
+looping wrap <code class="docutils literal notranslate"><span class="pre">play()</span></code> in a <code class="docutils literal notranslate"><span class="pre">while</span> <span class="pre">True:</span></code>. Users who want scrubbing
+get it back when the transport-controls milestone lands.</p>
+<p>Because V1 plays only integer frame indices, there is no need for
+<code class="docutils literal notranslate"><span class="pre">model.integrate</span></code> / <code class="docutils literal notranslate"><span class="pre">model.difference</span></code>-based interpolation between
+keyframes — that correctness requirement returns when seek-to-arbitrary-
+cursor comes back with the transport controls.</p>
+</section>
+<section id="rendererbackend-protocol">
+<h2><code class="docutils literal notranslate"><span class="pre">RendererBackend</span></code> Protocol<a class="headerlink" href="#rendererbackend-protocol" title="Link to this heading">#</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@runtime_checkable</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">RendererBackend</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+    <span class="n">is_interactive</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="n">supports_gui</span><span class="p">:</span> <span class="nb">bool</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_mesh</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">vertices</span><span class="p">,</span> <span class="n">faces</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">rgba</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_sphere</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">rgba</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_cylinder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">rgba</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_capsule</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">rgba</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">axes_length</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">pose</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>    <span class="c1"># pose is (7,) xyzw</span>
+        <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_visible</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">visible</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+
+    <span class="c1"># Optional GUI hooks (viser only)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_gui_button</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">callback</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_gui_slider</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="nb">min</span><span class="p">,</span> <span class="nb">max</span><span class="p">,</span> <span class="n">step</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">callback</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_gui_checkbox</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">callback</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+</pre></div>
+</div>
+<p>Source: <code class="docutils literal notranslate"><span class="pre">src/better_robot/viewer/renderers/base.py</span></code>. The protocol is
+deliberately small: mesh, sphere, cylinder, capsule, frame, transform
+/ visibility updates, plus three GUI primitives. <code class="docutils literal notranslate"><span class="pre">capture_frame</span></code> and
+<code class="docutils literal notranslate"><span class="pre">set_camera</span></code> are <em>not</em> on the V1 protocol — they come back with the
+offscreen backend milestone.</p>
+<section id="viserbackend">
+<h3><code class="docutils literal notranslate"><span class="pre">ViserBackend</span></code><a class="headerlink" href="#viserbackend" title="Link to this heading">#</a></h3>
+<p>The one real V1 backend. Lazily imports <code class="docutils literal notranslate"><span class="pre">viser</span></code> on construction and
+maps each backend primitive onto the corresponding <code class="docutils literal notranslate"><span class="pre">server.scene.*</span></code>
+call. <code class="docutils literal notranslate"><span class="pre">wxyz</span></code> / <code class="docutils literal notranslate"><span class="pre">xyzw</span></code> quaternion conversions go through
+<code class="docutils literal notranslate"><span class="pre">viewer/helpers.py</span></code>. GUI hooks (<code class="docutils literal notranslate"><span class="pre">add_gui_button</span></code>, slider, checkbox)
+map onto <code class="docutils literal notranslate"><span class="pre">server.gui.*</span></code>.</p>
+</section>
+<section id="mockbackend">
+<h3><code class="docutils literal notranslate"><span class="pre">MockBackend</span></code><a class="headerlink" href="#mockbackend" title="Link to this heading">#</a></h3>
+<p>Pure-Python implementation of the protocol — every call is recorded
+into a list for test assertions. Render-mode unit tests attach a
+mode to a <code class="docutils literal notranslate"><span class="pre">MockBackend</span></code>, call <code class="docutils literal notranslate"><span class="pre">update(data)</span></code>, and check the recorded
+calls. No viser, no pyrender, no ffmpeg needed.</p>
+</section>
+</section>
+<section id="future-expansion">
+<h2>Future expansion<a class="headerlink" href="#future-expansion" title="Link to this heading">#</a></h2>
+<p>Everything below is a placeholder in the source tree: the file,
+class, or function exists so the surrounding code has a named
+target, but the body raises <code class="docutils literal notranslate"><span class="pre">NotImplementedError</span></code> pointing at the
+roadmap.</p>
+<ul class="simple">
+<li><p><strong>Video recording.</strong> <code class="docutils literal notranslate"><span class="pre">viewer/recorder.py</span></code> defines <code class="docutils literal notranslate"><span class="pre">VideoRecorder</span></code>
+and <code class="docutils literal notranslate"><span class="pre">render_trajectory</span></code>. The future implementation routes frames
+through the <code class="docutils literal notranslate"><span class="pre">RendererBackend</span></code> capture path and encodes via
+<code class="docutils literal notranslate"><span class="pre">imageio-ffmpeg</span></code>.</p></li>
+<li><p><strong>Offscreen rendering.</strong> <code class="docutils literal notranslate"><span class="pre">viewer/renderers/offscreen_backend.py</span></code>
+defines <code class="docutils literal notranslate"><span class="pre">OffscreenBackend</span></code>. The future implementation uses
+<code class="docutils literal notranslate"><span class="pre">pyrender</span></code> with EGL (Linux) or OSMesa (pure-CPU). When it lands,
+<code class="docutils literal notranslate"><span class="pre">RendererBackend</span></code> gains <code class="docutils literal notranslate"><span class="pre">capture_frame()</span> <span class="pre">→</span> <span class="pre">ndarray</span></code> and
+<code class="docutils literal notranslate"><span class="pre">set_camera(camera)</span></code>.</p></li>
+<li><p><strong>Transport controls.</strong> <code class="docutils literal notranslate"><span class="pre">TrajectoryPlayer</span></code> gains <code class="docutils literal notranslate"><span class="pre">play</span> <span class="pre">/</span> <span class="pre">pause</span> <span class="pre">/</span> <span class="pre">seek</span> <span class="pre">/</span> <span class="pre">seek_frame</span> <span class="pre">/</span> <span class="pre">step</span> <span class="pre">/</span> <span class="pre">set_speed</span> <span class="pre">/</span> <span class="pre">set_loop</span></code>, plus ghost
+(faded skeleton every N frames) and trace (swept frame path). The
+cursor becomes a normalised float <code class="docutils literal notranslate"><span class="pre">t</span> <span class="pre">∈</span> <span class="pre">[0,</span> <span class="pre">1]</span></code> with manifold
+interpolation between keyframes (geodesic for SE(3) / SO(3)).</p></li>
+<li><p><strong>Collision capsules.</strong> <code class="docutils literal notranslate"><span class="pre">CollisionMode</span></code> becomes a real mode backed
+by <code class="docutils literal notranslate"><span class="pre">RobotCollision.world_capsules(data)</span></code>.</p></li>
+<li><p><strong>Secondary overlays.</strong> <code class="docutils literal notranslate"><span class="pre">ComOverlay</span></code> requires <code class="docutils literal notranslate"><span class="pre">center_of_mass</span></code>
+(live); <code class="docutils literal notranslate"><span class="pre">ResidualPlotOverlay</span></code> requires <code class="docutils literal notranslate"><span class="pre">optim.history</span></code>;
+<code class="docutils literal notranslate"><span class="pre">PathTraceOverlay</span></code> is <code class="docutils literal notranslate"><span class="pre">frame_id</span> <span class="pre">+</span> <span class="pre">Trajectory</span></code> plus a series of
+sphere markers on the world-frame sweep.</p></li>
+<li><p><strong>Camera paths.</strong> <code class="docutils literal notranslate"><span class="pre">CameraPath.orbit</span></code> / <code class="docutils literal notranslate"><span class="pre">follow_frame</span></code> / <code class="docutils literal notranslate"><span class="pre">static</span></code>
+become real, and <code class="docutils literal notranslate"><span class="pre">RendererBackend.set_camera</span></code> comes back.</p></li>
+<li><p><strong>Multi-robot sessions.</strong> <code class="docutils literal notranslate"><span class="pre">Visualizer.add_robot(model,</span> <span class="pre">*,</span> <span class="pre">name,</span> <span class="pre">namespace)</span></code> gets a real body, with one <code class="docutils literal notranslate"><span class="pre">Scene</span></code> per robot and
+independent UI groups.</p></li>
+<li><p><strong>Batch-axis picker.</strong> <code class="docutils literal notranslate"><span class="pre">Scene.set_batch_index(idx)</span></code> and a <code class="docutils literal notranslate"><span class="pre">(B,</span> <span class="pre">T,</span> <span class="pre">nq)</span></code> picker in the UI panel.</p></li>
+</ul>
+</section>
+<section id="dependency-hygiene">
+<h2>Dependency hygiene<a class="headerlink" href="#dependency-hygiene" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Import</p></th>
+<th class="head"><p>Allowed in</p></th>
+<th class="head"><p>Why</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">viser</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">viewer/renderers/viser_backend.py</span></code> only</p></td>
+<td><p>V1 backend</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">pyrender</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">viewer/renderers/offscreen_backend.py</span></code> only</p></td>
+<td><p>Future offscreen</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">trimesh</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">viewer/render_modes/urdf_mesh.py</span></code> only</p></td>
+<td><p>Mesh I/O</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">imageio</span></code> / <code class="docutils literal notranslate"><span class="pre">imageio-ffmpeg</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">viewer/recorder.py</span></code> only</p></td>
+<td><p>Future video</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">playwright</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">viewer/renderers/viser_backend.py</span></code> (lazy)</p></td>
+<td><p>Future browser capture</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">numpy</span></code></p></td>
+<td><p>anywhere in <code class="docutils literal notranslate"><span class="pre">viewer/*</span></code></p></td>
+<td><p>Conversion layer</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">torch</span></code></p></td>
+<td><p>anywhere in <code class="docutils literal notranslate"><span class="pre">viewer/*</span></code></p></td>
+<td><p>Canonical type</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Render modes</strong> in <code class="docutils literal notranslate"><span class="pre">viewer/render_modes/*</span></code> may import neither
+<code class="docutils literal notranslate"><span class="pre">viser</span></code> nor <code class="docutils literal notranslate"><span class="pre">pyrender</span></code> — they only talk to the <code class="docutils literal notranslate"><span class="pre">RendererBackend</span></code>
+Protocol. This is what keeps the same mode code compatible with
+every future backend. <code class="docutils literal notranslate"><span class="pre">tests/contract/test_layer_dependencies.py</span></code>
+enforces these rules with the same AST walker as the rest of the
+DAG.</p>
+</section>
+<section id="public-api">
+<h2>Public API<a class="headerlink" href="#public-api" title="Link to this heading">#</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># src/better_robot/viewer/__init__.py</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">helpers</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.camera</span><span class="w"> </span><span class="kn">import</span> <span class="n">Camera</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.render_modes.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">RenderContext</span><span class="p">,</span> <span class="n">RenderMode</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.render_modes.skeleton</span><span class="w"> </span><span class="kn">import</span> <span class="n">SkeletonMode</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.render_modes.urdf_mesh</span><span class="w"> </span><span class="kn">import</span> <span class="n">URDFMeshMode</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.renderers.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">RendererBackend</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.renderers.viser_backend</span><span class="w"> </span><span class="kn">import</span> <span class="n">ViserBackend</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.scene</span><span class="w"> </span><span class="kn">import</span> <span class="n">Scene</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.trajectory_player</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrajectoryPlayer</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.visualizer</span><span class="w"> </span><span class="kn">import</span> <span class="n">Visualizer</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;Visualizer&quot;</span><span class="p">,</span> <span class="s2">&quot;Scene&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;RenderMode&quot;</span><span class="p">,</span> <span class="s2">&quot;RenderContext&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;SkeletonMode&quot;</span><span class="p">,</span> <span class="s2">&quot;URDFMeshMode&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;RendererBackend&quot;</span><span class="p">,</span> <span class="s2">&quot;ViserBackend&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;TrajectoryPlayer&quot;</span><span class="p">,</span> <span class="s2">&quot;Camera&quot;</span><span class="p">,</span> <span class="s2">&quot;helpers&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+<p>The viewer exports live under <code class="docutils literal notranslate"><span class="pre">better_robot.viewer.*</span></code>, not in
+<code class="docutils literal notranslate"><span class="pre">better_robot.__all__</span></code>. The 26-symbol public-API ceiling is
+non-negotiable.</p>
+</section>
+<section id="sharp-edges">
+<h2>Sharp edges<a class="headerlink" href="#sharp-edges" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">viser</span></code> is lazily imported.</strong> A machine without viser installed
+can <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">better_robot.viewer</span></code> cleanly; only <code class="docutils literal notranslate"><span class="pre">Visualizer.show()</span></code>
+triggers the actual import.</p></li>
+<li><p><strong>Quaternion conventions.</strong> The library is scalar-last
+<code class="docutils literal notranslate"><span class="pre">[qx,</span> <span class="pre">qy,</span> <span class="pre">qz,</span> <span class="pre">qw]</span></code>; viser is scalar-first <code class="docutils literal notranslate"><span class="pre">[w,</span> <span class="pre">x,</span> <span class="pre">y,</span> <span class="pre">z]</span></code>. The
+conversion lives in <code class="docutils literal notranslate"><span class="pre">viewer/helpers.py</span></code> so it happens in exactly
+one place.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">URDFMeshMode</span></code> requires the IR.</strong> A robot built programmatically
+through <code class="docutils literal notranslate"><span class="pre">ModelBuilder</span></code> does not have URDF visual geoms; render it
+with <code class="docutils literal notranslate"><span class="pre">SkeletonMode</span></code> instead.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">TrajectoryPlayer.play(fps=)</span></code> is blocking.</strong> Wrap it in a
+thread or use the (future) transport-control widget if you need
+asynchronous playback.</p></li>
+<li><p><strong>Stubs raise immediately.</strong> Calling <code class="docutils literal notranslate"><span class="pre">VideoRecorder.write_frame</span></code>
+or <code class="docutils literal notranslate"><span class="pre">OffscreenBackend.capture_frame</span></code> raises <code class="docutils literal notranslate"><span class="pre">NotImplementedError</span></code>
+with a roadmap link, not at import time.</p></li>
+</ul>
+</section>
+<section id="where-to-look-next">
+<h2>Where to look next<a class="headerlink" href="#where-to-look-next" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="tasks.html"><span class="doc">Tasks — IK, Trajectory Optimisation, Retargeting</span></a> — <code class="docutils literal notranslate"><span class="pre">solve_ik</span></code> returns an <code class="docutils literal notranslate"><span class="pre">IKResult</span></code> whose
+<code class="docutils literal notranslate"><span class="pre">frame_pose(&quot;name&quot;)</span></code> is what the viewer plots.</p></li>
+<li><p><a class="reference internal" href="../conventions/extension.html"><span class="doc">Extension Points</span></a> §8 — recipe for adding a custom
+render mode.</p></li>
+<li><p><a class="reference internal" href="../reference/roadmap.html"><span class="doc">Roadmap</span></a> — what is currently stubbed in the
+viewer.</p></li>
+</ul>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="batching_and_backends.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Batching and Backends</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="../conventions/index.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Conventions</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v1-scope">V1 scope</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#directory-layout">Directory layout</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#render-modes-the-layer-system">Render modes — the layer system</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#rendermode-protocol"><code class="docutils literal notranslate"><span class="pre">RenderMode</span></code> Protocol</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#skeletonmode"><code class="docutils literal notranslate"><span class="pre">SkeletonMode</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#urdfmeshmode"><code class="docutils literal notranslate"><span class="pre">URDFMeshMode</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mode-registry">Mode registry</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#overlays">Overlays</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#scene-layer-composition"><code class="docutils literal notranslate"><span class="pre">Scene</span></code> — layer composition</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#visualizer-top-level-facade"><code class="docutils literal notranslate"><span class="pre">Visualizer</span></code> — top-level facade</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#interactive-ik-with-add-ik-targets">Interactive IK with <code class="docutils literal notranslate"><span class="pre">add_ik_targets</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#trajectory-playback">Trajectory playback</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#rendererbackend-protocol"><code class="docutils literal notranslate"><span class="pre">RendererBackend</span></code> Protocol</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#viserbackend"><code class="docutils literal notranslate"><span class="pre">ViserBackend</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mockbackend"><code class="docutils literal notranslate"><span class="pre">MockBackend</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#future-expansion">Future expansion</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dependency-hygiene">Dependency hygiene</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#public-api">Public API</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sharp-edges">Sharp edges</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#where-to-look-next">Where to look next</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By BetterRobot contributors
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright BetterRobot contributors.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    <p class="last-updated">
+  Last updated on Apr 26, 2026.
+  <br/>
+</p>
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

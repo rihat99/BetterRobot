@@ -1,0 +1,1145 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>The Solver Stack &#8212; BetterRobot</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=17638015" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=06af8975"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=c57da192"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'concepts/solver_stack';</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tasks — IK, Trajectory Optimisation, Retargeting" href="tasks.html" />
+    <link rel="prev" title="Residuals and Costs" href="residuals_and_costs.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.2" />
+    <meta name="docbuild:last-update" content="Apr 26, 2026"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">BetterRobot</p>
+  
+</a></div>
+        <div class="sidebar-primary-item"><ul class="navbar-icon-links"
+    aria-label="Quick Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/rihat99/BetterRobot" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/better-robot/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-python fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">PyPI</span></a>
+        </li>
+</ul></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../getting_started/index.html">Getting started</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/forward_kinematics.html">Forward kinematics on Panda</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/inverse_kinematics.html">Inverse kinematics on Panda</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/floating_base.html">Floating-base IK on the G1 humanoid</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Concepts</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="index.html">Concepts</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="vision.html">Vision</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture.html">Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model_and_data.html">Model and Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="joints_bodies_frames.html">Joints, Bodies, and Frames</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lie_and_spatial.html">Lie Groups and Spatial Algebra</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parsers_and_ir.html">Parsers and the IR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kinematics.html">Kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dynamics.html">Dynamics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="residuals_and_costs.html">Residuals and Costs</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">The Solver Stack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tasks.html">Tasks — IK, Trajectory Optimisation, Retargeting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="collision_and_geometry.html">Collision and Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="batching_and_backends.html">Batching and Backends</a></li>
+<li class="toctree-l2"><a class="reference internal" href="viewer.html">Viewer</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Conventions</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../conventions/index.html">Conventions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/naming.html">Naming</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/performance.html">Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/extension.html">Extension Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/testing.html">Testing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/contracts.html">Contracts &amp; Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/style.html">Coding Style</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/packaging.html">Packaging</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../reference/index.html">Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.builders.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io.builders</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.parsers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io.parsers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.ir.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io.ir</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.assets.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io.assets</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.build_model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io.build_model</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.renderers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.renderers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.render_modes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.render_modes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.overlays.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.overlays</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.trajectory_player.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.trajectory_player</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.interaction.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.interaction</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.visualizer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.visualizer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.panels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.panels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.camera.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.camera</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.recorder.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.recorder</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.scene.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.scene</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.helpers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.helpers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.themes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.themes</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.temporal</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.registry.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.registry</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.base.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.base</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.manipulability.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.manipulability</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.collision</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.pose.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.pose</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.smoothness.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.smoothness</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.motion.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial.motion</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.ops.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial.ops</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.symmetric3.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial.symmetric3</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.inertia.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial.inertia</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.force.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial.force</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.collision</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.collision.geometry.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.collision.geometry</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.collision.pairs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.collision.pairs</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.collision.closest_pts.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.collision.closest_pts</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.collision.robot_collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.collision.robot_collision</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.action.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.action</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.integrators.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.integrators</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.crba.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.crba</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.rnea.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.rnea</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.aba.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.aba</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.centroidal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.centroidal</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.state_manifold.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.state_manifold</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.derivatives.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.derivatives</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.strategies.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.strategies</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.state.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.state</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.jacobian_spec.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.jacobian_spec</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.stack</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.factory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.factory</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.testing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.testing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.batching.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.batching</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.logging.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.logging</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.broadcasting.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.broadcasting</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.ik.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.ik</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.parameterization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.parameterization</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.trajectory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajectory</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.retarget.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.retarget</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.trajopt.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajopt</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.so3.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.so3</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.se3.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.se3</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.types.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.types</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.tangents.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.tangents</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian_strategy.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian_strategy</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.chain.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.chain</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.forward.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.forward</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.joint_models.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint_models</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.body.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.body</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.joint.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.frame.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.frame</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.topology.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.topology</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.indexing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.indexing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.data.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.data</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.torch_native.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.torch_native</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.warp.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.warp</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.protocol.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.protocol</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/better_robot/better_robot.exceptions.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.exceptions</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/changelog.html">Changelog</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/roadmap.html">Roadmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Project Links</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference external" href="https://github.com/rihat99/BetterRobot">GitHub</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://pypi.org/project/better-robot/">PyPI</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/rihat99/BetterRobot" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/rihat99/BetterRobot/edit/main/docs/concepts/solver_stack.md" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/rihat99/BetterRobot/issues/new?title=Issue%20on%20page%20%2Fconcepts/solver_stack.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/concepts/solver_stack.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>The Solver Stack</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#leastsquaresproblem"><code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-optimizer-protocol">The <code class="docutils literal notranslate"><span class="pre">Optimizer</span></code> Protocol</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#solverstate"><code class="docutils literal notranslate"><span class="pre">SolverState</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#linear-solvers">Linear solvers</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#robust-kernels">Robust kernels</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#damping-strategies">Damping strategies</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optimizerconfig-every-knob-is-wired"><code class="docutils literal notranslate"><span class="pre">OptimizerConfig</span></code> — every knob is wired</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multistageoptimizer"><code class="docutils literal notranslate"><span class="pre">MultiStageOptimizer</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-levenbergmarquardt-minimize-sketch">The <code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.minimize</span></code> sketch</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#stop-schedulers">Stop schedulers</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#results">Results</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-this-lets-users-do">What this lets users do</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sharp-edges">Sharp edges</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#where-to-look-next">Where to look next</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="the-solver-stack">
+<h1>The Solver Stack<a class="headerlink" href="#the-solver-stack" title="Link to this heading">#</a></h1>
+<p>A <code class="docutils literal notranslate"><span class="pre">CostStack</span></code> knows how to compute residuals; it does not know how to
+minimise them. That job belongs to <code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code> (which packs
+the cost stack, the initial guess, and the manifold retraction into
+a single self-describing problem) and to an <code class="docutils literal notranslate"><span class="pre">Optimizer</span></code> (which
+iterates on it). The optimiser does <em>not</em> fuse the linear-solver
+choice, the robust kernel, the damping schedule, or the
+stop-condition into its own loop; those are independently pluggable
+axes that compose at construction.</p>
+<p>That separation is the whole reason “swap LM for Adam” or “switch
+the linear solver to CG for a sparse trajopt” is one Protocol swap
+instead of a rewrite. Every optimiser implements the same
+<code class="docutils literal notranslate"><span class="pre">Optimizer</span></code> Protocol; every linear solver implements the same
+<code class="docutils literal notranslate"><span class="pre">LinearSolver</span></code> Protocol; every robust kernel and damping strategy
+likewise. The solver loop sketch at the bottom of this chapter is
+deliberately short — it is the <em>only</em> solver loop in the library.
+The four stages of the LM-then-LBFGS multi-stage solver, the
+collision-aware refinement pass, and the trajopt block-Cholesky path
+all reduce to the same shape with different components.</p>
+<p>This chapter walks through <code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code> and the four
+pluggable axes (Optimizer, LinearSolver, RobustKernel,
+DampingStrategy) and ends with the loop sketch.</p>
+<section id="leastsquaresproblem">
+<h2><code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code><a class="headerlink" href="#leastsquaresproblem" title="Link to this heading">#</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">LeastSquaresProblem</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A least-squares problem over a flat optimisation variable x ∈ (nx,).</span>
+
+<span class="sd">    - The cost stack supplies residuals r(x) and (optionally) J(x).</span>
+<span class="sd">    - Equality / inequality constraints are exposed as cost items with</span>
+<span class="sd">      kind=&quot;constraint_leq_zero&quot; (Crocoddyl-like).</span>
+<span class="sd">    - Variable bounds are hard — enforced by projection at every step.</span>
+
+<span class="sd">    The problem is intentionally minimal; the solvers in</span>
+<span class="sd">    optim/optimizers/ own the iteration strategy.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cost_stack</span><span class="p">:</span> <span class="n">CostStack</span>
+    <span class="n">state_factory</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">ResidualState</span><span class="p">]</span>    <span class="c1"># wrap x into ResidualState</span>
+    <span class="n">x0</span><span class="p">:</span> <span class="n">Tensor</span>
+    <span class="n">lower</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">upper</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">jacobian_strategy</span><span class="p">:</span> <span class="n">JacobianStrategy</span> <span class="o">=</span> <span class="n">JacobianStrategy</span><span class="o">.</span><span class="n">AUTO</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">residual</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">jacobian</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">gradient</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;J(x)^T @ r(x), matrix-free.</span>
+
+<span class="sd">        Iterates the active CostStack items and accumulates each item&#39;s</span>
+<span class="sd">        ``apply_jac_transpose(state, r_item)`` contribution. Used by</span>
+<span class="sd">        Adam, L-BFGS, and any optimiser that does not need the dense</span>
+<span class="sd">        Jacobian.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">jacobian_blocks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="s2">&quot;BlockKey&quot;</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Block-sparse Jacobian per ResidualSpec.</span>
+
+<span class="sd">        Used by the block-Cholesky linear solver for trajopt.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+</pre></div>
+</div>
+<p>Source: <code class="docutils literal notranslate"><span class="pre">src/better_robot/optim/problem.py</span></code>.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">state_factory</span></code> callable is how a problem hooks into the data
+model: for an IK problem, it turns the flat <code class="docutils literal notranslate"><span class="pre">x</span></code> into a <code class="docutils literal notranslate"><span class="pre">Data</span></code> object
+via <code class="docutils literal notranslate"><span class="pre">model.create_data(q=x)</span></code> and a cached FK pass. This keeps
+<code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code> agnostic — it does not know whether it is
+solving IK, trajopt, or pose-graph SLAM.</p>
+<p>The two extras worth highlighting:</p>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">gradient(x)</span></code> is matrix-free.</strong> Adam, L-BFGS, and any optimiser
+that does not need the dense Jacobian read this instead of
+<code class="docutils literal notranslate"><span class="pre">jacobian(x)</span></code>. For dense residuals the default
+<code class="docutils literal notranslate"><span class="pre">apply_jac_transpose</span></code> falls back to <code class="docutils literal notranslate"><span class="pre">J.T</span> <span class="pre">&#64;</span> <span class="pre">r</span></code>; for banded /
+temporal residuals a per-knot kernel keeps the per-iteration
+memory at <code class="docutils literal notranslate"><span class="pre">O(T·nv)</span></code>. This is what makes a 200-knot G1 trajopt fit
+inside the 200 MiB CUDA peak watermark from <a class="reference internal" href="../conventions/performance.html"><span class="doc">Performance</span></a> §1.3.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">jacobian_blocks(x)</span></code> exposes structure.</strong> The block-Cholesky
+linear solver reads it to skip zero blocks. Residuals whose
+<code class="docutils literal notranslate"><span class="pre">spec.structure</span></code> is <code class="docutils literal notranslate"><span class="pre">&quot;dense&quot;</span></code> contribute one block;
+<code class="docutils literal notranslate"><span class="pre">&quot;block&quot;</span></code> / <code class="docutils literal notranslate"><span class="pre">&quot;banded&quot;</span></code> items contribute their declared blocks;
+<code class="docutils literal notranslate"><span class="pre">&quot;matrix_free&quot;</span></code> items raise — those should be solved with a
+gradient-based optimiser, not assembly-based LM.</p></li>
+</ul>
+</section>
+<section id="the-optimizer-protocol">
+<h2>The <code class="docutils literal notranslate"><span class="pre">Optimizer</span></code> Protocol<a class="headerlink" href="#the-optimizer-protocol" title="Link to this heading">#</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@runtime_checkable</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Optimizer</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">minimize</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">problem</span><span class="p">:</span> <span class="n">LeastSquaresProblem</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">max_iter</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">linear_solver</span><span class="p">:</span> <span class="s2">&quot;LinearSolver&quot;</span><span class="p">,</span>
+        <span class="n">kernel</span><span class="p">:</span> <span class="s2">&quot;RobustKernel&quot;</span><span class="p">,</span>
+        <span class="n">strategy</span><span class="p">:</span> <span class="s2">&quot;DampingStrategy&quot;</span><span class="p">,</span>
+        <span class="n">scheduler</span><span class="p">:</span> <span class="s2">&quot;StopScheduler&quot;</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;OptimizationResult&quot;</span><span class="p">:</span>
+        <span class="o">...</span>
+</pre></div>
+</div>
+<p>Source: <code class="docutils literal notranslate"><span class="pre">src/better_robot/optim/optimizers/base.py</span></code>.</p>
+<p>Because this is a <code class="docutils literal notranslate"><span class="pre">Protocol</span></code>, any class with a matching <code class="docutils literal notranslate"><span class="pre">minimize</span></code> is
+an <code class="docutils literal notranslate"><span class="pre">Optimizer</span></code> — no inheritance required. User-provided optimisers
+(DDP, iLQR, ADMM, IPOPT) plug in without touching the library; see
+<a class="reference internal" href="../conventions/extension.html"><span class="doc">Extension Points</span></a> §3.</p>
+<p>Built-in optimisers:</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>File</p></th>
+<th class="head"><p>Class</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">levenberg_marquardt.py</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt</span></code></p></td>
+<td><p>Default; analytic Jacobian + adaptive damping</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gauss_newton.py</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">GaussNewton</span></code></p></td>
+<td><p>Pure GN; no damping</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">adam.py</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Adam</span></code></p></td>
+<td><p>Reads <code class="docutils literal notranslate"><span class="pre">problem.gradient(x)</span></code>; never materialises J</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">lbfgs.py</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">LBFGS</span></code></p></td>
+<td><p>Same</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">multi_stage.py</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MultiStageOptimizer</span></code></p></td>
+<td><p>Sequence of stages with weight overrides</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">lm_then_lbfgs.py</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">LMThenLBFGS</span></code></p></td>
+<td><p>Backward-compat wrapper around <code class="docutils literal notranslate"><span class="pre">MultiStageOptimizer</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="solverstate">
+<h2><code class="docutils literal notranslate"><span class="pre">SolverState</span></code><a class="headerlink" href="#solverstate" title="Link to this heading">#</a></h2>
+<p>All solvers share a common per-iteration state object passed between
+the optimiser, the damping strategy, the linear solver, and any
+custom diagnostics:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SolverState</span><span class="p">:</span>
+    <span class="n">x</span><span class="p">:</span>             <span class="n">Tensor</span>              <span class="c1"># (B..., nx) current iterate</span>
+    <span class="n">residual</span><span class="p">:</span>      <span class="n">Tensor</span>              <span class="c1"># (B..., total_dim) r(x)</span>
+    <span class="n">residual_norm</span><span class="p">:</span> <span class="n">Tensor</span>              <span class="c1"># (B...,) ||r(x)||</span>
+    <span class="n">iters</span><span class="p">:</span>         <span class="nb">int</span>
+    <span class="n">damping</span><span class="p">:</span>       <span class="nb">float</span>               <span class="c1"># λ for LM / trust-region radius for TR</span>
+    <span class="n">gain_ratio</span><span class="p">:</span>    <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">status</span><span class="p">:</span>        <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;running&quot;</span><span class="p">,</span> <span class="s2">&quot;converged&quot;</span><span class="p">,</span> <span class="s2">&quot;stalled&quot;</span><span class="p">,</span> <span class="s2">&quot;maxiter&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;running&quot;</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_problem</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">problem</span><span class="p">:</span> <span class="n">LeastSquaresProblem</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SolverState&quot;</span><span class="p">:</span> <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">converged</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tol</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span> <span class="o">...</span>
+</pre></div>
+</div>
+<p>Source: <code class="docutils literal notranslate"><span class="pre">src/better_robot/optim/state.py</span></code>. The “one struct passes
+through every component” pattern (cuRobo) replaces the ad-hoc tuple
+returns the early prototype carried.</p>
+</section>
+<section id="linear-solvers">
+<h2>Linear solvers<a class="headerlink" href="#linear-solvers" title="Link to this heading">#</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">LinearSolver</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">solve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">A</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Cholesky</span><span class="p">(</span><span class="n">LinearSolver</span><span class="p">):</span> <span class="o">...</span>        <span class="c1"># dense, SPD</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">LSTSQ</span><span class="p">(</span><span class="n">LinearSolver</span><span class="p">):</span> <span class="o">...</span>           <span class="c1"># rank-deficient safe</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">CG</span><span class="p">(</span><span class="n">LinearSolver</span><span class="p">):</span> <span class="o">...</span>              <span class="c1"># conjugate gradients for large sparse</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SparseCholesky</span><span class="p">(</span><span class="n">LinearSolver</span><span class="p">):</span> <span class="o">...</span>  <span class="c1"># block-sparse for trajopt</span>
+</pre></div>
+</div>
+<p>Source: <code class="docutils literal notranslate"><span class="pre">src/better_robot/optim/linear_solvers/</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Cholesky</span></code> is the default for dense IK problems. <code class="docutils literal notranslate"><span class="pre">SparseCholesky</span></code> is
+the default for trajopt problems where the Jacobian has banded /
+block structure (driven by <code class="docutils literal notranslate"><span class="pre">ResidualSpec</span></code>). <code class="docutils literal notranslate"><span class="pre">CG</span></code> is the choice for
+very large problems where assembly-based methods exhaust memory;
+<code class="docutils literal notranslate"><span class="pre">LSTSQ</span></code> is for cases where <code class="docutils literal notranslate"><span class="pre">JᵀJ</span></code> may be rank-deficient.</p>
+</section>
+<section id="robust-kernels">
+<h2>Robust kernels<a class="headerlink" href="#robust-kernels" title="Link to this heading">#</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">RobustKernel</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">weight</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">squared_norm</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">L2</span><span class="p">(</span><span class="n">RobustKernel</span><span class="p">):</span>    <span class="o">...</span>   <span class="c1"># trivial identity</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Huber</span><span class="p">(</span><span class="n">RobustKernel</span><span class="p">):</span> <span class="o">...</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Cauchy</span><span class="p">(</span><span class="n">RobustKernel</span><span class="p">):</span> <span class="o">...</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Tukey</span><span class="p">(</span><span class="n">RobustKernel</span><span class="p">):</span> <span class="o">...</span>
+</pre></div>
+</div>
+<p>Source: <code class="docutils literal notranslate"><span class="pre">src/better_robot/optim/kernels/</span></code>.</p>
+<p>Robust kernels reweight <code class="docutils literal notranslate"><span class="pre">r</span> <span class="pre">→</span> <span class="pre">ρ(r)</span></code> per residual, not per cost stack
+— different terms can use different kernels. The IRLS-style
+reweighting happens once per outer iteration before the linear
+solve.</p>
+</section>
+<section id="damping-strategies">
+<h2>Damping strategies<a class="headerlink" href="#damping-strategies" title="Link to this heading">#</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">DampingStrategy</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span> <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">accept</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lam</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span> <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reject</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lam</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span> <span class="o">...</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Constant</span><span class="p">(</span><span class="n">DampingStrategy</span><span class="p">):</span>    <span class="o">...</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Adaptive</span><span class="p">(</span><span class="n">DampingStrategy</span><span class="p">):</span>    <span class="o">...</span>   <span class="c1"># double on reject, halve on accept</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TrustRegion</span><span class="p">(</span><span class="n">DampingStrategy</span><span class="p">):</span> <span class="o">...</span>
+</pre></div>
+</div>
+<p>Source: <code class="docutils literal notranslate"><span class="pre">src/better_robot/optim/damping/</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Adaptive</span></code> is the default for LM. It starts at <code class="docutils literal notranslate"><span class="pre">1e-4</span></code>, doubles on
+reject, halves on accept. <code class="docutils literal notranslate"><span class="pre">TrustRegion</span></code> is the right choice when the
+problem has known step-size constraints.</p>
+</section>
+<section id="optimizerconfig-every-knob-is-wired">
+<h2><code class="docutils literal notranslate"><span class="pre">OptimizerConfig</span></code> — every knob is wired<a class="headerlink" href="#optimizerconfig-every-knob-is-wired" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">OptimizerConfig</span></code> is the user-facing dial. Every declared knob is
+honoured — there are no decorative fields.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">OptimizerConfig</span><span class="p">:</span>
+    <span class="n">optimizer</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;lm&quot;</span><span class="p">,</span> <span class="s2">&quot;gn&quot;</span><span class="p">,</span> <span class="s2">&quot;adam&quot;</span><span class="p">,</span> <span class="s2">&quot;lbfgs&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;lm_then_lbfgs&quot;</span><span class="p">,</span> <span class="s2">&quot;multi_stage&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;lm&quot;</span>
+    <span class="n">max_iter</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span>
+    <span class="n">jacobian_strategy</span><span class="p">:</span> <span class="n">JacobianStrategy</span> <span class="o">=</span> <span class="n">JacobianStrategy</span><span class="o">.</span><span class="n">AUTO</span>
+
+    <span class="n">linear_solver</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;cholesky&quot;</span><span class="p">,</span> <span class="s2">&quot;lstsq&quot;</span><span class="p">,</span> <span class="s2">&quot;cg&quot;</span><span class="p">,</span> <span class="s2">&quot;sparse_cholesky&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;cholesky&quot;</span>
+    <span class="n">kernel</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;l2&quot;</span><span class="p">,</span> <span class="s2">&quot;huber&quot;</span><span class="p">,</span> <span class="s2">&quot;cauchy&quot;</span><span class="p">,</span> <span class="s2">&quot;tukey&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;l2&quot;</span>
+    <span class="n">huber_delta</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">tukey_c</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">damping</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span> <span class="s2">&quot;adaptive&quot;</span><span class="p">,</span> <span class="s2">&quot;trust_region&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;adaptive&quot;</span>
+    <span class="n">tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-7</span>
+
+    <span class="c1"># Two-stage refinement (cuRobo pattern).</span>
+    <span class="n">refine_max_iter</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span>
+    <span class="n">refine_cost_mask</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="s2">&quot;pose_*&quot;</span><span class="p">,</span> <span class="s2">&quot;limits&quot;</span><span class="p">,</span> <span class="s2">&quot;rest&quot;</span><span class="p">,</span> <span class="s2">&quot;self_collision&quot;</span><span class="p">,</span> <span class="s2">&quot;world_collision&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Multi-stage (generalises lm_then_lbfgs).</span>
+    <span class="n">stages</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="s2">&quot;OptimizerStage&quot;</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">solve_ik</span></code> builds the optimiser, linear solver, robust kernel, and
+damping strategy explicitly:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">optimizer</span> <span class="o">=</span> <span class="n">_make_optimizer</span>     <span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+<span class="n">linear</span>    <span class="o">=</span> <span class="n">_make_linear_solver</span> <span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+<span class="n">kernel</span>    <span class="o">=</span> <span class="n">_make_robust_kernel</span> <span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+<span class="n">damping</span>   <span class="o">=</span> <span class="n">_make_damping</span>       <span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+<span class="n">state</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">minimize</span><span class="p">(</span><span class="n">problem</span><span class="p">,</span>
+                           <span class="n">linear_solver</span><span class="o">=</span><span class="n">linear</span><span class="p">,</span>
+                           <span class="n">kernel</span><span class="o">=</span><span class="n">kernel</span><span class="p">,</span>
+                           <span class="n">strategy</span><span class="o">=</span><span class="n">damping</span><span class="p">,</span>
+                           <span class="n">max_iter</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">max_iter</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>If a knob is set but ignored by the chosen optimiser (Adam does not
+take a linear solver), the build step warns rather than silently
+swallowing it. A contract test asserts
+<code class="docutils literal notranslate"><span class="pre">OptimizerConfig(linear_solver=&quot;lstsq&quot;)</span></code> produces a <em>different</em>
+numerical trajectory than the default — declared knobs are wired,
+never decorative.</p>
+</section>
+<section id="multistageoptimizer">
+<h2><code class="docutils literal notranslate"><span class="pre">MultiStageOptimizer</span></code><a class="headerlink" href="#multistageoptimizer" title="Link to this heading">#</a></h2>
+<p>The historical <code class="docutils literal notranslate"><span class="pre">LMThenLBFGS</span></code> is the special case of a more general
+construct:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">OptimizerStage</span><span class="p">:</span>
+    <span class="n">optimizer</span><span class="p">:</span> <span class="n">Optimizer</span>
+    <span class="n">max_iter</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">active_items</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">disabled_items</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>
+    <span class="n">weight_overrides</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">MultiStageOptimizer</span><span class="p">(</span><span class="n">Optimizer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run a fixed sequence of solver stages. Each stage may toggle</span>
+<span class="sd">    cost-stack active flags or override item weights. ``LMThenLBFGS``</span>
+<span class="sd">    is implemented as ``MultiStageOptimizer(stages=(LM, LBFGS))``.</span>
+
+<span class="sd">    The multi-stage optimiser **must restore active-flag and</span>
+<span class="sd">    weight-override state** even if a stage raises. A try/finally</span>
+<span class="sd">    around ``cost_stack.snapshot()`` / ``.restore()`` keeps the</span>
+<span class="sd">    user&#39;s CostStack intact regardless of outcome.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+</pre></div>
+</div>
+<p>Tested explicitly: stage-wise weight overrides correctly restore the
+original <code class="docutils literal notranslate"><span class="pre">CostStack</span></code> weights after the run, including in error paths.</p>
+</section>
+<section id="the-levenbergmarquardt-minimize-sketch">
+<h2>The <code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.minimize</span></code> sketch<a class="headerlink" href="#the-levenbergmarquardt-minimize-sketch" title="Link to this heading">#</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">minimize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">problem</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">max_iter</span><span class="p">,</span> <span class="n">linear_solver</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">strategy</span><span class="p">,</span> <span class="n">scheduler</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">x</span>   <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">x0</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+    <span class="n">lam</span> <span class="o">=</span> <span class="n">strategy</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="n">problem</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_iter</span><span class="p">):</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">residual</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">J</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">jacobian</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">kernel</span><span class="o">.</span><span class="n">weight</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span><span class="o">.</span><span class="n">sqrt</span><span class="p">()</span> <span class="o">*</span> <span class="n">r</span>
+        <span class="n">JtJ</span> <span class="o">=</span> <span class="n">J</span><span class="o">.</span><span class="n">mT</span> <span class="o">@</span> <span class="n">J</span>
+        <span class="n">Jtr</span> <span class="o">=</span> <span class="n">J</span><span class="o">.</span><span class="n">mT</span> <span class="o">@</span> <span class="n">r</span>
+
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">A</span> <span class="o">=</span> <span class="n">JtJ</span> <span class="o">+</span> <span class="n">lam</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+            <span class="n">delta</span> <span class="o">=</span> <span class="n">linear_solver</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="o">-</span><span class="n">Jtr</span><span class="p">)</span>
+            <span class="n">x_new</span> <span class="o">=</span> <span class="n">_project</span><span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">delta</span><span class="p">,</span> <span class="n">problem</span><span class="o">.</span><span class="n">lower</span><span class="p">,</span> <span class="n">problem</span><span class="o">.</span><span class="n">upper</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">problem</span><span class="o">.</span><span class="n">residual</span><span class="p">(</span><span class="n">x_new</span><span class="p">)</span><span class="o">.</span><span class="n">norm</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="n">r</span><span class="o">.</span><span class="n">norm</span><span class="p">():</span>
+                <span class="n">x</span><span class="p">,</span> <span class="n">lam</span> <span class="o">=</span> <span class="n">x_new</span><span class="p">,</span> <span class="n">strategy</span><span class="o">.</span><span class="n">accept</span><span class="p">(</span><span class="n">lam</span><span class="p">)</span>
+                <span class="k">break</span>
+            <span class="n">lam</span> <span class="o">=</span> <span class="n">strategy</span><span class="o">.</span><span class="n">reject</span><span class="p">(</span><span class="n">lam</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">lam</span> <span class="o">&gt;</span> <span class="n">MAX_LAM</span><span class="p">:</span> <span class="k">break</span>
+
+        <span class="k">if</span> <span class="n">scheduler</span> <span class="ow">and</span> <span class="n">scheduler</span><span class="o">.</span><span class="n">should_stop</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+            <span class="k">break</span>
+    <span class="k">return</span> <span class="n">OptimizationResult</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">residual</span><span class="o">=</span><span class="n">r</span><span class="p">,</span> <span class="n">iters</span><span class="o">=</span><span class="n">step</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Source: <code class="docutils literal notranslate"><span class="pre">src/better_robot/optim/optimizers/levenberg_marquardt.py</span></code>.</p>
+<p>This is one loop. The four optimisers’ worth of code that the early
+prototype carried (our LM, PyPose LM, fixed-base autodiff LM,
+floating-base analytic LM) all collapse into this with different
+components plugged in.</p>
+</section>
+<section id="stop-schedulers">
+<h2>Stop schedulers<a class="headerlink" href="#stop-schedulers" title="Link to this heading">#</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">StopScheduler</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">should_stop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">residual</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span> <span class="o">...</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">MaxIterations</span><span class="p">(</span><span class="n">StopScheduler</span><span class="p">):</span>     <span class="o">...</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">StopOnPlateau</span><span class="p">(</span><span class="n">StopScheduler</span><span class="p">):</span>     <span class="o">...</span>   <span class="c1"># relative improvement</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">EarlyStopOnGradient</span><span class="p">(</span><span class="n">StopScheduler</span><span class="p">):</span> <span class="o">...</span>
+</pre></div>
+</div>
+</section>
+<section id="results">
+<h2>Results<a class="headerlink" href="#results" title="Link to this heading">#</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">OptimizationResult</span><span class="p">:</span>
+    <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span>
+    <span class="n">residual</span><span class="p">:</span> <span class="n">Tensor</span>
+    <span class="n">iters</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">converged</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="n">history</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span>              <span class="c1"># per-iter {step, loss, lam} — optional</span>
+</pre></div>
+</div>
+<p>The task layer (<code class="docutils literal notranslate"><span class="pre">solve_ik</span></code>, <code class="docutils literal notranslate"><span class="pre">solve_trajopt</span></code>) wraps this in a
+task-specific result type (<code class="docutils literal notranslate"><span class="pre">IKResult</span></code>, <code class="docutils literal notranslate"><span class="pre">TrajOptResult</span></code>) that carries
+the model and a frame-pose accessor.</p>
+</section>
+<section id="what-this-lets-users-do">
+<h2>What this lets users do<a class="headerlink" href="#what-this-lets-users-do" title="Link to this heading">#</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">better_robot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">br</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.residuals.pose</span><span class="w">          </span><span class="kn">import</span> <span class="n">PoseResidual</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.residuals.limits</span><span class="w">        </span><span class="kn">import</span> <span class="n">JointPositionLimit</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.residuals.regularization</span><span class="w"> </span><span class="kn">import</span> <span class="n">RestResidual</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.costs</span><span class="w">                    </span><span class="kn">import</span> <span class="n">CostStack</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim</span><span class="w">                    </span><span class="kn">import</span> <span class="n">LeastSquaresProblem</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim.optimizers</span><span class="w">         </span><span class="kn">import</span> <span class="n">LevenbergMarquardt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim.damping</span><span class="w">            </span><span class="kn">import</span> <span class="n">Adaptive</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim.linear_solvers</span><span class="w">     </span><span class="kn">import</span> <span class="n">Cholesky</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim.kernels</span><span class="w">            </span><span class="kn">import</span> <span class="n">Huber</span>
+
+<span class="n">model</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;panda.urdf&quot;</span><span class="p">)</span>
+<span class="n">hand_id</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">frame_id</span><span class="p">(</span><span class="s2">&quot;panda_hand&quot;</span><span class="p">)</span>
+
+<span class="n">stack</span> <span class="o">=</span> <span class="n">CostStack</span><span class="p">()</span>
+<span class="n">stack</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;pose&quot;</span><span class="p">,</span> <span class="n">PoseResidual</span><span class="p">(</span><span class="n">frame_id</span><span class="o">=</span><span class="n">hand_id</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target_pose</span><span class="p">))</span>
+<span class="n">stack</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;limits&quot;</span><span class="p">,</span> <span class="n">JointPositionLimit</span><span class="p">(</span><span class="n">model</span><span class="p">),</span> <span class="n">weight</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+<span class="n">stack</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;rest&quot;</span><span class="p">,</span>   <span class="n">RestResidual</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">q_neutral</span><span class="p">),</span> <span class="n">weight</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
+
+<span class="n">problem</span> <span class="o">=</span> <span class="n">LeastSquaresProblem</span><span class="p">(</span>
+    <span class="n">cost_stack</span><span class="o">=</span><span class="n">stack</span><span class="p">,</span>
+    <span class="n">state_factory</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">br</span><span class="o">.</span><span class="n">residuals</span><span class="o">.</span><span class="n">ResidualState</span><span class="p">(</span>
+        <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span>
+        <span class="n">data</span><span class="o">=</span><span class="n">br</span><span class="o">.</span><span class="n">forward_kinematics</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">compute_frames</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="n">variables</span><span class="o">=</span><span class="n">x</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="n">x0</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">q_neutral</span><span class="p">,</span>
+    <span class="n">lower</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">lower_pos_limit</span><span class="p">,</span>
+    <span class="n">upper</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">upper_pos_limit</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">result</span> <span class="o">=</span> <span class="n">LevenbergMarquardt</span><span class="p">()</span><span class="o">.</span><span class="n">minimize</span><span class="p">(</span>
+    <span class="n">problem</span><span class="p">,</span>
+    <span class="n">max_iter</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+    <span class="n">linear_solver</span><span class="o">=</span><span class="n">Cholesky</span><span class="p">(),</span>
+    <span class="n">kernel</span><span class="o">=</span><span class="n">Huber</span><span class="p">(</span><span class="n">delta</span><span class="o">=</span><span class="mf">0.1</span><span class="p">),</span>
+    <span class="n">strategy</span><span class="o">=</span><span class="n">Adaptive</span><span class="p">(),</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>No fixed-vs-floating special case. No <code class="docutils literal notranslate"><span class="pre">solver_params</span></code> dict. No
+<code class="docutils literal notranslate"><span class="pre">jacobian_fn</span></code> argument. A single path from residuals to <code class="docutils literal notranslate"><span class="pre">result.x</span></code>.</p>
+<p>In normal use you would never write that loop; <code class="docutils literal notranslate"><span class="pre">solve_ik</span></code> does it
+internally. The example exists to show that the four pluggable axes
+compose cleanly.</p>
+</section>
+<section id="sharp-edges">
+<h2>Sharp edges<a class="headerlink" href="#sharp-edges" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><strong>Adam and L-BFGS read <code class="docutils literal notranslate"><span class="pre">problem.gradient(x)</span></code>, not
+<code class="docutils literal notranslate"><span class="pre">problem.jacobian(x)</span></code>.</strong> They never materialise the dense
+Jacobian. Long-horizon trajopt depends on this for memory.</p></li>
+<li><p><strong>The LM solver projects after each accepted step.</strong> Initial <code class="docutils literal notranslate"><span class="pre">x0</span></code>
+is <strong>not</strong> projected — caller must provide a feasible <code class="docutils literal notranslate"><span class="pre">x0</span></code> if
+bounds matter.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">MultiStageOptimizer</span></code> restores weights / active flags via
+try/finally.</strong> Stage-wise overrides do not leak even if a stage
+raises.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">OptimizerConfig</span></code> knobs are honoured.</strong> A contract test asserts
+setting <code class="docutils literal notranslate"><span class="pre">linear_solver=&quot;lstsq&quot;</span></code> produces a different numerical
+trajectory than the default. Decorative knobs would fail the test.</p></li>
+</ul>
+</section>
+<section id="where-to-look-next">
+<h2>Where to look next<a class="headerlink" href="#where-to-look-next" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="tasks.html"><span class="doc">Tasks — IK, Trajectory Optimisation, Retargeting</span></a> — <code class="docutils literal notranslate"><span class="pre">solve_ik</span></code> and <code class="docutils literal notranslate"><span class="pre">solve_trajopt</span></code>, which assemble a
+<code class="docutils literal notranslate"><span class="pre">CostStack</span></code>, build a <code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code>, and call an
+<code class="docutils literal notranslate"><span class="pre">Optimizer</span></code>.</p></li>
+<li><p><a class="reference internal" href="../conventions/extension.html"><span class="doc">Extension Points</span></a> §3, §4, §5, §6 — recipes for adding
+a custom optimiser, damping strategy, linear solver, or robust
+kernel.</p></li>
+<li><p><a class="reference internal" href="../conventions/performance.html"><span class="doc">Performance</span></a> §2.7 — matrix-free trajopt and the
+memory wins it brings.</p></li>
+</ul>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="residuals_and_costs.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Residuals and Costs</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="tasks.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Tasks — IK, Trajectory Optimisation, Retargeting</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#leastsquaresproblem"><code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-optimizer-protocol">The <code class="docutils literal notranslate"><span class="pre">Optimizer</span></code> Protocol</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#solverstate"><code class="docutils literal notranslate"><span class="pre">SolverState</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#linear-solvers">Linear solvers</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#robust-kernels">Robust kernels</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#damping-strategies">Damping strategies</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optimizerconfig-every-knob-is-wired"><code class="docutils literal notranslate"><span class="pre">OptimizerConfig</span></code> — every knob is wired</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multistageoptimizer"><code class="docutils literal notranslate"><span class="pre">MultiStageOptimizer</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-levenbergmarquardt-minimize-sketch">The <code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.minimize</span></code> sketch</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#stop-schedulers">Stop schedulers</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#results">Results</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-this-lets-users-do">What this lets users do</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sharp-edges">Sharp edges</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#where-to-look-next">Where to look next</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By BetterRobot contributors
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright BetterRobot contributors.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    <p class="last-updated">
+  Last updated on Apr 26, 2026.
+  <br/>
+</p>
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

@@ -1,0 +1,1157 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Coding Style &#8212; BetterRobot</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=17638015" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=06af8975"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=c57da192"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'conventions/style';</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Packaging" href="packaging.html" />
+    <link rel="prev" title="Contracts &amp; Validation" href="contracts.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.2" />
+    <meta name="docbuild:last-update" content="Apr 26, 2026"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">BetterRobot</p>
+  
+</a></div>
+        <div class="sidebar-primary-item"><ul class="navbar-icon-links"
+    aria-label="Quick Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/rihat99/BetterRobot" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/better-robot/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-python fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">PyPI</span></a>
+        </li>
+</ul></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../getting_started/index.html">Getting started</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/forward_kinematics.html">Forward kinematics on Panda</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/inverse_kinematics.html">Inverse kinematics on Panda</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/floating_base.html">Floating-base IK on the G1 humanoid</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Concepts</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../concepts/index.html">Concepts</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/vision.html">Vision</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/architecture.html">Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/model_and_data.html">Model and Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/joints_bodies_frames.html">Joints, Bodies, and Frames</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/lie_and_spatial.html">Lie Groups and Spatial Algebra</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/parsers_and_ir.html">Parsers and the IR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/kinematics.html">Kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/dynamics.html">Dynamics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/residuals_and_costs.html">Residuals and Costs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/solver_stack.html">The Solver Stack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/tasks.html">Tasks — IK, Trajectory Optimisation, Retargeting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/collision_and_geometry.html">Collision and Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/batching_and_backends.html">Batching and Backends</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/viewer.html">Viewer</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Conventions</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="index.html">Conventions</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="naming.html">Naming</a></li>
+<li class="toctree-l2"><a class="reference internal" href="performance.html">Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extension.html">Extension Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing.html">Testing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contracts.html">Contracts &amp; Validation</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">Coding Style</a></li>
+<li class="toctree-l2"><a class="reference internal" href="packaging.html">Packaging</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../reference/index.html">Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.builders.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io.builders</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.parsers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io.parsers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.ir.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io.ir</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.assets.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io.assets</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.build_model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io.build_model</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.renderers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.renderers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.render_modes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.render_modes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.overlays.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.overlays</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.trajectory_player.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.trajectory_player</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.interaction.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.interaction</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.visualizer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.visualizer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.panels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.panels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.camera.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.camera</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.recorder.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.recorder</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.scene.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.scene</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.helpers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.helpers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.themes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.themes</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.temporal</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.registry.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.registry</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.base.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.base</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.manipulability.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.manipulability</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.collision</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.pose.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.pose</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.smoothness.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.smoothness</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.motion.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial.motion</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.ops.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial.ops</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.symmetric3.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial.symmetric3</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.inertia.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial.inertia</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.force.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial.force</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.collision</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.collision.geometry.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.collision.geometry</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.collision.pairs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.collision.pairs</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.collision.closest_pts.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.collision.closest_pts</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.collision.robot_collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.collision.robot_collision</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.action.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.action</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.integrators.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.integrators</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.crba.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.crba</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.rnea.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.rnea</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.aba.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.aba</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.centroidal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.centroidal</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.state_manifold.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.state_manifold</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.derivatives.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.derivatives</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.strategies.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.strategies</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.state.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.state</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.jacobian_spec.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.jacobian_spec</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.stack</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.factory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.factory</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.testing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.testing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.batching.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.batching</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.logging.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.logging</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.broadcasting.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.broadcasting</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.ik.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.ik</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.parameterization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.parameterization</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.trajectory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajectory</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.retarget.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.retarget</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.trajopt.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajopt</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.so3.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.so3</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.se3.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.se3</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.types.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.types</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.tangents.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.tangents</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian_strategy.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian_strategy</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.chain.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.chain</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.forward.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.forward</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.joint_models.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint_models</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.body.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.body</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.joint.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.frame.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.frame</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.topology.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.topology</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.indexing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.indexing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.data.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.data</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.torch_native.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.torch_native</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.warp.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.warp</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.protocol.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.protocol</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/better_robot/better_robot.exceptions.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.exceptions</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/changelog.html">Changelog</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/roadmap.html">Roadmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Project Links</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference external" href="https://github.com/rihat99/BetterRobot">GitHub</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://pypi.org/project/better-robot/">PyPI</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/rihat99/BetterRobot" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/rihat99/BetterRobot/edit/main/docs/conventions/style.md" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/rihat99/BetterRobot/issues/new?title=Issue%20on%20page%20%2Fconventions/style.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/conventions/style.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Coding Style</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#guiding-principles">1 · Guiding principles</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#formatting-and-linting">2 · Formatting and linting</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#naming">3 · Naming</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#quaternions-lie-storage-and-frames">4 · Quaternions, Lie storage, and frames</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#imports">5 · Imports</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#type-annotations">6 · Type annotations</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#docstrings-numpy-style">7 · Docstrings — NumPy style</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configs-and-dataclasses">8 · Configs and dataclasses</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#errors">9 · Errors</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#logging">10 · Logging</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#file-organisation">11 · File organisation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#mutability">12 · Mutability</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#numerics">13 · Numerics</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hot-path-discipline">14 · Hot-path discipline</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#language-features">15 · Language features</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pull-requests-and-reviews">16 · Pull requests and reviews</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#quick-checklist-for-a-new-public-function">17 · Quick checklist for a new public function</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="coding-style">
+<h1>Coding Style<a class="headerlink" href="#coding-style" title="Link to this heading">#</a></h1>
+<blockquote>
+<div><p><strong>Status:</strong> normative. Single source of truth for in-tree code style.</p>
+</div></blockquote>
+<p>Style fights are the most expensive distraction a library can afford.
+Every minute spent debating tab width is a minute not spent writing
+analytic Jacobians. We resolve the debate up-front by ceding the small
+decisions to tooling — <code class="docutils literal notranslate"><span class="pre">ruff</span></code> for formatting and linting, <code class="docutils literal notranslate"><span class="pre">mypy</span></code> and
+<code class="docutils literal notranslate"><span class="pre">pyright</span></code> for typing — and committing the larger decisions
+(NumPy-style docstrings, scalar-last quaternions, <code class="docutils literal notranslate"><span class="pre">Protocol</span></code> over
+ABC) to this document. When tooling and this document disagree, the
+tooling wins; submit a PR to fix the doc.</p>
+<p>The principle behind the choices is that boring, predictable code
+beats clever code. Library users will read our source when something
+goes wrong; they will not have time to decode metaclass tricks or
+overloaded operators. So we forbid <code class="docutils literal notranslate"><span class="pre">__torch_function__</span></code> subclassing,
+keep <code class="docutils literal notranslate"><span class="pre">lie/</span></code> purely functional, allow operator overloading only where
+the semantics are unambiguous (<code class="docutils literal notranslate"><span class="pre">SE3</span> <span class="pre">&#64;</span> <span class="pre">SE3</span></code> is composition; <code class="docutils literal notranslate"><span class="pre">Motion</span> <span class="pre">*</span> <span class="pre">something</span></code> is forbidden because it is ambiguous between scale and
+cross-product), and prefer dependency injection through <code class="docutils literal notranslate"><span class="pre">Protocol</span></code>s
+over deep class hierarchies. The result is code that reads like math
+when it expresses math, and like Python when it expresses control flow
+— and never both at once.</p>
+<section id="guiding-principles">
+<h2>1 · Guiding principles<a class="headerlink" href="#guiding-principles" title="Link to this heading">#</a></h2>
+<ol class="arabic simple">
+<li><p><strong>Boring, predictable code beats clever code.</strong> Library users will
+read our source when something goes wrong. Optimise for that
+reader.</p></li>
+<li><p><strong>Fail loud at boundaries.</strong> Validate inputs at public API entry
+points; trust internal callers.</p></li>
+<li><p><strong>Composition over inheritance.</strong> Prefer <code class="docutils literal notranslate"><span class="pre">Protocol</span></code>s and dependency
+injection over deep class hierarchies.</p></li>
+<li><p><strong>Explicit over implicit</strong>, especially around units, frames, and
+tensor shapes.</p></li>
+<li><p><strong>Consistency beats personal preference.</strong> If a convention is
+established, follow it even if you would choose differently in a
+green field.</p></li>
+</ol>
+</section>
+<section id="formatting-and-linting">
+<h2>2 · Formatting and linting<a class="headerlink" href="#formatting-and-linting" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">ruff</span></code> is the source of truth. Configure once; do not argue.</p>
+<ul class="simple">
+<li><p>Line length: <strong>120 characters</strong>.</p></li>
+<li><p>Indentation: <strong>4 spaces</strong>, never tabs.</p></li>
+<li><p>Quotes: <strong>double quotes</strong> for strings, single only inside
+double-quoted strings.</p></li>
+<li><p>Trailing commas in multi-line collections and call sites.</p></li>
+<li><p>Imports sorted by <code class="docutils literal notranslate"><span class="pre">ruff</span></code> (isort-compatible): stdlib → third-party →
+<code class="docutils literal notranslate"><span class="pre">better_robot.*</span></code> → relative-equivalent. Blank lines between groups.</p></li>
+</ul>
+<p>Required <code class="docutils literal notranslate"><span class="pre">ruff</span></code> rule sets: <code class="docutils literal notranslate"><span class="pre">E</span></code>, <code class="docutils literal notranslate"><span class="pre">F</span></code>, <code class="docutils literal notranslate"><span class="pre">PLC</span></code>, <code class="docutils literal notranslate"><span class="pre">PLE</span></code>, <code class="docutils literal notranslate"><span class="pre">PLR</span></code>, <code class="docutils literal notranslate"><span class="pre">PLW</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>ruff<span class="w"> </span>format<span class="w"> </span>.
+uv<span class="w"> </span>run<span class="w"> </span>ruff<span class="w"> </span>check<span class="w"> </span>--fix<span class="w"> </span>.
+uv<span class="w"> </span>run<span class="w"> </span>mypy<span class="w"> </span>src/better_robot/
+uv<span class="w"> </span>run<span class="w"> </span>pytest
+</pre></div>
+</div>
+<p>A <code class="docutils literal notranslate"><span class="pre">pre-commit</span></code> hook runs <code class="docutils literal notranslate"><span class="pre">ruff</span> <span class="pre">format</span></code>, <code class="docutils literal notranslate"><span class="pre">ruff</span> <span class="pre">check</span></code>, and the fast
+contract subset on every commit. Install once:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>pre-commit<span class="w"> </span>install
+</pre></div>
+</div>
+</section>
+<section id="naming">
+<h2>3 · Naming<a class="headerlink" href="#naming" title="Link to this heading">#</a></h2>
+<p>PEP 8, no exceptions. The full table:</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Kind</p></th>
+<th class="head"><p>Convention</p></th>
+<th class="head"><p>Example</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Modules and packages</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">lower_snake_case</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">kinematics</span></code>, <code class="docutils literal notranslate"><span class="pre">joint_models</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Classes, exceptions, type aliases</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CapWords</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Model</span></code>, <code class="docutils literal notranslate"><span class="pre">IKResult</span></code>, <code class="docutils literal notranslate"><span class="pre">SE3Tensor</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Functions, methods, variables</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">lower_snake_case</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">forward_kinematics</span></code>, <code class="docutils literal notranslate"><span class="pre">q</span></code>, <code class="docutils literal notranslate"><span class="pre">q_dot</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Constants</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">UPPER_SNAKE_CASE</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">EPS</span></code>, <code class="docutils literal notranslate"><span class="pre">MAX_ITERATIONS</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Type variables</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CapWords</span></code>, short</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">T</span></code>, <code class="docutils literal notranslate"><span class="pre">StateT</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Private (module / class-internal)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">_leading_underscore</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">_validate_joint_limits</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Really private (name-mangled)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">__double_underscore</span></code></p></td>
+<td><p>rare; usually a smell</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Naming guidance:</p>
+<ul class="simple">
+<li><p>Storage attributes follow <strong><code class="docutils literal notranslate"><span class="pre">&lt;entity&gt;_&lt;quantity&gt;_&lt;frame&gt;</span></code></strong> —
+<code class="docutils literal notranslate"><span class="pre">joint_pose_world</span></code>, <code class="docutils literal notranslate"><span class="pre">frame_velocity_local</span></code>. See <a class="reference internal" href="naming.html"><span class="doc">Naming</span></a>.</p></li>
+<li><p>Functions named after published algorithms keep their canonical
+acronym (<code class="docutils literal notranslate"><span class="pre">rnea</span></code>, <code class="docutils literal notranslate"><span class="pre">aba</span></code>, <code class="docutils literal notranslate"><span class="pre">crba</span></code>). Functions named by what they
+compute use full English (<code class="docutils literal notranslate"><span class="pre">forward_kinematics</span></code>).</p></li>
+<li><p><strong>No unit suffixes</strong> in identifiers (<code class="docutils literal notranslate"><span class="pre">_m</span></code>, <code class="docutils literal notranslate"><span class="pre">_rad</span></code>). Reasoning: the
+library is SI-only on the public surface
+(<a class="reference internal" href="contracts.html"><span class="doc">Contracts &amp; Validation</span></a>); the
+<code class="docutils literal notranslate"><span class="pre">&lt;entity&gt;_&lt;quantity&gt;_&lt;frame&gt;</span></code> convention already encodes the
+semantic disambiguation.</p></li>
+<li><p>Booleans: <code class="docutils literal notranslate"><span class="pre">is_</span></code>, <code class="docutils literal notranslate"><span class="pre">has_</span></code>, <code class="docutils literal notranslate"><span class="pre">should_</span></code> prefixes.</p></li>
+<li><p>Avoid single-letter variables outside math-heavy internals where
+they match the literature (<code class="docutils literal notranslate"><span class="pre">q</span></code>, <code class="docutils literal notranslate"><span class="pre">v</span></code>, <code class="docutils literal notranslate"><span class="pre">a</span></code>, <code class="docutils literal notranslate"><span class="pre">tau</span></code>, <code class="docutils literal notranslate"><span class="pre">T</span></code>, <code class="docutils literal notranslate"><span class="pre">R</span></code>).</p></li>
+</ul>
+</section>
+<section id="quaternions-lie-storage-and-frames">
+<h2>4 · Quaternions, Lie storage, and frames<a class="headerlink" href="#quaternions-lie-storage-and-frames" title="Link to this heading">#</a></h2>
+<p>Storage layouts are fixed library-wide
+(<a class="reference internal" href="contracts.html"><span class="doc">Contracts &amp; Validation</span></a>):</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Object</p></th>
+<th class="head"><p>Layout</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>SE3 pose</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">7)</span> <span class="pre">[tx,</span> <span class="pre">ty,</span> <span class="pre">tz,</span> <span class="pre">qx,</span> <span class="pre">qy,</span> <span class="pre">qz,</span> <span class="pre">qw]</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>SO3 quat</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">4)</span> <span class="pre">[qx,</span> <span class="pre">qy,</span> <span class="pre">qz,</span> <span class="pre">qw]</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>se3 tangent</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">6)</span> <span class="pre">[vx,</span> <span class="pre">vy,</span> <span class="pre">vz,</span> <span class="pre">wx,</span> <span class="pre">wy,</span> <span class="pre">wz]</span></code> (linear first)</p></td>
+</tr>
+<tr class="row-odd"><td><p>so3 tangent</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">3)</span> <span class="pre">[wx,</span> <span class="pre">wy,</span> <span class="pre">wz]</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Spatial Jacobian</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">6,</span> <span class="pre">nv)</span> <span class="pre">[linear</span> <span class="pre">rows;</span> <span class="pre">angular</span> <span class="pre">rows]</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Quaternions are scalar-last (Hamilton; <code class="docutils literal notranslate"><span class="pre">qw</span></code> last). It is <strong>not</strong> the
+<code class="docutils literal notranslate"><span class="pre">[w,</span> <span class="pre">x,</span> <span class="pre">y,</span> <span class="pre">z]</span></code> order from any “standard” you may have seen elsewhere.
+SI units everywhere on the public surface — radians, metres, seconds,
+kilograms, newtons. Convert at the boundary if user-facing tooling
+needs degrees; never internally.</p>
+</section>
+<section id="imports">
+<h2>5 · Imports<a class="headerlink" href="#imports" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><strong>Absolute imports</strong> inside the package
+(<code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">better_robot.lie</span> <span class="pre">import</span> <span class="pre">se3</span></code>, not <code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">..lie</span> <span class="pre">import</span> <span class="pre">se3</span></code>).
+Exception: short relative imports (<code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">.se3</span> <span class="pre">import</span> <span class="pre">compose</span></code>) are
+fine inside a single sub-package.</p></li>
+<li><p><strong>No wildcard imports</strong> anywhere.</p></li>
+<li><p><strong>Lazy imports</strong> for heavy optional deps — <code class="docutils literal notranslate"><span class="pre">mujoco</span></code>, <code class="docutils literal notranslate"><span class="pre">viser</span></code>,
+<code class="docutils literal notranslate"><span class="pre">warp</span></code>, <code class="docutils literal notranslate"><span class="pre">yourdfpy</span></code>, <code class="docutils literal notranslate"><span class="pre">chumpy</span></code>. Place the import inside the function
+body or behind a <code class="docutils literal notranslate"><span class="pre">TYPE_CHECKING</span></code> guard. Document why.</p></li>
+<li><p>Group order (<code class="docutils literal notranslate"><span class="pre">ruff</span></code> / isort): stdlib → third-party →
+<code class="docutils literal notranslate"><span class="pre">better_robot.*</span></code> → local relative.</p></li>
+</ul>
+</section>
+<section id="type-annotations">
+<h2>6 · Type annotations<a class="headerlink" href="#type-annotations" title="Link to this heading">#</a></h2>
+<p>Public surface: full type annotations including <code class="docutils literal notranslate"><span class="pre">jaxtyping</span></code>-style
+shape annotations (see <a class="reference internal" href="naming.html"><span class="doc">Naming</span></a> §2.9). Internal helpers:
+annotations encouraged, not enforced.</p>
+<ul class="simple">
+<li><p>Use modern syntax: <code class="docutils literal notranslate"><span class="pre">list[int]</span></code>, <code class="docutils literal notranslate"><span class="pre">dict[str,</span> <span class="pre">float]</span></code>, <code class="docutils literal notranslate"><span class="pre">X</span> <span class="pre">|</span> <span class="pre">None</span></code>.
+Min Python is 3.10.</p></li>
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">typing.Protocol</span></code> for structural interfaces (residuals, joints,
+optimisers, sensors). Reserve <code class="docutils literal notranslate"><span class="pre">abc.ABC</span></code> for cases needing shared
+implementation.</p></li>
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">typing.Self</span></code> for fluent methods returning the same type.</p></li>
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">TypeAlias</span></code> (or <code class="docutils literal notranslate"><span class="pre">type</span></code> statement on 3.12+) for non-trivial type
+names that appear in many places — see <code class="docutils literal notranslate"><span class="pre">_typing.py</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mypy</span> <span class="pre">--strict</span></code> (or <code class="docutils literal notranslate"><span class="pre">pyright</span></code> in strict mode) must pass on
+<code class="docutils literal notranslate"><span class="pre">src/better_robot/</span></code>. New <code class="docutils literal notranslate"><span class="pre">#</span> <span class="pre">type:</span> <span class="pre">ignore</span></code> comments require a
+comment explaining why and ideally a linked issue.</p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Protocol</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tensor</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">jaxtyping</span><span class="w"> </span><span class="kn">import</span> <span class="n">Float</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Optimizer</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">minimize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">problem</span><span class="p">:</span> <span class="s2">&quot;LeastSquaresProblem&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SolverState&quot;</span><span class="p">:</span> <span class="o">...</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">forward_kinematics</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="s2">&quot;Model&quot;</span><span class="p">,</span>
+    <span class="n">q_or_data</span><span class="p">:</span> <span class="n">Float</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="s2">&quot;*B nq&quot;</span><span class="p">]</span> <span class="o">|</span> <span class="s2">&quot;Data&quot;</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">compute_frames</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Data&quot;</span><span class="p">:</span> <span class="o">...</span>
+</pre></div>
+</div>
+</section>
+<section id="docstrings-numpy-style">
+<h2>7 · Docstrings — NumPy style<a class="headerlink" href="#docstrings-numpy-style" title="Link to this heading">#</a></h2>
+<p>We pick <strong>NumPy</strong> for these reasons:</p>
+<ul class="simple">
+<li><p>Sphinx + Napoleon supports both Google and NumPy; the
+scientific-Python ecosystem (numpy, scipy, scikit-learn, jax) is
+NumPy-style. New users coming from those projects recognise the
+pattern.</p></li>
+<li><p>NumPy-style is friendlier to multi-paragraph parameter docs.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">Shapes</span></code> block fits naturally as a sub-section.</p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">forward_kinematics</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span>
+    <span class="n">q_or_data</span><span class="p">:</span> <span class="n">ConfigTensor</span> <span class="o">|</span> <span class="n">Data</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">compute_frames</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Data</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the placements of every joint, batched.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    model : Model</span>
+<span class="sd">        Frozen kinematic tree.</span>
+<span class="sd">    q_or_data : Tensor (B..., nq) or Data</span>
+<span class="sd">        Configuration. Passing a ``Data`` reuses its allocated buffers.</span>
+<span class="sd">    compute_frames : bool, default False</span>
+<span class="sd">        If True, also fill ``data.frame_pose_world``.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Data</span>
+<span class="sd">        With ``joint_pose_world``, ``joint_pose_local``, and (if</span>
+<span class="sd">        ``compute_frames``) ``frame_pose_world`` populated.</span>
+<span class="sd">        Advances ``data._kinematics_level`` to</span>
+<span class="sd">        ``KinematicsLevel.PLACEMENTS``.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    QuaternionNormError</span>
+<span class="sd">        If a free-flyer base quaternion has norm outside ``[0.9, 1.1]``.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    The topology iteration is over ``model.topo_order`` (a Python</span>
+<span class="sd">    tuple). It compiles cleanly under ``torch.compile``.</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    update_frame_placements : compute frame placements after an FK call</span>
+<span class="sd">    compute_joint_jacobians : the next step toward Jacobian-based costs</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; model = better_robot.load(&quot;panda.urdf&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; q = model.q_neutral.unsqueeze(0)</span>
+<span class="sd">    &gt;&gt;&gt; data = better_robot.forward_kinematics(model, q, compute_frames=True)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+</pre></div>
+</div>
+<p>Conventions inside docstrings:</p>
+<ul class="simple">
+<li><p><strong>Always state units</strong> (SI).</p></li>
+<li><p><strong>Always state shape</strong> for tensor parameters: <code class="docutils literal notranslate"><span class="pre">(B...,</span> <span class="pre">nq)</span></code>,
+<code class="docutils literal notranslate"><span class="pre">(B...,</span> <span class="pre">6,</span> <span class="pre">nv)</span></code>.</p></li>
+<li><p><strong>State frame</strong> for any pose, twist, wrench, or velocity:
+“expressed in the world frame”.</p></li>
+<li><p>Use double backticks for code (<code class="docutils literal notranslate"> </code>q<code class="docutils literal notranslate"> </code>).</p></li>
+<li><p>One-line summary first, blank line, then details.</p></li>
+</ul>
+</section>
+<section id="configs-and-dataclasses">
+<h2>8 · Configs and dataclasses<a class="headerlink" href="#configs-and-dataclasses" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">&#64;dataclass(frozen=True)</span></code> for all configs (<code class="docutils literal notranslate"><span class="pre">IKCostConfig</span></code>,
+<code class="docutils literal notranslate"><span class="pre">OptimizerConfig</span></code>, <code class="docutils literal notranslate"><span class="pre">OptimizerStage</span></code>, …).</p></li>
+<li><p>Validation in <code class="docutils literal notranslate"><span class="pre">__post_init__</span></code>. Raise <code class="docutils literal notranslate"><span class="pre">BetterRobotError</span></code> subclasses,
+not bare <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>.</p></li>
+<li><p><strong>No Pydantic; no custom metaclass.</strong> Plain <code class="docutils literal notranslate"><span class="pre">&#64;dataclass</span></code> +
+<code class="docutils literal notranslate"><span class="pre">__post_init__</span></code> is the discipline.</p></li>
+</ul>
+</section>
+<section id="errors">
+<h2>9 · Errors<a class="headerlink" href="#errors" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p>Subclass <code class="docutils literal notranslate"><span class="pre">BetterRobotError</span></code> (in <code class="docutils literal notranslate"><span class="pre">better_robot/exceptions.py</span></code>).</p></li>
+<li><p>Raise the most specific exception possible — see the taxonomy in
+<a class="reference internal" href="contracts.html"><span class="doc">Contracts &amp; Validation</span></a>.</p></li>
+<li><p>Error messages name the offending input and the expected shape /
+type / value. Example: <code class="docutils literal notranslate"><span class="pre">&quot;q</span> <span class="pre">has</span> <span class="pre">trailing</span> <span class="pre">size</span> <span class="pre">6,</span> <span class="pre">expected</span> <span class="pre">7</span> <span class="pre">(Panda)&quot;</span></code>.</p></li>
+<li><p>Bare <code class="docutils literal notranslate"><span class="pre">except:</span></code> and <code class="docutils literal notranslate"><span class="pre">except</span> <span class="pre">Exception:</span></code> are forbidden in <code class="docutils literal notranslate"><span class="pre">src/</span></code>.</p></li>
+</ul>
+</section>
+<section id="logging">
+<h2>10 · Logging<a class="headerlink" href="#logging" title="Link to this heading">#</a></h2>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">logger</span> <span class="pre">=</span> <span class="pre">logging.getLogger(__name__)</span></code> per module.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">print()</span></code> is forbidden in <code class="docutils literal notranslate"><span class="pre">src/</span></code>. Allowed in <code class="docutils literal notranslate"><span class="pre">examples/</span></code> and CLI
+tools.</p></li>
+<li><p>The library configures <code class="docutils literal notranslate"><span class="pre">logging.NullHandler</span></code> on <code class="docutils literal notranslate"><span class="pre">better_robot</span></code>
+(already done in <code class="docutils literal notranslate"><span class="pre">utils/logging.py</span></code>).</p></li>
+<li><p>Format strings use <code class="docutils literal notranslate"><span class="pre">%</span></code> placeholders for deferred formatting:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;iter </span><span class="si">%d</span><span class="s2"> residual </span><span class="si">%.3e</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">r</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
+<section id="file-organisation">
+<h2>11 · File organisation<a class="headerlink" href="#file-organisation" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><strong>One concept per file.</strong> Not <code class="docutils literal notranslate"><span class="pre">utils.py</span></code>. Not <code class="docutils literal notranslate"><span class="pre">helpers.py</span></code>.</p></li>
+<li><p>Tests live in <code class="docutils literal notranslate"><span class="pre">tests/&lt;package&gt;/test_&lt;concept&gt;.py</span></code>.</p></li>
+<li><p>A package’s <code class="docutils literal notranslate"><span class="pre">__init__.py</span></code> re-exports its public symbols and lists
+them in <code class="docutils literal notranslate"><span class="pre">__all__</span></code>.</p></li>
+</ul>
+</section>
+<section id="mutability">
+<h2>12 · Mutability<a class="headerlink" href="#mutability" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Model</span></code>: immutable (<code class="docutils literal notranslate"><span class="pre">&#64;dataclass(frozen=True)</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Data</span></code>: mutable but per-thread; <code class="docutils literal notranslate"><span class="pre">__setattr__</span></code> invalidates caches.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">IKResult</span></code>, <code class="docutils literal notranslate"><span class="pre">Trajectory</span></code>: frozen dataclasses; modifications return
+new instances (<code class="docutils literal notranslate"><span class="pre">slice</span></code>, <code class="docutils literal notranslate"><span class="pre">resample</span></code>, <code class="docutils literal notranslate"><span class="pre">with_batch_dims</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CostStack</span></code>: controlled mutation via <code class="docutils literal notranslate"><span class="pre">.add</span></code>, <code class="docutils literal notranslate"><span class="pre">.set_weight</span></code>,
+<code class="docutils literal notranslate"><span class="pre">.set_active</span></code>. No direct field assignment.</p></li>
+</ul>
+</section>
+<section id="numerics">
+<h2>13 · Numerics<a class="headerlink" href="#numerics" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><strong>Vectorise</strong> with <code class="docutils literal notranslate"><span class="pre">torch</span></code> ops. Read the published numerical
+formula, write the readable batched version, profile, optimise.</p></li>
+<li><p><strong>Numerical tolerances are explicit</strong>: never compare floats with
+<code class="docutils literal notranslate"><span class="pre">==</span></code>. Use <code class="docutils literal notranslate"><span class="pre">torch.allclose(...,</span> <span class="pre">atol=...,</span> <span class="pre">rtol=...)</span></code> or
+<code class="docutils literal notranslate"><span class="pre">assert_close_manifold(...)</span></code> for SE(3) values.</p></li>
+<li><p><strong>Allocating vs. in-place</strong>: by default, functions allocate and
+return new tensors. The hot-path <code class="docutils literal notranslate"><span class="pre">Data.reset()</span></code> and <code class="docutils literal notranslate"><span class="pre">SolverState</span></code>
+reset are the in-place exceptions; they live in pre-allocated
+buffers.</p></li>
+<li><p><strong>Avoid mutable default arguments</strong> — use <code class="docutils literal notranslate"><span class="pre">None</span></code> and construct
+inside.</p></li>
+<li><p><strong>Pure functions in math</strong> (<code class="docutils literal notranslate"><span class="pre">lie/</span></code>, <code class="docutils literal notranslate"><span class="pre">spatial/</span></code>, <code class="docutils literal notranslate"><span class="pre">kinematics/</span></code>,
+<code class="docutils literal notranslate"><span class="pre">dynamics/</span></code>); side effects belong at the I/O and viewer layers.</p></li>
+</ul>
+</section>
+<section id="hot-path-discipline">
+<h2>14 · Hot-path discipline<a class="headerlink" href="#hot-path-discipline" title="Link to this heading">#</a></h2>
+<p>The lint rules in <code class="docutils literal notranslate"><span class="pre">tests/contract/test_hot_path_lint.py</span></code> (see
+<a class="reference internal" href="performance.html"><span class="doc">Performance</span></a>) forbid:</p>
+<ul class="simple">
+<li><p>Branching on <code class="docutils literal notranslate"><span class="pre">tensor.dim()</span></code> — rely on the leading-batch convention.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">.item()</span></code> / <code class="docutils literal notranslate"><span class="pre">.cpu()</span></code> / <code class="docutils literal notranslate"><span class="pre">.numpy()</span></code> in compiled regions.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">torch.zeros</span></code> / <code class="docutils literal notranslate"><span class="pre">torch.empty</span></code> / <code class="docutils literal notranslate"><span class="pre">torch.ones</span></code> inside a <code class="docutils literal notranslate"><span class="pre">for</span></code> loop
+body.</p></li>
+<li><p>Python <code class="docutils literal notranslate"><span class="pre">if</span></code> on tensor values (use <code class="docutils literal notranslate"><span class="pre">torch.where</span></code> or assert as
+contract).</p></li>
+</ul>
+<p>Suppress with <code class="docutils literal notranslate"><span class="pre">#</span> <span class="pre">bench-ok:</span> <span class="pre">&lt;reason&gt;</span></code>. A PR adding more than three new
+<code class="docutils literal notranslate"><span class="pre">bench-ok</span></code> comments fails CI.</p>
+</section>
+<section id="language-features">
+<h2>15 · Language features<a class="headerlink" href="#language-features" title="Link to this heading">#</a></h2>
+<p><strong>Use freely:</strong></p>
+<ul class="simple">
+<li><p>f-strings (except in <code class="docutils literal notranslate"><span class="pre">logging</span></code> calls).</p></li>
+<li><p>Walrus operator <code class="docutils literal notranslate"><span class="pre">:=</span></code> where it improves clarity.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">match</span></code> statements for genuine pattern matching.</p></li>
+<li><p>Dataclasses, <code class="docutils literal notranslate"><span class="pre">Protocol</span></code>, <code class="docutils literal notranslate"><span class="pre">Self</span></code>, <code class="docutils literal notranslate"><span class="pre">|</span></code> union syntax.</p></li>
+<li><p>Context managers for any resource that needs cleanup.</p></li>
+</ul>
+<p><strong>Use sparingly, justify in review:</strong></p>
+<ul class="simple">
+<li><p>Decorators that change function signatures.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">__getattr__</span></code> / <code class="docutils literal notranslate"><span class="pre">__getattribute__</span></code> magic.</p></li>
+<li><p>Metaclasses (almost never needed).</p></li>
+<li><p>Monkey-patching anything outside the package.</p></li>
+</ul>
+<p><strong>Avoid:</strong></p>
+<ul class="simple">
+<li><p>Mutable default arguments.</p></li>
+<li><p>Bare <code class="docutils literal notranslate"><span class="pre">except:</span></code> clauses.</p></li>
+<li><p>Module-level side effects (besides defining names).</p></li>
+<li><p>Global mutable state. Registries are acceptable; configuration
+singletons are not — except for <code class="docutils literal notranslate"><span class="pre">default_backend()</span></code>, which is
+documented as one-time configuration in
+<a class="reference internal" href="../concepts/batching_and_backends.html"><span class="doc">Batching and Backends</span></a>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">eval</span></code>, <code class="docutils literal notranslate"><span class="pre">exec</span></code> — never.</p></li>
+</ul>
+</section>
+<section id="pull-requests-and-reviews">
+<h2>16 · Pull requests and reviews<a class="headerlink" href="#pull-requests-and-reviews" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><strong>One logical change per PR.</strong> Many small PRs over one large.</p></li>
+<li><p>PR description states what changed and why, links related issues,
+and notes any breaking changes.</p></li>
+<li><p>All checks green before review: format, lint, type-check, tests,
+docs build.</p></li>
+<li><p>New public API requires: tests, NumPy-style docstring with at least
+one example, changelog entry, and (if non-trivial) a doc page or
+notebook.</p></li>
+<li><p>Be kind in review. Critique the code, not the author. Suggest
+concrete alternatives.</p></li>
+</ul>
+</section>
+<section id="quick-checklist-for-a-new-public-function">
+<h2>17 · Quick checklist for a new public function<a class="headerlink" href="#quick-checklist-for-a-new-public-function" title="Link to this heading">#</a></h2>
+<p>Before merging:</p>
+<ul class="contains-task-list simple">
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Type-annotated, including return type and shape annotations
+via <code class="docutils literal notranslate"><span class="pre">_typing.py</span></code>.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> NumPy-style docstring with <code class="docutils literal notranslate"><span class="pre">Parameters</span></code>, <code class="docutils literal notranslate"><span class="pre">Returns</span></code>, <code class="docutils literal notranslate"><span class="pre">Raises</span></code>,
+and at least one <code class="docutils literal notranslate"><span class="pre">Examples</span></code> block.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Shapes, units, and frames documented for every tensor.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Validates inputs at the boundary; raises a specific subclass of
+<code class="docutils literal notranslate"><span class="pre">BetterRobotError</span></code>.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Has tests, including at least one property-based test if a
+mathematical invariant exists.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Listed in the relevant <code class="docutils literal notranslate"><span class="pre">__all__</span></code>; if top-level, the <code class="docutils literal notranslate"><span class="pre">EXPECTED</span></code>
+set in <code class="docutils literal notranslate"><span class="pre">tests/contract/test_public_api.py</span></code> was updated in the
+same PR.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Mentioned in <code class="docutils literal notranslate"><span class="pre">CHANGELOG.md</span></code> under “Added”.</p></li>
+</ul>
+<hr class="docutils" />
+<p><em>Cross-references:</em></p>
+<ul class="simple">
+<li><p><a class="reference internal" href="naming.html"><span class="doc">Naming</span></a> — naming policy and rename table.</p></li>
+<li><p><a class="reference internal" href="performance.html"><span class="doc">Performance</span></a> — perf budgets and lint rules.</p></li>
+<li><p><a class="reference internal" href="testing.html"><span class="doc">Testing</span></a> — test strategy and coverage budgets.</p></li>
+<li><p><a class="reference internal" href="contracts.html"><span class="doc">Contracts &amp; Validation</span></a> — input contracts and exception taxonomy.</p></li>
+<li><p><a class="reference internal" href="packaging.html"><span class="doc">Packaging</span></a> — extras, releases, deprecation.</p></li>
+</ul>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="contracts.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Contracts &amp; Validation</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="packaging.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Packaging</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#guiding-principles">1 · Guiding principles</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#formatting-and-linting">2 · Formatting and linting</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#naming">3 · Naming</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#quaternions-lie-storage-and-frames">4 · Quaternions, Lie storage, and frames</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#imports">5 · Imports</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#type-annotations">6 · Type annotations</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#docstrings-numpy-style">7 · Docstrings — NumPy style</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configs-and-dataclasses">8 · Configs and dataclasses</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#errors">9 · Errors</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#logging">10 · Logging</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#file-organisation">11 · File organisation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#mutability">12 · Mutability</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#numerics">13 · Numerics</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hot-path-discipline">14 · Hot-path discipline</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#language-features">15 · Language features</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pull-requests-and-reviews">16 · Pull requests and reviews</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#quick-checklist-for-a-new-public-function">17 · Quick checklist for a new public function</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By BetterRobot contributors
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright BetterRobot contributors.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    <p class="last-updated">
+  Last updated on Apr 26, 2026.
+  <br/>
+</p>
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
