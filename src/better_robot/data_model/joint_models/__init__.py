@@ -4,7 +4,7 @@ One file per joint family. Every class implements the ``JointModel`` protocol
 from ``base.py``. ``build_model()`` selects the right class for each
 ``IRJoint`` based on ``kind`` + ``axis``.
 
-See ``docs/design/02_DATA_MODEL.md §5``.
+See ``docs/concepts/joints_bodies_frames.md §5``.
 """
 
 from __future__ import annotations

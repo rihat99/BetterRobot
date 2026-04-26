@@ -6,8 +6,8 @@ without touching the optimisation loop. Every optimiser returns a
 :class:`~better_robot.optim.state.SolverState` (the old
 ``OptimizationResult`` name is kept as a deprecated alias).
 
-See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5, §9`` and
-``docs/conventions/15_EXTENSION.md §3``.
+See ``docs/concepts/solver_stack.md §5, §9`` and
+``docs/conventions/extension.md §3``.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ class Optimizer(Protocol):
 
     Marked ``@runtime_checkable`` so the extension-seam docs can advertise
     ``isinstance(obj, Optimizer)`` as a valid contract check
-    (``docs/conventions/15_EXTENSION.md §3``).
+    (``docs/conventions/extension.md §3``).
     """
 
     def minimize(

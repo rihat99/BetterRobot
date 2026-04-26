@@ -13,7 +13,7 @@ deferred to a follow-on release. The forward & gradient evaluation
 machinery in this package is sufficient to plug into any external
 solver that consumes the protocol below.
 
-See ``docs/design/06_DYNAMICS.md §6``.
+See ``docs/concepts/dynamics.md §6``.
 """
 
 from __future__ import annotations

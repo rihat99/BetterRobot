@@ -1,6 +1,6 @@
 """``renderers`` — renderer backend registry.
 
-See ``docs/design/12_VIEWER.md §9``.
+See ``docs/concepts/viewer.md §9``.
 """
 
 from __future__ import annotations

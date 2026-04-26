@@ -5,7 +5,7 @@ The rest of the codebase uses the functional facades in ``lie.se3``,
 ``lie.so3``, and ``lie.tangents``, plus the typed value classes in
 ``lie.types``.
 
-See ``docs/design/03_LIE_AND_SPATIAL.md``.
+See ``docs/concepts/lie_and_spatial.md``.
 """
 
 from __future__ import annotations

@@ -5,13 +5,13 @@ out of V1. The ``VideoRecorder`` class and ``render_trajectory`` function
 exist here as named targets so that future work can drop an
 implementation in without restructuring the surrounding code — calling
 them today raises ``NotImplementedError`` pointing at
-``docs/design/12_VIEWER.md §10.1``.
+``docs/concepts/viewer.md §10.1``.
 
 The ``test_only_recorder_imports_imageio`` layer rule in
 ``tests/contract/test_layer_dependencies.py`` reserves ``imageio`` imports for
 this module, so the future body can land without leaking dependencies.
 
-See ``docs/design/12_VIEWER.md §10.1``.
+See ``docs/concepts/viewer.md §10.1``.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 
 _FUTURE_MSG = (
-    "Video recording is future work — see docs/design/12_VIEWER.md §10.1. "
+    "Video recording is future work — see docs/concepts/viewer.md §10.1. "
     "V1 of the viewer is interactive-only; `render_trajectory` and "
     "`VideoRecorder` land together with the offscreen backend (§10.2)."
 )
@@ -93,7 +93,7 @@ def render_trajectory(
 ) -> None:
     """Placeholder for the code-driven render path — see §10.1.
 
-    The eventual signature matches what ``docs/design/12_VIEWER.md §10.1``
+    The eventual signature matches what ``docs/concepts/viewer.md §10.1``
     describes; the signature is already frozen here so callers can import
     the symbol today and get an actionable error at call time.
     """

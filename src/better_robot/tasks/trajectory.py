@@ -4,7 +4,7 @@ Either unbatched ``(T, nq)`` or batched ``(*B, T, nq)`` is accepted. The
 ``with_batch_dims`` view always normalises to a batched form so callers
 can iterate without an ``if traj.q.dim() == 2`` branch.
 
-See ``docs/design/08_TASKS.md §2``.
+See ``docs/concepts/tasks.md §2``.
 """
 
 from __future__ import annotations
@@ -189,7 +189,7 @@ class Trajectory:
         and uses spherical-linear interpolation for the orientation block,
         plain linear for the rest. Manifold-aware.
 
-        See ``docs/design/08_TASKS.md §2``.
+        See ``docs/concepts/tasks.md §2``.
         """
         t_flat = self.t.reshape(-1, self.t.shape[-1])[0]  # (T,) reference grid
         # Per-feature linear interpolation on the time axis.

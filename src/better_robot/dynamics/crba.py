@@ -11,7 +11,7 @@ local-convention CRBA. Two passes:
   ``F ← Ad(liMi[k])^{-T} · F`` and writing ``M_{ji} = Sⱼᵀ F`` (and its
   transpose) for each ancestor ``j``.
 
-See ``docs/design/06_DYNAMICS.md §2``.
+See ``docs/concepts/dynamics.md §2``.
 """
 
 from __future__ import annotations
@@ -127,6 +127,6 @@ def compute_minverse(
 ) -> torch.Tensor:
     """Direct ``M(q)^{-1}`` computation via the ABA factorisation.
 
-    TODO(milestone D4). See docs/design/06_DYNAMICS.md §2.
+    TODO(milestone D4). See docs/concepts/dynamics.md §2.
     """
-    raise NotImplementedError("TODO(milestone D4) — see docs/design/06_DYNAMICS.md §2")
+    raise NotImplementedError("TODO(milestone D4) — see docs/concepts/dynamics.md §2")

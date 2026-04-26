@@ -13,7 +13,7 @@ Implementation strategy (Featherstone-style, no separate backward pass):
 * Transport ``F`` to the centroidal frame via
   ``A_g[:, iv_i:iv_i+nv_i] = Ad(T_{g, i})⁻ᵀ · F``.
 
-See ``docs/design/06_DYNAMICS.md §3``.
+See ``docs/concepts/dynamics.md §3``.
 """
 
 from __future__ import annotations

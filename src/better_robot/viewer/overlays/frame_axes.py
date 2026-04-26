@@ -1,6 +1,6 @@
 """``overlays/frame_axes.py`` — coordinate triad overlays on named frames.
 
-See ``docs/design/12_VIEWER.md §5``.
+See ``docs/concepts/viewer.md §5``.
 """
 
 from __future__ import annotations

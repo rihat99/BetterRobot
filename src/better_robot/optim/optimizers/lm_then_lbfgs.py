@@ -4,7 +4,7 @@ Two-stage chain (LM coarse, L-BFGS fine), with optional cost-stack items
 disabled in the L-BFGS stage. Kept as a named class because it is the
 common case and the pre-multi-stage call sites reach for it by name.
 
-See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5``.
+See ``docs/concepts/solver_stack.md §5``.
 """
 
 from __future__ import annotations

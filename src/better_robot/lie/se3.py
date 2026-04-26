@@ -9,7 +9,7 @@ Each function takes an optional ``backend`` keyword argument. When
 is used. The ``identity`` / ``from_*`` constructors do not need a backend
 and ignore the kwarg.
 
-See ``docs/design/03_LIE_AND_SPATIAL.md §3``.
+See ``docs/concepts/lie_and_spatial.md §3``.
 """
 
 from __future__ import annotations

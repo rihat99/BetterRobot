@@ -1,6 +1,6 @@
 """V1 ``TrajectoryPlayer`` covers only straight-through, frame-indexed
 playback.  Manifold interpolation and transport controls (seek, step,
-speed, loop, ghost, trace) come back with ``docs/design/12_VIEWER.md §10.3``.
+speed, loop, ghost, trace) come back with ``docs/concepts/viewer.md §10.3``.
 
 This file covers the V1 surface; the richer-interpolation tests return
 in future work under the same filename.

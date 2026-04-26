@@ -2,7 +2,7 @@
 
 Phase 4 pass criterion: analytic and autodiff Jacobians agree within ``1e-5``.
 
-See ``docs/design/05_KINEMATICS.md §3``.
+See ``docs/concepts/kinematics.md §3``.
 """
 
 from __future__ import annotations

@@ -5,7 +5,7 @@ Implementations live beside this file (``Adaptive``, ``Constant``,
 ``λ`` for a fresh problem), ``accept`` (scale after a successful step),
 ``reject`` (scale after a rejected step).
 
-See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5`` and ``docs/conventions/15_EXTENSION.md §4``.
+See ``docs/concepts/solver_stack.md §5`` and ``docs/conventions/extension.md §4``.
 """
 
 from __future__ import annotations

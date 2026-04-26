@@ -2,7 +2,7 @@
 
 Forward dynamics + autograd-derived Jacobians wired into a state-manifold
 state. The DDP / iLQR solver itself is left for a follow-on release.
-See ``docs/design/06_DYNAMICS.md §6``.
+See ``docs/concepts/dynamics.md §6``.
 """
 
 from __future__ import annotations

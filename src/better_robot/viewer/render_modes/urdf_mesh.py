@@ -2,7 +2,7 @@
 
 ``trimesh`` is imported lazily here and ONLY here.
 
-See ``docs/design/12_VIEWER.md §4.2`` and ``§17``.
+See ``docs/concepts/viewer.md §4.2`` and ``§17``.
 """
 
 from __future__ import annotations
@@ -109,7 +109,7 @@ class URDFMeshMode:
 
     Asset resolution. Mesh URIs in ``IRGeom.params["path"]`` are routed
     through ``model.meta["asset_resolver"]`` when present (set by the
-    URDF parser per ``docs/design/04_PARSERS.md §6``). The constructor
+    URDF parser per ``docs/concepts/parsers_and_ir.md §6``). The constructor
     also accepts an explicit ``resolver=`` override — useful when the
     caller wants a different search root than the parse-time one. When
     no resolver is available the raw path is used directly, preserving

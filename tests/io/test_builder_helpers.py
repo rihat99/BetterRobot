@@ -1,6 +1,6 @@
 """``ModelBuilder`` named-helper tests.
 
-Per ``docs/UPDATE_PHASES.md §P5``: every named helper round-trips through
+Per ``docs/reference/roadmap.md §P5``: every named helper round-trips through
 ``build_model`` and produces the expected joint kind. The legacy
 stringly-typed ``add_joint(kind="revolute_z")`` raises ``TypeError``
 pointing at the named helper.

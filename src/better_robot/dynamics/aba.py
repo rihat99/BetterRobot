@@ -16,7 +16,7 @@ Gravity is folded into the base bias (``a[0] = −gravity``); external
 wrenches are subtracted from the per-body bias on the way down. Inputs
 and outputs carry a leading batch shape ``(B...,)``.
 
-See ``docs/design/06_DYNAMICS.md §2``.
+See ``docs/concepts/dynamics.md §2``.
 """
 
 from __future__ import annotations

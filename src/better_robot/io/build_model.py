@@ -1,6 +1,6 @@
 """``build_model(ir, root_joint=...)`` — IR → frozen ``Model`` factory.
 
-See ``docs/design/04_PARSERS.md §3`` for the 10 responsibilities.
+See ``docs/concepts/parsers_and_ir.md §3`` for the 10 responsibilities.
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ def _check_topology_invariants(
     nq_total: int,
     nv_total: int,
 ) -> None:
-    """Validate the four topology invariants from ``docs/conventions/17_CONTRACTS.md §1.5``.
+    """Validate the four topology invariants from ``docs/conventions/contracts.md §1.5``.
 
     Raises :class:`~better_robot.exceptions.ModelInconsistencyError` at
     build time so the caller never sees a ``Model`` in an inconsistent
@@ -208,7 +208,7 @@ def build_model(
 ) -> Model:
     """Consume an ``IRModel`` and return a frozen ``Model``.
 
-    Responsibilities (see docs/design/04_PARSERS.md §3):
+    Responsibilities (see docs/concepts/parsers_and_ir.md §3):
 
     1.  Replace the root body's parent joint with ``root_joint`` if supplied
         (default: ``JointFixed``).
@@ -537,7 +537,7 @@ def build_model(
         q_neutral = _dev(q_neutral)
         gravity = _dev(gravity)
 
-    # ── 18. Enforce topology invariants (docs/conventions/17_CONTRACTS.md §1.5) ───────────
+    # ── 18. Enforce topology invariants (docs/conventions/contracts.md §1.5) ───────────
     _check_topology_invariants(
         parents=parents,
         nqs=nqs,

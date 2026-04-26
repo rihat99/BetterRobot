@@ -3,7 +3,7 @@
 These are the building blocks that ``pairs.py`` composes into signed-distance
 dispatches.
 
-See ``docs/design/09_COLLISION_GEOMETRY.md §4``.
+See ``docs/concepts/collision_and_geometry.md §4``.
 """
 
 from __future__ import annotations
@@ -18,9 +18,9 @@ def point_to_segment(
 ) -> torch.Tensor:
     """Closest point on segment ``[a, b]`` to point ``p``. Returns the distance.
 
-    Vectorised over leading dims. See docs/design/09_COLLISION_GEOMETRY.md §4.
+    Vectorised over leading dims. See docs/concepts/collision_and_geometry.md §4.
     """
-    raise NotImplementedError("see docs/design/09_COLLISION_GEOMETRY.md §4")
+    raise NotImplementedError("see docs/concepts/collision_and_geometry.md §4")
 
 
 def segment_to_segment(
@@ -31,6 +31,6 @@ def segment_to_segment(
 ) -> torch.Tensor:
     """Minimum distance between segments ``[a1,b1]`` and ``[a2,b2]``.
 
-    Vectorised over leading dims. See docs/design/09_COLLISION_GEOMETRY.md §4.
+    Vectorised over leading dims. See docs/concepts/collision_and_geometry.md §4.
     """
-    raise NotImplementedError("see docs/design/09_COLLISION_GEOMETRY.md §4")
+    raise NotImplementedError("see docs/concepts/collision_and_geometry.md §4")

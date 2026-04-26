@@ -1,6 +1,6 @@
 """``themes.py`` — colour/style configuration for the viewer.
 
-See ``docs/design/12_VIEWER.md §6``.
+See ``docs/concepts/viewer.md §6``.
 """
 
 from __future__ import annotations

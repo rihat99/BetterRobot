@@ -1,6 +1,6 @@
 """Verify the boundary error guards raise the right typed exceptions.
 
-See ``docs/conventions/17_CONTRACTS.md §2``.
+See ``docs/conventions/contracts.md §2``.
 """
 
 from __future__ import annotations

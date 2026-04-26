@@ -5,7 +5,7 @@ the parse-time resolver carried on ``Model.meta["asset_resolver"]`` is
 used. When no resolver is configured the raw ``IRGeom.params["path"]``
 is used unchanged (legacy behaviour).
 
-See ``docs/design/04_PARSERS.md §6`` and ``docs/design/12_VIEWER.md §17``.
+See ``docs/concepts/parsers_and_ir.md §6`` and ``docs/concepts/viewer.md §17``.
 """
 
 from __future__ import annotations

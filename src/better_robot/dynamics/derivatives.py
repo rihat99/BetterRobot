@@ -12,7 +12,7 @@ Pinocchio's ``compute_*_derivatives`` family. Replacing them with the
 analytic Carpentier–Mansard recursions (the eventual production path)
 is a drop-in change: the call sites stay the same.
 
-See ``docs/design/06_DYNAMICS.md §4``.
+See ``docs/concepts/dynamics.md §4``.
 """
 
 from __future__ import annotations
@@ -97,7 +97,7 @@ def compute_centroidal_dynamics_derivatives(
     the meantime.
     """
     raise NotImplementedError(
-        "compute_centroidal_dynamics_derivatives — see docs/design/06_DYNAMICS.md §4 "
+        "compute_centroidal_dynamics_derivatives — see docs/concepts/dynamics.md §4 "
         "for the analytic Carpentier–Mansard formula. Use autograd through "
         "compute_centroidal_map(q) until then."
     )

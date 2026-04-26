@@ -3,7 +3,7 @@
 Phase 4 pass criterion: ``solve_ik(panda, …)`` reaches the same target
 pose as the legacy code on the IK benchmark set.
 
-See ``docs/design/08_TASKS.md §1``.
+See ``docs/concepts/tasks.md §1``.
 """
 
 from __future__ import annotations

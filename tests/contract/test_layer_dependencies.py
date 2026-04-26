@@ -5,7 +5,7 @@ top-level imports, and fails if any layer imports from a strictly higher
 layer. Imports guarded by ``if TYPE_CHECKING:`` are ignored (they don't
 cross layer boundaries at runtime).
 
-See ``docs/design/01_ARCHITECTURE.md §Dependency rule``.
+See ``docs/concepts/architecture.md §Dependency rule``.
 """
 
 from __future__ import annotations
@@ -175,7 +175,7 @@ def test_no_pypose_imports() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Viewer dependency hygiene (docs/design/12_VIEWER.md §17)
+# Viewer dependency hygiene (docs/concepts/viewer.md §17)
 # ---------------------------------------------------------------------------
 
 
@@ -200,7 +200,7 @@ def _check_forbidden_import(allowed_file_suffix: str, forbidden_pkg: str) -> lis
 def test_only_viser_backend_imports_viser() -> None:
     """Only ``viewer/renderers/viser_backend.py`` may import viser.
 
-    See docs/design/12_VIEWER.md §17.
+    See docs/concepts/viewer.md §17.
     """
     offenders = _check_forbidden_import("viser_backend.py", "viser")
     assert not offenders, (
@@ -211,7 +211,7 @@ def test_only_viser_backend_imports_viser() -> None:
 def test_only_offscreen_backend_imports_pyrender() -> None:
     """Only ``viewer/renderers/offscreen_backend.py`` may import pyrender.
 
-    See docs/design/12_VIEWER.md §17.
+    See docs/concepts/viewer.md §17.
     """
     offenders = _check_forbidden_import("offscreen_backend.py", "pyrender")
     assert not offenders, (
@@ -222,7 +222,7 @@ def test_only_offscreen_backend_imports_pyrender() -> None:
 def test_only_urdf_mesh_imports_trimesh() -> None:
     """Only ``viewer/render_modes/urdf_mesh.py`` may import trimesh.
 
-    See docs/design/12_VIEWER.md §17.
+    See docs/concepts/viewer.md §17.
     """
     offenders = _check_forbidden_import("urdf_mesh.py", "trimesh")
     assert not offenders, (
@@ -233,7 +233,7 @@ def test_only_urdf_mesh_imports_trimesh() -> None:
 def test_only_recorder_imports_imageio() -> None:
     """Only ``viewer/recorder.py`` may import imageio.
 
-    See docs/design/12_VIEWER.md §17.
+    See docs/concepts/viewer.md §17.
     """
     offenders: list[str] = []
     for path in _iter_py_files():

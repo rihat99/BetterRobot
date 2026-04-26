@@ -4,8 +4,8 @@ Analytic Jacobians via ``get_frame_jacobian`` composed with
 ``right_jacobian_inv_se3(log_err)``. Replaces the legacy ``Jlog ≈ I``
 approximation.
 
-See ``docs/design/05_KINEMATICS.md §5`` and
-``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §2``.
+See ``docs/concepts/kinematics.md §5`` and
+``docs/concepts/residuals_and_costs.md §2``.
 """
 
 from __future__ import annotations
@@ -68,7 +68,7 @@ class PoseResidual:
     def jacobian(self, state: ResidualState) -> torch.Tensor | None:
         """Analytic Jacobian: ``Jr^{-1}(r) @ Ad(T_ee^{-1}) @ J_frame_world``.
 
-        See docs/design/05_KINEMATICS.md §5.
+        See docs/concepts/kinematics.md §5.
         """
         from ..kinematics import ReferenceFrame
         from ..kinematics.jacobian import get_frame_jacobian

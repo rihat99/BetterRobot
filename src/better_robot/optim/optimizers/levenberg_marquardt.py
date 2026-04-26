@@ -13,7 +13,7 @@ Returns a :class:`~better_robot.optim.state.SolverState` whose
 ``status`` is ``"converged"`` when the gradient norm drops below ``tol``
 and ``"maxiter"`` otherwise.
 
-See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5``.
+See ``docs/concepts/solver_stack.md §5``.
 """
 
 from __future__ import annotations
@@ -70,7 +70,7 @@ class LevenbergMarquardt:
     ) -> SolverState:
         """Run LM until convergence or ``max_iter`` is reached.
 
-        See docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5.
+        See docs/concepts/solver_stack.md §5.
         """
         from ..solvers.cholesky import Cholesky
         from ..strategies.adaptive import Adaptive

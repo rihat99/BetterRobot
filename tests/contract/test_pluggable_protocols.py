@@ -5,7 +5,7 @@
 * ``DampingStrategy`` — same for ``optim.strategies``.
 * ``RobustKernel`` — same for ``optim.kernels``.
 
-See ``docs/conventions/15_EXTENSION.md §§4–6``.
+See ``docs/conventions/extension.md §§4–6``.
 """
 
 from __future__ import annotations

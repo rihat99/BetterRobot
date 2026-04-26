@@ -1,6 +1,6 @@
 """Cache-invariant tests for :class:`better_robot.data_model.Data`.
 
-The contract is documented in ``docs/design/02_DATA_MODEL.md §3.1``:
+The contract is documented in ``docs/concepts/model_and_data.md §3.1``:
 reassigning :attr:`Data.q` / ``v`` / ``a`` invalidates strictly-higher
 caches. In-place mutation of a tensor field is *not* detected — that is
 called out as a known limitation.

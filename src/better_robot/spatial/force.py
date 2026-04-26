@@ -2,7 +2,7 @@
 
 Stored as ``(..., 6)`` tensor ``[fx, fy, fz, tx, ty, tz]``.
 
-See ``docs/design/03_LIE_AND_SPATIAL.md §7``.
+See ``docs/concepts/lie_and_spatial.md §7``.
 """
 
 from __future__ import annotations
@@ -47,7 +47,7 @@ class Force:
         raise NotImplementedError(
             "Force.cross_motion is not a standard spatial operation. "
             "Use Motion.cross_force instead — see "
-            "docs/design/03_LIE_AND_SPATIAL.md §7."
+            "docs/concepts/lie_and_spatial.md §7."
         )
 
     def se3_action(self, T) -> "Force":

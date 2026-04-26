@@ -8,7 +8,7 @@ it.
 Covered: bodies, joints (hinge/slide/ball/free), sites (→ frames).
 Not covered (deferred to future work): mesh loading, tendons, actuators.
 
-See ``docs/design/04_PARSERS.md §5``.
+See ``docs/concepts/parsers_and_ir.md §5``.
 """
 
 from __future__ import annotations
@@ -60,7 +60,7 @@ def parse_mjcf(
         Defaults to a :class:`~better_robot.io.assets.FilesystemResolver`
         rooted at the MJCF file's parent directory.
 
-    See docs/design/04_PARSERS.md §5.
+    See docs/concepts/parsers_and_ir.md §5.
     """
     if resolver is None:
         from ..assets import FilesystemResolver

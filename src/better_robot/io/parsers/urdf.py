@@ -4,7 +4,7 @@ The ``yourdfpy`` import is confined to this file. Mimic joints, continuous
 joints, and multi-child links are handled at IR level. Free-flyer is not
 added here — ``build_model(root_joint=JointFreeFlyer())`` adds it.
 
-See ``docs/design/04_PARSERS.md §4``.
+See ``docs/concepts/parsers_and_ir.md §4``.
 """
 
 from __future__ import annotations
@@ -143,15 +143,15 @@ def parse_urdf(
         path). The resolver is forwarded to ``IRModel.meta["asset_resolver"]``
         and through ``build_model`` to ``Model.meta["asset_resolver"]``.
 
-    See docs/design/04_PARSERS.md §4.
+    See docs/concepts/parsers_and_ir.md §4.
     """
     try:
         import yourdfpy
     except ImportError as exc:
         from ...exceptions import BackendNotAvailableError
         raise BackendNotAvailableError(
-            "URDF parsing requires the optional 'yourdfpy' dependency. "
-            "Install with: pip install better-robot[urdf]"
+            "URDF parsing requires `yourdfpy`. Reinstall with "
+            "`pip install better-robot`."
         ) from exc
 
     if isinstance(source, (str, Path)):

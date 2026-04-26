@@ -4,7 +4,7 @@ Single code path. Floating-base robots are those whose ``joint_models[1]``
 is ``JointFreeFlyer`` — the solver does not need to know. All seven
 quaternion-xyz values of the free-flyer live inside ``q``.
 
-See ``docs/design/08_TASKS.md §1``.
+See ``docs/concepts/tasks.md §1``.
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ class IKCostConfig:
 class OptimizerConfig:
     """Optimizer selection + hyperparameters.
 
-    The ``lm_then_lbfgs`` option (from docs/design/08_TASKS.md) runs Levenberg-
+    The ``lm_then_lbfgs`` option (from docs/concepts/tasks.md) runs Levenberg-
     Marquardt for a coarse solve, then L-BFGS for final refinement.
     ``refine_disabled_items`` names cost-stack entries to drop in stage 2
     — the typical use is ``("collision",)`` once LM has the configuration
@@ -82,14 +82,14 @@ class IKResult:
     def fk(self) -> "Data":
         """Return the FK ``Data`` at the solution.
 
-        See docs/design/08_TASKS.md §1.
+        See docs/concepts/tasks.md §1.
         """
         return forward_kinematics(self.model, self.q, compute_frames=True)
 
     def frame_pose(self, name: str) -> torch.Tensor:
         """Look up a frame pose by name on the FK result.
 
-        See docs/design/08_TASKS.md §1.
+        See docs/concepts/tasks.md §1.
         """
         data = self.fk()
         frame_id = self.model.frame_id(name)
@@ -174,7 +174,7 @@ def solve_ik(
     -------
     IKResult
 
-    See docs/design/08_TASKS.md §1.
+    See docs/concepts/tasks.md §1.
     """
     if cost_cfg is None:
         cost_cfg = IKCostConfig()

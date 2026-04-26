@@ -1,6 +1,6 @@
 """Viser helper utilities — quaternion conversions, coordinate remapping, etc.
 
-See ``docs/design/01_ARCHITECTURE.md``.
+See ``docs/concepts/architecture.md``.
 """
 
 from __future__ import annotations

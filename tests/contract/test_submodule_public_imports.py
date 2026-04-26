@@ -1,7 +1,7 @@
 """Submodule reachability — symbols documented as living under
 ``better_robot.<submodule>`` must actually resolve there.
 
-Per ``docs/design/01_ARCHITECTURE.md §Public API contract``: anything
+Per ``docs/concepts/architecture.md §Public API contract``: anything
 *not* in ``better_robot.__all__`` is reachable only via its submodule
 path (``Symmetric3``, ``Inertia``, etc.). This test pins those paths.
 """

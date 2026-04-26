@@ -4,7 +4,7 @@ Holds a ``CostStack``, a ``state_factory`` that wraps raw ``x`` into a
 ``ResidualState``, initial ``x0``, and optional box bounds. The solvers in
 ``optim/optimizers/`` own the iteration strategy.
 
-See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §4``.
+See ``docs/concepts/solver_stack.md §4``.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ class LeastSquaresProblem:
 
         Returns ``(dim,)`` for unbatched ``x``, ``(B..., dim)`` otherwise.
 
-        See docs/design/07_RESIDUALS_COSTS_SOLVERS.md §4.
+        See docs/concepts/solver_stack.md §4.
         """
         state = self.state_factory(x)
         return self.cost_stack.residual(state)
@@ -54,7 +54,7 @@ class LeastSquaresProblem:
 
         Returns ``(dim, nv)`` for unbatched ``x``.
 
-        See docs/design/07_RESIDUALS_COSTS_SOLVERS.md §4.
+        See docs/concepts/solver_stack.md §4.
         """
         state = self.state_factory(x)
         return self.cost_stack.jacobian(state, strategy=self.jacobian_strategy)
@@ -78,7 +78,7 @@ class LeastSquaresProblem:
         ``J_iᵀ @ r_i`` through ``residual_jacobian``.
 
         Returns ``(nv,)`` for unbatched ``x``. See
-        ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §8``.
+        ``docs/concepts/solver_stack.md §8``.
         """
         state = self.state_factory(x)
         return self.cost_stack.gradient(state)
@@ -91,7 +91,7 @@ class LeastSquaresProblem:
         ignore this method continue to work via the dense
         :meth:`jacobian` path.
 
-        See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §8``.
+        See ``docs/concepts/solver_stack.md §8``.
         """
         from ..kinematics.jacobian import residual_jacobian
 

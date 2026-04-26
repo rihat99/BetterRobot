@@ -3,7 +3,7 @@
 Solvers can look at ``.spec`` to pre-build sparse Jacobian masks (trajopt
 especially). Opt-in: solvers that ignore ``.spec`` still work.
 
-Per ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §7`` the full shape carries:
+Per ``docs/concepts/solver_stack.md §7`` the full shape carries:
 
 * ``output_dim`` — residual output dimension (alias kept as ``dim``).
 * ``tangent_dim`` — variable space ``nv`` this residual touches; ``None``

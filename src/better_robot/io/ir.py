@@ -5,7 +5,7 @@ All parsers (URDF, MJCF, programmatic builder) emit an ``IRModel``. A single
 The IR is flat and ordering-unconstrained; topology/idx_q/idx_v assignment
 is ``build_model``'s job.
 
-See ``docs/design/04_PARSERS.md §2``.
+See ``docs/concepts/parsers_and_ir.md §2``.
 """
 
 from __future__ import annotations
@@ -71,7 +71,7 @@ class IRFrame:
 #: ``build_model`` rejects any ``IRModel`` whose instance attribute
 #: ``schema_version`` does not equal this constant. Bump in lockstep with
 #: any breaking change to ``IRJoint``/``IRBody``/``IRFrame``/``IRModel`` or
-#: their semantics. See ``docs/design/04_PARSERS.md §2.1``.
+#: their semantics. See ``docs/concepts/parsers_and_ir.md §2.1``.
 IR_SCHEMA_VERSION: int = 1
 
 

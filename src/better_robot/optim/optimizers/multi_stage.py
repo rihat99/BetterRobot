@@ -10,8 +10,8 @@ in a ``try / finally``** so a stage that raises does not leak active /
 weight changes onto subsequent calls (or other code holding the same
 ``CostStack``).
 
-See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5`` and
-``docs/design/08_TASKS.md``.
+See ``docs/concepts/solver_stack.md §5`` and
+``docs/concepts/tasks.md``.
 """
 
 from __future__ import annotations

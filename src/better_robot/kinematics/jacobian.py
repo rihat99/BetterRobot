@@ -3,7 +3,7 @@
 Pinocchio-style canonical functions — a single dispatch path that replaces
 the legacy four-way fixed/floating × analytic/autodiff mess.
 
-See ``docs/design/05_KINEMATICS.md §3``.
+See ``docs/concepts/kinematics.md §3``.
 """
 
 from __future__ import annotations
@@ -89,7 +89,7 @@ def compute_joint_jacobians(
     :func:`forward_kinematics` first; otherwise raises
     :class:`~better_robot.exceptions.StaleCacheError`.
 
-    See docs/design/05_KINEMATICS.md §3.
+    See docs/concepts/kinematics.md §3.
     """
     data.require(KinematicsLevel.PLACEMENTS)
     backend = backend or default_backend()
@@ -109,7 +109,7 @@ def get_joint_jacobian(
     Shape: ``(B..., 6, nv)``. Reference frames mirror Pinocchio's
     ``ReferenceFrame`` enum.
 
-    See docs/design/05_KINEMATICS.md §3.
+    See docs/concepts/kinematics.md §3.
     """
     data.require(KinematicsLevel.PLACEMENTS)
     if data.joint_jacobians is None:
@@ -149,7 +149,7 @@ def get_frame_jacobian(
     - ``"local"``: both linear and angular rows expressed in the body-local
       frame of this frame. Matches Pinocchio's ``LOCAL``.
 
-    See docs/design/05_KINEMATICS.md §3.
+    See docs/concepts/kinematics.md §3.
     """
     data.require(KinematicsLevel.PLACEMENTS)
     assert data.joint_pose_world is not None, (
@@ -239,7 +239,7 @@ def residual_jacobian(
     where analytic/autodiff coexist cleanly — the solver never writes
     Jacobian code itself.
 
-    See docs/design/05_KINEMATICS.md §3.
+    See docs/concepts/kinematics.md §3.
     """
     from ..residuals.base import ResidualState as RS
 

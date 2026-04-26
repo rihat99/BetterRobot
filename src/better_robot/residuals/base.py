@@ -10,8 +10,8 @@ the matrix-free path used by ``LeastSquaresProblem.gradient``. The
 default implementation builds the dense Jacobian and multiplies — sparse
 residuals (banded smoothness, sparse collisions) override this.
 
-See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §2`` and
-``docs/design/05_KINEMATICS.md §3``.
+See ``docs/concepts/residuals_and_costs.md §2`` and
+``docs/concepts/kinematics.md §3``.
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ class Residual(Protocol):
     """Protocol every residual class implements.
 
     Marked ``@runtime_checkable`` so the extension-seam docs can advertise
-    ``isinstance(obj, Residual)`` as a valid contract check (docs/conventions/15_EXTENSION.md §1).
+    ``isinstance(obj, Residual)`` as a valid contract check (docs/conventions/extension.md §1).
     """
 
     name: str

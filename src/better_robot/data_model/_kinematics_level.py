@@ -11,7 +11,7 @@ class KinematicsLevel(int, Enum):
     """How far the kinematic recursion has been advanced on a ``Data``.
 
     Each level is a strict superset of those below it; see
-    ``docs/design/02_DATA_MODEL.md §3.1``.
+    ``docs/concepts/model_and_data.md §3.1``.
     """
 
     NONE = 0

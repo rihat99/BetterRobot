@@ -4,7 +4,7 @@ Currently only ``integrate_q`` (D0) is implemented. The dynamic
 integrators (semi-implicit Euler, symplectic Euler, RK4) still raise
 ``NotImplementedError``.
 
-See ``docs/design/06_DYNAMICS.md §8``.
+See ``docs/concepts/dynamics.md §8``.
 """
 
 from __future__ import annotations

@@ -5,8 +5,8 @@
 2. Library code must not call ``set_backend(`` internally — the active
    backend is the user's choice.
 
-See ``docs/design/10_BATCHING_AND_BACKENDS.md §7`` and
-``docs/UPDATE_PHASES.md §P1``.
+See ``docs/concepts/batching_and_backends.md §7`` and
+``docs/reference/roadmap.md §P1``.
 """
 
 from __future__ import annotations

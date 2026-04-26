@@ -2,7 +2,7 @@
 
 The public entry point is ``load`` — a thin suffix/type dispatcher.
 
-See ``docs/design/04_PARSERS.md``.
+See ``docs/concepts/parsers_and_ir.md``.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ _PARSERS: dict[str, Callable[..., IRModel]] = {
 
 
 def register_parser(suffix: str, fn: Callable[..., IRModel]) -> None:
-    """Register a new format parser at runtime. See docs/design/04_PARSERS.md §7."""
+    """Register a new format parser at runtime. See docs/concepts/parsers_and_ir.md §7."""
     _PARSERS[suffix] = fn
 
 
@@ -77,7 +77,7 @@ def load(
     Passing ``free_flyer=True`` (or ``root_joint=JointFreeFlyer()``) turns
     any fixed-base URDF into a floating-base robot.
 
-    See docs/design/04_PARSERS.md §1.
+    See docs/concepts/parsers_and_ir.md §1.
     """
     from ..data_model.joint_models import JointFreeFlyer
 

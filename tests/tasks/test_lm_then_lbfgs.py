@@ -1,6 +1,6 @@
 """Tests for the ``lm_then_lbfgs`` composite solver.
 
-Pattern from cuRobo (docs/design/08_TASKS.md): LM coarse solve → LBFGS refinement.
+Pattern from cuRobo (docs/concepts/tasks.md): LM coarse solve → LBFGS refinement.
 
 This suite checks:
 1. ``solve_ik(optimizer="lm_then_lbfgs")`` reaches a reachable Panda target.

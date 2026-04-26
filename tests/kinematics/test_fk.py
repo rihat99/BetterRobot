@@ -1,6 +1,6 @@
 """Tests for forward kinematics — correctness and shape checks.
 
-See ``docs/design/05_KINEMATICS.md §2``.
+See ``docs/concepts/kinematics.md §2``.
 """
 
 from __future__ import annotations

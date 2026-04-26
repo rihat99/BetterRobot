@@ -4,13 +4,13 @@ Offscreen / headless rendering (pyrender + EGL/OSMesa) is deferred out
 of V1. The ``OffscreenBackend`` class exists here as a named target so
 that future work can drop the implementation in place without changing
 the surrounding code — constructing it today raises
-``NotImplementedError`` pointing at ``docs/design/12_VIEWER.md §10.2``.
+``NotImplementedError`` pointing at ``docs/concepts/viewer.md §10.2``.
 
 The ``test_only_offscreen_backend_imports_pyrender`` layer rule in
 ``tests/contract/test_layer_dependencies.py`` reserves ``pyrender`` imports for
 this module, so the future body can land without leaking the dependency.
 
-See ``docs/design/12_VIEWER.md §10.2``.
+See ``docs/concepts/viewer.md §10.2``.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from typing import Any
 
 _FUTURE_MSG = (
     "OffscreenBackend (headless pyrender-based rendering) is future "
-    "work — see docs/design/12_VIEWER.md §10.2. V1 ships only ViserBackend; "
+    "work — see docs/concepts/viewer.md §10.2. V1 ships only ViserBackend; "
     "the offscreen path lands together with VideoRecorder / "
     "render_trajectory (§10.1)."
 )

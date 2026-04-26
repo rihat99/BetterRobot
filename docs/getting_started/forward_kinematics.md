@@ -45,7 +45,7 @@ print(data_batch.joint_pose_world.shape)  # (8, njoints, 7)
 ```
 
 There is no "unbatched mode" — single configurations are just `B=1`.
-See {doc}`/concepts/batched_by_default`.
+See {doc}`/concepts/batching_and_backends`.
 
 ## Next
 

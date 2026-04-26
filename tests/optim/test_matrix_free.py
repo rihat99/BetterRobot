@@ -7,7 +7,7 @@
   ``problem.gradient`` (we monkeypatch ``problem.jacobian`` to fail) and
   still converge.
 
-See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §8``.
+See ``docs/concepts/solver_stack.md §8``.
 """
 
 from __future__ import annotations

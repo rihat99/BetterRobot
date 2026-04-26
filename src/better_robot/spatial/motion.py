@@ -3,7 +3,7 @@
 Stored as a ``(..., 6)`` tensor ``[vx, vy, vz, wx, wy, wz]``. Methods return
 new ``Motion`` instances (value-typed dataclass).
 
-See ``docs/design/03_LIE_AND_SPATIAL.md §7``.
+See ``docs/concepts/lie_and_spatial.md §7``.
 """
 
 from __future__ import annotations

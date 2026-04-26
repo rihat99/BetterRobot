@@ -2,7 +2,7 @@
 
 **Skeleton only in v1.** Every function is named, signed, docstringed, and
 raises ``NotImplementedError`` with a pointer to the owning milestone in
-``docs/design/06_DYNAMICS.md``. The only exceptions are ``center_of_mass`` and
+``docs/concepts/dynamics.md``. The only exceptions are ``center_of_mass`` and
 ``integrate_q``, which land numerically in milestone D1.
 
 The point of the skeleton is to lock the shape so that ``residuals/``,

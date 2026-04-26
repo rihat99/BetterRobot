@@ -2,7 +2,7 @@
 
 V1 ships ``MockBackend`` as a testable in-memory backend and
 ``ViserBackend`` as the real interactive backend. ``OffscreenBackend``
-is future work — see ``docs/design/12_VIEWER.md §10.2`` — so the matrix
+is future work — see ``docs/concepts/viewer.md §10.2`` — so the matrix
 comparison returns when the offscreen path lands.
 """
 
@@ -67,7 +67,7 @@ def test_mock_backend_detach_removes_all(panda, panda_data):
 
 
 def test_offscreen_backend_is_future_work():
-    """OffscreenBackend is a placeholder — see docs/design/12_VIEWER.md §10.2."""
+    """OffscreenBackend is a placeholder — see docs/concepts/viewer.md §10.2."""
     from better_robot.viewer.renderers.offscreen_backend import OffscreenBackend
     with pytest.raises(NotImplementedError, match="§10.2"):
         OffscreenBackend(width=64, height=64)

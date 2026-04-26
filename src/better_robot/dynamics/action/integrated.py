@@ -5,7 +5,7 @@ Both expose the ``ActionModel`` protocol used by an OC solver: ``calc``
 fills ``data.xnext`` and ``data.cost``; ``calc_diff`` adds the
 state/control Jacobians.
 
-See ``docs/design/06_DYNAMICS.md §6``.
+See ``docs/concepts/dynamics.md §6``.
 """
 
 from __future__ import annotations

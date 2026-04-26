@@ -8,7 +8,7 @@ Covers:
 * SLERP-resampled quaternion is unit-norm.
 * ``slice`` / ``downsample`` operate on the time axis.
 
-See ``docs/design/08_TASKS.md §2``.
+See ``docs/concepts/tasks.md §2``.
 """
 
 from __future__ import annotations

@@ -3,7 +3,7 @@
 All render modes implement this protocol.  They speak to a
 ``RendererBackend`` — they never import viser or pyrender directly.
 
-See ``docs/design/12_VIEWER.md §4.1``.
+See ``docs/concepts/viewer.md §4.1``.
 """
 
 from __future__ import annotations

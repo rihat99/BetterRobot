@@ -2,11 +2,11 @@
 
 V1 keeps the ``Camera`` dataclass so callers can pin a view in future
 interactive backends. ``CameraPath`` (orbit, follow_frame, static) is
-future work — see ``docs/design/12_VIEWER.md §10.7``. It lives here as a
+future work — see ``docs/concepts/viewer.md §10.7``. It lives here as a
 named target so an eventual cinematic-camera implementation can slot in
 without restructuring the surrounding code.
 
-See ``docs/design/12_VIEWER.md §10.7``.
+See ``docs/concepts/viewer.md §10.7``.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 _FUTURE_MSG = (
     "CameraPath (orbit / follow_frame / static) is future work — "
-    "see docs/design/12_VIEWER.md §10.7. V1 ships only the static Camera "
+    "see docs/concepts/viewer.md §10.7. V1 ships only the static Camera "
     "dataclass."
 )
 

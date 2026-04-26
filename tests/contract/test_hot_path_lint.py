@@ -11,8 +11,8 @@ fails the test if any of these forbidden idioms appear:
 
 A line may exempt itself with ``# bench-ok: <reason>``.
 
-See ``docs/conventions/14_PERFORMANCE.md §1`` and
-``docs/conventions/16_TESTING.md §3``.
+See ``docs/conventions/performance.md §1`` and
+``docs/conventions/testing.md §3``.
 """
 
 from __future__ import annotations

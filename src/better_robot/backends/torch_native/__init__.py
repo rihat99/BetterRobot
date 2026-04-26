@@ -1,7 +1,7 @@
 """``torch_native`` backend — pure-PyTorch implementations of the
 ``Backend`` Protocols. The default backend.
 
-See ``docs/design/10_BATCHING_AND_BACKENDS.md §7``.
+See ``docs/concepts/batching_and_backends.md §7``.
 """
 
 from __future__ import annotations

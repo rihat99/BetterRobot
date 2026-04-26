@@ -3,7 +3,7 @@
 Uses a clamped penalty — zero inside limits, positive outside. This is
 what replaces the current ``costs/limits.py`` ``torch.clamp(min=0)`` pattern.
 
-See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §2``.
+See ``docs/concepts/residuals_and_costs.md §2``.
 """
 
 from __future__ import annotations
@@ -107,7 +107,7 @@ class JointVelocityLimit:
         return torch.cat([lower_viol, upper_viol], dim=-1)
 
     def jacobian(self, state: ResidualState) -> torch.Tensor | None:
-        raise NotImplementedError("see docs/design/07_RESIDUALS_COSTS_SOLVERS.md §2")
+        raise NotImplementedError("see docs/concepts/residuals_and_costs.md §2")
 
 
 @register_residual("joint_accel_limit")
@@ -122,7 +122,7 @@ class JointAccelLimit:
         self.dim = 2 * model.nv
 
     def __call__(self, state: ResidualState) -> torch.Tensor:
-        raise NotImplementedError("see docs/design/07_RESIDUALS_COSTS_SOLVERS.md §2")
+        raise NotImplementedError("see docs/concepts/residuals_and_costs.md §2")
 
     def jacobian(self, state: ResidualState) -> torch.Tensor | None:
-        raise NotImplementedError("see docs/design/07_RESIDUALS_COSTS_SOLVERS.md §2")
+        raise NotImplementedError("see docs/concepts/residuals_and_costs.md §2")

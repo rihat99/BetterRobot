@@ -1,6 +1,6 @@
 """``better_robot.io.builders`` — programmatic example builders.
 
-See ``docs/design/04_PARSERS.md §6``.
+See ``docs/concepts/parsers_and_ir.md §6``.
 """
 
 from __future__ import annotations

@@ -4,7 +4,7 @@ Given a contact mask ``c ∈ (T, K)`` over ``K`` target frames, the residual
 penalises the per-frame linear velocity of each contact frame — measured
 as the world-frame displacement of the frame origin between consecutive
 timesteps. This is exactly the linear part of the frame's
-``LOCAL_WORLD_ALIGNED`` spatial velocity (see ``docs/design/05_KINEMATICS.md §3``):
+``LOCAL_WORLD_ALIGNED`` spatial velocity (see ``docs/concepts/kinematics.md §3``):
 
     r_{t,k,:3} = c_{t,k} * (p_k(q_{t+1}) - p_k(q_t)) / dt
 
@@ -13,7 +13,7 @@ where ``p_k(q) = data.frame_pose_world[t, frame_ids[k], :3]``.
 Output dim: ``3 * K * (T - 1)`` — linear only in v1. The ``angular`` flag
 is reserved as an expansion hook.
 
-See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §2``.
+See ``docs/concepts/residuals_and_costs.md §2``.
 """
 
 from __future__ import annotations

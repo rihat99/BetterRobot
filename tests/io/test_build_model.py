@@ -1,6 +1,6 @@
 """Tests for ``build_model`` — IR → frozen Model factory.
 
-See ``docs/design/04_PARSERS.md §3``.
+See ``docs/concepts/parsers_and_ir.md §3``.
 """
 
 from __future__ import annotations

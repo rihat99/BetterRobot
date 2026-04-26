@@ -39,5 +39,5 @@ possible for fixed and floating-base alike.
 
 ```{seealso}
 {doc}`/concepts/lie_and_spatial` for the Lie-algebra background, and
-{doc}`/design/06_DYNAMICS` for the full per-joint integration story.
+{doc}`/concepts/dynamics` for the full per-joint integration story.
 ```

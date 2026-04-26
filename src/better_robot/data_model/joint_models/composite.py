@@ -1,6 +1,6 @@
 """``JointComposite`` — stack of sub-joints acting on the same parent/child.
 
-See ``docs/design/02_DATA_MODEL.md §5``.
+See ``docs/concepts/joints_bodies_frames.md §5``.
 """
 
 from __future__ import annotations

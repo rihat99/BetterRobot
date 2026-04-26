@@ -7,9 +7,9 @@ backends does so by passing a different :class:`Backend` instance via the
 default with :func:`better_robot.backends.set_backend`.
 
 Today the only concrete backend is :mod:`better_robot.backends.torch_native`;
-the Warp backend lands in P11 of ``docs/UPDATE_PHASES.md``.
+the Warp backend lands in P11 of ``docs/reference/roadmap.md``.
 
-See ``docs/design/10_BATCHING_AND_BACKENDS.md §7``.
+See ``docs/concepts/batching_and_backends.md §7``.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ class LieOps(Protocol):
 
     Storage convention is the library-wide one — SE(3) as
     ``(..., 7)`` ``[tx, ty, tz, qx, qy, qz, qw]``, SO(3) as ``(..., 4)``
-    scalar-last quaternion. See ``docs/conventions/13_NAMING.md``.
+    scalar-last quaternion. See ``docs/conventions/naming.md``.
     """
 
     def se3_compose(self, a: "torch.Tensor", b: "torch.Tensor") -> "torch.Tensor": ...

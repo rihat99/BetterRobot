@@ -3,7 +3,7 @@
 The public surface is intentionally small: **26 symbols** — the frozen
 ``EXPECTED`` set in ``tests/contract/test_public_api.py``. Everything else is
 internal and may be reshaped without a deprecation. See
-``docs/design/01_ARCHITECTURE.md §Public API contract``.
+``docs/concepts/architecture.md §Public API contract``.
 
 Layered DAG (arrows point from dependent to dependency)::
 

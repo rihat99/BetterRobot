@@ -1,6 +1,6 @@
 """Typed exceptions raised by ``better_robot``.
 
-See ``docs/conventions/17_CONTRACTS.md §2`` for the normative taxonomy.
+See ``docs/conventions/contracts.md §2`` for the normative taxonomy.
 
 All library-raised errors inherit from :class:`BetterRobotError`. Where
 possible, they also inherit from a standard-library exception class
@@ -33,7 +33,7 @@ class BetterRobotError(Exception):
 class ModelInconsistencyError(BetterRobotError, ValueError):
     """Parsed ``Model`` violates one of the topology invariants.
 
-    Invariants (see ``docs/conventions/17_CONTRACTS.md §1.5``):
+    Invariants (see ``docs/conventions/contracts.md §1.5``):
 
     * ``parents[0] == -1`` — joint 0 is the universe.
     * ``parents[i] < i`` for ``i > 0`` — topologically sorted.
@@ -106,7 +106,7 @@ class IRSchemaVersionError(BetterRobotError, ValueError):
     rebuilding their own ``IRModel`` from a serialised form must match
     the current schema version.
 
-    See ``docs/design/04_PARSERS.md §2.1``.
+    See ``docs/concepts/parsers_and_ir.md §2.1``.
     """
 
 
@@ -119,14 +119,14 @@ class StaleCacheError(BetterRobotError, RuntimeError):
     etc.). This is raised by ``Data.require(level)`` when the held level is
     too low.
 
-    See ``docs/design/02_DATA_MODEL.md §3.1``.
+    See ``docs/concepts/model_and_data.md §3.1``.
     """
 
 
 class UnsupportedJointError(BetterRobotError, ValueError):
     """URDF/MJCF declared a joint kind without a built-in ``JointModel``.
 
-    Register a custom ``JointModel`` — see ``docs/conventions/15_EXTENSION.md §2``.
+    Register a custom ``JointModel`` — see ``docs/conventions/extension.md §2``.
     """
 
 

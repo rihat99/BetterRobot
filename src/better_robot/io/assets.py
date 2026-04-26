@@ -8,8 +8,8 @@ forwarded onto ``Model.meta["asset_resolver"]``) so the viewer and
 collision modules can find meshes after parsing without re-reading the
 URDF.
 
-See ``docs/design/04_PARSERS.md §6`` and
-``docs/design/12_VIEWER.md §17``.
+See ``docs/concepts/parsers_and_ir.md §6`` and
+``docs/concepts/viewer.md §17``.
 """
 
 from __future__ import annotations

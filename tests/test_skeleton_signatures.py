@@ -3,7 +3,7 @@
 Doesn't run any numerical code; just verifies that importing the symbol
 works and that it's a class / function / dataclass as expected.
 
-See ``docs/design/11_SKELETON_AND_MIGRATION.md §Phase 1 pass criteria``.
+See ``docs/concepts/architecture.md §Phase 1 pass criteria``.
 """
 
 from __future__ import annotations
@@ -83,7 +83,7 @@ def test_model_has_frozen_dataclass_shape() -> None:
 
 
 def test_data_has_core_fields() -> None:
-    """Data exposes the readable field names defined in docs/conventions/13_NAMING.md."""
+    """Data exposes the readable field names defined in docs/conventions/naming.md."""
     data_cls = br.Data
     fields = {f.name for f in data_cls.__dataclass_fields__.values()}
     required = {
@@ -99,7 +99,7 @@ def test_data_exposes_deprecated_aliases() -> None:
     """Old cryptic names (oMi / oMf / liMi / nle / Ag / M / J …) still resolve
     via the one-release deprecation shim.
 
-    See docs/design/02_DATA_MODEL.md §11 and docs/conventions/13_NAMING.md §6.
+    See docs/concepts/model_and_data.md §11 and docs/conventions/naming.md §6.
     """
     import warnings
     d = br.Data(_model_id=0, q=__import__("torch").zeros(3))

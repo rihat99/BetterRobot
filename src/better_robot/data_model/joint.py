@@ -5,7 +5,7 @@ Pinocchio-style ``Joint`` enumeration. ``Joint`` is a string-valued
 and still do cheap equality checks against the raw ``kind`` string on
 ``JointModel``.
 
-See ``docs/design/02_DATA_MODEL.md §5``.
+See ``docs/concepts/joints_bodies_frames.md §5``.
 """
 
 from __future__ import annotations

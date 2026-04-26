@@ -3,7 +3,7 @@
 Consumes a ``RobotCollision`` decomposition and produces a variable-length
 residual: one entry per *active* pair (pair within ``margin``).
 
-See ``docs/design/09_COLLISION_GEOMETRY.md §6``.
+See ``docs/concepts/collision_and_geometry.md §6``.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ class SelfCollisionResidual(Residual):
     Residual = ``-colldist_from_sdf(d_p, margin) * weight``: zero outside
     the margin, quadratic inside it, linear on penetration.
 
-    See docs/design/09_COLLISION_GEOMETRY.md §6.
+    See docs/concepts/collision_and_geometry.md §6.
     """
 
     def __init__(
@@ -43,18 +43,18 @@ class SelfCollisionResidual(Residual):
         self.weight = weight
         # ``dim`` is the *number of candidate pairs*, not the live count —
         # keeping it stable across LM iterations is what the spec requires
-        # (docs/design/07_RESIDUALS_COSTS_SOLVERS.md §10).
+        # (docs/concepts/residuals_and_costs.md §10).
         self.dim = int(robot_collision.self_pairs.shape[0])
 
     def __call__(self, state: ResidualState) -> torch.Tensor:
-        raise NotImplementedError("see docs/design/09_COLLISION_GEOMETRY.md §6")
+        raise NotImplementedError("see docs/concepts/collision_and_geometry.md §6")
 
     def jacobian(self, state: ResidualState) -> torch.Tensor | None:
         """Sparse analytic Jacobian — rewrite of ``_analytic_collision_jacobian``.
 
-        See docs/design/09_COLLISION_GEOMETRY.md §6.
+        See docs/concepts/collision_and_geometry.md §6.
         """
-        raise NotImplementedError("see docs/design/09_COLLISION_GEOMETRY.md §6")
+        raise NotImplementedError("see docs/concepts/collision_and_geometry.md §6")
 
     @property
     def spec(self):
@@ -91,7 +91,7 @@ class WorldCollisionResidual(Residual):
         self.dim = n_links * len(self.world)
 
     def __call__(self, state: ResidualState) -> torch.Tensor:
-        raise NotImplementedError("see docs/design/09_COLLISION_GEOMETRY.md §8")
+        raise NotImplementedError("see docs/concepts/collision_and_geometry.md §8")
 
     def jacobian(self, state: ResidualState) -> torch.Tensor | None:
-        raise NotImplementedError("see docs/design/09_COLLISION_GEOMETRY.md §8")
+        raise NotImplementedError("see docs/concepts/collision_and_geometry.md §8")

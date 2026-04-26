@@ -8,7 +8,7 @@ file is committed and re-generated only by an explicit run of
 Skips automatically if ``fk_reference.npz`` is missing — the oracle file
 ships only after the first commit of the bench infrastructure.
 
-See ``docs/conventions/16_TESTING.md §4.5``.
+See ``docs/conventions/testing.md §4.5``.
 """
 
 from __future__ import annotations

@@ -5,7 +5,7 @@ deficiency. Shares the same plug-in linear-solver interface as LM so the
 outer shell of ``minimize`` is almost identical — the only difference is
 the fixed (near-zero) damping. Honours ``kernel`` via IRLS reweighting.
 
-See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5``.
+See ``docs/concepts/solver_stack.md §5``.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ class GaussNewton:
     ) -> SolverState:
         """Run Gauss-Newton until convergence or ``max_iter`` is reached.
 
-        See docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5.
+        See docs/concepts/solver_stack.md §5.
         """
         from ..solvers.cholesky import Cholesky
 

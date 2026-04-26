@@ -3,13 +3,13 @@
 V1 is intentionally thin: one ``ViserBackend``, one ``Scene.default``
 per robot, single-pose ``update`` and straight-through trajectory
 ``add_trajectory``. Everything else (recording, IK target gizmos,
-multi-robot, batch-axis picker) is §10 in ``docs/design/12_VIEWER.md``.
+multi-robot, batch-axis picker) is §10 in ``docs/concepts/viewer.md``.
 
 ``viser`` is imported lazily — only when ``_ensure_server()`` is first
 called via ``show()`` / ``update()`` / ``add_trajectory()``. ``import
 better_robot.viewer`` works without viser installed.
 
-See ``docs/design/12_VIEWER.md §7``.
+See ``docs/concepts/viewer.md §7``.
 """
 
 from __future__ import annotations
@@ -31,15 +31,15 @@ if TYPE_CHECKING:
 
 
 _FUTURE_MSG_RECORD = (
-    "Visualizer.record is future work — see docs/design/12_VIEWER.md §10.1. "
+    "Visualizer.record is future work — see docs/concepts/viewer.md §10.1. "
     "V1 of the viewer is interactive-only."
 )
 _FUTURE_MSG_MULTI = (
     "Multi-robot sessions are future work — "
-    "see docs/design/12_VIEWER.md §10.8."
+    "see docs/concepts/viewer.md §10.8."
 )
 _FUTURE_MSG_BATCH = (
-    "Batch-axis picker is future work — see docs/design/12_VIEWER.md §10.9."
+    "Batch-axis picker is future work — see docs/concepts/viewer.md §10.9."
 )
 
 
@@ -145,7 +145,7 @@ class Visualizer:
 
         Callers drive playback via ``player.show_frame(k)`` or
         ``player.play(fps=...)``. No richer transport controls in V1 —
-        see ``docs/design/12_VIEWER.md §10.3``.
+        see ``docs/concepts/viewer.md §10.3``.
         """
         from .trajectory_player import TrajectoryPlayer
 

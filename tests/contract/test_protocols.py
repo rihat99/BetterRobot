@@ -1,8 +1,8 @@
 """Contract tests: every extension-seam ``Protocol`` is ``@runtime_checkable``
 and every built-in implementation passes the corresponding ``isinstance`` check.
 
-See ``docs/conventions/15_EXTENSION.md`` for the seam inventory and
-``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5`` for the concrete Protocols.
+See ``docs/conventions/extension.md`` for the seam inventory and
+``docs/concepts/residuals_and_costs.md §5`` for the concrete Protocols.
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ def test_protocol_is_runtime_checkable(proto: type) -> None:
     """Every extension-seam Protocol must support ``isinstance``."""
     assert _is_runtime_checkable(proto), (
         f"{proto.__name__} is a Protocol but not runtime_checkable; "
-        f"docs/conventions/15_EXTENSION.md requires @runtime_checkable."
+        f"docs/conventions/extension.md requires @runtime_checkable."
     )
 
 

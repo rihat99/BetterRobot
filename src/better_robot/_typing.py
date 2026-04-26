@@ -11,7 +11,7 @@ The jaxtyping aliases live under ``if TYPE_CHECKING:`` so the runtime
 ``torch.Tensor`` aliases stay in scope at runtime so existing call sites
 keep type-checking with the lighter ``Tensor`` alias too.
 
-See ``docs/conventions/13_NAMING.md §2.9``.
+See ``docs/conventions/naming.md §2.9``.
 """
 
 from __future__ import annotations

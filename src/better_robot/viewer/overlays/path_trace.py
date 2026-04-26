@@ -1,7 +1,7 @@
 """``overlays/path_trace.py`` — path trace overlay placeholder.
 
 Rendering the swept world-frame path of a named frame across a
-trajectory is future work — see ``docs/design/12_VIEWER.md §10.6``. The class
+trajectory is future work — see ``docs/concepts/viewer.md §10.6``. The class
 is kept here as a named target so future work can fill in the body
 without restructuring the surrounding code.
 """
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 _FUTURE_MSG = (
-    "PathTraceOverlay is future work — see docs/design/12_VIEWER.md §10.6."
+    "PathTraceOverlay is future work — see docs/concepts/viewer.md §10.6."
 )
 
 

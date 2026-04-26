@@ -6,7 +6,7 @@ control ``u`` is a ``(nv,)`` joint torque vector.
 
 Derivatives are obtained via autograd through ``calc``. The pure-PyTorch
 ABA is fully differentiable; running costs are expected to also be
-differentiable. See ``docs/design/06_DYNAMICS.md §6``.
+differentiable. See ``docs/concepts/dynamics.md §6``.
 """
 
 from __future__ import annotations

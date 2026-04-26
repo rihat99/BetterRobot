@@ -1,8 +1,11 @@
-"""Forbidden optional-dep imports per ``docs/conventions/20_PACKAGING.md §1.2``.
+"""Module-boundary discipline for format / viewer / reference deps.
 
-The library core (everything outside ``io/parsers/`` and ``viewer/``) must
-not top-level-import optional dependencies — those should fail gracefully
-behind a typed ``BackendNotAvailableError`` instead.
+The kinematics / dynamics / optim layers must not top-level-import
+``yourdfpy``, ``trimesh``, ``viser``, ``robot_descriptions``, or
+``pinocchio`` — those imports belong in ``io/parsers/``, ``viewer/``,
+``collision/``, or test code. Even though every dep is now installed
+by default, keeping format-specific imports at the boundary keeps
+``import better_robot`` light and the layered DAG honest.
 
 Currently advisory: lists the imports it would forbid; failure is gated
 on ``BR_STRICT=1`` so day-to-day work doesn't redline. This pattern

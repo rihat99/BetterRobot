@@ -5,7 +5,7 @@
 PyTorch-native, GPU-ready library for robot kinematics and optimization. Pinocchio-style Model/Data architecture, PyTorch autograd throughout. Single code path for fixed-base and floating-base (free-flyer) robots.
 
 **Implemented:** forward kinematics, Jacobians (analytic + autograd + finite-diff fallback), pose/position/orientation/limits/rest/smoothness/contact-consistency/reference-trajectory residuals, CostStack, LM/GN/Adam/LBFGS/MultiStage optimizers, IK (fixed + floating base), trajectory optimisation (`solve_trajopt`) with knot + B-spline parameterisations, dynamics (RNEA/ABA/CRBA/CCRBA, centroidal map + momentum, autograd-derived `compute_*_derivatives`, three-layer Crocoddyl-style action models), viewer V1 (Skeleton, URDFMesh, Grid, FrameAxes, Targets, ForceVectors, ViserBackend, build_joint_panel, minimal TrajectoryPlayer).
-**Stubs:** dynamic integrators (`semi_implicit_euler` / `symplectic_euler` / `rk4`), `compute_minverse`, `compute_coriolis_matrix`, analytic Carpentier–Mansard derivatives, `solve_retarget`, jerk / Yoshikawa / collision / nullspace residuals, viewer COM/PathTrace/ResidualPlot overlays, `VideoRecorder`, Warp backend kernels. See `docs/status/18_ROADMAP.md`.
+**Stubs:** dynamic integrators (`semi_implicit_euler` / `symplectic_euler` / `rk4`), `compute_minverse`, `compute_coriolis_matrix`, analytic Carpentier–Mansard derivatives, `solve_retarget`, jerk / Yoshikawa / collision / nullspace residuals, viewer COM/PathTrace/ResidualPlot overlays, `VideoRecorder`, Warp backend kernels. See `docs/reference/roadmap.md`.
 
 ## Commands
 

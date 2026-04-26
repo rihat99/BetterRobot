@@ -3,7 +3,7 @@
 Stored as a ``(..., 10)`` tensor
 ``[mass, cx, cy, cz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]``.
 
-See ``docs/design/03_LIE_AND_SPATIAL.md §7``.
+See ``docs/concepts/lie_and_spatial.md §7``.
 """
 
 from __future__ import annotations

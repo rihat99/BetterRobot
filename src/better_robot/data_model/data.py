@@ -5,20 +5,20 @@ functions populate the optional fields lazily — this avoids the mjwarp
 280-field god-dataclass trap.
 
 Field naming follows the ``<entity>_<quantity>_<frame>`` convention
-documented in ``docs/conventions/13_NAMING.md``. Pinocchio-style short aliases
+documented in ``docs/conventions/naming.md``. Pinocchio-style short aliases
 (``oMi``, ``oMf``, ``liMi``, ``nle``, ``Ag``, …) remain available as
 deprecated ``@property`` shims for one release (see §11 of
-``docs/design/02_DATA_MODEL.md``); they forward read / write to the renamed
+``docs/concepts/model_and_data.md``); they forward read / write to the renamed
 storage field and emit :class:`DeprecationWarning`.
 
 The ``_kinematics_level`` field tracks how far the recursion has been
 advanced: ``NONE`` < ``PLACEMENTS`` < ``VELOCITIES`` < ``ACCELERATIONS``.
 Reassigning :attr:`q` / :attr:`v` / :attr:`a` invalidates strictly-higher
-caches (see ``docs/design/02_DATA_MODEL.md §3.1``). In-place mutation
+caches (see ``docs/concepts/model_and_data.md §3.1``). In-place mutation
 (``data.q[..., 0] += 1.0``) is *not* detected — that is a documented
 limitation.
 
-See ``docs/design/02_DATA_MODEL.md §3``.
+See ``docs/concepts/model_and_data.md §3``.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ from ._kinematics_level import KinematicsLevel
 # for every entry below, post-``@dataclass`` decoration, so the old
 # names keep working one more release.
 #
-# Removal ticket: docs/conventions/13_NAMING.md §6 (target: v1.1).
+# Removal ticket: docs/conventions/naming.md §6 (target: v1.1).
 # ──────────────────────────────────────────────────────────────────────
 
 _DEPRECATED_ALIASES: tuple[tuple[str, str], ...] = (
@@ -255,13 +255,13 @@ class Data:
 # ══════════════════════════════════════════════════════════════════════
 # Deprecated aliases (removed in v1.1).
 # Installed post-``@dataclass`` so they don't participate in ``__init__``.
-# See ``docs/design/02_DATA_MODEL.md §11`` and ``docs/conventions/13_NAMING.md §6``.
+# See ``docs/concepts/model_and_data.md §11`` and ``docs/conventions/naming.md §6``.
 # ══════════════════════════════════════════════════════════════════════
 
 def _make_alias(old: str, new: str) -> property:
     msg = (
         f"Data.{old} is deprecated; use Data.{new}. "
-        f"Will be removed in v1.1. See docs/conventions/13_NAMING.md §6."
+        f"Will be removed in v1.1. See docs/conventions/naming.md §6."
     )
 
     def _get(self: "Data") -> Optional[torch.Tensor]:

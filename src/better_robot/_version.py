@@ -1,7 +1,6 @@
 """Single source of truth for the package version.
 
-Kept in step with ``pyproject.toml::project.version`` — bumped together
-during the release procedure (see ``RELEASING.md``).
+Kept in step with ``pyproject.toml::project.version``.
 """
 
 from __future__ import annotations

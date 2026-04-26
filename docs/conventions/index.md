@@ -1,34 +1,30 @@
 # Conventions
 
-Cross-cutting **normative** specs — everything the library expects at
-its boundaries. When the design specs in {doc}`/design/index` are the
-*what*, these are the *how*.
+Cross-cutting normative specs — everything the library expects at its
+boundaries. Where {doc}`/concepts/index` is the *what*, these are the
+*how*: the rules that the test suite enforces and that contributors
+have to keep in mind.
 
 ```{toctree}
 :maxdepth: 1
 
-13_NAMING
-14_PERFORMANCE
-15_EXTENSION
-16_TESTING
-17_CONTRACTS
-19_STYLE
-20_PACKAGING
+naming
+performance
+extension
+testing
+contracts
+style
+packaging
 ```
 
 ## When to consult which doc
 
 | Spec | Read when |
 |------|-----------|
-| {doc}`13_NAMING` | Adding any new identifier; staring at the Pinocchio → BetterRobot rename table. |
-| {doc}`14_PERFORMANCE` | Touching hot paths, debugging compile / latency / memory. |
-| {doc}`15_EXTENSION` | Plugging in a new residual / joint / solver / backend / parameterisation. |
-| {doc}`16_TESTING` | Adding tests; promoting a benchmark from advisory to blocking. |
-| {doc}`17_CONTRACTS` | Touching the public API, raising a new exception, changing numerical guarantees. |
-| {doc}`19_STYLE` | Writing any new code or docstring. |
-| {doc}`20_PACKAGING` | Adding a dependency, cutting a release, deprecating a symbol. |
-
-```{note}
-Numbers 18 (roadmap) lives in {doc}`/reference/roadmap`. There is no
-spec 18 in this folder.
-```
+| {doc}`naming` | Adding any new identifier, or staring at the Pinocchio → BetterRobot rename table. |
+| {doc}`performance` | Touching hot paths, debugging compile / latency / memory. |
+| {doc}`extension` | Plugging in a new residual / joint / solver / backend / parameterisation. |
+| {doc}`testing` | Adding tests, or promoting a benchmark from advisory to blocking. |
+| {doc}`contracts` | Touching the public API, raising a new exception, or changing numerical guarantees. |
+| {doc}`style` | Writing any new code or docstring. |
+| {doc}`packaging` | Adding a dependency, cutting a release, deprecating a symbol. |

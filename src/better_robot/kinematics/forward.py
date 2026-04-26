@@ -5,7 +5,7 @@ Replaces the legacy split between ``_fk_impl`` and the
 ``model.topo_order`` and calls ``joint_models[j].joint_transform``. A
 free-flyer root is not a special case — it's the joint at index 1.
 
-See ``docs/design/05_KINEMATICS.md §2``.
+See ``docs/concepts/kinematics.md §2``.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 #: Tolerance on quaternion norm at a public entry point.
 #: Anything within this band of 1.0 is re-normalised silently by downstream
-#: code; anything outside is rejected (see docs/conventions/17_CONTRACTS.md §1.3).
+#: code; anything outside is rejected (see docs/conventions/contracts.md §1.3).
 _QUAT_NORM_TOL = 0.1
 
 
@@ -45,7 +45,7 @@ def _validate_q(model: Model, q: torch.Tensor) -> None:
         If the model has a free-flyer root and ``q[..., 3:7]`` is outside
         ``[1 - TOL, 1 + TOL]``.
 
-    See ``docs/conventions/17_CONTRACTS.md §1``.
+    See ``docs/conventions/contracts.md §1``.
     """
     if q.shape[-1] != model.nq:
         raise ShapeError(
@@ -92,7 +92,7 @@ def forward_kinematics_raw(
     joint_pose_local : (B..., njoints, 7)
         Parent-frame joint placements (``liMi``).
 
-    See docs/design/05_KINEMATICS.md §6 and docs/conventions/13_NAMING.md for the rename.
+    See docs/concepts/kinematics.md §6 and docs/conventions/naming.md for the rename.
     """
     _validate_q(model, q)
     *batch, _ = q.shape
@@ -163,7 +163,7 @@ def forward_kinematics(
         ``Data`` with ``joint_pose_local`` and ``joint_pose_world`` populated
         (and ``frame_pose_world`` if ``compute_frames=True``).
 
-    See docs/design/05_KINEMATICS.md §2.
+    See docs/concepts/kinematics.md §2.
     """
     if isinstance(q_or_data, Data):
         data = q_or_data
@@ -198,7 +198,7 @@ def update_frame_placements(model: Model, data: Data) -> Data:
     Requires ``data.joint_pose_world`` to be populated (call
     :func:`forward_kinematics` first).
 
-    See docs/design/05_KINEMATICS.md §2.
+    See docs/concepts/kinematics.md §2.
     """
     joint_pose_world = data.joint_pose_world
     assert joint_pose_world is not None, (

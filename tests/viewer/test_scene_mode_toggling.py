@@ -2,7 +2,7 @@
 
 Uses MockBackend — no viser, no pyrender.
 
-See ``docs/design/12_VIEWER.md §13``.
+See ``docs/concepts/viewer.md §13``.
 """
 
 from __future__ import annotations

@@ -5,7 +5,7 @@
 * ``solve_trajopt(parameterization=BSplineTrajectory(...))`` returns a
   trajectory whose final IK-target residual is within tolerance.
 
-See ``docs/design/08_TASKS.md §3``.
+See ``docs/concepts/tasks.md §3``.
 """
 
 from __future__ import annotations

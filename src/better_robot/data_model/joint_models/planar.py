@@ -1,7 +1,7 @@
 """``JointPlanar`` — SE2 + planar position. ``nq = 4`` (x, y, cosθ, sinθ),
 ``nv = 3``.
 
-See ``docs/design/02_DATA_MODEL.md §5``.
+See ``docs/concepts/joints_bodies_frames.md §5``.
 """
 
 from __future__ import annotations

@@ -42,7 +42,7 @@
 ````{py:attribute} description
 :canonical: better_robot.viewer.overlays.residual_plot.ResidualPlotOverlay.description
 :value: >
-   'See docs/design/12_VIEWER.md §5'
+   'See docs/concepts/viewer.md §5'
 
 ```{autodoc2-docstring} better_robot.viewer.overlays.residual_plot.ResidualPlotOverlay.description
 ```

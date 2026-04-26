@@ -7,7 +7,7 @@ builds a cost stack out of residuals, wraps it in a
 No Jacobian code, no solver loops, no fixed-vs-floating base branching
 lives here — that all belongs one layer down.
 
-See ``docs/design/08_TASKS.md``.
+See ``docs/concepts/tasks.md``.
 """
 
 from __future__ import annotations

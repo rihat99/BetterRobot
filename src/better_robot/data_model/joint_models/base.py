@@ -5,7 +5,7 @@ A ``JointModel`` is a **stateless dispatch object** with a compile-time
 ``Model`` via ``joint_placements``, ``idx_q``, ``idx_v``. Implementations are
 pure functions that operate on slices of the full ``(q, v)`` tensors.
 
-See ``docs/design/02_DATA_MODEL.md §4``.
+See ``docs/concepts/joints_bodies_frames.md §4``.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ class JointModel(Protocol):
     """Protocol for per-joint dispatch objects.
 
     Marked ``@runtime_checkable`` so callers can assert ``isinstance(jm,
-    JointModel)`` when wiring custom joint types (docs/conventions/15_EXTENSION.md §2).
+    JointModel)`` when wiring custom joint types (docs/conventions/extension.md §2).
 
     Attributes
     ----------

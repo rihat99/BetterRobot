@@ -1,6 +1,6 @@
 """Contract tests for ``SolverState`` — the shared optimizer record.
 
-See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5``.
+See ``docs/concepts/residuals_and_costs.md §5``.
 """
 
 from __future__ import annotations

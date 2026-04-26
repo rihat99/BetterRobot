@@ -2,7 +2,7 @@
 
 The 25-symbol public API from ``better_robot.__all__`` is the contract
 surface with users; every one of those names must carry a one-line
-summary. See ``docs/conventions/15_EXTENSION.md`` and ``docs/conventions/17_CONTRACTS.md``.
+summary. See ``docs/conventions/extension.md`` and ``docs/conventions/contracts.md``.
 """
 
 from __future__ import annotations
@@ -26,10 +26,10 @@ def test_every_public_symbol_has_a_docstring() -> None:
 
 
 def test_public_all_has_26_symbols() -> None:
-    """``better_robot.__all__`` is pinned at 26; see docs/design/01_ARCHITECTURE.md."""
+    """``better_robot.__all__`` is pinned at 26; see docs/concepts/architecture.md."""
     assert len(better_robot.__all__) == 26, (
         f"__all__ has {len(better_robot.__all__)}; expected 26 "
-        f"(add or remove a symbol and update 01_ARCHITECTURE.md if intentional)."
+        f"(add or remove a symbol and update architecture.md if intentional)."
     )
 
 

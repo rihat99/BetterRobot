@@ -1,6 +1,6 @@
 """Public API surface — the frozen 26-symbol contract.
 
-Enforces ``docs/design/01_ARCHITECTURE.md §Public API contract``:
+Enforces ``docs/concepts/architecture.md §Public API contract``:
 
 1. ``better_robot.__all__`` matches the frozen ``EXPECTED`` set exactly.
 2. Every listed symbol is actually importable as a top-level attribute.

@@ -5,7 +5,7 @@ Every tensor buffer is device/dtype polymorphic via ``.to()``. The static
 vs floating-base distinction **disappears**: a floating base is simply
 ``joint_models[1] = JointFreeFlyer``.
 
-See ``docs/design/02_DATA_MODEL.md §2``.
+See ``docs/concepts/model_and_data.md §2``.
 """
 
 from __future__ import annotations

@@ -7,7 +7,7 @@ fixed cubic B-spline basis whose control points are the optimisation
 variables — fewer parameters, smoother trajectories, faster IK in the
 trajopt loop.
 
-See ``docs/design/08_TASKS.md §3`` and
+See ``docs/concepts/tasks.md §3`` and
 ``docs/claude_plan/accepted/16_optim_wiring_and_matrix_free.md``.
 """
 
@@ -72,7 +72,7 @@ class BSplineTrajectory:
     boundary effects). For ``C ≪ T`` the parameterisation enforces
     smoothness implicitly and shrinks the optimisation variable.
 
-    See ``docs/design/08_TASKS.md §3``.
+    See ``docs/concepts/tasks.md §3``.
     """
 
     def __init__(self, *, num_control_points: int, degree: int = 3) -> None:

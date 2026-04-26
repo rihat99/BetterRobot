@@ -1,7 +1,8 @@
 # Glossary
 
 Quick lookup table for the vocabulary used throughout BetterRobot. The
-authoritative source is {doc}`/conventions/13_NAMING`.
+authoritative source for the renames is
+{doc}`/conventions/naming`.
 
 ## Storage conventions
 
@@ -45,5 +46,5 @@ Algorithm names retained verbatim: `forward_kinematics`,
 
 ## See also
 
-- {doc}`/conventions/13_NAMING` — the full normative naming spec.
+- {doc}`/conventions/naming` — the full normative naming spec.
 - {doc}`/concepts/lie_and_spatial` — why scalar-last and why linear-first.

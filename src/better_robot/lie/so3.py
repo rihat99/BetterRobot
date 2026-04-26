@@ -3,7 +3,7 @@
 Storage convention: ``(..., 4)`` unit quaternion ``[qx, qy, qz, qw]``
 (scalar-last). Tangent vectors are ``(..., 3)``.
 
-See ``docs/design/03_LIE_AND_SPATIAL.md §4``.
+See ``docs/concepts/lie_and_spatial.md §4``.
 """
 
 from __future__ import annotations

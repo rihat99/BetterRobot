@@ -4,7 +4,7 @@ All renderer implementations must satisfy this protocol. Render modes and
 overlays speak only to this interface — they never import viser or pyrender
 directly.
 
-See ``docs/design/12_VIEWER.md §9.2``.
+See ``docs/concepts/viewer.md §9.2``.
 """
 
 from __future__ import annotations

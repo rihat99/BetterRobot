@@ -9,7 +9,7 @@ Conventions
 - SE3 tangent: ``(..., 6)`` = ``[vx, vy, vz, wx, wy, wz]`` (translation first,
   rotation second)
 
-See ``docs/design/03_LIE_AND_SPATIAL.md §5``.
+See ``docs/concepts/lie_and_spatial.md §5``.
 """
 
 from __future__ import annotations

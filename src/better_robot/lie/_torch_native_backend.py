@@ -2,7 +2,7 @@
 
 The legacy PyPose backend was removed in P10-D; this module is now the
 sole owner of the SE3/SO3 surface used by ``lie/se3.py`` and ``lie/so3.py``.
-The implementation follows ``docs/design/03_LIE_AND_SPATIAL.md §6``:
+The implementation follows ``docs/concepts/lie_and_spatial.md §6``:
 
 * Quaternion convention ``[qx, qy, qz, qw]`` (scalar last).
 * SE3 storage ``[tx, ty, tz, qx, qy, qz, qw]`` (7-vector).

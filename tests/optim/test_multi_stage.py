@@ -5,7 +5,7 @@
 * A stage that raises does not leak ``active`` / ``weight`` mutations
   onto the shared :class:`CostStack`.
 
-See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5``.
+See ``docs/concepts/solver_stack.md §5``.
 """
 
 from __future__ import annotations

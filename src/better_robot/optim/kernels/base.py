@@ -5,7 +5,7 @@ Given the squared norm of a residual, a kernel returns a per-row weight
 in ``[0, 1]`` that the optimiser multiplies into both the residual and
 its Jacobian (IRLS / M-estimator form).
 
-See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5`` and ``docs/conventions/15_EXTENSION.md §6``.
+See ``docs/concepts/solver_stack.md §5`` and ``docs/conventions/extension.md §6``.
 """
 
 from __future__ import annotations

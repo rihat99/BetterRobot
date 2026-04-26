@@ -24,7 +24,7 @@ Known limitations:
 * :func:`compute_coriolis_matrix` remains a stub — it requires a separate
   world-frame recursion (Pinocchio ``rnea.hxx`` §CoriolisMatrixForwardStep).
 
-See ``docs/design/06_DYNAMICS.md §2``.
+See ``docs/concepts/dynamics.md §2``.
 """
 from __future__ import annotations
 
@@ -225,7 +225,7 @@ def bias_forces(
     return tau
 
 
-# Deprecated alias — remove in v1.1. See docs/conventions/13_NAMING.md.
+# Deprecated alias — remove in v1.1. See docs/conventions/naming.md.
 nle = bias_forces
 
 
@@ -258,5 +258,5 @@ def compute_coriolis_matrix(
     """
     raise NotImplementedError(
         "compute_coriolis_matrix is a separate recursion; deferred to a later "
-        "dynamics milestone — see docs/design/06_DYNAMICS.md §2."
+        "dynamics milestone — see docs/concepts/dynamics.md §2."
     )

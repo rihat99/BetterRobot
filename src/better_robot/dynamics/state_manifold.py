@@ -4,7 +4,7 @@ Wraps ``model.integrate`` / ``model.difference`` into the state-manifold
 interface that DDP / iLQR consume. The state is the concatenation
 ``x = [q (nq), v (nv)]``; the tangent is ``dx = [dq (nv), dv (nv)]``.
 
-See ``docs/design/06_DYNAMICS.md §7``.
+See ``docs/concepts/dynamics.md §7``.
 """
 
 from __future__ import annotations

@@ -10,7 +10,7 @@ no pose-target / keyframe / smoothness-weight kwargs of its own. Keyframes
 are expressed as ``TimeIndexedResidual(PoseResidual(...), t_idx=i)`` in
 the cost stack; this matches ``solve_ik``'s "target is a cost" convention.
 
-Future expansion path (``docs/design/08_TASKS.md §3`` — dynamics milestone):
+Future expansion path (``docs/concepts/tasks.md §3`` — dynamics milestone):
 dynamics residuals slot into the same ``CostStack``. Torque-as-variable
 scenarios will warrant a sibling ``solve_dyn_trajopt`` task.
 """
@@ -123,7 +123,7 @@ def solve_trajopt(
     -------
     TrajOptResult
 
-    See ``docs/design/08_TASKS.md §3``.
+    See ``docs/concepts/tasks.md §3``.
     """
     if initial_q_traj.dim() != 2:
         raise ValueError(

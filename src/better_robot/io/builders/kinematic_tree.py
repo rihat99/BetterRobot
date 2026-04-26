@@ -11,7 +11,7 @@ This is the common primitive behind ``make_smpl_like_body`` and the
 recommended entry point for programmatic construction of any tree of bodies
 connected by uniform free-flyer / spherical / fixed joints.
 
-See ``docs/design/04_PARSERS.md §6``.
+See ``docs/concepts/parsers_and_ir.md §6``.
 """
 
 from __future__ import annotations

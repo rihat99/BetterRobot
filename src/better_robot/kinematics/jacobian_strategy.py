@@ -1,6 +1,6 @@
 """``JacobianStrategy`` — enum controlling how residual Jacobians are computed.
 
-See ``docs/design/05_KINEMATICS.md §3``.
+See ``docs/concepts/kinematics.md §3``.
 """
 
 from __future__ import annotations

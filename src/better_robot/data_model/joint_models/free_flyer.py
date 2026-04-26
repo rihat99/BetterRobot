@@ -6,7 +6,7 @@ base becomes ``joint_models[1] = JointFreeFlyer()`` and its seven SE3
 components occupy ``q[0:7]`` — the rest of the library never sees it as a
 special case.
 
-See ``docs/design/02_DATA_MODEL.md §5`` and ``docs/design/08_TASKS.md §1``.
+See ``docs/concepts/joints_bodies_frames.md §5`` and ``docs/concepts/tasks.md §1``.
 """
 
 from __future__ import annotations

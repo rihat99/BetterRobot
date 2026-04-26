@@ -5,7 +5,7 @@ fraction whose function signature uses one of the jaxtyping aliases from
 ``better_robot._typing``. Always passes — the coverage number is printed
 so CI can track it over time.
 
-See ``docs/conventions/16_TESTING.md §4.5`` (advisory mode).
+See ``docs/conventions/testing.md §4.5`` (advisory mode).
 """
 
 from __future__ import annotations

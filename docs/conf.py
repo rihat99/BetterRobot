@@ -1,17 +1,18 @@
 """Sphinx configuration for the BetterRobot user docs.
 
-The Sphinx source root is ``docs/``. The published site combines:
+The Sphinx source root is ``docs/``. The published site is shaped
+around the Diátaxis quadrants:
 
-- Diátaxis-shaped user docs (``getting_started/``, ``tutorials/``,
-  ``how_to/``, ``concepts/``, ``contributing/``).
-- Normative specs (``design/``, ``conventions/``).
-- Auto-generated API reference (``reference/api/``, built by
-  ``sphinx-autodoc2``).
-- Reference material (``reference/{changelog,roadmap,glossary}.md``).
+- ``getting_started/`` — tutorials.
+- ``concepts/`` — explanation; the chapter set that walks through
+  every layer of the architecture.
+- ``conventions/`` — normative cross-cutting rules (naming,
+  performance, testing, contracts, style, packaging, extension).
+- ``reference/`` — auto-generated API reference (built by
+  ``sphinx-autodoc2``) plus the changelog, roadmap, and glossary.
 
-Audit-trail / historical files in ``docs/legacy/`` and the in-repo
-``CHANGELOG.md`` / ``UPDATE_PHASES.md`` / ``status/`` are excluded from
-the build (see ``exclude_patterns``).
+The in-repo ``CHANGELOG.md`` is included verbatim into
+``reference/changelog`` and is excluded from the rest of the build.
 
 Build locally::
 
@@ -78,12 +79,8 @@ exclude_patterns = [
     "_static",
     "Thumbs.db",
     ".DS_Store",
-    # In-repo audit trail / historical material (kept on disk for forensics).
-    "legacy/**",
     # In-repo project files that ship with the source tree but are not user docs.
     "CHANGELOG.md",
-    "UPDATE_PHASES.md",
-    "status/**",
     "README.md",
 ]
 

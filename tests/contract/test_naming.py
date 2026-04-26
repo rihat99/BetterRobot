@@ -3,8 +3,8 @@ deprecation shim.
 
 Scans every ``.py`` file under ``src/better_robot/`` (excluding the
 backing-store / alias table inside ``data_model/data.py``) for references
-to the pre-rename ``Data`` field names. See ``docs/conventions/13_NAMING.md`` for the
-rename plan and ``docs/design/02_DATA_MODEL.md §11`` for the shim policy.
+to the pre-rename ``Data`` field names. See ``docs/conventions/naming.md`` for the
+rename plan and ``docs/concepts/model_and_data.md §11`` for the shim policy.
 
 If this test fails, grep shows you the offending site; rename the
 reference to the new field (e.g. ``data.oMi`` → ``data.joint_pose_world``)
@@ -67,7 +67,7 @@ def test_no_old_names_in_source(old_name: str, pattern: re.Pattern) -> None:
     assert not offenders, (
         f"Found {len(offenders)} reference(s) to deprecated Data.{old_name}:\n"
         + "\n".join(offenders)
-        + "\n\nRename to the new name (see docs/conventions/13_NAMING.md §3)."
+        + "\n\nRename to the new name (see docs/conventions/naming.md §3)."
     )
 
 

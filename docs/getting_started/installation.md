@@ -1,39 +1,28 @@
 # Installation
 
-BetterRobot is published as `better-robot` on PyPI and is pure-Python
-plus PyTorch. CPU and CUDA both work; a CUDA-enabled PyTorch build is
-detected automatically.
+BetterRobot is pure-Python plus PyTorch. CPU and CUDA both work; a
+CUDA-enabled PyTorch build is detected automatically.
 
 ## Quick install
 
 ```bash
-pip install better-robot[urdf,examples]
+pip install better-robot
 ```
 
-The `examples` extra pulls in `robot_descriptions`, which provides
-URDFs for Panda, G1, and friends without manual downloads. The `urdf`
-extra adds `yourdfpy` (the URDF parser).
+That gives you everything the library needs at runtime — `torch`,
+`numpy`, the URDF and MJCF parsers (`yourdfpy`, `mujoco`), the viewer
+stack (`viser`, `trimesh`), and the standard robot zoo
+(`robot_descriptions`).
 
-## Optional extras
+## Contributors
 
-| Extra | Adds | When to install |
-|-------|------|-----------------|
-| `urdf` | `yourdfpy` | Parsing URDFs. Most users. |
-| `mjcf` | `mujoco` | Parsing MuJoCo XML scenes. |
-| `viewer` | `viser`, `trimesh` | Live visualisation. |
-| `geometry` | `trimesh` | Mesh-based collision and rendering. |
-| `examples` | `robot_descriptions` | Running the examples. |
-| `warp` | `warp-lang` | Future Warp backend (P11; not used today). |
-| `bench` | `pytest-benchmark`, `pyperf` | Running the perf gates locally. |
-| `docs` | `sphinx`, `furo`, `myst-parser`, `sphinx-autodoc2`, `sphinx-design`, `sphinx-copybutton`, `myst-nb` | Building this site. |
-| `test` | `pytest`, `pytest-cov`, `pytest-xdist`, `hypothesis` | Running the test suite. |
-| `dev` | the union of `test`, `bench`, plus `mypy` / `pre-commit` | Contributors. |
-| `all` | every extra except `dev` | Trying everything in one shot. |
-
-```{seealso}
-{doc}`/conventions/20_PACKAGING` — the normative spec for what each
-extra contains and the deprecation policy for changing them.
+```bash
+pip install 'better-robot[dev]'
 ```
+
+The `dev` extra adds the contributor toolchain — `pytest`,
+`hypothesis`, `pin` (Pinocchio reference oracle), `pyperf`, the Sphinx
+docs stack, plus `ruff` / `pyright` / `mypy` / `pre-commit`.
 
 ## Verify the install
 
@@ -54,7 +43,7 @@ If that prints three integers you're ready for {doc}`forward_kinematics`.
 If you use `uv` (recommended for development):
 
 ```bash
-uv add 'better-robot[urdf,examples]'
+uv add better-robot
 # or, in this repo:
-uv sync --extra urdf --extra examples
+uv sync --extra dev
 ```

@@ -4,8 +4,8 @@ When v1.1 is cut, deprecated aliases such as ``oMi`` / ``oMf`` / ``liMi``
 will be removed and assertions added here. Until then, this file just
 documents the intent.
 
-See ``docs/conventions/13_NAMING.md §4`` and
-``docs/conventions/16_TESTING.md §4.6``.
+See ``docs/conventions/naming.md §4`` and
+``docs/conventions/testing.md §4.6``.
 """
 
 from __future__ import annotations

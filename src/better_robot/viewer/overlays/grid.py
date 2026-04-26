@@ -3,7 +3,7 @@
 Uses the backend's built-in grid (viser ``add_grid``) when available,
 with ``infinite_grid=True`` for a clean look.
 
-See ``docs/design/12_VIEWER.md §5``.
+See ``docs/concepts/viewer.md §5``.
 """
 
 from __future__ import annotations

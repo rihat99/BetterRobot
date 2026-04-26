@@ -1,6 +1,6 @@
 """``better_robot.costs`` — ``CostStack`` composition over residuals.
 
-See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §3``.
+See ``docs/concepts/residuals_and_costs.md §3``.
 """
 
 from __future__ import annotations

@@ -9,7 +9,7 @@ free-flyer robots use the same code path: every moment is tracked in
 ``nv`` space and applied through ``problem.step`` (the manifold
 retraction).
 
-See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5``.
+See ``docs/concepts/solver_stack.md §5``.
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ class Adam:
     ) -> SolverState:
         """Run Adam until convergence or ``max_iter`` is reached.
 
-        See docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5.
+        See docs/concepts/solver_stack.md §5.
         """
         import warnings
         for _name, _val in (("linear_solver", linear_solver),
@@ -63,7 +63,7 @@ class Adam:
             if _val is not None:
                 warnings.warn(
                     f"Adam ignores {_name}={_val!r} — first-order method has "
-                    f"no normal-equation step. See docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5.",
+                    f"no normal-equation step. See docs/concepts/solver_stack.md §5.",
                     UserWarning,
                     stacklevel=2,
                 )

@@ -11,7 +11,7 @@ Storage convention is the library-wide one:
 
 The only operator overloaded is ``@`` (composition for both groups; SE3
 applied to a ``(..., 3)`` point on the right). Scalar multiplication is
-deliberately not defined — see ``docs/design/03_LIE_AND_SPATIAL.md §7``.
+deliberately not defined — see ``docs/concepts/lie_and_spatial.md §7``.
 
 ``Pose`` is an alias for ``SE3``.
 """

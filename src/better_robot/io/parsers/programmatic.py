@@ -9,7 +9,7 @@ The builder exposes **named per-kind helpers** (``add_revolute_x``,
 accepts a :class:`JointModel` instance only — passing a string raises
 :class:`TypeError` pointing at the right named helper.
 
-See ``docs/design/04_PARSERS.md §6``.
+See ``docs/concepts/parsers_and_ir.md §6``.
 """
 
 from __future__ import annotations
@@ -378,7 +378,7 @@ class ModelBuilder:
             helper = _LEGACY_KIND_HELPER.get(kind, "the matching add_<kind> helper")
             raise TypeError(
                 f"ModelBuilder.add_joint(kind={kind!r}, ...) is not supported. "
-                f"Use {helper!s} instead — see docs/design/04_PARSERS.md §6."
+                f"Use {helper!s} instead — see docs/concepts/parsers_and_ir.md §6."
             )
         if kind is None:
             raise TypeError(

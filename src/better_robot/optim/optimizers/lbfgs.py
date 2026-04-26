@@ -14,7 +14,7 @@ Returns a :class:`~better_robot.optim.state.SolverState`; ``status`` is
 ``"stalled"`` when the line search cannot find a descent direction, and
 ``"maxiter"`` otherwise.
 
-See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5``.
+See ``docs/concepts/solver_stack.md §5``.
 """
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ class LBFGS:
     ) -> SolverState:
         """Run L-BFGS until convergence or ``max_iter`` is reached.
 
-        See docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5.
+        See docs/concepts/solver_stack.md §5.
         """
         import warnings
         for _name, _val in (("linear_solver", linear_solver),
@@ -68,7 +68,7 @@ class LBFGS:
             if _val is not None:
                 warnings.warn(
                     f"LBFGS ignores {_name}={_val!r} — quasi-Newton method has "
-                    f"no normal-equation step. See docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5.",
+                    f"no normal-equation step. See docs/concepts/solver_stack.md §5.",
                     UserWarning,
                     stacklevel=2,
                 )

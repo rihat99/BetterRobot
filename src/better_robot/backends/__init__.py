@@ -6,8 +6,8 @@ global default with :func:`set_backend` or pass a different
 :class:`~better_robot.backends.protocol.Backend` instance directly via
 the public functions' ``backend=`` kwarg (no global mutation).
 
-See ``docs/design/10_BATCHING_AND_BACKENDS.md §7`` and
-``docs/UPDATE_PHASES.md §P1``.
+See ``docs/concepts/batching_and_backends.md §7`` and
+``docs/reference/roadmap.md §P1``.
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ def _ensure_warp_available() -> None:
     except ImportError as exc:
         raise BackendNotAvailableError(
             "Warp backend requested but `warp-lang` is not installed. "
-            "Install with `pip install better-robot[warp]`."
+            "Install with `pip install warp-lang`."
         ) from exc
 
 
@@ -58,7 +58,7 @@ def _load(name: str) -> Backend:
         # the availability check above (warp-lang is not a dependency).
         raise BackendNotAvailableError(
             "Warp backend module is not implemented yet — see P11 of "
-            "docs/UPDATE_PHASES.md."
+            "docs/reference/roadmap.md."
         )
 
     raise BackendNotAvailableError(
@@ -113,8 +113,8 @@ def graph_capture(fn):
 
     The torch-native backend is a **no-op** — ``fn`` is returned
     unchanged. The real CUDA-graph capture path lands with the Warp
-    backend (see ``docs/design/10_BATCHING_AND_BACKENDS.md §7`` and
-    ``docs/conventions/14_PERFORMANCE.md §5``); calling
+    backend (see ``docs/concepts/batching_and_backends.md §7`` and
+    ``docs/conventions/performance.md §5``); calling
     ``set_backend("warp")`` first will route through the Warp
     implementation when it ships. Until then this seam exists so that
     user code can be written against the documented surface and the

@@ -13,7 +13,7 @@ Run:
 
     uv run python tests/kinematics/_generate_fk_reference.py
 
-See ``docs/conventions/16_TESTING.md §4.5`` and
+See ``docs/conventions/testing.md §4.5`` and
 ``docs/claude_plan/accepted/12_regression_and_benchmarks.md``.
 """
 

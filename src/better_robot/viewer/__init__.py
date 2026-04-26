@@ -8,7 +8,7 @@ V1 scope: interactive viser-backed rendering of one robot via
 playback. Video recording, offscreen rendering, collision capsules,
 target gizmos, COM marker, path trace, residual plot, camera paths,
 and multi-robot sessions all live as placeholders — see
-``docs/design/12_VIEWER.md §10``.
+``docs/concepts/viewer.md §10``.
 
 All heavy rendering dependencies (viser, trimesh, and later pyrender /
 imageio-ffmpeg) are imported lazily inside their respective submodules.
@@ -16,7 +16,7 @@ This module can be imported on machines with none of those packages
 installed; the relevant error fires only when a code path that needs a
 missing library is first taken.
 
-See ``docs/design/12_VIEWER.md §13``.
+See ``docs/concepts/viewer.md §13``.
 """
 
 from __future__ import annotations
