@@ -1,6 +1,6 @@
 """Verify the boundary error guards raise the right typed exceptions.
 
-See ``docs/17_CONTRACTS.md §2``.
+See ``docs/conventions/17_CONTRACTS.md §2``.
 """
 
 from __future__ import annotations
@@ -28,10 +28,9 @@ def arm_model():
     b = ModelBuilder("arm")
     b.add_body("base", mass=0.5)
     b.add_body("link1", mass=1.0)
-    b.add_joint("j1", kind="revolute", parent="base", child="link1",
-                origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]),
-                axis=torch.tensor([0., 0., 1.]),
-                lower=-math.pi, upper=math.pi)
+    b.add_revolute_z("j1", parent="base", child="link1",
+                     origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]),
+                     lower=-math.pi, upper=math.pi)
     return build_model(b.finalize())
 
 
@@ -40,12 +39,11 @@ def free_flyer_model():
     b = ModelBuilder("floating")
     b.add_body("base", mass=1.0)
     b.add_body("link1", mass=0.5)
-    b.add_joint("floating", kind="free_flyer", parent="world", child="base",
-                origin=torch.tensor([0., 0., 0., 0., 0., 0., 1.]))
-    b.add_joint("j1", kind="revolute", parent="base", child="link1",
-                origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]),
-                axis=torch.tensor([0., 0., 1.]),
-                lower=-math.pi, upper=math.pi)
+    b.add_free_flyer_root("floating", child="base",
+                          origin=torch.tensor([0., 0., 0., 0., 0., 0., 1.]))
+    b.add_revolute_z("j1", parent="base", child="link1",
+                     origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]),
+                     lower=-math.pi, upper=math.pi)
     return build_model(b.finalize())
 
 
@@ -77,10 +75,9 @@ def test_device_mismatch_on_cpu_cuda():
     b = ModelBuilder("arm")
     b.add_body("base", mass=0.5)
     b.add_body("link1", mass=1.0)
-    b.add_joint("j1", kind="revolute", parent="base", child="link1",
-                origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]),
-                axis=torch.tensor([0., 0., 1.]),
-                lower=-math.pi, upper=math.pi)
+    b.add_revolute_z("j1", parent="base", child="link1",
+                     origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]),
+                     lower=-math.pi, upper=math.pi)
     model = build_model(b.finalize())  # CPU
     q = torch.zeros(model.nq, device="cuda")
     with pytest.raises(DeviceMismatchError, match="device"):

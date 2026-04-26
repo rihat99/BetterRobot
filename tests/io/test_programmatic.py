@@ -1,6 +1,6 @@
 """Tests for ``ModelBuilder`` — programmatic IR builder.
 
-See ``docs/04_PARSERS.md §6``.
+See ``docs/design/04_PARSERS.md §6``.
 """
 
 from __future__ import annotations
@@ -23,8 +23,8 @@ def _simple_arm() -> IRModel:
     b = ModelBuilder("test_arm")
     b.add_body("base", mass=0.0)
     b.add_body("link1", mass=1.0)
-    b.add_joint(
-        "j1", kind="revolute", parent="base", child="link1",
+    b.add_revolute_x(
+        "j1", parent="base", child="link1",
         origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]),
         lower=-math.pi, upper=math.pi,
     )
@@ -54,6 +54,9 @@ def test_joint_parent_child():
     assert j.parent_body == "base"
     assert j.child_body == "link1"
     assert j.kind == "revolute"
+    # Named helper sets axis to X.
+    assert j.axis is not None
+    assert torch.allclose(j.axis, torch.tensor([1.0, 0.0, 0.0]))
 
 
 def test_duplicate_body_raises():
@@ -67,11 +70,9 @@ def test_duplicate_joint_raises():
     b = ModelBuilder("x")
     b.add_body("base")
     b.add_body("link1")
-    b.add_joint("j1", kind="revolute", parent="base", child="link1",
-                origin=_identity_se3())
+    b.add_revolute_z("j1", parent="base", child="link1", origin=_identity_se3())
     with pytest.raises(ValueError, match="already exists"):
-        b.add_joint("j1", kind="revolute", parent="base", child="link1",
-                    origin=_identity_se3())
+        b.add_revolute_z("j1", parent="base", child="link1", origin=_identity_se3())
 
 
 def test_multiple_root_bodies_raises():
@@ -87,8 +88,7 @@ def test_add_frame():
     b = ModelBuilder("x")
     b.add_body("base")
     b.add_body("link1")
-    b.add_joint("j1", kind="fixed", parent="base", child="link1",
-                origin=_identity_se3())
+    b.add_fixed("j1", parent="base", child="link1", origin=_identity_se3())
     b.add_frame("tip", parent_body="link1",
                 placement=torch.tensor([0., 0., 0.05, 0., 0., 0., 1.]))
     ir = b.finalize()
@@ -101,8 +101,7 @@ def test_add_collision_geom():
     b = ModelBuilder("x")
     b.add_body("base")
     b.add_body("link1")
-    b.add_joint("j1", kind="fixed", parent="base", child="link1",
-                origin=_identity_se3())
+    b.add_fixed("j1", parent="base", child="link1", origin=_identity_se3())
     b.add_collision_geom("link1", "sphere", {"radius": 0.05}, _identity_se3())
     ir = b.finalize()
     assert len(ir.bodies[1].collision_geoms) == 1
@@ -114,10 +113,10 @@ def test_three_link_chain():
     b.add_body("root")
     b.add_body("l1")
     b.add_body("l2")
-    b.add_joint("j1", kind="revolute", parent="root", child="l1",
-                origin=_identity_se3(), lower=-1., upper=1.)
-    b.add_joint("j2", kind="prismatic", parent="l1", child="l2",
-                origin=_identity_se3(), lower=0., upper=0.5)
+    b.add_revolute_z("j1", parent="root", child="l1",
+                     origin=_identity_se3(), lower=-1., upper=1.)
+    b.add_prismatic_z("j2", parent="l1", child="l2",
+                      origin=_identity_se3(), lower=0., upper=0.5)
     ir = b.finalize()
     assert ir.root_body == "root"
     assert len(ir.joints) == 2

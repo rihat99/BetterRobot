@@ -1,7 +1,7 @@
 """Tests for the V1 ``Camera`` dataclass.
 
 ``CameraPath`` (orbit / follow_frame / static) is future work — see
-``docs/12_VIEWER.md §10.7``. Instantiating it today raises
+``docs/design/12_VIEWER.md §10.7``. Instantiating it today raises
 ``NotImplementedError``; we cover only that contract here.
 """
 

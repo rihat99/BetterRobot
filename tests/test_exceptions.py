@@ -1,4 +1,4 @@
-"""Tests for :mod:`better_robot.exceptions` — docs/17_CONTRACTS §2."""
+"""Tests for :mod:`better_robot.exceptions` — docs/conventions/17_CONTRACTS.md §2."""
 
 from __future__ import annotations
 

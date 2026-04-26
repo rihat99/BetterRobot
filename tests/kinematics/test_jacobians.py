@@ -2,7 +2,7 @@
 
 Phase 4 pass criterion: analytic and autodiff Jacobians agree within ``1e-5``.
 
-See ``docs/05_KINEMATICS.md §3``.
+See ``docs/design/05_KINEMATICS.md §3``.
 """
 
 from __future__ import annotations
@@ -33,10 +33,9 @@ def _simple_arm_model():
     b = ModelBuilder("arm")
     b.add_body("base", mass=0.5)
     b.add_body("link1", mass=1.0)
-    b.add_joint("j1", kind="revolute", parent="base", child="link1",
-                origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]),
-                axis=torch.tensor([0., 0., 1.]),
-                lower=-math.pi, upper=math.pi)
+    b.add_revolute_z("j1", parent="base", child="link1",
+                     origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]),
+                     lower=-math.pi, upper=math.pi)
     return build_model(b.finalize())
 
 
@@ -45,14 +44,12 @@ def _chain_model():
     b.add_body("root")
     b.add_body("l1")
     b.add_body("l2")
-    b.add_joint("j1", kind="revolute", parent="root", child="l1",
-                origin=torch.tensor([0., 0., 0.5, 0., 0., 0., 1.]),
-                axis=torch.tensor([0., 0., 1.]),
-                lower=-math.pi, upper=math.pi)
-    b.add_joint("j2", kind="revolute", parent="l1", child="l2",
-                origin=torch.tensor([0., 0., 0.5, 0., 0., 0., 1.]),
-                axis=torch.tensor([0., 1., 0.]),
-                lower=-math.pi, upper=math.pi)
+    b.add_revolute_z("j1", parent="root", child="l1",
+                     origin=torch.tensor([0., 0., 0.5, 0., 0., 0., 1.]),
+                     lower=-math.pi, upper=math.pi)
+    b.add_revolute_y("j2", parent="l1", child="l2",
+                     origin=torch.tensor([0., 0., 0.5, 0., 0., 0., 1.]),
+                     lower=-math.pi, upper=math.pi)
     return build_model(b.finalize())
 
 

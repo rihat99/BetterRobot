@@ -1,6 +1,6 @@
 """Tests for the ``lm_then_lbfgs`` composite solver.
 
-Pattern from cuRobo (docs/08_TASKS.md): LM coarse solve → LBFGS refinement.
+Pattern from cuRobo (docs/design/08_TASKS.md): LM coarse solve → LBFGS refinement.
 
 This suite checks:
 1. ``solve_ik(optimizer="lm_then_lbfgs")`` reaches a reachable Panda target.
@@ -17,7 +17,7 @@ import torch
 from better_robot.io import load
 from better_robot.kinematics.forward import forward_kinematics
 from better_robot.optim.optimizers.base import Optimizer
-from better_robot.optim.optimizers.composite import LMThenLBFGS
+from better_robot.optim.optimizers.lm_then_lbfgs import LMThenLBFGS
 from better_robot.optim.state import SolverState
 from better_robot.tasks.ik import IKCostConfig, OptimizerConfig, solve_ik
 

@@ -1,6 +1,6 @@
 """Contract tests for ``SolverState`` — the shared optimizer record.
 
-See ``docs/07_RESIDUALS_COSTS_SOLVERS.md §5``.
+See ``docs/design/07_RESIDUALS_COSTS_SOLVERS.md §5``.
 """
 
 from __future__ import annotations
@@ -29,10 +29,9 @@ def arm_problem():
     b = ModelBuilder("arm")
     b.add_body("base", mass=0.5)
     b.add_body("link1", mass=1.0)
-    b.add_joint("j1", kind="revolute", parent="base", child="link1",
-                origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]),
-                axis=torch.tensor([0., 0., 1.]),
-                lower=-math.pi, upper=math.pi)
+    b.add_revolute_z("j1", parent="base", child="link1",
+                     origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]),
+                     lower=-math.pi, upper=math.pi)
     model = build_model(b.finalize())
 
     q0 = model.q_neutral.clone().float()

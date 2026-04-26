@@ -1,0 +1,4 @@
+{
+  "_comment": "Initial baseline — populate from one CI run via `pytest tests/bench/ --benchmark-json=...`.",
+  "_schema_version": 1
+}

@@ -1,62 +1,70 @@
-"""Public API surface — the 25-symbol contract.
+"""Public API surface — the frozen 26-symbol contract.
 
-Enforces ``docs/01_ARCHITECTURE.md §Public API contract``:
+Enforces ``docs/design/01_ARCHITECTURE.md §Public API contract``:
 
-1. ``better_robot.__all__`` has exactly 25 entries.
+1. ``better_robot.__all__`` matches the frozen ``EXPECTED`` set exactly.
 2. Every listed symbol is actually importable as a top-level attribute.
-3. Every listed symbol has a non-empty docstring.
-4. The entries match the canonical list from the architecture doc.
+3. Every listed symbol has a non-empty docstring with at least one example.
+4. ``better_robot.__all__`` is a list of strings.
 """
 
 from __future__ import annotations
 
 import better_robot as br
 
-EXPECTED = {
-    # data_model
-    "Model",
-    "Data",
-    "Frame",
-    "Joint",
-    "Body",
-    # io
-    "load",
-    # kinematics
-    "forward_kinematics",
-    "update_frame_placements",
-    "compute_joint_jacobians",
-    "get_joint_jacobian",
-    "get_frame_jacobian",
-    "JacobianStrategy",
-    # dynamics
-    "rnea",
-    "aba",
-    "crba",
-    "center_of_mass",
-    "compute_centroidal_map",
-    # residuals
-    "register_residual",
-    # costs
-    "CostStack",
-    # optim
-    "LeastSquaresProblem",
-    "solve",
-    # tasks
-    "solve_ik",
-    "solve_trajopt",
-    "retarget",
-    "Trajectory",
-}
-
-
-def test_all_length() -> None:
-    assert len(br.__all__) == 25, f"expected 25 symbols, got {len(br.__all__)}"
+# The frozen public surface — single source of truth for SemVer scope.
+# Adding to this set is a minor bump after 1.0; removing or renaming
+# anything is a major bump.
+EXPECTED: frozenset[str] = frozenset(
+    {
+        # data_model
+        "Model",
+        "Data",
+        "Frame",
+        "Joint",
+        "Body",
+        # io
+        "load",
+        "ModelBuilder",
+        # lie
+        "SE3",
+        # kinematics
+        "forward_kinematics",
+        "update_frame_placements",
+        "compute_joint_jacobians",
+        "get_joint_jacobian",
+        "get_frame_jacobian",
+        "JacobianStrategy",
+        # dynamics
+        "rnea",
+        "aba",
+        "crba",
+        "center_of_mass",
+        "compute_centroidal_map",
+        # residuals
+        "register_residual",
+        # costs
+        "CostStack",
+        # optim
+        "LeastSquaresProblem",
+        # tasks
+        "solve_ik",
+        "solve_trajopt",
+        "retarget",
+        "Trajectory",
+    }
+)
 
 
 def test_all_matches_spec() -> None:
-    assert set(br.__all__) == EXPECTED, (
-        f"missing: {EXPECTED - set(br.__all__)}; extra: {set(br.__all__) - EXPECTED}"
+    actual = set(br.__all__)
+    assert actual == EXPECTED, (
+        f"missing: {EXPECTED - actual}; extra: {actual - EXPECTED}"
     )
+
+
+def test_all_length() -> None:
+    assert len(br.__all__) == len(EXPECTED) == 26
 
 
 def test_all_symbols_importable() -> None:

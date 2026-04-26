@@ -87,13 +87,11 @@ def _build_spherical_chain():
     link1 = b.add_body("link1", mass=mass1, com=com1, inertia=I1)
     link2 = b.add_body("link2", mass=mass2, com=com2, inertia=I2)
     IDENT = torch.tensor([0.0, 0, 0, 0, 0, 0, 1.0])
-    b.add_joint("j_sph", kind="spherical", parent=base, child=link1, origin=IDENT)
-    b.add_joint(
+    b.add_spherical("j_sph", parent=base, child=link1, origin=IDENT)
+    b.add_revolute_z(
         "j_rz",
-        kind="revolute",
         parent=link1,
         child=link2,
-        axis=torch.tensor([0.0, 0.0, 1.0]),
         origin=torch.cat([rz_offset, torch.tensor([0.0, 0, 0, 1.0])]),
     )
     ir = b.finalize()

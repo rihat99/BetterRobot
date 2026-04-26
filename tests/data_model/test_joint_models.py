@@ -1,8 +1,7 @@
 """Tests for data_model/joint_models/*.py — every joint family.
 
 Phase 2 criteria: joint_transform, integrate, difference, neutral on a random
-batch are tested against references (pypose for revolute/prismatic/spherical,
-hand-derived for free-flyer/planar).
+batch are tested against hand-derived references for every joint family.
 """
 import math
 import torch

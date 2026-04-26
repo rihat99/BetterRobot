@@ -5,7 +5,7 @@ top-level imports, and fails if any layer imports from a strictly higher
 layer. Imports guarded by ``if TYPE_CHECKING:`` are ignored (they don't
 cross layer boundaries at runtime).
 
-See ``docs/01_ARCHITECTURE.md §Dependency rule``.
+See ``docs/design/01_ARCHITECTURE.md §Dependency rule``.
 """
 
 from __future__ import annotations
@@ -155,28 +155,26 @@ def test_no_upward_imports() -> None:
     assert not violations, "layer violations:\n  " + "\n  ".join(violations)
 
 
-def test_only_lie_imports_pypose() -> None:
-    """Only ``lie/_pypose_backend.py`` is allowed to ``import pypose``.
+def test_no_pypose_imports() -> None:
+    """No module under ``src/`` may ``import pypose`` after P10-D.
 
-    See docs/03_LIE_AND_SPATIAL.md §6.
+    The pure-PyTorch backend in ``lie/_torch_native_backend.py`` is now
+    the only Lie implementation.
     """
     offenders: list[str] = []
     for path in _iter_py_files():
-        if path.name == "_pypose_backend.py":
-            continue
         text = path.read_text()
-        # literal top-of-line check; good enough for skeleton phase
         for lineno, line in enumerate(text.splitlines(), start=1):
             stripped = line.strip()
             if stripped.startswith("import pypose") or stripped.startswith("from pypose"):
                 offenders.append(f"{path.relative_to(SRC)}:{lineno}: {stripped}")
     assert not offenders, (
-        "non-lie modules importing pypose:\n  " + "\n  ".join(offenders)
+        "modules importing pypose after P10-D drop:\n  " + "\n  ".join(offenders)
     )
 
 
 # ---------------------------------------------------------------------------
-# Viewer dependency hygiene (docs/12_VIEWER.md §17)
+# Viewer dependency hygiene (docs/design/12_VIEWER.md §17)
 # ---------------------------------------------------------------------------
 
 
@@ -201,7 +199,7 @@ def _check_forbidden_import(allowed_file_suffix: str, forbidden_pkg: str) -> lis
 def test_only_viser_backend_imports_viser() -> None:
     """Only ``viewer/renderers/viser_backend.py`` may import viser.
 
-    See docs/12_VIEWER.md §17.
+    See docs/design/12_VIEWER.md §17.
     """
     offenders = _check_forbidden_import("viser_backend.py", "viser")
     assert not offenders, (
@@ -212,7 +210,7 @@ def test_only_viser_backend_imports_viser() -> None:
 def test_only_offscreen_backend_imports_pyrender() -> None:
     """Only ``viewer/renderers/offscreen_backend.py`` may import pyrender.
 
-    See docs/12_VIEWER.md §17.
+    See docs/design/12_VIEWER.md §17.
     """
     offenders = _check_forbidden_import("offscreen_backend.py", "pyrender")
     assert not offenders, (
@@ -223,7 +221,7 @@ def test_only_offscreen_backend_imports_pyrender() -> None:
 def test_only_urdf_mesh_imports_trimesh() -> None:
     """Only ``viewer/render_modes/urdf_mesh.py`` may import trimesh.
 
-    See docs/12_VIEWER.md §17.
+    See docs/design/12_VIEWER.md §17.
     """
     offenders = _check_forbidden_import("urdf_mesh.py", "trimesh")
     assert not offenders, (
@@ -234,7 +232,7 @@ def test_only_urdf_mesh_imports_trimesh() -> None:
 def test_only_recorder_imports_imageio() -> None:
     """Only ``viewer/recorder.py`` may import imageio.
 
-    See docs/12_VIEWER.md §17.
+    See docs/design/12_VIEWER.md §17.
     """
     offenders: list[str] = []
     for path in _iter_py_files():

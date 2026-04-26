@@ -1,6 +1,6 @@
 """Tests for forward kinematics — correctness and shape checks.
 
-See ``docs/05_KINEMATICS.md §2``.
+See ``docs/design/05_KINEMATICS.md §2``.
 """
 
 from __future__ import annotations
@@ -28,10 +28,9 @@ def _simple_arm():
     b = ModelBuilder("arm")
     b.add_body("base", mass=0.5)
     b.add_body("link1", mass=1.0)
-    b.add_joint("j1", kind="revolute", parent="base", child="link1",
-                origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]),
-                axis=torch.tensor([0., 0., 1.]),
-                lower=-math.pi, upper=math.pi)
+    b.add_revolute_z("j1", parent="base", child="link1",
+                     origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]),
+                     lower=-math.pi, upper=math.pi)
     return build_model(b.finalize())
 
 

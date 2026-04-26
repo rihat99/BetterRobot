@@ -3,7 +3,7 @@
 Doesn't run any numerical code; just verifies that importing the symbol
 works and that it's a class / function / dataclass as expected.
 
-See ``docs/11_SKELETON_AND_MIGRATION.md §Phase 1 pass criteria``.
+See ``docs/design/11_SKELETON_AND_MIGRATION.md §Phase 1 pass criteria``.
 """
 
 from __future__ import annotations
@@ -23,6 +23,8 @@ EXPECTED_CLASSES = {
     "LeastSquaresProblem",
     "Trajectory",
     "JacobianStrategy",
+    "SE3",
+    "ModelBuilder",
 }
 
 # Plain callables / functions
@@ -39,7 +41,6 @@ EXPECTED_CALLABLES = {
     "center_of_mass",
     "compute_centroidal_map",
     "register_residual",
-    "solve",
     "solve_ik",
     "solve_trajopt",
     "retarget",
@@ -82,7 +83,7 @@ def test_model_has_frozen_dataclass_shape() -> None:
 
 
 def test_data_has_core_fields() -> None:
-    """Data exposes the readable field names defined in docs/13_NAMING.md."""
+    """Data exposes the readable field names defined in docs/conventions/13_NAMING.md."""
     data_cls = br.Data
     fields = {f.name for f in data_cls.__dataclass_fields__.values()}
     required = {
@@ -98,7 +99,7 @@ def test_data_exposes_deprecated_aliases() -> None:
     """Old cryptic names (oMi / oMf / liMi / nle / Ag / M / J …) still resolve
     via the one-release deprecation shim.
 
-    See docs/02_DATA_MODEL.md §11 and docs/13_NAMING.md §6.
+    See docs/design/02_DATA_MODEL.md §11 and docs/conventions/13_NAMING.md §6.
     """
     import warnings
     d = br.Data(_model_id=0, q=__import__("torch").zeros(3))
@@ -113,7 +114,7 @@ def test_data_exposes_deprecated_aliases() -> None:
 
 def test_jacobian_strategy_enum_values() -> None:
     values = {e.value for e in br.JacobianStrategy}
-    assert values == {"analytic", "autodiff", "functional", "auto"}
+    assert values == {"analytic", "autodiff", "functional", "finite_diff", "auto"}
 
 
 def test_solve_ik_signature_shape() -> None:

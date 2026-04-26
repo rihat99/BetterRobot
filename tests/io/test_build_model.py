@@ -1,6 +1,6 @@
 """Tests for ``build_model`` — IR → frozen Model factory.
 
-See ``docs/04_PARSERS.md §3``.
+See ``docs/design/04_PARSERS.md §3``.
 """
 
 from __future__ import annotations
@@ -34,11 +34,10 @@ def _simple_arm_ir():
     b = ModelBuilder("arm")
     b.add_body("base", mass=0.5)
     b.add_body("link1", mass=1.0)
-    b.add_joint("j1", kind="revolute", parent="base", child="link1",
-                origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]),
-                axis=torch.tensor([0., 0., 1.]),
-                lower=-math.pi, upper=math.pi,
-                velocity_limit=2.0, effort_limit=100.)
+    b.add_revolute_z("j1", parent="base", child="link1",
+                     origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]),
+                     lower=-math.pi, upper=math.pi,
+                     velocity_limit=2.0, effort_limit=100.)
     return b.finalize()
 
 
@@ -171,18 +170,14 @@ def _branching_tree_ir():
     b.add_body("left_link2")
     b.add_body("right_link1")
     b.add_body("right_link2")
-    b.add_joint("left_j1", kind="revolute", parent="root", child="left_link1",
-                origin=_id7(), axis=torch.tensor([0., 0., 1.]),
-                lower=-1., upper=1.)
-    b.add_joint("left_j2", kind="revolute", parent="left_link1", child="left_link2",
-                origin=_id7(), axis=torch.tensor([0., 0., 1.]),
-                lower=-1., upper=1.)
-    b.add_joint("right_j1", kind="revolute", parent="root", child="right_link1",
-                origin=_id7(), axis=torch.tensor([0., 0., 1.]),
-                lower=-1., upper=1.)
-    b.add_joint("right_j2", kind="revolute", parent="right_link1", child="right_link2",
-                origin=_id7(), axis=torch.tensor([0., 0., 1.]),
-                lower=-1., upper=1.)
+    b.add_revolute_z("left_j1", parent="root", child="left_link1",
+                     origin=_id7(), lower=-1., upper=1.)
+    b.add_revolute_z("left_j2", parent="left_link1", child="left_link2",
+                     origin=_id7(), lower=-1., upper=1.)
+    b.add_revolute_z("right_j1", parent="root", child="right_link1",
+                     origin=_id7(), lower=-1., upper=1.)
+    b.add_revolute_z("right_j2", parent="right_link1", child="right_link2",
+                     origin=_id7(), lower=-1., upper=1.)
     return b.finalize()
 
 
@@ -229,10 +224,9 @@ def test_revolute_unaligned():
     b = ModelBuilder("ua")
     b.add_body("base")
     b.add_body("child")
-    b.add_joint("j1", kind="revolute", parent="base", child="child",
-                origin=_id7(),
-                axis=torch.tensor([0.707, 0.707, 0.0]),
-                lower=-1., upper=1.)
+    b.add_revolute("j1", parent="base", child="child",
+                   axis=torch.tensor([0.707, 0.707, 0.0]),
+                   origin=_id7(), lower=-1., upper=1.)
     ir = b.finalize()
     model = build_model(ir)
     assert model.joint_models[2].kind == "revolute_unaligned"
@@ -242,8 +236,11 @@ def test_continuous_joint():
     b = ModelBuilder("cont")
     b.add_body("base")
     b.add_body("wheel")
-    b.add_joint("wheel_spin", kind="continuous", parent="base", child="wheel",
-                origin=_id7(), axis=torch.tensor([0., 0., 1.]))
+    b.add_revolute(
+        "wheel_spin", parent="base", child="wheel",
+        axis=torch.tensor([0., 0., 1.]), origin=_id7(),
+        unbounded=True,
+    )
     ir = b.finalize()
     model = build_model(ir)
     assert model.joint_models[2].kind == "revolute_unbounded"
@@ -255,7 +252,7 @@ def test_spherical_joint():
     b = ModelBuilder("ball")
     b.add_body("base")
     b.add_body("child")
-    b.add_joint("j1", kind="spherical", parent="base", child="child", origin=_id7())
+    b.add_spherical("j1", parent="base", child="child", origin=_id7())
     ir = b.finalize()
     model = build_model(ir)
     assert model.joint_models[2].kind == "spherical"
@@ -269,15 +266,12 @@ def test_multi_joint_chain():
     b.add_body("l1")
     b.add_body("l2")
     b.add_body("l3")
-    b.add_joint("j1", kind="revolute", parent="root", child="l1",
-                origin=_id7(), axis=torch.tensor([0., 0., 1.]),
-                lower=-1., upper=1.)
-    b.add_joint("j2", kind="revolute", parent="l1", child="l2",
-                origin=_id7(), axis=torch.tensor([0., 1., 0.]),
-                lower=-1., upper=1.)
-    b.add_joint("j3", kind="prismatic", parent="l2", child="l3",
-                origin=_id7(), axis=torch.tensor([1., 0., 0.]),
-                lower=0., upper=0.5)
+    b.add_revolute_z("j1", parent="root", child="l1",
+                     origin=_id7(), lower=-1., upper=1.)
+    b.add_revolute_y("j2", parent="l1", child="l2",
+                     origin=_id7(), lower=-1., upper=1.)
+    b.add_prismatic_x("j3", parent="l2", child="l3",
+                      origin=_id7(), lower=0., upper=0.5)
     ir = b.finalize()
     model = build_model(ir)
     assert model.nq == 3
@@ -290,13 +284,11 @@ def test_mimic_joint():
     b.add_body("root")
     b.add_body("finger1")
     b.add_body("finger2")
-    b.add_joint("main_j", kind="revolute", parent="root", child="finger1",
-                origin=_id7(), axis=torch.tensor([0., 0., 1.]),
-                lower=-1., upper=1.)
-    b.add_joint("mimic_j", kind="revolute", parent="root", child="finger2",
-                origin=_id7(), axis=torch.tensor([0., 0., 1.]),
-                lower=-1., upper=1.,
-                mimic_source="main_j", mimic_multiplier=0.5, mimic_offset=0.1)
+    b.add_revolute_z("main_j", parent="root", child="finger1",
+                     origin=_id7(), lower=-1., upper=1.)
+    b.add_revolute_z("mimic_j", parent="root", child="finger2",
+                     origin=_id7(), lower=-1., upper=1.,
+                     mimic_source="main_j", mimic_multiplier=0.5, mimic_offset=0.1)
     ir = b.finalize()
     model = build_model(ir)
     # mimic_source for mimic_j should point to main_j
@@ -311,10 +303,9 @@ def test_mimic_bad_source_raises():
     b = ModelBuilder("m")
     b.add_body("root")
     b.add_body("child")
-    b.add_joint("j1", kind="revolute", parent="root", child="child",
-                origin=_id7(), axis=torch.tensor([0., 0., 1.]),
-                lower=-1., upper=1.,
-                mimic_source="nonexistent_joint")
+    b.add_revolute_z("j1", parent="root", child="child",
+                     origin=_id7(), lower=-1., upper=1.,
+                     mimic_source="nonexistent_joint")
     ir = b.finalize()
     with pytest.raises(IRError, match="Mimic source"):
         build_model(ir)
@@ -324,9 +315,8 @@ def test_q_neutral():
     b = ModelBuilder("n")
     b.add_body("root")
     b.add_body("child")
-    b.add_joint("j1", kind="revolute", parent="root", child="child",
-                origin=_id7(), axis=torch.tensor([0., 0., 1.]),
-                lower=-1., upper=1.)
+    b.add_revolute_z("j1", parent="root", child="child",
+                     origin=_id7(), lower=-1., upper=1.)
     ir = b.finalize()
     model = build_model(ir)
     assert model.q_neutral.shape == (model.nq,)
@@ -338,7 +328,7 @@ def test_ir_frame_added():
     b = ModelBuilder("f")
     b.add_body("root")
     b.add_body("child")
-    b.add_joint("j1", kind="fixed", parent="root", child="child", origin=_id7())
+    b.add_fixed("j1", parent="root", child="child", origin=_id7())
     b.add_frame("tip", parent_body="child",
                 placement=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]))
     ir = b.finalize()
