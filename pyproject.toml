@@ -4,26 +4,63 @@ build-backend = "hatchling.build"
 
 [project]
 name = "better-robot"
-version = "0.1.0"
-description = "PyTorch-native robot kinematics, IK, trajectory optimization, and retargeting"
+version = "0.2.0"
+description = "PyTorch-native robot kinematics, dynamics, and optimisation."
 readme = "README.md"
 requires-python = ">=3.10"
+# Lean core: only torch + numpy + nice-error UX. Everything format- or
+# visualisation-specific is opt-in via ``[project.optional-dependencies]``.
 dependencies = [
     "torch>=2.1.0",
-    "pypose>=0.7.0",
-    "yourdfpy>=0.0.14",
-    "trimesh>=4.0.0",
-    "viser>=0.2.0",
-    "robot_descriptions>=1.0.0",
     "numpy>=2.0",
+    "rich>=13",
 ]
 
 [project.optional-dependencies]
-dev = [
+# ── Format parsers ────────────────────────────────────────────────────────
+urdf = [
+    "yourdfpy>=0.0.14",
+]
+mjcf = [
+    "mujoco>=3.1",
+]
+
+# ── Visualisation / geometry ──────────────────────────────────────────────
+viewer = [
+    "viser>=0.2.0",
+    "trimesh>=4.0.0",
+]
+geometry = [
+    "trimesh>=4.0.0",
+]
+
+# ── Examples (standard robot zoo) ─────────────────────────────────────────
+examples = [
+    "yourdfpy>=0.0.14",
+    "robot_descriptions>=1.0.0",
+]
+
+# ── Docs site (P12) ───────────────────────────────────────────────────────
+docs = [
+    "sphinx>=7.0",
+    "myst-parser>=2.0",
+    "furo>=2024.1.29",
+    "sphinx-design>=0.5",
+]
+
+# ── Test / dev ────────────────────────────────────────────────────────────
+test = [
     "pytest>=8.0",
+    "pin>=2.7",
+]
+dev = [
+    "better-robot[urdf,mjcf,viewer,geometry,examples,test,docs]",
     "ruff",
     "pyright",
-    "pin>=2.7",
+    "jaxtyping>=0.2.30",
+]
+all = [
+    "better-robot[urdf,mjcf,viewer,geometry,examples,docs]",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -31,7 +68,40 @@ packages = ["src/better_robot"]
 
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"
+markers = [
+    "slow: long-running tests (skip with '-m \"not slow\"')",
+    "cuda: tests requiring a CUDA device",
+    "bench: benchmark micro-tests (advisory; not part of contract)",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "PLC", "PLE", "PLR", "PLW"]
 ignore = ["E501", "PLR0913", "PLR2004"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = false
+warn_unused_configs = true
+warn_unreachable = true
+no_implicit_optional = true
+disallow_untyped_defs = false
+files = ["src/better_robot"]
+
+[tool.coverage.run]
+branch = true
+source = ["better_robot"]
+omit = [
+    "*/tests/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "@runtime_checkable",
+]

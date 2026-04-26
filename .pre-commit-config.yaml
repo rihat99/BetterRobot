@@ -1,0 +1,16 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: contract-fast
+        name: Fast contract subset (layer + naming + public API)
+        entry: uv run pytest tests/contract/test_layer_dependencies.py tests/contract/test_public_api.py tests/contract/test_pluggable_protocols.py -q
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
