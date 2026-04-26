@@ -46,7 +46,7 @@ src/better_robot/
 | Quaternion | `[qx, qy, qz, qw]` | scalar last |
 | Spatial Jacobian rows | `[v_lin (3), omega (3)]` | linear block first |
 
-PyPose is confined to `lie/_pypose_backend.py` only. All other modules use `lie/se3.py` and `lie/so3.py` wrapper functions.
+SE3/SO3 ops live in `lie/_torch_native_backend.py` (pure-PyTorch, P10-D). Every other module uses the `lie/se3.py` / `lie/so3.py` functional facades. PyPose is no longer a dependency.
 
 ## Jacobian Conventions
 
@@ -68,7 +68,7 @@ J_local = se3.adjoint_inv(T_ee) @ J_world
 
 ## Autodiff / Finite-Diff Note
 
-`residual_jacobian` uses central finite differences (NOT `torch.autograd.functional.jacobian`) because PyPose's `SE3.Log().backward()` has an incorrect factor-of-2 in the quaternion gradient. FD eps: `1e-3` for float32, `1e-7` for float64.
+`residual_jacobian` uses central finite differences as the AUTO fallback when no analytic Jacobian is registered. The pure-PyTorch Lie backend has clean autograd, so `torch.autograd.functional.jacobian` works correctly — FD is kept because it's robust across joint kinds and matches analytic Jacobians to numerical noise. FD eps: `1e-3` for float32, `1e-7` for float64.
 
 ## Public API
 

@@ -96,8 +96,7 @@ src/better_robot/
 
 | Package | Purpose |
 |---------|---------|
-| `torch` | tensors, autograd |
-| `pypose` | SE3/SO3 Lie group ops |
+| `torch` | tensors, autograd, SE3/SO3 Lie group ops (pure-PyTorch backend) |
 | `yourdfpy` | URDF parsing |
 | `viser` | browser-based 3D viewer |
 | `trimesh` | mesh loading (DAE/OBJ/STL) |
