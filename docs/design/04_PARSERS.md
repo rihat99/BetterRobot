@@ -1,4 +1,4 @@
-# 04 · Parsers — URDF / MJCF → IR → `Model`
+# Parsers — URDF / MJCF → IR → `Model`
 
 The parser layer is the **single entry point** for turning external robot
 descriptions into BetterRobot `Model` instances. All parsers emit a common

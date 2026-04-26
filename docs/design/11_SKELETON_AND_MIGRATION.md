@@ -1,4 +1,4 @@
-# 11 · Skeleton landing — historical record
+# Skeleton landing — historical record
 
 The skeleton has landed. Every directory in
 [01_ARCHITECTURE.md §Target directory layout](01_ARCHITECTURE.md) exists

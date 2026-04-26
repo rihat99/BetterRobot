@@ -409,8 +409,7 @@ advisory-then-blocking ladder.
 | `tests/kinematics/_generate_fk_reference.py` | NEW. Generates `fk_reference.npz` for Panda + G1 at fixed seed in fp64; metadata: `oracle_version`, `generation_seed`, `generated_with`, `fk_dtype`, `generated_at` (no SHA). |
 | `tests/kinematics/fk_reference.npz` | NEW. The committed reference data. < 200 KB total. |
 | `tests/kinematics/test_fk_regression.py` | NEW. Compares current FK vs the reference at `atol=1e-10` (fp64). |
-| `tests/kinematics/_pinocchio_oracle.npz` (opt-in) | NEW. Generated *from Pinocchio* with the same q's. |
-| `tests/kinematics/test_fk_pinocchio_cross_check.py` | NEW. `skipif pinocchio not importable`. |
+| `tests/test_pinocchio/test_*.py` | NEW. **Live** Pinocchio cross-check (replaces the original `_pinocchio_oracle.npz` design — see acceptance note below). Each test calls `pytest.importorskip("pinocchio")` and compares BetterRobot output to a freshly-computed Pinocchio result. |
 | `tests/bench/conftest.py` | Fixtures: `panda`, `g1`, `panda_data`. |
 | `tests/bench/bench_lie.py`, `bench_forward_kinematics.py`, `bench_jacobian.py`, `bench_solve_ik.py` | NEW. |
 | `tests/bench/baseline_cpu.json` | NEW. Initial baseline from one CI run. |
@@ -426,6 +425,14 @@ advisory-then-blocking ladder.
   seed and pinned versions.
 - CI runs `pytest tests/bench/ --benchmark-compare` against the
   committed baseline (advisory).
+
+> **Cross-check decision (2026-04-26).** The Pinocchio cross-check
+> shipped as a *live* import-or-skip suite under `tests/test_pinocchio/`
+> rather than a frozen `_pinocchio_oracle.npz`. The live form
+> exercises whatever q's the test author samples (not just the seed
+> baked into the npz) and the CI `[test]` extra ships `pin>=2.7`, so
+> the runner always has Pinocchio. Drop the npz line from the
+> roadmap; do not add the file.
 
 ---
 

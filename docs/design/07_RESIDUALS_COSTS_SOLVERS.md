@@ -1,4 +1,4 @@
-# 07 · Residuals, Costs, Solvers
+# Residuals, Costs, Solvers
 
 This document defines the optimization substrate: **pure residual functions**,
 a **named+weighted cost stack**, and **pluggable least-squares solvers**.

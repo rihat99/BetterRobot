@@ -1,5 +1,101 @@
 # Changelog
 
+## Unreleased — Roadmap close-out audit 2026-04-26
+
+A full audit of `src/` against the design specs reduced
+`docs/status/18_ROADMAP.md` to the items that remain genuinely open. The
+following work was already implemented but the roadmap had not been
+trimmed:
+
+- **Lie types & PyPose retirement (P10).** `lie/types.py` (`SE3`, `SO3`,
+  `Pose`), `lie/_torch_native_backend.py`, the typed-dataclass facade
+  used across the source tree, removal of `pypose` from `pyproject.toml`,
+  and `JacobianStrategy.FINITE_DIFF`. `BR_LIE_BACKEND` was deleted
+  outright (single backend) rather than retained as a switch.
+- **Backend abstraction (P1).** `backends/protocol.py` with `Backend` /
+  `LieOps` / `KinematicsOps` / `DynamicsOps` Protocols;
+  `default_backend()` / `get_backend(name)` / `set_backend(name)` /
+  `current_backend()`; `backend=` kwargs on `lie.se3.*` and `lie.so3.*`;
+  `backends/torch_native/` ops bundles forwarding to the existing
+  topological walks; `tests/contract/test_backend_boundary.py`.
+- **Dynamics bodies (P11 partial).** Featherstone RNEA, ABA, CRBA,
+  CCRBA, `compute_centroidal_map`, `compute_centroidal_momentum`,
+  `center_of_mass`; autograd-based `compute_*_derivatives` family;
+  `StateMultibody`; the three-layer Crocoddyl-style
+  `ActionModel`/`DifferentialActionModel`/`IntegratedActionModel{Euler,RK4}`;
+  `JointModel.joint_bias_acceleration` and
+  `joint_motion_subspace_derivative` dispatch hooks with default-zero
+  fallbacks. The integrators (`integrate_q`, `semi_implicit_euler`,
+  `symplectic_euler`, `rk4`), `compute_minverse`,
+  `compute_coriolis_matrix`, and the analytic Carpentier–Mansard
+  derivatives remain on the roadmap.
+- **Trajopt + parameterisation (P6.5/P7).** `Trajectory(t, q, v, a, tau)`
+  with full shape API (`with_batch_dims`, `slice`, `resample(linear |
+  sclerp)`, `downsample`, `to_data`); `solve_trajopt` with chain-rule
+  Jacobian for parameterised optimisation; `TrajectoryParameterization`
+  Protocol; `KnotTrajectory`; `BSplineTrajectory`. `solve_retarget` is
+  still a stub.
+- **Optim wiring (P6).** `OptimizerConfig.linear_solver` /
+  `.kernel` / `.damping` wired in `tasks/ik.py`; IRLS reweighting in LM
+  (`_apply_kernel`); `RobustKernel` / `LinearSolver` /
+  `DampingStrategy` runtime-checkable Protocols; `LeastSquaresProblem.gradient(x)`
+  matrix-free path; `LeastSquaresProblem.jacobian_blocks(x)` for
+  block-sparse trajopt solvers; full-shape `ResidualSpec` (output_dim,
+  tangent_dim, structure, time_coupling, affected_knots/joints/frames,
+  dynamic_dim); `Residual.apply_jac_transpose` default with overrides
+  on `VelocityResidual`, `AccelerationResidual`,
+  `ContactConsistencyResidual`, `ReferenceTrajectoryResidual`;
+  `MultiStageOptimizer` + `OptimizerStage` with snapshot/restore;
+  `LMThenLBFGS` rewritten as a `MultiStageOptimizer` wrapper.
+- **IO ergonomics (P5).** `IRModel.schema_version` + `IRSchemaVersionError`;
+  `parse_urdf(source, *, resolver=...)` defaulting to
+  `FilesystemResolver(base_path=Path(source).parent)`;
+  `Model.meta["asset_resolver"]` carrying the parse-time resolver;
+  `AssetResolver` Protocol + `FilesystemResolver` / `PackageResolver` /
+  `CompositeResolver` / `CachedDownloadResolver`; `ModelBuilder`
+  named-helper API (`add_revolute_x/y/z`, `add_prismatic_x/y/z`,
+  `add_spherical`, `add_planar`, `add_helical`, `add_free_flyer_root`,
+  `add_fixed`); `ModelBuilder.add_joint(kind=...)` rejects strings and
+  accepts a `JointModel` instance only.
+- **Public API + typing (P0/P4).** `__all__` is the frozen 26-symbol
+  `EXPECTED` set (adds `SE3`, `ModelBuilder`); the legacy
+  `assert len(__all__) == 25` is gone; `_typing.py` ships every
+  jaxtyping alias the spec listed (`SE3Tensor`, `JointPoseStack`,
+  `ConfigTensor`, `JointJacobian`, `JointJacobianStack`, …);
+  `ReferenceFrame` and `KinematicsLevel` enums; `Data.require(level)`,
+  `Data.invalidate(level)`, `Data.joint_pose(id)`, `Data.frame_pose(id)`;
+  `Data.__setattr__` invalidation on `q`/`v`/`a` reassignment.
+- **Contract tests (P8).** `tests/contract/test_cache_invariants.py`,
+  `test_backend_boundary.py`, `test_optional_imports.py`,
+  `test_shape_annotations.py`, `test_no_legacy_strings.py`,
+  `test_submodule_public_imports.py`, `test_hot_path_lint.py`,
+  `test_pluggable_protocols.py`, `test_solver_state.py`,
+  `test_deprecations.py`, `test_protocols.py`, `test_naming.py`,
+  `test_docstrings.py`. `tests/kinematics/fk_reference.npz` and
+  `_generate_fk_reference.py` regression oracle.
+- **Diátaxis docs site (P12).** `docs/site/conf.py` with Sphinx + MyST
+  + Furo; four tutorials, four guides, three concepts pages, and a
+  reference API index. `[docs]` extra in `pyproject.toml`.
+- **Packaging artefacts (P13 partial).** `.pre-commit-config.yaml`,
+  `.github/workflows/ci.yml` (contract → unit → cuda → bench-cpu →
+  type-check → docs), `RELEASING.md`, `src/better_robot/_version.py`.
+  Most extras are declared; `[warp]`, `[bench]`, and the missing
+  `autodoc2`/`myst-nb`/`pytest-cov`/`pytest-xdist`/`hypothesis`/`mypy`/`pre-commit`
+  deps remain on the roadmap.
+
+The rewritten roadmap (`docs/status/18_ROADMAP.md`) lists only the items
+that are actually open: integrators, `compute_minverse`,
+`compute_coriolis_matrix`, analytic dynamics derivatives, `JerkResidual`,
+`YoshikawaResidual`, the two collision residuals, the velocity/accel
+limit stubs, `NullspaceResidual`, `solve_retarget`, the four viewer
+overlay/recorder stubs, the panel-preset gap, the URDFMeshMode resolver
+wiring, the perf hooks (`@torch.compile`, `@graph_capture`,
+`@cache_kernel`, `BR_PROFILE`), the Warp kernels, the bench baseline
+bodies, the pinocchio oracle decision, the test-layout reconciliation,
+and the four pyproject extras gaps.
+
+---
+
 ## Unreleased — Legacy-reference cleanup 2026-04-25
 
 The strategic-review fold-in below shifted the doc set into a

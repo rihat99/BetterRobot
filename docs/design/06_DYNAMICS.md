@@ -1,4 +1,4 @@
-# 06 · Dynamics — RNEA, ABA, CRBA, Centroidal, Integrators
+# Dynamics — RNEA, ABA, CRBA, Centroidal, Integrators
 
 Dynamics lands as a **skeleton** in v1: every public function is named,
 signed, docstringed, and raises `NotImplementedError` until the
@@ -182,6 +182,17 @@ def compute_crba_derivatives(model, data, q) -> Tensor:
 def compute_centroidal_dynamics_derivatives(model, data, q, v, a) -> ...:
     ...
 ```
+
+> **Implementation status (2026-04-26).** The current bodies in
+> `dynamics/derivatives.py` use `torch.autograd.functional.jacobian`
+> through the existing differentiable RNEA / ABA / CRBA passes. This
+> ships exact gradients up to fp64 round-off and is what
+> `gradcheck` runs against today. The Carpentier–Mansard analytic
+> recursions in milestone D6 are still **future work** — replacing the
+> autograd implementations is a drop-in change because the call sites
+> stay the same. `compute_centroidal_dynamics_derivatives` remains a
+> stub; users wanting centroidal derivatives today should compose
+> `compute_centroidal_map` with autograd.
 
 ## 5. Implementation strategy
 

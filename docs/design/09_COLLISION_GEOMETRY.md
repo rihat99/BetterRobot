@@ -1,4 +1,4 @@
-# 09 · Collision & Geometry
+# Collision & Geometry
 
 Collision lives in its own layer, **parallel** to `kinematics/` and
 `dynamics/`, and is **optional**: a user who only cares about IK pays

@@ -1,4 +1,4 @@
-# 15 · Extension Points
+# Extension Points
 
 > **Status:** normative. Every "how do I add …" question should be
 > answerable from this doc alone.
@@ -497,7 +497,7 @@ joint-space torque term:
 `dynamics/` stays muscle-agnostic.
 
 The OpenSim DeGrooteFregly2016 muscle ships in the `better_robot_human`
-extension package (Phase 2 — see [09 §9.E](../claude_plan/accepted/09_human_body_extension_lane.md))
+extension package (Phase 2 — see [09 §9.E](../legacy/claude_plan/accepted/09_human_body_extension_lane.md))
 under the `[human]` extra; core BetterRobot does not import `chumpy`,
 SMPL, or OpenSim.
 

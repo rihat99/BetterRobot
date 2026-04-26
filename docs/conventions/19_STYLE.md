@@ -1,4 +1,4 @@
-# 19 · Coding Style
+# Coding Style
 
 > **Status:** normative. Single source of truth for in-tree code style.
 > The drafts under `docs/style/` are archived; this document supersedes them.
@@ -222,7 +222,7 @@ Conventions inside docstrings:
 - Use double backticks for code (`` ``q`` ``).
 - One-line summary first, blank line, then details.
 - The `>>>` lines run under doctest and under MyST-NB in tutorial
-  notebooks (per [10_user_docs_diataxis](../claude_plan/accepted/10_user_docs_diataxis.md)).
+  notebooks (per [10_user_docs_diataxis](../legacy/claude_plan/accepted/10_user_docs_diataxis.md)).
 
 ## 8 · Configs and dataclasses
 

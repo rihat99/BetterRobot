@@ -1,4 +1,4 @@
-# 17 · Contracts & Validation
+# Contracts & Validation
 
 > **Status:** normative. Describes the library's **input contracts**,
 > **numerical guarantees**, and **error-handling policy**.

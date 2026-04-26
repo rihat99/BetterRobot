@@ -1,4 +1,4 @@
-# 01 · Architecture
+# Architecture
 
 ## Layered design
 
@@ -195,8 +195,8 @@ io → data_model          (io reads nothing from optim or tasks)
 viewer → tasks (topmost; no-one imports from viewer)
 ```
 
-A linter test (`tests/test_layer_dependencies.py`) will parse each file's
-imports and fail the suite if any arrow points backwards.
+A linter test (`tests/contract/test_layer_dependencies.py`) parses each file's
+imports and fails the suite if any arrow points backwards.
 
 ## Public API contract
 

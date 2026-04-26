@@ -1,4 +1,6 @@
 {
-  "_comment": "Initial baseline — populate from one CI run via `pytest tests/bench/ --benchmark-json=...`.",
-  "_schema_version": 1
+  "_status": "PLACEHOLDER",
+  "_comment": "No baseline numbers recorded yet. The CI bench-cpu-advisory job runs `uv run pytest tests/bench/ -m bench --benchmark-only --benchmark-compare=tests/bench/baseline_cpu.json` and currently has nothing to compare against — the gate is paper. To populate: run the suite on the standard CI machine, capture the JSON output via --benchmark-json=, and replace this file. See tests/bench/README.md.",
+  "_schema_version": 1,
+  "benchmarks": []
 }

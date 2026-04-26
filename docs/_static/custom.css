@@ -1,0 +1,162 @@
+/* ──────────────────────────────────────────────────────────────────────
+   BetterRobot — sphinx-book-theme overrides.
+
+   Modeled directly on IsaacLab's docs/source/_static/css/custom.css.
+   IsaacLab's CSS is intentionally tiny: a color palette, link reset,
+   logo padding, and a square search box. Everything else uses
+   sphinx-book-theme defaults. We follow the same recipe and only add
+   the user-requested deltas: wider canvas + larger reading font.
+   ────────────────────────────────────────────────────────────────────── */
+
+@import url("https://rsms.me/inter/inter.css");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+/* ── Warm sage-green palette (no NVIDIA lime, no brown) ─────────────── */
+
+html[data-theme="light"] {
+    --pst-color-primary: #3d8866;
+    --pst-color-secondary: #2e6a4e;
+    --pst-color-secondary-highlight: #2e6a4e;
+    --pst-color-inline-code-links: #3d8866;
+    --pst-color-info: var(--pst-color-primary);
+    --pst-color-info-highlight: var(--pst-color-primary);
+    --pst-color-info-bg: #dcebe2;
+    --pst-color-attention: #c98a14;
+    --pst-color-text-base: #1a2026;
+    --pst-color-text-muted: #4f5a64;
+    --pst-color-shadow: #d8d8d8;
+    --pst-color-border: #d8dde0;
+    --pst-color-inline-code: #3d8866;
+    --pst-color-target: #fff4c2;
+    --pst-color-background: #ffffff;
+    --pst-color-on-background: #ffffff;
+    --pst-color-surface: #f1f5f2;
+    --pst-color-on-surface: #e3eae5;
+    --pst-color-link: var(--pst-color-primary);
+    --pst-color-link-hover: #2e6a4e;
+    --pst-color-table-row-hover-bg: #ecf3ee;
+    --pst-color-accent: var(--pst-color-primary);
+}
+
+html[data-theme="dark"] {
+    --pst-color-primary: #7dc294;
+    --pst-color-secondary: #9bd6ad;
+    --pst-color-secondary-highlight: #b8e3c4;
+    --pst-color-inline-code-links: #9bd6ad;
+    --pst-color-info: var(--pst-color-primary);
+    --pst-color-info-highlight: var(--pst-color-primary);
+    --pst-color-info-bg: #1f3528;
+    --pst-color-attention: #f1c75c;
+    --pst-color-text-base: #e8edee;
+    --pst-color-text-muted: #94a3a8;
+    --pst-color-shadow: #1a1a1a;
+    --pst-color-border: #2a363a;
+    --pst-color-inline-code: #9bd6ad;
+    --pst-color-target: #4a3a00;
+    --pst-color-background: #131c19;
+    --pst-color-on-background: #1a2521;
+    --pst-color-surface: #21302b;
+    --pst-color-on-surface: #2a3a34;
+    --pst-color-link: var(--pst-color-primary);
+    --pst-color-link-hover: #b8e3c4;
+    --pst-color-table-row-hover-bg: #1f3528;
+    --pst-color-accent: var(--pst-color-primary);
+}
+
+/* ── Typography (Inter UI + JetBrains Mono, large reading size) ─────── */
+
+:root {
+    --pst-font-family-base:
+        "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
+    --pst-font-family-monospace:
+        "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono",
+        Menlo, Consolas, "Liberation Mono", monospace;
+    --pst-font-family-heading: var(--pst-font-family-base);
+    --pst-font-size-base: 21px;
+    --pst-sidebar-font-size: 1rem;
+    --pst-sidebar-font-size-mobile: 1rem;
+    --pst-sidebar-header-font-size: 1.05rem;
+    --pst-sidebar-header-font-weight: 700;
+}
+
+@supports (font-variation-settings: normal) {
+    :root {
+        --pst-font-family-base:
+            "InterVariable", -apple-system, BlinkMacSystemFont, "Segoe UI",
+            Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+}
+
+html {
+    font-size: 21px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+    font-feature-settings: "ss01", "cv11";
+    line-height: 1.7;
+    letter-spacing: -0.003em;
+}
+
+/* ── IsaacLab-style link reset ──────────────────────────────────────── */
+/* Match IsaacLab exactly: no underline on links anywhere. */
+
+a {
+    text-decoration: none !important;
+}
+
+/* ── IsaacLab navbar tweaks ─────────────────────────────────────────── */
+
+.navbar-brand {
+    padding-top: 0.0rem !important;
+    padding-bottom: 0.0rem !important;
+}
+
+.navbar-icon-links {
+    padding-top: 0.0rem !important;
+    padding-bottom: 0.0rem !important;
+}
+
+/* IsaacLab's square search box. */
+.form-control,
+.search-button-field {
+    border-radius: 0 !important;
+    border: 1px solid var(--pst-color-border) !important;
+    outline: none !important;
+}
+
+/* ── Layout: fill the screen (user delta from IsaacLab) ─────────────── */
+
+.bd-container__inner.bd-page-width,
+.bd-page-width,
+.bd-footer__inner.bd-page-width,
+.bd-header__inner.bd-page-width {
+    max-width: 100% !important;
+}
+
+.bd-container {
+    max-width: 100%;
+}
+
+.bd-main .bd-content {
+    width: 100%;
+}
+
+.bd-main .bd-content .bd-article-container {
+    max-width: 90rem;
+    flex-grow: 1;
+    padding-left: 2.25rem;
+    padding-right: 2.25rem;
+}
+
+@media (min-width: 1500px) {
+    .bd-main .bd-content .bd-article-container {
+        max-width: 105rem;
+    }
+}
+
+.bd-article {
+    max-width: none;
+}

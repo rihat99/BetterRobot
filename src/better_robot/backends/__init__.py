@@ -109,7 +109,17 @@ def set_backend(name: str) -> None:
 
 def graph_capture(fn):
     """Decorator: wrap ``fn`` in a CUDA graph capture if the active backend
-    supports it. With ``torch_native`` (default) this is a no-op.
+    supports it.
+
+    The torch-native backend is a **no-op** — ``fn`` is returned
+    unchanged. The real CUDA-graph capture path lands with the Warp
+    backend (see ``docs/design/10_BATCHING_AND_BACKENDS.md §7`` and
+    ``docs/conventions/14_PERFORMANCE.md §5``); calling
+    ``set_backend("warp")`` first will route through the Warp
+    implementation when it ships. Until then this seam exists so that
+    user code can be written against the documented surface and the
+    decorator becomes a real graph capture once Warp is available
+    without a source diff.
     """
     return fn
 

@@ -1,4 +1,4 @@
-# 08 · Tasks — IK, Trajectory Optimization, Retargeting
+# Tasks — IK, Trajectory Optimization, Retargeting
 
 `tasks/` is the **thinnest** layer. Every entry point here is a short facade
 that:

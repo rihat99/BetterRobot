@@ -1,4 +1,4 @@
-# 10 · Batching, Devices, and Backends
+# Batching, Devices, and Backends
 
 This document locks the shape/device conventions for the whole library and
 lays out the future Warp backend path. The one rule: **`(B, [T,] ..., D)`

@@ -181,7 +181,7 @@ them based on `BR_LIE_BACKEND`. The torch-native backend has a single
 short closed-form for each operation (see §10 for the SE3 exp / log
 formulas Barfoot §7.85, Murray-Li-Sastry §A.5); the PyPose backend is
 preserved for one release as a regression oracle for the swap (see
-[PYPOSE_ISSUES.md](../status/PYPOSE_ISSUES.md)).
+[pypose_issues.md](../legacy/pypose_issues.md)).
 
 Two contract tests guard the boundary:
 
@@ -472,7 +472,7 @@ Three swaps live in `backends/torch_native/lie_ops.py`. The PyPose
 retirement runs as Phase P10 of
 [UPDATE_PHASES.md](../UPDATE_PHASES.md), with sub-phases L-A → L-E
 that are also tracked in
-[PYPOSE_ISSUES.md](../status/PYPOSE_ISSUES.md):
+[pypose_issues.md](../legacy/pypose_issues.md):
 
 **L-A → L-C — pure-PyTorch becomes default.**
 

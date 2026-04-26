@@ -23,10 +23,26 @@ def integrate_q(
 ) -> torch.Tensor:
     """Retract ``q`` by ``dt * v`` via ``model.integrate``. ``q ⊕ dt v``.
 
-    Milestone D0 — implementable today; skeleton at phase 1.
-    See docs/design/06_DYNAMICS.md §8.
+    Manifold-aware: per-joint ``JointModel.integrate`` handles SE(3) for
+    free-flyer and SO(3) for spherical joints. Revolute / prismatic
+    components fall through to Euclidean addition.
+
+    Parameters
+    ----------
+    model : Model
+    q : Tensor
+        ``(B..., nq)`` configuration.
+    v : Tensor
+        ``(B..., nv)`` generalised velocity.
+    dt : float
+        Timestep.
+
+    Returns
+    -------
+    Tensor
+        ``(B..., nq)`` retracted configuration.
     """
-    raise NotImplementedError("see docs/design/06_DYNAMICS.md §8")
+    return model.integrate(q, dt * v)
 
 
 def semi_implicit_euler(

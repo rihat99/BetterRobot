@@ -1,4 +1,4 @@
-# 13 · Naming & Glossary
+# Naming & Glossary
 
 > **Status:** normative. Every symbol in `src/better_robot/` must follow the
 > conventions here. Where existing code violates them, the name is carried as
@@ -211,7 +211,7 @@ JointJacobianStack = Float[Tensor, "*B njoints 6 nv"]
 
 Every public function imports these aliases and uses them in signatures.
 Internal hot loops are exempt (annotations encouraged, not enforced) per
-[Proposal 04 §4.D](../claude_plan/accepted/04_typing_shapes_and_enums.md). Coverage
+[Proposal 04 §4.D](../legacy/claude_plan/accepted/04_typing_shapes_and_enums.md). Coverage
 is enforced by `tests/contract/test_shape_annotations.py` —
 **advisory** until Stage 3 of the migration; **blocking** thereafter.
 

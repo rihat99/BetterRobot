@@ -1,4 +1,4 @@
-# 02 · Data model — `Model`, `Data`, Joints, Bodies, Frames
+# Data model — `Model`, `Data`, Joints, Bodies, Frames
 
 This document specifies the pinocchio-style **universal** data model
 that the skeleton landed under `src/better_robot/data_model/`. The

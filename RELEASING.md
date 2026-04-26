@@ -16,8 +16,7 @@ The release workflow follows `docs/conventions/20_PACKAGING.md §5`.
   with `pyproject.toml::project.version` (single source of truth — the
   test suite imports `better_robot.__version__` to verify).
 * Update `docs/CHANGELOG.md` — list the proposals in
-  `docs/claude_plan/accepted/` that landed in this cycle.
-* Update `docs/site/reference/changelog.md` to point at the new entry.
+  `docs/legacy/claude_plan/accepted/` that landed in this cycle.
 
 ## 3. Tag and push
 
@@ -34,7 +33,7 @@ GitHub Actions runs the full matrix:
 * `unit` on Python 3.10/3.11/3.12,
 * `cuda` on the self-hosted runner,
 * `bench-cpu-advisory` (continues on error),
-* `docs` — `sphinx-build -W` over `docs/site/`.
+* `docs` — `make -C docs strict` (warnings-as-errors) over `docs/`.
 
 ## 5. Build and publish
 

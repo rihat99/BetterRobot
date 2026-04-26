@@ -4,13 +4,13 @@
 
 PyTorch-native, GPU-ready library for robot kinematics and optimization. Pinocchio-style Model/Data architecture, PyTorch autograd throughout. Single code path for fixed-base and floating-base (free-flyer) robots.
 
-**Implemented:** forward kinematics, Jacobians (analytic + finite-diff), pose/position/orientation/limits/rest residuals, CostStack, LM optimizer, IK (fixed + floating base).
-**Stubs:** dynamics (RNEA/ABA/CRBA/centroidal), trajectory optimization, retargeting, viewer.
+**Implemented:** forward kinematics, Jacobians (analytic + autograd + finite-diff fallback), pose/position/orientation/limits/rest/smoothness/contact-consistency/reference-trajectory residuals, CostStack, LM/GN/Adam/LBFGS/MultiStage optimizers, IK (fixed + floating base), trajectory optimisation (`solve_trajopt`) with knot + B-spline parameterisations, dynamics (RNEA/ABA/CRBA/CCRBA, centroidal map + momentum, autograd-derived `compute_*_derivatives`, three-layer Crocoddyl-style action models), viewer V1 (Skeleton, URDFMesh, Grid, FrameAxes, Targets, ForceVectors, ViserBackend, build_joint_panel, minimal TrajectoryPlayer).
+**Stubs:** dynamic integrators (`semi_implicit_euler` / `symplectic_euler` / `rk4`), `compute_minverse`, `compute_coriolis_matrix`, analytic Carpentier–Mansard derivatives, `solve_retarget`, jerk / Yoshikawa / collision / nullspace residuals, viewer COM/PathTrace/ResidualPlot overlays, `VideoRecorder`, Warp backend kernels. See `docs/status/18_ROADMAP.md`.
 
 ## Commands
 
 ```bash
-uv run pytest tests/ -v                        # run all tests (297 pass)
+uv run pytest tests/ -v                        # run all tests
 uv run python examples/01_basic_ik.py          # Panda IK demo
 uv run python examples/02_g1_ik.py             # G1 humanoid floating-base IK
 ```
@@ -19,23 +19,26 @@ uv run python examples/02_g1_ik.py             # G1 humanoid floating-base IK
 
 ```
 src/better_robot/
-  lie/              — SE3/SO3 group operations, tangent algebra, hat/vee, right Jacobians
+  backends/         — Backend / LieOps / KinematicsOps / DynamicsOps Protocols + torch_native default + Warp stub
+  lie/              — SE3/SO3 group ops, tangent algebra, hat/vee, right Jacobians, typed `SE3`/`SO3`/`Pose`
   spatial/          — 6D spatial algebra value types (Motion, Force, Inertia)
-  data_model/       — Model (frozen), Data (workspace), Frame, Body, Joint, joint_models/
-  kinematics/       — forward_kinematics(), compute_joint_jacobians(), get_frame_jacobian()
-  dynamics/         — rnea, aba, crba stubs (raise NotImplementedError)
-  residuals/        — Residual classes: PoseResidual, PositionResidual, OrientationResidual,
-                      JointPositionLimit, RestResidual (all with analytic .jacobian())
+  data_model/       — Model (frozen), Data (workspace, cache invariants), Frame, Body, Joint, joint_models/
+  kinematics/       — forward_kinematics(), compute_joint_jacobians(), get_frame_jacobian(), ReferenceFrame, JacobianStrategy
+  dynamics/         — rnea, aba, crba (Featherstone), centroidal, derivatives (autograd), state_manifold, action/ (Crocoddyl)
+  residuals/        — Residual classes (Pose / Position / Orientation / JointPositionLimit / Rest /
+                      Velocity / Acceleration / TimeIndexed / ContactConsistency /
+                      ReferenceTrajectory; analytic `.jacobian()` + `apply_jac_transpose` overrides)
   costs/            — CostStack
-  optim/            — LeastSquaresProblem, LevenbergMarquardt, GaussNewton, Adam, LBFGS
-  tasks/            — solve_ik(), IKCostConfig, OptimizerConfig, IKResult
+  optim/            — LeastSquaresProblem (with `gradient(x)` + `jacobian_blocks(x)`); LM/GN/Adam/LBFGS/MultiStage/LMThenLBFGS
+                      optimizers; Cholesky/LSTSQ/CG/SparseCholesky linear solvers; Constant/Adaptive/TrustRegion damping; L2/Huber/Cauchy/Tukey kernels
+  tasks/            — solve_ik(), solve_trajopt(), Trajectory, KnotTrajectory, BSplineTrajectory, retarget (stub)
   collision/        — geometry, pairs, RobotCollision (port of old capsule mode)
-  io/               — load(), IRModel, parsers (URDF/MJCF), ModelBuilder
-  viewer/           — Visualizer stub
-  utils/            — batching, logging
+  io/               — load(), IRModel + schema_version, parsers (URDF/MJCF), ModelBuilder, AssetResolver + concrete resolvers
+  viewer/           — Visualizer, Scene, SkeletonMode, URDFMeshMode, ForceVectorsOverlay, …
+  utils/            — batching, logging, broadcasting
 ```
 
-**Dependency rule (never violate):** `lie → spatial → data_model → (kinematics, dynamics) → residuals → costs → optim → tasks → viewer`. `io` reads from `data_model` only; `collision` is parallel to `kinematics`.
+**Dependency rule (never violate):** `backends → lie → spatial → data_model → (kinematics, dynamics) → residuals → costs → optim → tasks → viewer`. `io` reads from `data_model` only; `collision` is parallel to `kinematics`. Enforced by `tests/contract/test_layer_dependencies.py`.
 
 ## SE3 / Lie Algebra Convention (critical — never deviate)
 
@@ -46,7 +49,7 @@ src/better_robot/
 | Quaternion | `[qx, qy, qz, qw]` | scalar last |
 | Spatial Jacobian rows | `[v_lin (3), omega (3)]` | linear block first |
 
-SE3/SO3 ops live in `lie/_torch_native_backend.py` (pure-PyTorch, P10-D). Every other module uses the `lie/se3.py` / `lie/so3.py` functional facades. PyPose is no longer a dependency.
+SE3/SO3 ops live in `lie/_torch_native_backend.py` (pure-PyTorch, P10-D). Every other module uses the `lie/se3.py` / `lie/so3.py` functional facades, which in turn route through the active `Backend` (`backends.default_backend()` by default). PyPose is no longer a dependency.
 
 ## Jacobian Conventions
 
@@ -158,9 +161,13 @@ All tensors carry a leading batch dimension. No "unbatched mode" — single pose
 ## Tests
 
 ```bash
-uv run pytest tests/ -v    # 297 tests, all must pass
+uv run pytest tests/ -v   # all tests must pass
 ```
 
 Tests use real Panda URDF via `robot_descriptions`. No mocking of FK or URDF parsing.
-`test_layer_dependencies.py` enforces the dependency DAG via AST parsing.
-`test_public_api.py` enforces exactly 25 symbols in `__all__`.
+`tests/contract/test_layer_dependencies.py` enforces the dependency DAG via AST parsing.
+`tests/contract/test_public_api.py` enforces the frozen 26-symbol `EXPECTED` set in `__all__`
+(adds `SE3` and `ModelBuilder` to the prior 25). `tests/contract/` carries the rest of
+the AST + structural contract suite (cache invariants, backend boundary, optional
+imports, no-legacy-strings, hot-path lint, shape annotations, deprecations,
+pluggable Protocols, solver state, naming, docstrings, submodule reachability).

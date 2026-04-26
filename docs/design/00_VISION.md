@@ -1,4 +1,4 @@
-# 00 · Vision
+# Vision
 
 > BetterRobot is a **PyTorch-first, GPU-native, batched-by-default** library for
 > robot and human-body **kinematics, dynamics, and optimization**, modelled on
@@ -85,7 +85,7 @@ A ~5–8k LOC core that delivers:
   (`SE3`, `SO3`) are frozen dataclasses *around* a tensor, never subclasses
   of it. `__torch_function__` overrides are the cautionary tale — see
   [03_LIE_AND_SPATIAL.md](03_LIE_AND_SPATIAL.md) and
-  [PYPOSE_ISSUES.md](../status/PYPOSE_ISSUES.md).
+  [pypose_issues.md](../legacy/pypose_issues.md).
 
 ## Performance targets (v1)
 

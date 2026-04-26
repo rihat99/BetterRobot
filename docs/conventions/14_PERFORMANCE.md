@@ -1,4 +1,4 @@
-# 14 · Performance
+# Performance
 
 > **Status:** normative goals + informative guidance.
 

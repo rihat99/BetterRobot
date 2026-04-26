@@ -7,7 +7,7 @@ the surrounding code — constructing it today raises
 ``NotImplementedError`` pointing at ``docs/design/12_VIEWER.md §10.2``.
 
 The ``test_only_offscreen_backend_imports_pyrender`` layer rule in
-``tests/test_layer_dependencies.py`` reserves ``pyrender`` imports for
+``tests/contract/test_layer_dependencies.py`` reserves ``pyrender`` imports for
 this module, so the future body can land without leaking the dependency.
 
 See ``docs/design/12_VIEWER.md §10.2``.

@@ -34,5 +34,16 @@ self-hosted GPU runner.
 | `bench_jacobian.py` | `compute_joint_jacobians` on Panda |
 | `bench_solve_ik.py` | One-shot Panda IK |
 | `test_mem_watermark.py` | Nightly only: peak memory tracking |
-| `baseline_cpu.json` | CI-runner baseline |
-| `baseline_cuda_l40.json` | Self-hosted L40 baseline |
+| `baseline_cpu.json` | CI-runner baseline (currently a `_status: PLACEHOLDER`; populate from one CI run before relying on the comparison gate) |
+| `baseline_cuda_l40.json` | Self-hosted L40 baseline (currently a `_status: PLACEHOLDER`; same caveat) |
+
+> ### Status: placeholder baselines
+>
+> `baseline_cpu.json` and `baseline_cuda_l40.json` ship with
+> ``_status: "PLACEHOLDER"`` and an empty ``benchmarks`` list. The
+> CI advisory job will run the suite but cannot detect regressions
+> until the placeholders are replaced with real numbers from one
+> known-good CI run (and L40 GPU run). Until then, `bench-cpu-advisory`
+> records numbers but the comparison is meaningless. The first PR that
+> stabilises the bench fixtures should bump both files following the
+> bumping procedure above.

@@ -1,4 +1,4 @@
-# 20 · Packaging, Extras, Releases
+# Packaging, Extras, Releases
 
 > **Status:** normative. Operational form of
 > [17_CONTRACTS.md §7](17_CONTRACTS.md). Pins the install surface, the
@@ -63,7 +63,7 @@ docs = [
     "myst-nb>=1.1",
     "sphinx-design>=0.6",
     "furo>=2024.5",
-    "autodoc2>=0.5",
+    "sphinx-autodoc2>=0.5",   # PyPI name; import is `autodoc2`
 ]
 bench = [
     "pytest-benchmark>=4",

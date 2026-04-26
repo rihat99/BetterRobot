@@ -2,7 +2,7 @@
 
 ``trimesh`` is imported lazily here and ONLY here.
 
-See ``docs/design/12_VIEWER.md §4.2``.
+See ``docs/design/12_VIEWER.md §4.2`` and ``§17``.
 """
 
 from __future__ import annotations
@@ -17,15 +17,45 @@ from ..helpers import quat_xyzw_to_wxyz
 if TYPE_CHECKING:
     from ...data_model.data import Data
     from ...data_model.model import Model
+    from ...io.assets import AssetResolver
     from ...io.ir import IRGeom
 
 
-def _load_geom(geom: "IRGeom") -> tuple[Any | None, tuple]:
+def _resolve_mesh_path(path: str, resolver: "AssetResolver | None") -> str:
+    """Resolve a URDF mesh URI/path through the active ``AssetResolver``.
+
+    When ``resolver`` is ``None`` the raw path is returned unchanged
+    (matches the legacy behaviour where ``yourdfpy._filename_handler``
+    pre-resolves paths at parse time). When the resolver fails, the raw
+    path is returned as a fallback so URDFs with already-absolute paths
+    still load.
+    """
+    if resolver is None or not path:
+        return path
+    try:
+        return str(resolver.resolve(path))
+    except (FileNotFoundError, OSError):
+        return path
+
+
+def _load_geom(
+    geom: "IRGeom",
+    *,
+    resolver: "AssetResolver | None" = None,
+) -> tuple[Any | None, tuple]:
     """Return (trimesh_mesh_or_None, rgba) for a single IRGeom.
 
     For ``kind="mesh"`` the original trimesh object is returned so that
     the backend can render it with its embedded materials/colors.
     For analytical primitives the trimesh is created from scratch.
+
+    ``resolver`` (optional) maps the parser-emitted mesh URI to a
+    concrete filesystem path. When ``None``, the raw ``path`` from the
+    IR is used directly — that is the path the URDF parser already
+    resolved at load time via ``yourdfpy._filename_handler``. Passing a
+    resolver lets the viewer find meshes that were referenced by URI
+    (e.g. ``package://``) even when the URDF was parsed without a
+    filesystem root.
     """
     import trimesh
 
@@ -37,8 +67,9 @@ def _load_geom(geom: "IRGeom") -> tuple[Any | None, tuple]:
         scale = geom.params.get("scale", [1.0, 1.0, 1.0])
         if not path:
             return None, rgba
+        resolved = _resolve_mesh_path(path, resolver)
         try:
-            mesh = trimesh.load(path, force="mesh")
+            mesh = trimesh.load(resolved, force="mesh")
             mesh.apply_scale(scale)
             return mesh, rgba
         except Exception:
@@ -75,13 +106,27 @@ class URDFMeshMode:
     ``<capsule>``) are tessellated via trimesh.  Mesh files (``.obj``,
     ``.dae``, ``.stl``) are loaded with trimesh too.  Non-loadable meshes
     are skipped with a warning.
+
+    Asset resolution. Mesh URIs in ``IRGeom.params["path"]`` are routed
+    through ``model.meta["asset_resolver"]`` when present (set by the
+    URDF parser per ``docs/design/04_PARSERS.md §6``). The constructor
+    also accepts an explicit ``resolver=`` override — useful when the
+    caller wants a different search root than the parse-time one. When
+    no resolver is available the raw path is used directly, preserving
+    the legacy yourdfpy ``_filename_handler`` flow.
     """
 
     name = "URDF mesh"
     description = "Visual meshes from the URDF / MJCF"
 
-    def __init__(self, *, alpha: float = 1.0) -> None:
+    def __init__(
+        self,
+        *,
+        alpha: float = 1.0,
+        resolver: "AssetResolver | None" = None,
+    ) -> None:
         self.alpha = alpha
+        self._explicit_resolver = resolver
         self._ctx: RenderContext | None = None
         self._model: Model | None = None
         # Maps node name → (joint_index, geom_local_pose_7vec)
@@ -109,6 +154,11 @@ class URDFMeshMode:
         ns = context.namespace
         b_idx = context.batch_index
         ir = model.meta["ir"]
+        # Constructor override wins; otherwise pull the parse-time
+        # resolver off ``model.meta`` (set by parse_urdf / parse_mjcf).
+        resolver = self._explicit_resolver
+        if resolver is None:
+            resolver = (model.meta or {}).get("asset_resolver")
 
         # Build a map: body_name → model joint index (via body_names)
         body_to_mjidx: dict[str, int] = {
@@ -122,7 +172,7 @@ class URDFMeshMode:
             if mjidx is None:
                 continue
             for geom_idx, geom in enumerate(ir_body.visual_geoms):
-                mesh, rgba = _load_geom(geom)
+                mesh, rgba = _load_geom(geom, resolver=resolver)
                 if mesh is None:
                     continue
 

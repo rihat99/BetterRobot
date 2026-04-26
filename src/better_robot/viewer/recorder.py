@@ -8,7 +8,7 @@ them today raises ``NotImplementedError`` pointing at
 ``docs/design/12_VIEWER.md §10.1``.
 
 The ``test_only_recorder_imports_imageio`` layer rule in
-``tests/test_layer_dependencies.py`` reserves ``imageio`` imports for
+``tests/contract/test_layer_dependencies.py`` reserves ``imageio`` imports for
 this module, so the future body can land without leaking dependencies.
 
 See ``docs/design/12_VIEWER.md §10.1``.

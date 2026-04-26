@@ -1,4 +1,4 @@
-# 16 · Testing Strategy
+# Testing Strategy
 
 > **Status:** normative. Every PR is expected to satisfy this doc.
 
@@ -167,7 +167,7 @@ collected enough signal:
 | Gate | Initial mode | Promotion criterion |
 |------|--------------|---------------------|
 | Contract bundle (correctness, DAG, hot-path lint, mypy strict, cache invariants, optional imports) | **Blocking from day 1** | — |
-| `test_shape_annotations.py` (jaxtyping coverage) | Advisory (coverage report) | Stage 3 of [Proposal 04 §4.A](../claude_plan/accepted/04_typing_shapes_and_enums.md): all public symbols annotated |
+| `test_shape_annotations.py` (jaxtyping coverage) | Advisory (coverage report) | Stage 3 of [Proposal 04 §4.A](../legacy/claude_plan/accepted/04_typing_shapes_and_enums.md): all public symbols annotated |
 | CPU bench | Advisory (PR comment) | Two release cycles of stable runner variance < 5% |
 | CUDA bench | Nightly only | One cycle of stable self-hosted-runner data |
 | `mem_watermark` | Nightly only | Pre-1.0 stays nightly; promotion at v1 release |

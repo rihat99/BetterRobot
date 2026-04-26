@@ -1,4 +1,4 @@
-# 12 · Viewer
+# Viewer
 
 `viewer/` is the **topmost** layer in the DAG (see 01 ARCHITECTURE §Dependency
 rule). Nothing imports from it. Its job is to turn `Model`, `Data`, and
@@ -447,7 +447,7 @@ as placeholders. The future implementation routes frames through the
 `render_trajectory(model, traj, "out.mp4")`.
 
 The `test_only_recorder_imports_imageio` layer rule in
-`tests/test_layer_dependencies.py` reserves `imageio` imports for
+`tests/contract/test_layer_dependencies.py` reserves `imageio` imports for
 `recorder.py`, so this future work lands without leaking dependencies.
 
 ### 10.2. Offscreen (headless) renderer
@@ -555,7 +555,7 @@ Future milestones re-enable (and grow) these test files:
 protocol. This is what keeps the same mode code compatible with every
 future backend.
 
-`tests/test_layer_dependencies.py` enforces these rules with the same
+`tests/contract/test_layer_dependencies.py` enforces these rules with the same
 AST walker as the existing `test_only_lie_imports_pypose` check:
 
 - `test_only_viser_backend_imports_viser`

@@ -1,4 +1,4 @@
-# 05 · Kinematics — FK, Frame Updates, Jacobians
+# Kinematics — FK, Frame Updates, Jacobians
 
 This is the hot path of the library. FK is batched, GPU-ready, and runs
 through a single topological scan over joints using per-joint

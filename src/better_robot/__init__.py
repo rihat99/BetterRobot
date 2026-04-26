@@ -1,7 +1,7 @@
 """``better_robot`` — PyTorch-native robotics library.
 
 The public surface is intentionally small: **26 symbols** — the frozen
-``EXPECTED`` set in ``tests/test_public_api.py``. Everything else is
+``EXPECTED`` set in ``tests/contract/test_public_api.py``. Everything else is
 internal and may be reshaped without a deprecation. See
 ``docs/design/01_ARCHITECTURE.md §Public API contract``.
 
