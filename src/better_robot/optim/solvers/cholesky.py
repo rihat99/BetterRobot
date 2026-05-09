@@ -17,4 +17,4 @@ class Cholesky:
             L = torch.linalg.cholesky(A)
             return torch.cholesky_solve(b.unsqueeze(-1), L).squeeze(-1)
         except Exception:
-            return torch.linalg.lstsq(A, b).solution
+            return torch.linalg.lstsq(A, b.to(A.dtype)).solution.to(b.dtype)
