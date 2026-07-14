@@ -137,8 +137,9 @@ def so3_compose(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
 
 def so3_inverse(q: torch.Tensor) -> torch.Tensor:
     """Conjugate of a unit quaternion."""
-    sign = torch.tensor([-1.0, -1.0, -1.0, 1.0], dtype=q.dtype, device=q.device)
-    return q * sign
+    # No constant tensor here: torch.tensor(...) per call is a host->device
+    # copy whose implicit sync stalls the CUDA pipeline in optimization loops.
+    return torch.cat([-q[..., :3], q[..., 3:]], dim=-1)
 
 
 def so3_exp(omega: torch.Tensor) -> torch.Tensor:
