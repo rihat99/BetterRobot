@@ -1,8 +1,8 @@
 """Functional torch↔Warp bridge for the opt-in fused FK prototype.
 
 The custom op owns fresh torch outputs and launches Warp on torch's current
-CUDA stream. Its registered autograd formula recomputes the VJP through the
-torch oracle. This is intentionally conservative: Warp's generated adjoint is
+CUDA stream. The active autograd wrapper recomputes the VJP through the raw
+torch FK pass. This is intentionally conservative: Warp's generated adjoint is
 not correct for a dynamic topological loop, while the torch recompute path is
 first- and second-order differentiable and reduces shared model-value gradients
 through the execution-batch index maps.
@@ -11,7 +11,7 @@ through the execution-batch index maps.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import torch
 import warp as wp
@@ -19,107 +19,13 @@ import warp as wp
 from ..data_model.execution_batch import flatten_execution_batch
 from ..data_model.model_structure import JOINT_KIND_CODES, ModelStructure
 from ..data_model.model_values import ModelValues
-from ..lie import se3, so3
 
 
 wp.config.kernel_cache_dir = os.environ.get("WARP_CACHE_PATH", "/tmp/betterrobot-warp-cache")
 wp.init()
 
 from ._warp_kernels import fk_frames_f32, fk_frames_f64  # noqa: E402
-
-
-def _torch_joint_transform(  # noqa: PLR0911
-    kind: int,
-    q_slice: torch.Tensor,
-    axis: torch.Tensor,
-    pitch: torch.Tensor,
-) -> torch.Tensor:
-    if kind in (0, 1, 17):
-        return se3.identity(
-            batch_shape=tuple(q_slice.shape[:-1]),
-            dtype=q_slice.dtype,
-            device=q_slice.device,
-        )
-    if kind in (2, 3, 4, 5):
-        return se3.from_axis_angle(axis, q_slice[..., 0])
-    if kind == 6:
-        return se3.from_axis_angle(axis, torch.atan2(q_slice[..., 1], q_slice[..., 0]))
-    if kind in (7, 8, 9, 10):
-        return se3.from_translation(axis, q_slice[..., 0])
-    if kind == 11:
-        zeros = q_slice.new_zeros((*q_slice.shape[:-1], 3))
-        return torch.cat((zeros, so3.normalize(q_slice)), dim=-1)
-    if kind == 12:
-        return se3.normalize(q_slice)
-    if kind == 13:
-        x, y, cosine, sine = q_slice.unbind(dim=-1)
-        half_cosine = torch.sqrt(((1.0 + cosine) * 0.5).clamp_min(0.0))
-        half_sine = torch.sqrt(((1.0 - cosine) * 0.5).clamp_min(0.0)) * torch.sign(sine)
-        zero = torch.zeros_like(x)
-        return torch.stack((x, y, zero, zero, zero, half_sine, half_cosine), dim=-1)
-    if kind == 14:
-        zeros = q_slice.new_zeros((*q_slice.shape[:-1], 3))
-        ones = q_slice.new_ones((*q_slice.shape[:-1], 1))
-        return torch.cat((q_slice, zeros, ones), dim=-1)
-    if kind == 15:
-        angle = q_slice[..., 0]
-        return se3.compose(
-            se3.from_translation(axis, pitch * angle),
-            se3.from_axis_angle(axis, angle),
-        )
-    raise RuntimeError(f"Warp FK torch-VJP received unsupported joint kind code {kind}")
-
-
-def _torch_fk_from_tables(
-    q: torch.Tensor,
-    joint_placements: torch.Tensor,
-    frame_placements: torch.Tensor,
-    q_map: torch.Tensor,
-    value_map: torch.Tensor,
-    parents: torch.Tensor,
-    topo_order: torch.Tensor,
-    kinds: torch.Tensor,
-    nqs: torch.Tensor,
-    idx_qs: torch.Tensor,
-    axes: torch.Tensor,
-    pitches: torch.Tensor,
-    frame_parents: torch.Tensor,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    q_exec = q.index_select(0, q_map.to(torch.int64))
-    placements_exec = joint_placements.index_select(0, value_map.to(torch.int64))
-    frames_exec = frame_placements.index_select(0, value_map.to(torch.int64))
-    parents_host = parents.detach().cpu()  # bench-ok: immutable prototype topology
-    topo_host = topo_order.detach().cpu()  # bench-ok: immutable prototype topology
-    kinds_host = kinds.detach().cpu()  # bench-ok: immutable prototype topology
-    nqs_host = nqs.detach().cpu()  # bench-ok: immutable prototype topology
-    idx_host = idx_qs.detach().cpu()  # bench-ok: immutable prototype topology
-    parents_static = tuple(int(value) for value in parents_host.tolist())
-    topo_static = tuple(int(value) for value in topo_host.tolist())
-    kinds_static = tuple(int(value) for value in kinds_host.tolist())
-    nqs_static = tuple(int(value) for value in nqs_host.tolist())
-    idx_static = tuple(int(value) for value in idx_host.tolist())
-
-    world: list[torch.Tensor | None] = [None] * len(parents_static)
-    local: list[torch.Tensor | None] = [None] * len(parents_static)
-    for joint_index in topo_static:
-        nq_i = nqs_static[joint_index]
-        iq = idx_static[joint_index]
-        delta = _torch_joint_transform(
-            kinds_static[joint_index],
-            q_exec[..., iq : iq + nq_i],
-            axes[joint_index],
-            pitches[joint_index],
-        )
-        local_pose = se3.compose(placements_exec[..., joint_index, :], delta)
-        local[joint_index] = local_pose
-        parent = parents_static[joint_index]
-        world[joint_index] = (
-            local_pose if parent < 0 else se3.compose(world[parent], local_pose)  # type: ignore[arg-type]
-        )
-    local_tensor = torch.stack(local, dim=-2)  # type: ignore[arg-type]
-    world_tensor = torch.stack(world, dim=-2)  # type: ignore[arg-type]
-    frame_tensor = se3.compose(world_tensor.index_select(-2, frame_parents.to(torch.int64)), frames_exec)
-    return world_tensor, local_tensor, frame_tensor
+from .forward import forward_kinematics_raw, frame_placements_raw  # noqa: E402
 
 
 def _vjp(
@@ -128,14 +34,8 @@ def _vjp(
     frame_placements: torch.Tensor,
     q_map: torch.Tensor,
     value_map: torch.Tensor,
-    parents: torch.Tensor,
-    topo_order: torch.Tensor,
-    kinds: torch.Tensor,
-    nqs: torch.Tensor,
-    idx_qs: torch.Tensor,
-    axes: torch.Tensor,
-    pitches: torch.Tensor,
-    frame_parents: torch.Tensor,
+    structure: ModelStructure,
+    values: ModelValues,
     grad_world: torch.Tensor,
     grad_local: torch.Tensor,
     grad_frames: torch.Tensor,
@@ -149,23 +49,22 @@ def _vjp(
             value.detach().requires_grad_(True) if detach_inputs or not value.requires_grad else value
             for value in original
         )
-        outputs = _torch_fk_from_tables(
-            working[0],
-            working[1],
-            working[2],
-            q_map,
-            value_map,
-            parents,
-            topo_order,
-            kinds,
-            nqs,
-            idx_qs,
-            axes,
-            pitches,
-            frame_parents,
+        q_exec = working[0].index_select(0, q_map.to(torch.int64))
+        placements_exec = working[1].index_select(0, value_map.to(torch.int64))
+        frames_exec = working[2].index_select(0, value_map.to(torch.int64))
+        body_inertias = values.body_inertias
+        if body_inertias.ndim > 2:
+            body_inertias = body_inertias[(0,) * (body_inertias.ndim - 2)]
+        recompute_values = replace(
+            values,
+            joint_placements=placements_exec,
+            frame_placements=frames_exec,
+            body_inertias=body_inertias,
         )
+        world, local = forward_kinematics_raw(structure, recompute_values, q_exec)
+        frames = frame_placements_raw(structure, recompute_values, world)
         gradients = torch.autograd.grad(
-            outputs,
+            (world, local, frames),
             working,
             (grad_world, grad_local, grad_frames),
             create_graph=create_graph,
@@ -263,44 +162,62 @@ def _warp_fk_forward_fake(
     )
 
 
-def _setup_fk_context(ctx, inputs, output) -> None:
-    ctx.save_for_backward(*inputs)
+class _WarpFKFunction(torch.autograd.Function):
+    """Autograd owner for the Warp forward and raw-torch recompute VJP."""
 
+    @staticmethod
+    def forward(
+        ctx,
+        q: torch.Tensor,
+        joint_placements: torch.Tensor,
+        frame_placements: torch.Tensor,
+        q_map: torch.Tensor,
+        value_map: torch.Tensor,
+        structure: ModelStructure,
+        values: ModelValues,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        ctx.structure = structure
+        ctx.values = values
+        ctx.save_for_backward(q, joint_placements, frame_placements, q_map, value_map)
+        device = q.device
+        return _warp_fk_forward(
+            q,
+            joint_placements,
+            frame_placements,
+            q_map,
+            value_map,
+            structure.parents_tensor.to(device=device),
+            structure.topo_order_tensor.to(device=device),
+            structure.joint_kind_tensor.to(device=device),
+            structure.nqs_tensor.to(device=device),
+            structure.idx_qs_tensor.to(device=device),
+            structure.joint_axes.to(device=device, dtype=q.dtype),
+            structure.joint_pitches.to(device=device, dtype=q.dtype),
+            structure.frame_parent_joints.to(device=device),
+        )
 
-def _fk_backward(ctx, grad_world, grad_local, grad_frames):
-    saved = ctx.saved_tensors
-    grad_world = (
-        torch.zeros_like(saved[0].new_empty((saved[3].shape[0], saved[5].shape[0], 7)))
-        if grad_world is None
-        else grad_world
-    )
-    grad_local = torch.zeros_like(grad_world) if grad_local is None else grad_local
-    grad_frames = saved[0].new_zeros((saved[3].shape[0], saved[12].shape[0], 7)) if grad_frames is None else grad_frames
-    if torch.is_grad_enabled():
+    @staticmethod
+    def backward(ctx, grad_world, grad_local, grad_frames):
+        q, joint_placements, frame_placements, q_map, value_map = ctx.saved_tensors
+        grad_world = q.new_zeros((q_map.shape[0], ctx.structure.njoints, 7)) if grad_world is None else grad_world
+        grad_local = torch.zeros_like(grad_world) if grad_local is None else grad_local
+        grad_frames = q.new_zeros((q_map.shape[0], ctx.structure.nframes, 7)) if grad_frames is None else grad_frames
+        create_graph = torch.is_grad_enabled()
         gradients = _vjp(
-            *saved,
+            q,
+            joint_placements,
+            frame_placements,
+            q_map,
+            value_map,
+            ctx.structure,
+            ctx.values,
             grad_world,
             grad_local,
             grad_frames,
-            create_graph=True,
-            detach_inputs=False,
+            create_graph=create_graph,
+            detach_inputs=not create_graph,
         )
-    else:
-        # Keep first-order recomputation in the registered formula: a custom-op
-        # implementation runs below the Autograd dispatch key and cannot record
-        # the Torch oracle needed to build this VJP.
-        gradients = _vjp(
-            *saved,
-            grad_world,
-            grad_local,
-            grad_frames,
-            create_graph=False,
-            detach_inputs=True,
-        )
-    return (*gradients, *(None for _ in range(len(saved) - 3)))
-
-
-_warp_fk_forward.register_autograd(_fk_backward, setup_context=_setup_fk_context)
+        return (*gradients, None, None, None, None)
 
 
 @dataclass(frozen=True)
@@ -350,21 +267,16 @@ def try_warp_forward_kinematics(  # noqa: PLR0911
     ):
         return None
 
-    device = q.device
-    world, local, frames = _warp_fk_forward(
+    q_map = execution.q.batch_indices.to(device=q.device, dtype=torch.int32)
+    value_map = execution.values[0].batch_indices.to(device=q.device, dtype=torch.int32)
+    world, local, frames = _WarpFKFunction.apply(
         q_unique,
         placement_unique,
         frame_unique,
-        execution.q.batch_indices.to(device=device, dtype=torch.int32),
-        execution.values[0].batch_indices.to(device=device, dtype=torch.int32),
-        structure.parents_tensor.to(device=device),
-        structure.topo_order_tensor.to(device=device),
-        structure.joint_kind_tensor.to(device=device),
-        structure.nqs_tensor.to(device=device),
-        structure.idx_qs_tensor.to(device=device),
-        structure.joint_axes.to(device=device, dtype=q.dtype),
-        structure.joint_pitches.to(device=device, dtype=q.dtype),
-        structure.frame_parent_joints.to(device=device),
+        q_map,
+        value_map,
+        structure,
+        values,
     )
     return WarpFKResult(
         execution.unflatten(world),
