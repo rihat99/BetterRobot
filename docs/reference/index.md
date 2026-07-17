@@ -11,6 +11,7 @@ named_block_solvers
 changelog
 roadmap
 m1_removed_symbols
+m3_removed_symbols
 glossary
 ```
 
@@ -23,4 +24,5 @@ glossary
 | {doc}`changelog` | Per-release notes. |
 | {doc}`roadmap` | What is named in the public surface but still stubbed in `src/`. |
 | {doc}`m1_removed_symbols` | Downstream migration ledger for surfaces removed in M1. |
+| {doc}`m3_removed_symbols` | Downstream migration ledger for surfaces removed in M3.5. |
 | {doc}`glossary` | Vocabulary, storage layouts, and the renames inherited from Pinocchio. |

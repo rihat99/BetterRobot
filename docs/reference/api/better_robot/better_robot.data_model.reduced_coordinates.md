@@ -53,7 +53,7 @@
 ```
 ````
 
-````{py:function} reduce_generalized_force(structure: better_robot.data_model.model_structure.ModelStructure, force_full: torch.Tensor) -> torch.Tensor
+````{py:function} reduce_generalized_force(structure: better_robot.data_model.model_structure.ModelStructure, value_full: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.data_model.reduced_coordinates.reduce_generalized_force
 
 ```{autodoc2-docstring} better_robot.data_model.reduced_coordinates.reduce_generalized_force

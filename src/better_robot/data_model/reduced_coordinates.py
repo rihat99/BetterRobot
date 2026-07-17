@@ -45,8 +45,13 @@ def reduce_generalized_force(
     return value_full @ structure.v_expansion
 
 
-# Both names remain readable at their call sites while sharing one implementation.
-reduce_jacobian = reduce_generalized_force
+def reduce_jacobian(
+    structure: ModelStructure,
+    jacobian_full: torch.Tensor,
+) -> torch.Tensor:
+    """Apply the shared mimic covector reduction to Jacobian columns."""
+
+    return reduce_generalized_force(structure, jacobian_full)
 
 
 def reduce_mass_matrix(
