@@ -1,12 +1,14 @@
 """Tests for ``TargetsOverlay``.
 
-Uses ``MockBackend`` — no viser/pyrender required. The interactive
+Uses ``MockBackend``, so no interactive renderer is required. The
 ``add_transform_control`` path is only exercised in its static form
 (frame triad + recorded call) because MockBackend.is_interactive is
 False.
 """
 
 from __future__ import annotations
+
+from types import SimpleNamespace
 
 import pytest
 import torch
@@ -151,8 +153,6 @@ def test_live_targets_falls_back_on_non_interactive(panda, panda_data):
 def test_live_targets_reads_handle(panda, panda_data):
     """With a stub handle that exposes ``position`` / ``wxyz``, the
     overlay reads pose straight off the handle and converts wxyz→xyzw."""
-    from types import SimpleNamespace
-
     class _InteractiveBackend(MockBackend):
         is_interactive = True
 

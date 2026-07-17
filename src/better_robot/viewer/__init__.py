@@ -2,13 +2,10 @@
 
 Topmost in the DAG — nothing imports from ``viewer``.
 
-V1 scope: interactive viser-backed rendering of one robot via
+Scope: interactive viser-backed rendering of one robot via
 ``SkeletonMode`` / ``URDFMeshMode`` plus ``GridOverlay`` /
 ``FrameAxesOverlay``, with straight-through-the-frames trajectory
-playback. Video recording, offscreen rendering, collision capsules,
-target gizmos, COM marker, path trace, residual plot, camera paths,
-and multi-robot sessions all live as placeholders — see
-``docs/concepts/viewer.md §10``.
+playback, target gizmos, force vectors, and public primitive styling.
 
 All heavy rendering dependencies (viser, trimesh, and later pyrender /
 imageio-ffmpeg) are imported lazily inside their respective submodules.
@@ -22,14 +19,11 @@ See ``docs/concepts/viewer.md §13``.
 from __future__ import annotations
 
 from . import helpers
-from .camera import Camera, CameraPath
-from .recorder import VideoRecorder, render_trajectory
+from .primitive import PrimitiveHandle
 from .render_modes.base import RenderContext, RenderMode
-from .render_modes.collision import CollisionMode
 from .render_modes.skeleton import SkeletonMode
 from .render_modes.urdf_mesh import URDFMeshMode
 from .renderers.base import RendererBackend
-from .renderers.offscreen_backend import OffscreenBackend
 from .renderers.viser_backend import ViserBackend
 from .scene import Scene
 from .trajectory_player import TrajectoryPlayer
@@ -39,24 +33,17 @@ __all__ = [
     # Interactive facade (V1)
     "Visualizer",
     "Scene",
-    # Render modes (V1: Skeleton, URDFMesh; stubs: Collision)
+    # Render modes
     "RenderMode",
     "RenderContext",
     "SkeletonMode",
     "URDFMeshMode",
-    "CollisionMode",
-    # Renderer backends (V1: Viser; stubs: Offscreen)
+    # Renderer backends
     "RendererBackend",
     "ViserBackend",
-    "OffscreenBackend",
-    # Playback (V1 minimal)
+    # Playback and styling
     "TrajectoryPlayer",
-    # Camera (dataclass V1; path variants are §10.7 stubs)
-    "Camera",
-    "CameraPath",
-    # Video recording — §10.1 stubs
-    "VideoRecorder",
-    "render_trajectory",
+    "PrimitiveHandle",
     # misc
     "helpers",
 ]

@@ -1,11 +1,10 @@
 """``trajectory_player.py`` — minimal frame-by-frame sequence player.
 
-V1 is deliberately tiny: a ``TrajectoryPlayer`` knows how to push one
+The player is deliberately tiny: a ``TrajectoryPlayer`` knows how to push one
 frame of a ``(B, T, nq)`` ``Trajectory`` to a ``Scene``, and how to run
 a straight loop across all frames at a fixed fps. There is no scrub
 bar, speed, loop toggle, ghost/trace overlay, manifold interpolation
-between keyframes, or batch-axis picker — each of those is listed as
-future work in ``docs/concepts/viewer.md §10.3``.
+between keyframes, or batch-axis picker.
 
 See ``docs/concepts/viewer.md §8``.
 """
@@ -18,12 +17,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .scene import Scene
     from ..tasks.trajectory import Trajectory
-
-
-_FUTURE_MSG = (
-    "Transport controls (seek/step/speed/loop/ghost/trace) are future "
-    "work — see docs/concepts/viewer.md §10.3."
-)
 
 
 class TrajectoryPlayer:
@@ -89,33 +82,6 @@ class TrajectoryPlayer:
             return
 
     # ------------------------------------------------------------------
-    # Future work (§10.3) — kept as stubs so callers get a clear error
-    # ------------------------------------------------------------------
-
-    def seek(self, t: float) -> None:
-        raise NotImplementedError(_FUTURE_MSG)
-
     def seek_frame(self, k: int) -> None:
-        # Deliberately routes through the V1 path so it keeps working.
+        """Alias for :meth:`show_frame` for integer-indexed playback."""
         self.show_frame(k)
-
-    def step(self, dt: float) -> None:
-        raise NotImplementedError(_FUTURE_MSG)
-
-    def pause(self) -> None:
-        raise NotImplementedError(_FUTURE_MSG)
-
-    def set_speed(self, speed: float) -> None:
-        raise NotImplementedError(_FUTURE_MSG)
-
-    def set_loop(self, loop: bool) -> None:
-        raise NotImplementedError(_FUTURE_MSG)
-
-    def set_ghost(self, every: int | None) -> None:
-        raise NotImplementedError(_FUTURE_MSG)
-
-    def set_trace(self, frame_name: str | None) -> None:
-        raise NotImplementedError(_FUTURE_MSG)
-
-    def set_batch_index(self, idx: int) -> None:
-        raise NotImplementedError(_FUTURE_MSG)

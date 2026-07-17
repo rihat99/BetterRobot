@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Literal
 import torch
 
 from .base import RenderContext
-from ..helpers import quat_xyzw_to_wxyz
+from ..primitive import PrimitiveHandle
 
 if TYPE_CHECKING:
     from ...data_model.data import Data
@@ -42,8 +42,7 @@ def _align_z_to_vec(direction: torch.Tensor) -> torch.Tensor:
     angle = math.acos(float(z.dot(d).clamp(-1.0, 1.0)))
     half = angle / 2.0
     s = math.sin(half)
-    return torch.tensor([axis[0] * s, axis[1] * s, axis[2] * s, math.cos(half)],
-                         dtype=d.dtype, device=d.device)
+    return torch.tensor([axis[0] * s, axis[1] * s, axis[2] * s, math.cos(half)], dtype=d.dtype, device=d.device)
 
 
 class SkeletonMode:
@@ -72,8 +71,8 @@ class SkeletonMode:
 
         self._ctx: RenderContext | None = None
         self._model: Model | None = None
-        self._sphere_joints: list[int] = []   # joint indices that have a sphere
-        self._cylinder_joints: list[int] = [] # joint indices that have a cylinder (j→parent)
+        self._sphere_joints: list[int] = []  # joint indices that have a sphere
+        self._cylinder_joints: list[int] = []  # joint indices that have a cylinder (j→parent)
 
     @classmethod
     def is_available(cls, model: "Model", data: "Data") -> bool:
@@ -103,8 +102,7 @@ class SkeletonMode:
             if jm.nv > 0 or (j == 0 and self._show_root):
                 name = f"{ns}/sphere_{j}"
                 pose = self._get_joint_pose(joint_pose_world, j, b)
-                backend.add_sphere(name, radius=self._joint_radius,
-                                   rgba=self._colour_for_joint(j, model, joint_rgba))
+                backend.add_sphere(name, radius=self._joint_radius, rgba=self._colour_for_joint(j, model, joint_rgba))
                 backend.set_transform(name, pose)
                 self._sphere_joints.append(j)
 
@@ -116,8 +114,7 @@ class SkeletonMode:
                 p_p = self._get_joint_pos(joint_pose_world, p, b)
                 length = float((p_j - p_p).norm())
                 if length > 1e-4:
-                    backend.add_cylinder(name, radius=self._link_radius,
-                                         length=length, rgba=link_rgba)
+                    backend.add_cylinder(name, radius=self._link_radius, length=length, rgba=link_rgba)
                     mid_pose = self._link_pose(p_p, p_j)
                     backend.set_transform(name, mid_pose)
                     self._cylinder_joints.append(j)
@@ -167,6 +164,17 @@ class SkeletonMode:
         self._sphere_joints = []
         self._cylinder_joints = []
         self._ctx = None
+
+    def joint_primitive(self, joint_id: int) -> "PrimitiveHandle":
+        """Return the public sphere handle for an articulated joint."""
+        if self._ctx is None:
+            raise RuntimeError("SkeletonMode must be attached before requesting a primitive")
+        if joint_id not in self._sphere_joints:
+            raise ValueError(f"joint {joint_id} has no rendered sphere")
+        return PrimitiveHandle(
+            self._ctx.backend,
+            f"{self._ctx.namespace}/sphere_{joint_id}",
+        )
 
     # ------------------------------------------------------------------
     # Internal helpers

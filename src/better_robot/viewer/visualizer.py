@@ -1,15 +1,14 @@
 """``visualizer.py`` — ``Visualizer``, the top-level interactive facade.
 
-V1 is intentionally thin: one ``ViserBackend``, one ``Scene.default``
+The facade is intentionally thin: one ``ViserBackend``, one ``Scene.default``
 per robot, single-pose ``update`` and straight-through trajectory
-``add_trajectory``. Everything else (recording, IK target gizmos,
-multi-robot, batch-axis picker) is §10 in ``docs/concepts/viewer.md``.
+``add_trajectory``.
 
 ``viser`` is imported lazily — only when ``_ensure_server()`` is first
 called via ``show()`` / ``update()`` / ``add_trajectory()``. ``import
 better_robot.viewer`` works without viser installed.
 
-See ``docs/concepts/viewer.md §7``.
+See ``docs/concepts/viewer.md``.
 """
 
 from __future__ import annotations
@@ -25,22 +24,10 @@ if TYPE_CHECKING:
     from ..tasks.ik import IKResult
     from ..tasks.trajectory import Trajectory
     from .overlays.targets import TargetsOverlay
+    from .primitive import PrimitiveHandle
     from .scene import Scene
     from .themes import Theme
     from .trajectory_player import TrajectoryPlayer
-
-
-_FUTURE_MSG_RECORD = (
-    "Visualizer.record is future work — see docs/concepts/viewer.md §10.1. "
-    "V1 of the viewer is interactive-only."
-)
-_FUTURE_MSG_MULTI = (
-    "Multi-robot sessions are future work — "
-    "see docs/concepts/viewer.md §10.8."
-)
-_FUTURE_MSG_BATCH = (
-    "Batch-axis picker is future work — see docs/concepts/viewer.md §10.9."
-)
 
 
 class Visualizer:
@@ -155,7 +142,20 @@ class Visualizer:
         return self._player
 
     def current_player(self) -> "TrajectoryPlayer | None":
+        """Return the attached trajectory player, if any."""
         return self._player
+
+    def show_frame(self, k: int) -> None:
+        """Push trajectory frame ``k`` through the public playback surface."""
+        if self._player is None:
+            raise RuntimeError("add_trajectory() must be called before show_frame()")
+        self._player.show_frame(k)
+
+    def joint_primitive(self, joint_id: int) -> "PrimitiveHandle":
+        """Return a public handle for styling a joint sphere."""
+        self._ensure_server()
+        assert self._scene is not None
+        return self._scene.joint_primitive(joint_id)
 
     # ------------------------------------------------------------------
     # IK
@@ -204,21 +204,10 @@ class Visualizer:
         self._scene.add_mode(overlay)
         return overlay
 
-    # ------------------------------------------------------------------
-    # Future work (§10) — stubs kept so callers get a clear error
-    # ------------------------------------------------------------------
-
-    def record(self, *args: object, **kwargs: object) -> None:
-        raise NotImplementedError(_FUTURE_MSG_RECORD)
-
-    def add_robot(self, *args: object, **kwargs: object) -> None:
-        raise NotImplementedError(_FUTURE_MSG_MULTI)
-
     def scene(self, name: str | None = None) -> "Scene":
         """Return the active Scene (V1 has exactly one)."""
+        if name is not None:
+            raise ValueError("Visualizer owns exactly one unnamed scene")
         self._ensure_server()
         assert self._scene is not None
         return self._scene
-
-    def set_batch_index(self, idx: int) -> None:
-        raise NotImplementedError(_FUTURE_MSG_BATCH)

@@ -38,17 +38,6 @@ entries.
 - `src/better_robot/spatial/force.py`
 - `src/better_robot/tasks/ik.py`
 - `src/better_robot/tasks/trajopt.py`
-- `src/better_robot/viewer/camera.py`
-- `src/better_robot/viewer/interaction.py`
-- `src/better_robot/viewer/overlays/com.py`
-- `src/better_robot/viewer/overlays/path_trace.py`
-- `src/better_robot/viewer/overlays/residual_plot.py`
-- `src/better_robot/viewer/recorder.py`
-- `src/better_robot/viewer/render_modes/collision.py`
-- `src/better_robot/viewer/renderers/offscreen_backend.py`
-- `src/better_robot/viewer/renderers/viser_backend.py`
-- `src/better_robot/viewer/trajectory_player.py`
-- `src/better_robot/viewer/visualizer.py`
 <!-- not-implemented-inventory:end -->
 
 ## Dynamics
@@ -90,23 +79,12 @@ structure. The former retargeting placeholder was removed; see
 
 ## Viewer
 
-V1 ships interactive `Visualizer`, `Scene`, `SkeletonMode`,
-`URDFMeshMode`, `GridOverlay`, `FrameAxesOverlay`, `TargetsOverlay`,
-`ForceVectorsOverlay`, `ViserBackend`, `MockBackend`, `build_joint_panel`,
-and a minimal `TrajectoryPlayer` with `show_frame` and `play`. The
-``Backend`` suffix in this section names a scene renderer only; it is
-unrelated to algorithm compute lanes. The
-remaining pieces sit behind named placeholders so user code and tests
-have a target to reach for:
-
-| Symbol | File |
-|---|---|
-| `CollisionMode` | `viewer/render_modes/collision.py` |
-| `ComOverlay`, `PathTraceOverlay`, `ResidualPlotOverlay` | `viewer/overlays/{com,path_trace,residual_plot}.py` |
-| `VideoRecorder`, `render_trajectory` | `viewer/recorder.py` |
-| `OffscreenBackend` | `viewer/renderers/offscreen_backend.py` |
-| `TrajectoryPlayer.seek` / `.step` / `.pause` / `.set_speed` / `.set_loop` / `.set_ghost` / `.set_trace` / `.set_batch_index` | `viewer/trajectory_player.py` |
-| `CameraPath.orbit`, `CameraPath.follow_frame` | `viewer/camera.py` |
+The live viewer surface consists of `Visualizer`, `Scene`,
+`SkeletonMode`, `URDFMeshMode`, the grid, frame-axes, target, and force-vector
+overlays, `PrimitiveHandle`, `ViserBackend`, `MockBackend`,
+`build_joint_panel`, and integer-frame `TrajectoryPlayer` playback. The
+viewer currently has no explicit-raise roadmap entries: unsupported surfaces
+are omitted instead of shipping as importable placeholders.
 
 ## Compute lanes
 

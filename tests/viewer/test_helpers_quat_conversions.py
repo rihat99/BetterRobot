@@ -1,12 +1,11 @@
 """Tests for quaternion conversion helpers.
 
-See ``docs/concepts/viewer.md §13``.
+See ``docs/concepts/viewer.md``.
 """
 
 from __future__ import annotations
 
 import torch
-import pytest
 
 from better_robot.viewer.helpers import quat_xyzw_to_wxyz, quat_wxyz_to_xyzw
 

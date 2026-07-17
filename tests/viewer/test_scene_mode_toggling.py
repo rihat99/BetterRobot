@@ -1,16 +1,16 @@
 """Tests for Scene mode add/remove/visible/unavailable logic.
 
-Uses MockBackend — no viser, no pyrender.
+Uses MockBackend, so no interactive renderer is required.
 
-See ``docs/concepts/viewer.md §13``.
+See ``docs/concepts/viewer.md``.
 """
 
 from __future__ import annotations
 
 import pytest
-import torch
 
 import better_robot as br
+from better_robot.io.builders.smpl_like import make_smpl_like_body
 from better_robot.viewer.scene import Scene
 from better_robot.viewer.render_modes.skeleton import SkeletonMode
 from better_robot.viewer.render_modes.urdf_mesh import URDFMeshMode
@@ -46,7 +46,6 @@ def test_urdf_mesh_mode_available_from_urdf(panda, backend):
 
 def test_urdf_mesh_mode_unavailable_programmatic(backend):
     # A programmatic model has no ir in meta → unavailable
-    from better_robot.io.builders.smpl_like import make_smpl_like_body
     model = br.load(make_smpl_like_body)
     data = br.forward_kinematics(model, model.q_neutral)
     assert not URDFMeshMode.is_available(model, data)
@@ -61,7 +60,6 @@ def test_scene_default_has_urdf_mesh(panda, backend):
 
 def test_scene_default_has_skeleton(backend):
     # Programmatic model has no ir → Scene.default falls back to SkeletonMode
-    from better_robot.io.builders.smpl_like import make_smpl_like_body
     model = br.load(make_smpl_like_body)
     scene = Scene.default(model, backend=backend)
     avail = scene.available_modes()
@@ -110,7 +108,6 @@ def test_update_calls_set_transform(panda, backend):
 
 def test_unavailable_mode_not_attached(backend):
     """Programmatic model: URDFMeshMode unavailable, Skeleton is the fallback."""
-    from better_robot.io.builders.smpl_like import make_smpl_like_body
     model = br.load(make_smpl_like_body)
     b2 = MockBackend()
     scene = Scene.default(model, backend=b2)

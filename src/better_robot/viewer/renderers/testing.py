@@ -2,10 +2,10 @@
 
 A pure-Python implementation of ``RendererBackend`` that records every call
 into a log. Render-mode unit tests attach a mode to a ``MockBackend``, call
-``update(data)``, and assert on the recorded calls. No viser, no pyrender,
-no ffmpeg needed.
+``update(data)``, and assert on the recorded calls. No interactive renderer
+is needed.
 
-See ``docs/concepts/viewer.md §13``.
+See ``docs/concepts/viewer.md``.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ import torch
 @dataclass
 class Call:
     """One recorded backend call."""
+
     method: str
     args: tuple
     kwargs: dict
@@ -35,8 +36,9 @@ class MockBackend:
         # Track current state for convenience assertions
         self.transforms: dict[str, torch.Tensor] = {}
         self.visible: dict[str, bool] = {}
+        self.colors: dict[str, tuple[float, float, float, float]] = {}
+        self.scales: dict[str, float] = {}
         self.nodes: set[str] = set()
-        self._camera: Any = None
 
     def _record(self, method: str, *args: Any, **kwargs: Any) -> None:
         self.calls.append(Call(method=method, args=args, kwargs=kwargs))
@@ -54,14 +56,17 @@ class MockBackend:
         self.calls.clear()
         self.transforms.clear()
         self.visible.clear()
+        self.colors.clear()
+        self.scales.clear()
         self.nodes.clear()
 
     # ------------------------------------------------------------------
     # Geometry primitives
     # ------------------------------------------------------------------
 
-    def add_mesh(self, name: str, vertices: torch.Tensor, faces: torch.Tensor, *,
-                 rgba=(0.8, 0.8, 0.8, 1.0), parent=None) -> None:
+    def add_mesh(
+        self, name: str, vertices: torch.Tensor, faces: torch.Tensor, *, rgba=(0.8, 0.8, 0.8, 1.0), parent=None
+    ) -> None:
         self._record("add_mesh", name, vertices, faces, rgba=rgba, parent=parent)
         self.nodes.add(name)
         self.visible[name] = True
@@ -70,18 +75,16 @@ class MockBackend:
         self._record("add_sphere", name, radius=radius, rgba=rgba, parent=parent)
         self.nodes.add(name)
         self.visible[name] = True
+        self.colors[name] = rgba
+        self.scales[name] = 1.0
 
-    def add_cylinder(self, name: str, *, radius: float, length: float,
-                     rgba, parent=None) -> None:
-        self._record("add_cylinder", name, radius=radius, length=length,
-                     rgba=rgba, parent=parent)
+    def add_cylinder(self, name: str, *, radius: float, length: float, rgba, parent=None) -> None:
+        self._record("add_cylinder", name, radius=radius, length=length, rgba=rgba, parent=parent)
         self.nodes.add(name)
         self.visible[name] = True
 
-    def add_capsule(self, name: str, *, radius: float, length: float,
-                    rgba, parent=None) -> None:
-        self._record("add_capsule", name, radius=radius, length=length,
-                     rgba=rgba, parent=parent)
+    def add_capsule(self, name: str, *, radius: float, length: float, rgba, parent=None) -> None:
+        self._record("add_capsule", name, radius=radius, length=length, rgba=rgba, parent=parent)
         self.nodes.add(name)
         self.visible[name] = True
 
@@ -105,6 +108,8 @@ class MockBackend:
         self.nodes.discard(name)
         self.transforms.pop(name, None)
         self.visible.pop(name, None)
+        self.colors.pop(name, None)
+        self.scales.pop(name, None)
 
     def set_transform(self, name: str, pose: torch.Tensor) -> None:
         self._record("set_transform", name, pose)
@@ -114,15 +119,17 @@ class MockBackend:
         self._record("set_visible", name, visible)
         self.visible[name] = visible
 
-    def set_camera(self, camera: Any) -> None:
-        self._record("set_camera", camera)
-        self._camera = camera
+    def set_color(
+        self,
+        name: str,
+        rgba: tuple[float, float, float, float],
+    ) -> None:
+        self._record("set_color", name, rgba)
+        self.colors[name] = rgba
 
-    def capture_frame(self) -> "Any":
-        """Return a solid-colour (H, W, 3) uint8 array for testing."""
-        import numpy as np
-        self._record("capture_frame")
-        return (128 * torch.ones(64, 64, 3, dtype=torch.uint8)).numpy().astype("uint8")
+    def set_scale(self, name: str, scale: float) -> None:
+        self._record("set_scale", name, scale)
+        self.scales[name] = scale
 
     # ------------------------------------------------------------------
     def add_transform_control(
@@ -144,10 +151,8 @@ class MockBackend:
     def add_gui_button(self, label: str, callback: Any) -> None:
         self._record("add_gui_button", label)
 
-    def add_gui_slider(self, label: str, *, min: float, max: float,
-                       step: float, value: float, callback: Any) -> None:
-        self._record("add_gui_slider", label, min=min, max=max,
-                     step=step, value=value)
+    def add_gui_slider(self, label: str, *, min: float, max: float, step: float, value: float, callback: Any) -> None:
+        self._record("add_gui_slider", label, min=min, max=max, step=step, value=value)
 
     def add_gui_checkbox(self, label: str, *, value: bool, callback: Any) -> None:
         self._record("add_gui_checkbox", label, value=value)

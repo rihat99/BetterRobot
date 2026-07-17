@@ -26,8 +26,7 @@ class ViserBackend:
             import viser  # noqa: F401  (lazy — only imported here)
         except ImportError as exc:
             raise ImportError(
-                "viser is required for the interactive backend. "
-                "Install it with: pip install viser"
+                "viser is required for the interactive backend. Install it with: pip install viser"
             ) from exc
 
         import viser as _viser
@@ -139,8 +138,6 @@ class ViserBackend:
 
         Re-calling with the same ``name`` replaces the existing geometry.
         """
-        import numpy as np
-
         if name in self._nodes:
             self.remove(name)
 
@@ -189,11 +186,22 @@ class ViserBackend:
         if node is not None:
             node.visible = visible
 
-    def set_camera(self, camera: Any) -> None:
-        raise NotImplementedError("see docs/concepts/viewer.md §9")
+    def set_color(
+        self,
+        name: str,
+        rgba: tuple[float, float, float, float],
+    ) -> None:
+        """Set a primitive's RGB colour and opacity."""
+        node = self._nodes.get(name)
+        if node is not None:
+            node.color = tuple(int(c * 255) for c in rgba[:3])
+            node.opacity = float(rgba[3])
 
-    def capture_frame(self) -> "np.ndarray":  # type: ignore[name-defined]  # noqa: F821
-        raise NotImplementedError("see docs/concepts/viewer.md §9.6")
+    def set_scale(self, name: str, scale: float) -> None:
+        """Set a primitive's uniform scale."""
+        node = self._nodes.get(name)
+        if node is not None:
+            node.scale = float(scale)
 
     # ------------------------------------------------------------------
     # GUI controls
@@ -213,9 +221,7 @@ class ViserBackend:
         value: float,
         callback: Any,
     ) -> None:
-        slider = self._server.gui.add_slider(
-            label, min=min, max=max, step=step, initial_value=value
-        )
+        slider = self._server.gui.add_slider(label, min=min, max=max, step=step, initial_value=value)
         slider.on_update(callback)
 
     def add_gui_checkbox(self, label: str, *, value: bool, callback: Any) -> None:
@@ -259,9 +265,11 @@ class ViserBackend:
         self._nodes[name] = handle
 
         if on_update is not None:
+
             @handle.on_update
             def _cb(_evt: Any) -> None:
                 import numpy as np
+
                 pos_np = np.array(handle.position, dtype=np.float32)
                 wxyz_np = np.array(handle.wxyz, dtype=np.float32)
                 xyzw = quat_wxyz_to_xyzw(torch.from_numpy(wxyz_np))
@@ -295,8 +303,8 @@ class ViserBackend:
 
         n = 16
         faces: list[list[int]] = []
-        cb_idx = 2 * n       # center bottom
-        ct_idx = 2 * n + 1   # center top
+        cb_idx = 2 * n  # center bottom
+        ct_idx = 2 * n + 1  # center top
         for i in range(n):
             j = (i + 1) % n
             # side quad as two triangles

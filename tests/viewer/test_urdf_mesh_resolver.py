@@ -5,15 +5,15 @@ the parse-time resolver carried on ``Model.meta["asset_resolver"]`` is
 used. When no resolver is configured the raw ``IRGeom.params["path"]``
 is used unchanged (legacy behaviour).
 
-See ``docs/concepts/parsers_and_ir.md §6`` and ``docs/concepts/viewer.md §17``.
+See ``docs/concepts/parsers_and_ir.md`` and ``docs/concepts/viewer.md``.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 import pytest
+import torch
 
 from better_robot.io.assets import AssetResolver
 from better_robot.io.ir import IRGeom
@@ -73,8 +73,6 @@ def test_load_geom_routes_mesh_kind_through_resolver(monkeypatch: pytest.MonkeyP
     ``(None, rgba)``. The point of this test is to verify the resolver
     saw the call.
     """
-    import torch
-
     geom = IRGeom(
         kind="mesh",
         params={"path": "foo.obj", "scale": [1.0, 1.0, 1.0]},
@@ -95,8 +93,6 @@ def test_load_geom_primitives_ignore_resolver():
     """``box``/``cylinder``/``sphere``/``capsule`` don't have file paths,
     so the resolver must not be consulted for them.
     """
-    import torch
-
     r = _RecordingResolver()
     geom = IRGeom(
         kind="box",

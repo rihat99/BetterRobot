@@ -19,11 +19,9 @@ def register_mode(cls: type) -> type:
 # Register built-in modes
 from .skeleton import SkeletonMode  # noqa: E402
 from .urdf_mesh import URDFMeshMode  # noqa: E402
-from .collision import CollisionMode  # noqa: E402
 
 register_mode(SkeletonMode)
 register_mode(URDFMeshMode)
-register_mode(CollisionMode)
 
 __all__ = [
     "MODE_REGISTRY",
@@ -32,5 +30,4 @@ __all__ = [
     "RenderMode",
     "SkeletonMode",
     "URDFMeshMode",
-    "CollisionMode",
 ]

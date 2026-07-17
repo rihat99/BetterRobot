@@ -2,12 +2,9 @@
 
 A ``Scene`` owns the set of attached render modes, keeps the per-mode
 visible flags, and routes every ``update()`` to exactly the visible
-modes. It is the extensibility point for future render modes.
+modes. It is the extensibility point for render modes.
 
-V1 intentionally drops the robot_collision argument and the
-batch-axis picker — see ``docs/concepts/viewer.md §6`` and §10.9.
-
-See ``docs/concepts/viewer.md §6``.
+See ``docs/concepts/viewer.md``.
 """
 
 from __future__ import annotations
@@ -17,7 +14,9 @@ from typing import TYPE_CHECKING, Any
 import torch
 
 from .themes import DEFAULT_THEME, Theme
+from .render_modes.skeleton import SkeletonMode
 from .render_modes.base import RenderContext
+from .primitive import PrimitiveHandle
 
 if TYPE_CHECKING:
     from ..data_model.data import Data
@@ -93,17 +92,10 @@ class Scene:
 
         name = mode.name
 
-        # Check availability — most modes use (model, data); the
-        # CollisionMode stub additionally accepts a robot_collision kwarg
-        # which is not used in V1.
-        try:
-            available = mode.is_available(self._model, self._last_data or _empty_data(self._model))
-        except TypeError:
-            available = mode.is_available(
-                self._model,
-                self._last_data or _empty_data(self._model),
-                robot_collision=None,
-            )
+        available = mode.is_available(
+            self._model,
+            self._last_data or _empty_data(self._model),
+        )
 
         self._modes[name] = mode
         self._visible[name] = True
@@ -138,6 +130,18 @@ class Scene:
         if mode is not None and mode_name in self._available:
             mode.set_visible(visible)
             self._visible[mode_name] = visible
+
+    def joint_primitive(self, joint_id: int) -> "PrimitiveHandle":
+        """Return a public style handle for a joint's skeleton sphere.
+
+        A skeleton layer is attached lazily when the default scene selected
+        the URDF mesh as its primary render mode.
+        """
+        mode = self._modes.get(SkeletonMode.name)
+        if mode is None:
+            mode = SkeletonMode()
+            self.add_mode(mode)
+        return mode.joint_primitive(joint_id)
 
     # ------------------------------------------------------------------
     # State updates

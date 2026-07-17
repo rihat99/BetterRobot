@@ -1,14 +1,12 @@
 """Tests that SkeletonMode sphere/cylinder transforms match
 ``data.joint_pose_world``.
 
-Uses MockBackend — no viser, no pyrender.
+Uses MockBackend, so no interactive renderer is required.
 
-See ``docs/concepts/viewer.md §13``.
+See ``docs/concepts/viewer.md``.
 """
 
 from __future__ import annotations
-
-import math
 
 import pytest
 import torch
@@ -130,11 +128,11 @@ def test_align_z_to_vec_x():
     d = torch.tensor([1.0, 0.0, 0.0])
     q = _align_z_to_vec(d)
     # Apply rotation to z-axis and check it points along x
-    qx, qy, qz, qw = q[0], q[1], q[2], q[3]
+    qw = q[3]
     # Rotate [0,0,1] by q
     # Using v' = q v q*
     v = torch.tensor([0.0, 0.0, 1.0])
     # Manual quaternion rotation
-    t = 2.0 * torch.cross(q[:3], v)
-    rotated = v + qw * t + torch.cross(q[:3], t)
+    t = 2.0 * torch.cross(q[:3], v, dim=0)
+    rotated = v + qw * t + torch.cross(q[:3], t, dim=0)
     assert torch.allclose(rotated, d / d.norm(), atol=1e-5)

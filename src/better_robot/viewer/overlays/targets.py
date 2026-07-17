@@ -54,9 +54,7 @@ class TargetsOverlay:
         on_change: Callable[[dict[str, torch.Tensor]], None] | None = None,
         scale: float = 0.15,
     ) -> None:
-        self._targets: dict[str, torch.Tensor] = {
-            k: v.clone() for k, v in targets.items()
-        }
+        self._targets: dict[str, torch.Tensor] = {k: v.clone() for k, v in targets.items()}
         self._on_change = on_change
         self._scale = scale
         self._ctx: RenderContext | None = None
@@ -86,7 +84,7 @@ class TargetsOverlay:
         re-read from the underlying transform-controls handle, whose
         ``.position`` / ``.wxyz`` viser keeps in sync with the browser
         as the user drags. On non-interactive backends (``MockBackend``
-        and the future ``OffscreenBackend``) there are no handles, so
+        and headless test backends) there are no handles, so
         this falls back to :meth:`targets`.
 
         This is the primary entry point for the interactive-IK loop —
@@ -96,6 +94,7 @@ class TargetsOverlay:
             return self.targets
 
         import numpy as np
+
         out: dict[str, torch.Tensor] = {}
         for frame_name, handle in self._handles.items():
             if handle is None:
@@ -175,12 +174,12 @@ class TargetsOverlay:
     # Internal
     # ------------------------------------------------------------------
 
-    def _make_callback(
-        self, frame_name: str
-    ) -> Callable[[torch.Tensor], None]:
+    def _make_callback(self, frame_name: str) -> Callable[[torch.Tensor], None]:
         """Return a closure that updates the targets dict and fires on_change."""
+
         def _cb(new_pose: torch.Tensor) -> None:
             self._targets[frame_name] = new_pose.clone()
             if self._on_change is not None:
                 self._on_change(dict(self._targets))
+
         return _cb

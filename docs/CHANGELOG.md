@@ -38,7 +38,7 @@ The first stable release of the PyTorch-native BetterRobot stack.
 - **Asset resolution.** `AssetResolver` Protocol with `Filesystem`,
   `Package`, `Composite`, and `CachedDownload` resolvers; mesh path
   logic lives in one place.
-- **Viewer V1.** `Visualizer` with viser backend, `SkeletonMode`,
+- **Viewer.** `Visualizer` with viser backend, `SkeletonMode`,
   `URDFMeshMode`, draggable IK target gizmos, frame-axes / grid /
   force-vector overlays, minimal `TrajectoryPlayer`.
 - **Public API.** 26 frozen symbols at `better_robot.__init__`,
@@ -71,7 +71,4 @@ listed on the project roadmap:
   `SelfCollisionResidual`, `WorldCollisionResidual`,
   `JointAccelLimit`.
 - Tasks: `retarget`.
-- Viewer: `CollisionMode`, `ComOverlay`, `PathTraceOverlay`,
-  `ResidualPlotOverlay`, `VideoRecorder`, `OffscreenBackend`,
-  transport controls, camera paths, multi-robot sessions.
 - Backends: Warp kernels.

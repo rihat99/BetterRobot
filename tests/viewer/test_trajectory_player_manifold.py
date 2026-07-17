@@ -1,14 +1,6 @@
-"""V1 ``TrajectoryPlayer`` covers only straight-through, frame-indexed
-playback.  Manifold interpolation and transport controls (seek, step,
-speed, loop, ghost, trace) come back with ``docs/concepts/viewer.md §10.3``.
-
-This file covers the V1 surface; the richer-interpolation tests return
-in future work under the same filename.
-"""
+"""``TrajectoryPlayer`` straight-through, frame-indexed playback tests."""
 
 from __future__ import annotations
-
-import math
 
 import pytest
 import torch
@@ -100,7 +92,7 @@ def test_play_completes_without_error(panda):
 
 
 def test_seek_frame_alias(panda):
-    """``seek_frame`` is kept as an alias for ``show_frame`` in V1."""
+    """``seek_frame`` is an alias for ``show_frame``."""
     scene, backend = _make_scene(panda)
     q0 = panda.q_neutral.clamp(panda.lower_pos_limit, panda.upper_pos_limit)
     traj = _make_trajectory(panda, q0, q0, T=4)
@@ -108,13 +100,3 @@ def test_seek_frame_alias(panda):
     backend.reset()
     player.seek_frame(2)
     assert len(backend.calls_for("set_transform")) > 0
-
-
-def test_seek_is_future_work(panda):
-    """The normalised-cursor seek is §10.3 and raises NotImplementedError."""
-    scene, _ = _make_scene(panda)
-    q0 = panda.q_neutral.clamp(panda.lower_pos_limit, panda.upper_pos_limit)
-    traj = _make_trajectory(panda, q0, q0, T=3)
-    player = TrajectoryPlayer(scene, traj)
-    with pytest.raises(NotImplementedError, match="§10.3"):
-        player.seek(0.5)

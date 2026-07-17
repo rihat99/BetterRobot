@@ -1,117 +1,72 @@
 # Viewer
 
-The viewer is the topmost layer in the DAG: nothing imports from it.
-Its job is to turn `Model`, `Data`, and `Trajectory` into something a
-user can see in a browser — without dragging any visualisation
-dependency into the core. A user who never calls
-`Visualizer.show()` should not pay for `viser`, `trimesh`, or any of
-the rendering machinery on `import better_robot`.
+The viewer is the topmost layer in the dependency graph: nothing in the
+robotics core imports it. It turns `Model`, `Data`, and `Trajectory` objects
+into an interactive browser scene without making rendering dependencies part
+of the core import path.
 
 Names such as `RendererBackend`, `ViserBackend`, and `MockBackend` in this
-chapter refer only to scene rendering. They are unrelated to algorithm
-compute lanes.
+chapter refer to scene rendering. They are unrelated to the Torch and Warp
+algorithm lanes.
 
-The deliberate choice is to ship a small, opinionated V1: an
-interactive viser-backed renderer with two render modes (skeleton,
-URDF mesh), a small overlay set (grid, frame axes, force vectors,
-draggable IK target gizmos), and a minimal trajectory player that
-can `show_frame(k)` and `play(fps=30)`. Everything more ambitious —
-video recording, offscreen rendering, scrub-bar transport controls,
-COM / path-trace / residual-plot overlays, multi-robot sessions,
-camera paths — is reserved as a placeholder. The placeholders raise
-`NotImplementedError` with a pointer to {doc}`/reference/roadmap`,
-so user code that imports them keeps working at static-analysis time
-even before the body lands.
+## Shipped surface
 
-This chapter covers what V1 does and the seams that make later
-expansion additive rather than disruptive.
+- `Visualizer` is the interactive viser-backed facade.
+- `Scene` composes render modes and overlays for one robot.
+- `SkeletonMode` works for every `Model`; `URDFMeshMode` renders visual
+  geometry when parser IR is available.
+- `GridOverlay`, `FrameAxesOverlay`, `TargetsOverlay`, and
+  `ForceVectorsOverlay` are live composable overlays.
+- `TrajectoryPlayer` supports integer-frame `show_frame`, its `seek_frame`
+  alias, and blocking straight-through `play`.
+- `PrimitiveHandle` provides backend-neutral colour and scale updates for
+  rendered joint spheres.
+- `ViserBackend` is the interactive backend. `MockBackend` is the headless,
+  in-memory implementation used by tests.
 
-## V1 scope
-
-- **Interactive browser visualisation only.** `Visualizer(model).show()`
-  opens a viser session and draws the robot. That is the one happy
-  path.
-- **Two render modes.** `SkeletonMode` works on any `Model`.
-  `URDFMeshMode` is selected automatically when the robot was loaded
-  from a URDF / MJCF (i.e. `model.meta["ir"]` is populated).
-- **`Scene` composes render modes.** Users (or `Scene.default`) attach
-  zero-or-more modes; the scene routes kinematics updates to each
-  one. This is the extensibility point for future modes.
-- **Draggable IK target gizmos.** `add_ik_targets` drops a
-  `TargetsOverlay` that renders each target as a frame triad plus a
-  draggable SE(3) transform control. On every drag, an `on_change`
-  callback fires with the updated targets dict, so callers can
-  re-solve IK in the loop.
-- **Straight-through trajectory playback.** A `TrajectoryPlayer`
-  pushes a given frame of a `(B, T, nq)` `Trajectory` to the scene.
-  No scrub bar, no speed control, no loop toggle — just `show_frame`
-  and `play`. (Transport controls are reserved for a later
-  milestone.)
-- **Backend-agnostic render modes.** Modes speak only to the
-  `RendererBackend` Protocol. V1 ships one real backend
-  (`ViserBackend`) plus `MockBackend` for tests. Additional backends
-  (offscreen pyrender, playwright capture) land later as drop-ins.
-- **No viser import at package import time.** `import better_robot`
-  and `import better_robot.viewer` work on machines without viser
-  installed; the import only fires when `Visualizer.show()` (or
-  direct `ViserBackend(...)`) is first called.
-- **Public API ceiling preserved.** `Visualizer` lives at
-  `better_robot.viewer.Visualizer`, not in `better_robot.__all__`.
+Unsupported capabilities are omitted from the public surface rather than
+represented by importable placeholders.
 
 ## Directory layout
 
-```
+```text
 src/better_robot/viewer/
-├── visualizer.py              # Visualizer — thin facade
-├── scene.py                   # Scene — render-mode composition
-├── trajectory_player.py       # TrajectoryPlayer — show_frame / play
-├── camera.py                  # Camera dataclass (+ CameraPath stubs)
-├── themes.py                  # Theme dataclass + DEFAULT_THEME
-├── helpers.py                 # xyzw ↔ wxyz quaternion conversions
-├── panels.py                  # build_joint_panel (viser-only sliders)
-├── interaction.py             # GizmoHandle / FramePicker
-├── recorder.py                # VideoRecorder + render_trajectory (stub)
-│
+├── __init__.py
+├── visualizer.py              # Interactive facade
+├── scene.py                   # Render-mode composition
+├── trajectory_player.py       # Integer-frame playback
+├── primitive.py               # Public primitive style handle
+├── themes.py                  # Theme and DEFAULT_THEME
+├── helpers.py                 # xyzw ↔ wxyz conversions
+├── panels.py                  # Interactive joint sliders
 ├── renderers/
 │   ├── base.py                # RendererBackend protocol
-│   ├── viser_backend.py       # V1 — real implementation (lazy viser import)
-│   ├── offscreen_backend.py   # stub
-│   └── testing.py             # MockBackend — records every call
-│
+│   ├── viser_backend.py       # Interactive implementation
+│   └── testing.py             # Headless MockBackend
 ├── render_modes/
-│   ├── base.py                # RenderMode protocol + RenderContext
-│   ├── skeleton.py            # V1 — always available
-│   ├── urdf_mesh.py           # V1 — trimesh-backed, available iff URDF-loaded
-│   └── collision.py           # stub
-│
+│   ├── base.py                # RenderMode and RenderContext
+│   ├── skeleton.py            # Model-independent skeleton
+│   └── urdf_mesh.py           # Parser-IR visual geometry
 └── overlays/
-    ├── grid.py                # V1 — ground grid + world triad
-    ├── frame_axes.py          # V1 — coordinate triads on named frames
-    ├── targets.py             # V1 — draggable IK gizmos
-    ├── force_vectors.py       # V1 — force-vector arrows
-    ├── path_trace.py          # stub
-    ├── com.py                 # stub
-    └── residual_plot.py       # stub
+    ├── grid.py
+    ├── frame_axes.py
+    ├── targets.py
+    └── force_vectors.py
 ```
 
-## Render modes — the layer system
+## Render modes
 
-The central abstraction is `RenderMode`: a small object that knows
-how to attach itself to a backend for a given `Model`, how to update
-its nodes from a new `Data`, and how to tear itself down. A `Scene`
-holds any number of render modes — typically one "primary" mode plus
-zero or more overlays — and routes each update to exactly the
-visible modes.
-
-### `RenderMode` Protocol
+`RenderMode` is the layer contract. A mode knows whether it can render a
+model, how to attach its primitives to a backend, how to update those
+primitives from new kinematics data, and how to detach them.
 
 ```python
 @dataclass
 class RenderContext:
-    backend: Any                    # RendererBackend instance
-    namespace: str                  # e.g. "/robot/skeleton"
+    backend: RendererBackend
+    namespace: str
     batch_index: int = 0
-    theme: Any = None
+    theme: Theme | None = None
 
 @runtime_checkable
 class RenderMode(Protocol):
@@ -127,214 +82,158 @@ class RenderMode(Protocol):
     def detach(self) -> None: ...
 ```
 
-Source: `src/better_robot/viewer/render_modes/base.py`. `is_available`
-is what makes the UI show a toggle for a mode *iff* the loaded robot
-can support it. `Scene` queries it once per registered mode at
-attach time and quietly skips modes that cannot render the given
-robot.
-
 ### `SkeletonMode`
 
-Always available. For every articulated joint `j` (`nv > 0`), draws
-a sphere at `data.joint_pose_world[j, :3]`. For every non-root joint
-with parent `p`, draws a cylinder between
-`data.joint_pose_world[p, :3]` and `data.joint_pose_world[j, :3]`.
-Degenerate (zero-length) cylinders are skipped. This is the only
-mode that works for programmatically-built robots (SMPL-like bodies,
-Python-DSL humanoids) that never go through a URDF.
+`SkeletonMode` is always available. It draws a sphere for every articulated
+joint and a cylinder from each non-root joint to its parent. Each update reads
+`data.joint_pose_world`; zero-length cylinders are skipped.
+
+The sphere for an articulated joint has a public styling seam:
+
+```python
+handle = scene.joint_primitive(joint_id)
+handle.set_color((0.2, 0.5, 0.9, 1.0))
+handle.set_scale(1.4)
+```
+
+`Scene.joint_primitive` attaches a skeleton layer lazily when the default
+scene chose mesh rendering as its primary mode. Callers therefore do not need
+to inspect the scene's modes or renderer backend.
 
 ### `URDFMeshMode`
 
-Loads `IRBody.visual_geoms` off the `IRModel` captured at load time
-(`model.meta["ir"]`). Mesh URIs resolve through the `AssetResolver`
-on `model.meta["asset_resolver"]` (set by the URDF / MJCF parser at
-parse time). The viewer never re-implements URDF path logic; it
-delegates to the resolver:
+`URDFMeshMode` reads `IRBody.visual_geoms` from the parser IR stored in
+`model.meta["ir"]`. Mesh URIs are resolved through the `AssetResolver` stored
+in `model.meta["asset_resolver"]`, or through an explicit resolver passed to
+the mode. The viewer does not duplicate parser path rules.
 
-```python
-class URDFMeshMode(RenderMode):
-    def __init__(self, *, resolver: AssetResolver | None = None) -> None:
-        self._resolver = resolver  # if None, read model.meta["asset_resolver"]
-```
+Analytical primitives are tessellated through `trimesh`. A visual geometry
+that cannot be loaded is skipped without preventing the rest of the robot
+from rendering.
 
-Each geom is tessellated through `trimesh` and pushed to the backend
-via `add_mesh`. Analytical primitives (`<box>`, `<cylinder>`,
-`<sphere>`, `<capsule>`) are handled by `trimesh.creation.*`.
-Loading failures skip the geom silently rather than crashing the
-whole viewer.
+### Registry
 
-### Mode registry
-
-```python
-MODE_REGISTRY: dict[str, type[RenderMode]] = {}
-
-def register_mode(cls: type[RenderMode]) -> type[RenderMode]:
-    MODE_REGISTRY[cls.__name__] = cls
-    return cls
-```
-
-Built-in modes register themselves at import time. Third-party modes
-use the same decorator; `Scene` iterates `MODE_REGISTRY.values()` at
-attach time, so future custom modes show up automatically.
+Built-in render modes are registered in `MODE_REGISTRY`. Third-party code can
+use `register_mode` for discovery, then explicitly add an instance with
+`Scene.add_mode`.
 
 ## Overlays
 
-Overlays are `RenderMode`s with a different mental category: they
-paint *on top of* a primary mode, they are small, and they compose
-freely.
+Overlays implement the same lifecycle as render modes and compose on top of a
+primary robot representation.
 
-| Overlay | Status | Pulls from |
-|---------|--------|------------|
-| `GridOverlay` | V1 | static — ground plane + world-frame triad |
-| `FrameAxesOverlay` | V1 | `data.frame_pose_world[frame_id]` |
-| `TargetsOverlay` | V1 | `dict[str, SE3]` — draggable IK gizmos |
-| `ForceVectorsOverlay` | V1 | per-frame wrench vectors |
-| `PathTraceOverlay` | stub | trajectory + frame_id |
-| `ComOverlay` | stub | `dynamics.center_of_mass` |
-| `ResidualPlotOverlay` | stub | `optim.history` |
+| Overlay | Input |
+|---|---|
+| `GridOverlay` | Static ground grid and world triad |
+| `FrameAxesOverlay` | `data.frame_pose_world` |
+| `TargetsOverlay` | Named SE(3) targets, with viser transform controls |
+| `ForceVectorsOverlay` | Per-frame anchor positions and force vectors |
 
-## `Scene` — layer composition
+`TargetsOverlay` fires an optional callback after an interactive target drag.
+On `MockBackend` it still draws target frames, but does not create interactive
+controls.
+
+`ForceVectorsOverlay.update_frame(anchors, forces)` is driven by the caller's
+animation loop. Near-zero vectors are hidden; nonzero vectors are drawn as
+world-frame arrows with length proportional to force magnitude.
+
+## `Scene`
+
+`Scene` owns one model, one backend, and a set of modes. It routes a kinematics
+update only to attached, available, visible modes.
 
 ```python
 class Scene:
-    def __init__(
-        self,
-        model: Model,
-        *,
-        backend: RendererBackend,
-        namespace: str = "/robot",
-        theme: Theme | None = None,
-    ) -> None: ...
-
     def add_mode(self, mode: RenderMode) -> None: ...
     def remove_mode(self, mode_name: str) -> None: ...
     def available_modes(self) -> list[str]: ...
     def set_mode_visible(self, mode_name: str, visible: bool) -> None: ...
 
     def update(self, data: Data) -> None: ...
-    def update_from_q(self, q: torch.Tensor) -> None:
-        """Run FK (+ update_frame_placements) and push to all modes."""
+    def update_from_q(self, q: torch.Tensor) -> None: ...
+    def joint_primitive(self, joint_id: int) -> PrimitiveHandle: ...
 
     @classmethod
-    def default(cls, model, *, backend, theme=None) -> "Scene":
-        """Attach URDFMeshMode if available else SkeletonMode, plus
-        GridOverlay and FrameAxesOverlay."""
+    def default(cls, model, *, backend, theme=None) -> "Scene": ...
 ```
 
-`Scene.default(...)` is what `Visualizer` uses. Power users who want
-a non-default composition construct a `Scene` by hand and `add_mode`
-their own.
+`Scene.default` selects `URDFMeshMode` when visual parser IR exists and
+otherwise selects `SkeletonMode`. It also adds the grid and frame-axes
+overlays.
 
-## `Visualizer` — top-level facade
+Power users can construct `Scene(model, backend=...)` directly and add only
+the layers they need.
+
+## `Visualizer`
+
+`Visualizer` owns a `ViserBackend` and a default `Scene`. Backend creation is
+lazy: importing `better_robot.viewer` does not import viser, and the server is
+created only when an operation needs the scene.
 
 ```python
-class Visualizer:
-    """Top-level viser-backed visualiser.
+viewer = Visualizer(model, port=8080)
+viewer.update(q)
 
-    Example
-    -------
-    >>> viewer = Visualizer(model, port=8080)
-    >>> viewer.show()                   # opens browser, blocks for lifetime
-    >>> viewer.update(q)                # single-pose update
-    >>> viewer.add_trajectory(traj)     # play through the sequence
-    """
+player = viewer.add_trajectory(trajectory)
+viewer.show_frame(12)              # same playback path as player.show_frame(12)
 
-    def __init__(self, model: Model, *, port: int = 8080,
-                 theme: Theme | None = None) -> None: ...
+joint = viewer.joint_primitive(2)
+joint.set_color((0.9, 0.25, 0.15, 1.0))
+joint.set_scale(1.25)
 
-    def show(self, *, block: bool = True) -> None: ...
-    def close(self) -> None: ...
-
-    def update(self, q_or_data: torch.Tensor | Data) -> None: ...
-
-    @property
-    def last_q(self) -> torch.Tensor: ...
-
-    def add_trajectory(self, trajectory: Trajectory) -> "TrajectoryPlayer": ...
-
-    def add_ik_result(self, result: IKResult) -> None: ...
-
-    def add_ik_targets(
-        self,
-        targets: dict[str, torch.Tensor],
-        *,
-        on_change: Callable[[dict[str, torch.Tensor]], None] | None = None,
-        scale: float = 0.15,
-    ) -> "TargetsOverlay": ...
+viewer.show()
 ```
 
-`Visualizer` is intentionally thin: it owns one `ViserBackend`, one
-`Scene.default`, and forwards `update` to the scene. `ViserBackend`
-is constructed lazily inside `_ensure_server()` — the first call to
-`show()` / `update()` / `add_trajectory()` triggers the viser
-import. `record`, `add_robot`, and `set_batch_index` live as stubs
-that raise `NotImplementedError` pointing at the roadmap.
+The facade also provides:
 
-### Interactive IK with `add_ik_targets`
+- `add_ik_result(result)` to display a solved configuration;
+- `add_ik_targets(targets, on_change=...)` for an interactive IK loop;
+- `current_player()` to read the attached player;
+- `scene()` for callers that need to add a live mode or overlay; and
+- `close()` for best-effort session teardown.
 
-`add_ik_targets` drops a `TargetsOverlay` onto the active scene
-through the same `Scene.add_mode` lifecycle as any other render mode.
-Each target renders as a frame triad (visible everywhere) plus a
-draggable SE(3) transform control (on interactive backends only). On
-every drag the overlay updates its internal targets dict and fires
-the caller's `on_change` hook with the full updated dict — the
-caller re-solves IK and pushes the new configuration via
-`Visualizer.update`.
+### Interactive IK
 
 ```python
 viewer = Visualizer(model)
 viewer.update(q0)
 
 def on_move(new_targets):
-    r = br.solve_ik(model, new_targets, initial_q=viewer.last_q)
-    viewer.update(r.q)
+    result = br.solve_ik(model, new_targets, initial_q=viewer.last_q)
+    viewer.update(result.q)
 
-viewer.add_ik_targets({ee_frame: T_target}, on_change=on_move)
+viewer.add_ik_targets({end_effector: target_pose}, on_change=on_move)
 viewer.show()
 ```
 
-`examples/01_basic_ik.py` is the single-target Panda version;
-`examples/02_g1_ik.py` is the floating-base G1 version with four
-simultaneous whole-body targets. Both warm-start each IK solve from
-the previous configuration so interactive dragging converges in
-milliseconds.
-
-On non-interactive backends (`MockBackend`) the overlay still draws
-the frame triads but no gizmos — useful for static rendering of an
-IK target dataset. Callbacks never fire on those backends.
+Each target is always rendered as a frame triad. On the interactive backend,
+dragging its transform control updates the target dictionary and calls
+`on_change`.
 
 ## Trajectory playback
 
+`TrajectoryPlayer` drives batch element zero of a `(B, T, nq)` `Trajectory`
+by integer frame index.
+
 ```python
-class TrajectoryPlayer:
-    """Drives a Scene through a (B, T, nq) Trajectory frame-by-frame.
-
-    V1 is deliberately tiny: show a given frame index, or loop
-    through all frames at a fixed fps. No scrub bar, no speed, no
-    loop toggle, no ghost / trace, no manifold interpolation between
-    keyframes.
-    """
-
-    def __init__(self, scene: Scene, trajectory: Trajectory) -> None: ...
-
-    @property
-    def horizon(self) -> int: ...
-
-    def show_frame(self, k: int) -> None: ...
-
-    def play(self, *, fps: float = 30.0) -> None: ...
+player = TrajectoryPlayer(scene, trajectory)
+player.show_frame(4)
+player.seek_frame(4)  # alias
+player.play(fps=30.0)
 ```
 
-That is it — no seek, no step, no speed, no loop. Users who want
-looping wrap `play()` in a `while True:`. Users who want scrubbing
-get it back when the transport-controls milestone lands.
+Construction pushes frame zero immediately. Frame indices are clamped to the
+valid range. `play` is a blocking pass from frame zero through `T - 1`; an
+`fps` value of zero disables sleeping, which is useful in headless tests.
 
-Because V1 plays only integer frame indices, there is no need for
-`model.integrate` / `model.difference`-based interpolation between
-keyframes — that correctness requirement returns when seek-to-arbitrary-
-cursor comes back with the transport controls.
+Playback intentionally operates on stored knots. It does not interpolate an
+arbitrary cursor between configurations.
 
-## `RendererBackend` Protocol
+## `RendererBackend`
+
+Render modes depend on a small protocol rather than on viser directly. The
+protocol covers geometry creation, removal, pose and visibility updates,
+colour and uniform-scale updates, and optional GUI controls.
 
 ```python
 @runtime_checkable
@@ -349,143 +248,70 @@ class RendererBackend(Protocol):
     def add_frame(self, name, *, axes_length=0.1) -> None: ...
 
     def remove(self, name) -> None: ...
-    def set_transform(self, name, pose) -> None:    # pose is (7,) xyzw
-        ...
+    def set_transform(self, name, pose) -> None: ...
     def set_visible(self, name, visible) -> None: ...
-
-    # Optional GUI hooks (viser only)
-    def add_gui_button(self, label, callback) -> None: ...
-    def add_gui_slider(self, label, *, min, max, step, value, callback) -> None: ...
-    def add_gui_checkbox(self, label, *, value, callback) -> None: ...
+    def set_color(self, name, rgba) -> None: ...
+    def set_scale(self, name, scale) -> None: ...
 ```
 
-Source: `src/better_robot/viewer/renderers/base.py`. The protocol is
-deliberately small: mesh, sphere, cylinder, capsule, frame, transform
-/ visibility updates, plus three GUI primitives. `capture_frame` and
-`set_camera` are *not* on the V1 protocol — they come back with the
-offscreen backend milestone.
+`ViserBackend` maps these operations to `server.scene` nodes. Quaternion
+conversion is centralized in `viewer/helpers.py`: BetterRobot uses scalar-last
+`[qx, qy, qz, qw]`, while viser uses scalar-first `[w, x, y, z]`.
 
-### `ViserBackend`
-
-The one real V1 backend. Lazily imports `viser` on construction and
-maps each backend primitive onto the corresponding `server.scene.*`
-call. `wxyz` / `xyzw` quaternion conversions go through
-`viewer/helpers.py`. GUI hooks (`add_gui_button`, slider, checkbox)
-map onto `server.gui.*`.
-
-### `MockBackend`
-
-Pure-Python implementation of the protocol — every call is recorded
-into a list for test assertions. Render-mode unit tests attach a
-mode to a `MockBackend`, call `update(data)`, and check the recorded
-calls. No viser, no pyrender, no ffmpeg needed.
-
-## Future expansion
-
-Everything below is a placeholder in the source tree: the file,
-class, or function exists so the surrounding code has a named
-target, but the body raises `NotImplementedError` pointing at the
-roadmap.
-
-- **Video recording.** `viewer/recorder.py` defines `VideoRecorder`
-  and `render_trajectory`. The future implementation routes frames
-  through the `RendererBackend` capture path and encodes via
-  `imageio-ffmpeg`.
-- **Offscreen rendering.** `viewer/renderers/offscreen_backend.py`
-  defines `OffscreenBackend`. The future implementation uses
-  `pyrender` with EGL (Linux) or OSMesa (pure-CPU). When it lands,
-  `RendererBackend` gains `capture_frame() → ndarray` and
-  `set_camera(camera)`.
-- **Transport controls.** `TrajectoryPlayer` gains `play / pause /
-  seek / seek_frame / step / set_speed / set_loop`, plus ghost
-  (faded skeleton every N frames) and trace (swept frame path). The
-  cursor becomes a normalised float `t ∈ [0, 1]` with manifold
-  interpolation between keyframes (geodesic for SE(3) / SO(3)).
-- **Collision capsules.** `CollisionMode` becomes a real mode backed
-  by `RobotCollision.world_capsules(data)`.
-- **Secondary overlays.** `ComOverlay` requires `center_of_mass`
-  (live); `ResidualPlotOverlay` requires `optim.history`;
-  `PathTraceOverlay` is `frame_id + Trajectory` plus a series of
-  sphere markers on the world-frame sweep.
-- **Camera paths.** `CameraPath.orbit` / `follow_frame` / `static`
-  become real, and `RendererBackend.set_camera` comes back.
-- **Multi-robot sessions.** `Visualizer.add_robot(model, *, name,
-  namespace)` gets a real body, with one `Scene` per robot and
-  independent UI groups.
-- **Batch-axis picker.** `Scene.set_batch_index(idx)` and a `(B, T,
-  nq)` picker in the UI panel.
+`MockBackend` records every call and keeps the latest transforms, visibility,
+colours, and scales in memory. This supports full scene, styling, and playback
+tests without a browser or rendering process.
 
 ## Dependency hygiene
 
-| Import | Allowed in | Why |
-|--------|------------|-----|
-| `viser` | `viewer/renderers/viser_backend.py` only | V1 backend |
-| `pyrender` | `viewer/renderers/offscreen_backend.py` only | Future offscreen |
-| `trimesh` | `viewer/render_modes/urdf_mesh.py` only | Mesh I/O |
-| `imageio` / `imageio-ffmpeg` | `viewer/recorder.py` only | Future video |
-| `playwright` | `viewer/renderers/viser_backend.py` (lazy) | Future browser capture |
-| `numpy` | anywhere in `viewer/*` | Conversion layer |
-| `torch` | anywhere in `viewer/*` | Canonical type |
+| Import | Allowed in | Reason |
+|---|---|---|
+| `viser` | `viewer/renderers/viser_backend.py` only | Interactive backend |
+| `trimesh` | `viewer/render_modes/urdf_mesh.py` only | Visual mesh loading |
+| `torch` | Anywhere in `viewer/*` | Canonical tensor type |
 
-**Render modes** in `viewer/render_modes/*` may import neither
-`viser` nor `pyrender` — they only talk to the `RendererBackend`
-Protocol. This is what keeps the same mode code compatible with
-every future backend. `tests/contract/test_layer_dependencies.py`
-enforces these rules with the same AST walker as the rest of the
-DAG.
+Render modes and overlays do not import viser. `import better_robot.viewer`
+therefore remains safe on machines where the optional interactive dependency
+is absent.
 
 ## Public API
 
-```python
-# src/better_robot/viewer/__init__.py
-from . import helpers
-from .camera import Camera
-from .render_modes.base import RenderContext, RenderMode
-from .render_modes.skeleton import SkeletonMode
-from .render_modes.urdf_mesh import URDFMeshMode
-from .renderers.base import RendererBackend
-from .renderers.viser_backend import ViserBackend
-from .scene import Scene
-from .trajectory_player import TrajectoryPlayer
-from .visualizer import Visualizer
+The main viewer surface is exported from `better_robot.viewer`:
 
-__all__ = [
-    "Visualizer", "Scene",
-    "RenderMode", "RenderContext",
-    "SkeletonMode", "URDFMeshMode",
-    "RendererBackend", "ViserBackend",
-    "TrajectoryPlayer", "Camera", "helpers",
-]
+```python
+from better_robot.viewer import (
+    PrimitiveHandle,
+    RenderContext,
+    RendererBackend,
+    RenderMode,
+    Scene,
+    SkeletonMode,
+    TrajectoryPlayer,
+    URDFMeshMode,
+    ViserBackend,
+    Visualizer,
+)
 ```
 
-The viewer exports live under `better_robot.viewer.*`, not in
-`better_robot.__all__`. The top-level surface stays deliberately compact;
-the pre-1.0 contract does not freeze an exact symbol count.
+The live overlays are exported from `better_robot.viewer.overlays`, including
+`ForceVectorsOverlay`. Viewer symbols are not added to
+`better_robot.__all__`; the root robotics API remains compact.
 
 ## Sharp edges
 
-- **`viser` is lazily imported.** A machine without viser installed
-  can `import better_robot.viewer` cleanly; only `Visualizer.show()`
-  triggers the actual import.
-- **Quaternion conventions.** The library is scalar-last
-  `[qx, qy, qz, qw]`; viser is scalar-first `[w, x, y, z]`. The
-  conversion lives in `viewer/helpers.py` so it happens in exactly
-  one place.
-- **`URDFMeshMode` requires the IR.** A robot built programmatically
-  through `ModelBuilder` does not have URDF visual geoms; render it
-  with `SkeletonMode` instead.
-- **`TrajectoryPlayer.play(fps=)` is blocking.** Wrap it in a
-  thread or use the (future) transport-control widget if you need
-  asynchronous playback.
-- **Stubs raise immediately.** Calling `VideoRecorder.write_frame`
-  or `OffscreenBackend.capture_frame` raises `NotImplementedError`
-  with a roadmap link, not at import time.
+- `Visualizer.show()` blocks by default. Pass `block=False` when the caller
+  owns the surrounding event loop.
+- `TrajectoryPlayer.play()` is also blocking.
+- `URDFMeshMode` requires parser IR. Programmatically constructed models use
+  `SkeletonMode`.
+- A joint primitive handle exists only for an articulated joint rendered by
+  the skeleton layer; requesting another joint raises `ValueError`.
+- `PrimitiveHandle.set_color` accepts four components in `[0, 1]`, and
+  `set_scale` requires a positive value.
 
 ## Where to look next
 
-- {doc}`tasks` — `solve_ik` returns an `IKResult` whose
-  `frame_pose("name")` is what the viewer plots.
-- {doc}`/conventions/extension` §8 — recipe for adding a custom
-  render mode.
-- {doc}`/reference/roadmap` — what is currently stubbed in the
-  viewer.
+- {doc}`tasks` for IK and trajectory task results.
+- {doc}`/conventions/extension` for the custom render-mode recipe.
+- {doc}`/reference/api/better_robot/better_robot.viewer` for generated API
+  documentation.
