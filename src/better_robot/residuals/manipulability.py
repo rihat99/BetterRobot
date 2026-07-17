@@ -12,12 +12,12 @@ from __future__ import annotations
 import torch
 
 from .base import Residual, ResidualState
-from .registry import register_residual
 
 
-@register_residual("manipulability")
 class YoshikawaResidual(Residual):
     """Scalar manipulability residual (``dim = 1``)."""
+
+    name: str = "manipulability"
 
     def __init__(self, *, frame_id: int, weight: float = 1.0) -> None:
         self.frame_id = frame_id

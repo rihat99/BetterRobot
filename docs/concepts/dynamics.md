@@ -23,7 +23,7 @@ centroidal map and momentum, COM with derivatives, and the
 autograd-derived `compute_*_derivatives` functions all work and pass
 gradcheck. A handful of named symbols (`compute_minverse`,
 `compute_coriolis_matrix`, the analytic Carpentier–Mansard
-derivatives, the higher-order integrators, retargeting) are stubbed
+derivatives and the higher-order integrators) are stubbed
 with `NotImplementedError` and listed in {doc}`/reference/roadmap`.
 The signatures are stable; only the bodies arrive incrementally.
 
@@ -198,54 +198,12 @@ joints they are non-zero and the joint module overrides them. The
 test `tests/dynamics/test_rnea_coupled_joint.py` exercises the
 override on a synthetic coupled joint plus the standard kinds.
 
-## The three-layer action model (Crocoddyl-style)
+## Optimal-control action models
 
-Above the core dynamics algorithms, BetterRobot ships a layered
-integration / cost framework modelled after Crocoddyl's
-`DifferentialActionModel` / `IntegratedActionModel` / `ActionModel`
-split:
-
-```
-dynamics/action/
-├── differential.py   # continuous-time dynamics model
-├── integrated.py     # discrete-time wrapper (Euler / RK4 / symplectic)
-└── action.py         # what the optimal-control solver sees
-```
-
-```python
-@dataclass
-class DifferentialActionModel:
-    """Continuous-time dynamics + per-knot cost.
-
-    Responsibilities:
-      - Define ẋ = f(x, u)
-      - Compute Fx, Fu (Jacobians of f)
-      - Evaluate cost r(x, u) and its gradient / Hessian
-    """
-    model: Model
-    state_manifold: "StateManifold"
-    cost_stack: "CostStack"
-
-    def calc(self, data: "ActionData", x: Tensor, u: Tensor) -> None: ...
-    def calc_diff(self, data: "ActionData", x: Tensor, u: Tensor) -> None: ...
-
-class DifferentialActionModelFreeFwd(DifferentialActionModel):
-    """Forward dynamics with no contacts — calls aba + aba_derivatives."""
-
-@dataclass
-class IntegratedActionModelEuler(ActionModel):
-    differential: DifferentialActionModel
-    dt: float
-    with_cost_residual: bool = True
-
-    def calc(self, data, x, u) -> None:
-        """x_{k+1} = state_manifold.integrate(x, dt * f(x, u))."""
-    def calc_diff(self, data, x, u) -> None: ...
-```
-
-These data classes and signatures exist; the calc bodies are
-skeletons that raise `NotImplementedError` pointing at the roadmap.
-DDP / iLQR solvers that build on them are out of scope for v1.
+The earlier Crocoddyl-style action-model skeletons were removed because they
+had no internal or consumer callers and their calculation bodies were not
+implemented. A future DDP/iLQR milestone should introduce this surface with
+an executable contract instead of reviving the old signatures implicitly.
 
 ## `StateManifold` — the Crocoddyl lesson
 

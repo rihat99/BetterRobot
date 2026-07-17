@@ -31,7 +31,7 @@
 
 ````{py:attribute} sub_joints
 :canonical: better_robot.data_model.joint_models.composite.JointComposite.sub_joints
-:type: tuple[typing.Any, ...]
+:type: tuple[better_robot.data_model.joint_models.base.JointModel, ...]
 :value: >
    'field(...)'
 
@@ -55,7 +55,7 @@
 :canonical: better_robot.data_model.joint_models.composite.JointComposite.nq
 :type: int
 :value: >
-   0
+   'field(...)'
 
 ```{autodoc2-docstring} better_robot.data_model.joint_models.composite.JointComposite.nq
 ```
@@ -66,7 +66,7 @@
 :canonical: better_robot.data_model.joint_models.composite.JointComposite.nv
 :type: int
 :value: >
-   0
+   'field(...)'
 
 ```{autodoc2-docstring} better_robot.data_model.joint_models.composite.JointComposite.nv
 ```

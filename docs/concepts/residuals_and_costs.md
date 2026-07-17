@@ -76,31 +76,12 @@ variables)`; residuals reach back through `data` (FK has already
 been computed) or directly into `variables` for things like joint
 limits.
 
-### The decorator
+### Explicit composition
 
-```python
-_REGISTRY: dict[str, type[Residual]] = {}
-
-def register_residual(name: str):
-    def _inner(cls):
-        if name in _REGISTRY:
-            warnings.warn(f"residual '{name}' already registered; replacing",
-                          RuntimeWarning)
-        _REGISTRY[name] = cls
-        cls.name = name
-        return cls
-    return _inner
-
-def get_residual(name: str) -> type[Residual]:
-    return _REGISTRY[name]
-```
-
-Source: `src/better_robot/residuals/registry.py`. Third-party users
-add their own residuals by decorating a class. The solver has no idea
-the registry exists — residuals are composed into a `CostStack`, and
-the stack is passed to the solver. Re-registering the same name logs
-a warning and replaces (intentional, for experimentation in
-notebooks).
+Residual instances are constructed directly and added to a `CostStack`.
+There is no global name-to-class registry or import-time registration side
+effect. Custom residuals implement the `Residual` protocol, including a stable
+`name`, and use the same explicit composition path as built-ins.
 
 ## The shipped residual library
 
@@ -145,8 +126,8 @@ scheduled for M2.
 ### Example — `RestResidual`
 
 ```python
-@register_residual("rest")
 class RestResidual(Residual):
+    name = "rest"
     dim: int
 
     def __init__(self, q_rest: torch.Tensor, *, weight: float = 1.0) -> None:

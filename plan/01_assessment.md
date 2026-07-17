@@ -33,7 +33,8 @@ exactly there. Reproduced directly:
 `so3.exp(zeros(3, requires_grad=True))` gives gradient `[nan, nan, nan]`.
 
 **Why it happens.** The code computes
-`theta = theta2.clamp(min=0).sqrt()` (`lie/_torch_native_backend.py:148`),
+`theta = theta2.clamp(min=0).sqrt()` (the pre-M1
+`lie/_torch_native_backend.py:148`, now `lie/_impl.py`),
 and the square root has an infinite slope at 0. Terms like
 `qw = torch.cos(half)` sit *outside* the `torch.where` that switches to a
 Taylor approximation near zero. In the backward pass this produces
@@ -178,7 +179,13 @@ options that are never read.
 
 ## 2. Structural problems (architecture-level findings)
 
-### 2.1 The backends layer — delete it
+### 2.1 The backends layer — deleted in M1
+
+**Resolution (2026-07-17).** M1 removed the registry and package, renamed the
+direct Lie implementation to `lie/_impl.py`, and introduced
+`ModelStructure` / `ModelValues` as the whole-pass seam. The bullets below
+record the pre-M1 evidence that motivated the inversion; they are historical,
+not a description of the current call graph.
 
 The owner's instinct ("this layer is wrong") is correct, and the evidence
 is stronger than "ugly":
@@ -210,20 +217,20 @@ is stronger than "ugly":
   putting 24 Lie ops into Warp took 13.3k lines of code plus 11.9k lines
   of tests (about 12× the size of BR's entire pure-torch `lie/`), with
   hand-written backward kernels and zero committed benchmark numbers. The
-  whole-pass seam BR needs is *located at* the tensor-only `*_raw`
-  functions — though they are not yet true tensor-only boundaries: they
-  still consume Python `Model`/`JointModel` state (see 03 §2). One
+  whole-pass seam BR needed was *located at* the `*_raw` functions. M1
+  re-signed FK and RNEA as pure functions over `ModelStructure`,
+  `ModelValues`, and query tensors. The Jacobian raw helper still consumes
+  `Model` / `Data` and is not yet part of that migrated seam. One
   correction from the warp-platform audit: mujoco_warp and newton run pure
   warp with no torch bridge in their cores; the
   autograd.Function/custom-op boundary pattern comes from warp's
   documented interop guide and from cuRobo. Either way: no Protocol
   registry anywhere.
 
-Verdict: delete `backends/` (~530 lines). Have `lie/se3.py` / `so3.py`
-call `_torch_native_backend` directly (the pattern already half-exists).
-Keep the `*_raw` functions as the designated future seam. Reintroduce
-dispatch only when a second implementation actually exists — and at that
-point it is a plain `if` at six or fewer whole-pass call sites.
+Verdict (implemented in M1): delete `backends/` (~530 lines), have
+`lie/se3.py` / `so3.py` call `_impl.py` directly, and use the migrated raw
+passes as the seam. A second implementation is selected only by a plain
+`if` at a whole-pass integration point.
 
 ### 2.2 Single-flat-variable optimization — the consumer blocker
 
@@ -320,8 +327,8 @@ test; an IR schema-version handshake that nothing ever pickles; `utils/`
 100 % unimported; a residual registry (`get_residual`) with zero callers;
 `ResidualSpec` + `jacobian_blocks` with no consumer; `dynamics/action/`
 (a Crocoddyl-style three-layer skeleton, ~290 lines) with no DDP/iLQR
-solver and unusably slow autograd Jacobians per knot; a `graph_capture`
-no-op; `OptimizerConfig` options (`"cg"`, `"trust_region"`) that crash
+solver and unusably slow autograd Jacobians per knot; the now-removed
+`graph_capture` no-op; `OptimizerConfig` options (`"cg"`, `"trust_region"`) that crash
 when selected; a `retarget` stub frozen into the 26-symbol public API
 contract; a `rich` dependency that is never imported; and
 `JointComposite`/`JointHelical`, which are constructible but unreachable
@@ -380,10 +387,11 @@ not one-off corrections.
 - **The pinocchio-parity test suite** (`tests/test_pinocchio/`, absolute
   tolerance 2e-6, plus fp64 gradient checks). The most valuable QA asset
   in the repo — it is what makes aggressive refactoring safe.
-- **`forward_kinematics_raw` / `_compute_joint_jacobians_raw`** —
-  tensor-only whole-pass functions, verified to compile with
-  `torch.compile(fullgraph=True)` for fixed base at a 5× speedup. This is
-  the future backend seam.
+- **The raw-pass boundary.** `forward_kinematics_raw` now consumes
+  `ModelStructure`, `ModelValues`, and `q`; `rnea_raw` follows the same
+  pattern. The fixed-base Torch FK was verified to compile at a 5× speedup.
+  `_compute_joint_jacobians_raw` still consumes `Model` / `Data`, so it must
+  not be described as part of the pure seam yet.
 - **`JointModel` per-kind stateless dispatch** — the right shape; it just
   needs the axis-packing fix.
 - **The IR → `build_model` → frozen Model pipeline** — right-sized, not

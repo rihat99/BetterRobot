@@ -13,18 +13,15 @@ See ``docs/concepts/tasks.md``.
 from __future__ import annotations
 
 from .ik import IKCostConfig, IKResult, OptimizerConfig, solve_ik
-from .retarget import RetargetCostConfig, retarget
 from .trajectory import Trajectory
 from .trajopt import TrajOptResult, solve_trajopt
 
 __all__ = [
     "solve_ik",
     "solve_trajopt",
-    "retarget",
     "Trajectory",
     "IKCostConfig",
     "IKResult",
     "OptimizerConfig",
     "TrajOptResult",
-    "RetargetCostConfig",
 ]

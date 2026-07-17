@@ -101,7 +101,8 @@ class LevenbergMarquardt:
         state = SolverState.from_problem(problem)
         state.damping = strat.init(problem)
         nv = problem._nv
-        cost = float(_robust_cost(state.residual, kernel))
+        identity = torch.eye(nv, dtype=state.x.dtype, device=state.x.device)
+        cost = float(_robust_cost(state.residual, kernel))  # bench-ok: Python solver acceptance requires a scalar decision
 
         it = -1
         for it in range(max_iter):
@@ -111,7 +112,7 @@ class LevenbergMarquardt:
             # Normal equations: (J^T J + lam * I) delta_v = -J^T r
             JtJ = J_w.mT @ J_w                                            # (nv, nv)
             Jtr = J_w.mT @ r_w                                            # (nv,)
-            H = JtJ + state.damping * torch.eye(nv, dtype=J.dtype, device=J.device)
+            H = JtJ + state.damping * identity
             delta_v = solver.solve(H, -Jtr)                               # (nv,)
 
             # Manifold-aware update
@@ -125,13 +126,13 @@ class LevenbergMarquardt:
                 )
 
             r_new = problem.residual(x_new)
-            cost_new = float(_robust_cost(r_new, kernel))
+            cost_new = float(_robust_cost(r_new, kernel))  # bench-ok: Python solver acceptance requires a scalar decision
 
             state.history.append({"iter": it, "cost": cost, "lam": state.damping})
 
             if cost_new < cost:
                 # Gain ratio = (actual decrease) / (predicted decrease).
-                predicted = float(-delta_v @ Jtr - 0.5 * (delta_v @ (JtJ @ delta_v)))
+                predicted = float(-delta_v @ Jtr - 0.5 * (delta_v @ (JtJ @ delta_v)))  # bench-ok: Python damping update requires a scalar decision
                 state.gain_ratio = (cost - cost_new) / predicted if predicted > 0 else None
 
                 state.x = x_new
@@ -143,7 +144,7 @@ class LevenbergMarquardt:
                 state.damping = strat.accept(state.damping)
 
                 # Convergence check on gradient norm
-                if float(Jtr.norm()) < self.tol:
+                if float(Jtr.norm()) < self.tol:  # bench-ok: Python convergence control requires a scalar decision
                     state.status = "converged"
                     state.iters = it + 1
                     return state

@@ -15,9 +15,13 @@ from .data import Data
 from .frame import Frame, FrameType
 from .joint import JOINT_DIMENSIONS, Joint
 from .model import Model
+from .model_structure import ModelStructure
+from .model_values import ModelValues
 
 __all__ = [
     "Model",
+    "ModelStructure",
+    "ModelValues",
     "Data",
     "Frame",
     "FrameType",

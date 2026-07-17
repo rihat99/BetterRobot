@@ -839,11 +839,10 @@ freezes:
   element (NaN residual, factorization failure, infeasible bounds, stall,
   maxiter). A single batch-wide enum would recreate today's misleading
   statuses.
-- **Licensing & provenance.** BR has no top-level LICENSE today. Choose
-  one before porting anything, and keep a source ledger distinguishing
-  algorithm reimplementation from copied code (pyroki is MIT;
-  jaxopt/mujoco_warp/newton are Apache-2.0, which carries notice
-  obligations).
+- **Licensing & provenance.** The owner selected Apache-2.0 on 2026-07-17.
+  Keep a source ledger distinguishing algorithm reimplementation from copied
+  code (pyroki is MIT; jaxopt/mujoco_warp/newton are Apache-2.0), and retain
+  every applicable upstream license, attribution, and notice.
 - **Migration as a deliverable.** A symbol-by-symbol table for the named
   consumers (BHF's legacy surface: `CostStack`, `Data.oMi` including
   *assignments*, `GaussNewton.minimize`, the Huber/Cauchy kernels,

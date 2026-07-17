@@ -1,12 +1,8 @@
-"""``better_robot.dynamics`` — RNEA, ABA, CRBA, centroidal, integrators.
+"""``better_robot.dynamics`` — RNEA, ABA, CRBA, centroidal, and integrators.
 
-**Skeleton only in v1.** Every function is named, signed, docstringed, and
-raises ``NotImplementedError`` with a pointer to the owning milestone in
-``docs/concepts/dynamics.md``. The only exceptions are ``center_of_mass`` and
-``integrate_q``, which land numerically in milestone D1.
-
-The point of the skeleton is to lock the shape so that ``residuals/``,
-``optim/``, and ``tasks/`` can be written against a stable dynamics API.
+Public functions retain the ``Model``/``Data`` API. Their implemented hot
+passes delegate to pure structure/value functions in the owning modules; a few
+named derivative and inverse-mass surfaces remain explicit roadmap stubs.
 """
 
 from __future__ import annotations

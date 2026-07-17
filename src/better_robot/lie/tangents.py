@@ -18,7 +18,7 @@ import math
 
 import torch
 
-from ._torch_native_backend import _taylor_theta2
+from ._impl import _taylor_theta2
 
 # ────────────────────────── hat / vee ──────────────────────────────────────
 

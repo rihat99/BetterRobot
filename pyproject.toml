@@ -7,19 +7,24 @@ name = "better-robot"
 version = "0.2.0"
 description = "PyTorch-native robot kinematics, dynamics, and optimisation."
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+]
 dependencies = [
-    "torch>=2.1.0",
+    "torch>=2.4",
     "numpy>=2.0",
-    "rich>=13",
     "yourdfpy>=0.0.14",
-    "mujoco>=3.1",
-    "trimesh>=4.0.0",
-    "viser>=0.2.0",
-    "robot_descriptions>=1.0.0",
 ]
 
 [project.optional-dependencies]
+viewer = ["viser>=0.2.0"]
+io-mjcf = ["mujoco>=3.1"]
+meshes = ["trimesh>=4.0.0"]
+demos = ["robot_descriptions>=1.0.0"]
+warp = ["warp-lang>=1.8"]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5",

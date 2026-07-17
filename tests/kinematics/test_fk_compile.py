@@ -32,9 +32,13 @@ def test_free_flyer_fk_raw_compiles_fullgraph(free_flyer_model):
         pytest.skip("torch.compile is unavailable")
 
     q = free_flyer_model.q_neutral.unsqueeze(0).expand(2, -1).clone()
-    expected = forward_kinematics_raw(free_flyer_model, q)
+    expected = forward_kinematics_raw(
+        free_flyer_model.structure, free_flyer_model.values, q
+    )
     compiled_fk = compile_fn(forward_kinematics_raw, fullgraph=True)
-    actual = compiled_fk(free_flyer_model, q)
+    actual = compiled_fk(
+        free_flyer_model.structure, free_flyer_model.values, q
+    )
 
     torch.testing.assert_close(actual[0], expected[0])
     torch.testing.assert_close(actual[1], expected[1])
@@ -45,7 +49,7 @@ def test_free_flyer_quaternion_norm_check_is_opt_in(free_flyer_model):
     q[3:7] = 0.0
 
     # Raw FK and the default public path trust the pre-normalized-input contract.
-    forward_kinematics_raw(free_flyer_model, q)
+    forward_kinematics_raw(free_flyer_model.structure, free_flyer_model.values, q)
     forward_kinematics(free_flyer_model, q)
 
     with pytest.raises(QuaternionNormError, match="quaternion norm"):

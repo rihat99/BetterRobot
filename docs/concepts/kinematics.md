@@ -40,6 +40,7 @@ def forward_kinematics(
     *,
     compute_frames: bool = False,
     check_quaternion_norm: bool = False,
+    use_warp: bool = False,
 ) -> Data:
     """Compute the placements of every joint, batched.
 
@@ -57,48 +58,52 @@ Source: `src/better_robot/kinematics/forward.py`.
 The algorithm is one topological pass:
 
 ```python
-def forward_kinematics_raw(model: Model, q: torch.Tensor) -> tuple[Tensor, Tensor]:
-    B = q.shape[:-1]
-    joint_pose_world = q.new_empty((*B, model.njoints, 7))
-    joint_pose_local = q.new_empty((*B, model.njoints, 7))
+def forward_kinematics_raw(
+    structure: ModelStructure,
+    values: ModelValues,
+    q: torch.Tensor,
+) -> tuple[Tensor, Tensor]:
+    world = [None] * structure.njoints
+    local = [None] * structure.njoints
 
-    # joint 0 is the universe; identity.
-    joint_pose_world[..., 0, :] = lie.se3.identity(...)
-    joint_pose_local[..., 0, :] = lie.se3.identity(...)
-
-    for j in model.topo_order[1:]:
-        jm     = model.joint_models[j]
-        iq     = model.idx_qs[j]
-        parent = model.parents[j]
-
-        qj     = q[..., iq : iq + jm.nq]
-        T_j    = jm.joint_transform(qj)
-        Tfixed = model.joint_placements[j]
-        joint_pose_local[..., j, :] = lie.se3.compose(Tfixed, T_j)
-        joint_pose_world[..., j, :] = lie.se3.compose(
-            joint_pose_world[..., parent, :], joint_pose_local[..., j, :]
+    for j in structure.topo_order:
+        qj = q[..., structure.idx_qs[j] : structure.idx_qs[j] + structure.nqs[j]]
+        Tj = joint_transform(
+            structure.joint_models[j],
+            structure.joint_kind_codes[j],
+            structure.joint_axes[j],
+            structure.joint_pitches[j],
+            qj,
         )
+        local[j] = lie.se3.compose(values.joint_placements[..., j, :], Tj)
+        parent = structure.parents[j]
+        world[j] = local[j] if parent < 0 else lie.se3.compose(world[parent], local[j])
 
-    return joint_pose_world, joint_pose_local
+    return torch.stack(world, dim=-2), torch.stack(local, dim=-2)
 ```
 
 Properties of this FK:
 
-- **No Python branching on joint kind.** All per-kind logic is
-  encapsulated in `JointModel.joint_transform`. The FK loop does not
-  contain `if jtype in ('revolute', 'continuous')`.
+- **Shared joint dispatch.** The raw pass uses stable kind codes and the
+  shared `joint_transform` helper; the pass itself does not contain parser
+  string cases.
 - **No `base_pose` argument.** A free-flyer root is just
   `joint_models[1] = JointFreeFlyer`; the first 7 entries of `q`
   become its configuration.
 - **Batched from day one.** The loop is over joints (compile-time
   constant) not over batch entries.
-- **Compile-friendly.** `model.topo_order` is a Python tuple;
-  `joint_models` is a tuple; the loop unrolls cleanly under
+- **Compile-friendly.** `ModelStructure.topo_order` and its static mirrors
+  are Python tuples; the loop unrolls cleanly under
   `torch.compile`.
 - **No default host sync.** Free-flyer quaternions are assumed normalized.
   The public wrapper can opt into a diagnostic norm check with
   `check_quaternion_norm=True`; that check synchronizes and is excluded from
-  `forward_kinematics_raw`.
+`forward_kinematics_raw`.
+
+The public wrapper takes `use_warp=True` as an explicit whole-pass opt-in.
+The prototype first checks eligibility and falls back to the Torch raw pass
+when the optional runtime or input layout is unsupported. There is no
+per-Lie-operation dispatch or process-wide selector.
 
 `update_frame_placements(model, data)` is the second-step companion:
 
@@ -255,7 +260,8 @@ prevent oscillation. The right-Jacobian fix removed that workaround.
 
 ```python
 def forward_kinematics_raw(
-    model: Model,
+    structure: ModelStructure,
+    values: ModelValues,
     q: torch.Tensor,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Return (joint_pose_world, joint_pose_local) without touching any Data.
@@ -265,8 +271,8 @@ def forward_kinematics_raw(
     """
 ```
 
-`forward_kinematics(model, q, ...)` is a thin wrapper that calls the
-raw implementation and writes into `Data`. For research code that
+`forward_kinematics(model, q, ...)` selects one complete pass, then writes
+the returned tensors into `Data`. For research code that
 needs `jacrev` over FK without `Data` in the graph, the raw form is
 the right entry point.
 
@@ -287,12 +293,11 @@ J = compute_joint_jacobians(model, data)       # raises StaleCacheError — must
 
 ## Device and dtype
 
-`forward_kinematics_raw` produces output on the same device and dtype
-as `q`. `Data` inherits both. `model.joint_placements`, `axes`, etc.
-are coerced to `q`'s device and dtype inside the hot path via
-`.to(dtype=q.dtype, device=q.device)` — but only when it is free
-(dtype / device match). Mixed precision is rejected at the boundary
-because analytic Jacobians are sensitive to it.
+`forward_kinematics_raw` produces output on the same device and dtype as
+`q`. `Data` inherits both. Device compatibility is validated at the pass
+boundary; floating-point structure/value tables are cast to the working
+dtype once before the topology loop. Mixed precision is outside the
+supported numerical contract because analytic Jacobians are sensitive to it.
 
 ## What gets shipped
 

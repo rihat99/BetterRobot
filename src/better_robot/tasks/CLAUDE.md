@@ -10,7 +10,6 @@ Tasks are thin facades. No Jacobian code, no solver loops, no branching for fixe
 |------|--------|
 | `solve_ik` | Implemented |
 | `solve_trajopt` | Implemented (with `KnotTrajectory` + `BSplineTrajectory` parameterisations) |
-| `retarget` | Stub (raises `NotImplementedError`) |
 | `Trajectory` | Implemented (`with_batch_dims`, `slice`, `resample(linear|sclerp)`, `downsample`, `to_data`) |
 
 ## solve_ik

@@ -1,5 +1,9 @@
 # M1 — Structure, the Two-Lane Seam, and Hygiene: Agent Execution Instructions
 
+> **Implementation log (2026-07-17):** completed on `dev`; Apache-2.0 and
+> eager-CPU evidence were owner-approved. Final suite: 992 passed, 3 skipped.
+> Key deviations: source LOC is +474, and Warp backward uses a Torch-recompute VJP.
+
 > Read `plan/for_agents/README.md` first. It carries the standing rules
 > (deletion ordering, honesty rules, the five-part kernel requirement,
 > the GPU/CUDA caveat, test commands). This file does not repeat them.

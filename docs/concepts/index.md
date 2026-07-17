@@ -25,6 +25,7 @@ solver_stack
 tasks
 collision_and_geometry
 batching_and_backends
+warp_bridge
 viewer
 ```
 
@@ -38,7 +39,7 @@ to the chapters it depends on and the ones that depend on it.
 | Chapter | What it covers |
 |---------|----------------|
 | {doc}`vision` | Why the library exists; the commitments that decided every other choice. |
-| {doc}`architecture` | The layered DAG, the 26-symbol public API, the contract tests that enforce both. |
+| {doc}`architecture` | The layered DAG, the compact public API, and the contract tests that enforce both. |
 | {doc}`model_and_data` | Frozen `Model`, mutable `Data`, and the cache invariant that prevents stale Jacobians. |
 | {doc}`joints_bodies_frames` | The universal joint taxonomy and the free-flyer convention that unifies fixed and floating base. |
 | {doc}`lie_and_spatial` | SE(3) / SO(3) ops, the spatial-algebra value types, why we do not subclass `torch.Tensor`. |
@@ -49,5 +50,6 @@ to the chapters it depends on and the ones that depend on it.
 | {doc}`solver_stack` | `LeastSquaresProblem` and the four pluggable axes (Optimizer, LinearSolver, RobustKernel, DampingStrategy). |
 | {doc}`tasks` | `solve_ik`, `solve_trajopt`, `Trajectory`. |
 | {doc}`collision_and_geometry` | Geometry primitives, pair dispatch, `RobotCollision`. |
-| {doc}`batching_and_backends` | Tensor and device conventions; the `Backend` Protocol. |
+| {doc}`batching_and_backends` | Tensor/device conventions, the structure/value seam, and whole-pass compute lanes. |
+| {doc}`warp_bridge` | The functional Torch–Warp prototype boundary, gradient ownership, and FK decision record. |
 | {doc}`viewer` | The viser-backed visualisation layer. |

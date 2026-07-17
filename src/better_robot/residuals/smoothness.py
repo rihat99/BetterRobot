@@ -15,12 +15,11 @@ from __future__ import annotations
 import torch
 
 from ..data_model.model import Model
-from .base import Residual, ResidualState
-from .registry import register_residual
+from .base import ResidualState
 
 
 def _require_traj(q: torch.Tensor, name: str) -> int:
-    if q.dim() != 2:
+    if q.dim() != 2:  # bench-ok: trajectory-shape contract validation
         raise ValueError(
             f"{name}: expected state.variables with shape (T, nq); got {tuple(q.shape)}"
         )
@@ -30,7 +29,6 @@ def _require_traj(q: torch.Tensor, name: str) -> int:
     return T
 
 
-@register_residual("velocity")
 class VelocityResidual:
     """3-point central-difference velocity in tangent space.
 
@@ -94,7 +92,6 @@ class VelocityResidual:
         return g.reshape(-1)
 
 
-@register_residual("acceleration")
 class AccelerationResidual:
     """3-point tangent-space acceleration.
 
@@ -161,7 +158,6 @@ class AccelerationResidual:
         return g.reshape(-1)
 
 
-@register_residual("jerk")
 class JerkResidual:
     """Placeholder — jerk (third-derivative) smoothness on trajectory.
 

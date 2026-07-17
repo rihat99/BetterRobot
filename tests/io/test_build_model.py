@@ -10,6 +10,7 @@ import math
 import pytest
 import torch
 
+import better_robot.io as br_io
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.io.ir import IRError
@@ -44,6 +45,12 @@ def _simple_arm_ir():
 def test_returns_model():
     model = build_model(_simple_arm_ir())
     assert isinstance(model, Model)
+
+
+def test_ir_schema_handshake_is_retired():
+    ir = _simple_arm_ir()
+    assert "schema_version" not in ir.__dataclass_fields__
+    assert not hasattr(br_io, "IR_SCHEMA_VERSION")
 
 
 def test_frozen():

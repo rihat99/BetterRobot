@@ -28,14 +28,29 @@ See ``docs/concepts/dynamics.md §2``.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import torch
 
+from ..data_model._kinematics_level import KinematicsLevel
 from ..data_model.data import Data
-from ..data_model.joint_models.base import joint_bias_acceleration
 from ..data_model.model import Model
+from ..data_model.model_structure import ModelStructure
+from ..data_model.model_values import ModelValues
 from ..kinematics.forward import forward_kinematics_raw
 from ..lie import se3
-from ..spatial.inertia import Inertia
+
+
+@dataclass(frozen=True)
+class RNEAResult:
+    """Fresh tensor outputs from :func:`rnea_raw`."""
+
+    tau: torch.Tensor
+    joint_pose_world: torch.Tensor
+    joint_pose_local: torch.Tensor
+    joint_velocity_local: torch.Tensor
+    joint_acceleration_local: torch.Tensor
+    joint_forces: torch.Tensor
 
 
 def _cross_motion(v: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
@@ -68,24 +83,21 @@ def _cross_motion_force(v: torch.Tensor, f: torch.Tensor) -> torch.Tensor:
     return torch.cat([out_lin, out_ang], dim=-1)
 
 
-def rnea(
-    model: Model,
-    data: Data,
+def rnea_raw(  # noqa: PLR0915 - recursive Newton-Euler passes are intentionally explicit
+    structure: ModelStructure,
+    values: ModelValues,
     q: torch.Tensor,
     v: torch.Tensor,
     a: torch.Tensor,
     *,
     fext: torch.Tensor | None = None,
-) -> torch.Tensor:
+) -> RNEAResult:
     """Inverse dynamics: ``τ = M(q)·a + b(q, v) + g(q) − Jᵀ fext``.
 
     Parameters
     ----------
-    model : Model
-    data : Data
-        Mutable workspace. Populated fields on return:
-        ``tau``, ``joint_pose_local``, ``joint_pose_world``,
-        ``joint_velocity_local``, ``joint_acceleration_local``, ``joint_forces``.
+    structure, values
+        Pure compute-seam inputs.
     q : Tensor
         ``(B..., nq)`` configuration.
     v : Tensor
@@ -98,26 +110,26 @@ def rnea(
 
     Returns
     -------
-    tau : Tensor
-        ``(B..., nv)`` joint-space torques.
+    RNEAResult
+        Torques plus all fresh pass intermediates needed by the public wrapper.
     """
-    *batch, _ = q.shape
     device, dtype = q.device, q.dtype
 
     # ── Pass 0: forward kinematics (liMi needed for adjoints) ────────────
-    oMi, liMi = forward_kinematics_raw(model, q)
-    data.joint_pose_world = oMi
-    data.joint_pose_local = liMi
-    data._kinematics_level = 1
+    oMi, liMi = forward_kinematics_raw(structure, values, q)
+    batch = tuple(oMi.shape[:-2])
 
     # ── Base spatial velocity / acceleration ─────────────────────────────
     # a_gf[0] = −gravity: folds gravity into the inertial bias so the
     # forward recursion produces per-body spatial forces that include weight.
     zero6 = torch.zeros((*batch, 6), device=device, dtype=dtype)
-    grav = model.gravity.to(device=device, dtype=dtype).expand(*batch, 6)
+    zero_motion_subspace = torch.empty((*batch, 6, 0), device=device, dtype=dtype)
+    grav = values.gravity.to(device=device, dtype=dtype).expand(*batch, 6)
+    spatial_inertias = values.spatial_inertias().to(device=device, dtype=dtype)
+    motion_subspaces = structure.joint_motion_subspaces.to(device=device, dtype=dtype)
 
     # Per-joint storage (list-of-tensor + torch.stack for autograd safety).
-    njoints = model.njoints
+    njoints = structure.njoints
     v_body: list[torch.Tensor | None] = [None] * njoints
     a_body: list[torch.Tensor | None] = [None] * njoints
     f_body: list[torch.Tensor | None] = [None] * njoints
@@ -128,26 +140,23 @@ def rnea(
     f_body[0] = zero6
 
     # ── Forward pass ─────────────────────────────────────────────────────
-    for i in model.topo_order:
+    for i in structure.topo_order:
         if i == 0:
             continue
-        jm = model.joint_models[i]
-        p = model.parents[i]
+        p = structure.parents[i]
 
-        iq, nq_i = model.idx_qs[i], model.nqs[i]
-        iv, nv_i = model.idx_vs[i], model.nvs[i]
+        iv, nv_i = structure.idx_vs[i], structure.nvs[i]
 
-        if nq_i > 0:
-            q_i = q[..., iq : iq + nq_i]
+        if nv_i > 0:
             v_i_slice = v[..., iv : iv + nv_i]
             a_i_slice = a[..., iv : iv + nv_i]
-            S_i = jm.joint_motion_subspace(q_i)                     # (B..., 6, nv_i)
-            vJ = jm.joint_velocity(q_i, v_i_slice)                  # (B..., 6)
+            S_i = motion_subspaces[i, :, :nv_i].expand(*batch, 6, nv_i)
+            vJ = (S_i @ v_i_slice.unsqueeze(-1)).squeeze(-1)
             aJ = (S_i @ a_i_slice.unsqueeze(-1)).squeeze(-1)        # (B..., 6)
-            cJ = joint_bias_acceleration(jm, q_i, v_i_slice)        # (B..., 6)
+            cJ = zero6
         else:
             # Fixed / zero-DoF joint: no velocity contribution, no subspace.
-            S_i = torch.zeros((*batch, 6, 0), device=device, dtype=dtype)  # bench-ok: zero-DoF placeholder, not allocated per-iter
+            S_i = zero_motion_subspace
             vJ = zero6
             aJ = zero6
             cJ = zero6
@@ -164,7 +173,7 @@ def rnea(
         a_i = a_parent_local + _cross_motion(v_i, vJ) + aJ + cJ
 
         # Inertial wrench in body frame: f_i = I_i·a_i + v_i ×* (I_i·v_i).
-        M_i = Inertia(model.body_inertias[i].to(device=device, dtype=dtype))._to_6x6()
+        M_i = spatial_inertias[..., i, :, :]
         h_i = (M_i @ v_i.unsqueeze(-1)).squeeze(-1)
         f_i = (M_i @ a_i.unsqueeze(-1)).squeeze(-1) + _cross_motion_force(v_i, h_i)
 
@@ -177,36 +186,60 @@ def rnea(
 
     # ── Backward pass ────────────────────────────────────────────────────
     # Per-coordinate tau slots, filled in reverse topo order.
-    tau_slots: list[torch.Tensor | None] = [None] * model.nv
+    tau_slots: list[torch.Tensor | None] = [None] * structure.nv
 
-    for i in reversed(model.topo_order):
+    for i in reversed(structure.topo_order):
         if i == 0:
             continue
-        iv, nv_i = model.idx_vs[i], model.nvs[i]
+        iv, nv_i = structure.idx_vs[i], structure.nvs[i]
         if nv_i > 0:
             S_i = S_cache[i]  # (B..., 6, nv_i)
             tau_i = (S_i.transpose(-1, -2) @ f_body[i].unsqueeze(-1)).squeeze(-1)
             for k in range(nv_i):
                 tau_slots[iv + k] = tau_i[..., k]
 
-        p = model.parents[i]
+        p = structure.parents[i]
         if p >= 0:
             # Force transport from child to parent frame: Ad(liMi⁻¹)ᵀ · f.
             Ad_inv_T = se3.adjoint_inv(liMi[..., i, :]).transpose(-1, -2)
             f_transported = (Ad_inv_T @ f_body[i].unsqueeze(-1)).squeeze(-1)
             f_body[p] = f_body[p] + f_transported
 
-    if model.nv > 0:
+    if structure.nv > 0:
         tau = torch.stack(tau_slots, dim=-1)  # type: ignore[arg-type]
     else:
         tau = torch.zeros((*batch, 0), device=device, dtype=dtype)
 
-    # ── Populate Data ────────────────────────────────────────────────────
-    data.tau = tau
-    data.joint_velocity_local = torch.stack(v_body, dim=-2)       # type: ignore[arg-type]
-    data.joint_acceleration_local = torch.stack(a_body, dim=-2)   # type: ignore[arg-type]
-    data.joint_forces = torch.stack(f_body, dim=-2)               # type: ignore[arg-type]
-    return tau
+    return RNEAResult(
+        tau=tau,
+        joint_pose_world=oMi,
+        joint_pose_local=liMi,
+        joint_velocity_local=torch.stack(v_body, dim=-2),  # type: ignore[arg-type]
+        joint_acceleration_local=torch.stack(a_body, dim=-2),  # type: ignore[arg-type]
+        joint_forces=torch.stack(f_body, dim=-2),  # type: ignore[arg-type]
+    )
+
+
+def rnea(
+    model: Model,
+    data: Data,
+    q: torch.Tensor,
+    v: torch.Tensor,
+    a: torch.Tensor,
+    *,
+    fext: torch.Tensor | None = None,
+) -> torch.Tensor:
+    """Public inverse-dynamics wrapper that populates a ``Data`` workspace."""
+
+    result = rnea_raw(model.structure, model.values, q, v, a, fext=fext)
+    data.tau = result.tau
+    data.joint_pose_world = result.joint_pose_world
+    data.joint_pose_local = result.joint_pose_local
+    data.joint_velocity_local = result.joint_velocity_local
+    data.joint_acceleration_local = result.joint_acceleration_local
+    data.joint_forces = result.joint_forces
+    object.__setattr__(data, "_kinematics_level", KinematicsLevel.ACCELERATIONS)
+    return result.tau
 
 
 def bias_forces(

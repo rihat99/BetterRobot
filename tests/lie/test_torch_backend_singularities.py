@@ -15,7 +15,7 @@ import warnings
 import pytest
 import torch
 
-from better_robot.lie import _torch_native_backend as tn
+from better_robot.lie import _impl as tn
 
 
 @pytest.mark.parametrize("theta", [0.0, math.pi / 2, math.pi - 1e-6])

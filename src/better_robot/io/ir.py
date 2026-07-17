@@ -11,9 +11,12 @@ See ``docs/concepts/parsers_and_ir.md §2``.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import torch
+
+if TYPE_CHECKING:
+    from ..data_model.joint_models.base import JointModel
 
 
 @dataclass
@@ -33,6 +36,14 @@ class IRJoint:
     mimic_source: Optional[str] = None
     mimic_multiplier: float = 1.0
     mimic_offset: float = 0.0
+    pitch: float = 0.0
+    # Programmatic-builder payload only. File parsers leave this as ``None``;
+    # it is intentionally outside the parser-IR serialization contract.
+    joint_model: Optional[JointModel] = field(
+        default=None,
+        repr=False,
+        compare=False,
+    )
 
 
 @dataclass
@@ -67,14 +78,6 @@ class IRFrame:
     frame_type: str = "op"
 
 
-#: The schema version this build of ``better_robot`` was compiled against.
-#: ``build_model`` rejects any ``IRModel`` whose instance attribute
-#: ``schema_version`` does not equal this constant. Bump in lockstep with
-#: any breaking change to ``IRJoint``/``IRBody``/``IRFrame``/``IRModel`` or
-#: their semantics. See ``docs/concepts/parsers_and_ir.md §2.1``.
-IR_SCHEMA_VERSION: int = 1
-
-
 @dataclass
 class IRModel:
     """Flat, unordered intermediate representation of a robot."""
@@ -87,10 +90,6 @@ class IRModel:
     gravity: torch.Tensor = field(
         default_factory=lambda: torch.tensor([0.0, 0.0, -9.81, 0.0, 0.0, 0.0])
     )
-    #: Per-instance schema version; must equal ``IR_SCHEMA_VERSION`` at
-    #: ``build_model`` time. Pickled IRs from older library versions
-    #: are rejected with :class:`~better_robot.exceptions.IRSchemaVersionError`.
-    schema_version: int = IR_SCHEMA_VERSION
     #: Free-form parser metadata, e.g. ``{"asset_resolver": ..., "source_path": ...}``.
     meta: dict = field(default_factory=dict)
 

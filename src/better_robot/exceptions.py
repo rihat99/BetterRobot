@@ -88,25 +88,14 @@ class ConvergenceError(BetterRobotError, RuntimeError):
 
 
 class BackendNotAvailableError(BetterRobotError, ImportError):
-    """Requested backend's dependency is not importable.
+    """An optional integration dependency is not importable.
 
     Example::
 
-        from better_robot.backends import set_backend
-        set_backend("warp")   # raises if `warp` not installed
-    """
+        load("robot.urdf")  # raises if the optional `yourdfpy` parser is absent
 
-
-class IRSchemaVersionError(BetterRobotError, ValueError):
-    """Parsed ``IRModel.schema_version`` does not match the version
-    ``build_model`` was compiled against.
-
-    Build a fresh ``IRModel`` from the parser shipped with this
-    ``better_robot`` release. The IR is an *internal* boundary; users
-    rebuilding their own ``IRModel`` from a serialised form must match
-    the current schema version.
-
-    See ``docs/concepts/parsers_and_ir.md §2.1``.
+    The historical class name is retained because the exception is already a
+    public import; it is not evidence of a runtime compute-backend registry.
     """
 
 
@@ -147,7 +136,6 @@ __all__ = [
     "ShapeError",
     "ConvergenceError",
     "BackendNotAvailableError",
-    "IRSchemaVersionError",
     "StaleCacheError",
     "UnsupportedJointError",
     "SingularityWarning",

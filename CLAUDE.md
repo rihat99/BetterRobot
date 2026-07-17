@@ -4,8 +4,8 @@
 
 PyTorch-native, GPU-ready library for robot kinematics and optimization. Pinocchio-style Model/Data architecture, PyTorch autograd throughout. Single code path for fixed-base and floating-base (free-flyer) robots.
 
-**Implemented:** forward kinematics, Jacobians (analytic + central finite-difference fallback), pose/position/orientation/limits/rest/smoothness/contact-consistency/reference-trajectory residuals, CostStack, LM/GN/Adam/LBFGS/MultiStage optimizers, single-problem IK (fixed + floating base), trajectory optimisation (`solve_trajopt`) with knot + B-spline parameterisations, dynamics (RNEA/ABA/CRBA/CCRBA, centroidal map + momentum, autograd-derived `compute_*_derivatives`, three-layer Crocoddyl-style action models), viewer V1 (Skeleton, URDFMesh, Grid, FrameAxes, Targets, ForceVectors, ViserBackend, build_joint_panel, minimal TrajectoryPlayer).
-**Stubs:** dynamic integrators (`semi_implicit_euler` / `symplectic_euler` / `rk4`), `compute_minverse`, `compute_coriolis_matrix`, analytic Carpentier–Mansard derivatives, `solve_retarget`, jerk / Yoshikawa / collision / nullspace residuals, viewer COM/PathTrace/ResidualPlot overlays, `VideoRecorder`, Warp backend kernels. See `docs/reference/roadmap.md`.
+**Implemented:** forward kinematics, Jacobians (analytic + central finite-difference fallback), pose/position/orientation/limits/rest/smoothness/contact-consistency/reference-trajectory residuals, CostStack, LM/GN/Adam/LBFGS/MultiStage optimizers, single-problem IK (fixed + floating base), trajectory optimisation (`solve_trajopt`) with knot + B-spline parameterisations, dynamics (RNEA/ABA/CRBA/CCRBA, centroidal map + momentum, autograd-derived `compute_*_derivatives`), viewer V1 (Skeleton, URDFMesh, Grid, FrameAxes, Targets, ForceVectors, ViserBackend, build_joint_panel, minimal TrajectoryPlayer).
+**Stubs:** dynamic integrators (`semi_implicit_euler` / `symplectic_euler` / `rk4`), `compute_minverse`, `compute_coriolis_matrix`, analytic Carpentier–Mansard derivatives, jerk / Yoshikawa / collision / nullspace residuals, viewer COM/PathTrace/ResidualPlot overlays, `VideoRecorder`, and opt-in Warp whole-pass kernels. See `docs/reference/roadmap.md`.
 
 ## Commands
 
@@ -19,26 +19,26 @@ uv run python examples/02_g1_ik.py             # G1 humanoid floating-base IK
 
 ```
 src/better_robot/
-  backends/         — Backend / LieOps / KinematicsOps / DynamicsOps Protocols + torch_native default + Warp stub
-  lie/              — SE3/SO3 group ops, tangent algebra, hat/vee, right Jacobians, typed `SE3`/`SO3`/`Pose`
+  lie/              — direct Torch SE3/SO3 ops, tangent algebra, hat/vee, right Jacobians, typed `SE3`/`SO3`/`Pose`
   spatial/          — 6D spatial algebra value types (Motion, Force, Inertia)
-  data_model/       — Model (frozen), Data (workspace, cache invariants), Frame, Body, Joint, joint_models/
-  kinematics/       — forward_kinematics(), compute_joint_jacobians(), get_frame_jacobian(), ReferenceFrame, JacobianStrategy
-  dynamics/         — rnea, aba, crba (Featherstone), centroidal, derivatives (autograd), state_manifold, action/ (Crocoddyl)
+  data_model/       — Model/Data plus ModelStructure, ModelValues, ExecutionBatch, Frame, Body, Joint, joint_models/
+  kinematics/       — Torch raw FK + public wrappers; whole-pass kernel lanes live beside their Torch counterparts
+  dynamics/         — Torch raw rigid-body passes + public wrappers; optional whole-pass kernels stay local
   residuals/        — Residual classes (Pose / Position / Orientation / JointPositionLimit / Rest /
                       Velocity / Acceleration / TimeIndexed / ContactConsistency /
                       ReferenceTrajectory; analytic `.jacobian()` + `apply_jac_transpose` overrides)
   costs/            — CostStack
   optim/            — LeastSquaresProblem (with `gradient(x)` + `jacobian_blocks(x)`); LM/GN/Adam/LBFGS/MultiStage/LMThenLBFGS
                       optimizers; selectable Cholesky/LSTSQ linear solvers; selectable Constant/Adaptive damping; L2/Huber/Cauchy/Tukey kernels
-  tasks/            — solve_ik(), solve_trajopt(), Trajectory, KnotTrajectory, BSplineTrajectory, retarget (stub)
+  tasks/            — solve_ik(), solve_trajopt(), Trajectory, KnotTrajectory, BSplineTrajectory
   collision/        — geometry, pairs, RobotCollision (port of old capsule mode)
-  io/               — load(), IRModel + schema_version, parsers (URDF/MJCF), ModelBuilder, AssetResolver + concrete resolvers
+  io/               — load(), internal IRModel, parsers (URDF/MJCF), ModelBuilder, AssetResolver + concrete resolvers
   viewer/           — Visualizer, Scene, SkeletonMode, URDFMeshMode, ForceVectorsOverlay, …
-  utils/            — batching, logging, broadcasting
 ```
 
-**Dependency rule (never violate):** `backends → lie → spatial → data_model → (kinematics, dynamics) → residuals → costs → optim → tasks → viewer`. `io` reads from `data_model` only; `collision` is parallel to `kinematics`. Enforced by `tests/contract/test_layer_dependencies.py`.
+**Dependency rule (never violate):** `lie → spatial → data_model → (kinematics, dynamics) → residuals → costs → optim → tasks → viewer`. `io` reads from `data_model` only; `collision` is parallel to `kinematics`. Enforced by `tests/contract/test_layer_dependencies.py`.
+
+The compute seam is whole-pass: `ModelStructure` provides validated static/device topology, `ModelValues` provides the tensor pytree, and raw Torch passes are the default correctness lane. An optional Warp kernel is selected explicitly at the FK/RNEA-style integration point only after eligibility and parity checks. Warp is not a library layer and does not replace individual Lie operations.
 
 ## SE3 / Lie Algebra Convention (critical — never deviate)
 
@@ -49,7 +49,7 @@ src/better_robot/
 | Quaternion | `[qx, qy, qz, qw]` | scalar last |
 | Spatial Jacobian rows | `[v_lin (3), omega (3)]` | linear block first |
 
-SE3/SO3 ops live in `lie/_torch_native_backend.py` (pure-PyTorch, P10-D). Every other module uses the `lie/se3.py` / `lie/so3.py` functional facades, which in turn route through the active `Backend` (`backends.default_backend()` by default). PyPose is no longer a dependency.
+SE3/SO3 ops live in `lie/_impl.py` (pure Torch, P10-D). Every other module uses the `lie/se3.py` / `lie/so3.py` functional facades, which call that implementation directly. PyPose is no longer a dependency, and there is no runtime compute registry.
 
 ## Jacobian Conventions
 
@@ -71,7 +71,7 @@ J_local = se3.adjoint_inv(T_ee) @ J_world
 
 ## Autodiff / Finite-Diff Note
 
-`residual_jacobian` uses central finite differences as the AUTO fallback when no analytic Jacobian is registered. The pure-PyTorch Lie backend has clean autograd, so `torch.autograd.functional.jacobian` works correctly — FD is kept because it's robust across joint kinds and matches analytic Jacobians to numerical noise. FD eps: `1e-3` for float32, `1e-7` for float64.
+`residual_jacobian` uses central finite differences as the AUTO fallback when no analytic Jacobian is registered. The pure-Torch Lie implementation has clean autograd, so `torch.autograd.functional.jacobian` works correctly — FD is kept because it's robust across joint kinds and matches analytic Jacobians to numerical noise. FD eps: `1e-3` for float32, `1e-7` for float64.
 
 ## Public API
 
@@ -168,8 +168,8 @@ uv run pytest tests/ -v   # all tests must pass
 
 Tests use real Panda URDF via `robot_descriptions`. No mocking of FK or URDF parsing.
 `tests/contract/test_layer_dependencies.py` enforces the dependency DAG via AST parsing.
-`tests/contract/test_public_api.py` enforces the frozen 26-symbol `EXPECTED` set in `__all__`
+`tests/contract/test_public_api.py` enforces the required top-level core and duplicate-free `__all__`
 (adds `SE3` and `ModelBuilder` to the prior 25). `tests/contract/` carries the rest of
-the AST + structural contract suite (cache invariants, backend boundary, optional
+the AST + structural contract suite (cache invariants, optional
 imports, no-legacy-strings, hot-path lint, shape annotations, deprecations,
 pluggable Protocols, solver state, naming, docstrings, submodule reachability).

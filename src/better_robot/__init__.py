@@ -1,8 +1,8 @@
 """``better_robot`` — PyTorch-native robotics library.
 
-The public surface is intentionally small: **26 symbols** — the frozen
-``EXPECTED`` set in ``tests/contract/test_public_api.py``. Everything else is
-internal and may be reshaped without a deprecation. See
+The public surface is intentionally small. ``tests/contract/test_public_api.py``
+guards the required core without freezing an exact symbol count. Everything
+else is internal and may be reshaped without a deprecation. See
 ``docs/concepts/architecture.md §Public API contract``.
 
 Layered DAG (arrows point from dependent to dependency)::
@@ -40,8 +40,7 @@ from .kinematics import (
 )
 from .lie.types import SE3
 from .optim import LeastSquaresProblem
-from .residuals import register_residual
-from .tasks import Trajectory, retarget, solve_ik, solve_trajopt
+from .tasks import Trajectory, solve_ik, solve_trajopt
 
 __all__ = [
     # data_model (5)
@@ -68,15 +67,12 @@ __all__ = [
     "crba",
     "center_of_mass",
     "compute_centroidal_map",
-    # residuals (1)
-    "register_residual",
     # costs (1)
     "CostStack",
     # optim (1)
     "LeastSquaresProblem",
-    # tasks (4)
+    # tasks (3)
     "solve_ik",
     "solve_trajopt",
-    "retarget",
     "Trajectory",
 ]

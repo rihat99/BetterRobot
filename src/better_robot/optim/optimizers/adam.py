@@ -93,11 +93,11 @@ class Adam:
                 )
             state.x = x_new
             state.residual = problem.residual(state.x)
-            cost = float(0.5 * (state.residual @ state.residual).sum())
+            cost = float(0.5 * (state.residual @ state.residual).sum())  # bench-ok: Python history records scalar diagnostics
             state.residual_norm = torch.as_tensor(cost)
             state.history.append({"iter": it, "cost": cost})
 
-            if float(grad.norm()) < self.tol:
+            if float(grad.norm()) < self.tol:  # bench-ok: Python convergence control requires a scalar decision
                 state.status = "converged"
                 state.iters = it
                 return state

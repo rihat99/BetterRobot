@@ -7,6 +7,10 @@ dependency into the core. A user who never calls
 `Visualizer.show()` should not pay for `viser`, `trimesh`, or any of
 the rendering machinery on `import better_robot`.
 
+Names such as `RendererBackend`, `ViserBackend`, and `MockBackend` in this
+chapter refer only to scene rendering. They are unrelated to algorithm
+compute lanes.
+
 The deliberate choice is to ship a small, opinionated V1: an
 interactive viser-backed renderer with two render modes (skeleton,
 URDF mesh), a small overlay set (grid, frame axes, force vectors,
@@ -455,8 +459,8 @@ __all__ = [
 ```
 
 The viewer exports live under `better_robot.viewer.*`, not in
-`better_robot.__all__`. The 26-symbol public-API ceiling is
-non-negotiable.
+`better_robot.__all__`. The top-level surface stays deliberately compact;
+the pre-1.0 contract does not freeze an exact symbol count.
 
 ## Sharp edges
 

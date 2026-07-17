@@ -469,6 +469,28 @@
 
 ````
 
+````{py:attribute} structure
+:canonical: better_robot.data_model.model.Model.structure
+:type: better_robot.data_model.model_structure.ModelStructure
+:value: >
+   'field(...)'
+
+```{autodoc2-docstring} better_robot.data_model.model.Model.structure
+```
+
+````
+
+````{py:attribute} values
+:canonical: better_robot.data_model.model.Model.values
+:type: better_robot.data_model.model_values.ModelValues
+:value: >
+   'field(...)'
+
+```{autodoc2-docstring} better_robot.data_model.model.Model.values
+```
+
+````
+
 ````{py:method} to(device=None, dtype=None) -> better_robot.data_model.model.Model
 :canonical: better_robot.data_model.model.Model.to
 

@@ -40,10 +40,8 @@ EXPECTED_CALLABLES = {
     "crba",
     "center_of_mass",
     "compute_centroidal_map",
-    "register_residual",
     "solve_ik",
     "solve_trajopt",
-    "retarget",
 }
 
 
@@ -95,21 +93,13 @@ def test_data_has_core_fields() -> None:
     assert not missing, f"Data missing dataclass fields: {missing}"
 
 
-def test_data_exposes_deprecated_aliases() -> None:
-    """Old cryptic names (oMi / oMf / liMi / nle / Ag / M / J …) still resolve
-    via the one-release deprecation shim.
-
-    See docs/concepts/model_and_data.md §11 and docs/conventions/naming.md §6.
-    """
-    import warnings
-    d = br.Data(_model_id=0, q=__import__("torch").zeros(3))
-    for old in ("oMi", "oMf", "liMi", "nle", "Ag", "hg", "M", "J", "com"):
-        descriptor = getattr(br.Data, old, None)
-        assert isinstance(descriptor, property), f"{old} should be a @property shim"
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            _ = getattr(d, old)
-        assert any(issubclass(w.category, DeprecationWarning) for w in caught), old
+def test_data_legacy_aliases_are_removed() -> None:
+    old_names = {
+        "oMi", "oMf", "liMi", "ov", "oa", "v_joint", "a_joint",
+        "M", "C", "g", "nle", "J", "dJ", "Ag", "hg", "com",
+        "vcom", "acom",
+    }
+    assert all(not hasattr(br.Data, name) for name in old_names)
 
 
 def test_jacobian_strategy_enum_values() -> None:
@@ -128,28 +118,6 @@ def test_solve_ik_signature_shape() -> None:
     assert "cost_cfg" in params
     assert "optimizer_cfg" in params
     assert "robot_collision" not in params
-
-
-def test_register_residual_is_decorator_factory() -> None:
-    # register_residual("name") must return a decorator
-    deco = br.register_residual("test_dummy_residual")
-    assert callable(deco)
-
-    # Decorating a minimal class should succeed and tag it
-    class _Dummy:  # noqa: D401 — test dummy
-        """Dummy residual for signature check."""
-
-        dim = 1
-
-        def __call__(self, state):
-            return None
-
-        def jacobian(self, state):
-            return None
-
-    out = deco(_Dummy)
-    assert out is _Dummy
-    assert _Dummy.name == "test_dummy_residual"
 
 
 def test_cost_stack_basic_api() -> None:

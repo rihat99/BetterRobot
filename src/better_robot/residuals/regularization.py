@@ -13,11 +13,9 @@ from __future__ import annotations
 import torch
 
 from ..data_model.model import Model
-from .base import Residual, ResidualState
-from .registry import register_residual
+from .base import ResidualState
 
 
-@register_residual("rest")
 class RestResidual:
     """``model.difference(q_rest, q) * weight``. ``dim = model.nv``.
 
@@ -64,7 +62,6 @@ class RestResidual:
         return I * self.weight
 
 
-@register_residual("reference_trajectory")
 class ReferenceTrajectoryResidual:
     """Penalize tangent-space deviation of a trajectory from a reference.
 
@@ -91,7 +88,7 @@ class ReferenceTrajectoryResidual:
         weight: float = 1.0,
         weight_per_frame: torch.Tensor | None = None,
     ) -> None:
-        if q_ref.dim() != 2:
+        if q_ref.dim() != 2:  # bench-ok: constructor shape validation runs once
             raise ValueError(f"q_ref must be (T, nq); got {tuple(q_ref.shape)}")
         self.model = model
         self.q_ref = q_ref
@@ -109,7 +106,7 @@ class ReferenceTrajectoryResidual:
 
     def __call__(self, state: ResidualState) -> torch.Tensor:
         q = state.variables
-        if q.dim() != 2:
+        if q.dim() != 2:  # bench-ok: trajectory-shape contract validation
             raise ValueError(
                 f"ReferenceTrajectoryResidual expects (T, nq); got {tuple(q.shape)}"
             )
@@ -152,7 +149,6 @@ class ReferenceTrajectoryResidual:
         return (w.unsqueeze(-1) * r_mat).reshape(-1)
 
 
-@register_residual("nullspace")
 class NullspaceResidual:
     """Nullspace projection of ``(q - q_rest)`` onto the unconstrained subspace.
 

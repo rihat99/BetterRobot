@@ -21,11 +21,9 @@ from __future__ import annotations
 import torch
 
 from ..data_model.model import Model
-from .base import Residual, ResidualState
-from .registry import register_residual
+from .base import ResidualState
 
 
-@register_residual("contact_consistency")
 class ContactConsistencyResidual:
     """Linear cartesian velocity penalty on tagged contact frames."""
 
@@ -71,7 +69,7 @@ class ContactConsistencyResidual:
 
     def __call__(self, state: ResidualState) -> torch.Tensor:
         q = state.variables
-        if q.dim() != 2:
+        if q.dim() != 2:  # bench-ok: trajectory-shape contract validation
             raise ValueError(
                 f"ContactConsistencyResidual expects (T, nq); got {tuple(q.shape)}"
             )
@@ -128,7 +126,7 @@ class ContactConsistencyResidual:
                 # rows correspond to timestep t, frame k, 3 linear components.
                 row_offset = (t * K + k) * 3
                 r0, r1 = row_offset, row_offset + 3
-                scale = self.weight * float(w_pair[t, k]) / self.dt
+                scale = self.weight * w_pair[t, k] / self.dt
                 J[r0:r1, t * nv:(t + 1) * nv] = -scale * J_lin_all[t]
                 J[r0:r1, (t + 1) * nv:(t + 2) * nv] = scale * J_lin_all[t + 1]
         return J

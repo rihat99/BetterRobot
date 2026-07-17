@@ -12,10 +12,11 @@ special case.
 
 We took the opposite path: the core is small, and growth happens at
 **seams** — pluggable interfaces where user or contributor code joins
-without touching the core. Every seam is a `typing.Protocol` (no
-inheritance, no MRO surprises, no metaclass tricks). Every seam has a
-registry that is a plain dict. Every seam ships an example you can
-copy-paste. The result is that "add an IPOPT-backed optimiser",
+without touching the core. Public plugin seams use `typing.Protocol`
+(no inheritance, no MRO surprises, no metaclass tricks) and plain-dict
+registries where discovery is needed. The internal whole-pass compute seam
+is intentionally narrower: it uses an explicit branch in the owning pass,
+not a public plugin registry. The result is that "add an IPOPT-backed optimiser",
 "register a Schur-complement linear solver", or "support a custom robot
 description format" are each isolated PRs in user packages, not
 patches to BetterRobot's solvers, parsers, or task layer.
@@ -37,8 +38,8 @@ register."
            │                        │                       │
   ┌────────▼─────────┐     ┌────────▼────────┐     ┌────────▼────────┐
   │ Parser           │     │ Residual        │     │ Optimizer       │
-  │ (URDF, MJCF,     │     │ (@register_     │     │ (Protocol:      │
-  │  programmatic)   │     │  residual)      │     │  .minimize)     │
+  │ (URDF, MJCF,     │     │ (explicit       │     │ (Protocol:      │
+  │  programmatic)   │     │  construction)  │     │  .minimize)     │
   └──────────────────┘     └─────────────────┘     └─────────────────┘
            │                        │                       │
   ┌────────▼─────────┐     ┌────────▼────────┐     ┌────────▼────────┐
@@ -48,15 +49,15 @@ register."
   └──────────────────┘     └─────────────────┘     └─────────────────┘
            │                        │                       │
   ┌────────▼─────────┐     ┌────────▼────────┐     ┌────────▼────────┐
-  │ Collision        │     │ Render mode     │     │ Backend         │
-  │ primitive        │     │ (RenderMode     │     │ (backends.*)    │
-  │ (@register_pair) │     │  Protocol)      │     │                 │
+  │ Collision        │     │ Render mode     │     │ Whole-pass lane │
+  │ primitive        │     │ (RenderMode     │     │ (internal,      │
+  │ (@register_pair) │     │  Protocol)      │     │ explicit branch)│
   └──────────────────┘     └─────────────────┘     └─────────────────┘
 ```
 
-Each seam is a `typing.Protocol` — no inheritance required, only
-structural typing. Users ship their extensions as a package that
-registers itself on import.
+Public plugin seams use structural typing rather than inheritance. Users ship
+those extensions as a package that registers itself on import. Whole-pass
+compute work is a contributor integration and follows §10 instead.
 
 ## 1 · Add a residual
 
@@ -66,24 +67,22 @@ variant, user-defined cost).
 ```python
 # my_package/residuals/min_torque.py
 import torch
-from better_robot import register_residual
 
-@register_residual("min_torque")
 class MinTorqueResidual:
     """Penalises the joint torque needed to hold the configuration static.
 
     dim = nv.
     """
 
-    def __init__(self, weight: float = 1.0):
+    name = "min_torque"
+
+    def __init__(self, model, weight: float = 1.0):
+        self.model = model
         self.weight = weight
 
     @property
     def dim(self) -> int:
-        return self.model.nv    # set at attach time
-
-    def attach(self, model, cost_stack) -> None:
-        self.model = model
+        return self.model.nv
 
     def __call__(self, state) -> torch.Tensor:
         from better_robot import rnea
@@ -100,22 +99,21 @@ Then:
 ```python
 import better_robot as br
 cost = br.CostStack()
-cost.add("min_torque", br.get_residual("min_torque")(weight=0.1))
+cost.add("min_torque", MinTorqueResidual(model, weight=0.1))
 ```
 
 Contract (`Residual` Protocol — see {doc}`/concepts/residuals_and_costs`):
 
 | Member | Type | Required |
 |--------|------|----------|
-| `dim` | `int` property, post-attach | Yes |
-| `attach(model, cost_stack)` | binds to a model | Yes |
+| `name` | stable class/instance name | Yes |
+| `dim` | `int` property | Yes |
 | `__call__(state) -> Tensor` | residual `(B..., dim)` | Yes |
 | `jacobian(state) -> Tensor` | `(B..., dim, nv)` | No (unbatched central-FD fallback) |
 | `sparsity() -> Tensor[bool]` | column-sparsity mask | No (assumed dense) |
 
-The registry (`better_robot.residuals.registry`) keeps names → classes.
-Re-registering the same name logs a warning and replaces — intentional,
-for experimentation.
+Residuals are instantiated and added explicitly. BetterRobot does not keep a
+process-wide residual registry.
 
 ## 2 · Add a joint type
 
@@ -340,59 +338,46 @@ def parse_sdf(source) -> IRModel:
 `IRModel`; `build_model` finalises it. See
 {doc}`/concepts/parsers_and_ir`.
 
-## 10 · Add a backend
+## 10 · Add a whole-pass compute lane
 
-The user-facing type stays `torch.Tensor`. A custom backend implements
-the `Backend` Protocol from {doc}`/concepts/batching_and_backends` and
-ships its own kernel implementations under `backends/<name>/`.
+**Use when:** a measured FK, Jacobian, or dynamics pass needs a specialised
+device kernel. This is an internal performance integration, not a public
+plugin Protocol.
 
-```
-src/better_robot/backends/
-├── torch_native/
-│   └── ops.py
-├── warp/
-│   ├── bridge.py
-│   ├── kernels/
-│   │   ├── fk.py
-│   │   └── rnea.py
-│   └── graph_capture.py
-└── your_backend/
-    └── ops.py
-```
+Keep the implementation beside the Torch counterpart in the package that
+owns the pass. The public wrapper remains unchanged and the raw Torch pass
+remains the default correctness oracle. Add one explicit selection branch at
+the whole-pass boundary; do not add selectors to Lie primitives or mutable
+process-global configuration.
 
-A Warp kernel receives a torch tensor, converts via `wp.from_torch`,
-runs, converts back. Autograd wires via `torch.autograd.Function`.
+An opt-in lane must:
 
-## 11 · Registry mechanics
+1. consume `ModelStructure`, `ModelValues`, and ordinary Torch tensors;
+2. reject or intentionally fall back for unsupported joint kinds, devices,
+   dtypes, and shapes;
+3. match the Torch raw pass on shared forward fixtures;
+4. expose a tested analytic adjoint through Torch autograd without leaking
+   optional runtime arrays;
+5. preserve the flat-`E` `ExecutionBatch` mapping when inputs broadcast; and
+6. keep optional imports local to the owning pass.
 
-Every registry is a plain dict on the module:
+For Warp, conversion and custom-autograd plumbing belong in that local
+integration module. Graph capture is separate roadmap work: when added, it
+must record forward and backward together and must not invent a public
+capture decorator before the solver lifecycle is capture-safe.
 
-```python
-# better_robot/residuals/registry.py
-_REGISTRY: dict[str, type[Residual]] = {}
+## 11 · Registry mechanics where discovery exists
 
-def register_residual(name: str):
-    def decorator(cls):
-        if name in _REGISTRY:
-            warnings.warn(f"residual '{name}' already registered; replacing",
-                          RuntimeWarning)
-        _REGISTRY[name] = cls
-        return cls
-    return decorator
+Only discovery-oriented seams keep process-local dictionaries today:
+parser suffixes, viewer render modes/renderers, and collision primitive
+pairs. Residuals are constructed and added to a `CostStack` explicitly;
+optimizers, kernels, strategies, and solvers are likewise passed as objects
+or configuration choices rather than discovered through a global table.
 
-def get_residual(name: str) -> type[Residual]:
-    return _REGISTRY[name]
-
-def list_residuals() -> tuple[str, ...]:
-    return tuple(_REGISTRY)
-```
-
-Same pattern for `joint_models`, `render_modes`, `parsers`,
-`collision_pairs`, `kernels`, `strategies`, `solvers`.
-
-**Rule:** the registry is process-local. No auto-discovery via entry
-points — users register explicitly in their package's `__init__.py`.
-This keeps imports fast and failures loud.
+**Rule:** do not add entry-point auto-discovery. A documented registry is a
+plain dictionary, and extension packages register explicitly on import. This
+keeps imports fast and failures loud. Whole-pass compute lanes never use a
+registry.
 
 ## 12 · Trajectory parameterisations
 
@@ -469,18 +454,18 @@ core BetterRobot does not import `chumpy`, SMPL, or OpenSim.
 | The SE(3) representation `[tx,ty,tz,qx,qy,qz,qw]` | Every algorithm depends on it. Change requires a major version. |
 | `LeastSquaresProblem` structure | Freeze the problem contract so solvers are interchangeable. |
 | Layer DAG | If you want to import from a higher layer, refactor instead. |
-| `IRModel` shape | The `schema_version` field is the controlled change vector. |
+| `IRModel` shape | Internal parser/build boundary; re-parse assets after upgrades. |
 
 ## 16 · Pre-merge checklist for an extension
 
 Every new extension PR:
 
-1. **Adds one registry entry** — not more, not less.
+1. **Uses the owning seam's explicit construction or documented registry.**
 2. **Passes the `Protocol` check** — `isinstance(instance, Protocol)`
    is True.
 3. **Ships a unit test** that exercises the happy path on a toy model
    and one failure mode (bad input, missing method).
 4. **Updates exactly one cross-cutting doc** if the extension is
    generally useful, or ships its own doc.
-5. **Does not alter the 26-symbol public API.** If you think it must,
-   open an issue and discuss first.
+5. **Keeps the top-level API compact.** Pre-1.0 additions still require an
+   intentional contract and documentation update.

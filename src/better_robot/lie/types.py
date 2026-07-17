@@ -19,12 +19,7 @@ deliberately not defined — see ``docs/concepts/lie_and_spatial.md §7``.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
-
 import torch
-
-if TYPE_CHECKING:
-    from ..backends.protocol import Backend
 
 
 def _is_point(other: object) -> bool:
@@ -54,49 +49,41 @@ class SO3:
         return cls(_so3.identity(batch_shape=batch_shape, device=device, dtype=dtype))
 
     @classmethod
-    def exp(
-        cls, w: torch.Tensor, *, backend: "Backend | None" = None,
-    ) -> "SO3":
+    def exp(cls, w: torch.Tensor) -> "SO3":
         """``so3 → SO3``. ``w: (..., 3)``."""
         from . import so3 as _so3
-        return cls(_so3.exp(w, backend=backend))
+        return cls(_so3.exp(w))
 
     @classmethod
-    def from_matrix(
-        cls, R: torch.Tensor, *, backend: "Backend | None" = None,
-    ) -> "SO3":
+    def from_matrix(cls, R: torch.Tensor) -> "SO3":
         from . import so3 as _so3
-        return cls(_so3.from_matrix(R, backend=backend))
+        return cls(_so3.from_matrix(R))
 
     # ── methods ──────────────────────────────────────────────────────
 
-    def inverse(self, *, backend: "Backend | None" = None) -> "SO3":
+    def inverse(self) -> "SO3":
         from . import so3 as _so3
-        return SO3(_so3.inverse(self.tensor, backend=backend))
+        return SO3(_so3.inverse(self.tensor))
 
-    def log(self, *, backend: "Backend | None" = None) -> torch.Tensor:
+    def log(self) -> torch.Tensor:
         from . import so3 as _so3
-        return _so3.log(self.tensor, backend=backend)
+        return _so3.log(self.tensor)
 
-    def to_matrix(self, *, backend: "Backend | None" = None) -> torch.Tensor:
+    def to_matrix(self) -> torch.Tensor:
         from . import so3 as _so3
-        return _so3.to_matrix(self.tensor, backend=backend)
+        return _so3.to_matrix(self.tensor)
 
-    def normalize(self, *, backend: "Backend | None" = None) -> "SO3":
+    def normalize(self) -> "SO3":
         from . import so3 as _so3
-        return SO3(_so3.normalize(self.tensor, backend=backend))
+        return SO3(_so3.normalize(self.tensor))
 
-    def compose(
-        self, other: "SO3", *, backend: "Backend | None" = None,
-    ) -> "SO3":
+    def compose(self, other: "SO3") -> "SO3":
         from . import so3 as _so3
-        return SO3(_so3.compose(self.tensor, other.tensor, backend=backend))
+        return SO3(_so3.compose(self.tensor, other.tensor))
 
-    def act(
-        self, p: torch.Tensor, *, backend: "Backend | None" = None,
-    ) -> torch.Tensor:
+    def act(self, p: torch.Tensor) -> torch.Tensor:
         from . import so3 as _so3
-        return _so3.act(self.tensor, p, backend=backend)
+        return _so3.act(self.tensor, p)
 
     # ── operators ────────────────────────────────────────────────────
 
@@ -139,12 +126,10 @@ class SE3:
         return cls(_se3.identity(batch_shape=batch_shape, device=device, dtype=dtype))
 
     @classmethod
-    def exp(
-        cls, xi: torch.Tensor, *, backend: "Backend | None" = None,
-    ) -> "SE3":
+    def exp(cls, xi: torch.Tensor) -> "SE3":
         """``se3 → SE3``. ``xi: (..., 6) [vx, vy, vz, wx, wy, wz]``."""
         from . import se3 as _se3
-        return cls(_se3.exp(xi, backend=backend))
+        return cls(_se3.exp(xi))
 
     # ── accessors ────────────────────────────────────────────────────
 
@@ -160,37 +145,33 @@ class SE3:
 
     # ── methods ──────────────────────────────────────────────────────
 
-    def inverse(self, *, backend: "Backend | None" = None) -> "SE3":
+    def inverse(self) -> "SE3":
         from . import se3 as _se3
-        return SE3(_se3.inverse(self.tensor, backend=backend))
+        return SE3(_se3.inverse(self.tensor))
 
-    def log(self, *, backend: "Backend | None" = None) -> torch.Tensor:
+    def log(self) -> torch.Tensor:
         from . import se3 as _se3
-        return _se3.log(self.tensor, backend=backend)
+        return _se3.log(self.tensor)
 
-    def adjoint(self, *, backend: "Backend | None" = None) -> torch.Tensor:
+    def adjoint(self) -> torch.Tensor:
         from . import se3 as _se3
-        return _se3.adjoint(self.tensor, backend=backend)
+        return _se3.adjoint(self.tensor)
 
-    def adjoint_inv(self, *, backend: "Backend | None" = None) -> torch.Tensor:
+    def adjoint_inv(self) -> torch.Tensor:
         from . import se3 as _se3
-        return _se3.adjoint_inv(self.tensor, backend=backend)
+        return _se3.adjoint_inv(self.tensor)
 
-    def normalize(self, *, backend: "Backend | None" = None) -> "SE3":
+    def normalize(self) -> "SE3":
         from . import se3 as _se3
-        return SE3(_se3.normalize(self.tensor, backend=backend))
+        return SE3(_se3.normalize(self.tensor))
 
-    def compose(
-        self, other: "SE3", *, backend: "Backend | None" = None,
-    ) -> "SE3":
+    def compose(self, other: "SE3") -> "SE3":
         from . import se3 as _se3
-        return SE3(_se3.compose(self.tensor, other.tensor, backend=backend))
+        return SE3(_se3.compose(self.tensor, other.tensor))
 
-    def act(
-        self, p: torch.Tensor, *, backend: "Backend | None" = None,
-    ) -> torch.Tensor:
+    def act(self, p: torch.Tensor) -> torch.Tensor:
         from . import se3 as _se3
-        return _se3.act(self.tensor, p, backend=backend)
+        return _se3.act(self.tensor, p)
 
     # ── operators ────────────────────────────────────────────────────
 

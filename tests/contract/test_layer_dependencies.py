@@ -22,8 +22,6 @@ SRC = Path(__file__).resolve().parents[2] / "src" / PKG
 # from ranks <= K (same-rank imports from a different sub-package are also
 # disallowed — see _is_violation below).
 LAYER_RANK: dict[str, int] = {
-    "backends": 0,
-    "utils": 1,
     "_typing": 1,
     "lie": 2,
     "spatial": 3,
@@ -156,11 +154,16 @@ def test_no_upward_imports() -> None:
     assert not violations, "layer violations:\n  " + "\n  ".join(violations)
 
 
+def test_retired_compute_backends_package_is_absent() -> None:
+    """The old per-operation backend registry must not grow back."""
+    assert not (SRC / "backends").exists()
+
+
 def test_no_pypose_imports() -> None:
     """No module under ``src/`` may ``import pypose`` after P10-D.
 
-    The pure-PyTorch backend in ``lie/_torch_native_backend.py`` is now
-    the only Lie implementation.
+    The direct pure-Torch code in ``lie/_impl.py`` is now the only Lie
+    implementation.
     """
     offenders: list[str] = []
     for path in _iter_py_files():

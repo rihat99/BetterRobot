@@ -18,34 +18,112 @@ See ``docs/concepts/dynamics.md §3``.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import torch
 
 from ..data_model import KinematicsLevel
 from ..data_model.data import Data
 from ..data_model.model import Model
+from ..data_model.model_structure import ModelStructure
+from ..data_model.model_values import ModelValues
 from ..kinematics.forward import forward_kinematics_raw
 from ..lie import se3
-from ..spatial.inertia import Inertia
 
 
-def _world_com(model: Model, q: torch.Tensor, oMi: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+def _world_com(
+    structure: ModelStructure,
+    values: ModelValues,
+    oMi: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor]:
     """Return ``(total_mass, com_world)`` from ``oMi``.
 
     ``total_mass`` is a ``(*batch,)`` tensor; ``com_world`` is ``(*batch, 3)``.
     """
-    *batch, _ = q.shape
-    device, dtype = q.device, q.dtype
-    total_mass = torch.zeros(tuple(batch), device=device, dtype=dtype)
-    com_world = torch.zeros((*batch, 3), device=device, dtype=dtype)
-    for i in range(1, model.njoints):
-        I_i = Inertia(model.body_inertias[i].to(device=device, dtype=dtype))
-        m_i = I_i.mass
-        c_local = I_i.com
-        c_world_i = se3.act(oMi[..., i, :], c_local)
-        total_mass = total_mass + m_i
-        com_world = com_world + m_i * c_world_i
+    inertias = values.body_inertias.to(device=oMi.device, dtype=oMi.dtype)
+    masses = inertias[..., 1 : structure.njoints, 0]
+    com_local = inertias[..., 1 : structure.njoints, 1:4]
+    com_each = se3.act(oMi[..., 1 : structure.njoints, :], com_local)
+    total_mass = masses.sum(dim=-1)
+    com_world = (masses[..., None] * com_each).sum(dim=-2)
     com_world = com_world / total_mass.unsqueeze(-1).clamp(min=1e-12)
     return total_mass, com_world
+
+
+@dataclass(frozen=True)
+class CentroidalResult:
+    """Fresh tensors from the pure centroidal pass."""
+
+    centroidal_map: torch.Tensor
+    momentum: torch.Tensor | None
+    total_mass: torch.Tensor
+    com_position: torch.Tensor
+    joint_pose_world: torch.Tensor
+    joint_pose_local: torch.Tensor
+
+
+def ccrba_raw(
+    structure: ModelStructure,
+    values: ModelValues,
+    q: torch.Tensor,
+    v: torch.Tensor | None = None,
+) -> CentroidalResult:
+    """Pure centroidal CRBA over ``(structure, values, q, v)``."""
+
+    device, dtype = q.device, q.dtype
+    njoints = structure.njoints
+    nv = structure.nv
+    oMi, liMi = forward_kinematics_raw(structure, values, q)
+    batch = tuple(oMi.shape[:-2])
+    total_mass, com_world = _world_com(structure, values, oMi)
+    spatial_inertias = values.spatial_inertias().to(device=device, dtype=dtype)
+    motion_subspaces = structure.joint_motion_subspaces.to(device=device, dtype=dtype)
+
+    adjoint_inverse: list[torch.Tensor | None] = [None] * njoints
+    for index in range(1, njoints):
+        adjoint_inverse[index] = se3.adjoint_inv(liMi[..., index, :])
+
+    composite = [
+        spatial_inertias[..., index, :, :].expand(*batch, 6, 6)
+        for index in range(njoints)
+    ]
+    for index in reversed(structure.topo_order):
+        if index == 0:
+            continue
+        parent = structure.parents[index]
+        if parent < 0:
+            continue
+        transform = adjoint_inverse[index]
+        composite[parent] = (
+            composite[parent]
+            + transform.transpose(-1, -2) @ composite[index] @ transform
+        )
+
+    centroidal_map = torch.zeros(*batch, 6, nv, device=device, dtype=dtype)
+    for index in structure.topo_order:
+        if index == 0:
+            continue
+        nv_i = structure.nvs[index]
+        if nv_i == 0:
+            continue
+        iv = structure.idx_vs[index]
+        subspace = motion_subspaces[index, :, :nv_i].expand(*batch, 6, nv_i)
+        momentum_columns = composite[index] @ subspace
+        shifted = torch.cat(
+            (oMi[..., index, :3] - com_world, oMi[..., index, 3:7]), dim=-1
+        )
+        to_centroidal = se3.adjoint_inv(shifted).transpose(-1, -2)
+        centroidal_map[..., :, iv : iv + nv_i] = to_centroidal @ momentum_columns
+
+    momentum = None if v is None else (centroidal_map @ v.unsqueeze(-1)).squeeze(-1)
+    return CentroidalResult(
+        centroidal_map,
+        momentum,
+        total_mass,
+        com_world,
+        oMi,
+        liMi,
+    )
 
 
 def center_of_mass(
@@ -64,20 +142,16 @@ def center_of_mass(
     The function runs its own FK pass; callers do not need to populate
     ``data`` beforehand.
     """
-    oMi, liMi = forward_kinematics_raw(model, q)
-    data.joint_pose_world = oMi
-    data.joint_pose_local = liMi
-    data._kinematics_level = KinematicsLevel.PLACEMENTS
-
-    total_mass, com_world = _world_com(model, q, oMi)
-    data.com_position = com_world
-
-    if v is not None:
-        _, h_g = ccrba(model, data, q, v)
-        com_vel = h_g[..., :3] / total_mass.unsqueeze(-1).clamp(min=1e-12)
-        data.com_velocity = com_vel
-
-    return com_world
+    if a is not None:
+        raise NotImplementedError(
+            "center-of-mass acceleration is not implemented; omit a or track the "
+            "centroidal-derivatives milestone"
+        )
+    result = ccrba_raw(model.structure, model.values, q, v)
+    _populate_centroidal_data(data, result)
+    if result.momentum is not None:
+        data.com_velocity = result.momentum[..., :3] / result.total_mass.unsqueeze(-1).clamp(min=1e-12)
+    return result.com_position
 
 
 def compute_centroidal_map(
@@ -127,69 +201,15 @@ def _ccrba_impl(
     *,
     v: torch.Tensor | None,
 ) -> tuple[torch.Tensor, torch.Tensor | None]:
-    *batch, _ = q.shape
-    device, dtype = q.device, q.dtype
-    njoints = model.njoints
-    nv = model.nv
+    result = ccrba_raw(model.structure, model.values, q, v)
+    _populate_centroidal_data(data, result)
+    return result.centroidal_map, result.momentum
 
-    # ── FK ───────────────────────────────────────────────────────────────
-    oMi, liMi = forward_kinematics_raw(model, q)
-    data.joint_pose_world = oMi
-    data.joint_pose_local = liMi
-    data._kinematics_level = KinematicsLevel.PLACEMENTS
 
-    # ── COM in world ─────────────────────────────────────────────────────
-    total_mass, com_world = _world_com(model, q, oMi)
-    data.com_position = com_world
-
-    # ── CRBA backward accumulation: Y_c in each joint's local frame ──────
-    Ad_inv: list[torch.Tensor | None] = [None] * njoints
-    for i in range(1, njoints):
-        Ad_inv[i] = se3.adjoint_inv(liMi[..., i, :])
-
-    Y_c: list[torch.Tensor] = []
-    for i in range(njoints):
-        I_i = Inertia(model.body_inertias[i].to(device=device, dtype=dtype))._to_6x6()
-        Y_c.append(I_i.expand(*batch, 6, 6).contiguous())
-
-    for i in reversed(model.topo_order):
-        if i == 0:
-            continue
-        p = model.parents[i]
-        if p < 0:
-            continue
-        A = Ad_inv[i]
-        Y_c[p] = Y_c[p] + A.transpose(-1, -2) @ Y_c[i] @ A
-
-    # ── Per-joint columns of A_g ─────────────────────────────────────────
-    A_g = torch.zeros(*batch, 6, nv, device=device, dtype=dtype)
-
-    for i in model.topo_order:
-        if i == 0:
-            continue
-        nv_i = model.nvs[i]
-        if nv_i == 0:
-            continue
-        iv = model.idx_vs[i]
-        jm = model.joint_models[i]
-        iq, nq_i = model.idx_qs[i], model.nqs[i]
-        q_i = q[..., iq : iq + nq_i] if nq_i > 0 else q[..., :0]
-        S_i = jm.joint_motion_subspace(q_i)                                 # (..., 6, nv_i)
-        F = Y_c[i] @ S_i                                                    # (..., 6, nv_i) — momentum in joint-i frame
-
-        # T_{g, i}: world-axes-at-COM → body i. Translation is shifted by
-        # −com_world; rotation is the body's world rotation (oMi[i].q).
-        t_shifted = oMi[..., i, :3] - com_world
-        q_oMi = oMi[..., i, 3:7]
-        T_g_i = torch.cat([t_shifted, q_oMi], dim=-1)
-        Phi_neg_T = se3.adjoint_inv(T_g_i).transpose(-1, -2)                # (..., 6, 6)
-        F_g = Phi_neg_T @ F                                                 # (..., 6, nv_i)
-        A_g[..., :, iv : iv + nv_i] = F_g
-
-    data.centroidal_momentum_matrix = A_g
-
-    if v is None:
-        return A_g, None
-    h_g = (A_g @ v.unsqueeze(-1)).squeeze(-1)
-    data.centroidal_momentum = h_g
-    return A_g, h_g
+def _populate_centroidal_data(data: Data, result: CentroidalResult) -> None:
+    data.joint_pose_world = result.joint_pose_world
+    data.joint_pose_local = result.joint_pose_local
+    data.com_position = result.com_position
+    data.centroidal_momentum_matrix = result.centroidal_map
+    data.centroidal_momentum = result.momentum
+    object.__setattr__(data, "_kinematics_level", KinematicsLevel.PLACEMENTS)

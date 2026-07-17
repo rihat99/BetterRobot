@@ -42,15 +42,8 @@ SUBMODULE_PATHS: list[tuple[str, str]] = [
     ("better_robot.tasks.ik", "IKResult"),
     ("better_robot.tasks.ik", "IKCostConfig"),
     ("better_robot.tasks.ik", "OptimizerConfig"),
-    # backends
-    ("better_robot.backends", "default_backend"),
-    ("better_robot.backends", "set_backend"),
-    ("better_robot.backends", "get_backend"),
-    ("better_robot.backends", "Backend"),
     # exceptions
-    ("better_robot.exceptions", "IRSchemaVersionError"),
     ("better_robot.exceptions", "StaleCacheError"),
-    ("better_robot.exceptions", "BackendNotAvailableError"),
 ]
 
 

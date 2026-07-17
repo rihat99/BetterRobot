@@ -2,8 +2,9 @@
 
 ## Entry Points
 
-- `forward_kinematics(model, q_or_data, compute_frames=False)` — single topological pass, fills `oMi` (and `oMf` if `compute_frames=True`)
-- `update_frame_placements(model, data)` — fills `oMf` from existing `oMi`
+- `forward_kinematics(model, q_or_data, compute_frames=False, use_warp=False)` — selects one whole FK pass, fills `joint_pose_world` (and `frame_pose_world` if `compute_frames=True`)
+- `forward_kinematics_raw(structure, values, q)` — pure Torch pass over the `ModelStructure` / `ModelValues` seam
+- `update_frame_placements(model, data)` — fills `frame_pose_world` from existing `joint_pose_world`
 - `compute_joint_jacobians(model, data)` — fills `data.joint_jacobians` for all joints
 - `get_frame_jacobian(model, data, frame_id, reference=...)` — extracts `(B..., 6, nv)` for one frame
 - `get_joint_jacobian(model, data, joint_id, reference=...)` — same for joints
@@ -42,4 +43,9 @@ not selectable today.
 
 ## FK Hot Path
 
-No `if jtype in ...` branching. All per-kind logic lives in `JointModel.joint_transform()`. The loop over `model.topo_order` is static and unrolls cleanly for `torch.compile`.
+The Torch lane uses shared `joint_dispatch.joint_transform` and loops over
+the static `ModelStructure.topo_order` tuple, which unrolls cleanly for
+`torch.compile`. `use_warp=True` opts into the fused whole-pass prototype;
+unsupported runtime, kind, dtype, or layout cases intentionally fall back to
+the Torch raw pass. There is no per-Lie-operation or process-global compute
+selection.

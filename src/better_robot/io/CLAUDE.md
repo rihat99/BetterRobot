@@ -32,6 +32,13 @@ IR is flat and order-unconstrained — no topo-sort or idx_q/idx_v yet. That hap
 5. Select concrete `JointModel` from kind + axis
 6. Pack tensors, build frames, return frozen `Model`
 
+`ModelBuilder.add_joint(kind=<JointModel instance>)` stores an opaque,
+programmatic-only payload on `IRJoint` so class-specific state survives the
+IR boundary; file parsers never populate it and it is not a serialization
+contract. Direct `JointMimic` payloads are rejected because the placeholder is
+not coupled. The M0 exemption applies only to exact identity mimic metadata on
+a concrete joint model, which retains an independent coordinate until M3.
+
 ## Public Entry Point
 
 `load(source, *, free_flyer=False, device=None, dtype=None)` — dispatches by suffix or type, calls parser + `build_model()`.

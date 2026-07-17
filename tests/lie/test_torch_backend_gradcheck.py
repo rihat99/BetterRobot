@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 import torch
 
-from better_robot.lie import _torch_native_backend as tn
+from better_robot.lie import _impl as tn
 
 
 def _rand_quat(dtype):

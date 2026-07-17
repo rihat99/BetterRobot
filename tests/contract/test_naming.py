@@ -1,10 +1,8 @@
-"""Contract test: forbid old Pinocchio-style storage names outside the
-deprecation shim.
+"""Contract test: forbid old Pinocchio-style storage names.
 
-Scans every ``.py`` file under ``src/better_robot/`` (excluding the
-backing-store / alias table inside ``data_model/data.py``) for references
-to the pre-rename ``Data`` field names. See ``docs/conventions/naming.md`` for the
-rename plan and ``docs/concepts/model_and_data.md §11`` for the shim policy.
+Scans every ``.py`` file under ``src/better_robot/`` for references to the
+removed ``Data`` field names. See ``docs/conventions/naming.md`` for the
+rename table.
 
 If this test fails, grep shows you the offending site; rename the
 reference to the new field (e.g. ``data.oMi`` → ``data.joint_pose_world``)
@@ -20,11 +18,6 @@ import pytest
 
 
 _SRC_ROOT = pathlib.Path(__file__).resolve().parents[2] / "src" / "better_robot"
-
-# ``data.py`` is the shim location — old names MUST live there.
-_ALLOWED_FILES = {
-    "data_model/data.py",
-}
 
 # One regex per old name. Word-boundary left + specific attribute-access pattern
 # right (so ``model.gravity`` doesn't match ``data.g``).
@@ -59,8 +52,6 @@ def test_no_old_names_in_source(old_name: str, pattern: re.Pattern) -> None:
     offenders: list[str] = []
     for path in _iter_source_files():
         relative = path.relative_to(_SRC_ROOT).as_posix()
-        if relative in _ALLOWED_FILES:
-            continue
         for lineno, line in enumerate(path.read_text().splitlines(), start=1):
             if pattern.search(line):
                 offenders.append(f"{relative}:{lineno}: {line.strip()}")
@@ -69,12 +60,3 @@ def test_no_old_names_in_source(old_name: str, pattern: re.Pattern) -> None:
         + "\n".join(offenders)
         + "\n\nRename to the new name (see docs/conventions/naming.md §3)."
     )
-
-
-def test_data_module_hosts_the_shim() -> None:
-    """Belt-and-braces: the allow-listed file actually contains the alias table."""
-    shim_file = _SRC_ROOT / "data_model" / "data.py"
-    text = shim_file.read_text()
-    assert "_DEPRECATED_ALIASES" in text, "shim constant missing from data.py"
-    for old in ("oMi", "oMf", "liMi", "nle", "Ag", "hg"):
-        assert f'"{old}"' in text, f"{old} alias entry missing"

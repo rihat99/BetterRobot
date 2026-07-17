@@ -16,35 +16,42 @@ See ``docs/concepts/dynamics.md §2``.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import torch
 
 from ..data_model._kinematics_level import KinematicsLevel
 from ..data_model.data import Data
 from ..data_model.model import Model
+from ..data_model.model_structure import ModelStructure
+from ..data_model.model_values import ModelValues
 from ..kinematics.forward import forward_kinematics_raw
 from ..lie import se3
-from ..spatial.inertia import Inertia
 
 
-def crba(
-    model: Model,
-    data: Data,
+@dataclass(frozen=True)
+class CRBAResult:
+    """Fresh tensor outputs from :func:`crba_raw`."""
+
+    mass_matrix: torch.Tensor
+    joint_pose_world: torch.Tensor
+    joint_pose_local: torch.Tensor
+
+
+def crba_raw(  # noqa: PLR0912, PLR0915 - composite-body passes are intentionally explicit
+    structure: ModelStructure,
+    values: ModelValues,
     q: torch.Tensor,
-) -> torch.Tensor:
-    """Joint-space inertia matrix ``M(q)``. Shape: ``(B..., nv, nv)``.
-
-    Populates ``data.mass_matrix``, ``data.joint_pose_local``, and
-    ``data.joint_pose_world`` as a side effect.
-    """
-    *batch, _ = q.shape
+) -> CRBAResult:
+    """Return a fresh joint-space inertia result over the pure seam."""
     device, dtype = q.device, q.dtype
-    njoints = model.njoints
+    njoints = structure.njoints
 
     # ── FK pass: oMi (unused) and liMi (drives the adjoints) ─────────────
-    oMi, liMi = forward_kinematics_raw(model, q)
-    data.joint_pose_world = oMi
-    data.joint_pose_local = liMi
-    data._kinematics_level = KinematicsLevel.PLACEMENTS
+    oMi, liMi = forward_kinematics_raw(structure, values, q)
+    batch = tuple(oMi.shape[:-2])
+    spatial_inertias = values.spatial_inertias().to(device=device, dtype=dtype)
+    motion_subspaces = structure.joint_motion_subspaces.to(device=device, dtype=dtype)
 
     # ── Pre-compute Ad(liMi[i])^{-1} once per joint ──────────────────────
     Ad_inv: list[torch.Tensor | None] = [None] * njoints
@@ -52,19 +59,21 @@ def crba(
         Ad_inv[i] = se3.adjoint_inv(liMi[..., i, :])  # (..., 6, 6)
 
     # ── Initialise composite-inertia matrices Y_c[i] (broadcast to batch) ─
+    composite_storage = torch.zeros(
+        (*batch, njoints, 6, 6), device=device, dtype=dtype
+    )
     Y_c: list[torch.Tensor] = [
-        torch.zeros((*batch, 6, 6), device=device, dtype=dtype)
-        for _ in range(njoints)
+        composite_storage[..., index, :, :] for index in range(njoints)
     ]
     for i in range(njoints):
-        I_i = Inertia(model.body_inertias[i].to(device=device, dtype=dtype))._to_6x6()
+        I_i = spatial_inertias[..., i, :, :]
         Y_c[i] = I_i.expand(*batch, 6, 6).contiguous()
 
     # ── Backward pass: accumulate Y_c up the kinematic tree ──────────────
-    for i in reversed(model.topo_order):
+    for i in reversed(structure.topo_order):
         if i == 0:
             continue
-        p = model.parents[i]
+        p = structure.parents[i]
         if p < 0:
             continue
         A = Ad_inv[i]                                                # (..., 6, 6)
@@ -73,28 +82,25 @@ def crba(
 
     # ── Pre-compute motion-subspace S_i for every joint with nv_i > 0 ────
     S_cache: list[torch.Tensor | None] = [None] * njoints
-    for i in model.topo_order:
+    for i in structure.topo_order:
         if i == 0:
             continue
-        nv_i = model.nvs[i]
+        nv_i = structure.nvs[i]
         if nv_i == 0:
             continue
-        jm = model.joint_models[i]
-        iq, nq_i = model.idx_qs[i], model.nqs[i]
-        q_i = q[..., iq : iq + nq_i] if nq_i > 0 else q[..., :0]
-        S_cache[i] = jm.joint_motion_subspace(q_i)                   # (..., 6, nv_i)
+        S_cache[i] = motion_subspaces[i, :, :nv_i].expand(*batch, 6, nv_i)
 
     # ── Forward pass: assemble M ─────────────────────────────────────────
-    nv = model.nv
+    nv = structure.nv
     M = torch.zeros((*batch, nv, nv), device=device, dtype=dtype)
 
-    for i in model.topo_order:
+    for i in structure.topo_order:
         if i == 0:
             continue
-        nv_i = model.nvs[i]
+        nv_i = structure.nvs[i]
         if nv_i == 0:
             continue
-        iv_i = model.idx_vs[i]
+        iv_i = structure.idx_vs[i]
         S_i = S_cache[i]                                             # (..., 6, nv_i)
         F = Y_c[i] @ S_i                                             # (..., 6, nv_i)
         M_ii = S_i.transpose(-1, -2) @ F                             # (..., nv_i, nv_i)
@@ -103,21 +109,31 @@ def crba(
         # Walk up the chain transporting F into each ancestor's frame.
         j = i
         while True:
-            p = model.parents[j]
+            p = structure.parents[j]
             if p <= 0:
                 break
             F = Ad_inv[j].transpose(-1, -2) @ F                      # (..., 6, nv_i)
-            nv_p = model.nvs[p]
+            nv_p = structure.nvs[p]
             if nv_p > 0:
-                iv_p = model.idx_vs[p]
+                iv_p = structure.idx_vs[p]
                 S_p = S_cache[p]
                 M_pi = S_p.transpose(-1, -2) @ F                     # (..., nv_p, nv_i)
                 M[..., iv_p : iv_p + nv_p, iv_i : iv_i + nv_i] = M_pi
                 M[..., iv_i : iv_i + nv_i, iv_p : iv_p + nv_p] = M_pi.transpose(-1, -2)
             j = p
 
-    data.mass_matrix = M
-    return M
+    return CRBAResult(M, oMi, liMi)
+
+
+def crba(model: Model, data: Data, q: torch.Tensor) -> torch.Tensor:
+    """Public CRBA wrapper that populates the caller's ``Data`` workspace."""
+
+    result = crba_raw(model.structure, model.values, q)
+    data.mass_matrix = result.mass_matrix
+    data.joint_pose_world = result.joint_pose_world
+    data.joint_pose_local = result.joint_pose_local
+    object.__setattr__(data, "_kinematics_level", KinematicsLevel.PLACEMENTS)
+    return result.mass_matrix
 
 
 def compute_minverse(

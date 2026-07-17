@@ -16,8 +16,8 @@ you discover the parser is the entry point and there is no clean way
 to extend it.
 
 We solved this by making the format-specific parsers all converge on
-the same intermediate representation: an `IRModel` dataclass with
-`schema_version`. Every parser produces an `IRModel`; one factory —
+the same intermediate representation: an internal `IRModel` dataclass.
+Every parser produces an `IRModel`; one factory —
 `build_model()` — turns any `IRModel` into a frozen `Model`.
 Adding a new format is one parser file plus a registration; the
 factory does not need to change. URDF and MJCF live as siblings; a
@@ -106,7 +106,6 @@ class IRFrame:
 
 @dataclass
 class IRModel:
-    schema_version: int = 1
     name: str
     bodies: list[IRBody]
     joints: list[IRJoint]
@@ -123,22 +122,9 @@ The IR is **flat** and **ordered-unconstrained**. Topological sort,
 to concrete `JointModel` instances — none of that lives in the IR.
 `build_model()` derives all of it.
 
-### `schema_version`
-
-`IRModel.schema_version` is the controlled change vector: a single
-integer counter that bumps in the same PR that changes the IR shape,
-with a one-line entry in `CHANGELOG.md`. Cached IR dumps (the `.npz`
-fixtures under `tests/io/`) carry the version; old fixtures
-regenerate when the version bumps.
-
-```python
-def build_model(ir: IRModel, *, free_flyer: bool = False) -> Model:
-    if ir.schema_version != IRModel.schema_version:
-        raise IRSchemaVersionError(...)
-    ...
-```
-
-Documented in {doc}`/conventions/contracts` §2 as a typed exception.
+The IR is an in-process parser/build boundary, not a persistence format.
+BetterRobot does not promise compatibility for pickled or independently
+serialized `IRModel` instances; re-parse the source asset after an upgrade.
 
 ## `build_model` — the IR → `Model` factory
 
@@ -392,9 +378,8 @@ change; `build_model` does not change; existing tests do not break.
 - **Meshes are not loaded by parsers.** The IR carries the URI;
   loading happens in `viewer/` and `collision/`. Both go through the
   `AssetResolver`.
-- **`schema_version` is a single int.** Bumping it requires a
-  CHANGELOG entry and may force regeneration of cached IR `.npz`
-  fixtures.
+- **IR is not a persistence contract.** Re-parse source descriptions after
+  upgrading BetterRobot instead of caching serialized `IRModel` objects.
 
 ## Where to look next
 

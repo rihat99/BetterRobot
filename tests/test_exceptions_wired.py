@@ -52,7 +52,7 @@ def free_flyer_model():
 def test_shape_error_on_wrong_nq(arm_model):
     bad_q = torch.zeros(arm_model.nq + 3)
     with pytest.raises(ShapeError, match="trailing size"):
-        forward_kinematics_raw(arm_model, bad_q)
+        forward_kinematics_raw(arm_model.structure, arm_model.values, bad_q)
 
 
 def test_shape_error_on_wrong_nq_batched(arm_model):
@@ -81,7 +81,7 @@ def test_device_mismatch_on_cpu_cuda():
     model = build_model(b.finalize())  # CPU
     q = torch.zeros(model.nq, device="cuda")
     with pytest.raises(DeviceMismatchError, match="device"):
-        forward_kinematics_raw(model, q)
+        forward_kinematics_raw(model.structure, model.values, q)
 
 
 # ────────────────────── QuaternionNormError ──────────────────────
@@ -114,7 +114,7 @@ def test_fixed_base_bypasses_quaternion_check(arm_model):
     """The quaternion guard only fires for free-flyer roots."""
     q = arm_model.q_neutral.clone()
     # Arbitrary q value — no quaternion here, so no error should fire.
-    forward_kinematics_raw(arm_model, q)
+    forward_kinematics_raw(arm_model.structure, arm_model.values, q)
 
 
 # ────────────────────── ModelInconsistencyError ──────────────────────

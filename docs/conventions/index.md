@@ -13,6 +13,8 @@ performance
 extension
 testing
 contracts
+engineering
+source_and_license
 style
 packaging
 ```
@@ -26,5 +28,7 @@ packaging
 | {doc}`extension` | Plugging in a new residual / joint / solver / backend / parameterisation. |
 | {doc}`testing` | Adding tests, or promoting a benchmark from advisory to blocking. |
 | {doc}`contracts` | Touching the public API, raising a new exception, or changing numerical guarantees. |
+| {doc}`engineering` | Deciding dtype, quaternion, concurrency, serialization, differentiation, or compile behavior. |
+| {doc}`source_and_license` | Apache-2.0 decision record and external-source ledger rules. |
 | {doc}`style` | Writing any new code or docstring. |
 | {doc}`packaging` | Adding a dependency, cutting a release, deprecating a symbol. |

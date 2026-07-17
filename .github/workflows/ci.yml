@@ -1,0 +1,221 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  full-non-warp:
+    name: Full test suite (non-Warp)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: cpu
+      - name: Verify the committed lock is current
+        run: uv lock --check
+      - name: Install test and integration extras
+        run: |
+          uv venv --python 3.12
+          uv pip install --python .venv/bin/python --strict --no-sources --torch-backend cpu \
+            -e ".[dev,viewer,io-mjcf,meshes,demos]"
+      - name: Verify Warp is not installed
+        run: |
+          .venv/bin/python - <<'PY'
+          import importlib.util
+
+          assert importlib.util.find_spec("warp") is None
+          PY
+      - name: Run all non-Warp tests
+        run: >-
+          .venv/bin/pytest tests
+          --ignore=tests/warp
+          --ignore=tests/data_model/test_layout_aliasing.py
+          -m "not bench and not cuda"
+
+  core-only:
+    name: Fresh core-only install
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: cpu
+      - name: Verify the committed lock is current
+        run: uv lock --check
+      - name: Install only core dependencies
+        run: |
+          uv venv --python 3.12
+          uv pip install --python .venv/bin/python --strict --no-sources --torch-backend cpu .
+      - name: Verify import and dependency boundary
+        run: |
+          .venv/bin/python - <<'PY'
+          from importlib import metadata, util
+          import re
+          import sys
+
+          distribution = metadata.distribution("better-robot")
+          direct_core = {
+              re.match(r"[A-Za-z0-9_.-]+", requirement).group(0)
+              .lower()
+              .replace("_", "-")
+              for requirement in distribution.metadata.get_all("Requires-Dist", [])
+              if "extra ==" not in requirement
+          }
+          assert direct_core == {"numpy", "torch", "yourdfpy"}, direct_core
+
+          import better_robot  # noqa: F401
+
+          heavy_modules = {"mujoco", "trimesh", "viser", "robot_descriptions", "warp"}
+          assert not heavy_modules.intersection(sys.modules)
+
+          must_be_absent = {"mujoco", "viser", "robot_descriptions", "warp"}
+          unexpectedly_present = {
+              module for module in must_be_absent if util.find_spec(module) is not None
+          }
+          assert not unexpectedly_present, unexpectedly_present
+
+          # yourdfpy currently requires trimesh[easy], so the meshes extra cannot
+          # make trimesh absent from a core environment. Permit it only while that
+          # transitive requirement is declared by the locked yourdfpy release.
+          if util.find_spec("trimesh") is not None:
+              yourdfpy_requires = metadata.requires("yourdfpy") or []
+              assert any(
+                  re.match(r"trimesh(?:\[|\b)", requirement, flags=re.IGNORECASE)
+                  for requirement in yourdfpy_requires
+              ), yourdfpy_requires
+          PY
+
+  docs:
+    name: Executable front page and Sphinx
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: cpu
+      - name: Verify the committed lock is current
+        run: uv lock --check
+      - name: Install docs and demo dependencies
+        run: |
+          uv venv --python 3.12
+          uv pip install --python .venv/bin/python --strict --no-sources --torch-backend cpu \
+            -e ".[dev,demos]"
+      - name: Execute the published front-page example
+        run: .venv/bin/pytest tests/docs/test_front_page.py -q
+      - name: Build the Sphinx site
+        run: make -C docs html SPHINXBUILD=../.venv/bin/sphinx-build
+
+  benchmarks:
+    name: Committed CPU benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: cpu
+      - name: Verify the committed lock is current
+        run: uv lock --check
+      - name: Install benchmark and demo dependencies
+        run: |
+          uv venv --python 3.12
+          uv pip install --python .venv/bin/python --strict --no-sources --torch-backend cpu \
+            -e ".[demos]" "pytest>=8" "pytest-benchmark>=4"
+      - name: Run pytest benchmark definitions
+        run: >-
+          .venv/bin/pytest
+          tests/bench/bench_forward_kinematics.py
+          tests/bench/bench_jacobian.py
+          tests/bench/bench_lie.py
+          tests/bench/bench_solve_ik.py
+          -m bench
+          --benchmark-only
+      - name: Run the M1 eager-CPU benchmark definition
+        run: >-
+          .venv/bin/python benchmarks/m1_eager_cpu.py
+          --label ci
+          --batches 1 64
+          --warmup 3
+          --samples 10
+          --output "$RUNNER_TEMP/m1-eager-cpu.json"
+      - name: Upload eager-CPU benchmark evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: m1-eager-cpu
+          path: ${{ runner.temp }}/m1-eager-cpu.json
+
+  warp-cpu:
+    name: Warp prototype (CPU)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      WARP_CACHE_PATH: /tmp/betterrobot-warp-tests-main
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: cpu
+      - name: Verify the committed lock is current
+        run: uv lock --check
+      - name: Restore the persistent Warp kernel cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.WARP_CACHE_PATH }}
+          key: warp-cpu-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('uv.lock', 'src/better_robot/kinematics/_warp_*.py') }}
+      - name: Install Warp test dependencies
+        run: |
+          uv venv --python 3.12
+          uv pip install --python .venv/bin/python --strict --no-sources --torch-backend cpu \
+            -e ".[warp]" "pytest>=8"
+      - name: Run bounded Warp-CPU contracts
+        run: >-
+          .venv/bin/pytest
+          tests/data_model/test_layout_aliasing.py
+          tests/warp
+          -q
+      - name: Compare Warp FK with compiled Torch FK
+        run: >-
+          .venv/bin/python benchmarks/m1_warp_fk_vs_compiled_torch.py
+          --label ci
+          --batches 1 64
+          --warmup 3
+          --samples 10
+          --output "$RUNNER_TEMP/m1-warp-fk.json"
+      - name: Upload Warp/compiled-Torch benchmark evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: m1-warp-fk
+          path: ${{ runner.temp }}/m1-warp-fk.json

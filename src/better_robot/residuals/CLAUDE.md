@@ -34,7 +34,7 @@ class ResidualState:
 
 ## Registry
 
-Use `@register_residual("name")` decorator. Lookup via `get_residual("name")`.
+Residuals are constructed explicitly and composed into a `CostStack`; there is no process-wide registry.
 
 ## Implementation Status
 
@@ -61,7 +61,7 @@ Use `@register_residual("name")` decorator. Lookup via `get_residual("name")`.
 ## Adding a New Residual
 
 1. Create class implementing the protocol in a new file
-2. Decorate with `@register_residual("name")`
+2. Give the class a stable `name` attribute
 3. Implement `__call__` (required) and `jacobian` (optional but preferred)
 4. For trajectory-scale or sparse residuals, override `apply_jac_transpose` to skip the dense Jacobian
 5. Optionally expose `.spec` returning a `ResidualSpec` so block-sparse solvers can pre-build masks

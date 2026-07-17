@@ -6,9 +6,11 @@ See ``docs/concepts/joints_bodies_frames.md §5``.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
 
 import torch
+
+from ...lie import se3 as _se3
+from .base import JointModel
 
 
 @dataclass(frozen=True)
@@ -18,15 +20,29 @@ class JointComposite:
     ``nq`` and ``nv`` are set at construction time as the sum of sub-joint nq/nv.
     """
 
-    sub_joints: tuple[Any, ...] = field(default_factory=tuple)
+    sub_joints: tuple[JointModel, ...] = field(default_factory=tuple)
     kind: str = "composite"
-    nq: int = 0
-    nv: int = 0
+    nq: int = field(init=False)
+    nv: int = field(init=False)
     axis: torch.Tensor | None = None
+
+    def __post_init__(self) -> None:
+        """Derive dimensions from the immutable sub-joint sequence."""
+        for joint in self.sub_joints:
+            if not isinstance(joint, JointModel):
+                raise TypeError(
+                    f"Composite child {joint!r} does not implement JointModel"
+                )
+            if joint.kind == "mimic":
+                raise ValueError(
+                    "JointMimic cannot be nested in JointComposite; real mimic "
+                    "coupling is scheduled for M3"
+                )
+        object.__setattr__(self, "nq", sum(joint.nq for joint in self.sub_joints))
+        object.__setattr__(self, "nv", sum(joint.nv for joint in self.sub_joints))
 
     def joint_transform(self, q_slice: torch.Tensor) -> torch.Tensor:
         """Compose sub-joint transforms left-to-right."""
-        from ...lie import se3 as _se3
         iq = 0
         result = _se3.identity(
             batch_shape=q_slice.shape[:-1],

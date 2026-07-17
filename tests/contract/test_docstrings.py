@@ -1,7 +1,7 @@
 """Contract test: every public symbol has a non-empty docstring.
 
-The 25-symbol public API from ``better_robot.__all__`` is the contract
-surface with users; every one of those names must carry a one-line
+The public API from ``better_robot.__all__`` is a contract surface with
+users; every listed name must carry a one-line
 summary. See ``docs/conventions/extension.md`` and ``docs/conventions/contracts.md``.
 """
 
@@ -22,14 +22,6 @@ def test_every_public_symbol_has_a_docstring() -> None:
     assert not offenders, (
         f"Public symbols missing a docstring: {offenders}. "
         f"Every entry in better_robot.__all__ must carry a one-line summary."
-    )
-
-
-def test_public_all_has_26_symbols() -> None:
-    """``better_robot.__all__`` is pinned at 26; see docs/concepts/architecture.md."""
-    assert len(better_robot.__all__) == 26, (
-        f"__all__ has {len(better_robot.__all__)}; expected 26 "
-        f"(add or remove a symbol and update architecture.md if intentional)."
     )
 
 

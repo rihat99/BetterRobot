@@ -1,21 +1,19 @@
-"""Module-boundary discipline for format / viewer / reference deps.
+"""Module-boundary discipline for core and optional integrations.
 
-The kinematics / dynamics / optim layers must not top-level-import
-``yourdfpy``, ``trimesh``, ``viser``, ``robot_descriptions``, or
-``pinocchio`` — those imports belong in ``io/parsers/``, ``viewer/``,
-``collision/``, or test code. Even though every dep is now installed
-by default, keeping format-specific imports at the boundary keeps
-``import better_robot`` light and the layered DAG honest.
+``yourdfpy`` is a core dependency, but it remains confined to the URDF
+boundary.  The heavy integrations (MuJoCo, mesh rendering, Viser, demos,
+Pinocchio, and Warp) are extras or test-only dependencies and may be
+top-level-imported only by their dedicated boundary modules.  Keeping these
+imports out of the rest of ``src/`` makes ``import better_robot`` independent
+of optional extras and keeps the layered DAG honest.
 
-Currently advisory: lists the imports it would forbid; failure is gated
-on ``BR_STRICT=1`` so day-to-day work doesn't redline. This pattern
-matches the layer-DAG advisory ladder.
+This contract is blocking: adding an unauthorized import fails in every test
+run, without an environment-variable escape hatch.
 """
 
 from __future__ import annotations
 
 import ast
-import os
 from pathlib import Path
 
 import pytest
@@ -24,18 +22,20 @@ ROOT = Path(__file__).resolve().parents[2] / "src" / "better_robot"
 # Modules that may legally be imported only inside dedicated boundary code.
 RESTRICTED_OPTIONAL = {
     "yourdfpy": ("io/parsers/urdf.py",),
+    "mujoco": ("io/parsers/mjcf.py",),
     "trimesh": ("io/parsers/", "viewer/", "collision/"),
     "viser": ("viewer/",),
     "robot_descriptions": (),  # test-only
     "pinocchio": (),  # test-only
+    "warp": ("kinematics/_warp_bridge.py", "kinematics/_warp_kernels.py"),
 }
 
 
 def _allowed(module: str, path: Path) -> bool:
     """Return True if ``module`` is allowed in ``path``."""
-    rel = str(path.relative_to(ROOT))
-    for prefix in RESTRICTED_OPTIONAL.get(module, ()):
-        if rel.startswith(prefix.rstrip("/")):
+    rel = path.relative_to(ROOT).as_posix()
+    for boundary in RESTRICTED_OPTIONAL.get(module, ()):
+        if rel == boundary or (boundary.endswith("/") and rel.startswith(boundary)):
             return True
     return False
 
@@ -60,7 +60,6 @@ def _toplevel_imports(file: Path) -> list[tuple[int, str]]:
 )
 def test_no_unauthorized_optional_imports(file: Path) -> None:
     """Top-level import of a restricted optional dep outside the allowed dirs fails."""
-    strict = os.environ.get("BR_STRICT", "") == "1"
     violations: list[str] = []
     for lineno, mod in _toplevel_imports(file):
         if mod in RESTRICTED_OPTIONAL and not _allowed(mod, file):
@@ -70,7 +69,4 @@ def test_no_unauthorized_optional_imports(file: Path) -> None:
             "optional-dep imports outside their dedicated boundary:\n  "
             + "\n  ".join(violations)
         )
-        if strict:
-            pytest.fail(msg)
-        else:
-            pytest.skip(f"advisory (BR_STRICT=0): {msg}")
+        pytest.fail(msg)

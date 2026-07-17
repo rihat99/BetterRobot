@@ -16,6 +16,5 @@
 better_robot.tasks.ik
 better_robot.tasks.parameterization
 better_robot.tasks.trajectory
-better_robot.tasks.retarget
 better_robot.tasks.trajopt
 ```

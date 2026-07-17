@@ -37,18 +37,6 @@
     ```
 ````
 
-### Data
-
-````{list-table}
-:class: autosummary longtable
-:align: left
-
-* - {py:obj}`IR_SCHEMA_VERSION <better_robot.io.ir.IR_SCHEMA_VERSION>`
-  - ```{autodoc2-docstring} better_robot.io.ir.IR_SCHEMA_VERSION
-    :summary:
-    ```
-````
-
 ### API
 
 `````{py:class} IRJoint
@@ -196,6 +184,28 @@
    0.0
 
 ```{autodoc2-docstring} better_robot.io.ir.IRJoint.mimic_offset
+```
+
+````
+
+````{py:attribute} pitch
+:canonical: better_robot.io.ir.IRJoint.pitch
+:type: float
+:value: >
+   0.0
+
+```{autodoc2-docstring} better_robot.io.ir.IRJoint.pitch
+```
+
+````
+
+````{py:attribute} joint_model
+:canonical: better_robot.io.ir.IRJoint.joint_model
+:type: typing.Optional[better_robot.data_model.joint_models.base.JointModel]
+:value: >
+   'field(...)'
+
+```{autodoc2-docstring} better_robot.io.ir.IRJoint.joint_model
 ```
 
 ````
@@ -380,17 +390,6 @@
 
 `````
 
-````{py:data} IR_SCHEMA_VERSION
-:canonical: better_robot.io.ir.IR_SCHEMA_VERSION
-:type: int
-:value: >
-   1
-
-```{autodoc2-docstring} better_robot.io.ir.IR_SCHEMA_VERSION
-```
-
-````
-
 `````{py:class} IRModel
 :canonical: better_robot.io.ir.IRModel
 
@@ -458,17 +457,6 @@
    'field(...)'
 
 ```{autodoc2-docstring} better_robot.io.ir.IRModel.gravity
-```
-
-````
-
-````{py:attribute} schema_version
-:canonical: better_robot.io.ir.IRModel.schema_version
-:type: int
-:value: >
-   None
-
-```{autodoc2-docstring} better_robot.io.ir.IRModel.schema_version
 ```
 
 ````

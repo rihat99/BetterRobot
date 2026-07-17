@@ -58,7 +58,7 @@ joint, expressed in the world frame." No glossary required.
 | Compute verb | `compute_<noun>` returns a new tensor and may fill `Data` | `compute_joint_jacobians`, `compute_centroidal_map` |
 | Get verb | `get_<noun>` reads from `Data`, cheap, no allocation | `get_joint_jacobian`, `get_frame_jacobian` |
 | Update verb | `update_<noun>` writes one field of `Data` in place | `update_frame_placements` |
-| Top-level façade | English imperative, no prefix | `forward_kinematics`, `solve_ik`, `solve_trajopt`, `retarget` |
+| Top-level façade | English imperative, no prefix | `forward_kinematics`, `solve_ik`, `solve_trajopt` |
 
 ### 1.3 Math notation that stays
 

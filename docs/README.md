@@ -9,7 +9,7 @@ in GitHub.
 
 ```bash
 # from the repo root
-uv sync --extra docs
+uv sync --extra dev
 make -C docs html
 # open docs/_build/html/index.html
 
@@ -19,7 +19,7 @@ uv run make -C docs serve
 Or, with plain pip:
 
 ```bash
-pip install -e .[docs]
+pip install -e .[dev]
 sphinx-build -b html docs docs/_build/html
 ```
 
@@ -29,7 +29,7 @@ To serve it locally on `http://localhost:8000`:
 make -C docs serve
 ```
 
-`make -C docs strict` builds with warnings-as-errors (CI uses this).
+`make -C docs strict` builds with warnings-as-errors.
 `make -C docs linkcheck` validates external links.
 
 ## Folder map

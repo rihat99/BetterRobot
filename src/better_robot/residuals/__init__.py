@@ -1,4 +1,4 @@
-"""``better_robot.residuals`` — residual classes + registry.
+"""``better_robot.residuals`` — residual classes.
 
 Every residual is a callable object with an optional analytic
 ``.jacobian()``. Compose them into a ``CostStack``, and the stack is what
@@ -17,15 +17,11 @@ from .pose import OrientationResidual, PoseResidual, PositionResidual
 from .contact import ContactConsistencyResidual
 from .regularization import NullspaceResidual, ReferenceTrajectoryResidual, RestResidual
 from .temporal import TimeIndexedResidual
-from .registry import get_residual, register_residual, registered_residuals
 from .smoothness import AccelerationResidual, JerkResidual, VelocityResidual
 
 __all__ = [
     "Residual",
     "ResidualState",
-    "register_residual",
-    "get_residual",
-    "registered_residuals",
     "PoseResidual",
     "PositionResidual",
     "OrientationResidual",

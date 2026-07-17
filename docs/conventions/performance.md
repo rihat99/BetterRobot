@@ -84,10 +84,12 @@ single-problem and reject batched inputs; batched solving is M2b work. See
 
 ### 2.2 Static topology, dynamic values
 
-`Model` is frozen (`@dataclass(frozen=True)`). `model.topo_order`,
-`model.parents`, `model.joint_models` are Python tuples. They unroll
-under `torch.compile`: the FK kernel compiles once per (shape, dtype,
-device) triple, not per query.
+``ModelStructure`` carries immutable topology in two equivalent forms:
+Python tuples for statically unrolled Torch loops and flat device tables for
+whole-pass kernels. ``ModelValues`` carries the differentiable tensors as a
+registered pytree. Raw passes consume these two objects explicitly, so a
+compiled function does not discover tensor inputs through mutable model
+state.
 
 ### 2.3 Analytic derivatives where it matters
 
@@ -140,20 +142,15 @@ so each problem compiles once.
 
 ### 2.6 CUDA graph capture for hot solver loops
 
-Once LM (or any solver) is warm, its per-iteration call graph is
-stable. We wrap the iteration in `@graph_capture`:
+CUDA graph capture is roadmap work, not a helper that ships today. A
+capture-ready solver needs fixed storage, a warm-up phase, explicit
+invalidation when shapes or storage change, and a replay lifecycle that
+records forward **and backward together**. Capturing only the forward pass
+would not preserve the intended autograd work on replay.
 
-```python
-with graph_capture(replay_n=max_iter) as ctx:
-    step_fn = optimizer.step_compiled(problem, state)
-    for k in range(max_iter):
-        state = step_fn(state)
-```
-
-The first iteration records the CUDA graph; subsequent iterations
-replay it. Typical win: 30–50% latency reduction for `max_iter ≥ 10`,
-`B=1`. Graph capture is **opt-in** because it interacts with autograd
-(replay nukes the grad tape).
+Capture remains opt-in until the M2b solver state and any custom kernel
+adjoints have parity tests. There is currently no public capture decorator or
+context manager.
 
 ### 2.7 Memory reuse and matrix-free trajopt
 
@@ -178,20 +175,19 @@ residual exposes a sparsity mask via `ResidualSpec`; the LM solver
 skips zero blocks in the normal-equation assembly. Measured speed-up
 on G1: ~6× for the collision-Jacobian step.
 
-### 2.9 Warp backend
+### 2.9 Opt-in Warp whole-pass lane
 
-Warp moves the three hot kernels (FK, spatial Jacobian, RNEA) to
-`warp.kernel`. The contract:
+Warp integration is a whole-pass optimisation, not an interchangeable math
+layer. A supported FK, spatial-Jacobian, or RNEA kernel consumes
+``ModelStructure`` plus ``ModelValues`` and returns Torch-compatible tensors
+at the pass boundary. The Torch raw pass remains the default and correctness
+oracle.
 
-- Users see `torch.Tensor` in and out. Conversion lives in
-  `backends/warp/bridge.py`.
-- Differentiability: `torch.autograd.Function.apply` wraps the kernel;
-  the backward is a second Warp kernel (analytic, hand-written).
-- Graph capture extends from the torch path to the Warp path with no
-  API change.
-
-No public surface depends on Warp being available; `import warp` is
-local to `backends/warp/`.
+Each kernel requires explicit eligibility checks and forward/backward parity.
+A custom autograd wrapper owns the analytic adjoint; optional runtime array
+types never cross the public boundary. The optional import stays beside the
+pass that uses it. Until a pass satisfies those requirements it remains an
+opt-in prototype, and ordinary public calls continue down the Torch lane.
 
 ## 3 · Performance anti-patterns (forbidden)
 
@@ -266,7 +262,8 @@ in §1.3 remain targets until that benchmark and CI gate land.
 
 When a caller explicitly wraps a compatible kernel with `torch.compile`,
 the first call records shapes and compiles. Cold-start cost depends on the
-PyTorch version, backend, device, and input shape and is not currently gated.
+PyTorch version, compiler toolchain, device, and input shape and is not
+currently gated.
 
 ### 5.2 Recompile triggers
 
@@ -289,10 +286,12 @@ path to avoid re-compiling across jobs.
 
 | Module | Owns | Primary technique |
 |--------|------|-------------------|
-| `backends/` | Backend Protocol; per-backend kernel implementations | Explicit `backend=` kwargs avoid global state in compiled code |
 | `lie/` | SE3/SO3 group ops, typed wrappers | Pure-PyTorch; closed-form; compile-friendly |
+| `data_model/model_structure.py` | Static topology and device-kernel tables | Validated dual representation |
+| `data_model/model_values.py` | Differentiable model tensors | Registered tensor pytree |
+| `data_model/execution_batch.py` | Broadcast-to-flat execution ABI | Index maps avoid repeating shared inputs |
 | `spatial/` | 6D operators | Dataclass wrappers; no branching |
-| `kinematics/forward.py` | FK topo walk | Explicitly compile-compatible; unroll on `topo_order` |
+| `kinematics/forward.py` | FK topo walk and lane boundary | Torch raw pass unrolls on static topology; whole-pass kernels stay local |
 | `kinematics/jacobian.py` | Spatial Jacobian | Analytic; automatic compilation is roadmap work |
 | `dynamics/*.py` | RNEA / ABA / CRBA | Analytic derivatives; compile-friendly recursion |
 | `residuals/*.py` | Pure functions | Analytic `.jacobian()` and `apply_jac_transpose`; `ResidualSpec` advertises sparsity |

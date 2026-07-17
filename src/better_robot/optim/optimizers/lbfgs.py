@@ -80,11 +80,11 @@ class LBFGS:
 
         J = problem.jacobian(state.x)
         g = J.mT @ state.residual                  # current gradient (nv,)
-        cost = float(state.residual_norm)
+        cost = float(state.residual_norm)  # bench-ok: Python line search requires scalar decisions
 
         it = -1
         for it in range(max_iter):
-            if float(g.norm()) < self.tol:
+            if float(g.norm()) < self.tol:  # bench-ok: Python convergence control requires a scalar decision
                 state.status = "converged"
                 state.iters = it
                 return state
@@ -111,11 +111,11 @@ class LBFGS:
 
             # ── Armijo backtracking line search ─────────────────────────────
             step_size = self.lr
-            dir_dot_grad = float(direction @ g)
+            dir_dot_grad = float(direction @ g)  # bench-ok: Python line search requires scalar decisions
             if dir_dot_grad >= 0.0:
                 # Not a descent direction — reset to steepest descent.
                 direction = -g
-                dir_dot_grad = -float(g @ g)
+                dir_dot_grad = -float(g @ g)  # bench-ok: Python line search requires scalar decisions
                 s_hist.clear(); y_hist.clear(); rho_hist.clear()
 
             x_new = state.x
@@ -131,7 +131,7 @@ class LBFGS:
                         max=problem.upper.to(x_try.device, x_try.dtype),
                     )
                 r_try = problem.residual(x_try)
-                cost_try = float(0.5 * (r_try @ r_try).sum())
+                cost_try = float(0.5 * (r_try @ r_try).sum())  # bench-ok: Python line search requires scalar decisions
                 if cost_try <= cost + self.c1 * step_size * dir_dot_grad:
                     x_new, r_new, cost_new = x_try, r_try, cost_try
                     accepted = True
@@ -149,7 +149,7 @@ class LBFGS:
             g_new = J_new.mT @ r_new
             s_k = step_size * direction
             y_k = g_new - g
-            sy = float(s_k @ y_k)
+            sy = float(s_k @ y_k)  # bench-ok: Python curvature acceptance requires a scalar decision
             if sy > 1e-12:
                 s_hist.append(s_k)
                 y_hist.append(y_k)

@@ -7,7 +7,7 @@ the library's product. A user picks BetterRobot over a hand-rolled
 Pinocchio binding because BetterRobot proves, on every PR, that
 `forward_kinematics` agrees with Pinocchio to fp64 ulp, that
 `solve_ik` converges within the published budget, that the public API
-has not silently grown a 27th symbol, that `get_frame_jacobian` returns
+still contains its required core, that `get_frame_jacobian` returns
 the convention CLAUDE.md says it does, and that no module above the
 backend layer suddenly imports a CUDA kernel.
 
@@ -18,8 +18,7 @@ autodiff, joint integrator round-trips. **Integration** tests run the
 real public API on the real Panda and G1 URDFs, no mocks, because mock
 URDF parses become a way to lie to ourselves about what works. **Contract**
 tests enforce the *rules* in the rest of the docs: the layer DAG, the
-26-symbol public API, the naming table, the hot-path lint, the
-deprecation schedule. **Regression** tests pin numerical outputs against
+compact public API, the naming table, and the hot-path lint. **Regression** tests pin numerical outputs against
 a frozen reference. **Benchmark** tests defend the latency / memory
 budgets via the gate-promotion ladder. **Example** tests import every
 runnable script under `examples/` so the docs stop bit-rotting.
@@ -34,7 +33,7 @@ the docs say.
 |----------|---------|------------------------|
 | **Unit** | Smallest provable behaviours (e.g. `se3.exp ∘ log == identity`) | Zero — a unit failure is a bug |
 | **Integration** | Cross-module correctness (e.g. `solve_ik` + Panda URDF) | Zero |
-| **Contract** | DAG, public-API ceiling, registry sanity | Zero |
+| **Contract** | DAG, required public core, import boundaries | Zero |
 | **Regression** | Numerical equivalence against a frozen reference output | 1e-5 (fp32), 1e-10 (fp64) |
 | **Benchmark** | Wall-clock budgets from {doc}`performance` | 20% regression window |
 | **Example** | Every runnable `examples/*.py` imports and runs headless | Zero |
@@ -58,8 +57,7 @@ tests/
 ├── bench/                              # benchmarks (see §6)
 ├── contract/
 │   ├── test_layer_dependencies.py      # DAG enforcement (AST walk)
-│   ├── test_backend_boundary.py        # only lie/kinematics/dynamics cross the backend Protocol
-│   ├── test_public_api.py              # __all__ matches frozen EXPECTED set (26 symbols)
+│   ├── test_public_api.py              # __all__ contains required core and has no duplicates
 │   ├── test_submodule_public_imports.py # symbols not in __all__ stay reachable from documented submodule paths
 │   ├── test_skeleton_signatures.py     # every public symbol is importable
 │   ├── test_hot_path_lint.py           # perf anti-patterns (see performance.md §3)
@@ -70,8 +68,7 @@ tests/
 │   ├── test_shape_annotations.py       # jaxtyping coverage on public surface (advisory)
 │   ├── test_no_legacy_strings.py       # no reference="..." literals in src/
 │   ├── test_cache_invariants.py        # Data._kinematics_level enforced
-│   ├── test_optional_imports.py        # `import better_robot` does not pull yourdfpy/mujoco/viser/warp/...
-│   └── test_deprecations.py            # deprecation shims removed on schedule
+│   └── test_optional_imports.py        # `import better_robot` does not pull yourdfpy/mujoco/viser/warp/...
 └── examples/
     └── test_examples.py                # imports and runs each examples/*.py headless
 ```
@@ -219,12 +216,10 @@ with the offending file and import line number.
 
 `test_public_api.py`:
 
-- `better_robot.__all__` matches the frozen `EXPECTED` set (26
-  symbols). Adding or removing public symbols requires updating
-  `EXPECTED` in the same PR — the audit is the diff, not a magic
-  number.
+- `better_robot.__all__` contains the required core and has no duplicates.
+  Changes to the required set remain an explicit reviewable diff.
 - Each is importable.
-- Each has a non-empty docstring with at least one example block.
+- Each listed symbol has a non-empty docstring.
 
 `test_submodule_public_imports.py` checks that documented
 submodule-only public symbols stay reachable:

@@ -54,15 +54,13 @@ implement a Cauchy robust kernel, one place to swap LM for Adam, one
 place to register a sparse linear solver, and that place is shared
 across every higher-level task.
 
-**A backend boundary that does not leak.** The math layer (`lie/`)
-routes through a `Backend` Protocol with a torch-native default. A
-future Warp backend can land kernel-by-kernel without touching call
-sites, because users see `torch.Tensor` in and `torch.Tensor` out at
-every public surface. The discipline is enforced by a contract test
-that walks the import graph: only `lie/`, `kinematics/`, `dynamics/`,
-and the `backends/<name>/` packages are allowed to cross the
-backend boundary. Every other module composes through their public
-APIs.
+**A whole-pass compute seam that does not leak.** The direct Torch math and
+raw algorithm passes are the default. `ModelStructure` and `ModelValues`
+give an opt-in kernel the same topology and tensor inputs without exposing a
+runtime selector at public call sites. A Warp optimisation replaces a whole
+FK/RNEA-style pass only after eligibility and forward/backward parity checks;
+individual Lie operations stay direct Torch. Users see `torch.Tensor` in and
+out at every public surface.
 
 ## What "looks like a story" means in code
 
@@ -96,8 +94,7 @@ kernels (L2, Huber, Cauchy, Tukey) and damping strategies (Constant,
 Adaptive); single-problem IK on fixed and floating-base robots;
 trajectory optimisation with knot and B-spline parameterisations;
 Featherstone dynamics (RNEA, ABA, CRBA, CCRBA), centroidal momentum,
-and autograd-derived `compute_*_derivatives`; a three-layer
-Crocoddyl-style action model; URDF and MJCF parsers; a programmatic
+and autograd-derived `compute_*_derivatives`; URDF and MJCF parsers; a programmatic
 `ModelBuilder`; a viewer with skeleton / URDF-mesh / collision render
 modes, draggable IK target gizmos, and trajectory playback.
 
@@ -111,9 +108,8 @@ already reach for them and tests can already assume them.
 - We do not ship a physics engine. Contact solvers and integrators
   beyond `integrate_q` and `RK4` come from interop with `mjwarp` and
   similar; we are not in the business of competing with them.
-- We do not ship optimal control. There is room reserved in the
-  architecture (the three-layer action model is in place) but no
-  DDP / iLQR solver. That is intentionally future work.
+- We do not ship optimal control or action-model skeletons. A future DDP/iLQR
+  milestone should introduce that boundary together with executable behavior.
 - We do not ship anatomical joints, muscles, or SMPL parsing in core.
   The data model is expressive enough to host an SMPL-like body
   through the programmatic builder, and the SMPL-and-muscles
@@ -155,8 +151,8 @@ choices:
   DampingStrategy).
 - {doc}`tasks` is `solve_ik`, `solve_trajopt`, and `Trajectory`.
 - {doc}`collision_and_geometry` is the collision subsystem.
-- {doc}`batching_and_backends` pins the tensor and device
-  conventions and explains the backend Protocol.
+- {doc}`batching_and_backends` pins the tensor/device conventions and
+  explains the structure/value seam and whole-pass lane choice.
 - {doc}`viewer` is the viser-backed visualisation layer.
 
 The {doc}`/conventions/index` chapters complement the book: they are

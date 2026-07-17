@@ -11,11 +11,9 @@ from __future__ import annotations
 import torch
 
 from ..data_model.model import Model
-from .base import Residual, ResidualState
-from .registry import register_residual
+from .base import ResidualState
 
 
-@register_residual("joint_position_limit")
 class JointPositionLimit:
     """One-sided clamped penalty on joint position limits.
 
@@ -86,7 +84,6 @@ class JointPositionLimit:
         return torch.cat([J_lower, J_upper], dim=-2)         # (B..., 2*nq, nv)
 
 
-@register_residual("joint_velocity_limit")
 class JointVelocityLimit:
     """One-sided clamped penalty on joint velocity limits. ``dim = 2 * nv``."""
 
@@ -110,7 +107,6 @@ class JointVelocityLimit:
         raise NotImplementedError("see docs/concepts/residuals_and_costs.md §2")
 
 
-@register_residual("joint_accel_limit")
 class JointAccelLimit:
     """One-sided clamped penalty on joint acceleration limits. ``dim = 2 * nv``."""
 

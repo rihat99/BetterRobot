@@ -10,12 +10,18 @@ See ``docs/concepts/model_and_data.md §2``.
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import torch
 
 from .frame import Frame
 from .joint_models.base import JointModel
+
+if TYPE_CHECKING:
+    from .model_structure import ModelStructure
+    from .model_values import ModelValues
 
 
 @dataclass(frozen=True)
@@ -87,7 +93,20 @@ class Model:
     # ──────────── optional back-references (non-tensor, not moved by .to()) ────
     meta: dict = field(default_factory=dict)
 
+    # Canonical compute seam, derived from the compatibility fields above.
+    # ``init=False`` makes dataclasses.replace rebuild both views instead of
+    # accidentally carrying stale aliases after a value change.
+    structure: "ModelStructure" = field(init=False, repr=False, compare=False)
+    values: "ModelValues" = field(init=False, repr=False, compare=False)
+
     # ────────────────────────── methods ──────────────────────────
+
+    def __post_init__(self) -> None:
+        from .model_structure import ModelStructure
+        from .model_values import ModelValues
+
+        object.__setattr__(self, "structure", ModelStructure.from_model(self))
+        object.__setattr__(self, "values", ModelValues.from_model(self))
 
     def to(self, device=None, dtype=None) -> "Model":
         """Return a new ``Model`` with every tensor buffer moved to the given
@@ -97,7 +116,6 @@ class Model:
         def _t(tensor: torch.Tensor) -> torch.Tensor:
             return tensor.to(device=device, dtype=dtype)
 
-        import dataclasses
         return dataclasses.replace(
             self,
             joint_placements=_t(self.joint_placements),
@@ -114,6 +132,10 @@ class Model:
             mimic_multiplier=_t(self.mimic_multiplier),
             mimic_offset=_t(self.mimic_offset),
             q_neutral=_t(self.q_neutral),
+            frames=tuple(
+                dataclasses.replace(frame, joint_placement=_t(frame.joint_placement))
+                for frame in self.frames
+            ),
             reference_configurations={k: _t(v)
                                        for k, v in self.reference_configurations.items()},
         )

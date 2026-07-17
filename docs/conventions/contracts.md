@@ -13,14 +13,11 @@ sure who is responsible for which input shape — and the call site
 slowly accrues noise that exists to defend against scenarios that
 should not happen.
 
-We picked a small set of explicit rules instead. Inputs are validated
-**at the boundary** with named exceptions; internal callers are
-trusted. Quaternions arrive scalar-last and unit-norm with a 10%
-tolerance; tighter renormalisation is silent, looser is an error.
-Cache levels are tracked with `KinematicsLevel` and require an explicit
-`forward_kinematics` call before `compute_joint_jacobians`. SemVer is
-binding: the 26-symbol public API is frozen, the SE(3) layout is
-frozen, and renames go through a one-release deprecation shim.
+We picked a small set of explicit rules instead. The target policy validates
+inputs **at the boundary** with named exceptions and trusts internal callers.
+Where the current code does not yet enforce a rule, this document names the
+gap instead of claiming the exception already fires. Cache levels are tracked
+with `KinematicsLevel`; the SE(3) layout is a stable convention.
 
 The benefit shows up everywhere downstream. The hot-path lint can
 forbid `.item()` because contracts already pin shapes. The solver can
@@ -57,11 +54,13 @@ or more leading batch axes and `feature` is the semantic last-axis
 - `Data` inherits device / dtype from the input `q`. Calling
   `forward_kinematics(model, q)` with `q.device != model.device`
   raises `DeviceMismatchError`.
-- fp16 is **not supported** in kinematics or optim. Cast up before the
-  call; cast back after. We reject mixed precision at the boundary
-  because analytic Jacobians are numerically sensitive to it.
-- fp64 is supported everywhere and tested in `tests/lie/` and
-  `tests/kinematics/`.
+- fp32 is primary and fp64 is supported. Supported paths preserve the
+  working input dtype; see {doc}`engineering` for accumulation, TF32,
+  and tolerance policy.
+- fp16 and bf16 are outside the supported contract. Cast up before the
+  call. FK and dynamics passes reject them with `DtypeMismatchError`.
+- A model/query dtype mismatch raises `DtypeMismatchError` before FK or a
+  dynamics pass begins; cast the query or move the model explicitly.
 
 ### 1.3 Quaternion / SE(3) inputs
 
@@ -107,14 +106,12 @@ responsible layer and a documented remediation.
 | Exception | Raised in | Meaning | Remediation |
 |-----------|-----------|---------|-------------|
 | `ModelInconsistencyError` | `io.build_model` | Parsed IR violates topology invariants | Fix the URDF / MJCF or the programmatic builder |
-| `IRSchemaVersionError` | `io.build_model` | `IRModel.schema_version` does not match the build's expected version | Re-parse the source asset; regenerate cached `.npz` IR |
 | `DeviceMismatchError` | `kinematics`, `dynamics`, `optim` | `q.device != model.device` | Call `model.to(q.device)` or vice versa |
 | `DtypeMismatchError` | as above | `q.dtype` incompatible with `model.dtype` | Cast one side; see §1.2 |
 | `QuaternionNormError` | `kinematics` opt-in debug check | Free-flyer quaternion norm outside `[0.9, 1.1]` | Normalise before passing or enable the check only while debugging |
 | `ShapeError` | every public entry | Wrong trailing-axis size | Match the published shape |
 | `StaleCacheError` | `kinematics`, `dynamics` | `Data._kinematics_level` below required level | Call `forward_kinematics(model, data)` first; or `data.invalidate(NONE)` then re-run |
 | `ConvergenceError` | `optim.solve` (optional) | Solver did not converge within `max_iter` | Inspect the returned `SolverState` |
-| `BackendNotAvailableError` | `backends.set_backend`, parsers, viewer | Backend or parser dep not importable | Reinstall — `pip install better-robot` |
 | `UnsupportedJointError` | `io.build_model` | URDF / MJCF joint kind without a built-in `JointModel` | Add a custom joint via {doc}`extension` |
 | `SingularityWarning` *(warning, not error)* | `kinematics`, `optim` | Jacobian condition number > 1e12 | Change initial configuration or relax weights |
 
@@ -170,7 +167,7 @@ Silent in default runs.
 
 | Object | Mutable? | Notes |
 |--------|----------|-------|
-| `Model` | **No** | `@dataclass(frozen=True)`. `model.to(device)` returns a new instance. |
+| `Model` | Shallowly frozen | `@dataclass(frozen=True)` prevents field reassignment, but contained tensors/dicts remain mutable. Treat them as read-only; deep immutability remains an engineering gap. |
 | `Data` | Yes | Mutated by kinematics / dynamics. Thread-local — do not share across threads without copying. |
 | `IKResult` | No | Dataclass; `.q` is a view into the solver's tensor but treated as read-only. |
 | `Trajectory` | Limited | `slice`, `resample` return new instances. Direct tensor access is read-only unless you know what you are doing. |
@@ -182,9 +179,11 @@ is per-query, it may be mutable.
 
 ## 5 · Autograd rules
 
-- Every public hot-path function participates in autograd: gradients
-  flow from `q` → FK output → residual → loss without special
-  handling.
+- Autograd guarantees are path- and input-specific. Eager Torch Lie/FK and
+  named dynamics paths have gradient tests; that does not make every public
+  function differentiable. The complete matrix is in {doc}`engineering`.
+- The current `solve_ik` detaches its initial iterate and has no
+  differentiable-solve guarantee.
 - `residual_jacobian(..., strategy=ANALYTIC)` uses the residual's
   `.jacobian()` method. `strategy=AUTO` prefers analytic and falls back to
   unbatched central finite differences at a cost of `2·nv + 1` residual
@@ -195,31 +194,33 @@ is per-query, it may be mutable.
 
 ## 6 · Threading & concurrency
 
-- `Model` is read-only ⇒ freely shareable across threads and
-  processes.
+- `Model` may be shared only while every contained tensor and dictionary
+  is treated as read-only. The current frozen dataclass is not deeply
+  immutable.
 - `Data` is mutable ⇒ one `Data` per thread. Use `data.clone()` for
   fork points.
 - `CostStack` is mutable; one per optimisation problem. Parallelising
   over problems requires a fresh stack per thread.
-- The library does not call `torch.set_num_threads` internally.
-  Inherit whatever the user set.
+- The library does not call `torch.set_num_threads` internally; it
+  inherits the user's setting.
+
+CUDA-stream and multiprocessing rules live in {doc}`engineering`.
 
 ## 7 · Backwards compatibility policy
 
 ### 7.1 SemVer scope
 
-BetterRobot follows SemVer. A **major bump** is required to change:
+Before 1.0, minor releases may change the public surface. Contract tests pin
+a required core and reject duplicate or unresolvable exports without freezing
+the current symbol count. Once 1.0 is released, a **major bump** is required
+to change:
 
-- The frozen `EXPECTED` public-API set (`better_robot.__all__`,
-  currently 26 symbols — see {doc}`/concepts/architecture`).
+- A stable public symbol named in this section.
 - The SE(3) quaternion layout (`[tx, ty, tz, qx, qy, qz, qw]`).
 - The `Model` / `Data` dataclass fields (additive is allowed in
   minor; rename is major unless part of a documented migration
   window).
 - The DAG (a new edge in {doc}`/concepts/architecture`).
-- `IRModel.schema_version` increments require an entry in
-  `CHANGELOG.md` and may force a major bump if the change is breaking
-  to user-cached `.npz` IRs.
 
 The complete release / deprecation discipline lives in {doc}`packaging`.
 This file pins the contract; that file pins the operational mechanism
@@ -255,8 +256,8 @@ production. `BR_STRICT=1` promotes them to errors (used in CI).
 | Tier | Meaning | Examples |
 |------|---------|----------|
 | Stable | SemVer-bound; major bump to remove or rename | `Model`, `Data`, `forward_kinematics`, `solve_ik`, `SE3`, `ModelBuilder`, `LeastSquaresProblem`, `Trajectory` |
-| Stable (Protocol) | Extending the protocol (adding methods) is a major bump; using existing methods is stable | `JointModel`, `Residual`, `Optimizer`, `LinearSolver`, `RobustKernel`, `DampingStrategy`, `TrajectoryParameterization`, `AssetResolver`, `Backend` |
-| Experimental | May change in minor releases with a deprecation warning | `solve_trajopt`, `retarget`, `compute_centroidal_map`, `BSplineTrajectory`, `MultiStageOptimizer` |
+| Stable (Protocol) | Extending the protocol (adding methods) is a major bump; using existing methods is stable | `JointModel`, `Residual`, `Optimizer`, `LinearSolver`, `RobustKernel`, `DampingStrategy`, `TrajectoryParameterization`, `AssetResolver` |
+| Experimental | May change in minor releases with a deprecation warning | `solve_trajopt`, `compute_centroidal_map`, `BSplineTrajectory`, `MultiStageOptimizer` |
 
 | Module | Stability |
 |--------|-----------|
@@ -264,12 +265,10 @@ production. `BR_STRICT=1` promotes them to errors (used in CI).
 | `data_model/` | Stable from v1. Field renames follow §7.1 deprecation. |
 | `kinematics/`, `dynamics/` | Stable from v1. |
 | `residuals/`, `costs/`, `optim/` | Stable from v1 — Protocol signatures are frozen. |
-| `tasks/` | Stable from v1 for IK; `solve_trajopt` and `retarget` are experimental. `TrajectoryParameterization` Protocol is stable. |
+| `tasks/` | Stable from v1 for IK; `solve_trajopt` is experimental. `TrajectoryParameterization` Protocol is stable. |
 | `collision/` | Experimental. |
-| `viewer/` | Experimental. The `RendererBackend` protocol is stable; concrete modes may iterate. |
-| `backends/torch_native/` | Stable from v1. |
-| `backends/warp/` | Experimental. |
-| `io/` (URDF / MJCF) | Stable. Parser edge cases may iterate in patch releases. `IRModel.schema_version` is the controlled change vector. `AssetResolver` Protocol stable. |
+| `viewer/` | Experimental. The `RendererBackend` protocol refers only to scene rendering and is stable; concrete modes may iterate. |
+| `io/` (URDF / MJCF) | Stable. Parser edge cases may iterate in patch releases. `AssetResolver` Protocol stable. |
 
 Experimental means: no SemVer guarantee, but the signatures will not
 wander without a release note.

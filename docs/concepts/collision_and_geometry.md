@@ -165,8 +165,8 @@ calls.
 ## The residual side
 
 ```python
-@register_residual("self_collision")
 class SelfCollisionResidual(Residual):
+    name = "self_collision"
     """(B..., n_candidate_pairs) — stable dim across iterations.
 
     dim = number_of_candidate_pairs. Pairs outside the safety margin
@@ -224,8 +224,8 @@ LM step.
 ## World collision
 
 ```python
-@register_residual("world_collision")
 class WorldCollisionResidual(Residual):
+    name = "world_collision"
     """Penalise penetration with an external geometry set.
 
     Accepts any sequence of geometry primitives (Sphere / Capsule /

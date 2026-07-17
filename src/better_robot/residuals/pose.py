@@ -14,8 +14,7 @@ import torch
 
 from ..lie import se3, so3
 from ..lie.tangents import right_jacobian_inv_se3, right_jacobian_inv_so3
-from .base import Residual, ResidualState
-from .registry import register_residual
+from .base import ResidualState
 
 
 def _get_frame_pose(state: ResidualState, frame_id: int) -> torch.Tensor:
@@ -31,7 +30,6 @@ def _get_frame_pose(state: ResidualState, frame_id: int) -> torch.Tensor:
     return se3.compose(T_parent, T_local)
 
 
-@register_residual("pose")
 class PoseResidual:
     """6-DOF pose residual targeting a frame. ``dim = 6``.
 
@@ -53,6 +51,11 @@ class PoseResidual:
         self.target = target
         self.pos_weight = pos_weight
         self.ori_weight = ori_weight
+        self._weight = torch.tensor(
+            [pos_weight, pos_weight, pos_weight, ori_weight, ori_weight, ori_weight],
+            dtype=target.dtype,
+            device=target.device,
+        )
         self.dim = 6
 
     def __call__(self, state: ResidualState) -> torch.Tensor:
@@ -62,7 +65,7 @@ class PoseResidual:
         T_ee = _get_frame_pose(state, self.frame_id)              # (B..., 7)
         T_err = se3.compose(se3.inverse(T_target), T_ee)          # (B..., 7)
         r = se3.log(T_err)                                        # (B..., 6)
-        weight = r.new_tensor([self.pos_weight] * 3 + [self.ori_weight] * 3)
+        weight = self._weight.to(device=r.device, dtype=r.dtype)
         return r * weight
 
     def jacobian(self, state: ResidualState) -> torch.Tensor | None:
@@ -99,11 +102,10 @@ class PoseResidual:
         J_analytic = torch.matmul(Jr_inv, J_local)                # (B..., 6, nv)
 
         # Apply weights row-wise
-        weight = r.new_tensor([self.pos_weight] * 3 + [self.ori_weight] * 3)
+        weight = self._weight.to(device=r.device, dtype=r.dtype)
         return J_analytic * weight.unsqueeze(-1)                  # (B..., 6, nv)
 
 
-@register_residual("position")
 class PositionResidual:
     """3-DOF position residual. ``dim = 3``.
 
@@ -142,7 +144,6 @@ class PositionResidual:
         return J_world[..., :3, :] * self.weight  # (B..., 3, nv)
 
 
-@register_residual("orientation")
 class OrientationResidual:
     """3-DOF orientation residual. ``dim = 3``.
 

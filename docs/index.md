@@ -18,13 +18,15 @@ The five commitments that shape every other decision:
 - **One code path for fixed and floating base.** A floating-base
   robot is one whose root joint is `JointFreeFlyer`. The IK solver
   does not know the difference.
-- **One residual / cost / solver stack.** IK, trajectory
-  optimisation, retargeting (and future filtering, optimal-control)
+- **One residual / cost / solver stack.** IK and trajectory
+  optimisation (plus future retargeting, filtering, and optimal control)
   share a `Residual` Protocol, a `CostStack`, a
   `LeastSquaresProblem`, and an `Optimizer`.
-- **A backend that does not leak.** The math layer routes through a
-  `Backend` Protocol with a torch-native default. Users see
-  `torch.Tensor` in and out at every public surface.
+- **A whole-pass compute seam that does not leak.** Torch raw passes consume
+  `ModelStructure` plus `ModelValues` by default. An eligible opt-in kernel
+  may replace an entire pass without changing the public `torch.Tensor`
+  surface; individual Lie operations do not switch implementations at
+  runtime.
 
 A minimal example — load a Panda URDF, solve IK to a target pose,
 read back the joint solution:
@@ -68,8 +70,7 @@ kernels (L2, Huber, Cauchy, Tukey) and damping strategies (Constant,
 Adaptive); single-problem IK on fixed and floating-base robots;
 trajectory optimisation with knot and B-spline parameterisations;
 Featherstone dynamics (RNEA / ABA / CRBA / CCRBA), centroidal
-momentum, and autograd-derived `compute_*_derivatives`; a three-layer
-Crocoddyl-style action model; URDF and MJCF parsers; a programmatic
+momentum, and autograd-derived `compute_*_derivatives`; URDF and MJCF parsers; a programmatic
 `ModelBuilder`; a viewer with skeleton / URDF-mesh render modes,
 draggable IK target gizmos, and trajectory playback.
 
@@ -79,14 +80,15 @@ A small set of named symbols are deliberately stubbed and listed in
 
 ## Status
 
-The 26-symbol public API is **frozen** under
-`tests/contract/test_public_api.py`. Additions require a SemVer
-minor bump; removals are forbidden in v0.x. See
-{doc}`reference/changelog` for release notes.
+The top-level API is deliberately compact. Before 1.0 the contract test pins
+a required core and validates `__all__`, but does not freeze an exact symbol
+count. See {doc}`reference/changelog` for release notes.
 
 ## License
 
-BetterRobot is open-sourced under the BSD-3-Clause license.
+BetterRobot is licensed under Apache-2.0. See
+{doc}`conventions/source_and_license` for the source-ledger and third-party
+provenance rules that still apply to adapted work.
 
 ## Table of Contents
 

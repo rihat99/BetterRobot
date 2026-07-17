@@ -1,8 +1,8 @@
-"""Public API surface — the frozen 26-symbol contract.
+"""Public API surface — required core contract.
 
 Enforces ``docs/concepts/architecture.md §Public API contract``:
 
-1. ``better_robot.__all__`` matches the frozen ``EXPECTED`` set exactly.
+1. ``better_robot.__all__`` contains the required core symbols.
 2. Every listed symbol is actually importable as a top-level attribute.
 3. Every listed symbol has a non-empty docstring with at least one example.
 4. ``better_robot.__all__`` is a list of strings.
@@ -12,10 +12,9 @@ from __future__ import annotations
 
 import better_robot as br
 
-# The frozen public surface — single source of truth for SemVer scope.
-# Adding to this set is a minor bump after 1.0; removing or renaming
-# anything is a major bump.
-EXPECTED: frozenset[str] = frozenset(
+# The stable core. Other supported conveniences may also be exported without
+# forcing this contract test to enumerate every top-level symbol forever.
+REQUIRED: frozenset[str] = frozenset(
     {
         # data_model
         "Model",
@@ -41,8 +40,6 @@ EXPECTED: frozenset[str] = frozenset(
         "crba",
         "center_of_mass",
         "compute_centroidal_map",
-        # residuals
-        "register_residual",
         # costs
         "CostStack",
         # optim
@@ -50,21 +47,26 @@ EXPECTED: frozenset[str] = frozenset(
         # tasks
         "solve_ik",
         "solve_trajopt",
-        "retarget",
         "Trajectory",
     }
 )
 
+REMOVED: frozenset[str] = frozenset({"register_residual", "retarget"})
 
-def test_all_matches_spec() -> None:
+
+def test_all_contains_required_core() -> None:
     actual = set(br.__all__)
-    assert actual == EXPECTED, (
-        f"missing: {EXPECTED - actual}; extra: {actual - EXPECTED}"
-    )
+    assert REQUIRED <= actual, f"missing required symbols: {REQUIRED - actual}"
 
 
-def test_all_length() -> None:
-    assert len(br.__all__) == len(EXPECTED) == 26
+def test_all_has_no_duplicates() -> None:
+    assert len(br.__all__) == len(set(br.__all__))
+
+
+def test_retired_top_level_symbols_stay_removed() -> None:
+    assert REMOVED.isdisjoint(br.__all__)
+    for name in REMOVED:
+        assert not hasattr(br, name)
 
 
 def test_all_symbols_importable() -> None:

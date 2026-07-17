@@ -12,9 +12,20 @@ cd BetterRobot
 uv sync
 ```
 
+The core install contains only BetterRobot's tensor, array, and URDF-loading
+requirements. Install extras for the surfaces you use:
+
+```bash
+uv sync --extra demos --extra viewer  # bundled examples and browser viewer
+uv sync --extra io-mjcf               # MJCF loading
+uv sync --extra warp                  # opt-in Warp FK prototype
+uv sync --extra dev                   # tests, benchmarks, docs, and lint tools
+```
+
 ## Examples
 
 ```bash
+uv sync --extra demos --extra viewer
 uv run python examples/01_basic_ik.py   # Franka Panda — open http://localhost:8080
 uv run python examples/02_g1_ik.py      # Unitree G1 whole-body IK — open http://localhost:8081
 ```
@@ -83,7 +94,7 @@ src/better_robot/
   spatial/       6D spatial algebra (Motion, Force, Inertia)
   data_model/    Model (frozen) and Data (workspace)
   kinematics/    forward_kinematics, Jacobians
-  dynamics/      RNEA/ABA/CRBA stubs
+  dynamics/      RNEA, ABA, CRBA, centroidal dynamics
   residuals/     Pose, Position, Orientation, Limits, Rest
   costs/         CostStack
   optim/         LM, Gauss-Newton, Adam, L-BFGS
@@ -96,8 +107,16 @@ src/better_robot/
 
 | Package | Purpose |
 |---------|---------|
-| `torch` | tensors, autograd, SE3/SO3 Lie group ops (pure-PyTorch backend) |
-| `yourdfpy` | URDF parsing |
-| `viser` | browser-based 3D viewer |
-| `trimesh` | mesh loading (DAE/OBJ/STL) |
-| `robot_descriptions` | example URDFs (Panda, G1, etc.) |
+| `torch` | core tensors, autograd, and the eager PyTorch compute lane |
+| `numpy` | core array interchange |
+| `yourdfpy` | core URDF parsing (currently brings `trimesh` transitively) |
+| `viser` | optional `viewer` extra for browser-based visualization |
+| `mujoco` | optional `io-mjcf` extra for MJCF loading |
+| `trimesh` | optional direct `meshes` extra for mesh APIs |
+| `robot_descriptions` | optional `demos` extra for Panda, G1, and other examples |
+| `warp-lang` | optional `warp` extra for the experimental fused FK lane |
+
+## License
+
+BetterRobot is licensed under the [Apache License 2.0](LICENSE).
+Copyright 2026 BetterRobot contributors.

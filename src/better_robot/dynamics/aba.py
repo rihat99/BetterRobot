@@ -21,34 +21,47 @@ See ``docs/concepts/dynamics.md §2``.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import torch
 
 from ..data_model._kinematics_level import KinematicsLevel
 from ..data_model.data import Data
-from ..data_model.joint_models.base import joint_bias_acceleration
 from ..data_model.model import Model
+from ..data_model.model_structure import ModelStructure
+from ..data_model.model_values import ModelValues
 from ..kinematics.forward import forward_kinematics_raw
 from ..lie import se3
-from ..spatial.inertia import Inertia
 from .rnea import _cross_motion, _cross_motion_force
 
 
-def aba(
-    model: Model,
-    data: Data,
+@dataclass(frozen=True)
+class ABAResult:
+    """Fresh tensor outputs from :func:`aba_raw`."""
+
+    ddq: torch.Tensor
+    joint_pose_world: torch.Tensor
+    joint_pose_local: torch.Tensor
+    joint_velocity_local: torch.Tensor
+    joint_acceleration_local: torch.Tensor
+
+
+def aba_raw(  # noqa: PLR0912, PLR0915 - articulated-body passes are intentionally explicit
+    structure: ModelStructure,
+    values: ModelValues,
     q: torch.Tensor,
     v: torch.Tensor,
     tau: torch.Tensor,
     *,
     fext: torch.Tensor | None = None,
-) -> torch.Tensor:
-    """Articulated Body Algorithm — solve ``M(q) ddq = τ − b(q, v) + Jᵀ fext``.
-
-    Populates ``data.ddq`` in addition to the standard FK fields.
+) -> ABAResult:
+    """Pure articulated-body solve ``M(q) ddq = τ − b(q, v) + Jᵀ fext``.
 
     Parameters
     ----------
-    model, data, q, v, tau
+    structure, values
+        Pure compute-seam inputs.
+    q, v, tau
         ``q`` is ``(B..., nq)``; ``v`` and ``tau`` are ``(B..., nv)``.
     fext : Tensor, optional
         ``(B..., njoints, 6)`` external wrench per joint in the joint's
@@ -56,26 +69,26 @@ def aba(
 
     Returns
     -------
-    ddq : Tensor
-        ``(B..., nv)`` joint-space accelerations.
+    ABAResult
+        Fresh acceleration, pose, and local-motion tensors.
     """
-    *batch, _ = q.shape
     device, dtype = q.device, q.dtype
-    njoints = model.njoints
-    nv = model.nv
+    njoints = structure.njoints
+    nv = structure.nv
 
     # ── FK pass (drives the adjoint matrices) ────────────────────────────
-    oMi, liMi = forward_kinematics_raw(model, q)
-    data.joint_pose_world = oMi
-    data.joint_pose_local = liMi
-    data._kinematics_level = KinematicsLevel.PLACEMENTS
+    oMi, liMi = forward_kinematics_raw(structure, values, q)
+    batch = tuple(oMi.shape[:-2])
 
     Ad_inv: list[torch.Tensor | None] = [None] * njoints
     for i in range(1, njoints):
         Ad_inv[i] = se3.adjoint_inv(liMi[..., i, :])  # (..., 6, 6)
 
     zero6 = torch.zeros((*batch, 6), device=device, dtype=dtype)
-    grav = model.gravity.to(device=device, dtype=dtype).expand(*batch, 6)
+    zero_motion_subspace = torch.empty((*batch, 6, 0), device=device, dtype=dtype)
+    grav = values.gravity.to(device=device, dtype=dtype).expand(*batch, 6)
+    spatial_inertias = values.spatial_inertias().to(device=device, dtype=dtype)
+    motion_subspaces = structure.joint_motion_subspaces.to(device=device, dtype=dtype)
 
     # ── Per-joint storage ────────────────────────────────────────────────
     v_body: list[torch.Tensor | None] = [None] * njoints
@@ -90,22 +103,19 @@ def aba(
     v_body[0] = zero6
 
     # ── Pass 1: forward — v, IA, pA ──────────────────────────────────────
-    for i in model.topo_order:
+    for i in structure.topo_order:
         if i == 0:
             continue
-        jm = model.joint_models[i]
-        p = model.parents[i]
-        iq, nq_i = model.idx_qs[i], model.nqs[i]
-        iv, nv_i = model.idx_vs[i], model.nvs[i]
+        p = structure.parents[i]
+        iv, nv_i = structure.idx_vs[i], structure.nvs[i]
 
-        if nq_i > 0:
-            q_i = q[..., iq : iq + nq_i]
+        if nv_i > 0:
             v_i_slice = v[..., iv : iv + nv_i]
-            S_i = jm.joint_motion_subspace(q_i)                         # (..., 6, nv_i)
-            vJ = jm.joint_velocity(q_i, v_i_slice)                      # (..., 6)
-            cJ = joint_bias_acceleration(jm, q_i, v_i_slice)            # (..., 6)
+            S_i = motion_subspaces[i, :, :nv_i].expand(*batch, 6, nv_i)
+            vJ = (S_i @ v_i_slice.unsqueeze(-1)).squeeze(-1)
+            cJ = zero6
         else:
-            S_i = torch.zeros((*batch, 6, 0), device=device, dtype=dtype)  # bench-ok: zero-DoF placeholder
+            S_i = zero_motion_subspace
             vJ = zero6
             cJ = zero6
         S_cache[i] = S_i
@@ -118,7 +128,7 @@ def aba(
         c_body[i] = _cross_motion(v_i, vJ) + cJ
 
         # Articulated-body inertia / bias (init).
-        I_i_6x6 = Inertia(model.body_inertias[i].to(device=device, dtype=dtype))._to_6x6()
+        I_i_6x6 = spatial_inertias[..., i, :, :]
         IA[i] = I_i_6x6.expand(*batch, 6, 6).contiguous()
 
         h_i = (IA[i] @ v_i.unsqueeze(-1)).squeeze(-1)
@@ -127,11 +137,11 @@ def aba(
             pA[i] = pA[i] - fext[..., i, :]
 
     # ── Pass 2: backward — factorise + transport to parent ───────────────
-    for i in reversed(model.topo_order):
+    for i in reversed(structure.topo_order):
         if i == 0:
             continue
-        nv_i = model.nvs[i]
-        iv = model.idx_vs[i]
+        nv_i = structure.nvs[i]
+        iv = structure.idx_vs[i]
         S_i = S_cache[i]                                                # (..., 6, nv_i)
         IA_i = IA[i]
         pA_i = pA[i]
@@ -158,7 +168,7 @@ def aba(
             Ia = IA_i
             pa = pA_i + (IA_i @ c_body[i].unsqueeze(-1)).squeeze(-1)
 
-        p = model.parents[i]
+        p = structure.parents[i]
         if p >= 0:
             A = Ad_inv[i]
             IA[p] = IA[p] + A.transpose(-1, -2) @ Ia @ A if IA[p] is not None else (
@@ -173,12 +183,12 @@ def aba(
     a_body[0] = -grav
     ddq_slots: list[torch.Tensor | None] = [None] * nv
 
-    for i in model.topo_order:
+    for i in structure.topo_order:
         if i == 0:
             continue
-        p = model.parents[i]
-        nv_i = model.nvs[i]
-        iv = model.idx_vs[i]
+        p = structure.parents[i]
+        nv_i = structure.nvs[i]
+        iv = structure.idx_vs[i]
 
         a_parent_local = (Ad_inv[i] @ a_body[p].unsqueeze(-1)).squeeze(-1)
         a_pre = a_parent_local + c_body[i]
@@ -201,7 +211,31 @@ def aba(
     else:
         ddq = torch.zeros((*batch, 0), device=device, dtype=dtype)
 
-    data.ddq = ddq
-    data.joint_velocity_local = torch.stack(v_body, dim=-2)            # type: ignore[arg-type]
-    data.joint_acceleration_local = torch.stack(a_body, dim=-2)        # type: ignore[arg-type]
-    return ddq
+    return ABAResult(
+        ddq=ddq,
+        joint_pose_world=oMi,
+        joint_pose_local=liMi,
+        joint_velocity_local=torch.stack(v_body, dim=-2),  # type: ignore[arg-type]
+        joint_acceleration_local=torch.stack(a_body, dim=-2),  # type: ignore[arg-type]
+    )
+
+
+def aba(
+    model: Model,
+    data: Data,
+    q: torch.Tensor,
+    v: torch.Tensor,
+    tau: torch.Tensor,
+    *,
+    fext: torch.Tensor | None = None,
+) -> torch.Tensor:
+    """Public ABA wrapper that populates the caller's ``Data`` workspace."""
+
+    result = aba_raw(model.structure, model.values, q, v, tau, fext=fext)
+    data.ddq = result.ddq
+    data.joint_pose_world = result.joint_pose_world
+    data.joint_pose_local = result.joint_pose_local
+    data.joint_velocity_local = result.joint_velocity_local
+    data.joint_acceleration_local = result.joint_acceleration_local
+    object.__setattr__(data, "_kinematics_level", KinematicsLevel.ACCELERATIONS)
+    return result.ddq

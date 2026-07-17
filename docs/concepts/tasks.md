@@ -302,30 +302,6 @@ they do not see the parameterisation. Cross-references the
   Temporal residuals override `apply_jac_transpose` for banded `J^T r`
   in `O(T·nv)` memory.
 
-## Retargeting
-
-```python
-def retarget(
-    source_model: Model,
-    target_model: Model,
-    source_trajectory: Trajectory,
-    *,
-    frame_map: dict[str, str],            # {source_frame: target_frame}
-    cost_cfg: RetargetCostConfig | None = None,
-    optimizer_cfg: OptimizerConfig | None = None,
-) -> TrajOptResult:
-    """Motion retargeting: find a target-model trajectory that tracks
-    source-model frame poses over time.
-
-    Status: stub in v1. Reduces to solve_trajopt with keyframes
-    built from the source trajectory's per-step frame poses.
-    """
-```
-
-Source: `src/better_robot/tasks/retarget.py`. Currently raises
-`NotImplementedError` — listed in {doc}`/reference/roadmap`.
-Retargeting is a thin reduction to trajopt, not a separate algorithm.
-
 ## Examples
 
 The shipped examples under `BetterRobot/examples/` are imported from
@@ -345,14 +321,13 @@ Each script has a `main()` that the example tests can call headlessly
 
 The public surface of `tasks/` is stable from v1:
 
-- **Top-level**: `solve_ik`, `solve_trajopt`, `retarget`,
-  `Trajectory`.
+- **Top-level**: `solve_ik`, `solve_trajopt`, `Trajectory`.
 - **Submodule-public** (reachable from `from better_robot.tasks.ik
   import …`): `IKResult`, `IKCostConfig`, `OptimizerConfig`.
 - **Submodule-public** (`from better_robot.tasks.trajopt import …`):
   `TrajOptResult`, `TrajOptCostConfig`.
 
-`solve_trajopt` and `retarget` are marked **experimental** in
+`solve_trajopt` is marked **experimental** in
 {doc}`/conventions/contracts` §7.3 — the signatures will not wander
 without a release note, but the internals may iterate.
 

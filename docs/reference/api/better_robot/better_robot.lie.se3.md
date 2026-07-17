@@ -78,49 +78,49 @@
 ```
 ````
 
-````{py:function} compose(a: torch.Tensor, b: torch.Tensor, *, backend: Backend | None = None) -> torch.Tensor
+````{py:function} compose(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.lie.se3.compose
 
 ```{autodoc2-docstring} better_robot.lie.se3.compose
 ```
 ````
 
-````{py:function} inverse(t: torch.Tensor, *, backend: Backend | None = None) -> torch.Tensor
+````{py:function} inverse(t: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.lie.se3.inverse
 
 ```{autodoc2-docstring} better_robot.lie.se3.inverse
 ```
 ````
 
-````{py:function} log(t: torch.Tensor, *, backend: Backend | None = None) -> torch.Tensor
+````{py:function} log(t: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.lie.se3.log
 
 ```{autodoc2-docstring} better_robot.lie.se3.log
 ```
 ````
 
-````{py:function} exp(v: torch.Tensor, *, backend: Backend | None = None) -> torch.Tensor
+````{py:function} exp(v: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.lie.se3.exp
 
 ```{autodoc2-docstring} better_robot.lie.se3.exp
 ```
 ````
 
-````{py:function} act(t: torch.Tensor, p: torch.Tensor, *, backend: Backend | None = None) -> torch.Tensor
+````{py:function} act(t: torch.Tensor, p: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.lie.se3.act
 
 ```{autodoc2-docstring} better_robot.lie.se3.act
 ```
 ````
 
-````{py:function} adjoint(t: torch.Tensor, *, backend: Backend | None = None) -> torch.Tensor
+````{py:function} adjoint(t: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.lie.se3.adjoint
 
 ```{autodoc2-docstring} better_robot.lie.se3.adjoint
 ```
 ````
 
-````{py:function} adjoint_inv(t: torch.Tensor, *, backend: Backend | None = None) -> torch.Tensor
+````{py:function} adjoint_inv(t: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.lie.se3.adjoint_inv
 
 ```{autodoc2-docstring} better_robot.lie.se3.adjoint_inv
@@ -141,7 +141,7 @@
 ```
 ````
 
-````{py:function} normalize(t: torch.Tensor, *, backend: Backend | None = None) -> torch.Tensor
+````{py:function} normalize(t: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.lie.se3.normalize
 
 ```{autodoc2-docstring} better_robot.lie.se3.normalize
@@ -155,7 +155,7 @@
 ```
 ````
 
-````{py:function} sclerp(T1: torch.Tensor, T2: torch.Tensor, t: torch.Tensor | float, *, backend: Backend | None = None) -> torch.Tensor
+````{py:function} sclerp(T1: torch.Tensor, T2: torch.Tensor, t: torch.Tensor | float) -> torch.Tensor
 :canonical: better_robot.lie.se3.sclerp
 
 ```{autodoc2-docstring} better_robot.lie.se3.sclerp

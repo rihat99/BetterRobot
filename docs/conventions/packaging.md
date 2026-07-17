@@ -52,9 +52,11 @@ Until 1.0 every minor bump may break. Once 1.0 is cut:
   shim; tightening (never loosening) a numerical tolerance.
 - **Patch** — bug fixes; perf improvements within tolerance.
 
-The frozen `EXPECTED` set in `tests/contract/test_public_api.py`
-(currently 26 symbols) is the SemVer-bound contract. The per-symbol
-stability tier is in {doc}`contracts` §7.3.
+`tests/contract/test_public_api.py` pins the required core symbols, their
+resolution and docstrings, and the absence of duplicate exports; it does not
+freeze a symbol count while the project is pre-1.0. Once the 1.0 surface is
+frozen, removals follow the SemVer policy above. The per-symbol stability tier
+is in {doc}`contracts` §7.3.
 
 ## 4 · Deprecation mechanism
 

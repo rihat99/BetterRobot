@@ -65,7 +65,7 @@
 
 ````
 
-````{py:method} exp(w: torch.Tensor, *, backend: Backend | None = None) -> better_robot.lie.types.SO3
+````{py:method} exp(w: torch.Tensor) -> better_robot.lie.types.SO3
 :canonical: better_robot.lie.types.SO3.exp
 :classmethod:
 
@@ -74,7 +74,7 @@
 
 ````
 
-````{py:method} from_matrix(R: torch.Tensor, *, backend: Backend | None = None) -> better_robot.lie.types.SO3
+````{py:method} from_matrix(R: torch.Tensor) -> better_robot.lie.types.SO3
 :canonical: better_robot.lie.types.SO3.from_matrix
 :classmethod:
 
@@ -83,7 +83,7 @@
 
 ````
 
-````{py:method} inverse(*, backend: Backend | None = None) -> better_robot.lie.types.SO3
+````{py:method} inverse() -> better_robot.lie.types.SO3
 :canonical: better_robot.lie.types.SO3.inverse
 
 ```{autodoc2-docstring} better_robot.lie.types.SO3.inverse
@@ -91,7 +91,7 @@
 
 ````
 
-````{py:method} log(*, backend: Backend | None = None) -> torch.Tensor
+````{py:method} log() -> torch.Tensor
 :canonical: better_robot.lie.types.SO3.log
 
 ```{autodoc2-docstring} better_robot.lie.types.SO3.log
@@ -99,7 +99,7 @@
 
 ````
 
-````{py:method} to_matrix(*, backend: Backend | None = None) -> torch.Tensor
+````{py:method} to_matrix() -> torch.Tensor
 :canonical: better_robot.lie.types.SO3.to_matrix
 
 ```{autodoc2-docstring} better_robot.lie.types.SO3.to_matrix
@@ -107,7 +107,7 @@
 
 ````
 
-````{py:method} normalize(*, backend: Backend | None = None) -> better_robot.lie.types.SO3
+````{py:method} normalize() -> better_robot.lie.types.SO3
 :canonical: better_robot.lie.types.SO3.normalize
 
 ```{autodoc2-docstring} better_robot.lie.types.SO3.normalize
@@ -115,7 +115,7 @@
 
 ````
 
-````{py:method} compose(other: better_robot.lie.types.SO3, *, backend: Backend | None = None) -> better_robot.lie.types.SO3
+````{py:method} compose(other: better_robot.lie.types.SO3) -> better_robot.lie.types.SO3
 :canonical: better_robot.lie.types.SO3.compose
 
 ```{autodoc2-docstring} better_robot.lie.types.SO3.compose
@@ -123,7 +123,7 @@
 
 ````
 
-````{py:method} act(p: torch.Tensor, *, backend: Backend | None = None) -> torch.Tensor
+````{py:method} act(p: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.lie.types.SO3.act
 
 ```{autodoc2-docstring} better_robot.lie.types.SO3.act
@@ -159,7 +159,7 @@
 
 ````
 
-````{py:method} exp(xi: torch.Tensor, *, backend: Backend | None = None) -> better_robot.lie.types.SE3
+````{py:method} exp(xi: torch.Tensor) -> better_robot.lie.types.SE3
 :canonical: better_robot.lie.types.SE3.exp
 :classmethod:
 
@@ -186,7 +186,7 @@
 
 ````
 
-````{py:method} inverse(*, backend: Backend | None = None) -> better_robot.lie.types.SE3
+````{py:method} inverse() -> better_robot.lie.types.SE3
 :canonical: better_robot.lie.types.SE3.inverse
 
 ```{autodoc2-docstring} better_robot.lie.types.SE3.inverse
@@ -194,7 +194,7 @@
 
 ````
 
-````{py:method} log(*, backend: Backend | None = None) -> torch.Tensor
+````{py:method} log() -> torch.Tensor
 :canonical: better_robot.lie.types.SE3.log
 
 ```{autodoc2-docstring} better_robot.lie.types.SE3.log
@@ -202,7 +202,7 @@
 
 ````
 
-````{py:method} adjoint(*, backend: Backend | None = None) -> torch.Tensor
+````{py:method} adjoint() -> torch.Tensor
 :canonical: better_robot.lie.types.SE3.adjoint
 
 ```{autodoc2-docstring} better_robot.lie.types.SE3.adjoint
@@ -210,7 +210,7 @@
 
 ````
 
-````{py:method} adjoint_inv(*, backend: Backend | None = None) -> torch.Tensor
+````{py:method} adjoint_inv() -> torch.Tensor
 :canonical: better_robot.lie.types.SE3.adjoint_inv
 
 ```{autodoc2-docstring} better_robot.lie.types.SE3.adjoint_inv
@@ -218,7 +218,7 @@
 
 ````
 
-````{py:method} normalize(*, backend: Backend | None = None) -> better_robot.lie.types.SE3
+````{py:method} normalize() -> better_robot.lie.types.SE3
 :canonical: better_robot.lie.types.SE3.normalize
 
 ```{autodoc2-docstring} better_robot.lie.types.SE3.normalize
@@ -226,7 +226,7 @@
 
 ````
 
-````{py:method} compose(other: better_robot.lie.types.SE3, *, backend: Backend | None = None) -> better_robot.lie.types.SE3
+````{py:method} compose(other: better_robot.lie.types.SE3) -> better_robot.lie.types.SE3
 :canonical: better_robot.lie.types.SE3.compose
 
 ```{autodoc2-docstring} better_robot.lie.types.SE3.compose
@@ -234,7 +234,7 @@
 
 ````
 
-````{py:method} act(p: torch.Tensor, *, backend: Backend | None = None) -> torch.Tensor
+````{py:method} act(p: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.lie.types.SE3.act
 
 ```{autodoc2-docstring} better_robot.lie.types.SE3.act

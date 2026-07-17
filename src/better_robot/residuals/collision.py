@@ -16,10 +16,8 @@ from ..collision.geometry import Box, Capsule, Sphere
 from ..collision.robot_collision import RobotCollision
 from ..data_model.model import Model
 from .base import Residual, ResidualState
-from .registry import register_residual
 
 
-@register_residual("self_collision")
 class SelfCollisionResidual(Residual):
     """One residual value per self-pair currently within ``margin``.
 
@@ -28,6 +26,8 @@ class SelfCollisionResidual(Residual):
 
     See docs/concepts/collision_and_geometry.md §6.
     """
+
+    name: str = "self_collision"
 
     def __init__(
         self,
@@ -68,9 +68,10 @@ class SelfCollisionResidual(Residual):
         )
 
 
-@register_residual("world_collision")
 class WorldCollisionResidual(Residual):
     """Collision residual against an external geometry set (obstacles, ground)."""
+
+    name: str = "world_collision"
 
     def __init__(
         self,

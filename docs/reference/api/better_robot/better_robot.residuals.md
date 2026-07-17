@@ -14,7 +14,6 @@
 :maxdepth: 1
 
 better_robot.residuals.temporal
-better_robot.residuals.registry
 better_robot.residuals.base
 better_robot.residuals.contact
 better_robot.residuals.manipulability

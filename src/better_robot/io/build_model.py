@@ -31,8 +31,7 @@ from ..data_model.joint_models import (
 from ..data_model.joint_models.base import JointModel
 from ..data_model.model import Model
 from ..data_model.topology import build_children, build_subtrees, build_supports, topo_sort
-from ..exceptions import IRSchemaVersionError
-from .ir import IR_SCHEMA_VERSION, IRBody, IRJoint, IRModel, IRError
+from .ir import IRBody, IRJoint, IRModel, IRError
 
 # ──────────────────────────────── constants ──────────────────────────────────
 
@@ -108,8 +107,59 @@ def _kind_to_joint_model(ir_joint: IRJoint) -> JointModel:
     kind = ir_joint.kind
     axis = ir_joint.axis
 
+    joint_model = getattr(ir_joint, "joint_model", None)
+    if joint_model is not None:
+        if not isinstance(joint_model, JointModel):
+            raise IRError(
+                f"joint_model payload for joint {ir_joint.name!r} does not "
+                f"implement the JointModel protocol"
+            )
+        if joint_model.kind != kind:
+            raise IRError(
+                f"joint_model payload kind {joint_model.kind!r} does not match "
+                f"IR kind {kind!r} for joint {ir_joint.name!r}"
+            )
+        if isinstance(joint_model, JointMimic):
+            raise NotImplementedError(
+                f"Joint {ir_joint.name!r} directly selects JointMimic. "
+                f"That zero-DOF placeholder is not coupled by FK or dynamics "
+                f"and cannot represent the M0 identity-mimic exemption. Use "
+                f"the concrete joint model with an exact identity mimic tag "
+                f"(multiplier=1.0, offset=0.0), or track reduced-coordinate "
+                f"enforcement in milestone M3 (see plan/04_roadmap.md, M3 "
+                f"item 3)."
+            )
+        return joint_model
+
+    if kind == "mimic":
+        raise NotImplementedError(
+            f"Joint {ir_joint.name!r} uses the zero-DOF mimic kind, which is "
+            f"not coupled by FK or dynamics. Use a concrete joint kind with "
+            f"an exact identity mimic tag, or track reduced-coordinate "
+            f"enforcement in milestone M3 (see plan/04_roadmap.md, M3 item 3)."
+        )
+
+    if kind == "universe":
+        return JointUniverse()
+
     if kind in ("fixed", "world"):
         return JointFixed()
+
+    if kind == "revolute_rx":
+        return JointRX()
+    if kind == "revolute_ry":
+        return JointRY()
+    if kind == "revolute_rz":
+        return JointRZ()
+    if kind == "revolute_unaligned":
+        if axis is None:
+            raise IRError(
+                f"Joint {ir_joint.name!r} with kind {kind!r} requires an axis"
+            )
+        return JointRevoluteUnaligned(axis=axis.float())
+    if kind == "revolute_unbounded":
+        _ax = axis if axis is not None else torch.tensor([0., 0., 1.])
+        return JointRevoluteUnbounded(axis=_ax.float())
 
     if kind in ("revolute",):
         if axis is None or _axis_near(axis, (1., 0., 0.)):
@@ -133,6 +183,19 @@ def _kind_to_joint_model(ir_joint: IRJoint) -> JointModel:
             return JointPZ()
         return JointPrismaticUnaligned(axis=axis.float())
 
+    if kind == "prismatic_px":
+        return JointPX()
+    if kind == "prismatic_py":
+        return JointPY()
+    if kind == "prismatic_pz":
+        return JointPZ()
+    if kind == "prismatic_unaligned":
+        if axis is None:
+            raise IRError(
+                f"Joint {ir_joint.name!r} with kind {kind!r} requires an axis"
+            )
+        return JointPrismaticUnaligned(axis=axis.float())
+
     if kind in ("spherical", "ball"):
         return JointSpherical()
 
@@ -144,6 +207,17 @@ def _kind_to_joint_model(ir_joint: IRJoint) -> JointModel:
 
     if kind in ("translation",):
         return JointTranslation()
+
+    if kind == "helical":
+        _ax = axis if axis is not None else torch.tensor([0., 0., 1.])
+        return JointHelical(axis=_ax.float(), pitch=ir_joint.pitch)
+
+    if kind == "composite":
+        raise IRError(
+            f"Composite joint {ir_joint.name!r} is missing its programmatic "
+            f"JointComposite payload; construct it with "
+            f"ModelBuilder.add_joint(kind=JointComposite(...))"
+        )
 
     raise IRError(f"Unknown joint kind {kind!r} for joint {ir_joint.name!r}")
 
@@ -229,12 +303,6 @@ def build_model(
     it).  This lets programmatic builders embed a ``JointFreeFlyer`` root
     without extra ``load(…, free_flyer=True)`` kwargs.
     """
-    if ir.schema_version != IR_SCHEMA_VERSION:
-        raise IRSchemaVersionError(
-            f"IRModel.schema_version={ir.schema_version} does not match the "
-            f"version this build expects (IR_SCHEMA_VERSION={IR_SCHEMA_VERSION}). "
-            f"Re-build the IR with the parser shipped in this `better_robot` release."
-        )
     identity_se3 = torch.tensor(_IDENTITY_SE3_VALS, dtype=dtype)
 
     # ── 1. Identify root structure ────────────────────────────────────────────
@@ -408,7 +476,8 @@ def build_model(
             eff_lim.extend([0.] * 3)
 
         else:
-            # 1-DOF: revolute_rx/ry/rz, revolute_unaligned, prismatic_*, helical, mimic
+            # Scalar IR limits apply to every coordinate of generic/custom
+            # joints. This is also the fallback for programmatic composites.
             if ir_j is not None:
                 lo = ir_j.lower if ir_j.lower is not None else -_INF
                 hi = ir_j.upper if ir_j.upper is not None else _INF
@@ -416,10 +485,10 @@ def build_model(
                 eff = ir_j.effort_limit if ir_j.effort_limit is not None else 0.
             else:
                 lo, hi, vel, eff = -_INF, _INF, _INF, _INF
-            lower_pos.append(lo)
-            upper_pos.append(hi)
-            vel_lim.append(vel)
-            eff_lim.append(eff)
+            lower_pos.extend([lo] * jm.nq)
+            upper_pos.extend([hi] * jm.nq)
+            vel_lim.extend([vel] * jm.nv)
+            eff_lim.extend([eff] * jm.nv)
 
     lower_pos_limit = torch.tensor(lower_pos, dtype=dtype)
     upper_pos_limit = torch.tensor(upper_pos, dtype=dtype)
@@ -487,9 +556,15 @@ def build_model(
     mimic_off = torch.zeros(n_model_joints, dtype=dtype)
     mimic_src_list: list[int] = list(range(n_model_joints))
 
-    for offset, ir_ji in enumerate(sorted_ir_indices):
-        ir_j = ir.joints[ir_ji]
-        mjidx = offset + 2
+    mimic_ir_joints: list[tuple[IRJoint, int]] = []
+    if world_ir_idxs:
+        mimic_ir_joints.append((world_ir_joint, 1))
+    mimic_ir_joints.extend(
+        (ir.joints[ir_ji], offset + 2)
+        for offset, ir_ji in enumerate(sorted_ir_indices)
+    )
+
+    for ir_j, mjidx in mimic_ir_joints:
         if ir_j.mimic_source is not None:
             src = ir_joint_name_to_mjidx.get(ir_j.mimic_source)
             if src is None:

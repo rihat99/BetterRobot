@@ -27,18 +27,22 @@
   - ```{autodoc2-docstring} better_robot.kinematics.forward.update_frame_placements
     :summary:
     ```
+* - {py:obj}`frame_placements_raw <better_robot.kinematics.forward.frame_placements_raw>`
+  - ```{autodoc2-docstring} better_robot.kinematics.forward.frame_placements_raw
+    :summary:
+    ```
 ````
 
 ### API
 
-````{py:function} forward_kinematics_raw(model: better_robot.data_model.model.Model, q: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]
+````{py:function} forward_kinematics_raw(structure: better_robot.data_model.model_structure.ModelStructure, values: better_robot.data_model.model_values.ModelValues, q: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]
 :canonical: better_robot.kinematics.forward.forward_kinematics_raw
 
 ```{autodoc2-docstring} better_robot.kinematics.forward.forward_kinematics_raw
 ```
 ````
 
-````{py:function} forward_kinematics(model: better_robot.data_model.model.Model, q_or_data: torch.Tensor | better_robot.data_model.data.Data, *, compute_frames: bool = False, check_quaternion_norm: bool = False, backend: Backend | None = None) -> better_robot.data_model.data.Data
+````{py:function} forward_kinematics(model: better_robot.data_model.model.Model, q_or_data: torch.Tensor | better_robot.data_model.data.Data, *, compute_frames: bool = False, check_quaternion_norm: bool = False, use_warp: bool = False) -> better_robot.data_model.data.Data
 :canonical: better_robot.kinematics.forward.forward_kinematics
 
 ```{autodoc2-docstring} better_robot.kinematics.forward.forward_kinematics
@@ -49,5 +53,12 @@
 :canonical: better_robot.kinematics.forward.update_frame_placements
 
 ```{autodoc2-docstring} better_robot.kinematics.forward.update_frame_placements
+```
+````
+
+````{py:function} frame_placements_raw(structure: better_robot.data_model.model_structure.ModelStructure, values: better_robot.data_model.model_values.ModelValues, joint_pose_world: torch.Tensor) -> torch.Tensor
+:canonical: better_robot.kinematics.forward.frame_placements_raw
+
+```{autodoc2-docstring} better_robot.kinematics.forward.frame_placements_raw
 ```
 ````

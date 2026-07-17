@@ -57,7 +57,7 @@
 
 ````
 
-````{py:function} compute_joint_jacobians(model: better_robot.data_model.model.Model, data: better_robot.data_model.data.Data, *, backend: Backend | None = None) -> better_robot.data_model.data.Data
+````{py:function} compute_joint_jacobians(model: better_robot.data_model.model.Model, data: better_robot.data_model.data.Data) -> better_robot.data_model.data.Data
 :canonical: better_robot.kinematics.jacobian.compute_joint_jacobians
 
 ```{autodoc2-docstring} better_robot.kinematics.jacobian.compute_joint_jacobians

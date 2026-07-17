@@ -55,9 +55,8 @@ PyPose calls through the functional facade meant we were already
 re-wrapping every operation. Second, PyPose's `Log` had an autograd
 issue that forced our residual Jacobian path to use central finite
 differences as the default — slow, and a tax on every iteration. The
-torch-native backend (`lie/_torch_native_backend.py`) replaced
-PyPose; it is gradcheck-clean by construction, has no external
-dependencies, and has been the default ever since.
+direct Torch implementation (`lie/_impl.py`) replaced PyPose; it is
+gradcheck-clean by construction and has no external dependencies.
 
 ## Storage convention
 
@@ -113,12 +112,11 @@ def hat_so3(w):  ...   # (..., 3) → (..., 3, 3)
 def vee_so3(W):  ...   # (..., 3, 3) → (..., 3)
 ```
 
-Every function routes through the active `Backend` Protocol from
-{doc}`batching_and_backends`. The default backend
-(`torch_native`) is implemented in `lie/_torch_native_backend.py`
-and uses Barfoot's closed forms. A future Warp backend will provide
-the same surface with `wp.kernel`-backed implementations; call sites
-do not change.
+Every function calls the direct Torch implementation in `lie/_impl.py`,
+which uses Barfoot's closed forms. There is no runtime dispatch in this
+layer. An optional kernel optimisation belongs at a complete FK/RNEA-style
+pass described in {doc}`batching_and_backends`; it does not replace an
+individual Lie primitive.
 
 ## Singularity handling
 
@@ -129,7 +127,7 @@ SE(3) left-Jacobian has a similar singularity. Both are handled with
 `torch.where` against a `θ²` cutoff:
 
 ```python
-# Sketch — see src/better_robot/lie/_torch_native_backend.py
+# Sketch — see src/better_robot/lie/_impl.py
 b = torch.where(theta2 < EPS,
                 0.5 - theta2 / 24.0,                # Taylor lead at θ → 0
                 (1.0 - cos_theta) / theta2)
@@ -148,7 +146,7 @@ branches return finite, differentiable values.
 A unit quaternion `q` and `-q` represent the same rotation. The naive
 implementation of `so3.log(q)` returns different tangents for the two
 representations, which breaks gradient flow at the seam. The
-torch-native backend folds the two halves of the cover by flipping
+direct implementation folds the two halves of the cover by flipping
 the sign whenever `qw < 0`:
 
 ```python
@@ -167,7 +165,7 @@ on the manifold rather than element-wise.
 | Analytic FK Jacobian vs. `jacrev` | `‖ΔJ‖_F < 1e-4` (fp32), `< 1e-10` (fp64) |
 | Long-chain FK (30 joints) | 1 ulp of a well-conditioned product of SE(3)s |
 
-The torch-native backend passes `torch.autograd.gradcheck` at fp64
+The direct Torch implementation passes `torch.autograd.gradcheck` at fp64
 with `atol=1e-8, rtol=1e-6` on randomised unit-quaternion inputs for
 every public op. See `tests/lie/test_torch_backend_gradcheck.py`.
 
@@ -326,8 +324,8 @@ footguns in Python:
 - `__torch_function__` subclass drift on tensor subclasses (the
   PyPose lesson).
 
-So `lie/` stays functional over plain tensors — backend-swappable,
-autograd-clean, trivially `torch.compile`-friendly. `spatial/`
+So `lie/` stays functional over plain tensors — direct, autograd-clean, and
+`torch.compile`-friendly. `spatial/`
 provides shallow value-type wrappers with explicit named methods for
 code that reads cleaner with them (notably `dynamics/`). Kinematics
 works directly on tensors; dynamics uses `Motion` / `Force` / `Inertia`
@@ -352,8 +350,7 @@ for readability.
 
 - {doc}`kinematics` — how the FK loop calls `lie.se3.compose` for
   every joint in `topo_order`.
-- {doc}`batching_and_backends` — the `Backend` Protocol that routes
-  the `lie.*` calls to `torch_native` (today) or `warp` (in
-  progress).
+- {doc}`batching_and_backends` — the structure/value seam and explicit
+  whole-pass compute lanes.
 - {doc}`/conventions/contracts` §1.3 — the quaternion-norm input
   contract.

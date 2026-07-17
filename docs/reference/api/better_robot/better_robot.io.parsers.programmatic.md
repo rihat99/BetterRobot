@@ -157,7 +157,7 @@
 
 ````
 
-````{py:method} add_joint(name: str, *, kind=None, parent: str, child: str, origin: torch.Tensor, axis: torch.Tensor | None = None, lower: float | None = None, upper: float | None = None, velocity_limit: float | None = None, effort_limit: float | None = None, mimic_source: str | None = None, mimic_multiplier: float = 1.0, mimic_offset: float = 0.0) -> str
+````{py:method} add_joint(name: str, *, kind=None, parent: str, child: str, origin: torch.Tensor | None = None, axis: torch.Tensor | None = None, lower: float | None = None, upper: float | None = None, velocity_limit: float | None = None, effort_limit: float | None = None, mimic_source: str | None = None, mimic_multiplier: float = 1.0, mimic_offset: float = 0.0) -> str
 :canonical: better_robot.io.parsers.programmatic.ModelBuilder.add_joint
 
 ```{autodoc2-docstring} better_robot.io.parsers.programmatic.ModelBuilder.add_joint

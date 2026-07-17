@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Literal
 
 import torch
 
-from ..backends import default_backend
 from ..data_model import KinematicsLevel
 from ..data_model.data import Data
 from ..data_model.model import Model
@@ -21,7 +20,6 @@ from ..lie.tangents import hat_so3
 from .jacobian_strategy import JacobianStrategy
 
 if TYPE_CHECKING:
-    from ..backends.protocol import Backend
     from ..residuals.base import Residual, ResidualState
 
 ReferenceFrame = Literal["world", "local", "local_world_aligned"]
@@ -79,9 +77,7 @@ def _compute_joint_jacobians_raw(model: Model, data: Data) -> torch.Tensor:
     return J
 
 
-def compute_joint_jacobians(
-    model: Model, data: Data, *, backend: "Backend | None" = None,
-) -> Data:
+def compute_joint_jacobians(model: Model, data: Data) -> Data:
     """Populate ``data.joint_jacobians`` with the spatial Jacobian of every joint.
 
     Shape: ``data.joint_jacobians = (B..., njoints, 6, nv)``. Requires
@@ -92,8 +88,7 @@ def compute_joint_jacobians(
     See docs/concepts/kinematics.md §3.
     """
     data.require(KinematicsLevel.PLACEMENTS)
-    backend = backend or default_backend()
-    data.joint_jacobians = backend.kinematics.compute_joint_jacobians(model, data)
+    data.joint_jacobians = _compute_joint_jacobians_raw(model, data)
     return data
 
 

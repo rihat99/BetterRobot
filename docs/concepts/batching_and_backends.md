@@ -1,39 +1,24 @@
-# Batching and Backends
+# Batching and Compute Lanes
 
-Tensor math uses the convention `(B..., feature)`, where `B...` may be an
-empty or multi-axis batch prefix and `feature` is the semantic last axis.
-A single pose is `(7,)`; a batch of one is `(1, 7)`. FK, residuals, and
-analytic Jacobians support leading batches. The current optimizer stack and
-`solve_ik` are explicitly single-problem until M2b.
+Tensor math uses the convention ``(B..., feature)``, where ``B...`` may be
+an empty or multi-axis batch prefix and ``feature`` is the semantic last
+axis. A single pose is ``(7,)``; a batch of one is ``(1, 7)``. FK,
+residuals, and analytic Jacobians support leading batches. The current
+optimizer stack and ``solve_ik`` are explicitly single-problem until M2b.
 
-The reason is throughput. PyRoki, brax, mjlab, mjwarp, and IsaacLab
-all converged on leading-batch tensors for the same reason: when the
-loop is over `model.topo_order` (a fixed Python tuple of size
-`njoints`) instead of over the batch axis, there is no Python work
-to amortise across batch entries. `torch.compile` unrolls the
-topology cleanly per `(shape, dtype, device)` triple. Broadcasting in
-PyTorch Just Works as long as the convention is consistent. Writing
-a function that accepts `(B, T, ..., D)` is the same cost as writing
-one for `(..., D)` — *as long as every transform along the way
-respects the convention*. The "as long as" is the discipline; the
-contract test `tests/contract/test_hot_path_lint.py` enforces it.
-
-The backend layer is the second half of the same story. Below the
-math layer (`lie/`, `kinematics/`, `dynamics/`) is a `Backend`
-Protocol whose default is `torch_native` — pure PyTorch, no extra
-dependencies. A future Warp backend (in progress) will plug in
-through the same Protocol, swap the FK / Jacobian / RNEA kernels
-under the hood, and leave every call site identical because users
-see `torch.Tensor` in and `torch.Tensor` out at every public
-surface. The architectural core is **explicit `Backend` objects**
-passed via `backend=` kwargs; `default_backend()` is convenience
-sugar for the common case where you do not want to thread the
-backend through every call.
+BetterRobot has one public tensor API and a whole-pass compute seam. The
+canonical lane is eager or caller-compiled Torch. An opt-in Warp lane may
+replace an entire pass such as FK or RNEA when that pass has a validated
+kernel and adjoint. Lane choice is not exposed on individual Lie operations,
+and there is no process-wide compute selector or generic compute object.
+Where a prototype exists, a pass-specific flag such as
+``forward_kinematics(..., use_warp=True)`` opts into that whole pass. Public
+calls continue to take and return ``torch.Tensor`` objects.
 
 ## Shape convention
 
-For every tensor field on `Model` or `Data` and every argument or
-return of a public function:
+For every tensor field on ``Model`` or ``Data`` and every argument or return
+of a public function:
 
 ```
 Last dim:        the manifold / feature dim
@@ -42,10 +27,9 @@ Last dim:        the manifold / feature dim
                      6 for twist / tangent / spatial wrench
                      7 for SE(3) pose
                      nq / nv for configurations and velocities
-Second-to-last:  (optional) per-joint or per-link / per-frame dim
-                     njoints / nframes / nbodies / n_caps / n_pairs
+Second-to-last: (optional) per-joint, per-link, or per-frame dim
 Second dim:      (optional) time axis T (trajectories only)
-First dim:       batch axis B
+First dims:      arbitrary leading batch prefix B...
 ```
 
 A tensor routine treats a missing batch prefix and arbitrary leading batch
@@ -55,261 +39,171 @@ prefixes through the same trailing-feature convention.
 
 | Object | Shape |
 |--------|-------|
-| Single SE3 pose | `(7,)` |
-| Joint config, fixed-base Panda | `(B..., 9)` |
-| Joint config, G1 free-flyer | `(B, 7 + n_act)` |
-| `forward_kinematics` output | `(B, njoints, 7)` |
-| Spatial Jacobian | `(B, 6, nv)` |
-| Self-collision residual | `(B, n_candidate_pairs)` |
-| Trajectory of 64 knots on 128 batch | `(128, 64, nq)` |
+| Single SE(3) pose | ``(7,)`` |
+| Joint configuration | ``(B..., nq)`` |
+| ``forward_kinematics`` joint poses | ``(B..., njoints, 7)`` |
+| Spatial Jacobian | ``(B..., 6, nv)`` |
+| Self-collision residual | ``(B..., n_candidate_pairs)`` |
+| Trajectory | ``(B, T, nq)`` |
 
 ## Batching in practice
 
 ```python
-# A user calling FK on 4096 random Panda configs
-q = torch.rand(4096, model.nq, device="cuda") * (model.upper_pos_limit - model.lower_pos_limit) \
-                                              + model.lower_pos_limit
-data  = forward_kinematics(model, q, compute_frames=True)
-poses = data.frame_pose_world[..., model.frame_id("body_panda_hand"), :]   # (4096, 7)
+q = torch.rand(4096, model.nq, device="cuda")
+data = forward_kinematics(model, q, compute_frames=True)
+poses = data.frame_pose_world[..., model.frame_id("body_panda_hand"), :]
 ```
 
-Inside `forward_kinematics`, the loop is over `model.topo_order` (a
-fixed Python tuple), not over the batch. Per-joint transform calls
-operate on slices `q[..., idx_q : idx_q + nq_j]` which keep the
-leading batch axis intact.
+The Torch FK lane loops over ``model.structure.topo_order``, a fixed Python
+tuple, rather than over the batch. Per-joint operations retain the leading
+batch prefix. This is the same source for an unbatched configuration and a
+multi-axis batch.
 
-## Heterogeneous batches — `world_start`
+## The structure/value seam
 
-Newton's and mjwarp's trick for batching robots with *different*
-topologies: flat buffers with a `world_start[]` array that indexes
-into per-world sub-ranges. Mixing a 7-DOF Panda with a 36-DOF G1 in
-one batched problem looks like:
+A ``Model`` exposes two views used by whole-pass implementations:
 
-```
-flat_q        (43,)       # 7 + 36
-world_start   [0, 7, 43]  # Panda in [0:7], G1 in [7:43]
-```
+- ``ModelStructure`` is immutable topology. Python tuples make the Torch
+  lane statically unrollable, while flat integer and floating-point tables
+  expose the same topology to device kernels. ``validate_consistency``
+  checks the two representations at construction.
+- ``ModelValues`` contains differentiable tensor values such as joint
+  placements, inertias, limits, gravity, and mimic metadata. It is
+  registered as a Torch pytree so a raw pass can accept tensors without
+  closing over a mutable ``Model`` object.
 
-V1 does not commit to this fully — the first-round shape convention
-assumes one `Model` per `Data`. The extension point is reserved:
+The raw Torch passes consume that seam directly:
 
 ```python
-@dataclass
-class WorldIndexing:
-    world_start: tuple[int, ...]     # prefix sums into flat tensors
-    model_ids:   tuple[int, ...]
+joint_pose_world, joint_pose_local = forward_kinematics_raw(
+    model.structure,
+    model.values,
+    q,
+)
+
+rnea_result = rnea_raw(
+    model.structure,
+    model.values,
+    q,
+    v,
+    a,
+)
 ```
 
-A future `MultiWorldData` will carry this and let residuals / costs
-address per-world slices. The names are reserved now so the refactor
-is minimal when the need arrives.
+The public wrappers keep the familiar ``Model`` / ``Data`` API. They call a
+whole pass, then populate the mutable workspace. This boundary is where a
+kernel lane is selected; Lie functions such as ``se3.compose`` remain direct
+Torch operations.
 
-## Device and dtype polymorphism
+## Whole-pass lane choice
 
-### `Model.to(device, dtype)`
+Lane selection is explicit at an integration boundary and coarse enough to
+make ownership clear:
 
 ```python
-def to(self, device=None, dtype=None) -> Model:
-    """Return a NEW Model with every tensor buffer moved to the given
-    device and dtype. The topology (parents, names, indices,
-    joint_models) is copied by reference — it does not live on-device.
-    """
+if use_warp:
+    outputs = try_warp_forward_kinematics(model.structure, model.values, q)
+if outputs is None:
+    outputs = forward_kinematics_raw(model.structure, model.values, q)
 ```
 
-Why a new `Model` instead of mutation? Because `Model` is frozen,
-and because sharing a `Model` across devices (CPU for diagnostics,
-CUDA for solving) is a legitimate pattern.
+``forward_kinematics(..., use_warp=True)`` is the current pass-specific
+opt-in. The Torch lane is the correctness oracle and default. The Warp FK
+prototype checks its supported joint kinds, device, dtype, and layout before
+running. Unsupported inputs intentionally fall back at that whole-pass
+boundary; individual math operations never switch lanes mid-pass.
 
-### `Data` follows `q`
+This design avoids several ambiguous states:
 
-`Data` has no `.to()`. When you pass a `q` of dtype fp32 on
-`cuda:0`, the returned `Data` has all fields on `cuda:0` / fp32.
-Device and dtype follow the input, never a cached value.
+- no global selector captured accidentally by ``torch.compile``;
+- no per-operation mixture of Torch and Warp within one pass;
+- no runtime objects from an optional compute package in the public API;
+- no second implementation of elementary Lie algebra chosen at runtime.
 
-### Mixed precision
+## Flat execution batches
 
-`forward_kinematics(model, q.half())` should return an fp16 `Data`.
-The core kinematics are pure tensor ops, so mixed precision works as
-long as the active backend does not secretly upcast. fp16 is **not
-supported** in the optim layer — analytic Jacobians are too sensitive
-to mixed precision; cast up before solving.
+``ExecutionBatch`` is the stable ABI for kernels that flatten a broadcast
+batch to ``E`` execution elements. Each unique physical input remains stored
+once; an integer map associates execution rows with source rows. That avoids
+stride-zero views and avoids physically repeating shared model values.
 
-## `torch.compile` discipline
+For example, a query batch ``(Bq, nq)`` and a compatible values batch can be
+broadcast, flattened to ``(E, ...)``, executed, and unflattened back to the
+broadcast batch shape. Backward reduces per-execution gradients to each
+input's unique rows with ``index_add_``. The ABI does not yet promise a
+heterogeneous collection of robot topologies; each pass still receives one
+``ModelStructure``.
 
-Every hot path must be `torch.compile`-friendly:
+## Device and dtype
 
-- Loops over `model.topo_order` are static — they unroll cleanly.
-- No Python branching on tensor values.
-- No `.item()` calls in FK / Jacobian / RNEA / ABA / CRBA.
-- Joint-type dispatch happens at compile time
-  (`model.joint_models[j]` is a tuple lookup, not a tensor
-  operation).
+``Model.to(device, dtype)`` returns a new model. ``ModelStructure.to`` moves
+its device tables while preserving integer dtypes, and ``ModelValues.to``
+moves the floating-point tensor pytree. The Python topology remains static.
 
-The lint rules in `tests/contract/test_hot_path_lint.py` enforce
-these patterns mechanically; see {doc}`/conventions/performance` §3
-for the full list.
+``Data`` follows the query tensor. Supported paths preserve the query device
+and working dtype. fp32 is primary and fp64 is used for derivative checks;
+fp16 and bf16 are outside the numerical support contract even where an eager
+Torch operation happens to execute.
 
-## GPU support
+## ``torch.compile`` discipline
 
-Day-one GPU support is achieved by:
+The package requires Torch 2.4 or newer. The floor covers the functional
+custom-op registration used by the opt-in Warp bridge as well as the
+documented compilation path.
 
-1. Keeping all model buffers on device (`model.joint_placements`,
-   `axes`, `inertias`, `lower_pos_limit`, …).
-2. Writing every algorithm in pure PyTorch ops that already run on
-   CUDA.
-3. Using the torch-native Lie backend, which is gradcheck-clean by
-   construction and has no PyPose autograd issues to dodge.
-4. Providing `tests/test_gpu.py` that constructs models on CUDA, runs
-   FK / residuals / a full IK solve, and asserts output equals the
-   CPU reference to `1e-5`.
+The raw Torch passes are the compilation boundary:
 
-## The Backend Protocol
+- topology loops use ``ModelStructure`` Python tuples;
+- there is no Python branching on tensor values;
+- hot paths avoid ``.item()`` and host transfers;
+- joint dispatch is derived from stable structure data;
+- values arrive as tensor leaves rather than through hidden global state.
 
-```python
-class LieOps(Protocol):
-    """Bottom-layer SE3 / SO3 ops; plain torch tensors in and out."""
-    def se3_compose   (self, a, b): ...
-    def se3_inverse   (self, t): ...
-    def se3_log       (self, t): ...
-    def se3_exp       (self, v): ...
-    def se3_act       (self, t, p): ...
-    def se3_adjoint   (self, t): ...
-    def se3_adjoint_inv(self, t): ...
-    def se3_normalize (self, t): ...
-    # SO3 mirror omitted
-
-class KinematicsOps(Protocol):
-    def forward_kinematics(self, model, q): ...
-    def compute_joint_jacobians(self, model, joint_pose_world): ...
-
-class DynamicsOps(Protocol):
-    def rnea (self, model, data, q, v, a, fext=None): ...
-    def aba  (self, model, data, q, v, tau, fext=None): ...
-    def crba (self, model, data, q): ...
-    def center_of_mass(self, model, data, q, v=None, a=None): ...
-
-class Backend(Protocol):
-    name: str
-    lie:        LieOps
-    kinematics: KinematicsOps
-    dynamics:   DynamicsOps
-```
-
-Source: `src/better_robot/backends/protocol.py`.
-
-### Capability matrix
-
-| Backend | `lie` | `kinematics` | `dynamics` | Status |
-|---------|-------|--------------|------------|--------|
-| `torch_native` | full | full | RNEA / ABA / CRBA / CCRBA / centroidal live | **default** |
-| `warp` | partial | partial | partial | experimental |
-
-### Where the backend boundary lives
-
-| Module | Calls backend? |
-|--------|----------------|
-| `lie/se3.py`, `lie/so3.py` | yes |
-| `lie/tangents.py` | no — pure PyTorch math |
-| `kinematics/forward.py` | yes (FK kernel) |
-| `kinematics/jacobian.py` | yes (joint Jacobian assembly) |
-| `dynamics/rnea.py` / `aba.py` / `crba.py` | yes |
-| `spatial/*.py` | indirectly (via `lie/`) |
-| `data_model/joint_models/*.py` | indirectly |
-| Everything else | no |
-
-`tests/contract/test_backend_boundary.py` AST-walks `src/` and
-fails if any module outside `lie/`, `kinematics/`, `dynamics/`, or
-`backends/<name>/` imports a backend implementation module. The
-discipline is enforced mechanically.
-
-## Per-call vs process-wide backend selection
-
-```python
-# Explicit per-call (the primary mechanism):
-import better_robot as br
-from better_robot.backends import get_backend
-
-wb   = get_backend("warp")
-T    = br.lie.se3.compose(a, b, backend=wb)
-data = br.forward_kinematics(model, q, backend=wb)
-
-# Process-wide default (convenience sugar):
-br.backends.set_backend("warp")           # one-time configuration
-```
-
-Library-internal code never calls `set_backend` (a contract test
-greps for it). User code calls it once at startup if at all.
-
-The reasons the global is sugar, not the architectural core:
-
-- `torch.compile` traces against captured globals; switching the
-  global mid-trace silently invalidates compiled artefacts.
-- Tests that compare two backends side by side need both live in
-  the same process without monkey-patching.
-- Nested libraries that themselves call `set_backend` would clash.
+Automatic compilation is not installed. Callers may compile documented raw
+passes explicitly; see {doc}`/conventions/performance` for current coverage.
 
 ## CUDA graph capture
 
-CUDA-graph capture and a capture-ready batched solver are roadmap work. The
-current Python optimizer loop converts tensor values to Python scalars and is
-not graph-capturable; M1 removes remaining hot-path breaks and M2b rebuilds the
-second-order solver state.
+CUDA graph capture is roadmap work. A capture-safe solver must use fixed
+storage and record forward **and backward together** so replay preserves the
+intended differentiation lifecycle. BetterRobot does not currently ship a
+capture decorator or context manager. Capture remains opt-in until
+the batched solver and kernel adjoints have their own parity tests.
 
-## Warp principles (the future kernel path)
+## Requirements for an opt-in kernel lane
 
-When Warp ships:
+A whole-pass kernel is eligible only when it provides:
 
-- Users never import `warp`.
-- Users never write a `@wp.kernel`.
-- `torch.Tensor` in, `torch.Tensor` out — no `wp.array` leakage.
-- `wp.Tape` is disabled; backward goes through
-  `torch.autograd.Function` with a hand-written analytic adjoint.
-- Every Warp kernel is wrapped in a `WarpBridge` that caches
-  `wp.array` handles per `(dtype, device, shape)` — repeated calls
-  with the same shape are allocation-free.
-- Adaptive kernel dispatch picks the right specialisation at first
-  call, keyed on `(shape params, dtype, device)`.
+1. Torch-compatible tensor inputs and outputs at the boundary.
+2. Explicit support checks for joint kinds, dtype, device, and shapes.
+3. Forward parity against the raw Torch pass.
+4. A tested adjoint exposed through Torch autograd, without leaking optional
+   runtime array types.
+5. Stable allocation and capture behavior for repeated shapes.
 
-The Warp directory layout under `backends/warp/` mirrors the
-pattern; the bridge, the autograd wrappers, and the graph-capture
-context manager are the integration surface.
+The optional runtime import stays local to the kernel integration. Elementary
+Lie operations and ordinary public calls remain available without it.
 
-## Testing the shape and device contract
+## Testing the contract
 
-Every public function gets three pro-forma tests:
-
-1. **Shape test.** Pass `(1, nq)`, `(B, nq)`, `(B, T, nq)`; check
-   every returned tensor has the expected leading batch shape.
-2. **Device test.** Pass `q` on CPU, then on CUDA (skipped if no
-   GPU); check outputs live on the same device.
-3. **Dtype test.** Pass `q` as fp32 and fp64; check outputs match
-   in dtype and are within tolerance of each other.
-
-These live in `tests/contract/` and import every public symbol from
-`better_robot.__init__`.
+Every public tensor routine needs shape, device, dtype, and gradient tests in
+proportion to its guarantees. Every opt-in lane additionally needs the same
+forward and backward fixtures as the Torch oracle, including rejection or
+fallback tests for unsupported structures.
 
 ## Sharp edges
 
-- **Quaternions are scalar-last `[qx, qy, qz, qw]`.** Code that
-  expects scalar-first is wrong everywhere it touches an SE(3).
-- **Spatial Jacobians have linear rows on top of angular rows.** A
-  `(6, nv)` Jacobian's first three rows are linear velocity; the
-  bottom three are angular.
-- **`torch.compile` recompiles per `(shape, dtype, device)`.**
-  Cycling through many batch sizes triggers many compiles; the cache
-  is `TORCHINDUCTOR_CACHE_DIR` (default
-  `~/.cache/torch_inductor/better_robot`).
-- **Mixed precision is rejected at the boundary.** The optim entry
-  points raise on fp16 inputs. Cast up to fp32 before solving; cast
-  back if you need to.
-- **`set_backend` is one-time configuration.** Switching mid-trace
-  silently invalidates compiled artefacts.
+- Quaternions are scalar-last ``[qx, qy, qz, qw]``.
+- Spatial Jacobians store linear rows above angular rows.
+- ``torch.compile`` may specialise on shape, dtype, device, and topology.
+- Mixed precision is not a supported robotics-numerics contract.
+- Lane choice belongs at a whole-pass integration point, never inside a Lie
+  primitive or mutable process-global setting.
 
 ## Where to look next
 
-- {doc}`lie_and_spatial` — the math layer that the backend
-  Protocol routes.
-- {doc}`/conventions/performance` — the budgets the techniques in
-  this chapter defend.
-- {doc}`/conventions/extension` §10 — recipe for adding a new
-  backend.
+- {doc}`architecture` — the layered dependency graph and ownership rules.
+- {doc}`lie_and_spatial` — the direct Torch math layer.
+- {doc}`/conventions/performance` — compile, capture, and kernel requirements.
+- {doc}`/conventions/extension` — how an experimental whole-pass lane is
+  integrated without changing the public API.

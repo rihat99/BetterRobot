@@ -43,6 +43,7 @@ class GaussNewton:
         solver = linear_solver if linear_solver is not None else Cholesky()
         state = SolverState.from_problem(problem)
         nv = problem._nv
+        identity = torch.eye(nv, dtype=state.x.dtype, device=state.x.device)
 
         it = -1
         for it in range(max_iter):
@@ -50,7 +51,7 @@ class GaussNewton:
             r_w, J_w = _apply_kernel(state.residual, J, kernel)
             JtJ = J_w.mT @ J_w                                           # (nv, nv)
             Jtr = J_w.mT @ r_w                                           # (nv,)
-            H = JtJ + self.eps * torch.eye(nv, dtype=J.dtype, device=J.device)
+            H = JtJ + self.eps * identity
             delta_v = solver.solve(H, -Jtr)                              # (nv,)
 
             x_new = problem.step(state.x, delta_v)
@@ -62,11 +63,11 @@ class GaussNewton:
 
             state.x = x_new
             state.residual = problem.residual(x_new)
-            cost = float(0.5 * (state.residual @ state.residual).sum())
+            cost = float(0.5 * (state.residual @ state.residual).sum())  # bench-ok: Python history records scalar diagnostics
             state.residual_norm = torch.as_tensor(cost)
             state.history.append({"iter": it, "cost": cost})
 
-            if float(Jtr.norm()) < self.tol:
+            if float(Jtr.norm()) < self.tol:  # bench-ok: Python convergence control requires a scalar decision
                 state.status = "converged"
                 state.iters = it + 1
                 return state

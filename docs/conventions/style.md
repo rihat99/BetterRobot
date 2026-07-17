@@ -263,8 +263,7 @@ Conventions inside docstrings:
 - `logger = logging.getLogger(__name__)` per module.
 - `print()` is forbidden in `src/`. Allowed in `examples/` and CLI
   tools.
-- The library configures `logging.NullHandler` on `better_robot`
-  (already done in `utils/logging.py`).
+- Library modules must not configure application logging handlers.
 - Format strings use `%` placeholders for deferred formatting:
 
   ```python
@@ -341,9 +340,7 @@ Suppress with `# bench-ok: <reason>`. A PR adding more than three new
 - Bare `except:` clauses.
 - Module-level side effects (besides defining names).
 - Global mutable state. Registries are acceptable; configuration
-  singletons are not — except for `default_backend()`, which is
-  documented as one-time configuration in
-  {doc}`/concepts/batching_and_backends`.
+  singletons and process-wide compute selectors are not.
 - `eval`, `exec` — never.
 
 ## 16 · Pull requests and reviews
@@ -372,9 +369,8 @@ Before merging:
       `BetterRobotError`.
 - [ ] Has tests, including at least one property-based test if a
       mathematical invariant exists.
-- [ ] Listed in the relevant `__all__`; if top-level, the `EXPECTED`
-      set in `tests/contract/test_public_api.py` was updated in the
-      same PR.
+- [ ] Listed in the relevant `__all__`; if top-level, the required-core
+      contract was updated when applicable.
 - [ ] Mentioned in `CHANGELOG.md` under "Added".
 
 ---

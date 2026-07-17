@@ -31,6 +31,17 @@ Bases: {py:obj}`better_robot.residuals.base.Residual`
 ```{autodoc2-docstring} better_robot.residuals.manipulability.YoshikawaResidual
 ```
 
+````{py:attribute} name
+:canonical: better_robot.residuals.manipulability.YoshikawaResidual.name
+:type: str
+:value: >
+   'manipulability'
+
+```{autodoc2-docstring} better_robot.residuals.manipulability.YoshikawaResidual.name
+```
+
+````
+
 ````{py:method} jacobian(state: better_robot.residuals.base.ResidualState) -> torch.Tensor | None
 :canonical: better_robot.residuals.manipulability.YoshikawaResidual.jacobian
 

@@ -14,7 +14,7 @@ from __future__ import annotations
 import torch
 
 from ..data_model.data import Data
-from .base import Residual, ResidualState
+from .base import ResidualState
 
 
 class TimeIndexedResidual:
@@ -39,7 +39,7 @@ class TimeIndexedResidual:
 
     def _slice_state(self, state: ResidualState) -> ResidualState:
         q = state.variables
-        if q.dim() != 2:
+        if q.dim() != 2:  # bench-ok: trajectory-shape contract validation
             raise ValueError(
                 f"TimeIndexedResidual expects (T, nq); got {tuple(q.shape)}"
             )

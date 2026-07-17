@@ -14,14 +14,10 @@ See ``docs/concepts/parsers_and_ir.md §6``.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import torch
 
+from ...data_model.joint_models.base import JointModel
 from ..ir import IRBody, IRFrame, IRGeom, IRJoint, IRModel
-
-if TYPE_CHECKING:
-    from ...data_model.joint_models.base import JointModel
 
 
 # Named-kind names that the builder forbids passing as a string. The
@@ -40,6 +36,8 @@ _LEGACY_KIND_HELPER: dict[str, str] = {
     "ball": "add_spherical",
     "planar": "add_planar",
     "helical": "add_helical",
+    "composite": "add_joint(kind=JointComposite(...))",
+    "mimic": "a concrete joint helper plus mimic_source=...",
     "free_flyer": "add_free_flyer_root",
     "free": "add_free_flyer_root",
     "floating": "add_free_flyer_root",
@@ -156,6 +154,8 @@ class ModelBuilder:
         mimic_source: str | None,
         mimic_multiplier: float,
         mimic_offset: float,
+        pitch: float = 0.0,
+        joint_model: JointModel | None = None,
     ) -> str:
         if name in self._joint_names:
             raise ValueError(f"Joint {name!r} already exists")
@@ -174,6 +174,8 @@ class ModelBuilder:
             mimic_source=mimic_source,
             mimic_multiplier=mimic_multiplier,
             mimic_offset=mimic_offset,
+            pitch=pitch,
+            joint_model=joint_model,
         ))
         return name
 
@@ -308,13 +310,13 @@ class ModelBuilder:
         upper: float | None = None,
     ) -> str:
         """Helical / screw joint along ``axis`` with linear/angular ratio ``pitch``."""
-        del pitch  # parsed downstream from joint metadata once helical lands
         return self._push_joint(
             name, kind="helical", parent=parent, child=child,
             origin=origin if origin is not None else _IDENTITY_SE3.clone(),
             axis=axis, lower=lower, upper=upper,
             velocity_limit=None, effort_limit=None,
             mimic_source=None, mimic_multiplier=1.0, mimic_offset=0.0,
+            pitch=pitch,
         )
 
     def add_free_flyer_root(
@@ -359,7 +361,7 @@ class ModelBuilder:
         kind=None,
         parent: str,
         child: str,
-        origin: torch.Tensor,
+        origin: torch.Tensor | None = None,
         axis: torch.Tensor | None = None,
         lower: float | None = None,
         upper: float | None = None,
@@ -385,7 +387,14 @@ class ModelBuilder:
                 "ModelBuilder.add_joint requires kind=<JointModel instance>; "
                 "use one of the named add_<kind> helpers instead."
             )
-        # Read the joint kind off the JointModel instance.
+        if not isinstance(kind, JointModel):
+            raise TypeError(
+                f"kind={kind!r} does not implement the JointModel protocol."
+            )
+
+        # Preserve the exact object: its class-specific state (for example a
+        # helical pitch or composite children) cannot be reconstructed from
+        # the string discriminator alone.
         kind_str = getattr(kind, "kind", None)
         if not isinstance(kind_str, str):
             raise TypeError(
@@ -394,11 +403,14 @@ class ModelBuilder:
             )
         return self._push_joint(
             name, kind=kind_str, parent=parent, child=child,
-            origin=origin, axis=axis,
+            origin=origin if origin is not None else _IDENTITY_SE3.clone(),
+            axis=axis if axis is not None else kind.axis,
             lower=lower, upper=upper,
             velocity_limit=velocity_limit, effort_limit=effort_limit,
             mimic_source=mimic_source,
             mimic_multiplier=mimic_multiplier, mimic_offset=mimic_offset,
+            pitch=float(getattr(kind, "pitch", 0.0)),
+            joint_model=kind,
         )
 
     # ── finalize ─────────────────────────────────────────────────────

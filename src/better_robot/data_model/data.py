@@ -5,11 +5,7 @@ functions populate the optional fields lazily — this avoids the mjwarp
 280-field god-dataclass trap.
 
 Field naming follows the ``<entity>_<quantity>_<frame>`` convention
-documented in ``docs/conventions/naming.md``. Pinocchio-style short aliases
-(``oMi``, ``oMf``, ``liMi``, ``nle``, ``Ag``, …) remain available as
-deprecated ``@property`` shims for one release (see §11 of
-``docs/concepts/model_and_data.md``); they forward read / write to the renamed
-storage field and emit :class:`DeprecationWarning`.
+documented in ``docs/conventions/naming.md``.
 
 The ``_kinematics_level`` field tracks how far the recursion has been
 advanced: ``NONE`` < ``PLACEMENTS`` < ``VELOCITIES`` < ``ACCELERATIONS``.
@@ -23,43 +19,12 @@ See ``docs/concepts/model_and_data.md §3``.
 
 from __future__ import annotations
 
-import warnings
 from dataclasses import dataclass
 from typing import Optional
 
 import torch
 
 from ._kinematics_level import KinematicsLevel
-
-# ──────────────────────────────────────────────────────────────────────
-# Old-name → new-name mapping. The module installs ``@property`` shims
-# for every entry below, post-``@dataclass`` decoration, so the old
-# names keep working one more release.
-#
-# Removal ticket: docs/conventions/naming.md §6 (target: v1.1).
-# ──────────────────────────────────────────────────────────────────────
-
-_DEPRECATED_ALIASES: tuple[tuple[str, str], ...] = (
-    ("oMi", "joint_pose_world"),
-    ("oMf", "frame_pose_world"),
-    ("liMi", "joint_pose_local"),
-    ("ov", "joint_velocity_world"),
-    ("oa", "joint_acceleration_world"),
-    ("v_joint", "joint_velocity_local"),
-    ("a_joint", "joint_acceleration_local"),
-    ("M", "mass_matrix"),
-    ("C", "coriolis_matrix"),
-    ("g", "gravity_torque"),
-    ("nle", "bias_forces"),
-    ("J", "joint_jacobians"),
-    ("dJ", "joint_jacobians_dot"),
-    ("Ag", "centroidal_momentum_matrix"),
-    ("hg", "centroidal_momentum"),
-    ("com", "com_position"),
-    ("vcom", "com_velocity"),
-    ("acom", "com_acceleration"),
-)
-
 
 # Cache buckets per kinematic level. A field is at level ``L`` if its
 # value depends on inputs through level ``L`` (see §3.1).
@@ -250,32 +215,3 @@ class Data:
             )
         from ..lie.types import SE3
         return SE3(self.frame_pose_world[..., frame_id, :])
-
-
-# ══════════════════════════════════════════════════════════════════════
-# Deprecated aliases (removed in v1.1).
-# Installed post-``@dataclass`` so they don't participate in ``__init__``.
-# See ``docs/concepts/model_and_data.md §11`` and ``docs/conventions/naming.md §6``.
-# ══════════════════════════════════════════════════════════════════════
-
-def _make_alias(old: str, new: str) -> property:
-    msg = (
-        f"Data.{old} is deprecated; use Data.{new}. "
-        f"Will be removed in v1.1. See docs/conventions/naming.md §6."
-    )
-
-    def _get(self: "Data") -> Optional[torch.Tensor]:
-        warnings.warn(msg, DeprecationWarning, stacklevel=2)
-        return getattr(self, new)
-
-    def _set(self: "Data", value: Optional[torch.Tensor]) -> None:
-        warnings.warn(msg, DeprecationWarning, stacklevel=2)
-        object.__setattr__(self, new, value)
-
-    return property(_get, _set)
-
-
-for _old_name, _new_name in _DEPRECATED_ALIASES:
-    setattr(Data, _old_name, _make_alias(_old_name, _new_name))
-
-del _old_name, _new_name, _make_alias

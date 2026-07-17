@@ -23,7 +23,6 @@ from .assets import (
 )
 from .build_model import build_model
 from .ir import (
-    IR_SCHEMA_VERSION,
     IRBody,
     IRError,
     IRFrame,
@@ -120,7 +119,6 @@ __all__ = [
     "IRFrame",
     "IRGeom",
     "IRError",
-    "IR_SCHEMA_VERSION",
     "ModelBuilder",
     "AssetResolver",
     "FilesystemResolver",

@@ -12,27 +12,32 @@ io ─────────────┐
 tasks → optim → residuals → kinematics ↴
                               │         dynamics ↴
                               ▼                   ▼
-                             data_model ──── spatial ──── lie ──── backends
-                                                                    │
-                                                                    ▼
-                                                               (torch_native | warp)
+                             data_model ──── spatial ──── lie
+                                  │
+                                  └── ModelStructure + ModelValues
+                                      feed whole-pass Torch or opt-in kernels
 ```
 
 ## Why the layers fall out this way
 
 The starting point is the math: everything above the `lie/` layer
 needs to manipulate SE(3) and SO(3) elements. So `lie/` sits at the
-bottom, with `backends/` below it providing the actual tensor
-kernels. `spatial/` builds on `lie/` to add the 6D value types
+bottom and provides direct Torch tensor operations. `spatial/` builds on
+`lie/` to add the 6D value types
 (`Motion`, `Force`, `Inertia`) that dynamics needs.
 
 Above the math, the `data_model/` layer holds the Pinocchio-style
 `Model` (frozen topology) and `Data` (mutable workspace). It depends
 on `spatial/` because body inertias live there, and on `lie/` because
 joint placements are SE(3) elements. It depends on nothing higher.
+The same layer owns the whole-pass seam: `ModelStructure` mirrors static
+topology as Python tuples and device tables, while `ModelValues` carries the
+differentiable tensor pytree. Torch raw passes and eligible opt-in kernels
+consume that shared contract.
 
 `kinematics/` and `dynamics/` are siblings: both work on `Model` plus
-`Data`, neither imports the other. Forward kinematics and Jacobians
+`Data`, neither imports the other. A whole-pass kernel lives beside its Torch
+counterpart in the owning package; it is not a new dependency layer. Forward kinematics and Jacobians
 do not need to know about RNEA; RNEA does not need to know about
 Jacobian assembly. Splitting them apart is what lets a user build
 purely kinematic IK without dragging dynamics code through compile.
@@ -62,7 +67,7 @@ paths that pull them, and they are gated by extras).
 ## The dependency rule, in code
 
 ```
-backends → lie → spatial → data_model → (kinematics, dynamics) → residuals → costs → optim → tasks
+lie → spatial → data_model → (kinematics, dynamics) → residuals → costs → optim → tasks
                                                        ↑                                  │
                                                        └── collision ─────────────────────┘
 io → data_model          (io reads nothing from optim or tasks)
@@ -79,39 +84,32 @@ breaks.
 
 | Layer | Owns | Forbidden imports |
 |-------|------|-------------------|
-| `backends` | Backend Protocol; per-backend kernel implementations | anything above |
-| `lie` | SE3 / SO3 group ops, typed `SE3` / `SO3` / `Pose` wrappers | anything above `backends` |
+| `lie` | Direct Torch SE3 / SO3 ops, typed `SE3` / `SO3` / `Pose` wrappers | anything above itself |
 | `spatial` | `Motion`, `Force`, `Inertia` value types | anything above `lie` |
-| `data_model` | `Model`, `Data`, `JointModel`s | `kinematics` / `dynamics` / above |
-| `kinematics` | FK, frame updates, Jacobians | `dynamics` / `residuals` / above |
-| `dynamics` | RNEA / ABA / CRBA / centroidal / action models | `residuals` / above |
+| `data_model` | `Model`, `Data`, `JointModel`s, structure/value/execution seam | `kinematics` / `dynamics` / above |
+| `kinematics` | FK, frame updates, Jacobians, local whole-pass kernels | `dynamics` / `residuals` / above |
+| `dynamics` | RNEA / ABA / CRBA / centroidal algorithms and local whole-pass kernels | `residuals` / above |
 | `residuals` | Pure residual functions | `costs` / `optim` / `tasks` / `io` / `viewer` |
 | `costs` | `CostStack` | `optim` / `tasks` / `io` / `viewer` |
 | `optim` | `LeastSquaresProblem`, optimisers, linear solvers, kernels, damping | `tasks` / `io` / `viewer` |
 | `collision` | Geometry, SDF pairs | `tasks` / `io` / `viewer` |
 | `io` | Parsers, IR, builders | `tasks` / `viewer` |
-| `tasks` | `solve_ik`, `solve_trajopt`, `retarget` facades | `viewer` |
+| `tasks` | `solve_ik`, `solve_trajopt`, and trajectory types | `viewer` |
 | `viewer` | viser bindings | — |
 
 ## The package layout
 
 ```
 src/better_robot/
-├── __init__.py                    # 26 public symbols (frozen)
+├── __init__.py                    # small top-level convenience API
 ├── _typing.py                     # jaxtyping-style shape annotations
-│
-├── backends/
-│   ├── __init__.py                # default_backend(), set_backend(), get_backend()
-│   ├── protocol.py                # Backend / LieOps / KinematicsOps / DynamicsOps
-│   ├── torch_native/              # default backend
-│   └── warp/                      # experimental
 │
 ├── lie/                           # SE3 / SO3 functional + typed wrappers
 │   ├── se3.py
 │   ├── so3.py
 │   ├── tangents.py                # Jr / Jl, hat / vee, BCH helpers
 │   ├── types.py                   # SE3 / SO3 / Pose dataclasses (around tensors)
-│   └── _torch_native_backend.py   # the kernels routed by backends/
+│   └── _impl.py                   # direct pure-Torch implementation
 │
 ├── spatial/                       # 6D value types
 │   ├── motion.py
@@ -123,18 +121,20 @@ src/better_robot/
 ├── data_model/                    # Model / Data / Joints / Bodies / Frames
 │   ├── model.py
 │   ├── data.py
+│   ├── model_structure.py         # immutable Python + device topology mirrors
+│   ├── model_values.py            # differentiable tensor pytree
+│   ├── execution_batch.py         # flat-E broadcast ABI for whole-pass kernels
+│   ├── joint_dispatch.py          # shared built-in joint-kind dispatch
 │   ├── joint.py
 │   ├── joint_models/              # one file per joint family
 │   ├── frame.py
 │   ├── body.py
-│   ├── topology.py
-│   └── indexing.py
+│   └── topology.py
 │
 ├── kinematics/
 │   ├── forward.py                 # forward_kinematics, update_frame_placements
 │   ├── jacobian.py                # compute_joint_jacobians, get_joint/frame_jacobian
-│   ├── jacobian_strategy.py       # JacobianStrategy enum
-│   └── chain.py                   # subtree / chain helpers
+│   └── jacobian_strategy.py       # JacobianStrategy enum
 │
 ├── dynamics/
 │   ├── rnea.py
@@ -142,11 +142,10 @@ src/better_robot/
 │   ├── crba.py
 │   ├── centroidal.py
 │   ├── derivatives.py
-│   ├── action/                    # Crocoddyl-style 3-layer
 │   ├── state_manifold.py
 │   └── integrators.py
 │
-├── residuals/                     # registry + 17 residual classes
+├── residuals/                     # residual classes composed explicitly
 │   ├── pose.py                    # PoseResidual / PositionResidual / OrientationResidual
 │   ├── limits.py
 │   ├── smoothness.py              # 5-point FD velocity / accel
@@ -154,12 +153,10 @@ src/better_robot/
 │   ├── collision.py
 │   ├── regularization.py
 │   ├── reference_trajectory.py
-│   ├── contact.py
-│   └── registry.py                # @register_residual
+│   └── contact.py
 │
 ├── costs/
-│   ├── stack.py                   # CostStack
-│   └── factory.py
+│   └── stack.py                   # CostStack
 │
 ├── optim/
 │   ├── problem.py                 # LeastSquaresProblem
@@ -173,7 +170,6 @@ src/better_robot/
 ├── tasks/
 │   ├── ik.py                      # solve_ik
 │   ├── trajopt.py                 # solve_trajopt
-│   ├── retarget.py
 │   ├── trajectory.py              # Trajectory dataclass
 │   └── parameterization.py        # Knot / BSpline
 │
@@ -184,7 +180,7 @@ src/better_robot/
 │   └── closest_pts.py
 │
 ├── io/
-│   ├── ir.py                      # IRModel + schema_version
+│   ├── ir.py                      # internal IRModel dataclasses
 │   ├── build_model.py             # IR → Model factory
 │   ├── parsers/                   # urdf, mjcf, programmatic
 │   ├── builders/                  # smpl_like example
@@ -197,17 +193,12 @@ src/better_robot/
 │   ├── render_modes/
 │   ├── overlays/
 │   └── renderers/
-│
-└── utils/
-    ├── batching.py
-    ├── broadcasting.py
-    ├── logging.py
-    └── testing.py
 ```
 
-## The public API contract — 26 symbols
+## The public API contract
 
-The top-level `better_robot.__init__` exports exactly **26 symbols**:
+The top-level `better_robot.__init__` exports a deliberately small set of
+common entry points:
 
 ```python
 __all__ = [
@@ -223,23 +214,20 @@ __all__ = [
     "JacobianStrategy",
     # dynamics (5)
     "rnea", "aba", "crba", "center_of_mass", "compute_centroidal_map",
-    # residuals (1)
-    "register_residual",
     # costs (1)
     "CostStack",
     # optim (1)
     "LeastSquaresProblem",
-    # tasks (4)
-    "solve_ik", "solve_trajopt", "retarget", "Trajectory",
+    # tasks (3)
+    "solve_ik", "solve_trajopt", "Trajectory",
 ]
 ```
 
-The set is **frozen** under
-`tests/contract/test_public_api.py::EXPECTED`. Adding or removing a
-symbol requires updating `EXPECTED` in the same PR — the audit is the
-diff, not a magic number. Promotion is evidence-driven: a symbol
-earns top-level status when example code or tutorials show that the
-qualified path is friction.
+The set is not frozen before 1.0. The contract test pins a required core,
+checks every listed symbol resolves, and rejects duplicate entries without
+turning the current symbol count into an API promise. Promotion remains
+evidence-driven: a symbol earns top-level status when examples show that the
+qualified path is unnecessary friction.
 
 Submodule-only public symbols are reachable from their qualified
 import path and covered by the same contract suite, even though they
@@ -262,11 +250,15 @@ Growth happens at `Protocol`-shaped seams — every place a user might
 want to plug in their own implementation is documented as a
 structural type. The complete catalogue (residuals, joints,
 optimisers, robust kernels, damping strategies, linear solvers,
-collision primitives, render modes, parsers, backends, trajectory
+collision primitives, render modes, parsers, trajectory
 parameterisations, asset resolvers, actuators) lives in
 {doc}`/conventions/extension`. Core layers import only the Protocol,
 not concrete classes; this keeps the DAG stable as the extension set
 grows.
+
+Whole-pass compute lanes are the deliberate exception: they are internal
+performance integrations selected by an explicit branch in the owning pass,
+not a public plugin Protocol or process-wide registry.
 
 ## Why this shape works
 

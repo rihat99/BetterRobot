@@ -18,21 +18,16 @@ contract test reports both missing source files and stale documentation
 entries.
 
 <!-- not-implemented-inventory:start -->
-- `src/better_robot/backends/warp/__init__.py`
-- `src/better_robot/backends/warp/bridge.py`
 - `src/better_robot/collision/closest_pts.py`
 - `src/better_robot/collision/geometry.py`
 - `src/better_robot/collision/pairs.py`
 - `src/better_robot/collision/robot_collision.py`
-- `src/better_robot/costs/factory.py`
-- `src/better_robot/data_model/indexing.py`
-- `src/better_robot/dynamics/action/differential.py`
+- `src/better_robot/dynamics/centroidal.py`
 - `src/better_robot/dynamics/crba.py`
 - `src/better_robot/dynamics/derivatives.py`
 - `src/better_robot/dynamics/integrators.py`
 - `src/better_robot/dynamics/rnea.py`
 - `src/better_robot/io/build_model.py`
-- `src/better_robot/kinematics/chain.py`
 - `src/better_robot/optim/solvers/cg.py`
 - `src/better_robot/optim/solvers/sparse_cholesky.py`
 - `src/better_robot/optim/state.py`
@@ -45,10 +40,6 @@ entries.
 - `src/better_robot/residuals/smoothness.py`
 - `src/better_robot/spatial/force.py`
 - `src/better_robot/tasks/ik.py`
-- `src/better_robot/tasks/retarget.py`
-- `src/better_robot/utils/batching.py`
-- `src/better_robot/utils/broadcasting.py`
-- `src/better_robot/utils/testing.py`
 - `src/better_robot/viewer/camera.py`
 - `src/better_robot/viewer/interaction.py`
 - `src/better_robot/viewer/overlays/com.py`
@@ -94,11 +85,8 @@ The full residual library is live except:
 ## Tasks
 
 `solve_ik` and `solve_trajopt` (with knot and B-spline parameterisations)
-are live. Retargeting is the remaining stub:
-
-| Symbol | File |
-|---|---|
-| `retarget` | `tasks/retarget.py` |
+are live. The former retargeting placeholder was removed; see
+{doc}`m1_removed_symbols`.
 
 ## Viewer
 
@@ -106,6 +94,8 @@ V1 ships interactive `Visualizer`, `Scene`, `SkeletonMode`,
 `URDFMeshMode`, `GridOverlay`, `FrameAxesOverlay`, `TargetsOverlay`,
 `ForceVectorsOverlay`, `ViserBackend`, `MockBackend`, `build_joint_panel`,
 and a minimal `TrajectoryPlayer` with `show_frame` and `play`. The
+``Backend`` suffix in this section names a scene renderer only; it is
+unrelated to algorithm compute lanes. The
 remaining pieces sit behind named placeholders so user code and tests
 have a target to reach for:
 
@@ -118,21 +108,22 @@ have a target to reach for:
 | `TrajectoryPlayer.seek` / `.step` / `.pause` / `.set_speed` / `.set_loop` / `.set_ghost` / `.set_trace` / `.set_batch_index` | `viewer/trajectory_player.py` |
 | `CameraPath.orbit`, `CameraPath.follow_frame` | `viewer/camera.py` |
 
-## Backends
+## Compute lanes
 
-The `Backend` Protocol and the default `torch_native` backend are live.
-Warp is the experimental second backend:
+The direct Torch raw passes are live and use `ModelStructure` plus
+`ModelValues`. Warp is planned as an opt-in whole-pass optimisation, not as a
+public Protocol or process-wide selector.
 
-| Symbol | File |
+| Work item | Location |
 |---|---|
-| `WarpBridge.to_warp` / `.to_torch` | `backends/warp/bridge.py` |
-| Warp FK / Jacobian / RNEA / ABA / CRBA kernels | `backends/warp/kernels/` |
-| `enable_warp_backend`, `disable_warp_backend` | `backends/warp/__init__.py` |
+| Warp FK / Jacobian / RNEA kernels and their adjoints | Beside the corresponding Torch pass |
+| Eligibility and explicit lane choice | The owning whole-pass integration boundary |
+| Forward and backward parity | Shared Torch-oracle fixtures |
 
 ## Performance
 
 The hot-path lint, contract suite, and benchmark harness are in place.
-The compile / capture hooks are wired but await dispatcher bodies:
+Compilation and capture remain explicit roadmap work:
 
 | Symbol | File |
 |---|---|
@@ -140,8 +131,9 @@ The compile / capture hooks are wired but await dispatcher bodies:
 | `@cache_kernel` adaptive dispatch | not yet wired |
 | `BR_PROFILE=1` env hook | not yet wired |
 
-`@graph_capture` is a no-op under the torch-native backend; the real
-CUDA-graph capture path lands with the Warp backend.
+No capture decorator or context manager ships today. A future capture path
+must use fixed storage and record forward and backward together; its
+lifecycle belongs to the M2b/M6 solver and kernel work.
 
 ## How to close an entry
 
