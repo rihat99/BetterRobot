@@ -31,6 +31,7 @@ class EvaluationContext(Mapping[str, Any]):
         "_provider_cache",
         "_running",
         "_free_indices",
+        "_temporal_free_indices",
         "__weakref__",
     )
 
@@ -39,12 +40,14 @@ class EvaluationContext(Mapping[str, Any]):
         values: Mapping[str, Any],
         providers_by_output: Mapping[str, Provider],
         free_indices: Mapping[str, Any],
+        temporal_free_indices: Mapping[str, Any] | None = None,
     ) -> None:
         self._values = MappingProxyType(dict(values))
         self._providers_by_output = MappingProxyType(dict(providers_by_output))
         self._provider_cache: dict[str, Any] = {}
         self._running: set[str] = set()
         self._free_indices = MappingProxyType(dict(free_indices))
+        self._temporal_free_indices = MappingProxyType(dict(temporal_free_indices or {}))
 
     def __getitem__(self, key: str) -> Any:
         if key in self._values:
@@ -83,6 +86,13 @@ class EvaluationContext(Mapping[str, Any]):
         """Return the reduced-column convention for an analytic block author."""
         return self._free_indices[variable]
 
+    def temporal_free_indices(self, variable: str):
+        """Return per-knot local free coordinates for a temporal block hook."""
+        try:
+            return self._temporal_free_indices[variable]
+        except KeyError as exc:
+            raise KeyError(f"variable {variable!r} has no separable temporal tangent layout") from exc
+
     def restrict(self, reads: tuple[str, ...]) -> _ItemContext:
         """Expose only one item's declared dependencies."""
         return _ItemContext(self, reads)
@@ -110,6 +120,9 @@ class _ItemContext(Mapping[str, Any]):
 
     def free_indices(self, variable: str):
         return self._context.free_indices(variable)
+
+    def temporal_free_indices(self, variable: str):
+        return self._context.temporal_free_indices(variable)
 
 
 @dataclass(frozen=True)

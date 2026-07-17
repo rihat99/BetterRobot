@@ -39,6 +39,7 @@ from ..kernels import L2
 from ..kernels.base import RobustKernel
 from .autograd import _tangent_value_and_grad_prevalidated
 from .providers import EvaluationContext, Provider
+from .temporal import StructuredNormal, analyze_temporal_problem, assemble_structured_normal
 from .variables import Values, VarSpec
 
 Weight: TypeAlias = float | torch.Tensor
@@ -349,6 +350,7 @@ class Problem:
         self.column_offsets: Mapping[str, slice] = MappingProxyType(self._make_column_offsets())
         self.dim_total = sum(item.residual.dim for item in self.residuals)
         self.tangent_dim_total = sum(spec.free_dim for spec in self.vars)
+        self.temporal_analysis = analyze_temporal_problem(self)
 
     @staticmethod
     def _unique_by_name(items: Sequence[Any], label: str) -> dict[str, Any]:
@@ -426,6 +428,63 @@ class Problem:
             seeded,
             self._providers_by_output,
             {name: spec.free_indices for name, spec in self._vars_by_name.items()},
+            {
+                name: spec.temporal_free_indices
+                for name, spec in self._vars_by_name.items()
+                if spec.time_axis is not None and spec.temporal_mask_is_separable
+            },
+        )
+
+    def structured_normal(
+        self,
+        values: Mapping[str, torch.Tensor],
+        *,
+        weights: Mapping[str, Weight] | None = None,
+        row_scale: torch.Tensor | None = None,
+        residual: torch.Tensor | None = None,
+        create_graph: bool = False,
+    ) -> StructuredNormal:
+        """Assemble temporal lower bands and flat J/J-transpose operators."""
+        if not isinstance(create_graph, bool):
+            raise TypeError("create_graph must be a static bool")
+        self._validate_weights(weights)
+        batch_shape = self._validate_values(values)
+        self._validate_runtime_weights(
+            weights,
+            batch_shape=batch_shape,
+            exemplar=values[self.vars[0].name],
+        )
+        return assemble_structured_normal(
+            self,
+            dict(values),
+            batch_shape=batch_shape,
+            weights=weights,
+            row_scale=row_scale,
+            residual=residual,
+            create_graph=create_graph,
+            validate_runtime=True,
+        )
+
+    def _structured_normal_prevalidated(
+        self,
+        values: Mapping[str, torch.Tensor],
+        *,
+        batch_shape: tuple[int, ...],
+        weights: Mapping[str, Weight] | None = None,
+        row_scale: torch.Tensor | None = None,
+        residual: torch.Tensor | None = None,
+        create_graph: bool = False,
+    ) -> StructuredNormal:
+        """Structured assembly after solver boundary validation."""
+        return assemble_structured_normal(
+            self,
+            values,
+            batch_shape=batch_shape,
+            weights=weights,
+            row_scale=row_scale,
+            residual=residual,
+            create_graph=create_graph,
+            validate_runtime=False,
         )
 
     @staticmethod

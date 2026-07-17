@@ -6,6 +6,14 @@ deep modules in this package are not a compatibility surface.
 
 from __future__ import annotations
 
+from ...residuals.structure import TemporalPattern as TemporalPattern
+from ..structure import BlockBandedMatrix as BlockBandedMatrix
+from ..structure import LinearizationDecision as LinearizationDecision
+from ..structure import LinearizationMode as LinearizationMode
+from ..structure import LinearizationReason as LinearizationReason
+from ..structure import LinearSystemKind as LinearSystemKind
+from ..structure import NormalOperator as NormalOperator
+from ..structure import TemporalAnalysis as TemporalAnalysis
 from .manifolds import (
     Bounds as Bounds,
     Euclidean as Euclidean,
@@ -27,6 +35,7 @@ from .solver_lm import GaussNewton as GaussNewton
 from .solver_lm import LevenbergMarquardt as LevenbergMarquardt
 from .solver_lm import LMState as LMState
 from .solver_lm import LMStatus as LMStatus
+from .temporal import StructuredNormal as StructuredNormal
 from .variables import Values as Values
 from .variables import VarSpec as VarSpec
 from .variables import detach_values as detach_values

@@ -13,6 +13,8 @@ from .base import _regularized_matrix
 class LSTSQ:
     """Dense batched least-squares solver via ``torch.linalg.lstsq``."""
 
+    supported_systems = frozenset(("dense",))
+
     def solve(
         self,
         A: torch.Tensor,

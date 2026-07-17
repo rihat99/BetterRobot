@@ -44,6 +44,7 @@ class VarSpec:
     bounds: Bounds | None = None
     scale: torch.Tensor | None = None
     mask: torch.Tensor | None = None
+    time_axis: int | None = None
     _tangent_dim: int = field(init=False, repr=False, compare=False)
     _free_indices: torch.Tensor = field(init=False, repr=False, compare=False)
 
@@ -60,6 +61,20 @@ class VarSpec:
         if not isinstance(tangent_dim, int) or tangent_dim <= 0:
             raise ValueError(f"VarSpec {self.name!r} manifold tangent_dim must be a positive int, got {tangent_dim!r}")
         object.__setattr__(self, "_tangent_dim", tangent_dim)
+
+        if self.time_axis is not None:
+            if isinstance(self.time_axis, bool) or not isinstance(self.time_axis, int):
+                raise TypeError(f"VarSpec {self.name!r} time_axis must be an int or None")
+            if self.time_axis != 0:
+                raise ValueError(
+                    f"VarSpec {self.name!r} M5 time_axis must be 0 or None; "
+                    "transpose the event layout so time is leading"
+                )
+            time_length = self.shape[0]
+            if tangent_dim % time_length:
+                raise ValueError(
+                    f"VarSpec {self.name!r} tangent_dim={tangent_dim} is not divisible by time length {time_length}"
+                )
 
         if self.bounds is not None and not isinstance(self.bounds, Bounds):
             raise TypeError(f"VarSpec {self.name!r} bounds must be Bounds or None")
@@ -120,6 +135,43 @@ class VarSpec:
         if self.scale is None:
             return None
         return self.gather_tangent(self.scale)
+
+    @property
+    def time_length(self) -> int:
+        """Static horizon for a time-annotated variable."""
+        if self.time_axis is None:
+            raise ValueError(f"VarSpec {self.name!r} has no time_axis")
+        return self.shape[0]
+
+    @property
+    def temporal_tangent_width(self) -> int:
+        """Full tangent width of one time slice before mask elimination."""
+        return self.tangent_dim // self.time_length
+
+    @property
+    def temporal_mask_is_separable(self) -> bool:
+        """Whether every knot retains the same local tangent coordinates."""
+        if self.time_axis is None:
+            return False
+        if self.mask is None:
+            return True
+        shaped = self.mask.to(dtype=torch.bool).reshape(self.time_length, self.temporal_tangent_width)
+        return bool(torch.equal(shaped, shaped[:1].expand_as(shaped)))
+
+    @property
+    def temporal_free_indices(self) -> torch.Tensor:
+        """Per-knot local free coordinates for a separable temporal mask."""
+        if not self.temporal_mask_is_separable:
+            raise ValueError(f"VarSpec {self.name!r} temporal mask is not separable across time")
+        if self.mask is None:
+            return torch.arange(self.temporal_tangent_width, dtype=torch.long)
+        first = self.mask.to(dtype=torch.bool).reshape(self.time_length, self.temporal_tangent_width)[0]
+        return torch.nonzero(first, as_tuple=False).flatten()
+
+    @property
+    def temporal_reduced_width(self) -> int:
+        """Mask-reduced tangent width of one time slice."""
+        return int(self.temporal_free_indices.numel())
 
     def batch_shape(self, value: torch.Tensor) -> tuple[int, ...]:
         self.validate_value(value)
