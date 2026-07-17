@@ -11,6 +11,7 @@ Enforces ``docs/concepts/architecture.md §Public API contract``:
 from __future__ import annotations
 
 import better_robot as br
+from better_robot.lie import SE3 as LieSE3
 
 # The stable core. Other supported conveniences may also be exported without
 # forcing this contract test to enumerate every top-level symbol forever.
@@ -88,3 +89,7 @@ def test_all_is_list_of_str() -> None:
     assert isinstance(br.__all__, list)
     for name in br.__all__:
         assert isinstance(name, str)
+
+
+def test_root_se3_remains_the_lie_type_after_named_block_freeze() -> None:
+    assert br.SE3 is LieSE3

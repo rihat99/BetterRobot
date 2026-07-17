@@ -1,16 +1,17 @@
 """``better_robot`` — PyTorch-native robotics library.
 
-The public surface is intentionally small. ``tests/contract/test_public_api.py``
-guards the required core without freezing an exact symbol count. Everything
-else is internal and may be reshaped without a deprecation. See
-``docs/concepts/architecture.md §Public API contract``.
+The root public surface is intentionally small.
+``tests/contract/test_public_api.py`` guards the required core without freezing
+an exact symbol count. Other documented public symbols live under qualified
+submodules; unlisted implementation details may be reshaped without a
+deprecation. See ``docs/concepts/architecture.md §Public API contract``.
 
 Layered DAG (arrows point from dependent to dependency)::
 
     tasks → optim → residuals → kinematics ↴
                                   │         dynamics ↴
                                   ▼                   ▼
-                                 data_model ── spatial ── lie ── backends
+                                 data_model ── spatial ── lie
 
     io → data_model           (io reads nothing from optim or tasks)
     viewer → tasks            (topmost; no-one imports from viewer)

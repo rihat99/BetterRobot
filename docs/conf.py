@@ -4,6 +4,7 @@ The Sphinx source root is ``docs/``. The published site is shaped
 around the Diátaxis quadrants:
 
 - ``getting_started/`` — tutorials.
+- ``guides/`` — task-oriented how-to guides.
 - ``concepts/`` — explanation; the chapter set that walks through
   every layer of the architecture.
 - ``conventions/`` — normative cross-cutting rules (naming,
@@ -115,6 +116,9 @@ autodoc2_replace_annotations = []
 autodoc2_replace_bases = []
 autodoc2_skip_module_regexes = [
     r"better_robot\..*\._.*",  # private submodules
+    # Named-block implementation modules are intentionally not a second API
+    # surface. The frozen public imports live at ``better_robot.optim``.
+    r"better_robot\.optim\.blocks(?:\..*)?$",
 ]
 autodoc2_hidden_objects = ["dunder", "private", "inherited"]
 autodoc2_class_docstring = "both"

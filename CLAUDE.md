@@ -7,6 +7,13 @@ PyTorch-native, GPU-ready library for robot kinematics and optimization. Pinocch
 **Implemented:** forward kinematics, Jacobians (analytic + central finite-difference fallback), pose/position/orientation/limits/rest/smoothness/contact-consistency/reference-trajectory residuals, CostStack, LM/GN/Adam/LBFGS/MultiStage optimizers, single-problem IK (fixed + floating base), trajectory optimisation (`solve_trajopt`) with knot + B-spline parameterisations, dynamics (RNEA/ABA/CRBA/CCRBA, centroidal map + momentum, autograd-derived `compute_*_derivatives`), viewer V1 (Skeleton, URDFMesh, Grid, FrameAxes, Targets, ForceVectors, ViserBackend, build_joint_panel, minimal TrajectoryPlayer).
 **Stubs:** dynamic integrators (`semi_implicit_euler` / `symplectic_euler` / `rk4`), `compute_minverse`, `compute_coriolis_matrix`, analytic Carpentier–Mansard derivatives, jerk / Yoshikawa / collision / nullspace residuals, viewer COM/PathTrace/ResidualPlot overlays, `VideoRecorder`, and opt-in Warp whole-pass kernels. See `docs/reference/roadmap.md`.
 
+The named-block evaluation layer is also implemented: `VarSpec`/`Values`/
+`Problem`, `Euclidean`/`SO3Manifold`/`SE3Manifold`/`RobotConfig` manifolds,
+state-space feasible retraction, eliminated tangent masks, evaluation-local
+provider DAGs, tangent gradients, and dense analytic/`jacrev`/`jacfwd`
+Jacobian blocks. It coexists with the legacy flat solver stack; it does not yet
+replace its optimizer/task routing.
+
 ## Commands
 
 ```bash
@@ -28,8 +35,8 @@ src/better_robot/
                       Velocity / Acceleration / TimeIndexed / ContactConsistency /
                       ReferenceTrajectory; analytic `.jacobian()` + `apply_jac_transpose` overrides)
   costs/            — CostStack
-  optim/            — LeastSquaresProblem (with `gradient(x)` + `jacobian_blocks(x)`); LM/GN/Adam/LBFGS/MultiStage/LMThenLBFGS
-                      optimizers; selectable Cholesky/LSTSQ linear solvers; selectable Constant/Adaptive damping; L2/Huber/Cauchy/Tukey kernels
+  optim/            — legacy LeastSquaresProblem + LM/GN/Adam/LBFGS/MultiStage solver stack;
+                      named-block evaluation in optim/blocks (manifolds, providers, AD blocks, dense assembly)
   tasks/            — solve_ik(), solve_trajopt(), Trajectory, KnotTrajectory, BSplineTrajectory
   collision/        — geometry, pairs, RobotCollision (port of old capsule mode)
   io/               — load(), internal IRModel, parsers (URDF/MJCF), ModelBuilder, AssetResolver + concrete resolvers
@@ -72,6 +79,12 @@ J_local = se3.adjoint_inv(T_ee) @ J_world
 ## Autodiff / Finite-Diff Note
 
 `residual_jacobian` uses central finite differences as the AUTO fallback when no analytic Jacobian is registered. The pure-Torch Lie implementation has clean autograd, so `torch.autograd.functional.jacobian` works correctly — FD is kept because it's robust across joint kinds and matches analytic Jacobians to numerical noise. FD eps: `1e-3` for float32, `1e-7` for float64.
+
+That paragraph describes the **legacy** residual path. The named-block
+`Problem` uses analytic blocks or real `torch.func.jacrev`/`jacfwd`; finite
+differences are an explicit debug strategy only. Its masks remove fixed
+tangent columns rather than leaving zeros, and its providers cache graph-bearing
+work only for one evaluation.
 
 ## Public API
 
@@ -142,7 +155,7 @@ model.frame_id("name")  # → int
 model.integrate(q, dv)  # SE3-aware retraction: q ⊕ dv
 ```
 
-## LM Solver Notes
+## Legacy LM Solver Notes
 
 - Adaptive damping: starts at `1e-4`, doubles on reject, halves on accept.
 - Every LM trial point is clamped to `[lower, upper]` before residual evaluation.
@@ -151,7 +164,19 @@ model.integrate(q, dv)  # SE3-aware retraction: q ⊕ dv
 
 ## Batching Rules
 
-Tensor math such as FK, residuals, and analytic Jacobians accepts arbitrary leading batch dimensions. The current optimizer stack and `solve_ik` are single-problem only and require `(nq,)`; batched solving is scheduled for M2b.
+Tensor math such as FK, residuals, and analytic Jacobians accepts arbitrary
+leading batch dimensions. Named-block `Problem` also supports leading-batch
+residual/objective evaluation, tangent gradients, Jacobian blocks, and dense
+assembly. This is evaluation batching only: it does not provide per-element
+damping, accept/reject, status, or convergence logic.
+
+The current optimizer stack, top-level `optim.solve`, and `solve_ik` remain
+legacy single-problem paths requiring `(nq,)`; `optim.solve` accepts
+`LeastSquaresProblem`, not the named-block `Problem`. Named-block
+`ResidualItem.kernel`/`group_size` are metadata for M2b, scalar objectives are
+for consumer-owned first-order/manual loops and are rejected at GN/LM
+boundaries, state-space `Bounds` are distinct from future tangent-space step
+bounds, and provider caches never survive an evaluation.
 
 ## torch.compile Friendliness
 

@@ -13,15 +13,17 @@ The five commitments that shape every other decision:
   No `AutoDiffXd` scalar to switch into, no JAX mode flag, no C
   extension that breaks the gradient graph.
 - **Batched tensor math.** FK, residuals, and analytic Jacobians accept
-  `(B..., feature)`. The current optimizer stack is single-problem; batched
-  solving is scheduled for M2b.
+  `(B..., feature)`. The named-block `Problem` also evaluates independent
+  batches, while the shipped solver and task facades remain single-problem;
+  batched solving is M2b.
 - **One code path for fixed and floating base.** A floating-base
   robot is one whose root joint is `JointFreeFlyer`. The IK solver
   does not know the difference.
-- **One residual / cost / solver stack.** IK and trajectory
-  optimisation (plus future retargeting, filtering, and optimal control)
-  share a `Residual` Protocol, a `CostStack`, a
-  `LeastSquaresProblem`, and an `Optimizer`.
+- **An explicit optimization migration.** New multi-block code uses named
+  `VarSpec`s, a `Problem`, structural residuals, and evaluation-local
+  providers. IK and trajectory optimization continue to use the legacy
+  `Residual` / `CostStack` / `LeastSquaresProblem` / `Optimizer` contract
+  through M2c; neither path is presented as the other.
 - **A whole-pass compute seam that does not leak.** Torch raw passes consume
   `ModelStructure` plus `ModelValues` by default. An eligible opt-in kernel
   may replace an entire pass without changing the public `torch.Tensor`
@@ -60,11 +62,14 @@ result.frame_pose("body_panda_hand")  # (7,) SE(3) pose at the solution
 
 ## What ships today
 
-Forward kinematics; analytic Jacobians with an unbatched central-FD fallback; the residual
-library (pose / position / orientation, joint position limits, rest,
-contact consistency, reference trajectories, velocity and
-acceleration smoothness, time-indexed residuals); `CostStack`;
-LM, GN, Adam, L-BFGS, and multi-stage optimisers; pluggable linear
+Forward kinematics; analytic Jacobians with an unbatched central-FD fallback;
+named optimization-variable blocks with Euclidean, SO(3), SE(3), and robot
+configuration manifolds; batched `Problem` evaluation with mask-eliminated
+tangent coordinates, structural residuals, scalar objective terms, and lazy
+provider DAGs; the legacy residual library (pose / position / orientation,
+joint position limits, rest, contact consistency, reference trajectories,
+velocity and acceleration smoothness, time-indexed residuals); `CostStack`;
+LM, GN, Adam, L-BFGS, and multi-stage optimizers; pluggable linear
 solvers (Cholesky, LSTSQ); pluggable robust
 kernels (L2, Huber, Cauchy, Tukey) and damping strategies (Constant,
 Adaptive); single-problem IK on fixed and floating-base robots;
@@ -80,9 +85,11 @@ A small set of named symbols are deliberately stubbed and listed in
 
 ## Status
 
-The top-level API is deliberately compact. Before 1.0 the contract test pins
-a required core and validates `__all__`, but does not freeze an exact symbol
-count. See {doc}`reference/changelog` for release notes.
+The top-level API is deliberately compact. Named-block construction lives at
+`better_robot.optim`; in particular, `SE3Manifold` is distinct from the
+top-level `SE3` pose wrapper. Before 1.0 the contract test pins a required core
+and validates `__all__`, but does not freeze an exact symbol count. See
+{doc}`reference/changelog` for release notes.
 
 ## License
 
@@ -104,6 +111,13 @@ getting_started/index
 :caption: Concepts
 
 concepts/index
+```
+
+```{toctree}
+:maxdepth: 1
+:caption: Guides
+
+guides/index
 ```
 
 ```{toctree}

@@ -1,15 +1,30 @@
-"""``better_robot.optim`` — problem + pluggable solver components.
+"""``better_robot.optim`` — optimization problems and solver components.
 
-``LeastSquaresProblem`` is the only interface the optimiser sees. Every
-optimiser takes a problem, a linear solver, a robust kernel, a damping
-strategy, and an optional stop scheduler. Replacing one knob swaps one
-class.
+The legacy solver stack consumes :class:`LeastSquaresProblem`.  M2a's
+named-block :class:`Problem` is an evaluation and dense-assembly interface;
+GN/LM integration follows in M2b.  Keeping both names explicit prevents a
+block problem from being passed to a solver that cannot yet honor its scalar
+objectives, masks, or provider DAG.
 
 See ``docs/concepts/solver_stack.md``.
 """
 
 from __future__ import annotations
 
+from .blocks import (
+    Bounds,
+    Euclidean,
+    ObjectiveItem,
+    Problem,
+    ResidualItem,
+    RobotConfig,
+    RobotStateProvider,
+    SE3Manifold,
+    SO3Manifold,
+    Values,
+    VarSpec,
+    detach_values,
+)
 from .jacobian_spec import ResidualSpec
 from .optimizers.base import OptimizationResult, Optimizer
 from .problem import LeastSquaresProblem
@@ -26,11 +41,21 @@ def solve(
     strategy=None,
     scheduler=None,
 ) -> SolverState:
-    """One-shot convenience wrapper — build the default LM optimiser and run it.
+    """Run the legacy :class:`LeastSquaresProblem` LM solver stack.
+
+    Named-block :class:`Problem` instances are evaluation-only until M2b and
+    must not be passed to this convenience wrapper.
 
     See docs/concepts/solver_stack.md §5.
     """
-    from .optimizers.levenberg_marquardt import LevenbergMarquardt
+    if isinstance(problem, Problem):
+        problem.require_least_squares()
+        raise TypeError(
+            "better_robot.optim.solve accepts LeastSquaresProblem only; named-block "
+            "Problem solving lands in M2b. Use Problem.gradient/Problem.retract in a "
+            "first-order loop for now."
+        )
+    from .optimizers.levenberg_marquardt import LevenbergMarquardt  # noqa: PLC0415
 
     opt = optimizer if optimizer is not None else LevenbergMarquardt()
     return opt.minimize(
@@ -50,4 +75,18 @@ __all__ = [
     "SolverState",
     "ResidualSpec",
     "solve",
+    # M2a named-block evaluation API.  Deliberately qualified under ``optim``;
+    # the package root keeps its existing Lie ``SE3`` identity.
+    "Bounds",
+    "Euclidean",
+    "SO3Manifold",
+    "SE3Manifold",
+    "RobotConfig",
+    "Values",
+    "VarSpec",
+    "Problem",
+    "ResidualItem",
+    "ObjectiveItem",
+    "RobotStateProvider",
+    "detach_values",
 ]

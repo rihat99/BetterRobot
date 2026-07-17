@@ -237,7 +237,10 @@ def so3_adjoint(q: torch.Tensor) -> torch.Tensor:
 
 
 def so3_from_axis_angle(axis: torch.Tensor, angle: torch.Tensor) -> torch.Tensor:
-    half = angle / 2.0
+    # A Python ``2.0`` promotes the forward-mode tangent to fp64 on Torch
+    # 2.13 even when the fp32 primal stays fp32. That reaches FK as a mixed
+    # dual tensor and collides with fp32 model placements under ``jacfwd``.
+    half = angle * torch.full_like(angle, 0.5)
     sin_h = torch.sin(half)
     cos_h = torch.cos(half)
     qxyz = sin_h.unsqueeze(-1) * axis

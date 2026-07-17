@@ -1,27 +1,95 @@
-# The Solver Stack
+# Named-Block Evaluation and the Legacy Solver Stack
 
-A `CostStack` knows how to compute residuals; it does not know how to
-minimise them. That job belongs to `LeastSquaresProblem` (which packs
-the cost stack, the initial guess, and the manifold retraction into
-a single self-describing problem) and to an `Optimizer` (which
-iterates on it). The optimiser does *not* fuse the linear-solver
-choice, the robust kernel, the damping schedule, or the
-stop-condition into its own loop; those are independently pluggable
-axes that compose at construction.
+BetterRobot temporarily exposes two optimization contracts while tasks migrate
+to named variable blocks. They coexist deliberately through M2c:
 
-That separation is the whole reason "swap LM for Adam" or "switch
-Cholesky to LSTSQ for a rank-deficient problem" is one Protocol swap
-instead of a rewrite. Every optimiser implements the same
-`Optimizer` Protocol; every linear solver implements the same
-`LinearSolver` Protocol; every robust kernel and damping strategy
-likewise. The solver loop sketch at the bottom of this chapter is
-deliberately short — it is the *only* solver loop in the library.
-The LM-then-LBFGS multi-stage solver and its individual stages all use
-that same optimizer contract with different components.
+- **Named-block evaluation** is the new public construction API. A `Problem`
+  owns named `VarSpec` blocks, structural residuals and scalar objective terms,
+  and a lazy provider DAG. It evaluates residuals, objectives, tangent
+  gradients, and Jacobian blocks for unbatched or independently batched
+  `Values`.
+- **The legacy solver stack** still powers `solve_ik`, `solve_trajopt`, and the
+  shipped optimizers. It composes `CostStack`, `LeastSquaresProblem`, and
+  `Optimizer`. Nothing in M2a silently redirects that path to `Problem`.
 
-This chapter walks through `LeastSquaresProblem` and the four
-pluggable axes (Optimizer, LinearSolver, RobustKernel,
-DampingStrategy) and ends with the loop sketch.
+## Named-block evaluation
+
+The canonical imports live under `better_robot.optim`; the top-level
+`better_robot` namespace remains compact:
+
+```python
+from better_robot.optim import (
+    Bounds,
+    Euclidean,
+    ObjectiveItem,
+    Problem,
+    ResidualItem,
+    RobotConfig,
+    RobotStateProvider,
+    SE3Manifold,
+    SO3Manifold,
+    Values,
+    VarSpec,
+    detach_values,
+)
+```
+
+`SO3Manifold` and `SE3Manifold` are intentionally explicit names.
+`better_robot.SE3` and `better_robot.lie.SE3` remain the typed Lie-group pose
+wrapper, not optimization manifolds.
+
+A `VarSpec` separates full state coordinates from reduced tangent coordinates.
+Its `shape` is an event shape; arbitrary leading axes on each value are
+independent batch axes. `bounds` constrain state space, while `mask` eliminates
+fixed tangent coordinates and `scale` describes the retained tangent
+coordinates. `RobotConfig(model)` is the boundary that handles `nq != nv`.
+
+Residual and provider implementations are structural: authors declare names,
+dependencies, and output dimensions without inheriting from a BetterRobot base
+class. `Problem` validates that static graph once. Residual, objective,
+gradient, and analytic-Jacobian paths use a fresh read-only context and run
+each requested provider at most once in that context. An AD-generated
+Jacobian uses a fresh transform-local context for each missing
+`(residual, variable)` block, so a provider may run once per transformed
+block. See {doc}`/guides/custom_residuals` for the author contract.
+
+The public evaluation operations are:
+
+- `residual(values)` and `objective(values)`;
+- `gradient(values)`, in reduced tangent coordinates per variable;
+- `jacobian_blocks(values)` and `dense_jacobian(values)`;
+- `normal_matrix(values)` for dense correctness and solver hand-off; and
+- `retract(values, steps)`, which applies manifold-aware feasible steps.
+
+M2a stops at that evaluation boundary. It ships **no solver for `Problem`**, no
+phase engine, and no per-element accept/reject state. Batched inputs mean
+batched evaluation, not a batched call to LM. `ResidualItem.kernel` and
+`group_size` record robust-loss semantics for M2b; M2a does not apply IRLS.
+Scalar `ObjectiveItem`s participate in `objective()` and `gradient()` for a
+caller-owned first-order loop, but a least-squares solver must reject them via
+`Problem.require_least_squares()`.
+
+## Legacy solver stack (task backend through M2c)
+
+A `CostStack` knows how to compute residuals; it does not know how to minimise
+them. In the legacy contract, that job belongs to `LeastSquaresProblem` (which
+packs the cost stack, the initial guess, and the manifold retraction into a
+single self-describing problem) and to an `Optimizer` (which iterates on it).
+The optimizer does *not* fuse the linear-solver choice, robust kernel, damping
+schedule, or stop condition into its loop; those remain independently
+pluggable axes.
+
+That separation is why "swap LM for Adam" or "switch Cholesky to LSTSQ for a
+rank-deficient problem" is one Protocol swap within the legacy stack. Every
+legacy optimizer implements the same `Optimizer` Protocol; every linear solver
+implements `LinearSolver`; every robust kernel and damping strategy likewise.
+The LM-then-LBFGS multi-stage solver and its individual stages use that same
+legacy optimizer contract with different components.
+
+The rest of this chapter documents `LeastSquaresProblem` and its four
+pluggable axes (Optimizer, LinearSolver, RobustKernel, DampingStrategy), then
+ends with its loop sketch. These details remain current for the task facades
+until their M2c rebase.
 
 ## `LeastSquaresProblem`
 
@@ -328,10 +396,10 @@ def minimize(self, problem, *, max_iter, linear_solver, kernel, strategy, schedu
 
 Source: `src/better_robot/optim/optimizers/levenberg_marquardt.py`.
 
-This is one loop. The four optimisers' worth of code that the early
-prototype carried (our LM, PyPose LM, fixed-base autodiff LM,
-floating-base analytic LM) all collapse into this with different
-components plugged in.
+Within the legacy stack, this is one loop. The four optimizers' worth of code
+that the early prototype carried (our LM, PyPose LM, fixed-base autodiff LM,
+floating-base analytic LM) all collapse into this with different components
+plugged in.
 
 `_robust_cost(r, kernel)` is `Σ kernel.rho(r_i²)`, or `0.5·‖r‖²`
 when no kernel is selected. The actual implementation also records the
@@ -410,7 +478,9 @@ result = LevenbergMarquardt().minimize(
 ```
 
 No fixed-vs-floating special case. No `solver_params` dict. No
-`jacobian_fn` argument. A single path from residuals to `result.x`.
+`jacobian_fn` argument. This remains the single legacy path from a
+`CostStack` to `result.x`; the named-block `Problem` evaluation contract above
+is separate until M2c.
 
 In normal use you would never write that loop; `solve_ik` does it
 internally. The example exists to show that the four pluggable axes
@@ -443,5 +513,7 @@ compose cleanly.
 - {doc}`/conventions/extension` §3, §4, §5, §6 — recipes for adding
   a custom optimiser, damping strategy, linear solver, or robust
   kernel.
+- {doc}`/guides/custom_residuals` — author a residual for the named-block
+  evaluation contract.
 - {doc}`/conventions/performance` §2.7 — matrix-free trajopt and the
   memory wins it brings.

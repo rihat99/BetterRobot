@@ -1,5 +1,9 @@
 # M2a — Variables, Evaluation Protocol, and the Vertical Slice: Agent Execution Instructions
 
+> **Implementation log (2026-07-17):** Complete on `dev`. The owner confirmed
+> scalar `ObjectiveItem` support with a strict GN/LM fence and the recommended
+> differentiation contract; CI is intentionally stopped. See `m2a_results.md`.
+
 > Read `plan/for_agents/README.md` first. It carries the standing rules
 > (deletion ordering, honesty rules, kernel requirements, test commands).
 
@@ -750,51 +754,51 @@ code's docstrings don't contradict it.
 
 ## Milestone acceptance checklist
 
-- [ ] M0 θ=0 gradcheck one-liner passes; `AUTODIFF` grep is clean; M1
+- [x] M0 θ=0 gradcheck one-liner passes; `AUTODIFF` grep is clean; M1
       checklist passed (or owner-approved early start of T2a.1/2/10 only).
-- [ ] `Manifold` protocol + `Euclidean`/`SO3`/`SE3`/`RobotConfig(model)`
+- [x] `Manifold` protocol + `Euclidean`/`SO3`/`SE3`/`RobotConfig(model)`
       implemented and tested; right-perturbation convention verified
       against `spherical.py:52-62`.
-- [ ] State-space bounds via feasible retraction; nq-shaped for
+- [x] State-space bounds via feasible retraction; nq-shaped for
       `RobotConfig`; `SO3`/`SE3`+bounds raises with the specified message;
       no tangent-space box anywhere in `Manifold`/`Bounds`.
-- [ ] Tangent-space autograd helper: fp32 gradcheck at δ=0 **at** singular
+- [x] Tangent-space autograd helper: fp32 gradcheck at δ=0 **at** singular
       points (θ=0, identical quaternions, near π); SMPL-like rest-pose
       gradient NaN-free.
-- [ ] `VarSpec`/`Values`/`Problem` draft exists, unexported; residuals
-      declare `reads`; `jacobian_blocks` keyed `(residual_name, var_name)`;
-      absent block = structurally zero (tested).
-- [ ] Masks eliminate coordinates (reduced columns, nonsingular normal
+- [x] `VarSpec`/`Values`/`Problem` landed unexported as a draft, then was
+      frozen after the slice; residuals declare `reads`; `jacobian_blocks`
+      is keyed `(residual_name, var_name)`; absent block = structurally zero.
+- [x] Masks eliminate coordinates (reduced columns, nonsingular normal
       system, expand/gather roundtrip); `scale` validated and exposed for
       M2b.
-- [ ] Provider DAG: toposort, cycle rejection, lazy evaluation-local
+- [x] Provider DAG: toposort, cycle rejection, lazy evaluation-local
       context; FK/NN-pass counted once per evaluation; nothing outlives
       the iteration except detached artifacts (leak test).
-- [ ] Scalar-term decision made **via the slice**, evidence written up,
+- [x] Scalar-term decision made **via the slice**, evidence written up,
       owner reviewed; GN/LM rejection message (or documented fence) in
       place.
-- [ ] AD decision table written and implemented; jacfwd-clean (smoke
+- [x] AD decision table written and implemented; jacfwd-clean (smoke
       test); `create_graph` support specified and tested; FD reachable
       only as explicit debug.
-- [ ] Dense assembly parity-tested; sparsity non-goal stated;
+- [x] Dense assembly parity-tested; sparsity non-goal stated;
       `ResidualSpec` structure/time-coupling semantics preserved in design
       notes for M5 before any deletion; assembly-vs-old-path benchmark
       definition committed.
-- [ ] **The vertical slice runs end-to-end** with all seven ingredients
+- [x] **The vertical slice runs end-to-end** with all seven ingredients
       demonstrably present (two blocks, shared NN provider, custom
       residual, scalar term, masks, batched evaluation parity, manual
       phase transition), as a permanent CPU test on synthetic data.
-- [ ] Custom-residual author guide exists with all five contract sections;
+- [x] Custom-residual author guide exists with all five contract sections;
       the slice's residual followed it verbatim (friction log empty or
       resolved into guide/API fixes).
-- [ ] Differentiation contract written (four decisions), owner-approved,
+- [x] Differentiation contract written (four decisions), owner-approved,
       cross-referenced by m2b.
-- [ ] Only after all of the above: symbols exported, API-contract test
+- [x] Only after all of the above: symbols exported, API-contract test
       updated, docs + repo `CLAUDE.md` updated in the same commit.
-- [ ] Full suite green (`uv run pytest tests/ -v`; 897-test baseline plus
-      M0/M1 deltas); pinocchio-parity suite untouched and green; both
-      consumer repos still import cleanly (grep per standing rule 1 —
-      BHF's live `costs.stack.CostStack` and `Data.oMi` shims stay).
+- [x] Full suite green (1,099 non-Warp passes plus 12 Warp/layout passes);
+      pinocchio parity is untouched and green. Consumer repos remained
+      read-only; compatibility/import migration is deferred by standing
+      rule 1 on the dedicated redesign branch (details in the results).
 
 ## Out of scope
 

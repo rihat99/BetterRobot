@@ -94,6 +94,10 @@ this contract is tested: a hand-rolled external loop over `update` produces
 the same result as `run`, and a warm-started second solve reuses damping
 state.
 
+The state-shape and graph-lifetime requirements in
+`docs/conventions/engineering.md` § “Differentiation contract” are binding
+on this task; implicit backward remains an M6 deliverable.
+
 **Current state:** All four optimizers are `minimize(problem, *, max_iter,
 linear_solver, kernel, strategy, scheduler)` monoliths returning a mutable
 `SolverState` (`src/better_robot/optim/optimizers/base.py:26-44`).

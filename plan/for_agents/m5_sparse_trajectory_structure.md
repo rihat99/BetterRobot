@@ -88,6 +88,9 @@ happens if the approved design says so.
 
 ### T5.1 — Recover the structural-sparsity inputs  [S]
 
+Preserved legacy field semantics and the M2a/M5 boundary live in
+`plan/design_notes/residual_sparsity.md`; treat that note as T5.1 input.
+
 **Goal / done-when:** the executor has in hand (a) the banded/temporal
 structure semantics of the deleted `ResidualSpec`, (b) the matrix-free
 `apply_jac_transpose` math from the old trajectory residuals, and (c) the

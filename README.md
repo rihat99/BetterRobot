@@ -42,7 +42,7 @@ model = br.load(panda_description.URDF_PATH)
 
 # Forward kinematics
 data = br.forward_kinematics(model, model.q_neutral, compute_frames=True)
-T_hand = data.oMf[model.frame_id("body_panda_hand")]
+T_hand = data.frame_pose_world[model.frame_id("body_panda_hand")]
 
 # Inverse kinematics
 from better_robot.tasks.ik import solve_ik
@@ -97,11 +97,17 @@ src/better_robot/
   dynamics/      RNEA, ABA, CRBA, centroidal dynamics
   residuals/     Pose, Position, Orientation, Limits, Rest
   costs/         CostStack
-  optim/         LM, Gauss-Newton, Adam, L-BFGS
+  optim/         named-block Problem evaluation plus legacy LM/GN/Adam/L-BFGS
   tasks/         solve_ik, IKCostConfig, OptimizerConfig
   viewer/        Visualizer, Scene, render modes, overlays
   io/            URDF/MJCF loading
 ```
+
+Named variable blocks, manifolds, residual items, and provider DAGs are public
+under `better_robot.optim`. M2a provides batched evaluation for caller-owned
+loops; the existing task facades continue to use the legacy solver stack until
+their M2c migration. See
+[Write a custom block residual](docs/guides/custom_residuals.md).
 
 ## Dependencies
 

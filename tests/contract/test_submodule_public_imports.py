@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import importlib
 
+import better_robot
 import pytest
+from better_robot import optim
 
 
 SUBMODULE_PATHS: list[tuple[str, str]] = [
@@ -42,6 +44,19 @@ SUBMODULE_PATHS: list[tuple[str, str]] = [
     ("better_robot.tasks.ik", "IKResult"),
     ("better_robot.tasks.ik", "IKCostConfig"),
     ("better_robot.tasks.ik", "OptimizerConfig"),
+    # optim named-block evaluation (M2a)
+    ("better_robot.optim", "Bounds"),
+    ("better_robot.optim", "Euclidean"),
+    ("better_robot.optim", "SO3Manifold"),
+    ("better_robot.optim", "SE3Manifold"),
+    ("better_robot.optim", "RobotConfig"),
+    ("better_robot.optim", "Values"),
+    ("better_robot.optim", "VarSpec"),
+    ("better_robot.optim", "Problem"),
+    ("better_robot.optim", "ResidualItem"),
+    ("better_robot.optim", "ObjectiveItem"),
+    ("better_robot.optim", "RobotStateProvider"),
+    ("better_robot.optim", "detach_values"),
     # exceptions
     ("better_robot.exceptions", "StaleCacheError"),
 ]
@@ -57,7 +72,29 @@ def test_symmetric3_is_submodule_only() -> None:
     """``Symmetric3`` is reachable via ``better_robot.spatial`` but **not**
     as a top-level attribute of ``better_robot``.
     """
-    import better_robot
-
     with pytest.raises(ImportError):
-        from better_robot import Symmetric3  # noqa: F401
+        from better_robot import Symmetric3  # noqa: F401, PLC0415
+
+
+def test_named_block_api_is_qualified_and_has_no_lie_name_collision() -> None:
+    block_names = {
+        "Bounds",
+        "Euclidean",
+        "SO3Manifold",
+        "SE3Manifold",
+        "RobotConfig",
+        "Values",
+        "VarSpec",
+        "Problem",
+        "ResidualItem",
+        "ObjectiveItem",
+        "RobotStateProvider",
+        "detach_values",
+    }
+
+    assert block_names <= set(optim.__all__)
+    assert not hasattr(optim, "SO3")
+    assert not hasattr(optim, "SE3")
+    assert block_names.isdisjoint(better_robot.__all__)
+    for name in block_names:
+        assert not hasattr(better_robot, name)

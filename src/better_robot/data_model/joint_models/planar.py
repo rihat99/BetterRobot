@@ -29,12 +29,13 @@ class JointPlanar:
         y = q_slice[..., 1]
         cos_t = q_slice[..., 2]
         sin_t = q_slice[..., 3]
-        # Quaternion for rotation by θ about Z: [0, 0, sin(θ/2), cos(θ/2)]
-        # cos(θ/2) = sqrt((1+cos_t)/2), sin(θ/2) = sqrt((1-cos_t)/2)*sign(sin_t)
-        half_cos = torch.sqrt(((1.0 + cos_t) / 2.0).clamp(min=0.0))
-        half_sin = torch.sqrt(((1.0 - cos_t) / 2.0).clamp(min=0.0)) * torch.sign(sin_t)
+        # Reconstruct the half angle rather than using sqrt half-angle
+        # identities. The latter have an infinite/undefined derivative at
+        # neutral (cos=1, sin=0), poisoning RobotConfig AD through FK.
+        half_theta = torch.atan2(sin_t, cos_t) * torch.full_like(cos_t, 0.5)
+        half_cos = torch.cos(half_theta)
+        half_sin = torch.sin(half_theta)
         z = torch.zeros_like(x)
-        zeros3 = torch.zeros(*x.shape, 3, dtype=q_slice.dtype, device=q_slice.device)
         # SE3: [tx, ty, tz=0, qx=0, qy=0, qz=half_sin, qw=half_cos]
         t = torch.stack([x, y, z], dim=-1)
         q = torch.stack([z, z, half_sin, half_cos], dim=-1)
@@ -60,8 +61,8 @@ class JointPlanar:
 
     def integrate(self, q_slice: torch.Tensor, v_slice: torch.Tensor) -> torch.Tensor:
         """Planar retraction. v = [vx, vy, dθ]."""
-        x   = q_slice[..., 0] + v_slice[..., 0]
-        y   = q_slice[..., 1] + v_slice[..., 1]
+        x = q_slice[..., 0] + v_slice[..., 0]
+        y = q_slice[..., 1] + v_slice[..., 1]
         cos_t = q_slice[..., 2]
         sin_t = q_slice[..., 3]
         theta = torch.atan2(sin_t, cos_t) + v_slice[..., 2]

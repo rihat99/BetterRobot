@@ -42,20 +42,20 @@ do not need to know about RNEA; RNEA does not need to know about
 Jacobian assembly. Splitting them apart is what lets a user build
 purely kinematic IK without dragging dynamics code through compile.
 
-The optimisation stack stacks above. `residuals/` are pure functions
-of `(model, data, variables)` returning a residual vector; they
-depend on `kinematics/` (to compose pose-error Jacobians, to read
-`frame_pose_world`), and optionally on `dynamics/` (residuals like
-`min_torque` reach down to `rnea`). `costs/` is one layer up — it
-composes residuals into a weighted concatenation. `optim/` depends on
-`costs/` (the residual / Jacobian interface) but knows nothing about
-specific residuals; that is what makes the LM solver work for IK and
-for trajopt with the same code.
+The optimization layer currently contains two contracts during the M2
+migration. The legacy path keeps `residuals/` as functions of `(model, data,
+variables)`, composes them in `costs/CostStack`, and hands a
+`LeastSquaresProblem` to an optimizer. The named-block path lives in
+`optim/blocks/`: a `Problem` owns `VarSpec`s, structural residual items, scalar
+objective items, and a provider DAG. Providers may reach directly to lower
+layers such as kinematics, while user residuals consume only the read-only
+context names they declare.
 
-`tasks/` is the topmost user-facing facade. `solve_ik` and
-`solve_trajopt` build a `CostStack`, wrap it in a
-`LeastSquaresProblem`, hand it to an `Optimizer`, and return a clean
-result type.
+`tasks/` is the topmost user-facing facade. Through M2c, `solve_ik` and
+`solve_trajopt` still build a `CostStack`, wrap it in a
+`LeastSquaresProblem`, hand it to an `Optimizer`, and return a clean result
+type. M2a's named-block `Problem` is an evaluation contract for caller-owned
+loops; it does not replace that solver path yet.
 
 `io/` and `viewer/` sit alongside the main spine, not above it. `io/`
 reads from `data_model/` only — the URDF parser does not invoke
@@ -91,7 +91,7 @@ breaks.
 | `dynamics` | RNEA / ABA / CRBA / centroidal algorithms and local whole-pass kernels | `residuals` / above |
 | `residuals` | Pure residual functions | `costs` / `optim` / `tasks` / `io` / `viewer` |
 | `costs` | `CostStack` | `optim` / `tasks` / `io` / `viewer` |
-| `optim` | `LeastSquaresProblem`, optimisers, linear solvers, kernels, damping | `tasks` / `io` / `viewer` |
+| `optim` | Named-block `Problem` evaluation plus the legacy `LeastSquaresProblem`, optimizers, linear solvers, kernels, and damping | `tasks` / `io` / `viewer` |
 | `collision` | Geometry, SDF pairs | `tasks` / `io` / `viewer` |
 | `io` | Parsers, IR, builders | `tasks` / `viewer` |
 | `tasks` | `solve_ik`, `solve_trajopt`, and trajectory types | `viewer` |
@@ -160,6 +160,7 @@ src/better_robot/
 │
 ├── optim/
 │   ├── problem.py                 # LeastSquaresProblem
+│   ├── blocks/                    # named Problem / VarSpec / manifolds / providers
 │   ├── state.py                   # SolverState
 │   ├── optimizers/                # LM / GN / Adam / LBFGS / MultiStage
 │   ├── solvers/                   # Cholesky / LSTSQ; CG / SparseCholesky stubs
@@ -239,7 +240,19 @@ from better_robot.spatial     import Motion, Force, Inertia, Symmetric3
 from better_robot.kinematics  import ReferenceFrame
 from better_robot.optim.state import SolverState
 from better_robot.tasks.ik    import IKResult, IKCostConfig, OptimizerConfig
+
+from better_robot.optim import (
+    Bounds, Euclidean, SO3Manifold, SE3Manifold, RobotConfig,
+    Values, VarSpec, Problem, ResidualItem, ObjectiveItem,
+    RobotStateProvider, detach_values,
+)
 ```
+
+The manifold suffixes are part of the contract: `better_robot.SE3` and
+`better_robot.lie.SE3` are typed Lie-group pose wrappers, whereas
+`better_robot.optim.SE3Manifold` is a retraction/difference policy for a
+variable block. The block construction names stay qualified under
+`better_robot.optim`; they are not added to the root `better_robot.__all__`.
 
 `tests/contract/test_submodule_public_imports.py` enforces those
 paths so a refactor cannot silently move them.
@@ -269,15 +282,18 @@ not a public plugin Protocol or process-wide registry.
 - **`data_model/joint_models/` one-file-per-joint.** Adding a new
   joint kind is an isolated change. See
   {doc}`joints_bodies_frames`.
-- **One Jacobian entry point.** `kinematics/jacobian_strategy.py` selects
-  an analytic Jacobian or the current unbatched central-finite-difference
-  fallback. There is **one** Jacobian function the solver calls; real
-  `torch.func` strategies are M2 work. See {doc}`kinematics`.
-- **`residuals` above `kinematics`.** Every residual reaches down
-  through FK; none reaches into solvers. `costs/` is a pure
-  composition layer above residuals. `optim/` knows about
-  `LeastSquaresProblem` and solvers but not about specific
-  residuals. `tasks/` is the top user-facing facade.
+- **Two Jacobian boundaries with different jobs.** The legacy task solver calls
+  the unified kinematics Jacobian dispatch, which selects an analytic Jacobian
+  or the unbatched central-finite-difference fallback. Named-block `Problem`
+  evaluation instead assembles per-residual, per-variable tangent blocks and
+  uses `torch.func` forward/reverse AD when an analytic block is absent. See
+  {doc}`kinematics` and {doc}`solver_stack`.
+- **Residuals never reach into solvers.** Legacy built-ins live above
+  kinematics and compose through `CostStack`. Named-block residuals are
+  structural consumers of declared context names; evaluation-local providers
+  own shared FK or other expensive lower-layer work. Both routes preserve the
+  downward dependency rule while they coexist. `tasks/` remains the top
+  user-facing facade.
 - **`io` and `viewer` siblings of `tasks`, not ancestors.** `load()`
   never constructs a `Task`; it returns a `Model`. The viewer is
   outside the spine because nothing should depend on it.

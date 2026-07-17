@@ -64,6 +64,18 @@ compute work is a contributor integration and follows §10 instead.
 **Use when:** you need a new objective (reachability, manipulability
 variant, user-defined cost).
 
+:::{important} Recommended path for new integrations
+For new named-block residuals and providers, follow
+{doc}`/guides/custom_residuals`. It covers declared context reads, static
+residual shapes, provider lifetime, robust groups, analytic blocks, and
+per-element failure signaling.
+
+The `ResidualState`/`CostStack` recipe below belongs to the legacy
+single-variable solver stack. It remains supported by existing task APIs, but
+is explicitly legacy until M2c migrates those tasks. Do not use it as the
+starting point for new named-block integrations.
+:::
+
 ```python
 # my_package/residuals/min_torque.py
 import torch

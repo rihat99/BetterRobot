@@ -37,6 +37,7 @@ make -C docs serve
 | Folder | Purpose |
 |--------|---------|
 | `getting_started/` | Five-minute quickstarts (install → FK → IK → floating base). |
+| `guides/` | Task-oriented how-to guides for extending and integrating BetterRobot. |
 | `concepts/` | Explanation chapters that walk through every layer of the architecture. |
 | `conventions/` | Cross-cutting normative specs (naming, performance, extension, testing, contracts, style, packaging). |
 | `reference/` | Auto-generated API, changelog, roadmap, glossary. |
@@ -47,6 +48,7 @@ make -C docs serve
 | If you are… | Read |
 |-------------|------|
 | **Using BetterRobot for the first time** | [`getting_started/`](getting_started/index.md) |
+| **Adding a custom residual or provider** | [`guides/`](guides/index.md) |
 | **Curious about the design** | [`concepts/`](concepts/index.md) |
 | **Writing or reviewing code** | [`conventions/`](conventions/index.md) |
 | **Looking up a symbol** | [`reference/`](reference/index.md) |
