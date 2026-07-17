@@ -19,8 +19,7 @@ from better_robot.costs.stack import CostStack
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics.forward import forward_kinematics
-from better_robot.optim.optimizers.levenberg_marquardt import LevenbergMarquardt
-from better_robot.optim.optimizers.lm_then_lbfgs import LMThenLBFGS
+from better_robot.optim import LevenbergMarquardt
 from better_robot.residuals.pose import PoseResidual
 from better_robot.residuals.temporal import TimeIndexedResidual
 from better_robot.tasks.parameterization import (
@@ -109,8 +108,7 @@ def test_solve_trajopt_with_knots_reaches_target() -> None:
         dt=0.05,
         initial_q_traj=initial_q_traj,
         cost_stack=stack,
-        optimizer=LevenbergMarquardt(),
-        max_iter=20,
+        optimizer=LevenbergMarquardt(max_iter=20),
         parameterization=KnotTrajectory(),
     )
     assert res.trajectory.q.shape == (1, T, model.nq)
@@ -125,14 +123,13 @@ def test_solve_trajopt_rejects_floating_base_bspline() -> None:
     horizon = 8
     q_seed = model.q_neutral.unsqueeze(0).expand(horizon, -1).clone()
 
-    with pytest.raises(NotImplementedError, match="manifold-safe.*M5"):
+    with pytest.raises(NotImplementedError, match="manifold-safe.*deferred"):
         solve_trajopt(
             model,
             horizon=horizon,
             dt=0.05,
             initial_q_traj=q_seed,
             cost_stack=CostStack(),
-            optimizer=LevenbergMarquardt(),
             parameterization=BSplineTrajectory(num_control_points=4),
         )
 
@@ -142,14 +139,13 @@ def test_solve_trajopt_rejects_bounded_bspline() -> None:
     horizon = 8
     q_seed = model.q_neutral.unsqueeze(0).expand(horizon, -1).clone()
 
-    with pytest.raises(NotImplementedError, match="bound preservation.*M5"):
+    with pytest.raises(NotImplementedError, match="cannot preserve state bounds.*deferred"):
         solve_trajopt(
             model,
             horizon=horizon,
             dt=0.05,
             initial_q_traj=q_seed,
             cost_stack=CostStack(),
-            optimizer=LevenbergMarquardt(),
             lower=torch.full_like(model.q_neutral, -0.25),
             upper=torch.full_like(model.q_neutral, 0.25),
             parameterization=BSplineTrajectory(num_control_points=4),
@@ -161,13 +157,12 @@ def test_solve_trajopt_rejects_multistage_bspline() -> None:
     horizon = 8
     q_seed = model.q_neutral.unsqueeze(0).expand(horizon, -1).clone()
 
-    with pytest.raises(NotImplementedError, match="multi-stage replacement.*M5"):
+    with pytest.raises(NotImplementedError, match="component-space.*deferred"):
         solve_trajopt(
             model,
             horizon=horizon,
             dt=0.05,
             initial_q_traj=q_seed,
             cost_stack=CostStack(),
-            optimizer=LMThenLBFGS(),
             parameterization=BSplineTrajectory(num_control_points=4),
         )
