@@ -46,7 +46,13 @@ def crba_raw(  # noqa: PLR0912, PLR0915 - composite-body passes are intentionall
     q: torch.Tensor,
 ) -> CRBAResult:
     """Return a fresh joint-space inertia result over the pure seam."""
-    q, _, batch = prepare_dynamics_inputs(structure, values, q, {})
+    q, _, batch = prepare_dynamics_inputs(
+        structure,
+        values,
+        q,
+        {},
+        validate=False,
+    )
     device, dtype = q.device, q.dtype
     njoints = structure.njoints
 

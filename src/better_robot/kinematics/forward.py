@@ -113,14 +113,15 @@ def forward_kinematics_raw(
 
     Notes
     -----
+    ``structure``, ``values``, and ``q`` must already satisfy the public FK
+    boundary contracts; this internal primitive does not revalidate them.
     Free-flyer quaternions are assumed to be pre-normalized.  Use
     :func:`forward_kinematics` with ``check_quaternion_norm=True`` to run the
     opt-in debug check before calling this hot-path primitive.
 
     See docs/concepts/kinematics.md §6 and docs/conventions/naming.md for the rename.
     """
-    _validate_q(structure, values, q)
-    batch_shape = values.execution_batch_shape(structure, q)
+    batch_shape = values._execution_batch_shape(q)
     q = broadcast_to_execution_batch(
         q,
         batch_shape,
@@ -211,18 +212,19 @@ def forward_kinematics(
         q = data.q
     else:
         q = q_or_data
-        _validate_q(model.structure, model.values, q)
-        batch_shape = model.values.execution_batch_shape(model.structure, q)
+        data = None
+
+    # Validate exactly once at the public boundary. The raw torch, Warp, and
+    # frame passes below trust these inputs. Keep the tensor-to-Python norm
+    # check opt-in so the default path is sync-free.
+    _validate_q(model.structure, model.values, q)
+    batch_shape = model.values._execution_batch_shape(q)
+    if data is None:
         data = model.create_data(
             batch_shape=batch_shape,
             device=q.device,
             dtype=q.dtype,
         )
-
-    # Validate at the public boundary; the backend impl trusts inputs.  Keep
-    # the tensor-to-Python norm check opt-in so the default path is sync-free.
-    _validate_q(model.structure, model.values, q)
-    batch_shape = model.values.execution_batch_shape(model.structure, q)
     q = broadcast_to_execution_batch(
         q,
         batch_shape,
@@ -251,7 +253,11 @@ def forward_kinematics(
     if compute_frames and warp_result is not None:
         data.frame_pose_world = warp_result.frames
     elif compute_frames:
-        update_frame_placements(model, data)
+        data.frame_pose_world = frame_placements_raw(
+            model.structure,
+            model.values,
+            joint_pose_world,
+        )
 
     return data
 
@@ -268,6 +274,7 @@ def update_frame_placements(model: Model, data: Data) -> Data:
     joint_pose_world = data.joint_pose_world
     assert joint_pose_world is not None, "call forward_kinematics before update_frame_placements"
 
+    model.values.validate(model.structure)
     data.frame_pose_world = frame_placements_raw(model.structure, model.values, joint_pose_world)
     return data
 
@@ -277,9 +284,8 @@ def frame_placements_raw(
     values: ModelValues,
     joint_pose_world: torch.Tensor,
 ) -> torch.Tensor:
-    """Pure, vectorized frame placement pass over the structure/value seam."""
+    """Place frames from prevalidated structure/value tensors."""
 
-    values.validate(structure)
     batch_shape = tuple(joint_pose_world.shape[:-2])
     parents = structure.frame_parent_joints
     parent_poses = joint_pose_world.index_select(-2, parents.to(torch.int64))

@@ -16,21 +16,27 @@ from better_robot.exceptions import (
     QuaternionNormError,
     ShapeError,
 )
-from better_robot.io.build_model import build_model
+from better_robot.io.build_model import _check_topology_invariants, build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics.forward import forward_kinematics, forward_kinematics_raw
 
 
 # ────────────────────────── fixtures ──────────────────────────
 
+
 @pytest.fixture(scope="module")
 def arm_model():
     b = ModelBuilder("arm")
     b.add_body("base", mass=0.5)
     b.add_body("link1", mass=1.0)
-    b.add_revolute_z("j1", parent="base", child="link1",
-                     origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]),
-                     lower=-math.pi, upper=math.pi)
+    b.add_revolute_z(
+        "j1",
+        parent="base",
+        child="link1",
+        origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]),
+        lower=-math.pi,
+        upper=math.pi,
+    )
     return build_model(b.finalize())
 
 
@@ -39,20 +45,25 @@ def free_flyer_model():
     b = ModelBuilder("floating")
     b.add_body("base", mass=1.0)
     b.add_body("link1", mass=0.5)
-    b.add_free_flyer_root("floating", child="base",
-                          origin=torch.tensor([0., 0., 0., 0., 0., 0., 1.]))
-    b.add_revolute_z("j1", parent="base", child="link1",
-                     origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]),
-                     lower=-math.pi, upper=math.pi)
+    b.add_free_flyer_root("floating", child="base", origin=torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]))
+    b.add_revolute_z(
+        "j1",
+        parent="base",
+        child="link1",
+        origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]),
+        lower=-math.pi,
+        upper=math.pi,
+    )
     return build_model(b.finalize())
 
 
 # ────────────────────── ShapeError ──────────────────────
 
+
 def test_shape_error_on_wrong_nq(arm_model):
     bad_q = torch.zeros(arm_model.nq + 3)
     with pytest.raises(ShapeError, match="trailing size"):
-        forward_kinematics_raw(arm_model.structure, arm_model.values, bad_q)
+        forward_kinematics(arm_model, bad_q)
 
 
 def test_shape_error_on_wrong_nq_batched(arm_model):
@@ -62,6 +73,7 @@ def test_shape_error_on_wrong_nq_batched(arm_model):
 
 
 # ────────────────────── DeviceMismatchError ──────────────────────
+
 
 def test_device_mismatch_error_is_subclass_of_valueerror():
     """DeviceMismatchError inherits ValueError so legacy except blocks catch it."""
@@ -75,16 +87,22 @@ def test_device_mismatch_on_cpu_cuda():
     b = ModelBuilder("arm")
     b.add_body("base", mass=0.5)
     b.add_body("link1", mass=1.0)
-    b.add_revolute_z("j1", parent="base", child="link1",
-                     origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]),
-                     lower=-math.pi, upper=math.pi)
+    b.add_revolute_z(
+        "j1",
+        parent="base",
+        child="link1",
+        origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]),
+        lower=-math.pi,
+        upper=math.pi,
+    )
     model = build_model(b.finalize())  # CPU
     q = torch.zeros(model.nq, device="cuda")
     with pytest.raises(DeviceMismatchError, match="device"):
-        forward_kinematics_raw(model.structure, model.values, q)
+        forward_kinematics(model, q)
 
 
 # ────────────────────── QuaternionNormError ──────────────────────
+
 
 def test_quaternion_norm_error_on_floating_base(free_flyer_model):
     q = free_flyer_model.q_neutral.clone()
@@ -119,13 +137,12 @@ def test_fixed_base_bypasses_quaternion_check(arm_model):
 
 # ────────────────────── ModelInconsistencyError ──────────────────────
 
+
 def test_model_inconsistency_on_bad_parents():
     """Directly call the invariant checker with a malformed parents tuple."""
-    from better_robot.io.build_model import _check_topology_invariants
-
     with pytest.raises(ModelInconsistencyError, match="parents\\[0\\]"):
         _check_topology_invariants(
-            parents=(0, 0, 1),   # parents[0] should be -1
+            parents=(0, 0, 1),  # parents[0] should be -1
             nqs=(0, 0, 1),
             nvs=(0, 0, 1),
             idx_qs=(0, 0, 0),
@@ -136,11 +153,9 @@ def test_model_inconsistency_on_bad_parents():
 
 
 def test_model_inconsistency_on_out_of_order_parents():
-    from better_robot.io.build_model import _check_topology_invariants
-
     with pytest.raises(ModelInconsistencyError, match="topological sort"):
         _check_topology_invariants(
-            parents=(-1, 2, 0),   # parents[1]=2 > 1, violates topo sort
+            parents=(-1, 2, 0),  # parents[1]=2 > 1, violates topo sort
             nqs=(0, 1, 1),
             nvs=(0, 1, 1),
             idx_qs=(0, 0, 1),
@@ -151,14 +166,12 @@ def test_model_inconsistency_on_out_of_order_parents():
 
 
 def test_model_inconsistency_on_q_slice_gap():
-    from better_robot.io.build_model import _check_topology_invariants
-
     with pytest.raises(ModelInconsistencyError, match="q-slicing"):
         _check_topology_invariants(
             parents=(-1, 0, 1),
             nqs=(0, 1, 1),
             nvs=(0, 1, 1),
-            idx_qs=(0, 0, 2),   # gap! should be (0, 0, 1)
+            idx_qs=(0, 0, 2),  # gap! should be (0, 0, 1)
             idx_vs=(0, 0, 1),
             nq_total=2,
             nv_total=2,
@@ -166,8 +179,6 @@ def test_model_inconsistency_on_q_slice_gap():
 
 
 def test_model_inconsistency_on_nq_mismatch():
-    from better_robot.io.build_model import _check_topology_invariants
-
     with pytest.raises(ModelInconsistencyError, match="nq"):
         _check_topology_invariants(
             parents=(-1, 0),
@@ -175,6 +186,6 @@ def test_model_inconsistency_on_nq_mismatch():
             nvs=(0, 1),
             idx_qs=(0, 0),
             idx_vs=(0, 0),
-            nq_total=5,   # wrong total
+            nq_total=5,  # wrong total
             nv_total=1,
         )

@@ -85,6 +85,7 @@ def aba_raw(  # noqa: PLR0912, PLR0915 - articulated-body passes are intentional
         values,
         q,
         query_inputs,
+        validate=False,
     )
     v = prepared["v"]
     tau = prepared["tau"]

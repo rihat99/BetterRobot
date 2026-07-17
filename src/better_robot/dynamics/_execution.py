@@ -18,11 +18,14 @@ def prepare_dynamics_inputs(
     values: ModelValues,
     q: torch.Tensor,
     inputs: Mapping[str, tuple[torch.Tensor, tuple[int, ...]]],
+    *,
+    validate: bool = True,
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor], tuple[int, ...]]:
-    """Validate and broadcast a dynamics query to the model execution batch."""
+    """Broadcast a dynamics query, optionally validating its public boundary."""
 
-    _validate_q(structure, values, q)
-    batch_shape = values.execution_batch_shape(structure, q)
+    if validate:
+        _validate_q(structure, values, q)
+    batch_shape = values._execution_batch_shape(q)
     q_exec = broadcast_to_execution_batch(
         q,
         batch_shape,
@@ -31,9 +34,9 @@ def prepare_dynamics_inputs(
     )
     prepared: dict[str, torch.Tensor] = {}
     for name, (tensor, event_shape) in inputs.items():
-        if tensor.device != q.device:
+        if validate and tensor.device != q.device:
             raise DeviceMismatchError(f"{name}.device={tensor.device} != q.device={q.device}")
-        if tensor.dtype != q.dtype:
+        if validate and tensor.dtype != q.dtype:
             raise DtypeMismatchError(f"{name}.dtype={tensor.dtype} != q.dtype={q.dtype}")
         prepared[name] = broadcast_to_execution_batch(
             tensor,

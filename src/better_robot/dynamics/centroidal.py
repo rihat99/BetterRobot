@@ -78,6 +78,7 @@ def ccrba_raw(
         values,
         q,
         query_inputs,
+        validate=False,
     )
     v = prepared.get("v")
     device, dtype = q.device, q.dtype

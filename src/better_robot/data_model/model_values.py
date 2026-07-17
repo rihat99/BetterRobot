@@ -93,6 +93,11 @@ class ModelValues:
         """Return ``broadcast(q, joint/body/frame value tables)``."""
 
         self.validate(structure)
+        return self._execution_batch_shape(q)
+
+    def _execution_batch_shape(self, q: torch.Tensor) -> tuple[int, ...]:
+        """Return the execution batch after the caller validates the values."""
+
         return broadcast_execution_batch_shape(
             q,
             (

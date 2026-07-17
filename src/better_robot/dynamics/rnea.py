@@ -130,6 +130,7 @@ def rnea_raw(  # noqa: PLR0912, PLR0915 - recursive Newton-Euler passes are expl
         values,
         q,
         query_inputs,
+        validate=False,
     )
     v = prepared["v"]
     a = prepared["a"]
