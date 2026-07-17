@@ -35,7 +35,8 @@ src/better_robot/
   dynamics/         — Torch raw rigid-body passes + public wrappers; optional whole-pass kernels stay local
   residuals/        — Residual classes (Pose / Position / Orientation / JointPositionLimit / Rest /
                       Velocity / Acceleration / TimeIndexed / ContactConsistency /
-                      ReferenceTrajectory; analytic `.jacobian()` + `apply_jac_transpose` overrides)
+                      ReferenceTrajectory; analytic `.jacobian()` plus legacy
+                      `apply_jac_transpose` overrides retained for test coverage)
   costs/            — forwarding compatibility imports for optim.cost_stack
   optim/            — legacy CostStack/LeastSquaresProblem + LM/GN/Adam/LBFGS/MultiStage task backend;
                       named-block Problem + batched Adam/LM/GN/phases in optim/blocks
@@ -180,9 +181,9 @@ residual/objective evaluation, tangent gradients, Jacobian blocks, and dense
 assembly. Named-block LM/GN preserves those axes in per-element damping,
 accept/reject, factorization, status, and convergence tensors.
 
-The legacy optimizer stack and top-level `optim.solve` remain single-problem
-paths; `optim.solve` accepts `LeastSquaresProblem`, not the named-block
-`Problem`. `solve_ik` uses named blocks and accepts arbitrary common leading
+The legacy optimizer stack remains a single-problem path invoked through an
+optimizer's `minimize` method, while named-block consumers use `run`.
+`solve_ik` uses named blocks and accepts arbitrary common leading
 batch axes with per-element diagnostics. Other named-block consumers call
 `optim.LevenbergMarquardt().run(values, problem)` directly.
 `ResidualItem.kernel`/`group_size` are active in that solver, scalar objectives
@@ -208,7 +209,7 @@ uv run pytest tests/ -v   # all tests must pass
 Tests use real Panda URDF via `robot_descriptions`. No mocking of FK or URDF parsing.
 `tests/contract/test_layer_dependencies.py` enforces the dependency DAG via AST parsing.
 `tests/contract/test_public_api.py` enforces the required top-level core and duplicate-free `__all__`
-(adds `SE3` and `ModelBuilder` to the prior 25). `tests/contract/` carries the rest of
+(24 required symbols, including `SE3` and `ModelBuilder`). `tests/contract/` carries the rest of
 the AST + structural contract suite (cache invariants, optional
-imports, no-legacy-strings, hot-path lint, shape annotations, deprecations,
+imports, no-legacy-strings, hot-path lint, deprecations,
 pluggable Protocols, solver state, naming, docstrings, submodule reachability).

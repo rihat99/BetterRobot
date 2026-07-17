@@ -14,13 +14,12 @@ If `jacobian()` returns `None`, `JacobianStrategy.AUTO` falls back to
 unbatched central finite differences. The fallback evaluates the residual
 `2 * nv + 1` times; real `torch.func` strategies are scheduled for M2.
 
-Trajectory residuals can also override:
+Legacy trajectory residuals can also override:
 ```python
 apply_jac_transpose(state, vec) -> Tensor    # (B..., nv) — matrix-free J^T r
-spec(state) -> ResidualSpec | property        # structural metadata for sparse solvers
 ```
 
-The default `apply_jac_transpose` (in `base.py`) materialises `J = self.jacobian(state)` and returns `J.mT @ vec`; banded / sparse residuals override to skip the dense Jacobian.
+The default `apply_jac_transpose` (in `base.py`) materialises `J = self.jacobian(state)` and returns `J.mT @ vec`; banded residuals override it. This path is retained only for `tests/optim/test_matrix_free.py`: no production solver or task calls `LeastSquaresProblem.gradient`.
 
 ## ResidualState
 
@@ -65,6 +64,5 @@ Residuals are constructed explicitly and composed into a `CostStack`; there is n
 1. Create class implementing the protocol in a new file
 2. Give the class a stable `name` attribute
 3. Implement `__call__` (required) and `jacobian` (optional but preferred)
-4. For trajectory-scale or sparse residuals, override `apply_jac_transpose` to skip the dense Jacobian
-5. Optionally expose `.spec` returning a `ResidualSpec` so block-sparse solvers can pre-build masks
-6. Residual must be a pure function of `ResidualState` — no side effects
+4. Override `apply_jac_transpose` only when extending the retained legacy matrix-free tests; it is not a live production solver path
+5. Residual must be a pure function of `ResidualState` — no side effects

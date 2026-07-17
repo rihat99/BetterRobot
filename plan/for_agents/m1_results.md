@@ -9,7 +9,7 @@
 
 M1 is implemented. BetterRobot now has a structure/value compute seam, pure
 FK and dynamics pass boundaries, an opt-in fused Warp FK prototype, explicit
-engineering and packaging contracts, blocking CI boundaries, and
+engineering and packaging contracts, a manual-only CI workflow, and
 evaluation-local solver caching. The owner accepted the eager-CPU evidence
 and selected Apache-2.0.
 

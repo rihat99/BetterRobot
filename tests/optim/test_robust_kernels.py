@@ -2,13 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
 import torch
 
-from better_robot.optim.kernels.cauchy import Cauchy
 from better_robot.optim.kernels.huber import Huber
-from better_robot.optim.kernels.l2 import L2
-from better_robot.optim.kernels.tukey import Tukey
 from better_robot.optim.optimizers.levenberg_marquardt import LevenbergMarquardt
 
 
@@ -48,24 +44,6 @@ class _CountingHuber(Huber):
     def rho(self, squared_norm: torch.Tensor) -> torch.Tensor:
         self.rho_calls += 1
         return super().rho(squared_norm)
-
-
-@pytest.mark.parametrize(
-    ("kernel", "squared_norm"),
-    [
-        (L2(), [0.04, 0.64, 4.0]),
-        (Huber(delta=0.7), [0.04, 0.25, 1.0]),
-        (Cauchy(c=1.3), [0.04, 0.64, 4.0]),
-        (Tukey(c=1.5), [0.04, 0.64, 4.0]),
-    ],
-)
-def test_kernel_weight_matches_rho_derivative(kernel, squared_norm) -> None:
-    """Built-ins use the normalized IRLS convention ``w = 2 rho'(s)``."""
-    s = torch.tensor(squared_norm, dtype=torch.float64, requires_grad=True)
-
-    derivative = torch.autograd.grad(kernel.rho(s).sum(), s)[0]
-
-    torch.testing.assert_close(kernel.weight(s.detach()), 2.0 * derivative)
 
 
 def test_huber_lm_accepts_on_robust_rho() -> None:

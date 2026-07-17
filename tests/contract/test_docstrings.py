@@ -42,6 +42,8 @@ def test_solver_state_is_documented() -> None:
     from better_robot.optim.state import SolverState
 
     doc = inspect.getdoc(SolverState)
-    assert doc and "SolverState" not in doc.split("\n")[0] or "terminal" in (doc or ""), (
-        "SolverState needs a purpose-statement docstring."
+    assert doc, "SolverState needs a purpose-statement docstring."
+    summary = doc.splitlines()[0].lower()
+    assert "iteration" in summary and "terminal" in summary, (
+        "SolverState's summary must describe its iteration and terminal roles."
     )

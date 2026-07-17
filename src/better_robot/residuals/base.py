@@ -5,11 +5,11 @@ optionally own an analytic ``.jacobian()``. The current fallback is central
 finite differences in ``kinematics.jacobian.residual_jacobian``; real
 ``torch.func`` fallback is scheduled for M2.
 
-Trajectory-scale problems can also implement
-``apply_jac_transpose(state, vec) -> Tensor`` to compute ``J^T @ vec`` in
-the matrix-free path used by ``LeastSquaresProblem.gradient``. The
-default implementation builds the dense Jacobian and multiplies — sparse
-residuals (banded smoothness, sparse collisions) override this.
+Legacy trajectory residuals can also implement
+``apply_jac_transpose(state, vec) -> Tensor`` to compute ``J^T @ vec`` through
+``LeastSquaresProblem.gradient``. No production solver or task calls that
+gradient path; it is retained only for the matrix-free contract tests. The
+default implementation builds the dense Jacobian and multiplies.
 
 See ``docs/concepts/residuals_and_costs.md §2`` and
 ``docs/concepts/kinematics.md §3``.

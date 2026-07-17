@@ -24,8 +24,8 @@ problems run through public configuration rather than solver subclasses.
 - Public `Phase`, `PhaseResult`, and `run_phases()` with weight overrides,
   mask elimination, lazy providers, `on_start`, fresh state per phase, mixed
   LM/Adam stages, exception isolation, and validation even at zero iterations.
-- `solve_ik` rebuilt as a `RobotConfig` block plus built-in pose, position,
-  orientation, limit, and rest residuals. Pose and active rest targets are
+- `solve_ik` rebuilt as a `RobotConfig` block plus built-in pose, limit, and
+  rest residuals; the pose term jointly covers position and orientation. Pose and active rest targets are
   declared `Problem` parameters and differentiable reads. Batches return
   per-element diagnostics; unbatched calls retain Python scalars.
 - Honest IK configuration validation. Unknown selections and non-default

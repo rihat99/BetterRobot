@@ -65,7 +65,6 @@ tests/
 │   ├── test_docstrings.py              # every public symbol has a docstring + example
 │   ├── test_protocols.py               # documented Protocols carry the documented members
 │   ├── test_solver_state.py            # SolverState carries the spec'd fields
-│   ├── test_shape_annotations.py       # jaxtyping coverage on public surface (advisory)
 │   ├── test_no_legacy_strings.py       # no reference="..." literals in src/
 │   ├── test_cache_invariants.py        # Data._kinematics_level enforced
 │   └── test_optional_imports.py        # `import better_robot` does not pull yourdfpy/mujoco/viser/warp/...
@@ -185,7 +184,6 @@ have collected enough signal:
 | Gate | Initial mode | Promotion criterion |
 |------|--------------|---------------------|
 | Contract bundle (correctness, DAG, hot-path lint, mypy strict, cache invariants, optional imports) | Blocking from day 1 | — |
-| `test_shape_annotations.py` (jaxtyping coverage) | Advisory (coverage report) | All public symbols annotated |
 | CPU bench | Advisory (PR comment) | Two release cycles of stable runner variance < 5% |
 | CUDA bench | Nightly only | One cycle of stable self-hosted-runner data |
 | `mem_watermark` | Nightly only | Promoted at v1 release |
