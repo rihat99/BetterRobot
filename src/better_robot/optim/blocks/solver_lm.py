@@ -25,6 +25,7 @@ from ..kernels import L2
 from ..kernels.base import RobustKernel
 from ..solvers import Cholesky
 from ..solvers.base import LinearSolver
+from ._solver_common import _batch_shape, _blend_values
 from .manifolds import Euclidean, RobotConfig
 from .problem import JacobianStrategy, Problem
 from .variables import Values, detach_values
@@ -80,6 +81,7 @@ class LMState(NamedTuple):
         """Alias for the projected-gradient infinity norm."""
         return self.projected_grad_norm
 
+
 class _ModelEvaluation(NamedTuple):
     residual: torch.Tensor
     robust_weights: torch.Tensor
@@ -92,12 +94,6 @@ class _ModelEvaluation(NamedTuple):
     projected_grad_norm: torch.Tensor
     active_mask: torch.Tensor
     finite: torch.Tensor
-
-
-def _batch_shape(values: Values, problem: Problem) -> tuple[int, ...]:
-    spec = problem.vars[0]
-    value = values[spec.name]
-    return tuple(value.shape[: value.ndim - len(spec.shape)])
 
 
 def _max_abs(vector: torch.Tensor) -> torch.Tensor:
@@ -176,17 +172,6 @@ def _validate_block_step_limits(limits: tuple[tuple[str, float], ...]) -> None:
             or float(max_norm) <= 0.0
         ):
             raise ValueError(f"block_step_limits max norm for {block_name!r} must be a finite positive Python number")
-
-
-def _blend_values(mask: torch.Tensor, yes: Values, no: Values) -> Values:
-    return {
-        name: torch.where(
-            mask.reshape((*mask.shape, *((1,) * (yes[name].ndim - mask.ndim)))),
-            yes[name],
-            no[name],
-        )
-        for name in yes
-    }
 
 
 def _detach_state(state: LMState) -> LMState:

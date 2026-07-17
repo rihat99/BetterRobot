@@ -21,6 +21,7 @@ from typing import NamedTuple
 
 import torch
 
+from ._solver_common import _batch_shape, _blend_values
 from .problem import Problem
 from .variables import Values, detach_values
 
@@ -52,12 +53,6 @@ class AdamState(NamedTuple):
     status: torch.Tensor
 
 
-def _batch_shape(values: Values, problem: Problem) -> tuple[int, ...]:
-    spec = problem.vars[0]
-    value = values[spec.name]
-    return tuple(value.shape[: value.ndim - len(spec.shape)])
-
-
 def _gradient_stats(
     gradient: Values,
     problem: Problem,
@@ -80,17 +75,6 @@ def _terminal_status(
     converged = torch.full_like(running, AdamStatus.CONVERGED.value)
     failed = torch.full_like(running, AdamStatus.FAILED.value)
     return torch.where(~finite, failed, torch.where(grad_norm <= tolerance, converged, running))
-
-
-def _blend_values(mask: torch.Tensor, yes: Values, no: Values) -> Values:
-    return {
-        name: torch.where(
-            mask.reshape((*mask.shape, *((1,) * (yes[name].ndim - mask.ndim)))),
-            yes[name],
-            no[name],
-        )
-        for name in yes
-    }
 
 
 def _values_finite(

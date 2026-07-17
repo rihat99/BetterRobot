@@ -36,24 +36,17 @@ def expand_tangent(
 
 def reduce_generalized_force(
     structure: ModelStructure,
-    force_full: torch.Tensor,
+    value_full: torch.Tensor,
 ) -> torch.Tensor:
-    """Accumulate a full generalized force into the public tangent."""
+    """Apply the mimic chain rule to full-space force or Jacobian rows."""
 
     if not structure.has_mimic:
-        return force_full
-    return force_full @ structure.v_expansion
+        return value_full
+    return value_full @ structure.v_expansion
 
 
-def reduce_jacobian(
-    structure: ModelStructure,
-    jacobian_full: torch.Tensor,
-) -> torch.Tensor:
-    """Apply the mimic chain rule to a matrix's tangent columns."""
-
-    if not structure.has_mimic:
-        return jacobian_full
-    return jacobian_full @ structure.v_expansion
+# Both names remain readable at their call sites while sharing one implementation.
+reduce_jacobian = reduce_generalized_force
 
 
 def reduce_mass_matrix(
