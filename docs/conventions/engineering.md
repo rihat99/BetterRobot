@@ -18,7 +18,7 @@ accidental API.
 | Model/query dtype matching | Enforced at the FK/pass boundary | Query and joint-placement dtypes must agree before a hot pass begins. |
 | Deeply immutable model state | **Gap** | `Model` is a frozen dataclass, but its tensors, dictionaries, and `meta` members remain mutable. |
 | Versioned serialization | **Gap** | There is no structure/values `state_dict` API; `Model.meta` retains builder IR and resolver objects. |
-| Differentiable solve | Unsupported | `solve_ik` detaches its initial iterate and has data-dependent control flow. |
+| Differentiable solve | Partial | Named-block LM/GN has an explicit dense first-order implicit mode; `run` and `solve_ik` remain detached, and structured/operator backward plus stable ModelValues/weight bindings are gaps. |
 | Warp differentiation/capture | Not yet a production contract | Promotion requires the bridge and kernel acceptance tests described below. |
 
 ## Dtype and numerics
@@ -119,9 +119,20 @@ do not advertise `torch.save(model)` as a supported checkpoint.
 ## Differentiation contract
 
 This section freezes the semantics that the M2 problem and solver state must
-preserve; the implicit-solve implementation remains an M6 deliverable. The
-current `solve_ik` is not differentiable and receives no guarantee from this
-future contract. The owner approved these M2a freeze decisions on 2026-07-17.
+preserve. M6 landed a conservative dense implicit implementation for the
+generic named-block LM/GN `solve` entry; `solve_ik` remains detached. The owner
+approved these M2a freeze decisions on 2026-07-17.
+
+The shipped implementation is intentionally narrower than the complete
+contract below. It covers small dense systems, product manifolds, stable active
+bounds, exact robust optimality, shared/batched context parameters, terminal
+quaternion-representative rejection at absolute pi, and strict invalid-batch rejection.
+A small banded forward may use a capped dense backward only by explicit
+configuration; matrix-free/true banded backward, returned
+per-element gradient-quality metadata, stable named binding for item weights
+and kernel scales, direct ModelValues reconstruction, and generic custom-kernel
+nonsmoothness declarations remain gaps. Contract rows describing those inputs
+are targets, not shipped guarantees, until their named tests land.
 
 Three input roles are distinct:
 
@@ -145,7 +156,7 @@ parameter of that solution. The role is declared, never inferred from
 
 ### Guaranteed inputs
 
-| Input category | Direct Torch problem evaluation | Future implicit solve |
+| Input category | Direct Torch problem evaluation | Implicit solve contract |
 |---|---|---|
 | Active optimized `Values` blocks | First-order residual, objective, and Jacobian derivatives in local tangent coordinates | The returned optimum accepts a cotangent, but there is no implicit gradient to the initial guess; the trajectory is intentionally ignored |
 | Continuous external `ModelValues` such as placements and inertias | First order when the field is declared differentiable and used by the evaluated path | First order when explicitly enumerated by `Problem` |
@@ -179,7 +190,7 @@ Guarantees are per path, not implied by “PyTorch-native”:
 | M2 tangent-autograd helper and AD-generated Jacobian blocks | Required for active optimized blocks and declared external tensors | `create_graph=True` must retain a usable graph on the Torch lane; numerical correctness is guaranteed only for residuals/operations with a named gradgrad test |
 | Continuous `ModelValues` | Required according to the per-input matrix above | Not guaranteed unless a named path has gradgrad coverage |
 | Custom residual/provider code | First order is a declared capability and must be tested | Opt-in capability; unsupported `create_graph=True` raises instead of returning detached blocks |
-| Future implicit solve | First order to declared external tensor parameters, on the Torch lane | Not part of the initial M6 contract |
+| Dense implicit `solve` | First order to declared external tensor parameters, on the Torch lane | Not part of the initial M6 contract |
 | Future unrolled solve | Not a stable public guarantee; see below | Not guaranteed |
 | Warp custom-op path | Required only after Torch-lane parity and gradcheck | Recompute the Torch VJP in backward and pass public gradgradcheck before promotion |
 
@@ -193,15 +204,16 @@ or discrete mask/topology changes.
 
 ### Solver differentiation modes
 
-The names below describe frozen semantics; their final API spelling is not yet
-public.
+The names below describe frozen semantics. The public generic LM/GN spelling is
+`solve(..., differentiate="detached"|"implicit")`; `run(...)` is always
+detached.
 
 1. **Detached (default).** `run` does not retain an iteration graph. Loop-carry
    values, accepted-state artifacts, warm starts, and returned state are
    detached, while local autograd may still be used to construct one
    iteration's derivatives. Backpropagating through the returned solution is
    unsupported and must not appear to succeed with stale graph fragments.
-2. **Implicit (future explicit opt-in).** M6 differentiates the robustified
+2. **Implicit (explicit opt-in).** The shipped dense mode differentiates the robustified
    tangent-space optimality/KKT system at the terminal solution with a custom
    backward. The forward trajectory is not retained. This mode returns
    first-order gradients only to the declared external tensor parameters; it
@@ -243,8 +255,9 @@ but it must preserve the non-converged status alongside that result.
 
 ### Requirements on M2 problem and solver state
 
-M2b must preserve the following shape and graph-lifetime properties even
-though it does not implement implicit backward:
+The solver state preserves the following shape and graph-lifetime properties.
+The shipped dense implicit backward consumes them; remaining M6 work must not
+weaken them:
 
 1. Solver state is a fixed-structure, plain tensor pytree. Every per-element
    mutable field carries the full leading batch shape `B...`; a shared

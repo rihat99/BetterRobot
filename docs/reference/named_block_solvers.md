@@ -60,6 +60,29 @@ target-dependent artifacts are recomputed. `run` intentionally has no
 batch-shape, dtype, or device mismatches instead of coercing damping state.
 ````
 
+````{py:method} solve(values, problem, state=None, *, differentiate="detached", implicit_config=None) -> tuple[Values, LMState]
+:canonical: better_robot.optim.LevenbergMarquardt.solve
+
+Use the detached solve by default, or pass `differentiate="implicit"` to
+attach a first-order implicit backward to a converged dense optimum. Only
+explicitly declared external parameters receive gradients; initialization,
+warm state, bounds/masks, and hyperparameters do not. Invalid terminal states,
+unstable active bounds, nonsmooth Huber points, terminal-manifold quaternion
+representatives at the absolute-pi principal-log cut, and singular systems
+raise `ImplicitDifferentiationError` during backward. An optimized input and
+external parameter must not be the same tensor object. `ImplicitDiffConfig`
+controls the dense size cap and the explicit small-banded dense-oracle opt-in.
+
+Principal-log cuts hidden inside arbitrary residual/provider relative-rotation
+code are not automatically certified; their smooth-domain guard remains the
+custom author's responsibility.
+
+Declared differentiable parameters must reach terminal optimality through a
+stable named context read. Object identity with an item weight or kernel
+attribute is not a binding and is rejected as disconnected rather than given a
+silent zero gradient.
+````
+
 `````
 
 ## Gauss–Newton
@@ -74,10 +97,10 @@ This is the fixed-damping preset of the same guarded update, not an independent
 solver loop.
 `````
 
-The `create_graph=True` path is a correctness oracle for a few explicitly
-unrolled steps, not a stable solver-differentiation guarantee. Implicit
-backward, active-set stability checks, and production differentiation through
-a complete solve remain M6 work.
+The `create_graph=True` lifecycle remains an explicitly unrolled correctness
+oracle. It is distinct from `solve(..., differentiate="implicit")`, whose
+forward trajectory is detached and whose custom backward differentiates the
+terminal robust optimality system.
 
 ## Adam
 

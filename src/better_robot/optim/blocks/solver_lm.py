@@ -18,7 +18,7 @@ from enum import IntEnum
 from functools import reduce
 import math
 from operator import mul
-from typing import Literal, NamedTuple
+from typing import Literal, NamedTuple, TypeAlias, cast
 
 import torch
 
@@ -34,9 +34,12 @@ from ..structure import (
     NormalOperator,
 )
 from ._solver_common import _batch_shape, _blend_values
+from .implicit import ImplicitDiffConfig
 from .manifolds import Euclidean, RobotConfig, _joint_coordinate_layout
 from .problem import JacobianStrategy, Problem
 from .variables import Values, detach_values
+
+_ResolvedLinearSolver: TypeAlias = LinearSolver | BandedCholesky | NormalCG | Cholesky
 
 
 class LMStatus(IntEnum):
@@ -458,7 +461,7 @@ def _linearize_model(
             raw = problem._residual_prevalidated(perturbed, batch_shape=batch_shape)
             return raw * row_scale
 
-        _weighted_at_zero, pullback = torch.func.vjp(tangent_residual, zero)
+        _weighted_at_zero, pullback = torch.func.vjp(tangent_residual, zero)  # type: ignore[misc]
 
         def jvp(tangent: torch.Tensor) -> torch.Tensor:
             return torch.func.jvp(tangent_residual, (zero,), (tangent,))[1]
@@ -683,7 +686,7 @@ class LevenbergMarquardt:
             f"systems {sorted(supported)}"
         )
 
-    def _resolved_linear_solver(self, decision: LinearizationDecision) -> LinearSolver:
+    def _resolved_linear_solver(self, decision: LinearizationDecision) -> _ResolvedLinearSolver:
         if self.linear_solver is not None:
             return self.linear_solver
         if decision.used == "banded":
@@ -786,8 +789,9 @@ class LevenbergMarquardt:
                 raise RuntimeError("dense linearization did not produce a dense normal matrix")
             scaled_normal = model.normal * state.scale.unsqueeze(-1) * state.scale.unsqueeze(-2)
             restricted = scaled_normal * movable.unsqueeze(-1) * movable.unsqueeze(-2)
-            system: torch.Tensor | BlockBandedMatrix | NormalOperator = restricted.clone()
-            system.diagonal(dim1=-2, dim2=-1).add_(diagonal)
+            dense_system = restricted.clone()
+            dense_system.diagonal(dim1=-2, dim2=-1).add_(diagonal)
+            system: torch.Tensor | BlockBandedMatrix | NormalOperator = dense_system
         elif decision.used == "banded":
             if not isinstance(model.normal, BlockBandedMatrix):
                 raise RuntimeError("banded linearization did not produce block-banded normal storage")
@@ -800,15 +804,19 @@ class LevenbergMarquardt:
             coordinate = state.scale * movable
             approximate_diagonal = model.normal_diagonal * coordinate.square() + diagonal
             safe_diagonal = approximate_diagonal.clamp_min(torch.finfo(model.gradient.dtype).tiny)
+            time_length = problem.temporal_analysis.time_length
+            reduced_width = problem.temporal_analysis.reduced_width
+            block_shape = (
+                (time_length, reduced_width)
+                if time_length is not None and reduced_width is not None
+                else None
+            )
             system = NormalOperator(
                 size=problem.tangent_dim_total,
                 matvec=lambda vector: coordinate * model.operators.normal_matvec(coordinate * vector)
                 + diagonal * vector,
                 preconditioner=lambda vector: vector / safe_diagonal,
-                block_shape=(
-                    problem.temporal_analysis.time_length,
-                    problem.temporal_analysis.reduced_width,
-                ),
+                block_shape=block_shape,
             )
 
         solver = self._resolved_linear_solver(decision)
@@ -817,7 +825,7 @@ class LevenbergMarquardt:
             initial = state.previous_linear_step if getattr(solver, "supports_initial", False) else None
             result = informative(system, rhs, ridge=None, initial=initial)
         else:
-            raw_step = solver.solve(system, rhs, ridge=None)
+            raw_step = cast(LinearSolver, solver).solve(system, rhs, ridge=None)
             finite = torch.isfinite(raw_step).all(dim=-1)
             if isinstance(system, torch.Tensor):
                 linear_residual = (system @ raw_step.unsqueeze(-1)).squeeze(-1) - rhs
@@ -1171,6 +1179,52 @@ class LevenbergMarquardt:
             implicit_valid=current_state.implicit_valid & ~running,
         )
         return detach_values(current_values), _detach_state(current_state)
+
+    def solve(
+        self,
+        values: Values,
+        problem: Problem,
+        state: LMState | None = None,
+        *,
+        differentiate: Literal["detached", "implicit"] = "detached",
+        implicit_config: ImplicitDiffConfig | None = None,
+    ) -> tuple[Values, LMState]:
+        """Solve with detached semantics by default or an implicit backward.
+
+        ``differentiate="implicit"`` attaches a first-order custom autograd
+        boundary to the detached terminal values. Gradients flow only to
+        external tensors explicitly named by
+        :attr:`Problem.differentiable_external_parameters`; the initial guess,
+        warm-start state, bounds, masks, and solver hyperparameters never
+        receive an implicit gradient. :meth:`run` remains the always-detached
+        compatibility entry point.
+        """
+        if differentiate not in {"detached", "implicit"}:
+            raise ValueError("differentiate must be 'detached' or 'implicit'")
+        if differentiate == "detached" and implicit_config is not None:
+            raise ValueError("implicit_config is only used with differentiate='implicit'")
+
+        if differentiate == "implicit":
+            from .implicit import validate_implicit_input_roles  # noqa: PLC0415
+
+            validate_implicit_input_roles(values, problem)
+
+        terminal_values, terminal_state = self.run(values, problem, state)
+        if differentiate == "detached":
+            return terminal_values, terminal_state
+
+        from .implicit import attach_implicit_gradients  # noqa: PLC0415
+
+        decision = self.resolve_linearization(problem)
+        differentiable_values = attach_implicit_gradients(
+            terminal_values,
+            terminal_state,
+            problem,
+            default_kernel=self.kernel,
+            forward_linearization=decision.used,
+            config=implicit_config,
+        )
+        return differentiable_values, terminal_state
 
 
 @dataclass(frozen=True)

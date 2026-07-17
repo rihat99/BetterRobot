@@ -1,5 +1,10 @@
 # M6 — Warp Fast Path & CUDA Graphs: Agent Execution Instructions
 
+> **Implementation log (2026-07-17):** The CUDA gate failed (zero devices;
+> driver unavailable), so all GPU/kernel/capture/benchmark tasks remain open.
+> A conservative dense Torch-lane implicit `solve` subset landed; its remaining
+> contract gaps are recorded in `m6_results.md`.
+
 > Read `plan/for_agents/README.md` first. It carries the standing rules
 > (deletion ordering, honesty rules, the five kernel requirements, test
 > commands). Standing rules 4 (committed benchmark definitions), 6 (every
@@ -21,10 +26,12 @@ owner — is each kernel's **default-on** switch, per (device, dtype).
 
 ## Prerequisite gate: a real CUDA GPU box
 
-**Nothing in this milestone can be validated on the current dev box.**
-Verified 2026-07-17 on this machine: `torch 2.11.0+cu130` reports
-`torch.cuda.is_available() == False` (driver 12060 is too old for the
-installed torch CUDA build) and `warp` is not installed in the repo venv.
+**Nothing GPU-specific in this milestone can be validated on the current dev
+box.** Reverified 2026-07-17 after the dependency refresh: Torch is
+`2.13.0+cu126` (`torch.version.cuda == "12.6"`) but reports
+`torch.cuda.is_available() == False` and zero devices; `nvidia-smi` cannot
+communicate with an NVIDIA driver. Warp `1.15.0` is installed and, with an
+isolated writable cache, reports toolkit 12.9 but no CUDA driver/device.
 Warp-CPU (embedded Clang, single-threaded serial grid loop —
 `audit_warp_platform.md §3.2`) compiles kernels and adjoints and is a
 legitimate **correctness/parity vehicle for prototyping**, but it

@@ -159,9 +159,31 @@ retains damping but refreshes target-dependent evaluation artifacts.
 For the explicit small-problem unrolled oracle, pass `create_graph=True` to
 `init_state`, each `update`, and `finalize`. The default calls do not retain
 the Jacobian graph; `run` has no graph-preserving mode and always returns
-detached values/state. This oracle is a differentiation regression aid, not a
-stable implicit solver backward. M6 owns active-set validity and implicit
-differentiation through a complete solve.
+detached values/state. This oracle is distinct from
+`solve(..., differentiate="implicit")`: the latter attaches a first-order
+custom backward to the detached terminal solution, recomputes the exact robust
+tangent Hessian, maps manifold output cotangents, and strictly rejects invalid
+batch elements, unstable active sets, Huber kinks, terminal-manifold quaternion
+representatives at the absolute-pi principal-log cut, and singular systems.
+Only declared external parameters receive gradients; initialization and static
+solver/problem configuration do not. One tensor object cannot occupy both an
+optimized and external-parameter role.
+
+Implicit v1 is a capped dense CPU/Torch correctness path. Matrix-free backward
+is rejected; a small banded forward needs an explicit dense-oracle opt-in.
+True banded/operator backward, direct ModelValues reconstruction, stable named
+item-weight/kernel-scale binding, generic custom-kernel nonsmoothness, and
+returned gradient-quality metadata are deferred. Never raise the dense cap for
+a long trajectory merely to bypass the structured guard.
+
+Never infer an implicit parameter binding from tensor object identity. Item
+weights and kernel tensor attributes remain static until a named binding
+exists; a declared differentiable parameter that does not reach terminal
+optimality must raise as disconnected rather than receive a silent zero.
+
+The terminal quaternion check cannot discover a principal-log cut inside
+arbitrary residual/provider relative-rotation code. Custom authors own that
+smooth-domain guard until residual-level declarations exist.
 
 Warm-start damping is reusable only when batch shape, dtype, and device match
 exactly. `mu_min` is strictly positive, and a factorization that keeps failing

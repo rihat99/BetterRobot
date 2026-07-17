@@ -206,8 +206,8 @@ def _cycle_path(dependencies: Mapping[str, tuple[str, ...]]) -> tuple[str, ...] 
 class Problem:
     """A product-manifold problem with named residual/provider dependencies.
 
-    External differentiable tensors must be enumerated in ``parameters`` so a
-    future implicit solve can recover a stable tensor pytree. Arbitrary tensor
+    External differentiable tensors must be enumerated in ``parameters`` so an
+    implicit solve can recover a stable tensor pytree. Arbitrary tensor
     attributes hidden inside residual objects are static configuration, not a
     differentiation contract.
     """
@@ -1072,7 +1072,7 @@ class Problem:
 
     @property
     def differentiable_external_parameters(self) -> Mapping[str, torch.Tensor]:
-        """The explicitly declared future implicit-gradient parameter pytree."""
+        """The explicitly declared implicit-gradient parameter pytree."""
         return MappingProxyType(
             {name: self.parameters[name] for name in self.parameters if name in self.parameter_gradients}
         )

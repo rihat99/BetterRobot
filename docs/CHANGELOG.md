@@ -5,6 +5,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- **Opt-in implicit LM/GN differentiation.** Generic named-block solvers add
+  `solve(..., differentiate="implicit")` for first-order gradients to declared
+  external context tensors. The backward recomputes the exact robust
+  tangent/KKT system, supports product manifolds and stable active bounds, and
+  strictly rejects invalid batches, Huber kinks, terminal quaternion
+  representatives at absolute pi, tensor-role identity collisions, and singular systems. Dense size is
+  capped; structured/operator backward and direct ModelValues/weight rebinding
+  remain explicit gaps.
 - **Structured trajectory optimization.** Named-block variables may declare
   `time_axis=0`; temporal residuals expose `TemporalPattern` plus exact local
   Jacobian blocks. LM routes between dense Cholesky, block-banded

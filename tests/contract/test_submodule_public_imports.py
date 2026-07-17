@@ -70,6 +70,8 @@ SUBMODULE_PATHS: list[tuple[str, str]] = [
     ("better_robot.optim", "ResidualItem"),
     ("better_robot.optim", "ObjectiveItem"),
     ("better_robot.optim", "RobotStateProvider"),
+    ("better_robot.optim", "ImplicitDiffConfig"),
+    ("better_robot.optim", "ImplicitDifferentiationError"),
     ("better_robot.optim", "detach_values"),
     ("better_robot.optim", "Adam"),
     ("better_robot.optim", "AdamState"),

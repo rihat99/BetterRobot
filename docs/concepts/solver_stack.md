@@ -141,8 +141,47 @@ values, state = solver.run(values, problem)
 For a small explicit unrolled-differentiation oracle, pass
 `create_graph=True` to `init_state`, every `update`, and `finalize`. The
 default path does not retain the Jacobian graph, and `run` is intentionally
-always detached. This oracle is not the stable implicit solver backward;
-active-set validity and implicit differentiation remain M6 work.
+always detached. For an implicit gradient of a converged optimum with respect
+to explicitly declared external parameters, opt in separately:
+
+```python
+values, state = solver.solve(
+    values,
+    problem,
+    differentiate="implicit",
+)
+loss = values["q"].square().sum()
+loss.backward()
+```
+
+The forward iterations remain detached; there is no gradient to the initial
+guess, warm-start state, bounds/masks, or solver hyperparameters. Backward
+recomputes the exact robust tangent optimality system, maps ambient output
+cotangents through each manifold retraction, eliminates stable active-bound
+coordinates, and uses undamped Cholesky or a verified full-rank least-squares
+solve. Any invalid element, unstable active set, Huber kink, nonfinite system,
+terminal-manifold quaternion representative at the absolute-pi principal-log
+cut, or singular system raises `ImplicitDifferentiationError` for the whole batch. The same tensor object
+cannot be both an optimized input and an external parameter. The custom
+backward is first-order only.
+
+This initial implementation has an explicit dense-size cap (512 tangent
+coordinates by default). Matrix-free backward is rejected. A small banded
+forward may opt into the same capped dense correctness oracle with
+`ImplicitDiffConfig(allow_banded_dense_backward=True)`; this is not a true
+structured backward and long trajectories are never silently densified.
+Declared context parameters are the stable supported input path. Direct
+ModelValues reconstruction, named item-weight/kernel-scale binding, generic
+custom-kernel kink declarations, and returned per-element gradient-quality
+metadata remain follow-up work. Item/kernel object identity is not a binding;
+a declared differentiable parameter disconnected from terminal optimality is
+rejected instead of receiving a silent zero gradient.
+
+The terminal-representative check cannot inspect arbitrary residual/provider
+code. A relative-rotation `log` can therefore have its own principal branch
+point even when the optimized quaternion is near identity; custom residual
+authors must reject or avoid such points until residual-level smoothness
+declarations exist.
 
 `LMState` is a fixed-structure pytree containing tensors only. Cost, damping,
 gain ratio, accept/reject effects, factorization health, KKT measures, status,

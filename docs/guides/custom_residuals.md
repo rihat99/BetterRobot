@@ -115,9 +115,20 @@ detached selection, as the slice does for signed distance.
 External differentiable tensors such as targets, tensor weights, and kernel
 scales belong in `Problem(parameters={...},
 differentiable_parameters=(...names...))`. The second argument is an explicit
-future implicit-gradient declaration; BetterRobot never guesses it from
-`requires_grad`. Hidden residual attributes are static configuration and are
-not promised an implicit gradient.
+implicit-gradient declaration; BetterRobot never guesses it from
+`requires_grad`. The currently supported stable route is to read the named
+tensor from the residual/provider context. Full named rebinding for a
+`ResidualItem.weight`, a kernel-scale attribute, or `ModelValues` reconstruction
+is still a gap; put a differentiable scale inside a residual that reads it by
+name rather than hiding it on the object. Object identity is never used as a
+binding: declaring the same tensor separately in `Problem.parameters` raises a
+disconnected-parameter error in backward. Hidden residual attributes are
+static configuration and are not promised an implicit gradient.
+
+Implicit support also requires local smoothness at the terminal point. The
+built-in dense backward rejects Huber's kink. A custom robust kernel has no
+automatic kink discovery yet, so its implicit use remains the author's
+responsibility and is not a shipped guarantee without a named test.
 
 ## 5. Signal per-element invalidity without killing the batch
 

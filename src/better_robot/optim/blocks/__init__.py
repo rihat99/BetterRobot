@@ -14,6 +14,8 @@ from ..structure import LinearizationReason as LinearizationReason
 from ..structure import LinearSystemKind as LinearSystemKind
 from ..structure import NormalOperator as NormalOperator
 from ..structure import TemporalAnalysis as TemporalAnalysis
+from .implicit import ImplicitDiffConfig as ImplicitDiffConfig
+from .implicit import ImplicitDifferentiationError as ImplicitDifferentiationError
 from .manifolds import (
     Bounds as Bounds,
     Euclidean as Euclidean,

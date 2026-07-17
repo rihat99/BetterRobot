@@ -19,6 +19,8 @@ from .blocks import (
     Bounds,
     Euclidean,
     GaussNewton,
+    ImplicitDiffConfig,
+    ImplicitDifferentiationError,
     LevenbergMarquardt,
     LMState,
     LMStatus,
@@ -88,6 +90,8 @@ __all__ = [
     "AdamStatus",
     "LevenbergMarquardt",
     "GaussNewton",
+    "ImplicitDiffConfig",
+    "ImplicitDifferentiationError",
     "LMState",
     "LMStatus",
 ]
