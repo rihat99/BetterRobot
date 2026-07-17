@@ -164,49 +164,54 @@ class SE3Manifold:
             raise ValueError(_GROUP_BOUNDS_ERROR.format(kind="SE3", bounds=bounds, name=name))
 
 
-def _joint_box_mask(joint) -> torch.Tensor:
-    """Return which state coordinates of one joint admit box projection."""
-    kind = joint.kind
-    if joint.nq == 0:
-        result = torch.zeros(0, dtype=torch.bool)
-    elif kind == "free_flyer":
-        result = torch.tensor([True, True, True, False, False, False, False])
-    elif kind == "spherical":
-        result = torch.zeros(4, dtype=torch.bool)
-    elif kind == "planar":
-        result = torch.tensor([True, True, False, False])
-    elif kind == "revolute_unbounded":
-        result = torch.zeros(2, dtype=torch.bool)
-    elif kind == "composite":
-        parts = [_joint_box_mask(child) for child in joint.sub_joints]
-        result = torch.cat(parts) if parts else torch.zeros(0, dtype=torch.bool)
-    elif kind.startswith(("revolute", "prismatic")) or kind in {"helical", "translation"}:
-        result = torch.ones(joint.nq, dtype=torch.bool)
-    else:
-        # An out-of-tree manifold is not assumed box-projectable merely because
-        # nq == nv. Its coordinates stay unconstrained until it declares semantics.
-        result = torch.zeros(joint.nq, dtype=torch.bool)
-    return result
+@dataclass(frozen=True)
+class _JointCoordinateLayout:
+    """Static relationships between one joint's q and tangent coordinates."""
+
+    box_mask: tuple[bool, ...]
+    unit_ranges: tuple[tuple[int, int], ...]
+    q_for_v: tuple[int, ...]
+    unsafe_q: tuple[int, ...]
 
 
-def _joint_unit_ranges(joint, offset: int = 0) -> tuple[tuple[int, int], ...]:
-    """Return local q-coordinate ranges that must have unit Euclidean norm."""
+def _joint_coordinate_layout(joint) -> _JointCoordinateLayout:
+    """Describe box, normalization, and tangent mapping semantics for one joint."""
     kind = joint.kind
-    if kind == "free_flyer":
-        return ((offset + 3, offset + 7),)
-    if kind == "spherical":
-        return ((offset, offset + 4),)
-    if kind in {"planar", "revolute_unbounded"}:
-        start = offset + (2 if kind == "planar" else 0)
-        return ((start, start + 2),)
     if kind == "composite":
-        ranges: list[tuple[int, int]] = []
-        child_offset = offset
+        box_mask: list[bool] = []
+        unit_ranges: list[tuple[int, int]] = []
+        q_for_v: list[int] = []
+        unsafe_q: list[int] = []
+        q_offset = 0
         for child in joint.sub_joints:
-            ranges.extend(_joint_unit_ranges(child, child_offset))
-            child_offset += child.nq
-        return tuple(ranges)
-    return ()
+            child_layout = _joint_coordinate_layout(child)
+            box_mask.extend(child_layout.box_mask)
+            unit_ranges.extend((q_offset + start, q_offset + stop) for start, stop in child_layout.unit_ranges)
+            q_for_v.extend(q_offset + index if index >= 0 else -1 for index in child_layout.q_for_v)
+            unsafe_q.extend(q_offset + index for index in child_layout.unsafe_q)
+            q_offset += child.nq
+        return _JointCoordinateLayout(tuple(box_mask), tuple(unit_ranges), tuple(q_for_v), tuple(unsafe_q))
+
+    box_mask = (False,) * joint.nq
+    unit_ranges = ()
+    q_for_v = (-1,) * joint.nv
+    unsafe_q = ()
+    if kind == "free_flyer":
+        box_mask = (True, True, True, False, False, False, False)
+        unit_ranges = ((3, 7),)
+        unsafe_q = (0, 1, 2)
+    elif kind == "spherical":
+        unit_ranges = ((0, 4),)
+    elif kind == "planar":
+        box_mask = (True, True, False, False)
+        unit_ranges = ((2, 4),)
+        q_for_v = (0, 1, -1)
+    elif kind == "revolute_unbounded":
+        unit_ranges = ((0, 2),)
+    elif kind.startswith(("revolute", "prismatic")) or kind in {"helical", "translation"}:
+        box_mask = (True,) * joint.nq
+        q_for_v = tuple(range(joint.nv))
+    return _JointCoordinateLayout(box_mask, unit_ranges, q_for_v, unsafe_q)
 
 
 @dataclass(frozen=True)
@@ -236,7 +241,7 @@ class RobotConfig:
             strict=True,
         ):
             if nq_joint:
-                mask[iq : iq + nq_joint] = _joint_box_mask(joint)
+                mask[iq : iq + nq_joint] = torch.tensor(_joint_coordinate_layout(joint).box_mask)
         return mask
 
     @property
@@ -250,7 +255,7 @@ class RobotConfig:
             strict=True,
         ):
             if nq_joint:
-                ranges.extend(_joint_unit_ranges(joint, iq))
+                ranges.extend((iq + start, iq + stop) for start, stop in _joint_coordinate_layout(joint).unit_ranges)
         return tuple(slice(start, stop) for start, stop in ranges)
 
     def validate_bounds(self, bounds: Bounds | None, *, name: str) -> None:

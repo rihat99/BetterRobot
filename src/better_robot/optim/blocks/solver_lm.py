@@ -26,7 +26,7 @@ from ..kernels.base import RobustKernel
 from ..solvers import Cholesky
 from ..solvers.base import LinearSolver
 from ._solver_common import _batch_shape, _blend_values
-from .manifolds import Euclidean, RobotConfig
+from .manifolds import Euclidean, RobotConfig, _joint_coordinate_layout
 from .problem import JacobianStrategy, Problem
 from .variables import Values, detach_values
 
@@ -178,36 +178,7 @@ def _detach_state(state: LMState) -> LMState:
     return LMState(*(tensor.detach() for tensor in state))
 
 
-def _joint_q_for_v(joint) -> tuple[tuple[int, ...], tuple[int, ...]]:
-    """Return local q indices for tangent axes and unsafe free-flyer q axes."""
-    mapping = [-1] * joint.nv
-    unsafe: list[int] = []
-    kind = joint.kind
-    if kind == "free_flyer":
-        unsafe.extend((0, 1, 2))
-    elif kind == "planar":
-        mapping[:2] = (0, 1)
-    elif kind == "composite":
-        q_offset = 0
-        v_offset = 0
-        for child in joint.sub_joints:
-            child_mapping, child_unsafe = _joint_q_for_v(child)
-            for local_v, local_q in enumerate(child_mapping):
-                if local_q >= 0:
-                    mapping[v_offset + local_v] = q_offset + local_q
-            unsafe.extend(q_offset + index for index in child_unsafe)
-            q_offset += child.nq
-            v_offset += child.nv
-    elif (
-        kind.startswith("prismatic")
-        or (kind.startswith("revolute") and kind != "revolute_unbounded")
-        or kind in {"helical", "translation"}
-    ):
-        mapping[:] = range(joint.nv)
-    return tuple(mapping), tuple(unsafe)
-
-
-def _static_layout(  # noqa: PLR0912 - dispatches the finite supported manifold layouts
+def _static_layout(  # noqa: PLR0912 - handles the finite supported variable layouts
     values: Values,
     problem: Problem,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -258,11 +229,11 @@ def _static_layout(  # noqa: PLR0912 - dispatches the finite supported manifold 
             ):
                 if nq_joint == 0 and nv_joint == 0:
                     continue
-                local_mapping, local_unsafe = _joint_q_for_v(joint)
-                for local_v, local_q in enumerate(local_mapping):
+                layout = _joint_coordinate_layout(joint)
+                for local_v, local_q in enumerate(layout.q_for_v):
                     if local_q >= 0:
                         q_for_v[iv + local_v] = iq + local_q
-                unsafe_q.extend(iq + index for index in local_unsafe)
+                unsafe_q.extend(iq + index for index in layout.unsafe_q)
             if spec.bounds is not None and unsafe_q:
                 unsafe = torch.tensor(unsafe_q, dtype=torch.long, device=exemplar.device)
                 unsafe_finite = torch.isfinite(spec.bounds.lower.index_select(0, unsafe)) | torch.isfinite(
