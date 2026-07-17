@@ -105,6 +105,8 @@ def test_temporal_pattern_and_time_axis_validate_static_contracts() -> None:
         VarSpec("x", (3, 2), time_axis=True)
     with pytest.raises(ValueError, match="must be 0 or None"):
         VarSpec("x", (3, 2), time_axis=1)
+    with pytest.raises(ValueError, match="non-empty event shape"):
+        VarSpec("x", (), time_axis=0)
 
 
 def test_cached_analysis_keeps_zero_weight_and_distinguishes_operator_direct() -> None:

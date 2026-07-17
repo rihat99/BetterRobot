@@ -70,6 +70,8 @@ class VarSpec:
                     f"VarSpec {self.name!r} M5 time_axis must be 0 or None; "
                     "transpose the event layout so time is leading"
                 )
+            if not self.shape:
+                raise ValueError(f"VarSpec {self.name!r} time_axis=0 requires a non-empty event shape")
             time_length = self.shape[0]
             if tangent_dim % time_length:
                 raise ValueError(
