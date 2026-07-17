@@ -6,6 +6,7 @@ See ``docs/concepts/parsers_and_ir.md §3`` for the 10 responsibilities.
 from __future__ import annotations
 
 import heapq
+from dataclasses import dataclass
 
 import torch
 
@@ -53,6 +54,29 @@ _SUPPORTED_MIMIC_JOINTS = (
     JointPrismaticUnaligned,
     JointHelical,
 )
+
+
+@dataclass(frozen=True, slots=True)
+class _MimicReduction:
+    """Named build-time result for reduced mimic coordinates."""
+
+    nqs: tuple[int, ...]
+    nvs: tuple[int, ...]
+    idx_qs: tuple[int, ...]
+    idx_vs: tuple[int, ...]
+    nq: int
+    nv: int
+    q_expansion: torch.Tensor
+    q_offset: torch.Tensor
+    v_expansion: torch.Tensor
+    lower_pos_limit: torch.Tensor
+    upper_pos_limit: torch.Tensor
+    velocity_limit: torch.Tensor
+    effort_limit: torch.Tensor
+    rotor_inertia: torch.Tensor
+    armature: torch.Tensor
+    friction: torch.Tensor
+    damping: torch.Tensor
 
 
 def _check_topology_invariants(
@@ -135,25 +159,7 @@ def _build_mimic_reduction(  # noqa: PLR0912, PLR0913, PLR0915 - one build-time 
     armature_full: torch.Tensor,
     friction_full: torch.Tensor,
     damping_full: torch.Tensor,
-) -> tuple[
-    tuple[int, ...],
-    tuple[int, ...],
-    tuple[int, ...],
-    tuple[int, ...],
-    int,
-    int,
-    torch.Tensor,
-    torch.Tensor,
-    torch.Tensor,
-    torch.Tensor,
-    torch.Tensor,
-    torch.Tensor,
-    torch.Tensor,
-    torch.Tensor,
-    torch.Tensor,
-    torch.Tensor,
-    torch.Tensor,
-]:
+) -> _MimicReduction:
     """Build public layouts, affine maps, and reduced scalar limits."""
 
     for target in mimic_targets:
@@ -291,24 +297,24 @@ def _build_mimic_reduction(  # noqa: PLR0912, PLR0913, PLR0915 - one build-time 
         friction[reduced_iv] = friction[reduced_iv] + absolute_scale * friction_full[full_iv]
         damping[reduced_iv] = damping[reduced_iv] + scale**2 * damping_full[full_iv]
 
-    return (
-        public_nqs,
-        public_nvs,
-        public_idx_qs,
-        public_idx_vs,
-        nq,
-        nv,
-        q_expansion,
-        q_offset_full,
-        v_expansion,
-        lower,
-        upper,
-        velocity,
-        effort,
-        rotor,
-        armature,
-        friction,
-        damping,
+    return _MimicReduction(
+        nqs=public_nqs,
+        nvs=public_nvs,
+        idx_qs=public_idx_qs,
+        idx_vs=public_idx_vs,
+        nq=nq,
+        nv=nv,
+        q_expansion=q_expansion,
+        q_offset=q_offset_full,
+        v_expansion=v_expansion,
+        lower_pos_limit=lower,
+        upper_pos_limit=upper,
+        velocity_limit=velocity,
+        effort_limit=effort,
+        rotor_inertia=rotor,
+        armature=armature,
+        friction=friction,
+        damping=damping,
     )
 
 
@@ -807,25 +813,7 @@ def build_model(
 
     mimic_source = tuple(mimic_src_list)
 
-    (
-        nqs,
-        nvs,
-        idx_qs,
-        idx_vs,
-        nq_total,
-        nv_total,
-        q_expansion,
-        q_offset,
-        v_expansion,
-        lower_pos_limit,
-        upper_pos_limit,
-        velocity_limit,
-        effort_limit,
-        rotor_inertia,
-        armature,
-        friction,
-        damping,
-    ) = _build_mimic_reduction(
+    mimic_reduction = _build_mimic_reduction(
         joint_models=joint_models,
         joint_names=joint_names,
         mimic_source=mimic_source,
@@ -845,6 +833,23 @@ def build_model(
         friction_full=friction,
         damping_full=damping,
     )
+    nqs = mimic_reduction.nqs
+    nvs = mimic_reduction.nvs
+    idx_qs = mimic_reduction.idx_qs
+    idx_vs = mimic_reduction.idx_vs
+    nq_total = mimic_reduction.nq
+    nv_total = mimic_reduction.nv
+    q_expansion = mimic_reduction.q_expansion
+    q_offset = mimic_reduction.q_offset
+    v_expansion = mimic_reduction.v_expansion
+    lower_pos_limit = mimic_reduction.lower_pos_limit
+    upper_pos_limit = mimic_reduction.upper_pos_limit
+    velocity_limit = mimic_reduction.velocity_limit
+    effort_limit = mimic_reduction.effort_limit
+    rotor_inertia = mimic_reduction.rotor_inertia
+    armature = mimic_reduction.armature
+    friction = mimic_reduction.friction
+    damping = mimic_reduction.damping
 
     # ── 15. q_neutral ─────────────────────────────────────────────────────────
     neutral_parts: list[torch.Tensor] = []
