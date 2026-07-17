@@ -178,6 +178,39 @@ def test_rnea_batched(panda_both):
         assert torch.allclose(tau_batch[k], tau_k, atol=1e-12), f"mismatch at batch {k}"
 
 
+def test_rnea_full_fp32_matches_pinocchio(panda_both):
+    """Full RNEA has an explicit fp32 parity band, separate from fp64."""
+    br_model_fp64, pin_model, pin_data, _ = panda_both
+    br_model = br_model_fp64.to(dtype=torch.float32)
+    qs = sample_panda_q(n=4, seed=50).to(torch.float32)
+
+    for i, q in enumerate(qs):
+        v = _random_v(br_model.nv, seed=60 + i).to(torch.float32)
+        a = _random_v(br_model.nv, seed=70 + i).to(torch.float32)
+        tau_br = (
+            br.rnea(
+                br_model,
+                br_model.create_data(),
+                q,
+                v,
+                a,
+            )
+            .detach()
+            .double()
+            .numpy()
+        )
+        tau_pin = np.asarray(
+            pin.rnea(
+                pin_model,
+                pin_data,
+                q.double().numpy(),
+                v.double().numpy(),
+                a.double().numpy(),
+            )
+        )
+        np.testing.assert_allclose(tau_br, tau_pin, atol=2e-5, rtol=1e-4)
+
+
 def test_rnea_autograd_runs(panda_both):
     """Smoke: backward through RNEA closes without inf/nan."""
     br_model, _, _, _ = panda_both
