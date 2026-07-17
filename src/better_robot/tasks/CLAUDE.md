@@ -11,6 +11,7 @@ Tasks are thin facades. No Jacobian code, no solver loops, no branching for fixe
 | `solve_ik` | Implemented |
 | `solve_trajopt` | Implemented with `KnotTrajectory`; non-knot robot parameterisations are gated until M5 |
 | `Trajectory` | Implemented (`with_batch_dims`, `slice`, `resample(linear|sclerp)`, `downsample`, `to_data`) |
+| `smooth_trajectory` | Implemented for batched quaternion and SE3 pose trajectories with explicit kernels |
 
 ## solve_ik
 
@@ -31,3 +32,4 @@ Flattens a `(T, nq)` knot trajectory into a `LeastSquaresProblem` vector and ins
 - `resample(new_t, kind="linear"|"sclerp")` — manifold-aware quaternion resampling on indices `[3:7]` when `kind="sclerp"`
 - `downsample(factor)` — every Nth sample along the time axis
 - `to_data(model)` — batched `Data` with FK populated, batch dim = T·B
+- `smooth_trajectory(traj, kernel, kind="auto"|"so3"|"se3")` — batched manifold kernel mean via SLERP / ScLERP

@@ -106,6 +106,7 @@ src/better_robot/
 ├── _typing.py                     # jaxtyping-style shape annotations
 │
 ├── lie/                           # SE3 / SO3 functional + typed wrappers
+│   ├── alignment.py                 # weighted batched Umeyama fit
 │   ├── se3.py
 │   ├── so3.py
 │   ├── tangents.py                # Jr / Jl, hat / vee, BCH helpers
@@ -172,6 +173,7 @@ src/better_robot/
 ├── tasks/
 │   ├── ik.py                      # solve_ik
 │   ├── trajopt.py                 # solve_trajopt
+│   ├── smoothing.py               # quaternion / SE3 kernel smoothing
 │   ├── trajectory.py              # Trajectory dataclass
 │   └── parameterization.py        # Knot / BSpline
 │

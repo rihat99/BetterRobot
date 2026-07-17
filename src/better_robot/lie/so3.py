@@ -63,6 +63,61 @@ def to_matrix(q: torch.Tensor) -> torch.Tensor:
     return _impl.so3_to_matrix(q)
 
 
+def from_euler(euler: torch.Tensor) -> torch.Tensor:
+    """Convert extrinsic XYZ Euler angles to a unit quaternion.
+
+    ``euler[..., :]`` is ``[roll, pitch, yaw]`` in radians.  The rotations
+    are active and extrinsic XYZ (equivalently intrinsic ZYX), so the
+    resulting matrix is ``Rz(yaw) @ Ry(pitch) @ Rx(roll)``.  The returned
+    quaternion is scalar-last ``[qx, qy, qz, qw]``.
+
+    This is the fixed library convention; the function deliberately does
+    not accept other axis orders.  See :func:`to_euler` for the inverse and
+    its gimbal-lock behaviour.
+    """
+    if euler.shape[-1:] != (3,):
+        raise ValueError(f"euler must have shape (..., 3); got {tuple(euler.shape)}")
+
+    half = euler * torch.full_like(euler, 0.5)
+    roll, pitch, yaw = half.unbind(dim=-1)
+    sr, cr = torch.sin(roll), torch.cos(roll)
+    sp, cp = torch.sin(pitch), torch.cos(pitch)
+    sy, cy = torch.sin(yaw), torch.cos(yaw)
+
+    qx = sr * cp * cy - cr * sp * sy
+    qy = cr * sp * cy + sr * cp * sy
+    qz = cr * cp * sy - sr * sp * cy
+    qw = cr * cp * cy + sr * sp * sy
+    return torch.stack((qx, qy, qz, qw), dim=-1)
+
+
+def to_euler(q: torch.Tensor) -> torch.Tensor:
+    """Convert a unit quaternion to extrinsic XYZ Euler angles.
+
+    Returns ``[..., (roll, pitch, yaw)]`` in radians for the same active
+    convention as :func:`from_euler`: ``Rz(yaw) @ Ry(pitch) @ Rx(roll)``.
+    The principal branch has roll/yaw in ``[-pi, pi]`` and pitch in
+    ``[-pi/2, pi/2]``.  As with every Euler representation, roll and yaw
+    are not individually identifiable at pitch ``+/- pi/2``.
+    """
+    if q.shape[-1:] != (4,):
+        raise ValueError(f"q must have shape (..., 4); got {tuple(q.shape)}")
+
+    q = normalize(q)
+    qx, qy, qz, qw = q.unbind(dim=-1)
+    roll = torch.atan2(
+        2.0 * (qw * qx + qy * qz),
+        1.0 - 2.0 * (qx.square() + qy.square()),
+    )
+    sin_pitch = 2.0 * (qw * qy - qz * qx)
+    pitch = torch.asin(sin_pitch.clamp(-1.0, 1.0))
+    yaw = torch.atan2(
+        2.0 * (qw * qz + qx * qy),
+        1.0 - 2.0 * (qy.square() + qz.square()),
+    )
+    return torch.stack((roll, pitch, yaw), dim=-1)
+
+
 def from_axis_angle(axis: torch.Tensor, angle: torch.Tensor) -> torch.Tensor:
     """Unit quaternion from axis-angle. axis: (...,3) unit, angle: (...,) → (...,4)."""
     return _impl.so3_from_axis_angle(axis, angle)

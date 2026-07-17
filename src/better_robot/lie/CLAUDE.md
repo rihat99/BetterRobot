@@ -21,7 +21,8 @@ The pure-Torch SE3/SO3 implementation lives in `_impl.py`; PyPose was removed in
 
 ## Modules
 
-- `se3.py` — `compose`, `inverse`, `log`, `exp`, `act`, `adjoint`, `from_axis_angle`, `from_translation`, `normalize`, `sclerp`
-- `so3.py` — same pattern + `from_matrix`, `to_matrix`, `slerp`
+- `se3.py` — `compose`, `inverse`, `log`, `exp`, `act`, `adjoint`, `from_matrix`, `to_matrix`, `from_axis_angle`, `from_translation`, `normalize`, `sclerp`
+- `so3.py` — same pattern + fixed-convention `from_euler` / `to_euler`, `from_matrix`, `to_matrix`, `slerp`
+- `alignment.py` — weighted, batched `umeyama` similarity-transform fitting with a proper-rotation reflection fix
 - `tangents.py` — right/left Jacobians of SO3/SE3 exp/log, `hat`/`vee` maps
 - `_impl.py` — direct pure-Torch implementation

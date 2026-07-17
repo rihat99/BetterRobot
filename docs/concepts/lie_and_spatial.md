@@ -89,13 +89,18 @@ def exp(v)               -> torch.Tensor:   # (..., 6) → (..., 7)
 def act(t, p)            -> torch.Tensor:   # (..., 7), (..., 3) → (..., 3)
 def adjoint(t)           -> torch.Tensor:   # (..., 7) → (..., 6, 6)
 def adjoint_inv(t)       -> torch.Tensor:   # faster than inv(adjoint(...))
+def from_matrix(m)       -> torch.Tensor:   # (..., 4, 4) → (..., 7)
+def to_matrix(t)         -> torch.Tensor:   # (..., 7) → (..., 4, 4)
 def from_axis_angle(axis, angle): ...
 def from_translation(disp): ...
 def normalize(t)         -> torch.Tensor:   # re-project onto SE(3)
 
 # src/better_robot/lie/so3.py
 identity, compose, inverse, log, exp, act, adjoint,
-from_matrix, to_matrix, from_axis_angle, normalize
+from_euler, to_euler, from_matrix, to_matrix, from_axis_angle, normalize
+
+# src/better_robot/lie/alignment.py
+def umeyama(source, target, weights=None, *, estimate_scale=True): ...
 
 # src/better_robot/lie/tangents.py — right / left Jacobians of exp
 def right_jacobian_so3(omega) -> torch.Tensor:    # Jr(ω), (..., 3) → (..., 3, 3)
@@ -117,6 +122,20 @@ which uses Barfoot's closed forms. There is no runtime dispatch in this
 layer. An optional kernel optimisation belongs at a complete FK/RNEA-style
 pass described in {doc}`batching_and_backends`; it does not replace an
 individual Lie primitive.
+
+## Interchange and point-set alignment
+
+Euler interchange uses one fixed active convention: inputs are
+`[roll, pitch, yaw]`, applied extrinsically about XYZ, so
+`R = Rz(yaw) @ Ry(pitch) @ Rx(roll)`. `so3.from_euler` returns the frozen
+scalar-last quaternion layout and `so3.to_euler` returns its principal branch;
+roll and yaw are necessarily ambiguous at pitch `+/- pi/2`.
+
+`se3.from_matrix` and `se3.to_matrix` bridge homogeneous `(..., 4, 4)`
+matrices and `[tx, ty, tz, qx, qy, qz, qw]` tensors without changing that
+layout. For point clouds, `lie.umeyama(source, target, weights)` fits batched
+3D similarity transforms and returns `(scale, rotation, translation)`. Its SVD
+correction always returns a proper rotation with determinant `+1`.
 
 ## Singularity handling
 

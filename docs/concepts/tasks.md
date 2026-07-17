@@ -177,6 +177,10 @@ The two key behaviours are:
   normalise. `B = 1` is *not* forced for unbatched input — other
   public APIs already accept arbitrary leading shapes including the
   empty prefix.
+- **Pose smoothing.** `smooth_trajectory(traj, kernel, kind="so3"|"se3")`
+  applies an odd-length box, Gaussian, or other non-negative kernel using
+  iterative SLERP / ScLERP means. Batch and time windows are vectorised;
+  quaternion signs are hemisphere-aligned before smoothing. Only `q` changes.
 
 ## Trajectory optimisation
 
@@ -273,6 +277,7 @@ Each script has a `main()` that the example tests can call headlessly
 The public surface of `tasks/` is stable from v1:
 
 - **Top-level**: `solve_ik`, `solve_trajopt`, `Trajectory`.
+- **Tasks-package public**: `smooth_trajectory`.
 - **Submodule-public** (reachable from `from better_robot.tasks.ik
   import …`): `IKResult`, `IKCostConfig`, `OptimizerConfig`.
 - **Submodule-public** (`from better_robot.tasks.trajopt import …`):

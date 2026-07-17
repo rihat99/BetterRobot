@@ -12,6 +12,7 @@ from __future__ import annotations
 import torch
 
 from . import _impl
+from . import so3
 
 
 def identity(
@@ -63,6 +64,38 @@ def adjoint_inv(t: torch.Tensor) -> torch.Tensor:
     Ad(T^{-1}) = [[R^T, -(R^T @ hat(p))], [0, R^T]].
     """
     return _impl.se3_adjoint_inv(t)
+
+
+def from_matrix(matrix: torch.Tensor) -> torch.Tensor:
+    """Convert a homogeneous matrix to the library's 7-vector SE3 layout.
+
+    ``matrix`` has shape ``(..., 4, 4)`` with rotation in the upper-left
+    block and translation in the last column.  The result has shape
+    ``(..., 7)`` and layout ``[tx, ty, tz, qx, qy, qz, qw]``.
+    """
+    if matrix.shape[-2:] != (4, 4):
+        raise ValueError(
+            f"matrix must have shape (..., 4, 4); got {tuple(matrix.shape)}"
+        )
+    translation = matrix[..., :3, 3]
+    quaternion = so3.from_matrix(matrix[..., :3, :3])
+    return torch.cat((translation, quaternion), dim=-1)
+
+
+def to_matrix(t: torch.Tensor) -> torch.Tensor:
+    """Convert a 7-vector SE3 pose to a homogeneous matrix.
+
+    ``t`` has shape ``(..., 7)`` and layout
+    ``[tx, ty, tz, qx, qy, qz, qw]``.  The result has shape
+    ``(..., 4, 4)`` and bottom row ``[0, 0, 0, 1]``.
+    """
+    if t.shape[-1:] != (7,):
+        raise ValueError(f"t must have shape (..., 7); got {tuple(t.shape)}")
+    rotation = so3.to_matrix(t[..., 3:7])
+    upper = torch.cat((rotation, t[..., :3].unsqueeze(-1)), dim=-1)
+    bottom = t.new_zeros((*t.shape[:-1], 1, 4))
+    bottom[..., 0, 3] = 1.0
+    return torch.cat((upper, bottom), dim=-2)
 
 
 def from_axis_angle(axis: torch.Tensor, angle: torch.Tensor) -> torch.Tensor:
