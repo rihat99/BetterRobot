@@ -7,8 +7,6 @@ See ``docs/conventions/extension.md`` for the seam inventory and
 
 from __future__ import annotations
 
-import math
-
 import pytest
 import torch
 
@@ -30,12 +28,11 @@ from better_robot.optim.optimizers.base import Optimizer
 from better_robot.optim.optimizers.gauss_newton import GaussNewton
 from better_robot.optim.optimizers.lbfgs import LBFGS
 from better_robot.optim.optimizers.levenberg_marquardt import LevenbergMarquardt
-from better_robot.optim.solvers import CG, LSTSQ, Cholesky, SparseCholesky
+from better_robot.optim.solvers import LSTSQ, Cholesky
 from better_robot.optim.solvers.base import LinearSolver
-from better_robot.optim.strategies import Adaptive, Constant, TrustRegion
+from better_robot.optim.strategies import Adaptive, Constant
 from better_robot.optim.strategies.base import DampingStrategy
 from better_robot.residuals.base import Residual
-from better_robot.residuals.limits import JointPositionLimit
 from better_robot.residuals.pose import OrientationResidual, PoseResidual, PositionResidual
 from better_robot.viewer.render_modes.base import RenderMode
 from better_robot.viewer.render_modes.skeleton import SkeletonMode
@@ -59,6 +56,7 @@ def test_protocol_is_runtime_checkable(proto: type) -> None:
 
 # ── Residuals ─────────────────────────────────────────────────────────────────
 
+
 def _dummy_pose() -> torch.Tensor:
     return torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
 
@@ -74,6 +72,7 @@ def test_residual_instances_satisfy_protocol() -> None:
 
 # ── Optimizers ────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.parametrize("cls", [LevenbergMarquardt, GaussNewton, Adam, LBFGS])
 def test_optimizer_instances_satisfy_protocol(cls: type) -> None:
     assert isinstance(cls(), Optimizer), cls.__name__
@@ -81,19 +80,22 @@ def test_optimizer_instances_satisfy_protocol(cls: type) -> None:
 
 # ── Linear solvers ────────────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("cls", [Cholesky, LSTSQ, CG, SparseCholesky])
+
+@pytest.mark.parametrize("cls", [Cholesky, LSTSQ])
 def test_linear_solver_instances_satisfy_protocol(cls: type) -> None:
     assert isinstance(cls(), LinearSolver), cls.__name__
 
 
 # ── Damping strategies ───────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("cls", [Adaptive, Constant, TrustRegion])
+
+@pytest.mark.parametrize("cls", [Adaptive, Constant])
 def test_damping_strategy_instances_satisfy_protocol(cls: type) -> None:
     assert isinstance(cls(), DampingStrategy), cls.__name__
 
 
 # ── Robust kernels ────────────────────────────────────────────────────────────
+
 
 def test_robust_kernel_instances_satisfy_protocol() -> None:
     assert isinstance(L2(), RobustKernel)
@@ -102,6 +104,7 @@ def test_robust_kernel_instances_satisfy_protocol() -> None:
 
 
 # ── Joint models ──────────────────────────────────────────────────────────────
+
 
 @pytest.mark.parametrize(
     "jm",
@@ -121,6 +124,7 @@ def test_joint_model_instances_satisfy_protocol(jm) -> None:
 
 
 # ── Render modes ──────────────────────────────────────────────────────────────
+
 
 def test_render_mode_instance_satisfies_protocol() -> None:
     assert isinstance(SkeletonMode(), RenderMode)

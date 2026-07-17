@@ -167,8 +167,10 @@ passes explicitly; see {doc}`/conventions/performance` for current coverage.
 CUDA graph capture is roadmap work. A capture-safe solver must use fixed
 storage and record forward **and backward together** so replay preserves the
 intended differentiation lifecycle. BetterRobot does not currently ship a
-capture decorator or context manager. Capture remains opt-in until
-the batched solver and kernel adjoints have their own parity tests.
+capture decorator or context manager. Named-block LM's tensor-only state and
+pure, fixed-shape `update` are capture-ready by construction, but a CPU
+fullgraph smoke test is not certification. Capture remains opt-in until M6's
+actual replay-parity harness covers the solver lifecycle and kernel adjoints.
 
 ## Requirements for an opt-in kernel lane
 

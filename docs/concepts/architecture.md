@@ -163,9 +163,9 @@ src/better_robot/
 │   ├── blocks/                    # named Problem / VarSpec / manifolds / providers
 │   ├── state.py                   # SolverState
 │   ├── optimizers/                # LM / GN / Adam / LBFGS / MultiStage
-│   ├── solvers/                   # Cholesky / LSTSQ; CG / SparseCholesky stubs
+│   ├── solvers/                   # dense batched Cholesky / LSTSQ
 │   ├── kernels/                   # L2 / Huber / Cauchy / Tukey
-│   ├── strategies/                # Constant / Adaptive; TrustRegion stub
+│   ├── strategies/                # legacy Constant / Adaptive
 │   └── jacobian_spec.py           # ResidualSpec
 │
 ├── tasks/

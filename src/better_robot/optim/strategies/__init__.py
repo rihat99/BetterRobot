@@ -7,6 +7,5 @@ from __future__ import annotations
 
 from .adaptive import Adaptive
 from .constant import Constant
-from .trust_region import TrustRegion
 
-__all__ = ["Constant", "Adaptive", "TrustRegion"]
+__all__ = ["Constant", "Adaptive"]

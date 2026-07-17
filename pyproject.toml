@@ -30,6 +30,7 @@ dev = [
     "pytest-cov>=5",
     "pytest-xdist>=3",
     "pytest-benchmark>=4",
+    "scipy>=1.11",
     "hypothesis>=6.100",
     "pin>=2.7",
     "pyperf>=2.7",

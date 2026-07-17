@@ -1,10 +1,9 @@
 """``better_robot.optim`` — optimization problems and solver components.
 
-The legacy solver stack consumes :class:`LeastSquaresProblem`.  M2a's
-named-block :class:`Problem` is an evaluation and dense-assembly interface;
-GN/LM integration follows in M2b.  Keeping both names explicit prevents a
-block problem from being passed to a solver that cannot yet honor its scalar
-objectives, masks, or provider DAG.
+The legacy ``solve`` wrapper consumes :class:`LeastSquaresProblem`. Named-block
+:class:`Problem` values use the batched :class:`LevenbergMarquardt` or
+:class:`GaussNewton` step API directly. Keeping both entry points explicit
+until M2c prevents accidental dispatch into the deprecated legacy stack.
 
 See ``docs/concepts/solver_stack.md``.
 """
@@ -14,6 +13,10 @@ from __future__ import annotations
 from .blocks import (
     Bounds,
     Euclidean,
+    GaussNewton,
+    LevenbergMarquardt,
+    LMState,
+    LMStatus,
     ObjectiveItem,
     Problem,
     ResidualItem,
@@ -43,17 +46,18 @@ def solve(
 ) -> SolverState:
     """Run the legacy :class:`LeastSquaresProblem` LM solver stack.
 
-    Named-block :class:`Problem` instances are evaluation-only until M2b and
-    must not be passed to this convenience wrapper.
+    Named-block :class:`Problem` instances use
+    ``LevenbergMarquardt().run(values, problem)`` and must not be passed to
+    this legacy convenience wrapper.
 
     See docs/concepts/solver_stack.md §5.
     """
     if isinstance(problem, Problem):
         problem.require_least_squares()
         raise TypeError(
-            "better_robot.optim.solve accepts LeastSquaresProblem only; named-block "
-            "Problem solving lands in M2b. Use Problem.gradient/Problem.retract in a "
-            "first-order loop for now."
+            "better_robot.optim.solve accepts LeastSquaresProblem only; it is the "
+            "deprecated wrapper. Use LevenbergMarquardt().run(values, problem) or "
+            "GaussNewton().run(values, problem) for a named-block Problem."
         )
     from .optimizers.levenberg_marquardt import LevenbergMarquardt  # noqa: PLC0415
 
@@ -75,7 +79,7 @@ __all__ = [
     "SolverState",
     "ResidualSpec",
     "solve",
-    # M2a named-block evaluation API.  Deliberately qualified under ``optim``;
+    # Named-block evaluation and solver API. Deliberately qualified under ``optim``;
     # the package root keeps its existing Lie ``SE3`` identity.
     "Bounds",
     "Euclidean",
@@ -89,4 +93,8 @@ __all__ = [
     "ObjectiveItem",
     "RobotStateProvider",
     "detach_values",
+    "LevenbergMarquardt",
+    "GaussNewton",
+    "LMState",
+    "LMStatus",
 ]

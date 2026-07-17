@@ -3,14 +3,16 @@
 BetterRobot temporarily exposes two optimization contracts while tasks migrate
 to named variable blocks. They coexist deliberately through M2c:
 
-- **Named-block evaluation** is the new public construction API. A `Problem`
-  owns named `VarSpec` blocks, structural residuals and scalar objective terms,
-  and a lazy provider DAG. It evaluates residuals, objectives, tangent
-  gradients, and Jacobian blocks for unbatched or independently batched
-  `Values`.
+- **Named-block optimization** is the new public construction and batched
+  second-order API. A `Problem` owns named `VarSpec` blocks, structural
+  residuals and scalar objective terms, and a lazy provider DAG. It evaluates
+  residuals, objectives, tangent gradients, and Jacobian blocks;
+  `LevenbergMarquardt` and `GaussNewton` solve residual-vector problems with
+  independent tensor state for every batch element.
 - **The legacy solver stack** still powers `solve_ik`, `solve_trajopt`, and the
-  shipped optimizers. It composes `CostStack`, `LeastSquaresProblem`, and
-  `Optimizer`. Nothing in M2a silently redirects that path to `Problem`.
+  optimizers under `better_robot.optim.optimizers`. It composes `CostStack`,
+  `LeastSquaresProblem`, and `Optimizer`. The convenience
+  `better_robot.optim.solve` still belongs exclusively to this legacy path.
 
 ## Named-block evaluation
 
@@ -21,6 +23,10 @@ The canonical imports live under `better_robot.optim`; the top-level
 from better_robot.optim import (
     Bounds,
     Euclidean,
+    GaussNewton,
+    LevenbergMarquardt,
+    LMState,
+    LMStatus,
     ObjectiveItem,
     Problem,
     ResidualItem,
@@ -61,13 +67,75 @@ The public evaluation operations are:
 - `normal_matrix(values)` for dense correctness and solver hand-off; and
 - `retract(values, steps)`, which applies manifold-aware feasible steps.
 
-M2a stops at that evaluation boundary. It ships **no solver for `Problem`**, no
-phase engine, and no per-element accept/reject state. Batched inputs mean
-batched evaluation, not a batched call to LM. `ResidualItem.kernel` and
-`group_size` record robust-loss semantics for M2b; M2a does not apply IRLS.
-Scalar `ObjectiveItem`s participate in `objective()` and `gradient()` for a
-caller-owned first-order loop, but a least-squares solver must reject them via
-`Problem.require_least_squares()`.
+`ResidualItem.kernel` and `group_size` define robust-loss groups consumed by
+the named-block second-order solvers. Scalar `ObjectiveItem`s still
+participate in `objective()` and `gradient()` for a caller-owned first-order
+loop, but LM/GN reject them via `Problem.require_least_squares()` instead of
+silently changing their mathematical meaning.
+
+## Named-block LM/GN
+
+The named-block solvers expose a jaxopt-style lifecycle:
+
+```python
+from better_robot.optim import LevenbergMarquardt
+
+solver = LevenbergMarquardt(max_iter=50, gtol=1e-6)
+state = solver.init_state(values, problem)
+values, state = solver.update(values, state, problem)  # one pure tensor step
+values, state = solver.finalize(values, state, problem)
+
+# Or use the detached eager driver:
+values, state = solver.run(values, problem)
+```
+
+For a small explicit unrolled-differentiation oracle, pass
+`create_graph=True` to `init_state`, every `update`, and `finalize`. The
+default path does not retain the Jacobian graph, and `run` is intentionally
+always detached. This oracle is not the stable implicit solver backward;
+active-set validity and implicit differentiation remain M6 work.
+
+`LMState` is a fixed-structure pytree containing tensors only. Cost, damping,
+gain ratio, accept/reject effects, factorization health, KKT measures, status,
+and iteration counts retain every leading batch axis; a rejected or failed
+element does not move a valid neighbor. `GaussNewton` is a fixed-damping preset
+of the same guarded update rather than a second implementation.
+
+The solver scales residual/Jacobian rows by the configured group-wise robust
+weights, solves reduced tangent systems, and applies state-space feasibility
+through each `VarSpec` manifold. Finite Euclidean/configuration bounds use a
+projected active set and projected-gradient KKT termination. World-axis boxes
+on a free-flyer translation are rejected because they are not axis-aligned in
+the right-local `SE(3)` tangent; express those constraints as residuals until
+constraint-normal support lands.
+
+`update` is a pure, fixed-shape, sync-free tensor program. Public validation
+and static layout construction happen in `init_state`; `run` is an eager
+convenience loop and may perform one host-side all-terminal check per
+iteration. This makes the step capture-ready by construction, but does not
+certify CUDA graph replay. Certification requires M6's warmup/capture/replay
+parity harness. Custom residuals and providers must also satisfy the
+fixed-shape, sync-free eligibility rules in
+{doc}`/guides/custom_residuals`; non-eligible residuals remain usable eagerly.
+
+The terminal `LMStatus` values are `RUNNING`, `CONVERGED`,
+`STALLED_AT_BOUNDS`, `MAXITER`, and `FAILED`. Call `finalize` after a manual
+update loop so residuals, robust weights, active masks, and KKT diagnostics all
+describe the returned terminal point. `run` does this automatically and
+detaches returned artifacts. A supplied prior state is a warm start for
+damping, not permission to reuse stale target-dependent linearizations; its
+batch shape, dtype, and device must match exactly.
+
+Accepted-step `xtol`/`ftol` termination applies only to unbounded problems.
+Bounded problems require projected-gradient KKT for every success status, and
+a tolerance-only unbounded `CONVERGED` state is not `implicit_valid` unless
+final evaluation also satisfies KKT. Damping has a strictly positive floor;
+after escalation reaches `mu_max`, a failing factorization receives one solve
+attempt at the cap before the element becomes `FAILED`.
+
+The legacy optimizer classes have the same human-readable LM/GN names but live
+under `better_robot.optim.optimizers`; they consume `LeastSquaresProblem` and
+offer `minimize`, not this step API.
 
 ## Legacy solver stack (task backend through M2c)
 
@@ -151,8 +219,8 @@ The two extras worth highlighting:
   memory at `O(T·nv)`. This is what makes a 200-knot G1 trajopt fit
   inside the 200 MiB CUDA peak watermark from {doc}`/conventions/performance` §1.3.
 - **`jacobian_blocks(x)` exposes structure.** It is metadata for the future
-  block-sparse trajopt solver; the current `SparseCholesky` class is only an
-  importable stub. Residuals whose
+  block-sparse trajopt solvers planned for M5; the shipped linear solvers are
+  dense. Residuals whose
   `spec.structure` is `"dense"` contribute one block;
   `"block"` / `"banded"` items contribute their declared blocks;
   `"matrix_free"` items raise — those should be solved with a
@@ -229,20 +297,27 @@ misreported as convergence and normally exhausts the budget as `maxiter`.
 
 ```python
 class LinearSolver(Protocol):
-    def solve(self, A: Tensor, b: Tensor) -> Tensor: ...
+    def solve(
+        self,
+        A: Tensor,
+        b: Tensor,
+        ridge: Tensor | float | None = None,
+    ) -> Tensor: ...
 
 class Cholesky(LinearSolver): ...        # dense, SPD
 class LSTSQ(LinearSolver): ...           # rank-deficient safe
-class CG(LinearSolver): ...              # stub: solve() raises
-class SparseCholesky(LinearSolver): ...  # stub: solve() raises
 ```
 
 Source: `src/better_robot/optim/solvers/`.
 
-`Cholesky` is the default for dense IK problems; `LSTSQ` handles cases
-where `JᵀJ` may be rank-deficient. `CG` and `SparseCholesky` remain
-importable placeholders whose `solve()` methods raise
-`NotImplementedError`; neither can be selected through `OptimizerConfig`.
+Both solvers accept `A` with shape `(B..., n, n)` and `b` with shape
+`(B..., n)`. A tensor `ridge` is scalar or broadcastable to `B...`; the solver
+forms `A + ridge[..., None, None] * I` without modifying `A`. Omitting
+`ridge` preserves the legacy two-argument call. `Cholesky` is the default for
+dense SPD systems and retains the standalone least-squares fallback;
+capture-ready LM owns its stricter `cholesky_ex` info-mask/zero-step policy.
+`LSTSQ` handles rank-deficient dense systems. Iterative and structured linear
+solvers are intentionally deferred to M5 instead of shipping placeholders.
 
 ## Robust kernels
 
@@ -278,15 +353,15 @@ class DampingStrategy(Protocol):
 
 class Constant(DampingStrategy):    ...
 class Adaptive(DampingStrategy):    ...   # double on reject, halve on accept
-class TrustRegion(DampingStrategy): ...   # stub: methods raise
 ```
 
 Source: `src/better_robot/optim/strategies/`.
 
 `Adaptive` is the default for LM. It starts at `1e-4`, doubles on
-reject, and halves on accept. `Constant` keeps lambda fixed.
-`TrustRegion` is an importable placeholder whose methods raise
-`NotImplementedError`; it cannot be selected through `OptimizerConfig`.
+reject, and halves on accept. `Constant` keeps lambda fixed. The former
+unimplemented trust-region placeholder was removed; the bounded second-order
+algorithm is implemented as part of the new M2b solver rather than a legacy
+damping strategy.
 
 ## `OptimizerConfig` — every knob is wired
 
@@ -491,19 +566,20 @@ compose cleanly.
 - **Adam and L-BFGS read `problem.gradient(x)`, not
   `problem.jacobian(x)`.** They never materialise the dense
   Jacobian. Long-horizon trajopt depends on this for memory.
-- **LM bounds are projection-only.** Every trial point is projected onto
+- **Legacy LM bounds are projection-only.** Every trial point is projected onto
   `[lower, upper]` *before* its residual is evaluated, and acceptance is a
   bare objective comparison. There is no active set, projected-gradient
   test, or KKT termination, so a run pinned at active bounds can stall with
   residual error and exhaust its budget as `status="maxiter"`. Initial
-  `x0` is **not** projected. Active-set LM or a reflective trust region with
-  KKT termination is planned for M2b.
+  `x0` is **not** projected. This describes only
+  `optim.optimizers.LevenbergMarquardt`; the named-block solver above owns the
+  projected active set and KKT statuses.
 - **`MultiStageOptimizer` restores weights / active flags via
   try/finally.** Stage-wise overrides do not leak even if a stage
   raises.
-- **`OptimizerConfig` exposes only supported choices.** CG, sparse
-  Cholesky, and trust-region placeholders are importable for future work
-  but cannot be selected through the task facade.
+- **`OptimizerConfig` exposes only supported choices.** Dense Cholesky and
+  LSTSQ are the only linear-solver choices; unimplemented iterative, sparse,
+  and trust-region placeholders are not importable.
 
 ## Where to look next
 

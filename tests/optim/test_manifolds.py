@@ -158,6 +158,29 @@ def test_feasible_retraction_clamps_only_box_coordinates_and_preserves_units(
     torch.testing.assert_close(projected[7:11].norm(), torch.tensor(1.0))
 
 
+def test_robot_config_prevalidated_projection_skips_bounds_revalidation(
+    floating_spherical_model,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    model = floating_spherical_model
+    manifold = RobotConfig(model)
+    bounds = _floating_bounds(model)
+    q = model.q_neutral.clone()
+    dv = torch.zeros(model.nv)
+    dv[0] = 2.0
+    dv[-1] = 1.0
+    candidate = model.integrate(q, dv)
+    expected = manifold.project(candidate, bounds)
+
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError("private RobotConfig projection revalidated static bounds")
+
+    monkeypatch.setattr(RobotConfig, "validate_bounds", forbidden)
+    actual = manifold._project_prevalidated(candidate, bounds)
+
+    torch.testing.assert_close(actual, expected)
+
+
 @pytest.mark.parametrize(
     ("manifold", "shape", "kind"),
     ((SO3Manifold(), (4,), "SO3"), (SE3Manifold(), (7,), "SE3")),

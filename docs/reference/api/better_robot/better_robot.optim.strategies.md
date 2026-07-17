@@ -15,6 +15,5 @@
 
 better_robot.optim.strategies.constant
 better_robot.optim.strategies.base
-better_robot.optim.strategies.trust_region
 better_robot.optim.strategies.adaptive
 ```

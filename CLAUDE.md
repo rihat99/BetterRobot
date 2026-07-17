@@ -7,12 +7,13 @@ PyTorch-native, GPU-ready library for robot kinematics and optimization. Pinocch
 **Implemented:** forward kinematics, Jacobians (analytic + central finite-difference fallback), pose/position/orientation/limits/rest/smoothness/contact-consistency/reference-trajectory residuals, CostStack, LM/GN/Adam/LBFGS/MultiStage optimizers, single-problem IK (fixed + floating base), trajectory optimisation (`solve_trajopt`) with knot + B-spline parameterisations, dynamics (RNEA/ABA/CRBA/CCRBA, centroidal map + momentum, autograd-derived `compute_*_derivatives`), viewer V1 (Skeleton, URDFMesh, Grid, FrameAxes, Targets, ForceVectors, ViserBackend, build_joint_panel, minimal TrajectoryPlayer).
 **Stubs:** dynamic integrators (`semi_implicit_euler` / `symplectic_euler` / `rk4`), `compute_minverse`, `compute_coriolis_matrix`, analytic Carpentier–Mansard derivatives, jerk / Yoshikawa / collision / nullspace residuals, viewer COM/PathTrace/ResidualPlot overlays, `VideoRecorder`, and opt-in Warp whole-pass kernels. See `docs/reference/roadmap.md`.
 
-The named-block evaluation layer is also implemented: `VarSpec`/`Values`/
+The named-block optimization layer is also implemented: `VarSpec`/`Values`/
 `Problem`, `Euclidean`/`SO3Manifold`/`SE3Manifold`/`RobotConfig` manifolds,
 state-space feasible retraction, eliminated tangent masks, evaluation-local
 provider DAGs, tangent gradients, and dense analytic/`jacrev`/`jacfwd`
-Jacobian blocks. It coexists with the legacy flat solver stack; it does not yet
-replace its optimizer/task routing.
+Jacobian blocks, plus batched LM/GN with tensor-only per-element state, robust
+groups, and projected active-set bounds. It coexists with the legacy flat
+solver stack and does not yet replace task routing.
 
 ## Commands
 
@@ -35,8 +36,8 @@ src/better_robot/
                       Velocity / Acceleration / TimeIndexed / ContactConsistency /
                       ReferenceTrajectory; analytic `.jacobian()` + `apply_jac_transpose` overrides)
   costs/            — CostStack
-  optim/            — legacy LeastSquaresProblem + LM/GN/Adam/LBFGS/MultiStage solver stack;
-                      named-block evaluation in optim/blocks (manifolds, providers, AD blocks, dense assembly)
+  optim/            — legacy LeastSquaresProblem + LM/GN/Adam/LBFGS/MultiStage task backend;
+                      named-block Problem + batched LM/GN in optim/blocks
   tasks/            — solve_ik(), solve_trajopt(), Trajectory, KnotTrajectory, BSplineTrajectory
   collision/        — geometry, pairs, RobotCollision (port of old capsule mode)
   io/               — load(), internal IRModel, parsers (URDF/MJCF), ModelBuilder, AssetResolver + concrete resolvers
@@ -159,24 +160,33 @@ model.integrate(q, dv)  # SE3-aware retraction: q ⊕ dv
 
 - Adaptive damping: starts at `1e-4`, doubles on reject, halves on accept.
 - Every LM trial point is clamped to `[lower, upper]` before residual evaluation.
-- Bounds have no active-set, projected-gradient, or KKT treatment; an active-bound run can exit `maxiter` with error remaining (M2b).
+- Bounds have no active-set, projected-gradient, or KKT treatment; an active-bound run can exit `maxiter` with error remaining.
 - Initial `x0` is **not** clamped — caller must provide feasible `x0` if limits matter.
+
+These notes describe `optim.optimizers.LevenbergMarquardt`, not the public
+named-block `optim.LevenbergMarquardt`. The named-block solver uses
+`init_state`/pure `update`/`finalize` or detached `run`, keeps one tensor status
+and damping value per batch element, applies grouped robust kernels, and uses
+projected-gradient KKT termination for supported state-space bounds. Its
+`update` is capture-ready by construction; only the M6 CUDA replay test may
+call it capture-certified.
 
 ## Batching Rules
 
 Tensor math such as FK, residuals, and analytic Jacobians accepts arbitrary
 leading batch dimensions. Named-block `Problem` also supports leading-batch
 residual/objective evaluation, tangent gradients, Jacobian blocks, and dense
-assembly. This is evaluation batching only: it does not provide per-element
-damping, accept/reject, status, or convergence logic.
+assembly. Named-block LM/GN preserves those axes in per-element damping,
+accept/reject, factorization, status, and convergence tensors.
 
-The current optimizer stack, top-level `optim.solve`, and `solve_ik` remain
+The legacy optimizer stack, top-level `optim.solve`, and `solve_ik` remain
 legacy single-problem paths requiring `(nq,)`; `optim.solve` accepts
-`LeastSquaresProblem`, not the named-block `Problem`. Named-block
-`ResidualItem.kernel`/`group_size` are metadata for M2b, scalar objectives are
-for consumer-owned first-order/manual loops and are rejected at GN/LM
-boundaries, state-space `Bounds` are distinct from future tangent-space step
-bounds, and provider caches never survive an evaluation.
+`LeastSquaresProblem`, not the named-block `Problem`. Named-block consumers
+call `optim.LevenbergMarquardt().run(values, problem)` directly.
+`ResidualItem.kernel`/`group_size` are active in that solver, scalar objectives
+are for consumer-owned first-order/manual loops and are rejected at GN/LM
+boundaries, state-space `Bounds` are not tangent-space step bounds, and provider
+caches never survive an evaluation.
 
 ## torch.compile Friendliness
 
@@ -184,6 +194,8 @@ bounds, and provider caches never survive an evaluation.
 - No Python branching on tensor values
 - No `.item()` calls in hot paths
 - Joint-type dispatch at compile time (tuple lookup, not tensor operation)
+- Named-block LM `update` is fixed-shape and sync-free; `init_state` owns static
+  validation and eager `run` may sync once per iteration for early exit
 
 ## Tests
 

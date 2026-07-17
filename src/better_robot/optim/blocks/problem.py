@@ -462,18 +462,38 @@ class Problem:
         batch_shape: tuple[int, ...],
         ctx: EvaluationContext,
         weights: Mapping[str, Weight] | None,
+        *,
+        validate_runtime: bool = True,
     ) -> torch.Tensor:
         exemplar = values[self.vars[0].name]
         result = exemplar.new_zeros(*batch_shape, self.dim_total)
         for item in self.residuals:
             weight = self._weights_for(item, weights)
-            _validate_runtime_weight(item.name, weight, batch_shape, exemplar)
+            if validate_runtime:
+                _validate_runtime_weight(item.name, weight, batch_shape, exemplar)
             if _is_inactive(weight):
                 continue
             output = item.residual(ctx.restrict(item.residual.reads))
-            self._validate_residual_output(item, output, batch_shape, exemplar)
+            if validate_runtime:
+                self._validate_residual_output(item, output, batch_shape, exemplar)
             result[..., self.row_offsets[item.name]] = output * _broadcast_weight(weight, output)
         return result
+
+    def _residual_prevalidated(
+        self,
+        values: Mapping[str, torch.Tensor],
+        *,
+        batch_shape: tuple[int, ...],
+        weights: Mapping[str, Weight] | None = None,
+    ) -> torch.Tensor:
+        """Evaluate residuals after public values/weights validation has run."""
+        return self._residual_with_context(
+            values,
+            batch_shape,
+            self._make_context(values),
+            weights,
+            validate_runtime=False,
+        )
 
     def residual(
         self,
@@ -580,6 +600,40 @@ class Problem:
             raise ValueError("Problem steps must contain exactly one tensor per variable")
         return {spec.name: spec.retract(values[spec.name], steps[spec.name]) for spec in self.vars}
 
+    def _retract_prevalidated(
+        self,
+        values: Mapping[str, torch.Tensor],
+        steps: Mapping[str, torch.Tensor],
+        *,
+        batch_shape: tuple[int, ...],
+    ) -> Values:
+        """Retract already-validated solver values and reduced tangent steps."""
+        return {
+            spec.name: spec._retract_prevalidated(
+                values[spec.name],
+                steps[spec.name],
+                batch_shape=batch_shape,
+            )
+            for spec in self.vars
+        }
+
+    def _difference_prevalidated(
+        self,
+        x0: Mapping[str, torch.Tensor],
+        x1: Mapping[str, torch.Tensor],
+        *,
+        batch_shape: tuple[int, ...],
+    ) -> Values:
+        """Return per-variable full tangents between prevalidated solver values."""
+        return {
+            spec.name: spec._difference_prevalidated(
+                x0[spec.name],
+                x1[spec.name],
+                batch_shape=batch_shape,
+            )
+            for spec in self.vars
+        }
+
     def _ad_block(
         self,
         item: ResidualItem,
@@ -596,7 +650,11 @@ class Problem:
 
         def closure(delta: torch.Tensor) -> torch.Tensor:
             perturbed = dict(values)
-            perturbed[spec.name] = spec.retract(base, delta)
+            perturbed[spec.name] = spec._retract_prevalidated(
+                base,
+                delta,
+                batch_shape=batch_shape,
+            )
             ctx = self._make_context(perturbed, parameters=parameters)
             output = item.residual(ctx.restrict(item.residual.reads))
             self._validate_residual_output(item, output, batch_shape, base)
@@ -655,8 +713,16 @@ class Problem:
             delta[..., column] = eps
             plus = dict(values)
             minus = dict(values)
-            plus[spec.name] = spec.retract(values[spec.name], delta)
-            minus[spec.name] = spec.retract(values[spec.name], -delta)
+            plus[spec.name] = spec._retract_prevalidated(
+                values[spec.name],
+                delta,
+                batch_shape=batch_shape,
+            )
+            minus[spec.name] = spec._retract_prevalidated(
+                values[spec.name],
+                -delta,
+                batch_shape=batch_shape,
+            )
             ctx_plus = self._make_context(plus, parameters=parameters)
             ctx_minus = self._make_context(minus, parameters=parameters)
             rp = item.residual(ctx_plus.restrict(item.residual.reads))
@@ -699,7 +765,7 @@ class Problem:
 
     def _jacobian_blocks_impl(  # noqa: PLR0912 - one loop dispatches all block strategies
         self,
-        values: Values,
+        values: Mapping[str, torch.Tensor],
         parameters: Mapping[str, torch.Tensor],
         batch_shape: tuple[int, ...],
         weights: Mapping[str, Weight] | None,
@@ -803,6 +869,35 @@ class Problem:
             strategy=strategy,
             create_graph=create_graph,
         ).items():
+            dense[
+                ...,
+                self.row_offsets[residual_name],
+                self.column_offsets[variable_name],
+            ] = block
+        return dense
+
+    def _dense_jacobian_prevalidated(
+        self,
+        values: Mapping[str, torch.Tensor],
+        *,
+        batch_shape: tuple[int, ...],
+        weights: Mapping[str, Weight] | None = None,
+        strategy: JacobianStrategy = "auto",
+        create_graph: bool = False,
+    ) -> torch.Tensor:
+        """Assemble dense J after public values/weights/strategy validation."""
+        exemplar = values[self.vars[0].name]
+        dense = exemplar.new_zeros(*batch_shape, self.dim_total, self.tangent_dim_total)
+        blocks = self._jacobian_blocks_impl(
+            values,
+            self.parameters,
+            batch_shape,
+            weights,
+            strategy,
+            create_graph=create_graph,
+            fd_eps=1e-4,
+        )
+        for (residual_name, variable_name), block in blocks.items():
             dense[
                 ...,
                 self.row_offsets[residual_name],

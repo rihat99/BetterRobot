@@ -1,9 +1,9 @@
 """``DampingStrategy`` protocol — controls how ``λ`` evolves across LM iters.
 
-Implementations live beside this file (``Adaptive``, ``Constant``,
-``TrustRegion``). A strategy exposes three methods: ``init`` (initial
-``λ`` for a fresh problem), ``accept`` (scale after a successful step),
-``reject`` (scale after a rejected step).
+The legacy implementations beside this file are ``Adaptive`` and ``Constant``.
+A strategy exposes three methods: ``init`` (initial ``λ`` for a fresh
+problem), ``accept`` (scale after a successful step), and ``reject`` (scale
+after a rejected step).
 
 See ``docs/concepts/solver_stack.md §5`` and ``docs/conventions/extension.md §4``.
 """

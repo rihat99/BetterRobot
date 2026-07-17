@@ -1,4 +1,4 @@
-# optim/ — Legacy Solvers and Named-Block Evaluation
+# optim/ — Legacy Solvers and Named-Block Optimization
 
 Two optimization surfaces coexist. Keep their types and capabilities separate.
 
@@ -7,12 +7,12 @@ Two optimization surfaces coexist. Keep their types and capabilities separate.
 | Surface | Problem type | What is implemented |
 |---|---|---|
 | Legacy solver stack | `optim.problem.LeastSquaresProblem` | Flat-variable `CostStack`; LM/GN/Adam/LBFGS/MultiStage; `optim.solve`; IK/trajopt task integration |
-| Named-block layer | `optim.blocks.problem.Problem` | Manifold variable blocks, evaluation-local providers, residual/scalar evaluation, tangent gradients, analytic/`jacrev`/`jacfwd` blocks, deterministic dense assembly |
+| Named-block layer | `optim.blocks.problem.Problem` | Manifold blocks/providers/evaluation plus batched LM/GN, tensor-only `LMState`, robust groups, and projected active-set bounds |
 
-The named-block layer has no optimizer driver in M2a. A consumer keeps its
-manual first-order loop and calls `Problem.objective`, `Problem.gradient`, and
-`Problem.retract`. Batched second-order solving and per-element solver state are
-M2b work.
+Named-block residual-vector problems use
+`better_robot.optim.LevenbergMarquardt` or `GaussNewton`. Scalar
+`ObjectiveItem`s remain for consumer-owned first-order/manual loops and are
+strictly rejected by the second-order entry points.
 
 ## Named Variable Blocks
 
@@ -27,8 +27,8 @@ M2b work.
   entries are **eliminated** from steps, gradients, Jacobian columns, and
   normal systems. They are not retained as zero columns.
 - `scale` is positive finite tangent-coordinate metadata, gathered through the
-  same mask. M2a exposes it for future damping/preconditioning but does not run
-  a solver that consumes it.
+  same mask and consumed by named-block LM/GN when forming scaled normal
+  systems.
 
 There are two different kinds of bounds:
 
@@ -37,8 +37,9 @@ There are two different kinds of bounds:
   are projected back to feasibility. Quaternion/unit-circle coordinates are
   never clamped, and global boxes on `SO3Manifold`/`SE3Manifold` blocks are
   rejected.
-- Trust regions, step clamps, and other **tangent-space** bounds belong to a
-  solver and are M2b scope. Never put them in `VarSpec` or `Bounds`.
+- Trust regions, step clamps, and other **tangent-space** limits belong to a
+  solver. The shipped active-set solver consumes state-space `Bounds`; it does
+  not reinterpret them as tangent boxes.
 
 The legacy `LeastSquaresProblem.lower/upper` pair is separate, older
 projection-only solver behavior; it is not the named-block `Bounds` contract.
@@ -51,9 +52,10 @@ applied during M2a evaluation. Optional `jacobian_blocks(ctx)` entries are keyed
 by variable name and must already use mask-reduced tangent columns.
 
 `ResidualItem.kernel` and `ResidualItem.group_size` are recorded and validated
-for the M2b robust-normal-equation implementation. **M2a does not apply the
-kernel or group-wise IRLS weights.** Do not describe a grouped kernel as active
-until the M2b solver path exists.
+by `Problem`; named-block LM/GN applies their group-wise IRLS row weights and
+uses the matching robust objective for trial acceptance. Direct
+`Problem.residual()` evaluation remains the weighted raw residual, not an IRLS
+view.
 
 `ObjectiveItem` represents a scalar term with output shape `(B...)`. Scalar
 terms participate in `Problem.objective` and tangent-space `Problem.gradient`,
@@ -62,7 +64,7 @@ converted into least-squares residuals. `Problem.require_least_squares(...)`
 rejects a problem containing scalar objectives with an exact error for
 Gauss-Newton/Levenberg-Marquardt entry points.
 
-Assembly is intentionally dense in M2a:
+Assembly is intentionally dense:
 
 - variable order defines column offsets;
 - residual-item order defines row offsets;
@@ -101,16 +103,53 @@ survives into the next iteration; graph-bearing FK/NN outputs therefore cannot
 leak across evaluations. Accepted artifacts retained by a consumer must be
 detached explicitly.
 
-## Batching Boundary
+## Batching and Solver Boundary
 
 Named-block residual, objective, gradient, Jacobian-block, and dense-assembly
-methods accept arbitrary common leading batch axes and preserve them. This is
-**batched evaluation only**. M2a does not implement batched iterations,
-per-element damping, accept/reject decisions, convergence statuses, or a phase
-engine.
+methods accept arbitrary common leading batch axes and preserve them. Named-
+block LM/GN preserves the same axes in per-element cost, damping, acceptance,
+factorization, convergence, status, and iteration tensors. Elements that are
+terminal or failed ride along without moving while their valid neighbors
+continue.
 
 The legacy optimizers and `solve_ik` remain single-problem solvers. Do not pass
 a block `Problem` to them merely because its evaluation methods are batched.
+
+## Named-Block Solver Lifecycle
+
+Use `init_state(values, problem)`, pure `update(values, state, problem)`, and
+`finalize(values, state, problem)` for an external loop, or `run(...)` for the
+detached eager driver. `finalize` ensures residuals, robust weights, active
+masks, and KKT diagnostics all describe the returned point. A warm-start state
+retains damping but refreshes target-dependent evaluation artifacts.
+
+For the explicit small-problem unrolled oracle, pass `create_graph=True` to
+`init_state`, each `update`, and `finalize`. The default calls do not retain
+the Jacobian graph; `run` has no graph-preserving mode and always returns
+detached values/state. This oracle is a differentiation regression aid, not a
+stable implicit solver backward. M6 owns active-set validity and implicit
+differentiation through a complete solve.
+
+Warm-start damping is reusable only when batch shape, dtype, and device match
+exactly. `mu_min` is strictly positive, and a factorization that keeps failing
+gets one real attempt at `mu_max` before `FAILED`. Accepted-step `xtol`/`ftol`
+termination is unbounded-only; bounded success always requires projected KKT.
+Tolerance-only unbounded convergence stays `implicit_valid=False` unless the
+final-point KKT evaluation also passes.
+
+`LMState` is a fixed-structure tensor-only `NamedTuple`; solver
+hyperparameters are frozen Python configuration. `update` must stay
+fixed-shape, sync-free, input-pure, and tensor-branching only. Public/static
+validation belongs to `init_state`; the eager `run` boundary may perform one
+all-terminal host check per iteration. The module is capture-ready by the M2b
+structural checklist, but only M6's actual CUDA capture/replay parity harness
+may call it capture-certified. Custom residuals/providers that use dynamic
+shapes, host syncs, or value-keyed Python caches remain eager-only.
+
+Finite Euclidean/configuration bounds use a restricted active-set normal
+system plus projected-gradient KKT termination. Finite world-axis boxes on
+free-flyer translation are rejected because the solver tangent is right-local.
+Do not weaken that rejection without a constraint-normal representation.
 
 ## Legacy Solver Stack
 
@@ -125,9 +164,11 @@ LeastSquaresProblem  ->  Optimizer  ->  LinearSolver
 
 - Optimizers: `LevenbergMarquardt`, `GaussNewton`, `Adam`, `LBFGS`,
   `MultiStageOptimizer`, and `LMThenLBFGS`.
-- Linear solvers: `Cholesky` and `LSTSQ`. `CG` and `SparseCholesky` are
-  importable stubs that raise `NotImplementedError`.
-- Damping: `Constant` and `Adaptive`. `TrustRegion` is an importable stub.
+- Linear solvers: dense batched `Cholesky` and `LSTSQ`, both with the
+  `solve(A, b, ridge=None)` contract. Iterative and structured solvers wait
+  for M5.
+- Legacy damping: `Constant` and `Adaptive`; no placeholder strategies are
+  exported.
 - Kernels: `L2`, `Huber`, `Cauchy`, and `Tukey` with the legacy row-wise IRLS
   convention.
 
@@ -140,5 +181,6 @@ active bound.
 `better_robot.optim.solve(problem, ...)` is a convenience wrapper for the
 legacy `LeastSquaresProblem` and defaults to legacy `LevenbergMarquardt`. It
 does **not** dispatch `optim.blocks.Problem`, scalar block objectives, or
-batched block problems. Named-block consumers keep a manual loop until the
-solver migration milestones land.
+batched block problems. Named-block consumers call
+`better_robot.optim.LevenbergMarquardt().run(values, problem)` (or
+`GaussNewton`) directly.

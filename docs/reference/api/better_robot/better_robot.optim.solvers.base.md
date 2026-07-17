@@ -31,7 +31,7 @@ Bases: {py:obj}`typing.Protocol`
 ```{autodoc2-docstring} better_robot.optim.solvers.base.LinearSolver
 ```
 
-````{py:method} solve(A: torch.Tensor, b: torch.Tensor) -> torch.Tensor
+````{py:method} solve(A: torch.Tensor, b: torch.Tensor, ridge: torch.Tensor | float | None = None) -> torch.Tensor
 :canonical: better_robot.optim.solvers.base.LinearSolver.solve
 
 ```{autodoc2-docstring} better_robot.optim.solvers.base.LinearSolver.solve

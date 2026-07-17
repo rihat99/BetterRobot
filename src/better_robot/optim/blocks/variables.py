@@ -194,6 +194,14 @@ class VarSpec:
             raise ValueError(
                 f"Full tangent for VarSpec {self.name!r} must end in {self.tangent_dim}, got {tuple(full.shape)}"
             )
+        if self.free_dim == self.tangent_dim:
+            return full.clone()
+        return self._gather_tangent_prevalidated(full)
+
+    def _gather_tangent_prevalidated(self, full: torch.Tensor) -> torch.Tensor:
+        """Gather free coordinates from a prevalidated full tangent."""
+        if self.free_dim == self.tangent_dim:
+            return full
         return full.index_select(-1, self.free_indices.to(device=full.device))
 
     def expand_tangent(self, reduced: torch.Tensor) -> torch.Tensor:
@@ -202,10 +210,41 @@ class VarSpec:
             raise ValueError(
                 f"Reduced tangent for VarSpec {self.name!r} must end in {self.free_dim}, got {tuple(reduced.shape)}"
             )
+        if self.free_dim == self.tangent_dim:
+            return reduced.clone()
+        return self._expand_tangent_prevalidated(reduced)
+
+    def _expand_tangent_prevalidated(self, reduced: torch.Tensor) -> torch.Tensor:
+        """Expand a reduced tangent whose shape/dtype/device were prevalidated."""
+        if self.free_dim == self.tangent_dim:
+            return reduced
         full = reduced.new_zeros(*reduced.shape[:-1], self.tangent_dim)
         if self.free_dim:
             full.index_copy_(-1, self.free_indices.to(device=reduced.device), reduced)
         return full
+
+    def _retract_full_prevalidated(
+        self,
+        value: torch.Tensor,
+        full: torch.Tensor,
+        *,
+        batch_shape: tuple[int, ...],
+    ) -> torch.Tensor:
+        shaped = full.reshape((*batch_shape, *self._tangent_event_shape()))
+        retracted = self.manifold.retract(value, shaped)
+        project = getattr(self.manifold, "_project_prevalidated", self.manifold.project)
+        return project(retracted, self.bounds)
+
+    def _retract_prevalidated(
+        self,
+        value: torch.Tensor,
+        reduced_delta: torch.Tensor,
+        *,
+        batch_shape: tuple[int, ...],
+    ) -> torch.Tensor:
+        """Retract solver-owned tensors without repeating public validation."""
+        full = self._expand_tangent_prevalidated(reduced_delta)
+        return self._retract_full_prevalidated(value, full, batch_shape=batch_shape)
 
     def retract(self, value: torch.Tensor, reduced_delta: torch.Tensor) -> torch.Tensor:
         """Expand a reduced step, retract, and enforce state-space feasibility."""
@@ -231,9 +270,18 @@ class VarSpec:
                 f"Step for VarSpec {self.name!r} must have shape "
                 f"{(*batch_shape, self.free_dim)}, got {tuple(reduced_delta.shape)}"
             )
-        shaped = full.reshape((*batch_shape, *self._tangent_event_shape()))
-        retracted = self.manifold.retract(value, shaped)
-        return self.manifold.project(retracted, self.bounds)
+        return self._retract_full_prevalidated(value, full, batch_shape=batch_shape)
+
+    def _difference_prevalidated(
+        self,
+        x0: torch.Tensor,
+        x1: torch.Tensor,
+        *,
+        batch_shape: tuple[int, ...],
+    ) -> torch.Tensor:
+        """Return a full tangent difference for prevalidated solver values."""
+        delta = self.manifold.difference(x0, x1)
+        return delta.reshape(*batch_shape, self.tangent_dim)
 
     def difference(self, x0: torch.Tensor, x1: torch.Tensor) -> torch.Tensor:
         """Return a full flattened tangent difference between two states."""
@@ -249,8 +297,7 @@ class VarSpec:
             raise DeviceMismatchError(
                 f"Difference inputs for VarSpec {self.name!r} must share device; got {x0.device} and {x1.device}"
             )
-        delta = self.manifold.difference(x0, x1)
-        return delta.reshape(*batch_shape, self.tangent_dim)
+        return self._difference_prevalidated(x0, x1, batch_shape=batch_shape)
 
 
 def detach_values(values: Values) -> Values:

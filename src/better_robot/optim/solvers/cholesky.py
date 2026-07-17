@@ -7,14 +7,33 @@ from __future__ import annotations
 
 import torch
 
+from .base import _regularized_matrix
+
 
 class Cholesky:
-    """Dense Cholesky solver for ``A x = b``, SPD ``A``."""
+    """Dense batched Cholesky solver for ``(A + ridge I) x = b``.
 
-    def solve(self, A: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
-        """Solve ``A x = b`` for SPD ``A``. Falls back to lstsq on failure."""
-        try:
-            L = torch.linalg.cholesky(A)
-            return torch.cholesky_solve(b.unsqueeze(-1), L).squeeze(-1)
-        except Exception:
-            return torch.linalg.lstsq(A, b.to(A.dtype)).solution.to(b.dtype)
+    Failed batch elements use a least-squares fallback while successful
+    elements retain their Cholesky solutions. Capture-ready LM handles its
+    stricter zero-step/info-mask policy in the solver update itself.
+    """
+
+    def solve(
+        self,
+        A: torch.Tensor,
+        b: torch.Tensor,
+        ridge: torch.Tensor | float | None = None,
+    ) -> torch.Tensor:
+        """Solve the dense system, preserving the right-hand-side dtype."""
+        matrix = _regularized_matrix(A, ridge)
+        rhs = b.to(A.dtype)
+        factor, info = torch.linalg.cholesky_ex(matrix)
+        chol_solution = torch.cholesky_solve(rhs.unsqueeze(-1), factor).squeeze(-1)
+        lstsq_solution = torch.linalg.lstsq(matrix, rhs).solution
+        ok = info == 0
+        solution = torch.where(
+            ok[..., None],
+            torch.nan_to_num(chol_solution),
+            lstsq_solution,
+        )
+        return solution.to(b.dtype)

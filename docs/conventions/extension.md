@@ -254,12 +254,16 @@ cannot exploit (large trajopt), or you want KKT / iterative methods.
 from better_robot.optim.solvers import LinearSolver
 
 class Schur(LinearSolver):
-    def solve(self, JtJ, Jtr) -> torch.Tensor:
-        """Solve (JtJ) x = -Jtr. Return x."""
+    def solve(self, A, b, ridge=None) -> torch.Tensor:
+        """Solve (A + ridge I) x = b. Return x."""
         ...
 ```
 
-Contract: one method, `solve(JtJ: (n,n), Jtr: (n,)) -> (n,)`.
+Contract: one method,
+`solve(A: (B...,n,n), b: (B...,n), ridge: (B...,) | scalar | None)` returning
+`(B...,n)`. The two core implementations are dense. A future matrix-free
+implementation may accept a matvec in place of `A`, but it must keep the same
+`b`/`ridge` semantics and is M5 work.
 
 ## 6 · Add a robust kernel
 

@@ -438,3 +438,52 @@ def test_invalid_batch_element_uses_nan_rows_without_raising() -> None:
     assert residual.shape == (2, 1)
     torch.testing.assert_close(residual[0], torch.tensor([-1.0]))
     assert torch.isnan(residual[1]).all()
+
+
+def test_prevalidated_solver_path_matches_public_path_without_host_tensor_reads(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    problem = _two_block_problem()
+    batch_shape = (2, 3)
+    values = {
+        "x": torch.linspace(-0.4, 0.7, 18).reshape(*batch_shape, 3),
+        "rotation": _identity_rotation(*batch_shape),
+    }
+    steps = {
+        "x": torch.linspace(-0.02, 0.03, 18).reshape(*batch_shape, 3),
+        "rotation": torch.linspace(-0.01, 0.02, 18).reshape(*batch_shape, 3),
+    }
+    expected_residual = problem.residual(values)
+    expected_jacobian = problem.dense_jacobian(values)
+    expected_values = problem.retract(values, steps)
+    expected_difference = {
+        spec.name: spec.difference(values[spec.name], expected_values[spec.name]) for spec in problem.vars
+    }
+
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError("prevalidated solver path reached a public validation/host-read boundary")
+
+    with monkeypatch.context() as context:
+        context.setattr(torch.Tensor, "__bool__", forbidden)
+        context.setattr(torch.Tensor, "item", forbidden)
+        context.setattr(Problem, "_validate_values", forbidden)
+        context.setattr(Problem, "_validate_weights", forbidden)
+        context.setattr(VarSpec, "validate_value", forbidden)
+        context.setattr(VarSpec, "retract", forbidden)
+        context.setattr(VarSpec, "difference", forbidden)
+        context.setattr(SO3Manifold, "project", forbidden)
+
+        actual_residual = problem._residual_prevalidated(values, batch_shape=batch_shape)
+        actual_jacobian = problem._dense_jacobian_prevalidated(values, batch_shape=batch_shape)
+        actual_values = problem._retract_prevalidated(values, steps, batch_shape=batch_shape)
+        actual_difference = problem._difference_prevalidated(
+            values,
+            actual_values,
+            batch_shape=batch_shape,
+        )
+
+    torch.testing.assert_close(actual_residual, expected_residual)
+    torch.testing.assert_close(actual_jacobian, expected_jacobian)
+    for spec in problem.vars:
+        torch.testing.assert_close(actual_values[spec.name], expected_values[spec.name])
+        torch.testing.assert_close(actual_difference[spec.name], expected_difference[spec.name])

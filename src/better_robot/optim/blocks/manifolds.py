@@ -84,6 +84,10 @@ class Euclidean:
         return _numel(shape)
 
     def project(self, x: torch.Tensor, bounds: Bounds | None) -> torch.Tensor:
+        return self._project_prevalidated(x, bounds)
+
+    def _project_prevalidated(self, x: torch.Tensor, bounds: Bounds | None) -> torch.Tensor:
+        """Project after static/value validation has run at the public boundary."""
         if bounds is None:
             return x
         return torch.maximum(torch.minimum(x, bounds.upper), bounds.lower)
@@ -119,6 +123,11 @@ class SO3Manifold:
 
     def project(self, x: torch.Tensor, bounds: Bounds | None) -> torch.Tensor:
         self.validate_bounds(bounds, name="<unknown>")
+        return self._project_prevalidated(x, bounds)
+
+    def _project_prevalidated(self, x: torch.Tensor, bounds: Bounds | None) -> torch.Tensor:
+        """Normalize after the public boundary has established ``bounds is None``."""
+        del bounds
         return so3.normalize(x)
 
     def validate_bounds(self, bounds: Bounds | None, *, name: str) -> None:
@@ -143,6 +152,11 @@ class SE3Manifold:
 
     def project(self, x: torch.Tensor, bounds: Bounds | None) -> torch.Tensor:
         self.validate_bounds(bounds, name="<unknown>")
+        return self._project_prevalidated(x, bounds)
+
+    def _project_prevalidated(self, x: torch.Tensor, bounds: Bounds | None) -> torch.Tensor:
+        """Normalize after the public boundary has established ``bounds is None``."""
+        del bounds
         return se3.normalize(x)
 
     def validate_bounds(self, bounds: Bounds | None, *, name: str) -> None:
@@ -251,6 +265,16 @@ class RobotConfig:
         if bounds is None:
             return x
         self.validate_bounds(bounds, name="<unknown>")
-        mask = self.box_mask.to(device=x.device)
-        clamped = torch.maximum(torch.minimum(x, bounds.upper), bounds.lower)
-        return torch.where(mask, clamped, x)
+        return self._project_prevalidated(x, bounds)
+
+    def _project_prevalidated(self, x: torch.Tensor, bounds: Bounds | None) -> torch.Tensor:
+        """Project valid RobotConfig bounds without tensor-to-host predicates.
+
+        :meth:`validate_bounds` establishes that every non-box coordinate has
+        ``(-inf, +inf)`` bounds. Clamping the complete state is therefore
+        equivalent to masking box coordinates, while avoiding construction and
+        device transfer of a fresh mask in a solver update.
+        """
+        if bounds is None:
+            return x
+        return torch.maximum(torch.minimum(x, bounds.upper), bounds.lower)

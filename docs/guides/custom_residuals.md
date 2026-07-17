@@ -69,12 +69,16 @@ set to a fixed maximum and carry a mask in the context instead.
 axis. Its default is `1`, matching scalar-row robust weighting. Set
 `group_size=3` for a flattened sequence of 3D displacement vectors, for
 example; `dim` must be divisible by the group size. One robust kernel is stored
-per residual item, and M2b applies it independently to each contiguous group.
+per residual item, and named-block LM/GN applies it independently to each
+contiguous group.
 
 Do not put unrelated units into one group. Pixel `x/y` error may be a 2-vector;
 3D point error may be a 3-vector; a scalar hinge remains a scalar group. Split
 terms with different kernels, scales, or meanings into separate residual
-items. M2a records the grouping and kernel but does not run IRLS itself.
+items. Direct `Problem.residual()`/`objective()` evaluation does not apply
+IRLS; the named-block solver applies `sqrt(kernel.weight(squared_norm))` to
+each group's residual and Jacobian rows and uses the matching robust objective
+for acceptance.
 
 ## 3. Add analytic blocks only when they are complete
 
@@ -121,13 +125,41 @@ The v1 decision is **NaN rows**, not exceptions or an additional validity-mask
 protocol. If one batch element cannot produce a meaningful residual, return
 NaN for all of that element's affected rows while leaving other elements
 intact. Do not raise from data-dependent validity checks: that would discard
-valid neighbors in the batch. M2b detects non-finite rows before factorization,
-marks only those elements `failed_nonfinite`, and refuses their implicit
-gradients under the differentiation contract.
+valid neighbors in the batch. Named-block LM/GN detects non-finite rows before
+factorization, marks only those elements `LMStatus.FAILED`, and records their
+implicit-gradient eligibility as false.
 
 NaN is a failure signal, not padding. Padded or missing observations that are a
 valid no-op use finite zero rows plus an ordinary observation mask. A scalar
 objective term follows the same per-element convention with a NaN scalar.
+
+## 6. Decide whether capture eligibility matters
+
+Every structural residual that satisfies the eager evaluation contract works
+with the named-block solver. CUDA graph eligibility is narrower. A custom
+residual and every provider it requests are capture-eligible only when their
+forward/Jacobian work is:
+
+- fixed-shape for a fixed `Problem` and `Values` layout, with padding and
+  finite masks used for variable-size observation sets;
+- sync-free: no `.item()`, `.cpu()`, `float(tensor)`, `bool(tensor)`,
+  `int(tensor)`, or other tensor-dependent Python decisions;
+- free of data-dependent indexing that changes output shape or storage
+  identity; and
+- allocation-bounded, with no Python-side cache keyed by a tensor object,
+  pointer, mutation counter, or runtime value.
+
+Static loops over declared residuals, providers, joints, or a padded maximum
+are allowed. Tensor-dependent choices use fixed-shape operations such as
+`torch.where`. The same rules apply to an analytic `jacobian_blocks` method;
+when autodiff supplies a block, its transformed residual/provider path must
+also satisfy them.
+
+A non-eligible residual is still supported by the detached eager `run` loop;
+it simply must not be placed in a future captured driver. The M2b update's
+hot-path lint and a CPU `torch.compile(fullgraph=True)` smoke test catch common
+graph breaks, but neither proves CUDA graph safety. M6 owns certification via
+warmup plus actual capture/replay parity, including any custom-kernel adjoints.
 
 ## Verification checklist
 
@@ -139,4 +171,6 @@ Before shipping a custom residual:
    per transformed block for AD-generated Jacobians);
 4. compare analytic blocks with forced reverse and forward AD, if supplied;
 5. test mask-reduced columns and robust `group_size` boundaries;
-6. test one invalid batch element without raising or corrupting its neighbors.
+6. test one invalid batch element without raising or corrupting its neighbors;
+7. if capture matters, run the fixed-shape fullgraph smoke and M6 replay-parity
+   harness rather than treating eager success as certification.

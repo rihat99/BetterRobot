@@ -1,10 +1,12 @@
 """Forbid hot-path patterns that break ``torch.compile`` and CUDA throughput.
 
 AST-walks ``kinematics/``, ``dynamics/``, ``optim/optimizers/``,
-``residuals/``, and ``lie/`` and fails the test if any forbidden idiom appears:
+``optim/blocks/solver_lm.py``, ``residuals/``, and ``lie/`` and fails the test
+if any forbidden idiom appears:
 
 * ``.item()`` / ``.cpu()`` — force a CUDA-host sync.
-* ``float(tensor)`` / ``bool(tensor)`` — force a CUDA-host sync.
+* ``float(tensor)`` / ``bool(tensor)`` / ``int(tensor)`` — force a
+  CUDA-host sync.
 * ``tensor.new_tensor(...)`` — allocates a tensor on every call.
 * ``torch.zeros`` / ``torch.ones`` / ``torch.empty`` / ``torch.eye`` inside a
   Python loop — should be allocated once outside.
@@ -24,7 +26,12 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2] / "src" / "better_robot"
-WATCHED = ("kinematics", "dynamics", "optim/optimizers", "residuals", "lie")
+WATCHED_DIRS = ("kinematics", "dynamics", "optim/optimizers", "residuals", "lie")
+# Keep this list narrow: public ``Problem``/``VarSpec`` methods intentionally
+# perform host-side boundary validation, while the prevalidated solver update
+# must remain sync-free.  ``run`` and initialization may use a reasoned
+# ``# bench-ok`` exemption at their documented eager/static boundaries.
+WATCHED_FILES = ("optim/blocks/solver_lm.py",)
 ALLOC_FNS = ("zeros", "ones", "empty", "full", "rand", "randn", "eye")
 
 # Calls with these names are tensor evidence when reached through ``torch``.
@@ -95,12 +102,13 @@ def _walk(node: ast.AST, parents: list[ast.AST] | None = None):
 
 def _find_hot_path_files() -> list[Path]:
     out: list[Path] = []
-    for sub in WATCHED:
+    for sub in WATCHED_DIRS:
         for path in (ROOT / sub).rglob("*.py"):
             if "__pycache__" in path.parts:
                 continue
             out.append(path)
-    return out
+    out.extend(ROOT / relative for relative in WATCHED_FILES)
+    return sorted(out)
 
 
 def _is_in_loop(parents: list[ast.AST]) -> bool:
@@ -114,6 +122,17 @@ def _is_in_loop(parents: list[ast.AST]) -> bool:
         ast.GeneratorExp,
     )
     return any(isinstance(parent, loop_nodes) for parent in parents)
+
+
+def _function_name(parents: list[ast.AST]) -> str | None:
+    for parent in reversed(parents):
+        if isinstance(parent, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            return parent.name
+    return None
+
+
+def _is_named_block_solver(file: Path) -> bool:
+    return file.as_posix().endswith("/optim/blocks/solver_lm.py")
 
 
 def _exempt(line: str) -> bool:
@@ -372,7 +391,7 @@ def _infer_tensor_evidence(  # noqa: PLR0912 - explicit evidence propagation
     return tensor_names, scope_attributes, tensor_returns
 
 
-def _find_violations(file: Path, src: str) -> list[str]:
+def _find_violations(file: Path, src: str) -> list[str]:  # noqa: PLR0912 - explicit AST checks
     lines = src.splitlines()
     tree = ast.parse(src)
     tensor_names, tensor_attributes, tensor_returns = _infer_tensor_evidence(tree)
@@ -396,9 +415,12 @@ def _find_violations(file: Path, src: str) -> list[str]:
                     "hoist tensor construction; mark with `# bench-ok: <reason>` to allow"
                 )
 
-        # ``float(tensor)`` / ``bool(tensor)`` host syncs. Tensor provenance
+        # ``float(tensor)`` / ``bool(tensor)`` / ``int(tensor)`` host syncs. Tensor provenance
         # is inferred per function, so ordinary ``float(dt)`` remains legal.
-        if isinstance(node.func, ast.Name) and node.func.id in {"float", "bool"} and node.args:
+        conversion_names = {"float", "bool"}
+        if _is_named_block_solver(file):
+            conversion_names.add("int")
+        if isinstance(node.func, ast.Name) and node.func.id in conversion_names and node.args:
             scope = _scope_for(parents, tree)
             if _is_tensor_expr(
                 node.args[0],
@@ -413,7 +435,11 @@ def _find_violations(file: Path, src: str) -> list[str]:
 
         # torch.<alloc>(...) inside an explicit Python loop.
         torch_name = _torch_call_name(node.func)
-        if torch_name in ALLOC_FNS and _is_in_loop(parents) and not _exempt(line):
+        init_boundary = _is_named_block_solver(file) and _function_name(parents) in {
+            "_static_layout",
+            "init_state",
+        }
+        if torch_name in ALLOC_FNS and _is_in_loop(parents) and not (_exempt(line) or init_boundary):
             violations.append(
                 f"{file.name}:{node.lineno}: torch.{torch_name}(...) inside loop — "
                 "hoist allocation; mark with `# bench-ok: <reason>` to allow"
@@ -461,6 +487,11 @@ def test_no_forbidden_hot_path_patterns(file: Path) -> None:
             "bool(tensor)",
         ),
         (
+            "int_tensor",
+            "import torch\ndef hot(x: torch.Tensor):\n    return int(x.sum())\n",
+            "int(tensor)",
+        ),
+        (
             "new_tensor",
             "import torch\ndef hot(x: torch.Tensor):\n    return x.new_tensor([1.0])\n",
             ".new_tensor(...)",
@@ -474,8 +505,14 @@ def test_no_forbidden_hot_path_patterns(file: Path) -> None:
     ),
 )
 def test_new_forbidden_patterns_are_detected(name: str, src: str, needle: str) -> None:
-    violations = _find_violations(Path(f"{name}.py"), src)
+    path = ROOT / "optim/blocks/solver_lm.py" if name == "int_tensor" else Path(f"{name}.py")
+    violations = _find_violations(path, src)
     assert any(needle in violation for violation in violations), violations
+
+
+def test_named_block_lm_update_module_is_watched() -> None:
+    watched = {path.relative_to(ROOT).as_posix() for path in _find_hot_path_files()}
+    assert "optim/blocks/solver_lm.py" in watched
 
 
 def test_scalar_float_conversions_are_not_tensor_syncs() -> None:

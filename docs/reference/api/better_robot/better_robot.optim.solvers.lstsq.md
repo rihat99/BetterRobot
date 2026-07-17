@@ -29,7 +29,7 @@
 ```{autodoc2-docstring} better_robot.optim.solvers.lstsq.LSTSQ
 ```
 
-````{py:method} solve(A: torch.Tensor, b: torch.Tensor) -> torch.Tensor
+````{py:method} solve(A: torch.Tensor, b: torch.Tensor, ridge: torch.Tensor | float | None = None) -> torch.Tensor
 :canonical: better_robot.optim.solvers.lstsq.LSTSQ.solve
 
 ```{autodoc2-docstring} better_robot.optim.solvers.lstsq.LSTSQ.solve

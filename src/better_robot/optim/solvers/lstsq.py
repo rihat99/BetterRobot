@@ -7,10 +7,18 @@ from __future__ import annotations
 
 import torch
 
+from .base import _regularized_matrix
+
 
 class LSTSQ:
-    """Least-squares solver via ``torch.linalg.lstsq``."""
+    """Dense batched least-squares solver via ``torch.linalg.lstsq``."""
 
-    def solve(self, A: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
-        """Solve via ``torch.linalg.lstsq`` (handles rank-deficient A)."""
-        return torch.linalg.lstsq(A, b).solution
+    def solve(
+        self,
+        A: torch.Tensor,
+        b: torch.Tensor,
+        ridge: torch.Tensor | float | None = None,
+    ) -> torch.Tensor:
+        """Solve ``(A + ridge I) x ≈ b`` for dense batched inputs."""
+        matrix = _regularized_matrix(A, ridge)
+        return torch.linalg.lstsq(matrix, b.to(A.dtype)).solution.to(b.dtype)

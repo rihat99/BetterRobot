@@ -148,9 +148,11 @@ invalidation when shapes or storage change, and a replay lifecycle that
 records forward **and backward together**. Capturing only the forward pass
 would not preserve the intended autograd work on replay.
 
-Capture remains opt-in until the M2b solver state and any custom kernel
-adjoints have parity tests. There is currently no public capture decorator or
-context manager.
+Named-block LM now supplies the fixed-structure tensor state and pure,
+sync-free `update` required by that checklist; the CPU fullgraph smoke is only
+a graph-break proxy. Actual capture remains opt-in until M6 records and
+replays the full solver lifecycle and any custom-kernel adjoints with parity.
+There is currently no public capture decorator or context manager.
 
 ### 2.7 Memory reuse and matrix-free trajopt
 
