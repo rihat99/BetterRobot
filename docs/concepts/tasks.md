@@ -230,6 +230,7 @@ def solve_trajopt(
     cost_stack: CostStack,
     optimizer: LevenbergMarquardt | None = None,
     max_iter: int = 50,
+    jacobian_strategy: JacobianStrategy = JacobianStrategy.AUTO,
     lower: torch.Tensor | None = None,
     upper: torch.Tensor | None = None,
     parameterization: KnotTrajectory | None = None,

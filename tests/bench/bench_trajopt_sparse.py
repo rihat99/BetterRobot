@@ -44,6 +44,7 @@ HORIZONS = (50, 125, 250, 500)
 PATHS = ("dense", "structured")
 EXPECTED_ACTIVE_ENVELOPE = {50: 127, 125: 323, 250: 652, 500: 1305}
 EXPECTED_HOST = "robotics2-ESC8000-E11"
+EXPECTED_CPU_MODEL = "INTEL(R) XEON(R) PLATINUM 8570"
 CPU_AFFINITY = 0
 ADDRESS_LIMIT_BYTES = 16 * 2**30
 CASE_TIMEOUT_SECONDS = 600
@@ -718,6 +719,7 @@ def _evaluate_acceptance(
 
 
 def _failure_status(returncode: int, stderr: str) -> str:
+    del returncode
     lowered = stderr.lower()
     oom_markers = (
         "out of memory",
@@ -727,7 +729,10 @@ def _failure_status(returncode: int, stderr: str) -> str:
         "std::bad_alloc",
         "memoryerror",
     )
-    if returncode in {-9, -11} or any(marker in lowered for marker in oom_markers):
+    # A signal alone is not proof of OOM: SIGKILL/SIGSEGV can also mean an
+    # operator or harness failure. Only explicit allocator evidence earns the
+    # DNF_OOM label; unknown deaths stay actionable HARNESS_ERROR results.
+    if any(marker in lowered for marker in oom_markers):
         return "DNF_OOM"
     return "HARNESS_ERROR"
 
@@ -838,6 +843,10 @@ def _run_parent(args: argparse.Namespace) -> int:
     quick = bool(args.quick)
     selected_paths = tuple(args.path) if args.path else (("structured",) if quick else PATHS)
     selected_horizons = tuple(args.horizon) if args.horizon else ((50,) if quick else HORIZONS)
+    if len(set(selected_paths)) != len(selected_paths):
+        raise ValueError("--path selectors must not contain duplicates")
+    if len(set(selected_horizons)) != len(selected_horizons):
+        raise ValueError("--horizon selectors must not contain duplicates")
     updates = 1 if quick else CANONICAL_UPDATES
     warmups = 0 if quick else CANONICAL_WARMUPS
     measurements = 1 if quick else CANONICAL_MEASUREMENTS
@@ -860,16 +869,22 @@ def _run_parent(args: argparse.Namespace) -> int:
                 )
             )
 
+    actual_host = platform.node()
+    actual_cpu_model = _read_cpu_model()
+    host_matches = actual_host == EXPECTED_HOST
+    cpu_matches = actual_cpu_model == EXPECTED_CPU_MODEL
     canonical_protocol = (
         not quick
         and not args.allow_unpinned
+        and host_matches
+        and cpu_matches
         and updates == CANONICAL_UPDATES
         and warmups == CANONICAL_WARMUPS
         and measurements == CANONICAL_MEASUREMENTS
         and args.timeout_seconds == CASE_TIMEOUT_SECONDS
         and args.address_limit_bytes == ADDRESS_LIMIT_BYTES
     )
-    complete_matrix = set(selected_paths) == set(PATHS) and set(selected_horizons) == set(HORIZONS)
+    complete_matrix = selected_paths == PATHS and selected_horizons == HORIZONS
     slopes = _compute_slopes(cases)
     output = {
         "_schema_version": SCHEMA_VERSION,
@@ -882,6 +897,12 @@ def _run_parent(args: argparse.Namespace) -> int:
             "complete_matrix": complete_matrix,
             "quick": quick,
             "allow_unpinned": bool(args.allow_unpinned),
+            "hostname": actual_host,
+            "expected_hostname": EXPECTED_HOST,
+            "host_matches": host_matches,
+            "cpu_model": actual_cpu_model,
+            "expected_cpu_model": EXPECTED_CPU_MODEL,
+            "cpu_matches": cpu_matches,
         },
         "cases": cases,
         "slopes": slopes,

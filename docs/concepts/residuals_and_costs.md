@@ -72,12 +72,11 @@ Live, with analytic `.jacobian()`:
 | `pose.py` | `OrientationResidual` | 3 | Bottom three rows + `Jr_inv_so3` |
 | `limits.py` | `JointPositionLimit` | 2 * nq | Diagonal ±1 / 0 |
 | `regularization.py` | `RestResidual` | nv | Manifold difference; approximate identity Jacobian |
-| `reference_trajectory.py` | `ReferenceTrajectoryResidual` | varies | Time-indexed knot tracking |
-| `contact.py` | `ContactConsistencyResidual` | 6 * n_contacts | Holonomic contact constraint |
-| `time_indexed.py` | `TimeIndexedResidual` | varies | Generic time-axis wrapper |
-| `smoothness.py` | `Velocity5pt` / `Accel5pt` | nv * (T - k) | Tridiagonal over time axis |
-| `velocity.py` | `VelocityResidual` | nv | Joint-space velocity tracking |
-| `acceleration.py` | `AccelerationResidual` | nv | Joint-space acceleration tracking |
+| `regularization.py` | `ReferenceTrajectoryResidual` | T * nv | Per-knot manifold reference tracking |
+| `contact.py` | `ContactConsistencyResidual` | 3 * K * (T - 1) | Linear velocity of K contact frames |
+| `temporal.py` | `TimeIndexedResidual` | inner dim | Generic single-knot wrapper |
+| `smoothness.py` | `VelocityResidual` | nv * (T - 2) | Central tangent velocity over time |
+| `smoothness.py` | `AccelerationResidual` | nv * (T - 2) | Three-knot tangent acceleration |
 
 Live without an analytic Jacobian (their `.jacobian()` returns `None` and
 named-block `Problem` uses tangent-space `torch.func` AD; the legacy

@@ -71,9 +71,11 @@ residual shapes, provider lifetime, robust groups, analytic blocks, and
 per-element failure signaling.
 
 The `ResidualState`/`CostStack` recipe below belongs to the legacy
-single-variable solver stack. It remains for current trajopt and direct
-compatibility callers; `solve_ik` already uses named blocks. Do not use it as
-the starting point for new integrations.
+single-variable solver stack and remains for direct compatibility callers.
+`solve_trajopt` accepts a `CostStack` only as an input container and adapts its
+active soft terms into named blocks; it does not run this legacy recipe.
+`solve_ik` also uses named blocks. Do not use the legacy recipe as the starting
+point for new integrations.
 :::
 
 ```python

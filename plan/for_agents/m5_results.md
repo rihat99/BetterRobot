@@ -1,8 +1,8 @@
 # M5 results — sparse trajectory structure
 
-**Status:** the authorized implementation scope is complete on branch `dev`
-(2026-07-17). Full Phase-C performance acceptance is not claimed because the
-canonical scaling sweep was not run.
+**Status:** implementation is complete on branch `dev` (2026-07-17), while
+milestone performance acceptance is incomplete/deferred. The mandatory
+canonical Phase-C scaling sweep was not run.
 
 ## Outcome
 
@@ -29,9 +29,11 @@ canonical scaling sweep was not run.
   maximum relative residual of `2.54e-7`.
 - Core structured tests: **41 passed**; dense LM regressions: **51 passed**;
   trajopt task/trajectory tests: **27 passed**.
-- Benchmark smoke: **2 passed**. Isolated one-update T=50 dense and structured
-  runs both succeeded, selected the requested routes, and agreed in final cost
-  to approximately `8e-10`.
+- Benchmark pytest gate: **4 passed** (structured T=50 child smoke, pending
+  baseline schema, selector validation, and conservative process-failure
+  classification). In separate direct harness checks, isolated one-update T=50
+  dense and structured runs both succeeded, selected the requested routes, and
+  agreed in final cost to approximately `8e-10`.
 - Full repository CPU gate: **1,494 passed, 2 skipped, 3 deselected** with
   `-m "not bench and not cuda"`. Scoped Ruff, `git diff --check`, roadmap
   inventory, front-page test, generated API reference, Sphinx HTML build, and
@@ -53,10 +55,11 @@ canonical scaling sweep was not run.
 4. Robot B-splines remain rejected. The existing component-space utility is not
    quaternion-, bounds-, or replacement-safe and was not advertised as a
    manifold trajectory parameterization.
-5. The original SMPL benchmark requested `JointPositionLimit`, but that term is
-   identically zero with sanitized bounds at the seeded trajectory. It was
-   replaced, as approved in Phase A, by a benchmark-only nonzero tangent
-   envelope with checkable diagonal temporal structure.
+5. The original SMPL benchmark requested `JointPositionLimit`, but the current
+   residual returns a non-flat trajectory output and its SMPL `dq/dv`
+   projection has zero tangent support because the movable joints have
+   `nq != nv`. It was replaced, as approved in Phase A, by a benchmark-only
+   nonzero tangent envelope with checkable diagonal temporal structure.
 6. A requested dynamic-dimension fallback test cannot be constructed because
    `Residual.dim` is a positive static contract validated at `Problem`
    construction. The contract was not weakened to manufacture that case.
