@@ -16,7 +16,9 @@ from typing import Any
 import torch
 
 from ..data_model.model import Model
+from ._temporal_jacobian import dense_temporal_jacobian, temporal_free_indices
 from .base import ResidualState, _residual_model_q
+from .structure import TemporalPattern
 
 
 class RestResidual:
@@ -175,6 +177,7 @@ class ReferenceTrajectoryResidual:
     """
 
     name: str = "reference_trajectory"
+    reads = ("q",)
 
     def __init__(
         self,
@@ -183,14 +186,21 @@ class ReferenceTrajectoryResidual:
         *,
         weight: float = 1.0,
         weight_per_frame: torch.Tensor | None = None,
+        name: str = "reference_trajectory",
     ) -> None:
         if q_ref.dim() != 2:  # bench-ok: constructor shape validation runs once
             raise ValueError(f"q_ref must be (T, nq); got {tuple(q_ref.shape)}")
+        if q_ref.shape[0] < 1:
+            raise ValueError("ReferenceTrajectoryResidual requires at least one timestep")
+        if q_ref.shape[1] != model.nq:
+            raise ValueError(f"q_ref trailing size must equal model.nq={model.nq}; got {q_ref.shape[1]}")
         self.model = model
+        self.name = name
         self.q_ref = q_ref
         self.weight = float(weight)
         self.weight_per_frame = weight_per_frame  # (T,) or None
-        self.dim = int(q_ref.shape[0] * model.nv)
+        self.horizon = int(q_ref.shape[0])
+        self.dim = self.horizon * model.nv
 
     def _per_frame_scale(self, T: int, device, dtype) -> torch.Tensor:
         if self.weight_per_frame is None:
@@ -200,32 +210,87 @@ class ReferenceTrajectoryResidual:
             raise ValueError(f"weight_per_frame must be ({T},); got {tuple(w.shape)}")
         return w * self.weight
 
-    def __call__(self, state: ResidualState) -> torch.Tensor:
-        q = state.variables
-        if q.dim() != 2:  # bench-ok: trajectory-shape contract validation
-            raise ValueError(f"ReferenceTrajectoryResidual expects (T, nq); got {tuple(q.shape)}")
-        T, nq = q.shape
-        if T != self.q_ref.shape[0]:
-            raise ValueError(f"trajectory length {T} != q_ref length {self.q_ref.shape[0]}")
+    def _trajectory(
+        self,
+        value: ResidualState | Mapping[str, Any],
+    ) -> torch.Tensor:
+        _model, q = _residual_model_q(value, model=self.model)
+        if q.dim() < 2:  # bench-ok: trajectory-shape contract validation
+            raise ValueError(f"ReferenceTrajectoryResidual expects (B..., T, nq); got {tuple(q.shape)}")
+        if q.shape[-2] != self.horizon:
+            raise ValueError(f"trajectory length {q.shape[-2]} != q_ref length {self.horizon}")
+        return q
+
+    def __call__(self, value: ResidualState | Mapping[str, Any]) -> torch.Tensor:
+        q = self._trajectory(value)
+        T = self.horizon
         q_ref = self.q_ref.to(device=q.device, dtype=q.dtype)
-        r = state.model.difference(q_ref, q)  # (T, nv)
+        r = self.model.difference(q_ref, q)  # (B..., T, nv)
         w = self._per_frame_scale(T, q.device, q.dtype).unsqueeze(-1)  # (T, 1)
-        return (r * w).reshape(-1)
+        return (r * w).reshape(*q.shape[:-2], self.dim)
 
-    def jacobian(self, state: ResidualState) -> torch.Tensor | None:
-        q = state.variables
-        T, _ = q.shape
-        nv = state.model.nv
-        device, dtype = q.device, q.dtype
+    def temporal_structure(self, variable_name: str) -> TemporalPattern | None:
+        if variable_name != "q":
+            return None
+        return TemporalPattern(
+            rows=self.horizon,
+            row_width=self.model.nv,
+            row_origin=0,
+            offsets=(0,),
+        )
 
-        w = self._per_frame_scale(T, device, dtype)  # (T,)
-        # Block-diagonal of scaled identities; build explicitly to stay clear
-        # (trajectory sizes are small relative to the fullJacobian of the CostStack).
-        J = torch.zeros(T * nv, T * nv, device=device, dtype=dtype)
-        eye = torch.eye(nv, device=device, dtype=dtype)
-        for t in range(T):
-            J[t * nv : (t + 1) * nv, t * nv : (t + 1) * nv] = eye * w[t]
-        return J
+    def _temporal_blocks(
+        self,
+        q: torch.Tensor,
+        indices: torch.Tensor,
+    ) -> dict[int, torch.Tensor]:
+        nv = self.model.nv
+        identity = torch.eye(nv, dtype=q.dtype, device=q.device).index_select(-1, indices)
+        weights = self._per_frame_scale(self.horizon, q.device, q.dtype)
+        base = (weights[:, None, None] * identity).expand(
+            *q.shape[:-2],
+            self.horizon,
+            nv,
+            indices.numel(),
+        )
+        anchor = q.sum(dim=(-2, -1)) * 0.0
+        return {0: base + anchor[..., None, None, None]}
+
+    def temporal_jacobian_blocks(
+        self,
+        ctx: Mapping[str, Any],
+        variable_name: str,
+    ) -> Mapping[int, torch.Tensor]:
+        if variable_name != "q":
+            return {}
+        q = self._trajectory(ctx)
+        indices = temporal_free_indices(ctx, "q", device=q.device)
+        return self._temporal_blocks(q, indices)
+
+    def jacobian_blocks(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
+        pattern = self.temporal_structure("q")
+        assert pattern is not None
+        return {
+            "q": dense_temporal_jacobian(
+                pattern,
+                self.temporal_jacobian_blocks(ctx, "q"),
+                horizon=self.horizon,
+            )
+        }
+
+    def jacobian(
+        self,
+        value: ResidualState | Mapping[str, Any],
+    ) -> torch.Tensor | None:
+        q = self._trajectory(value)
+        pattern = self.temporal_structure("q")
+        assert pattern is not None
+        indices = torch.arange(self.model.nv, device=q.device)
+        return dense_temporal_jacobian(
+            pattern,
+            self._temporal_blocks(q, indices),
+            horizon=self.horizon,
+        )
 
     def apply_jac_transpose(self, state: ResidualState, r: torch.Tensor) -> torch.Tensor:
         """``J^T @ r`` without materialising the dense Jacobian — O(T·nv).
@@ -233,12 +298,12 @@ class ReferenceTrajectoryResidual:
         Jacobian is diagonal (scaled identity per timestep), so the
         transpose-product is just per-frame scaling.
         """
-        q = state.variables
-        T, _ = q.shape
-        nv = state.model.nv
+        q = self._trajectory(state)
+        T = self.horizon
+        nv = self.model.nv
         w = self._per_frame_scale(T, q.device, q.dtype)  # (T,)
-        r_mat = r.reshape(T, nv)
-        return (w.unsqueeze(-1) * r_mat).reshape(-1)
+        r_mat = r.reshape(*q.shape[:-2], T, nv)
+        return (w.unsqueeze(-1) * r_mat).reshape(*q.shape[:-2], T * nv)
 
 
 class NullspaceResidual:

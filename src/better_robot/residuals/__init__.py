@@ -21,6 +21,7 @@ from .contact import ContactConsistencyResidual
 from .regularization import JointRotationPrior, NullspaceResidual, ReferenceTrajectoryResidual, RestResidual
 from .temporal import TimeIndexedResidual
 from .smoothness import AccelerationResidual, JerkResidual, VelocityResidual
+from .structure import TemporalPattern
 from .scene_sdf import (
     SceneAttractionResidual,
     SceneClearanceResidual,
@@ -55,6 +56,7 @@ __all__ = [
     "VelocityResidual",
     "AccelerationResidual",
     "JerkResidual",
+    "TemporalPattern",
     "YoshikawaResidual",
     "SelfCollisionResidual",
     "WorldCollisionResidual",
