@@ -13,6 +13,7 @@ See ``docs/concepts/tasks.md``.
 
 from __future__ import annotations
 
+from .contact_forces import ContactForceResult, ContactForceWeights, solve_contact_forces
 from .ik import IKCostConfig, IKResult, OptimizerConfig, solve_ik
 from .smoothing import smooth_trajectory
 from .trajectory import Trajectory
@@ -21,10 +22,13 @@ from .trajopt import TrajOptResult, solve_trajopt
 __all__ = [
     "solve_ik",
     "solve_trajopt",
+    "solve_contact_forces",
     "smooth_trajectory",
     "Trajectory",
     "IKCostConfig",
     "IKResult",
     "OptimizerConfig",
     "TrajOptResult",
+    "ContactForceResult",
+    "ContactForceWeights",
 ]

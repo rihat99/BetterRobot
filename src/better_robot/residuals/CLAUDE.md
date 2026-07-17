@@ -1,68 +1,58 @@
-# residuals/ — Pure Functions from State to Residual Vector
+# residuals/ — Residual Functions and Named-Block Components
 
-## Residual Protocol
+## Two supported call shapes
 
-Every residual implements:
-```python
-name: str                                    # unique identifier
-dim: int                                     # output dimension
-__call__(state: ResidualState) -> Tensor     # (B..., dim) residual vector
-jacobian(state: ResidualState) -> Tensor | None  # (B..., dim, nv) or None
-```
+Legacy residuals accept `ResidualState(model, data, variables)` and may expose
+an analytic `jacobian(state)`. Current optimization tasks use M2 named-block
+`Problem`: a residual is a callable over an evaluation-local mapping, declares
+`reads`, returns `(..., dim)` rows, and may implement
+`jacobian_blocks(ctx) -> dict[var_name, Tensor]`. Do not introduce a third
+protocol or silently fall back to finite differences.
 
-If `jacobian()` returns `None`, `JacobianStrategy.AUTO` falls back to
-unbatched central finite differences. The fallback evaluates the residual
-`2 * nv + 1` times; real `torch.func` strategies are scheduled for M2.
+Providers own shared computation. Declare their static `inputs` and `outputs`;
+`Problem` evaluates each provider at most once per evaluation context. Residuals
+must not cache graph-carrying tensors across evaluations.
 
-Legacy trajectory residuals can also override:
-```python
-apply_jac_transpose(state, vec) -> Tensor    # (B..., nv) — matrix-free J^T r
-```
+## Vision and point-cloud pack
 
-The default `apply_jac_transpose` (in `base.py`) materialises `J = self.jacobian(state)` and returns `J.mT @ vec`; banded residuals override it. This path is retained only for `tests/optim/test_matrix_free.py`: no production solver or task calls `LeastSquaresProblem.gradient`.
+- `projection.py`: camera-thin `ProjectionResidual` over model frame-table
+  rows. The complete analytic block is projection derivative × camera rotation
+  × frame Jacobian. Observation tensors must already match the evaluated model
+  dtype/device; no hidden hot-path transfers.
+- `chamfer.py`: `MaskedChamferResidual` on fixed padded point clouds and bool
+  masks. Nearest indices are detached while distances remain differentiable.
+- `scene_sdf.py`: `SceneSDFProvider` performs one detached nearest-neighbour
+  pass and feeds penetration, attraction, and clearance heads. The shared
+  result carries signed distance, nearest distance, confidence, and validity.
+- `_point_cloud.py`: private chunked nearest-correspondence helpers. The public
+  ragged convention is `(padded_tensor, validity_mask)`; invalid rows are finite
+  zeros.
 
-## ResidualState
+Robust kernels live on `optim.ResidualItem`, not inside residual math. Use
+`group_size=2` for per-point projection kernels such as Geman–McClure.
 
-```python
-@dataclass
-class ResidualState:
-    model: Model
-    data: Data          # FK already computed
-    variables: Tensor   # (B..., nx) flat optimization variable
-```
+## Existing library
 
-## Registry
+- `pose.py`: pose, position, and orientation targets.
+- `limits.py`, `human.py`: joint and swing/twist limits.
+- `regularization.py`: rest, spherical-joint prior, nullspace placeholder, and
+  reference-trajectory terms.
+- `smoothness.py`, `temporal.py`: trajectory differences and time indexing.
+- `contact.py`: contact-consistency residual.
+- `collision.py`: collision residual placeholders pending the evidence-gated
+  M4 port-or-cut decision; do not partially implement this path.
 
-Residuals are constructed explicitly and composed into a `CostStack`; there is no process-wide registry.
+## Author checklist
 
-## Implementation Status
-
-| Residual | Analytic Jacobian | `apply_jac_transpose` | Status |
-|----------|------------------|----------------------|--------|
-| `PoseResidual` (6D) | Jr_inv(log(Terr)) @ J_frame | default | Implemented |
-| `PositionResidual` (3D) | top 3 rows of frame Jacobian | default | Implemented |
-| `OrientationResidual` (3D) | Jr_so3(log(Rerr)) @ J_frame[3:] | default | Implemented |
-| `JointPositionLimit` (2*nq) | diagonal | default | Implemented |
-| `JointVelocityLimit` (2*nv) | — | default | `__call__` implemented; `.jacobian` is a stub |
-| `JointAccelLimit` (2*nv) | — | default | Stub |
-| `RestResidual` (nv) | weight * I | default | Implemented |
-| `JointRotationPrior` (nv) | tangent AD / legacy FD | default | Implemented; exact Lie derivative, no identity approximation |
-| `SwingTwistLimitResidual` (3*J) | tangent AD / legacy FD | default | Implemented; zero-twist convention at pure-pi swing |
-| `NullspaceResidual` | — | default | Stub |
-| `ReferenceTrajectoryResidual` (T*nv) | block-diagonal | overridden (per-frame scaling) | Implemented |
-| `VelocityResidual` (nv*(T-2)) | banded | overridden | Implemented |
-| `AccelerationResidual` (nv*(T-2)) | tridiagonal `[+I, −2I, +I] / dt²` | overridden | Implemented |
-| `JerkResidual` | — | — | Stub |
-| `TimeIndexedResidual` | wraps inner residual at fixed knot | passes through | Implemented |
-| `ContactConsistencyResidual` (3*K*(T-1)) | LWA frame-Jacobian linear rows | overridden | Implemented |
-| `YoshikawaResidual` (1) | — | — | Stub |
-| `SelfCollisionResidual` (n_pairs) | sparse analytic | default | Stub |
-| `WorldCollisionResidual` | sparse analytic | default | Stub |
-
-## Adding a New Residual
-
-1. Create class implementing the protocol in a new file
-2. Give the class a stable `name` attribute
-3. Implement `__call__` (required) and `jacobian` (optional but preferred)
-4. Override `apply_jac_transpose` only when extending the retained legacy matrix-free tests; it is not a live production solver path
-5. Residual must be a pure function of `ResidualState` — no side effects
+1. Give every residual a stable non-empty `name`, fixed `dim`, and precise
+   `reads` declaration.
+2. Preserve arbitrary leading execution batches and return raw residual rows.
+3. Require compatible input dtype/device instead of coercing tensors during an
+   evaluation.
+4. Make masks fixed-shape and explicit; never infer structure from tensor
+   values.
+5. If an analytic block is advertised, it must be complete for every variable
+   read by the residual and tested against both AD directions.
+6. Record detached choices such as nearest-neighbour indices in the docstring
+   and test that gradients reach only the selected continuous values.
+7. Put shared FK, dynamics, or NN work in a provider and add a counting test.

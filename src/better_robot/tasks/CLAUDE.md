@@ -10,6 +10,7 @@ Tasks are thin facades. No Jacobian code, no solver loops, no branching for fixe
 |------|--------|
 | `solve_ik` | Implemented |
 | `solve_trajopt` | Implemented with `KnotTrajectory`; non-knot robot parameterisations are gated until M5 |
+| `solve_contact_forces` | Implemented for batched floating-base clips through one named force block and shared RNEA provider |
 | `Trajectory` | Implemented (`with_batch_dims`, `slice`, `resample(linear|sclerp)`, `downsample`, `to_data`) |
 | `smooth_trajectory` | Implemented for batched quaternion and SE3 pose trajectories with explicit kernels |
 
@@ -22,6 +23,16 @@ Assembles one bounded `RobotConfig` block, `PoseResidual` items, optional limit/
 ## solve_trajopt
 
 Flattens a `(T, nq)` knot trajectory into a `LeastSquaresProblem` vector and installs a per-knot `Model.integrate` retraction. The user supplies the `CostStack`; targets/keyframes are expressed via `TimeIndexedResidual(...)`. `BSplineTrajectory` remains a Euclidean numerical basis utility, but `solve_trajopt` rejects it: manifold-safe interpolation/retraction, bounds, and multi-stage replacement are deferred to M5.
+
+## solve_contact_forces
+
+Fits world-frame point forces for a frozen `(*B, T, nq)` trajectory. Contacts
+are named by joint id and gated by a broadcastable `(B..., T, C)` active mask.
+The task central-differences velocity/acceleration, freezes world-to-local
+rotations, scatters `[force, torque=0]` external wrenches, and runs `rnea_raw`
+once per evaluation through a provider. The public term weights are base
+wrench, force magnitude, force smoothness, and actuated-torque smoothness.
+Gravity is a task argument; do not mutate or replace the caller's model.
 
 ## Trajectory
 

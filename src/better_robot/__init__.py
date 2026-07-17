@@ -41,7 +41,7 @@ from .kinematics import (
 from .lie.types import SE3
 from .optim import LeastSquaresProblem
 from .optim.cost_stack import CostStack
-from .tasks import Trajectory, solve_ik, solve_trajopt
+from .tasks import Trajectory, solve_contact_forces, solve_ik, solve_trajopt
 
 __all__ = [
     # data_model (5)
@@ -72,8 +72,9 @@ __all__ = [
     "CostStack",
     # optim (1)
     "LeastSquaresProblem",
-    # tasks (3)
+    # tasks (4)
     "solve_ik",
     "solve_trajopt",
+    "solve_contact_forces",
     "Trajectory",
 ]

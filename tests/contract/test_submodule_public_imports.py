@@ -23,6 +23,7 @@ SUBMODULE_PATHS: list[tuple[str, str]] = [
     ("better_robot.lie", "se3"),
     ("better_robot.lie", "so3"),
     ("better_robot.lie", "tangents"),
+    ("better_robot.lie", "umeyama"),
     # spatial
     ("better_robot.spatial", "Motion"),
     ("better_robot.spatial", "Force"),
@@ -44,6 +45,19 @@ SUBMODULE_PATHS: list[tuple[str, str]] = [
     ("better_robot.tasks.ik", "IKResult"),
     ("better_robot.tasks.ik", "IKCostConfig"),
     ("better_robot.tasks.ik", "OptimizerConfig"),
+    ("better_robot.tasks", "smooth_trajectory"),
+    ("better_robot.tasks", "solve_contact_forces"),
+    ("better_robot.tasks", "ContactForceResult"),
+    ("better_robot.tasks", "ContactForceWeights"),
+    # M4 vision residuals
+    ("better_robot.residuals", "ProjectionResidual"),
+    ("better_robot.residuals", "MaskedChamferResidual"),
+    ("better_robot.residuals", "SceneSDFProvider"),
+    ("better_robot.residuals", "SceneSDFResult"),
+    ("better_robot.residuals", "ScenePenetrationResidual"),
+    ("better_robot.residuals", "SceneAttractionResidual"),
+    ("better_robot.residuals", "SceneClearanceResidual"),
+    ("better_robot.optim.kernels", "GemanMcClure"),
     # optim named-block evaluation (M2a)
     ("better_robot.optim", "Bounds"),
     ("better_robot.optim", "Euclidean"),

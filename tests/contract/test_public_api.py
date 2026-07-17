@@ -48,6 +48,7 @@ REQUIRED: frozenset[str] = frozenset(
         # tasks
         "solve_ik",
         "solve_trajopt",
+        "solve_contact_forces",
         "Trajectory",
     }
 )

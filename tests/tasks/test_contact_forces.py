@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 import torch
 
 from better_robot.io.build_model import build_model
@@ -115,3 +116,12 @@ def test_batched_contact_solve_matches_sequential() -> None:
     expected = torch.stack([item.forces_world for item in sequential])
     torch.testing.assert_close(batched.forces_world, expected, rtol=2e-5, atol=2e-6)
 
+
+def test_contact_inputs_reject_lossy_ids_and_invalid_float_masks() -> None:
+    model = _floating_body()
+    q = _clip(model)
+
+    with pytest.raises(TypeError, match="contain integers"):
+        solve_contact_forces(model, q, [1.5], torch.ones(3, 1), dt=0.1)
+    with pytest.raises(ValueError, match=r"lie in \[0, 1\]"):
+        solve_contact_forces(model, q, [1], torch.full((3, 1), 1.5), dt=0.1)

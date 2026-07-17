@@ -182,6 +182,40 @@ The two key behaviours are:
   iterative SLERP / ScLERP means. Batch and time windows are vectorised;
   quaternion signs are hemisphere-aligned before smoothing. Only `q` changes.
 
+## Inverse contact-force fitting
+
+`solve_contact_forces` fits world-frame point forces for a frozen
+floating-base trajectory using the named-block LM solver:
+
+```python
+result = br.solve_contact_forces(
+    model,
+    q_traj,                         # (*B, T, nq)
+    contact_joint_ids=[left, right],
+    active_mask=contact_mask,       # broadcastable to (*B, T, C)
+    dt=1.0 / 30.0,
+    gravity=gravity,
+    weights=ContactForceWeights(
+        base_wrench=1.0,
+        force_magnitude=1e-4,
+        force_smooth=1e-3,
+        torque_smooth=1e-3,
+    ),
+)
+```
+
+Forces are one Euclidean variable block with event shape `(T, C, 3)`. A
+provider rotates them from world to joint-local coordinates, scatters
+`[force, torque=0]` rows into `fext`, and evaluates RNEA once per optimization
+context. The four weights control base-wrench balance, force magnitude,
+temporal force smoothness, and actuated-torque smoothness. A `(..., 3)` or
+spatial `(..., 6)` gravity tensor can be supplied per clip without replacing
+the model.
+
+`ContactForceResult` returns fitted world forces, local external wrenches,
+generalized forces, final residual/cost, and per-batch solver status. This task
+uses the Torch dynamics lane; Warp dynamics remain an M6 concern.
+
 ## Trajectory optimisation
 
 ```python
@@ -276,8 +310,10 @@ Each script has a `main()` that the example tests can call headlessly
 
 The public surface of `tasks/` is stable from v1:
 
-- **Top-level**: `solve_ik`, `solve_trajopt`, `Trajectory`.
-- **Tasks-package public**: `smooth_trajectory`.
+- **Top-level**: `solve_ik`, `solve_trajopt`, `solve_contact_forces`,
+  `Trajectory`.
+- **Tasks-package public**: `smooth_trajectory`, `ContactForceResult`, and
+  `ContactForceWeights`.
 - **Submodule-public** (reachable from `from better_robot.tasks.ik
   import …`): `IKResult`, `IKCostConfig`, `OptimizerConfig`.
 - **Submodule-public** (`from better_robot.tasks.trajopt import …`):

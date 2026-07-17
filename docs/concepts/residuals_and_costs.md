@@ -118,6 +118,32 @@ each joint tangent slice or each individual tangent coordinate. It differs
 from `RestResidual` by declining the latter's small-step identity-Jacobian
 approximation: current named-block tasks receive the exact tangent AD block.
 
+### Vision and padded point-cloud residuals
+
+The M4 vision pack is named-block-native. It uses fixed event shapes and
+arbitrary leading execution batches:
+
+- `ProjectionResidual(model, point_ids, K, extrinsics, target_px, ...)`
+  projects body, marker, or site frame-table rows through a camera-thin
+  world-to-camera transform. Confidence and validity are per point. Its
+  complete analytic `q` block composes the pinhole derivative, camera rotation,
+  and frame Jacobian. Put `GemanMcClure` on the surrounding `ResidualItem` with
+  `group_size=2`; robust weighting is not embedded in the residual.
+- `MaskedChamferResidual` consumes padded source/target point tensors and bool
+  validity masks. It emits source-to-target and, by default,
+  target-to-source nearest distances. Correspondence indices are detached;
+  gradients flow through the selected distances only.
+- `SceneSDFProvider` performs one chunked detached nearest-neighbour pass for a
+  padded query cloud and oriented scene cloud. Its `SceneSDFResult` feeds
+  `ScenePenetrationResidual`, `SceneAttractionResidual`, and
+  `SceneClearanceResidual`, so a `Problem` containing all three does not repeat
+  the nearest-neighbour work.
+
+The ragged-data convention is deliberately small: pad to a fixed count and
+carry a same-prefix boolean validity mask. Empty frames yield finite zero rows.
+There is no camera class, visibility policy, keypoint mapping, contact-label
+heuristic, or rendering abstraction in this pack.
+
 ### Example — `RestResidual`
 
 ```python

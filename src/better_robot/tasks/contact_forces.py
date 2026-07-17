@@ -207,6 +207,27 @@ def _gravity_values(
     return dataclasses.replace(model.values, gravity=gravity)
 
 
+def _contact_joint_ids(
+    value: torch.Tensor | Sequence[int],
+    *,
+    device: torch.device,
+) -> torch.Tensor:
+    if isinstance(value, torch.Tensor):
+        if value.dtype not in {
+            torch.int8,
+            torch.int16,
+            torch.int32,
+            torch.int64,
+            torch.uint8,
+        }:
+            raise TypeError("contact_joint_ids tensor must use an integer dtype")
+        return value.to(device=device, dtype=torch.long)
+    ids = list(value)
+    if any(isinstance(item, bool) or not isinstance(item, int) for item in ids):
+        raise TypeError("contact_joint_ids must contain integers")
+    return torch.tensor(ids, dtype=torch.long, device=device)
+
+
 def solve_contact_forces(  # noqa: PLR0912, PLR0915 - validates one complete public task boundary
     model: Model,
     q_traj: torch.Tensor,
@@ -252,7 +273,7 @@ def solve_contact_forces(  # noqa: PLR0912, PLR0915 - validates one complete pub
     time = q.shape[-2]
     velocity, acceleration = _trajectory_derivatives(model, q, float(dt))
 
-    ids = torch.as_tensor(contact_joint_ids, dtype=torch.long, device=q.device)
+    ids = _contact_joint_ids(contact_joint_ids, device=q.device)
     if ids.ndim != 1 or ids.numel() == 0:
         raise ValueError("contact_joint_ids must be a non-empty one-dimensional sequence")
     if bool(((ids < 0) | (ids >= model.njoints)).any()):
@@ -265,6 +286,10 @@ def solve_contact_forces(  # noqa: PLR0912, PLR0915 - validates one complete pub
         raise ValueError("active_mask must share q_traj.device")
     if active_mask.dtype != torch.bool and not active_mask.is_floating_point():
         raise TypeError("active_mask must be boolean or floating point")
+    if active_mask.is_floating_point() and (
+        not bool(torch.isfinite(active_mask).all()) or bool(((active_mask < 0.0) | (active_mask > 1.0)).any())
+    ):
+        raise ValueError("floating active_mask values must be finite and lie in [0, 1]")
     try:
         active = torch.broadcast_to(active_mask, (*batch_shape, time, contacts)).to(dtype=q.dtype)
     except RuntimeError as error:
@@ -280,7 +305,11 @@ def solve_contact_forces(  # noqa: PLR0912, PLR0915 - validates one complete pub
         forces0 = q.new_zeros(force_shape)
     else:
         if not isinstance(initial_forces, torch.Tensor) or tuple(initial_forces.shape) != force_shape:
-            actual = tuple(initial_forces.shape) if isinstance(initial_forces, torch.Tensor) else type(initial_forces).__name__
+            actual = (
+                tuple(initial_forces.shape)
+                if isinstance(initial_forces, torch.Tensor)
+                else type(initial_forces).__name__
+            )
             raise ValueError(f"initial_forces must have shape {force_shape}, got {actual}")
         if initial_forces.dtype != q.dtype or initial_forces.device != q.device:
             raise ValueError("initial_forces must share q_traj dtype and device")
