@@ -170,7 +170,6 @@ The user-facing names already follow the conventions above:
 | `IKCostConfig` | User-facing knobs for the IK cost stack |
 | `OptimizerConfig` | User-facing knobs for the optimiser |
 | `SolverState` | Per-iteration state shared between `Optimizer`, `DampingStrategy`, `LinearSolver` |
-| `ResidualSpec` | Structural metadata returned from `Residual.spec(state)` |
 | `OptimizerStage` / `MultiStageOptimizer` | Composite of stages |
 | `TrajectoryParameterization` | Protocol; concrete `KnotTrajectory`, `BSplineTrajectory` |
 
@@ -211,8 +210,9 @@ JointJacobian      = Float[Tensor, "*B 6 nv"]
 JointJacobianStack = Float[Tensor, "*B njoints 6 nv"]
 ```
 
-Coverage is enforced by `tests/contract/test_shape_annotations.py`
-(advisory until the typing migration completes; blocking thereafter).
+These aliases remain the required authoring convention. M3.5 removed the old
+coverage-ratio probe because it made no assertion; shape annotations currently
+have no pytest percentage gate.
 
 ## 3 · Glossary
 

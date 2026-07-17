@@ -179,11 +179,10 @@ trajectory solve currently meets them.
 
 ### 2.8 Sparse collision roadmap
 
-`ResidualSpec` can describe sparse or banded structure, but the shipped LM/GN
-solvers do not consume those hints and self-collision optimisation is not a
-measured sparse-solver path today. Collision residual integration and a
-structured solver that exploits chain sparsity are roadmap work; no collision
-speed-up claim is certified here.
+The shipped residual API has no symbolic sparse/banded declaration, and
+self-collision optimisation is not a measured sparse-solver path today.
+Collision residual integration and a structured solver that exploits chain
+sparsity are roadmap work; no collision speed-up claim is certified here.
 
 ### 2.9 Opt-in Warp whole-pass lane
 
@@ -239,7 +238,6 @@ collected enough signal:
 | Gate | Initial mode | Promotion criterion |
 |------|--------------|---------------------|
 | Contract bundle (correctness, DAG, hot-path lint, mypy strict, cache invariants, optional imports) | Blocking from day 1 | — |
-| `test_shape_annotations.py` | Advisory (coverage report) | Stage 3 of the typing migration |
 | CPU bench | Advisory (PR comment) | Two release cycles of stable runner variance < 5% |
 | CUDA bench | Nightly only | One cycle of stable self-hosted-runner data |
 | `mem_watermark` | Nightly only, advisory | Promoted at v1 release |
@@ -304,7 +302,7 @@ path to avoid re-compiling across jobs.
 | `kinematics/forward.py` | FK topo walk and lane boundary | Torch raw pass unrolls on static topology; whole-pass kernels stay local |
 | `kinematics/jacobian.py` | Spatial Jacobian | Analytic; automatic compilation is roadmap work |
 | `dynamics/*.py` | RNEA / ABA / CRBA | Analytic derivatives; compile-friendly recursion |
-| `residuals/*.py` | Residual evaluation | Analytic Jacobians where implemented; `ResidualSpec` is metadata only |
+| `residuals/*.py` | Residual evaluation | Analytic Jacobians where implemented; no symbolic sparse declaration |
 | `optim/cost_stack.py` | Legacy concatenation | Fresh `torch.cat` assembly; no persistent flat buffer |
 | `optim/blocks/solver_adam.py` | Named-block first-order solve | Tangent objective VJP; no Jacobian assembly; CUDA replay certification deferred to M6 |
 | `optim/blocks/solver_lm.py` | Named-block LM/GN | Dense Jacobian/normal system with fixed-shape tensor state; CUDA replay certification deferred to M6 |

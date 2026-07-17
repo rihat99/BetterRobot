@@ -32,7 +32,6 @@ from better_robot.residuals.pose import PoseResidual
 from better_robot.tasks.ik import (
     IKCostConfig,
     OptimizerConfig,
-    _make_damping_strategy,
     _make_linear_solver,
     _make_robust_kernel,
     solve_ik,
@@ -91,15 +90,6 @@ def test_robust_kernel_factory_returns_correct_types() -> None:
     assert isinstance(_make_robust_kernel("huber"), Huber)
     with pytest.raises(ValueError, match="Unknown kernel"):
         _make_robust_kernel("does_not_exist")
-
-
-def test_damping_strategy_factory_returns_correct_types() -> None:
-    obj = _make_damping_strategy("adaptive")
-    assert hasattr(obj, "init") and hasattr(obj, "accept") and hasattr(obj, "reject")
-    with pytest.raises(ValueError, match="Unknown damping"):
-        _make_damping_strategy("trust_region")
-    with pytest.raises(ValueError, match="Unknown damping"):
-        _make_damping_strategy("does_not_exist")
 
 
 def test_linear_solver_wired_into_lm(arm_problem) -> None:

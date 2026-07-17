@@ -56,7 +56,8 @@ read-only context names they declare.
 `Problem` with a `RobotConfig` variable and provider-backed built-in
 residuals. `solve_trajopt` still builds an optimizer-owned `CostStack`, wraps
 it in a `LeastSquaresProblem`, and dispatches to the legacy optimizer stack
-until M5. Named-block problems never enter the legacy `optim.solve` wrapper.
+until M5. Legacy callers invoke an optimizer's `minimize` method directly;
+named-block problems use the named-block solvers' `run` methods.
 
 `io/` and `viewer/` sit alongside the main spine, not above it. `io/`
 reads from `data_model/` only — the URDF parser does not invoke
@@ -163,8 +164,7 @@ src/better_robot/
 │   ├── optimizers/                # LM / GN / Adam / LBFGS / MultiStage
 │   ├── solvers/                   # dense batched Cholesky / LSTSQ
 │   ├── kernels/                   # L2 / Huber / Cauchy / Tukey
-│   ├── strategies/                # legacy Constant / Adaptive
-│   └── jacobian_spec.py           # ResidualSpec
+│   └── strategies/                # legacy Constant / Adaptive
 │
 ├── costs/                         # forwarding compatibility package
 │   └── stack.py                   # re-exports optim.cost_stack identities

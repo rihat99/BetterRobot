@@ -36,8 +36,7 @@ class Residual(Protocol):
     def jacobian(self, state: ResidualState) -> torch.Tensor | None:
         """(B..., dim, nx) or None if analytic is not available."""
 
-# Optional extensions, not requirements of the Residual protocol:
-def spec(self, state: ResidualState) -> "ResidualSpec": ...
+# Optional extension, not a requirement of the Residual protocol:
 def apply_jac_transpose(
     self,
     state: ResidualState,
@@ -241,7 +240,7 @@ rows to the concatenated residual and Jacobian, while an inactive item is
 omitted and changes `total_dim()` and `slice_map()`. The `kind` field is
 currently metadata; `CostStack` evaluation does not enforce constraints.
 
-### Gradient path and structural metadata
+### Gradient path
 
 `CostStack.gradient()` sums each active item's contribution to
 `Jᵀ r`. If a residual implements `apply_jac_transpose(state, vec)`, the
@@ -249,33 +248,10 @@ stack uses that hook; otherwise it materialises that residual's Jacobian and
 multiplies. The item weight is squared, matching the gradient of
 `0.5 * ||stack.residual(state)||²`.
 
-Some residuals expose optional `ResidualSpec` metadata describing temporal or
-kinematic structure:
-
-```python
-@dataclass
-class ResidualSpec:
-    dim: int
-    output_dim: int | None = None
-    tangent_dim: int | None = None
-
-    structure: Literal[
-        "dense", "diagonal", "block", "banded"
-    ] = "dense"
-
-    time_coupling: Literal["single", "5-point", "custom"] = "single"
-    affected_knots: tuple[int, ...] = ()
-    affected_joints: tuple[int, ...] = ()
-    affected_frames: tuple[int, ...] = ()
-    dynamic_dim: bool = False
-```
-
-Source: `src/better_robot/optim/jacobian_spec.py`.
-
-`ResidualSpec` is compatibility metadata in the current legacy path.
-`CostStack.jacobian()` does not inspect it and always returns a dense,
-concatenated tensor; it does not assemble block-sparse `JᵀJ`. Residuals need
-no `spec()` method to work with the stack.
+The legacy residual protocol carries no symbolic sparsity metadata.
+`CostStack.jacobian()` always returns a dense, concatenated tensor; it does not
+assemble block-sparse `JᵀJ`. The temporal and sparse declaration consumed by a
+structured backend is M5 work.
 
 ## Stable `dim` for collision residuals
 
@@ -288,8 +264,8 @@ and damping stable, the contract is:
   exists, so the Jacobian has a corresponding row of zeros.
 - A future residual may compact work internally, but when used with the
   current stack it must still return the declared public shape.
-- `ResidualSpec.dynamic_dim = True` records metadata only; it does not reserve
-  storage or change legacy LM assembly.
+- The active subset may vary internally, but the output dimension remains
+  stable and legacy LM assembly remains dense.
 
 This is the reserved shape contract for a future
 `SelfCollisionResidual`. That residual still raises `NotImplementedError`;
@@ -336,8 +312,8 @@ callers. `solve_ik` now constructs the built-ins directly as named-block
 - **`apply_jac_transpose` is optional.** Without that method,
   `CostStack.gradient()` materialises the per-residual Jacobian and computes
   `J.mT @ r`.
-- **Sparsity hints do not change legacy assembly.** `CostStack.jacobian()`
-  returns a dense concatenation even when a residual exposes `ResidualSpec`.
+- **No symbolic sparsity declaration is shipped.** `CostStack.jacobian()`
+  returns a dense concatenation; structured declarations are M5 work.
 - **Duplicate names are rejected.** Calling `add()` with an existing name
   raises `ValueError`; remove or update the existing item explicitly.
 

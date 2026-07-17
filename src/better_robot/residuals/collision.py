@@ -42,8 +42,8 @@ class SelfCollisionResidual(Residual):
         self.margin = margin
         self.weight = weight
         # ``dim`` is the *number of candidate pairs*, not the live count —
-        # keeping it stable across LM iterations is what the spec requires
-        # (docs/concepts/residuals_and_costs.md §10).
+        # keeping it stable across LM iterations is part of the residual's
+        # public shape contract (docs/concepts/residuals_and_costs.md §10).
         self.dim = int(robot_collision.self_pairs.shape[0])
 
     def __call__(self, state: ResidualState) -> torch.Tensor:
@@ -55,17 +55,6 @@ class SelfCollisionResidual(Residual):
         See docs/concepts/collision_and_geometry.md §6.
         """
         raise NotImplementedError("see docs/concepts/collision_and_geometry.md §6")
-
-    @property
-    def spec(self):
-        from ..optim.jacobian_spec import ResidualSpec
-
-        return ResidualSpec(
-            dim=self.dim,
-            structure="block",
-            dynamic_dim=True,
-            affected_joints=tuple(int(j) for j in self.robot_collision.self_pairs.flatten().unique().tolist()),
-        )
 
 
 class WorldCollisionResidual(Residual):

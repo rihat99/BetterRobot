@@ -16,7 +16,6 @@ from better_robot.optim import (
     ResidualItem,
     SO3Manifold,
     VarSpec,
-    solve,
 )
 
 
@@ -212,7 +211,8 @@ def test_mask_gather_expand_scale_and_reduced_normal_matrix() -> None:
         vars=(spec,),
         residuals=(ResidualItem("masked_position", _MaskedPositionResidual()),),
     )
-    normal = problem.normal_matrix({"x": torch.tensor([0.3, 9.0, -0.4])})
+    jacobian = problem.dense_jacobian({"x": torch.tensor([0.3, 9.0, -0.4])})
+    normal = jacobian.mT @ jacobian
     torch.testing.assert_close(normal, torch.eye(2))
     assert torch.linalg.matrix_rank(normal).item() == 2
 
@@ -291,9 +291,6 @@ def test_scalar_term_weighted_gradient_diagnostics_and_second_order_fence() -> N
             problem.require_least_squares(method)
         assert str(caught.value) == expected
 
-    with pytest.raises(ValueError, match="problem contains scalar objective term"):
-        solve(problem)  # type: ignore[arg-type]
-
 
 @pytest.mark.parametrize(
     ("values", "weight", "expected_batch"),
@@ -331,16 +328,6 @@ def test_tensor_weight_must_match_working_dtype() -> None:
             {"x": torch.ones(2, 3, dtype=torch.float32)},
             weights={"position": torch.ones(2, dtype=torch.float64)},
         )
-
-
-def test_legacy_solve_rejects_residual_only_block_problem_clearly() -> None:
-    problem = Problem(
-        vars=(VarSpec("x", (3,)),),
-        residuals=(ResidualItem("position", _PositionResidual()),),
-    )
-
-    with pytest.raises(TypeError, match="accepts LeastSquaresProblem only"):
-        solve(problem)  # type: ignore[arg-type]
 
 
 def test_external_tensor_parameters_are_enumerated_and_graph_visible() -> None:

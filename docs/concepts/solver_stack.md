@@ -13,8 +13,8 @@ flat trajectory path migrates to named variable blocks:
 - **The legacy solver stack** still powers `solve_trajopt` and the optimizers
   under `better_robot.optim.optimizers`. It composes `CostStack`,
   `LeastSquaresProblem`, and `Optimizer`. `solve_ik` is already named-block.
-  The convenience
-  `better_robot.optim.solve` still belongs exclusively to this legacy path.
+  Legacy callers instantiate the selected optimizer and call `minimize`
+  directly.
 
 ## Named-block evaluation
 
@@ -71,8 +71,10 @@ The public evaluation operations are:
 - `residual(values)` and `objective(values)`;
 - `gradient(values)`, in reduced tangent coordinates per variable;
 - `jacobian_blocks(values)` and `dense_jacobian(values)`;
-- `normal_matrix(values)` for dense correctness and solver hand-off; and
 - `retract(values, steps)`, which applies manifold-aware feasible steps.
+
+Callers that need a dense normal matrix form it explicitly as
+`J.mT @ J` from `dense_jacobian(values)`.
 
 `ResidualItem.kernel` and `group_size` define robust-loss groups. Direct
 `residual()` remains the weighted raw vector; `objective()` sums each group's
@@ -161,7 +163,7 @@ retraction. Arbitrary common leading batch axes produce independent step,
 cost, gradient-norm, convergence, and status tensors.
 
 The update calls a prevalidated tangent VJP of the robust `Problem.objective`.
-It does not call `jacobian_blocks`, `dense_jacobian`, or `normal_matrix`.
+It does not call `jacobian_blocks` or `dense_jacobian`.
 Warm-start moments and bias-correction counts are retained only when variable
 names/order, reduced shapes, batch shape, dtype, and device match; current
 target-dependent diagnostics/status are always recomputed. `run` detaches all
@@ -247,10 +249,7 @@ class LeastSquaresProblem:
         """
 
     def jacobian_blocks(self, x: Tensor) -> dict["BlockKey", Tensor]:
-        """Block-sparse Jacobian per ResidualSpec.
-
-        Metadata for future block-sparse trajopt solvers.
-        """
+        """Return weighted per-item Jacobian blocks."""
 ```
 
 Source: `src/better_robot/optim/problem.py`.
@@ -269,9 +268,8 @@ The two extras worth highlighting:
   `jacobian(x)` directly and therefore assemble dense J. Named-block
   `better_robot.optim.Adam` is the separate, shipped matrix-free path.
 - **`jacobian_blocks(x)` returns weighted per-item dense Jacobians.** Current
-  legacy solvers ignore this dictionary, and the method does not consume
-  `ResidualSpec` sparsity hints. A structured/banded trajectory backend that
-  uses such metadata is M5 work.
+  legacy solvers ignore this dictionary. A symbolic declaration consumed by a
+  structured/banded trajectory backend is M5 work.
 
 ## The `Optimizer` Protocol
 

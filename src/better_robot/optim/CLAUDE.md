@@ -6,7 +6,7 @@ Two optimization surfaces coexist. Keep their types and capabilities separate.
 
 | Surface | Problem type | What is implemented |
 |---|---|---|
-| Legacy solver stack | `optim.problem.LeastSquaresProblem` | Flat-variable `CostStack`; LM/GN/Adam/LBFGS/MultiStage; `optim.solve`; trajopt integration |
+| Legacy solver stack | `optim.problem.LeastSquaresProblem` | Flat-variable `CostStack`; LM/GN/Adam/LBFGS/MultiStage; direct `Optimizer.minimize`; trajopt integration |
 | Named-block layer | `optim.blocks.problem.Problem` | Manifold blocks/providers/evaluation, matrix-free batched Adam, batched LM/GN, robust groups, and projected active-set bounds |
 
 Named-block residual-vector problems use
@@ -73,8 +73,8 @@ Assembly is intentionally dense:
 - a trajectory stored as one block remains one large dense block.
 
 Symbolic temporal sparsity, banded storage/solvers, and Schur elimination are
-M5 scope. Legacy `ResidualSpec` remains importable for compatibility but has no
-production sparse solver consumer; do not attach it to new block residuals.
+M5 scope. The current residual API carries no symbolic sparsity declaration;
+the design semantics for M5 live in `plan/design_notes/residual_sparsity.md`.
 
 ## AD Strategies
 
@@ -184,11 +184,9 @@ Legacy LM projects trial points to `lower/upper`, does not clamp the initial
 point, and has no active-set/KKT treatment. It can finish as `maxiter` at an
 active bound.
 
-## Top-Level `solve()`
+## Solver Entry Points
 
-`better_robot.optim.solve(problem, ...)` is a convenience wrapper for the
-legacy `LeastSquaresProblem` and defaults to legacy `LevenbergMarquardt`. It
-does **not** dispatch `optim.blocks.Problem`, scalar block objectives, or
-batched block problems. Named-block consumers call
-`better_robot.optim.LevenbergMarquardt().run(values, problem)` (or
-`GaussNewton`) directly.
+Legacy `LeastSquaresProblem` callers instantiate an optimizer from
+`better_robot.optim.optimizers` and call `minimize` directly. Named-block
+consumers call `better_robot.optim.LevenbergMarquardt().run(values, problem)`
+(or `GaussNewton`) directly; scalar block objectives remain first-order only.

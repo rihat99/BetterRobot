@@ -20,9 +20,11 @@ Workspace audit found four live `Data.oMi` accesses in BetterHumanForce:
 `tools/robot_motion/motion.py:201` and
 `tools/robot_motion/playback.py:115,180,190`. BetterHumanForce must migrate
 those call sites before it follows the redesign branch. BetterVideoReconstruction
-had no matching BetterRobot API references. `CostStack` and `ResidualSpec`
-remain because BetterRobot itself uses them; BetterHumanForce also imports
+had no matching BetterRobot API references. `CostStack` remains because
+BetterRobot itself uses it; BetterHumanForce also imports
 `better_robot.costs.stack.CostStack` in
 `scripts/motion/optimize_motion.py:210`. Since M2c, `CostStack` is canonically
 defined in `better_robot.optim.cost_stack`; the old module forwards to the same
 class identity while BetterRobot's legacy flat-problem callers remain.
+`ResidualSpec` was subsequently removed in M3.5; see
+`m3_removed_symbols.md` for its migration note.

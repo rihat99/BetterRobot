@@ -182,11 +182,9 @@ class SelfCollisionResidual(Residual):
 
     Analytic Jacobian:
         Available as a sparse block with nonzero entries only in the
-        kinematic chains of the two involved capsules. ResidualSpec
-        declares the sparsity:
-            structure="block",
-            affected_joints=tuple of joints in the kinematic chains,
-            dynamic_dim=True   # active subset varies; output_dim stable.
+        kinematic chains of the two involved capsules. The current residual
+        API does not carry a symbolic sparsity declaration; that structured
+        declaration is M5 work.
     """
 ```
 

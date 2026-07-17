@@ -102,14 +102,3 @@ class TimeIndexedResidual:
         out = torch.zeros(T * nv, device=vec.device, dtype=vec.dtype)
         out[self.t_idx * nv : (self.t_idx + 1) * nv] = J_inner.mT @ vec
         return out
-
-    @property
-    def spec(self):
-        from ..optim.jacobian_spec import ResidualSpec
-
-        return ResidualSpec(
-            dim=self.dim,
-            structure="block",
-            time_coupling="single",
-            affected_knots=(self.t_idx,),
-        )

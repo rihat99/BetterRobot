@@ -111,7 +111,7 @@ responsible layer and a documented remediation.
 | `QuaternionNormError` | `kinematics` opt-in debug check | Free-flyer quaternion norm outside `[0.9, 1.1]` | Normalise before passing or enable the check only while debugging |
 | `ShapeError` | every public entry | Wrong trailing-axis size | Match the published shape |
 | `StaleCacheError` | `kinematics`, `dynamics` | `Data._kinematics_level` below required level | Call `forward_kinematics(model, data)` first; or `data.invalidate(NONE)` then re-run |
-| `ConvergenceError` | `optim.solve` (optional) | Solver did not converge within `max_iter` | Inspect the returned `SolverState` |
+| `ConvergenceError` | Caller policy (optional) | Solver did not converge within `max_iter` | Inspect the returned `SolverState` |
 | `UnsupportedJointError` | `io.build_model` | URDF / MJCF joint kind without a built-in `JointModel` | Add a custom joint via {doc}`extension` |
 | `SingularityWarning` *(warning, not error)* | `kinematics`, `optim` | Jacobian condition number > 1e12 | Change initial configuration or relax weights |
 

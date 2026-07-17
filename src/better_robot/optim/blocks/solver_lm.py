@@ -80,12 +80,6 @@ class LMState(NamedTuple):
         """Alias for the projected-gradient infinity norm."""
         return self.projected_grad_norm
 
-    @property
-    def iter_num(self) -> torch.Tensor:
-        """Compatibility spelling used by jaxopt-style solver descriptions."""
-        return self.iterations
-
-
 class _ModelEvaluation(NamedTuple):
     residual: torch.Tensor
     robust_weights: torch.Tensor

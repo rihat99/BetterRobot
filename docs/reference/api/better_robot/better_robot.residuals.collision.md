@@ -55,14 +55,6 @@ Bases: {py:obj}`better_robot.residuals.base.Residual`
 
 ````
 
-````{py:property} spec
-:canonical: better_robot.residuals.collision.SelfCollisionResidual.spec
-
-```{autodoc2-docstring} better_robot.residuals.collision.SelfCollisionResidual.spec
-```
-
-````
-
 `````
 
 `````{py:class} WorldCollisionResidual(model: better_robot.data_model.model.Model, robot_collision: better_robot.collision.robot_collision.RobotCollision, world: typing.Sequence[better_robot.collision.geometry.Sphere | better_robot.collision.geometry.Capsule | better_robot.collision.geometry.Box], *, margin: float = 0.02, weight: float = 1.0)

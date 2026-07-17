@@ -81,9 +81,8 @@ class ConvergenceError(BetterRobotError, RuntimeError):
 
     Not always a bug: inspect the returned ``SolverState`` for the final
     residual norm and gain ratio. ``solve_ik`` returns a non-converged
-    ``IKResult`` instead of raising; only
-    ``optim.solve(..., raise_on_nonconvergence=True)`` promotes this
-    into an exception.
+    ``IKResult`` instead of raising; callers may choose to promote that state
+    into this exception.
     """
 
 

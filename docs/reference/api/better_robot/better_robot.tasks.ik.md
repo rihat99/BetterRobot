@@ -290,14 +290,6 @@
 
 ````
 
-````{py:method} q_only() -> torch.Tensor
-:canonical: better_robot.tasks.ik.IKResult.q_only
-
-```{autodoc2-docstring} better_robot.tasks.ik.IKResult.q_only
-```
-
-````
-
 `````
 
 ````{py:function} solve_ik(model: better_robot.data_model.model.Model, targets: dict[str, torch.Tensor], *, initial_q: torch.Tensor | None = None, cost_cfg: better_robot.tasks.ik.IKCostConfig | None = None, optimizer_cfg: better_robot.tasks.ik.OptimizerConfig | None = None) -> better_robot.tasks.ik.IKResult

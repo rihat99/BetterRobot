@@ -129,7 +129,6 @@ def test_update_uses_only_prevalidated_matrix_free_gradient(
         "jacobian_blocks",
         "dense_jacobian",
         "_dense_jacobian_prevalidated",
-        "normal_matrix",
         "_validate_values",
         "_validate_weights",
         "_validate_runtime_weights",
@@ -157,7 +156,6 @@ def test_run_never_materializes_a_jacobian(monkeypatch: pytest.MonkeyPatch) -> N
         "jacobian_blocks",
         "dense_jacobian",
         "_dense_jacobian_prevalidated",
-        "normal_matrix",
     ):
         monkeypatch.setattr(Problem, name, forbidden)
 

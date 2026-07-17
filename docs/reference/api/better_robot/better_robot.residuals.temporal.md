@@ -45,12 +45,4 @@
 
 ````
 
-````{py:property} spec
-:canonical: better_robot.residuals.temporal.TimeIndexedResidual.spec
-
-```{autodoc2-docstring} better_robot.residuals.temporal.TimeIndexedResidual.spec
-```
-
-````
-
 `````

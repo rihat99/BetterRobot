@@ -1006,17 +1006,6 @@ class Problem:
             ] = block
         return dense
 
-    def normal_matrix(
-        self,
-        values: Mapping[str, torch.Tensor],
-        *,
-        weights: Mapping[str, Weight] | None = None,
-        strategy: JacobianStrategy = "auto",
-    ) -> torch.Tensor:
-        """Return dense ``JᵀJ`` for M2a correctness tests and M2b hand-off."""
-        jacobian = self.dense_jacobian(values, weights=weights, strategy=strategy)
-        return jacobian.mT @ jacobian
-
     @property
     def external_parameters(self) -> Mapping[str, torch.Tensor]:
         """Stable, explicitly enumerated external tensor parameter pytree."""

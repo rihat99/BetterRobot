@@ -93,9 +93,6 @@ class IKResult:
 
     def frame_pose(self, name: str) -> torch.Tensor:
         return self.fk().frame_pose_world[..., self.model.frame_id(name), :]
-
-    def q_only(self) -> torch.Tensor:
-        return self.q
 ```
 
 Unbatched calls keep Python `int`/`bool` diagnostics. Batched calls return
@@ -251,8 +248,8 @@ the robot task facade accepts only `KnotTrajectory`.
   along `T`.
 - Per-knot limits broadcast across `T`; the solver sees a single flat knot
   variable `(T * nv)`.
-- Each collision residual touches only the knots and chains it
-  observes; `ResidualSpec` carries the sparsity hints.
+- Each collision residual touches only the knots and chains it observes, but
+  the current residual API carries no symbolic sparsity declaration.
 - The current legacy task path can materialise a dense Jacobian. Sparse and
   banded long-horizon structure, including manifold splines, is M5 work.
 

@@ -31,8 +31,6 @@ from ..optim import (
 from ..optim.kernels import Cauchy, Huber, L2, Tukey
 from ..optim.solvers.cholesky import Cholesky
 from ..optim.solvers.lstsq import LSTSQ
-from ..optim.strategies.adaptive import Adaptive
-from ..optim.strategies.constant import Constant
 from ..residuals.limits import JointPositionLimit
 from ..residuals.pose import PoseResidual
 from ..residuals.regularization import RestResidual
@@ -109,11 +107,6 @@ class IKResult:
         frame_id = self.model.frame_id(name)
         return data.frame_pose_world[..., frame_id, :]
 
-    def q_only(self) -> torch.Tensor:
-        """Return only the solved configuration tensor."""
-        return self.q
-
-
 def _validate_optimizer_config(config: OptimizerConfig) -> None:
     """Validate facade policy before building residuals or solver state."""
     if not isinstance(config.optimizer, str) or config.optimizer not in _OPTIMIZER_NAMES:
@@ -161,14 +154,6 @@ def _make_robust_kernel(name: str):
     table = {"l2": L2, "huber": Huber, "cauchy": Cauchy, "tukey": Tukey}
     if name not in table:
         raise ValueError(f"Unknown kernel {name!r}; expected one of {sorted(table)}")
-    return table[name]()
-
-
-def _make_damping_strategy(name: str):
-    """Retain the legacy strategy factory for direct compatibility imports."""
-    table = {"adaptive": Adaptive, "constant": Constant}
-    if name not in table:
-        raise ValueError(f"Unknown damping {name!r}; expected one of {sorted(table)}")
     return table[name]()
 
 
