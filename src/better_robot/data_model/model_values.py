@@ -9,10 +9,13 @@ from typing import TYPE_CHECKING, Any
 import torch
 from torch.utils import _pytree
 
+from ..exceptions import DeviceMismatchError, DtypeMismatchError, ShapeError
 from ..lie.tangents import hat_so3
+from .execution_batch import broadcast_execution_batch_shape
 
 if TYPE_CHECKING:
     from .model import Model
+    from .model_structure import ModelStructure
 
 
 def packed_inertias_to_6x6(body_inertias: torch.Tensor) -> torch.Tensor:
@@ -57,6 +60,54 @@ class ModelValues:
     q_neutral: torch.Tensor
     body_inertias_6x6: torch.Tensor | None = None
 
+    def validate(self, structure: "ModelStructure") -> None:
+        """Validate the three batch-bearing v1 value tables.
+
+        Limits and other scalar model values intentionally remain unbatched in
+        v1.  All floating tables share one device and dtype so compute passes
+        never hide transfers or casts inside a joint loop.
+        """
+
+        expected = {
+            "joint_placements": (structure.njoints, 7),
+            "body_inertias": (structure.nbodies, 10),
+            "frame_placements": (structure.nframes, 7),
+        }
+        exemplar = self.joint_placements
+        for name, event_shape in expected.items():
+            tensor = getattr(self, name)
+            if tensor.ndim < 2 or tuple(tensor.shape[-2:]) != event_shape:
+                raise ShapeError(f"{name} has shape {tuple(tensor.shape)}; expected trailing event shape {event_shape}")
+            if not tensor.is_floating_point():
+                raise DtypeMismatchError(f"{name}.dtype={tensor.dtype} is unsupported; use a floating dtype")
+            if tensor.device != exemplar.device:
+                raise DeviceMismatchError(f"{name}.device={tensor.device} != joint_placements.device={exemplar.device}")
+            if tensor.dtype != exemplar.dtype:
+                raise DtypeMismatchError(f"{name}.dtype={tensor.dtype} != joint_placements.dtype={exemplar.dtype}")
+
+    def execution_batch_shape(
+        self,
+        structure: "ModelStructure",
+        q: torch.Tensor,
+    ) -> tuple[int, ...]:
+        """Return ``broadcast(q, joint/body/frame value tables)``."""
+
+        self.validate(structure)
+        return broadcast_execution_batch_shape(
+            q,
+            (
+                self.joint_placements,
+                self.body_inertias,
+                self.frame_placements,
+            ),
+            value_event_ndims=(2, 2, 2),
+            value_names=(
+                "joint_placements",
+                "body_inertias",
+                "frame_placements",
+            ),
+        )
+
     @classmethod
     def from_model(cls, model: "Model") -> "ModelValues":
         if model.frames:
@@ -72,11 +123,7 @@ class ModelValues:
             )
         else:
             frames = model.joint_placements.new_empty((0, 7))
-        cached_inertias = (
-            None
-            if model.body_inertias.requires_grad
-            else packed_inertias_to_6x6(model.body_inertias)
-        )
+        cached_inertias = None if model.body_inertias.requires_grad else packed_inertias_to_6x6(model.body_inertias)
         return cls(
             joint_placements=model.joint_placements,
             body_inertias=model.body_inertias,
@@ -108,11 +155,16 @@ class ModelValues:
         device: torch.device | str | None = None,
         dtype: torch.dtype | None = None,
     ) -> "ModelValues":
-        replacements = {
-            field.name: value.to(device=device, dtype=dtype)
-            for field in dataclasses.fields(self)
-            if isinstance((value := getattr(self, field.name)), torch.Tensor)
-        }
+        replacements: dict[str, torch.Tensor] = {}
+        for field in dataclasses.fields(self):
+            value = getattr(self, field.name)
+            if not isinstance(value, torch.Tensor):
+                continue
+            target_dtype = dtype if value.is_floating_point() else value.dtype
+            replacements[field.name] = value.to(
+                device=device,
+                dtype=target_dtype,
+            )
         return dataclasses.replace(self, **replacements)
 
     def tree_flatten(self) -> tuple[list[torch.Tensor], tuple[str, ...]]:

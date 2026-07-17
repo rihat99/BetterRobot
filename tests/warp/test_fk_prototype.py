@@ -270,6 +270,25 @@ def test_broadcast_maps_and_shared_value_gradient_reduction_match_torch() -> Non
         torch.testing.assert_close(actual, expected, rtol=2e-9, atol=2e-10)
 
 
+def test_inertia_only_value_batch_expands_warp_fk_execution_shape() -> None:
+    model = _make_branched_model(torch.float64)
+    inertias = model.values.body_inertias.expand(3, -1, -1).clone()
+    values = dataclasses.replace(model.values, body_inertias=inertias)
+    result = try_warp_forward_kinematics(
+        model.structure,
+        values,
+        torch.zeros(model.nq, dtype=torch.float64),
+    )
+    assert result is not None
+    expected = _torch_outputs(
+        model,
+        values,
+        torch.zeros(model.nq, dtype=torch.float64),
+    )
+    assert result.world.shape == (3, model.njoints, 7)
+    _assert_outputs_close(_outputs(result), expected, torch.float64)
+
+
 def test_q_gradcheck_and_gradgradcheck() -> None:
     torch.manual_seed(0)
     model = _make_branched_model(torch.float64)

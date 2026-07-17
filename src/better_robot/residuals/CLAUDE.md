@@ -47,6 +47,8 @@ Residuals are constructed explicitly and composed into a `CostStack`; there is n
 | `JointVelocityLimit` (2*nv) | — | default | `__call__` implemented; `.jacobian` is a stub |
 | `JointAccelLimit` (2*nv) | — | default | Stub |
 | `RestResidual` (nv) | weight * I | default | Implemented |
+| `JointRotationPrior` (nv) | tangent AD / legacy FD | default | Implemented; exact Lie derivative, no identity approximation |
+| `SwingTwistLimitResidual` (3*J) | tangent AD / legacy FD | default | Implemented; zero-twist convention at pure-pi swing |
 | `NullspaceResidual` | — | default | Stub |
 | `ReferenceTrajectoryResidual` (T*nv) | block-diagonal | overridden (per-frame scaling) | Implemented |
 | `VelocityResidual` (nv*(T-2)) | banded | overridden | Implemented |

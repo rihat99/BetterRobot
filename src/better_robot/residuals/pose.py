@@ -30,7 +30,7 @@ def _get_frame_pose(state: ResidualState, frame_id: int) -> torch.Tensor:
         return state.data.frame_pose_world[..., frame_id, :]  # (B..., 7)
     frame = state.model.frames[frame_id]
     T_parent = state.data.joint_pose_world[..., frame.parent_joint, :]
-    T_local = frame.joint_placement.to(device=state.variables.device, dtype=state.variables.dtype)
+    T_local = state.model.values.frame_placements[..., frame_id, :]
     return se3.compose(T_parent, T_local)
 
 

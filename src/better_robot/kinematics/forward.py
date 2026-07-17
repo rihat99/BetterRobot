@@ -14,6 +14,7 @@ import torch
 
 from ..data_model import KinematicsLevel
 from ..data_model.data import Data
+from ..data_model.execution_batch import broadcast_to_execution_batch
 from ..data_model.joint_dispatch import joint_transform
 from ..data_model.joint_models import JointFreeFlyer
 from ..data_model.model import Model
@@ -48,25 +49,20 @@ def _validate_q(
 
     See ``docs/conventions/contracts.md §1``.
     """
-    if q.shape[-1] != structure.nq:
-        raise ShapeError(
-            f"q has trailing size {q.shape[-1]}, expected model.nq={structure.nq}"
-        )
+    if q.ndim < 1 or q.shape[-1] != structure.nq:
+        raise ShapeError(f"q has shape {tuple(q.shape)}; expected trailing size model.nq={structure.nq}")
+    values.validate(structure)
     if q.dtype not in (torch.float32, torch.float64):
-        raise DtypeMismatchError(
-            f"q.dtype={q.dtype} is unsupported; use torch.float32 or torch.float64"
-        )
+        raise DtypeMismatchError(f"q.dtype={q.dtype} is unsupported; use torch.float32 or torch.float64")
     model_dtype = values.joint_placements.dtype
     if q.dtype != model_dtype:
         raise DtypeMismatchError(
-            f"q.dtype={q.dtype} != model.dtype={model_dtype}. "
-            "Cast q or call model.to(dtype=q.dtype) before evaluation."
+            f"q.dtype={q.dtype} != model.dtype={model_dtype}. Cast q or call model.to(dtype=q.dtype) before evaluation."
         )
     model_device = values.joint_placements.device
     if q.device != model_device:
         raise DeviceMismatchError(
-            f"q.device={q.device} != model.device={model_device}. "
-            f"Call model.to(q.device) or q.to(model.device) first."
+            f"q.device={q.device} != model.device={model_device}. Call model.to(q.device) or q.to(model.device) first."
         )
 
 
@@ -123,21 +119,21 @@ def forward_kinematics_raw(
     See docs/concepts/kinematics.md §6 and docs/conventions/naming.md for the rename.
     """
     _validate_q(structure, values, q)
-    try:
-        batch_shape = tuple(
-            torch.broadcast_shapes(q.shape[:-1], values.joint_placements.shape[:-2])
-        )
-    except RuntimeError as exc:
-        raise ShapeError(
-            "q and joint-placement batches do not broadcast: "
-            f"{tuple(q.shape[:-1])} vs {tuple(values.joint_placements.shape[:-2])}"
-        ) from exc
-
-    # Cast once at the pass boundary.  This preserves the historical rule that
-    # outputs follow q.dtype without per-joint transfers in the hot loop.
-    placements = values.joint_placements.to(dtype=q.dtype)
-    axes = structure.joint_axes.to(dtype=q.dtype)
-    pitches = structure.joint_pitches.to(dtype=q.dtype)
+    batch_shape = values.execution_batch_shape(structure, q)
+    q = broadcast_to_execution_batch(
+        q,
+        batch_shape,
+        (structure.nq,),
+        name="q",
+    )
+    placements = broadcast_to_execution_batch(
+        values.joint_placements,
+        batch_shape,
+        (structure.njoints, 7),
+        name="joint_placements",
+    )
+    axes = structure.joint_axes
+    pitches = structure.joint_pitches
 
     world_list: list[torch.Tensor] = [None] * structure.njoints  # type: ignore[list-item]
     local_list: list[torch.Tensor] = [None] * structure.njoints  # type: ignore[list-item]
@@ -155,7 +151,6 @@ def forward_kinematics_raw(
 
         # joint_pose_local[j] = T_placement ∘ T_j  (parent-frame placement)
         local_j = se3.compose(placements[..., j, :], T_j)
-        local_j = local_j.expand(*batch_shape, 7)
         local_list[j] = local_j
 
         parent = structure.parents[j]
@@ -211,16 +206,25 @@ def forward_kinematics(
         q = data.q
     else:
         q = q_or_data
+        _validate_q(model.structure, model.values, q)
+        batch_shape = model.values.execution_batch_shape(model.structure, q)
         data = model.create_data(
-            batch_shape=tuple(q.shape[:-1]),
+            batch_shape=batch_shape,
             device=q.device,
             dtype=q.dtype,
         )
-        data.q = q
 
     # Validate at the public boundary; the backend impl trusts inputs.  Keep
     # the tensor-to-Python norm check opt-in so the default path is sync-free.
     _validate_q(model.structure, model.values, q)
+    batch_shape = model.values.execution_batch_shape(model.structure, q)
+    q = broadcast_to_execution_batch(
+        q,
+        batch_shape,
+        (model.nq,),
+        name="q",
+    )
+    data.q = q
     if check_quaternion_norm:
         _validate_free_flyer_quaternion_norm(model, q)
     warp_result = None
@@ -228,15 +232,11 @@ def forward_kinematics(
         try:
             from ._warp_bridge import try_warp_forward_kinematics  # noqa: PLC0415
 
-            warp_result = try_warp_forward_kinematics(
-                model.structure, model.values, q
-            )
+            warp_result = try_warp_forward_kinematics(model.structure, model.values, q)
         except ImportError:
             warp_result = None
     if warp_result is None:
-        joint_pose_world, joint_pose_local = forward_kinematics_raw(
-            model.structure, model.values, q
-        )
+        joint_pose_world, joint_pose_local = forward_kinematics_raw(model.structure, model.values, q)
     else:
         joint_pose_world, joint_pose_local = warp_result.world, warp_result.local
     data.joint_pose_world = joint_pose_world
@@ -261,13 +261,9 @@ def update_frame_placements(model: Model, data: Data) -> Data:
     See docs/concepts/kinematics.md §2.
     """
     joint_pose_world = data.joint_pose_world
-    assert joint_pose_world is not None, (
-        "call forward_kinematics before update_frame_placements"
-    )
+    assert joint_pose_world is not None, "call forward_kinematics before update_frame_placements"
 
-    data.frame_pose_world = frame_placements_raw(
-        model.structure, model.values, joint_pose_world
-    )
+    data.frame_pose_world = frame_placements_raw(model.structure, model.values, joint_pose_world)
     return data
 
 
@@ -278,9 +274,14 @@ def frame_placements_raw(
 ) -> torch.Tensor:
     """Pure, vectorized frame placement pass over the structure/value seam."""
 
-    parents = structure.frame_parent_joints.to(device=joint_pose_world.device)
+    values.validate(structure)
+    batch_shape = tuple(joint_pose_world.shape[:-2])
+    parents = structure.frame_parent_joints
     parent_poses = joint_pose_world.index_select(-2, parents.to(torch.int64))
-    local = values.frame_placements.to(
-        device=joint_pose_world.device, dtype=joint_pose_world.dtype
+    local = broadcast_to_execution_batch(
+        values.frame_placements,
+        batch_shape,
+        (structure.nframes, 7),
+        name="frame_placements",
     )
     return se3.compose(parent_poses, local)

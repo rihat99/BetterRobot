@@ -44,9 +44,9 @@ class Scene:
         self._backend = backend
         self._namespace = namespace
         self._theme: Theme = theme or DEFAULT_THEME
-        self._modes: dict[str, Any] = {}        # name → mode instance
-        self._visible: dict[str, bool] = {}     # name → visible flag
-        self._available: set[str] = set()       # names for which is_available → True
+        self._modes: dict[str, Any] = {}  # name → mode instance
+        self._visible: dict[str, bool] = {}  # name → visible flag
+        self._available: set[str] = set()  # names for which is_available → True
         self._last_data: "Data | None" = None
 
     # ------------------------------------------------------------------
@@ -97,9 +97,7 @@ class Scene:
         # CollisionMode stub additionally accepts a robot_collision kwarg
         # which is not used in V1.
         try:
-            available = mode.is_available(
-                self._model, self._last_data or _empty_data(self._model)
-            )
+            available = mode.is_available(self._model, self._last_data or _empty_data(self._model))
         except TypeError:
             available = mode.is_available(
                 self._model,
@@ -155,6 +153,7 @@ class Scene:
     def update_from_q(self, q: torch.Tensor) -> None:
         """Run FK (+ frame placements) then push to all modes."""
         from ..kinematics.forward import forward_kinematics
+
         data = forward_kinematics(self._model, q, compute_frames=True)
         self.update(data)
 
@@ -162,4 +161,5 @@ class Scene:
 def _empty_data(model: "Model") -> "Data":
     """Allocate a minimal Data with q=q_neutral (no FK)."""
     from ..data_model.data import Data
-    return Data(_model_id=id(model), q=model.q_neutral)
+
+    return Data(q=model.q_neutral)

@@ -35,10 +35,7 @@ class ExecutionInput:
 
         expected = (self.batch_indices.numel(), *self.event_shape)
         if tuple(execution_gradient.shape) != expected:
-            raise ShapeError(
-                f"execution gradient has shape {tuple(execution_gradient.shape)}, "
-                f"expected {expected}"
-            )
+            raise ShapeError(f"execution gradient has shape {tuple(execution_gradient.shape)}, expected {expected}")
         reduced = execution_gradient.new_zeros((self.tensor.shape[0], *self.event_shape))
         reduced.index_add_(0, self.batch_indices, execution_gradient)
         return reduced.reshape(*self.batch_shape, *self.event_shape)
@@ -55,10 +52,78 @@ class ExecutionBatch:
 
     def unflatten(self, tensor: torch.Tensor) -> torch.Tensor:
         if tensor.shape[0] != self.size:
-            raise ShapeError(
-                f"flat output has leading size {tensor.shape[0]}, expected E={self.size}"
-            )
+            raise ShapeError(f"flat output has leading size {tensor.shape[0]}, expected E={self.size}")
         return tensor.reshape(*self.batch_shape, *tensor.shape[1:])
+
+
+def broadcast_execution_batch_shape(
+    q: torch.Tensor,
+    value_tensors: Sequence[torch.Tensor] = (),
+    *,
+    value_event_ndims: Sequence[int] = (),
+    value_names: Sequence[str] = (),
+) -> tuple[int, ...]:
+    """Return the right-aligned broadcast of query and value batches.
+
+    This is the allocation-free torch-lane counterpart of
+    :func:`flatten_execution_batch`.  Event dimensions are excluded from
+    broadcasting.  In particular, a per-person value table ``(B, N, D)``
+    does *not* implicitly acquire a trajectory axis when paired with
+    ``q.shape == (B, T, nq)``; callers must pass ``(B, 1, N, D)``.
+    """
+
+    if q.ndim < 1:
+        raise ShapeError("q must have a trailing configuration dimension")
+    if len(value_tensors) != len(value_event_ndims):
+        raise ShapeError("value_tensors and value_event_ndims must have the same length")
+    if value_names and len(value_names) != len(value_tensors):
+        raise ShapeError("value_names and value_tensors must have the same length")
+
+    devices = {q.device, *(tensor.device for tensor in value_tensors)}
+    if len(devices) != 1:
+        raise ShapeError("all execution-batch inputs must be on the same device")
+
+    q_batch = tuple(q.shape[:-1])
+    execution_shape = q_batch
+    for index, (tensor, event_ndims) in enumerate(zip(value_tensors, value_event_ndims, strict=True)):
+        if event_ndims < 0 or event_ndims > tensor.ndim:
+            raise ShapeError(f"event_ndims={event_ndims} is invalid for value shape {tuple(tensor.shape)}")
+        value_batch = tuple(tensor.shape[: tensor.ndim - event_ndims])
+        name = value_names[index] if value_names else f"value_tensors[{index}]"
+        try:
+            execution_shape = tuple(torch.broadcast_shapes(execution_shape, value_batch))
+        except RuntimeError as exc:
+            left_name = "q" if execution_shape == q_batch else "execution"
+            raise ShapeError(
+                f"cannot broadcast {left_name} batch {execution_shape} with "
+                f"{name} batch {value_batch} (input batch shapes do not "
+                "broadcast) — model-value batch dims must be "
+                "right-aligned-broadcastable against the q batch. For (B, T) "
+                "trajectories with per-person values, add a singleton time axis "
+                "before the event dimensions, e.g. placements shaped "
+                "(B, 1, njoints, 7)."
+            ) from exc
+    return execution_shape
+
+
+def broadcast_to_execution_batch(
+    tensor: torch.Tensor,
+    batch_shape: tuple[int, ...],
+    event_shape: tuple[int, ...],
+    *,
+    name: str,
+) -> torch.Tensor:
+    """Broadcast ``tensor`` to ``(*batch_shape, *event_shape)`` as a view."""
+
+    trailing = tuple(tensor.shape[-len(event_shape) :]) if event_shape else ()
+    if len(event_shape) > tensor.ndim or trailing != event_shape:
+        actual = tuple(tensor.shape)
+        raise ShapeError(f"{name} has shape {actual}; expected trailing event shape {event_shape}")
+    source_batch = tuple(tensor.shape[: tensor.ndim - len(event_shape)])
+    try:
+        return torch.broadcast_to(tensor, (*batch_shape, *event_shape))
+    except RuntimeError as exc:
+        raise ShapeError(f"{name} batch {source_batch} cannot broadcast to execution batch {batch_shape}") from exc
 
 
 def _flatten_input(
@@ -67,9 +132,7 @@ def _flatten_input(
     execution_shape: tuple[int, ...],
 ) -> ExecutionInput:
     if event_ndims < 0 or event_ndims > tensor.ndim:
-        raise ShapeError(
-            f"event_ndims={event_ndims} is invalid for tensor shape {tuple(tensor.shape)}"
-        )
+        raise ShapeError(f"event_ndims={event_ndims} is invalid for tensor shape {tuple(tensor.shape)}")
     batch_shape = tuple(tensor.shape[: tensor.ndim - event_ndims])
     event_shape = tuple(tensor.shape[tensor.ndim - event_ndims :]) if event_ndims else ()
     unique_rows = prod(batch_shape) if batch_shape else 1
@@ -77,15 +140,11 @@ def _flatten_input(
 
     pad = len(execution_shape) - len(batch_shape)
     if pad < 0:
-        raise ShapeError(
-            f"input batch {batch_shape} has more axes than execution batch {execution_shape}"
-        )
+        raise ShapeError(f"input batch {batch_shape} has more axes than execution batch {execution_shape}")
     padded = (1,) * pad + batch_shape
     for source, target in zip(padded, execution_shape):
         if source not in (1, target):
-            raise ShapeError(
-                f"input batch shape {batch_shape} cannot broadcast to {execution_shape}"
-            )
+            raise ShapeError(f"input batch shape {batch_shape} cannot broadcast to {execution_shape}")
 
     ids = torch.arange(unique_rows, dtype=torch.int64, device=tensor.device)
     ids = ids.reshape(padded or ())
@@ -106,28 +165,11 @@ def flatten_execution_batch(
     joint placements shaped ``(..., njoints, 7)``).
     """
 
-    if q.ndim < 1:
-        raise ShapeError("q must have a trailing configuration dimension")
-    if len(value_tensors) != len(value_event_ndims):
-        raise ShapeError(
-            "value_tensors and value_event_ndims must have the same length"
-        )
-    devices = {q.device, *(tensor.device for tensor in value_tensors)}
-    if len(devices) != 1:
-        raise ShapeError("all execution-batch inputs must be on the same device")
-
-    batch_shapes = [tuple(q.shape[:-1])]
-    for tensor, event_ndims in zip(value_tensors, value_event_ndims):
-        if event_ndims < 0 or event_ndims > tensor.ndim:
-            raise ShapeError(
-                f"event_ndims={event_ndims} is invalid for value shape {tuple(tensor.shape)}"
-            )
-        batch_shapes.append(tuple(tensor.shape[: tensor.ndim - event_ndims]))
-    try:
-        execution_shape = tuple(torch.broadcast_shapes(*batch_shapes))
-    except RuntimeError as exc:
-        joined = ", ".join(str(shape) for shape in batch_shapes)
-        raise ShapeError(f"input batch shapes do not broadcast: {joined}") from exc
+    execution_shape = broadcast_execution_batch_shape(
+        q,
+        value_tensors,
+        value_event_ndims=value_event_ndims,
+    )
 
     q_view = _flatten_input(q, 1, execution_shape)
     value_views = tuple(
@@ -141,5 +183,7 @@ def flatten_execution_batch(
 __all__ = [
     "ExecutionBatch",
     "ExecutionInput",
+    "broadcast_execution_batch_shape",
+    "broadcast_to_execution_batch",
     "flatten_execution_batch",
 ]

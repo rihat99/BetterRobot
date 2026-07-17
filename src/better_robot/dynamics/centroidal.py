@@ -29,6 +29,7 @@ from ..data_model.model_structure import ModelStructure
 from ..data_model.model_values import ModelValues
 from ..kinematics.forward import forward_kinematics_raw
 from ..lie import se3
+from ._execution import prepare_dynamics_inputs
 
 
 def _world_com(
@@ -40,7 +41,7 @@ def _world_com(
 
     ``total_mass`` is a ``(*batch,)`` tensor; ``com_world`` is ``(*batch, 3)``.
     """
-    inertias = values.body_inertias.to(device=oMi.device, dtype=oMi.dtype)
+    inertias = values.body_inertias
     masses = inertias[..., 1 : structure.njoints, 0]
     com_local = inertias[..., 1 : structure.njoints, 1:4]
     com_each = se3.act(oMi[..., 1 : structure.njoints, :], com_local)
@@ -70,23 +71,27 @@ def ccrba_raw(
 ) -> CentroidalResult:
     """Pure centroidal CRBA over ``(structure, values, q, v)``."""
 
+    query_inputs = {} if v is None else {"v": (v, (structure.nv,))}
+    q, prepared, batch = prepare_dynamics_inputs(
+        structure,
+        values,
+        q,
+        query_inputs,
+    )
+    v = prepared.get("v")
     device, dtype = q.device, q.dtype
     njoints = structure.njoints
     nv = structure.nv
     oMi, liMi = forward_kinematics_raw(structure, values, q)
-    batch = tuple(oMi.shape[:-2])
     total_mass, com_world = _world_com(structure, values, oMi)
-    spatial_inertias = values.spatial_inertias().to(device=device, dtype=dtype)
-    motion_subspaces = structure.joint_motion_subspaces.to(device=device, dtype=dtype)
+    spatial_inertias = values.spatial_inertias()
+    motion_subspaces = structure.joint_motion_subspaces
 
     adjoint_inverse: list[torch.Tensor | None] = [None] * njoints
     for index in range(1, njoints):
         adjoint_inverse[index] = se3.adjoint_inv(liMi[..., index, :])
 
-    composite = [
-        spatial_inertias[..., index, :, :].expand(*batch, 6, 6)
-        for index in range(njoints)
-    ]
+    composite = [spatial_inertias[..., index, :, :].expand(*batch, 6, 6) for index in range(njoints)]
     for index in reversed(structure.topo_order):
         if index == 0:
             continue
@@ -94,10 +99,7 @@ def ccrba_raw(
         if parent < 0:
             continue
         transform = adjoint_inverse[index]
-        composite[parent] = (
-            composite[parent]
-            + transform.transpose(-1, -2) @ composite[index] @ transform
-        )
+        composite[parent] = composite[parent] + transform.transpose(-1, -2) @ composite[index] @ transform
 
     centroidal_map = torch.zeros(*batch, 6, nv, device=device, dtype=dtype)
     for index in structure.topo_order:
@@ -109,9 +111,7 @@ def ccrba_raw(
         iv = structure.idx_vs[index]
         subspace = motion_subspaces[index, :, :nv_i].expand(*batch, 6, nv_i)
         momentum_columns = composite[index] @ subspace
-        shifted = torch.cat(
-            (oMi[..., index, :3] - com_world, oMi[..., index, 3:7]), dim=-1
-        )
+        shifted = torch.cat((oMi[..., index, :3] - com_world, oMi[..., index, 3:7]), dim=-1)
         to_centroidal = se3.adjoint_inv(shifted).transpose(-1, -2)
         centroidal_map[..., :, iv : iv + nv_i] = to_centroidal @ momentum_columns
 
@@ -144,9 +144,18 @@ def center_of_mass(
     """
     if a is not None:
         raise NotImplementedError(
-            "center-of-mass acceleration is not implemented; omit a or track the "
-            "centroidal-derivatives milestone"
+            "center-of-mass acceleration is not implemented; omit a or track the centroidal-derivatives milestone"
         )
+    query_inputs = {} if v is None else {"v": (v, (model.nv,))}
+    q, prepared, _ = prepare_dynamics_inputs(
+        model.structure,
+        model.values,
+        q,
+        query_inputs,
+    )
+    v = prepared.get("v")
+    data.q = q
+    data.v = v
     result = ccrba_raw(model.structure, model.values, q, v)
     _populate_centroidal_data(data, result)
     if result.momentum is not None:
@@ -201,6 +210,16 @@ def _ccrba_impl(
     *,
     v: torch.Tensor | None,
 ) -> tuple[torch.Tensor, torch.Tensor | None]:
+    query_inputs = {} if v is None else {"v": (v, (model.nv,))}
+    q, prepared, _ = prepare_dynamics_inputs(
+        model.structure,
+        model.values,
+        q,
+        query_inputs,
+    )
+    v = prepared.get("v")
+    data.q = q
+    data.v = v
     result = ccrba_raw(model.structure, model.values, q, v)
     _populate_centroidal_data(data, result)
     return result.centroidal_map, result.momentum

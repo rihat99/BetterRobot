@@ -31,6 +31,14 @@
 :class: autosummary longtable
 :align: left
 
+* - {py:obj}`broadcast_execution_batch_shape <better_robot.data_model.execution_batch.broadcast_execution_batch_shape>`
+  - ```{autodoc2-docstring} better_robot.data_model.execution_batch.broadcast_execution_batch_shape
+    :summary:
+    ```
+* - {py:obj}`broadcast_to_execution_batch <better_robot.data_model.execution_batch.broadcast_to_execution_batch>`
+  - ```{autodoc2-docstring} better_robot.data_model.execution_batch.broadcast_to_execution_batch
+    :summary:
+    ```
 * - {py:obj}`flatten_execution_batch <better_robot.data_model.execution_batch.flatten_execution_batch>`
   - ```{autodoc2-docstring} better_robot.data_model.execution_batch.flatten_execution_batch
     :summary:
@@ -166,6 +174,20 @@
 ````
 
 `````
+
+````{py:function} broadcast_execution_batch_shape(q: torch.Tensor, value_tensors: typing.Sequence[torch.Tensor] = (), *, value_event_ndims: typing.Sequence[int] = (), value_names: typing.Sequence[str] = ()) -> tuple[int, ...]
+:canonical: better_robot.data_model.execution_batch.broadcast_execution_batch_shape
+
+```{autodoc2-docstring} better_robot.data_model.execution_batch.broadcast_execution_batch_shape
+```
+````
+
+````{py:function} broadcast_to_execution_batch(tensor: torch.Tensor, batch_shape: tuple[int, ...], event_shape: tuple[int, ...], *, name: str) -> torch.Tensor
+:canonical: better_robot.data_model.execution_batch.broadcast_to_execution_batch
+
+```{autodoc2-docstring} better_robot.data_model.execution_batch.broadcast_to_execution_batch
+```
+````
 
 ````{py:function} flatten_execution_batch(q: torch.Tensor, value_tensors: typing.Sequence[torch.Tensor] = (), *, value_event_ndims: typing.Sequence[int] = ()) -> better_robot.data_model.execution_batch.ExecutionBatch
 :canonical: better_robot.data_model.execution_batch.flatten_execution_batch

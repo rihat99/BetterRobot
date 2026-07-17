@@ -38,9 +38,7 @@ def _normalize_mass(mass_per_body: float | Sequence[float], n: int) -> list[floa
         return [float(mass_per_body)] * n
     masses = [float(m) for m in mass_per_body]
     if len(masses) != n:
-        raise ValueError(
-            f"mass_per_body length {len(masses)} does not match number of bodies {n}"
-        )
+        raise ValueError(f"mass_per_body length {len(masses)} does not match number of bodies {n}")
     return masses
 
 
@@ -58,15 +56,11 @@ def _normalize_com(
         return [None] * n
     if isinstance(com_per_body, torch.Tensor):
         if tuple(com_per_body.shape) != (n, 3):
-            raise ValueError(
-                f"com_per_body shape {tuple(com_per_body.shape)} must be ({n}, 3)"
-            )
+            raise ValueError(f"com_per_body shape {tuple(com_per_body.shape)} must be ({n}, 3)")
         return [com_per_body[i].to(dtype=dtype) for i in range(n)]
     coms = list(com_per_body)
     if len(coms) != n:
-        raise ValueError(
-            f"com_per_body length {len(coms)} does not match number of bodies {n}"
-        )
+        raise ValueError(f"com_per_body length {len(coms)} does not match number of bodies {n}")
     out: list[torch.Tensor | None] = []
     for i, c in enumerate(coms):
         if not isinstance(c, torch.Tensor) or tuple(c.shape) != (3,):
@@ -85,15 +79,11 @@ def _normalize_inertia(
         return [None] * n
     if isinstance(inertia_per_body, torch.Tensor):
         if tuple(inertia_per_body.shape) != (n, 3, 3):
-            raise ValueError(
-                f"inertia_per_body shape {tuple(inertia_per_body.shape)} must be ({n}, 3, 3)"
-            )
+            raise ValueError(f"inertia_per_body shape {tuple(inertia_per_body.shape)} must be ({n}, 3, 3)")
         return [inertia_per_body[i].to(dtype=dtype) for i in range(n)]
     inertias = list(inertia_per_body)
     if len(inertias) != n:
-        raise ValueError(
-            f"inertia_per_body length {len(inertias)} does not match number of bodies {n}"
-        )
+        raise ValueError(f"inertia_per_body length {len(inertias)} does not match number of bodies {n}")
     out: list[torch.Tensor | None] = []
     for i, I in enumerate(inertias):
         if not isinstance(I, torch.Tensor) or tuple(I.shape) != (3, 3):
@@ -148,15 +138,11 @@ def build_kinematic_tree_body(
     """
     n = len(joint_names)
     if len(parents) != n:
-        raise ValueError(
-            f"parents length {len(parents)} does not match joint_names length {n}"
-        )
+        raise ValueError(f"parents length {len(parents)} does not match joint_names length {n}")
     if parents[0] != -1:
         raise ValueError(f"parents[0] must be -1 (root), got {parents[0]}")
     if tuple(translations.shape) != (n, 3):
-        raise ValueError(
-            f"translations shape {tuple(translations.shape)} must be ({n}, 3)"
-        )
+        raise ValueError(f"translations shape {tuple(translations.shape)} must be ({n}, 3)")
     masses = _normalize_mass(mass_per_body, n)
     dtype = translations.dtype
     coms = _normalize_com(com_per_body, n, dtype)
@@ -175,17 +161,19 @@ def build_kinematic_tree_body(
         child=joint_names[0],
         origin=_origin_from_translation(translations[0], dtype),
         axis=None,
-        lower=None, upper=None,
-        velocity_limit=None, effort_limit=None,
-        mimic_source=None, mimic_multiplier=1.0, mimic_offset=0.0,
+        lower=None,
+        upper=None,
+        velocity_limit=None,
+        effort_limit=None,
+        mimic_source=None,
+        mimic_multiplier=1.0,
+        mimic_offset=0.0,
     )
 
     for idx in range(1, n):
         pidx = parents[idx]
         if pidx < 0 or pidx >= idx:
-            raise ValueError(
-                f"parents[{idx}] = {pidx} must reference an earlier index in [0, {idx})"
-            )
+            raise ValueError(f"parents[{idx}] = {pidx} must reference an earlier index in [0, {idx})")
         b._push_joint(
             joint_names[idx],
             kind=child_kind,
@@ -193,9 +181,13 @@ def build_kinematic_tree_body(
             child=joint_names[idx],
             origin=_origin_from_translation(translations[idx], dtype),
             axis=None,
-            lower=None, upper=None,
-            velocity_limit=None, effort_limit=None,
-            mimic_source=None, mimic_multiplier=1.0, mimic_offset=0.0,
+            lower=None,
+            upper=None,
+            velocity_limit=None,
+            effort_limit=None,
+            mimic_source=None,
+            mimic_multiplier=1.0,
+            mimic_offset=0.0,
         )
 
     return b.finalize()
@@ -212,10 +204,15 @@ def build_kinematic_tree_model(
     mass_per_body: float | Sequence[float] = 0.0,
     com_per_body: torch.Tensor | Sequence[torch.Tensor] | None = None,
     inertia_per_body: torch.Tensor | Sequence[torch.Tensor] | None = None,
+    preserve_joint_order: bool = False,
     device: torch.device | str | None = None,
     dtype: torch.dtype = torch.float32,
 ) -> Model:
-    """Build a frozen ``Model`` for a kinematic tree. See ``build_kinematic_tree_body``."""
+    """Build a frozen ``Model`` for a kinematic tree.
+
+    See :func:`build_kinematic_tree_body`. Set ``preserve_joint_order=True``
+    to retain the supplied, already-topological ``joint_names`` layout.
+    """
     ir = build_kinematic_tree_body(
         name=name,
         joint_names=joint_names,
@@ -227,4 +224,9 @@ def build_kinematic_tree_model(
         com_per_body=com_per_body,
         inertia_per_body=inertia_per_body,
     )
-    return build_model(ir, device=device, dtype=dtype)
+    return build_model(
+        ir,
+        preserve_joint_order=preserve_joint_order,
+        device=device,
+        dtype=dtype,
+    )

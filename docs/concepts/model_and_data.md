@@ -86,6 +86,7 @@ class Model:
     def to(self, device=None, dtype=None) -> "Model": ...
     def create_data(self, *, batch_shape=(), device=None, dtype=None) -> "Data": ...
     def joint_id(self, name: str) -> int: ...
+    def q_permutation(self, other_joint_order: Sequence[str]) -> tuple[torch.Tensor, torch.Tensor]: ...
     def frame_id(self, name: str) -> int: ...
     def body_id (self, name: str) -> int: ...
     def get_subtree(self, joint_id: int) -> tuple[int, ...]: ...
@@ -114,6 +115,22 @@ of integers, frozen at build time. They unroll cleanly under
 `for j in model.topo_order` loop. The numerical buffers
 (`joint_placements`, `body_inertias`, the limits) are device tensors
 moved by `.to()`.
+
+**Joint-order remapping is a gather.** When an external tensor concatenates
+the same public per-joint slices in another name order, use
+`Model.q_permutation` once and gather on the trailing dimension:
+
+```python
+perm_q, perm_v = model.q_permutation(external_joint_names)
+q_model = q_external[..., perm_q]  # works for (nq,), (B, nq), (B, T, nq), ...
+v_model = v_external[..., perm_v]
+```
+
+The method expands whole joint slices, so free-flyer `7/6`, spherical `4/3`,
+and scalar joints are all handled without a per-frame Python loop. Names for
+zero-DOF joints may be omitted; unknown, duplicate, or missing active names
+raise `ValueError`. The external vector must use the model's public
+`nqs`/`nvs` dimensions.
 
 **`@dataclass(frozen=True)`.** No custom immutability guard, no
 `_frozen` flag. Python's dataclass freeze is enough; the discipline
@@ -168,8 +185,6 @@ need to be told the difference.
 ```python
 @dataclass
 class Data:
-    _model_id: int
-
     # ──────────── configuration & derivatives ────────────
     q:    torch.Tensor                              # (B..., nq)
     v:    torch.Tensor | None = None                # (B..., nv)
@@ -217,6 +232,10 @@ class Data:
 ```
 
 Source: `src/better_robot/data_model/data.py`.
+
+``Data`` is not tied to a Python ``id(model)``. Rebinding differentiable
+values keeps the same ``ModelStructure``, and each public pass writes the
+fully broadcast execution view into ``data.q`` before populating caches.
 
 The design choices are:
 

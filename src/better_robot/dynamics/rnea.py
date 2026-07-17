@@ -26,6 +26,7 @@ Known limitations:
 
 See ``docs/concepts/dynamics.md §2``.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -39,6 +40,7 @@ from ..data_model.model_structure import ModelStructure
 from ..data_model.model_values import ModelValues
 from ..kinematics.forward import forward_kinematics_raw
 from ..lie import se3
+from ._execution import prepare_dynamics_inputs
 
 
 @dataclass(frozen=True)
@@ -83,7 +85,7 @@ def _cross_motion_force(v: torch.Tensor, f: torch.Tensor) -> torch.Tensor:
     return torch.cat([out_lin, out_ang], dim=-1)
 
 
-def rnea_raw(  # noqa: PLR0915 - recursive Newton-Euler passes are intentionally explicit
+def rnea_raw(  # noqa: PLR0912, PLR0915 - recursive Newton-Euler passes are explicit
     structure: ModelStructure,
     values: ModelValues,
     q: torch.Tensor,
@@ -113,20 +115,34 @@ def rnea_raw(  # noqa: PLR0915 - recursive Newton-Euler passes are intentionally
     RNEAResult
         Torques plus all fresh pass intermediates needed by the public wrapper.
     """
+    query_inputs: dict[str, tuple[torch.Tensor, tuple[int, ...]]] = {
+        "v": (v, (structure.nv,)),
+        "a": (a, (structure.nv,)),
+    }
+    if fext is not None:
+        query_inputs["fext"] = (fext, (structure.njoints, 6))
+    q, prepared, batch = prepare_dynamics_inputs(
+        structure,
+        values,
+        q,
+        query_inputs,
+    )
+    v = prepared["v"]
+    a = prepared["a"]
+    fext = prepared.get("fext")
     device, dtype = q.device, q.dtype
 
     # ── Pass 0: forward kinematics (liMi needed for adjoints) ────────────
     oMi, liMi = forward_kinematics_raw(structure, values, q)
-    batch = tuple(oMi.shape[:-2])
 
     # ── Base spatial velocity / acceleration ─────────────────────────────
     # a_gf[0] = −gravity: folds gravity into the inertial bias so the
     # forward recursion produces per-body spatial forces that include weight.
     zero6 = torch.zeros((*batch, 6), device=device, dtype=dtype)
     zero_motion_subspace = torch.empty((*batch, 6, 0), device=device, dtype=dtype)
-    grav = values.gravity.to(device=device, dtype=dtype).expand(*batch, 6)
-    spatial_inertias = values.spatial_inertias().to(device=device, dtype=dtype)
-    motion_subspaces = structure.joint_motion_subspaces.to(device=device, dtype=dtype)
+    grav = values.gravity.expand(*batch, 6)
+    spatial_inertias = values.spatial_inertias()
+    motion_subspaces = structure.joint_motion_subspaces
 
     # Per-joint storage (list-of-tensor + torch.stack for autograd safety).
     njoints = structure.njoints
@@ -152,7 +168,7 @@ def rnea_raw(  # noqa: PLR0915 - recursive Newton-Euler passes are intentionally
             a_i_slice = a[..., iv : iv + nv_i]
             S_i = motion_subspaces[i, :, :nv_i].expand(*batch, 6, nv_i)
             vJ = (S_i @ v_i_slice.unsqueeze(-1)).squeeze(-1)
-            aJ = (S_i @ a_i_slice.unsqueeze(-1)).squeeze(-1)        # (B..., 6)
+            aJ = (S_i @ a_i_slice.unsqueeze(-1)).squeeze(-1)  # (B..., 6)
             cJ = zero6
         else:
             # Fixed / zero-DoF joint: no velocity contribution, no subspace.
@@ -164,7 +180,7 @@ def rnea_raw(  # noqa: PLR0915 - recursive Newton-Euler passes are intentionally
 
         # Parent motion transport: Ad(liMi⁻¹) expresses a parent-frame
         # motion 6-vector in the local joint frame.
-        Ad_inv = se3.adjoint_inv(liMi[..., i, :])                   # (B..., 6, 6)
+        Ad_inv = se3.adjoint_inv(liMi[..., i, :])  # (B..., 6, 6)
         v_parent_local = (Ad_inv @ v_body[p].unsqueeze(-1)).squeeze(-1)
         a_parent_local = (Ad_inv @ a_body[p].unsqueeze(-1)).squeeze(-1)
 
@@ -231,6 +247,24 @@ def rnea(
 ) -> torch.Tensor:
     """Public inverse-dynamics wrapper that populates a ``Data`` workspace."""
 
+    query_inputs: dict[str, tuple[torch.Tensor, tuple[int, ...]]] = {
+        "v": (v, (model.nv,)),
+        "a": (a, (model.nv,)),
+    }
+    if fext is not None:
+        query_inputs["fext"] = (fext, (model.njoints, 6))
+    q, prepared, _ = prepare_dynamics_inputs(
+        model.structure,
+        model.values,
+        q,
+        query_inputs,
+    )
+    v = prepared["v"]
+    a = prepared["a"]
+    fext = prepared.get("fext")
+    data.q = q
+    data.v = v
+    data.a = a
     result = rnea_raw(model.structure, model.values, q, v, a, fext=fext)
     data.tau = result.tau
     data.joint_pose_world = result.joint_pose_world

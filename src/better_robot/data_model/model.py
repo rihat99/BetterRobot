@@ -11,11 +11,14 @@ See ``docs/concepts/model_and_data.md §2``.
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import torch
 
+from ..exceptions import DeviceMismatchError, DtypeMismatchError, ShapeError
+from ..lie import se3
 from .frame import Frame
 from .joint_models.base import JointModel
 
@@ -108,36 +111,155 @@ class Model:
         object.__setattr__(self, "structure", ModelStructure.from_model(self))
         object.__setattr__(self, "values", ModelValues.from_model(self))
 
+    def _shallow_rebind(
+        self,
+        *,
+        structure: "ModelStructure",
+        values: "ModelValues",
+        field_updates: dict[str, object] | None = None,
+    ) -> "Model":
+        """Copy immutable metadata without rebuilding topology.
+
+        ``dataclasses.replace`` intentionally calls ``__post_init__`` and is
+        therefore unsuitable for the public value-rebind hot path.
+        """
+
+        updates = field_updates or {}
+        result = object.__new__(type(self))
+        for model_field in dataclasses.fields(self):
+            if model_field.name == "structure":
+                value = structure
+            elif model_field.name == "values":
+                value = values
+            else:
+                value = updates.get(model_field.name, getattr(self, model_field.name))
+            object.__setattr__(result, model_field.name, value)
+        return result
+
+    def with_values(
+        self,
+        *,
+        joint_placements: torch.Tensor | None = None,
+        body_inertias: torch.Tensor | None = None,
+        frame_placements: torch.Tensor | None = None,
+    ) -> "Model":
+        """Pair this topology with new differentiable, optionally batched values.
+
+        Leading dimensions follow torch's right-aligned broadcast rules.  For
+        a ``(B, T, nq)`` trajectory and per-person values, pass value tables
+        with an explicit singleton time axis, for example
+        ``(B, 1, njoints, 7)``.
+        """
+
+        def checked(
+            name: str,
+            value: torch.Tensor | None,
+            current: torch.Tensor,
+            event_shape: tuple[int, int],
+            *,
+            normalize_pose: bool = False,
+        ) -> torch.Tensor:
+            if value is None:
+                return current
+            if not isinstance(value, torch.Tensor):
+                raise TypeError(f"{name} must be a torch.Tensor or None")
+            if value.ndim < 2 or tuple(value.shape[-2:]) != event_shape:
+                raise ShapeError(f"{name} has shape {tuple(value.shape)}; expected trailing event shape {event_shape}")
+            if not value.is_floating_point():
+                raise DtypeMismatchError(f"{name}.dtype={value.dtype} is unsupported; use a floating dtype")
+            if value.device != self.values.joint_placements.device:
+                raise DeviceMismatchError(
+                    f"{name}.device={value.device} != model.device="
+                    f"{self.values.joint_placements.device}; move the value or "
+                    "call model.to(...) first"
+                )
+            if value.dtype != self.values.joint_placements.dtype:
+                raise DtypeMismatchError(
+                    f"{name}.dtype={value.dtype} != model.dtype={self.values.joint_placements.dtype}"
+                )
+            return se3.normalize(value) if normalize_pose else value
+
+        placements = checked(
+            "joint_placements",
+            joint_placements,
+            self.values.joint_placements,
+            (self.njoints, 7),
+            normalize_pose=True,
+        )
+        inertias = checked(
+            "body_inertias",
+            body_inertias,
+            self.values.body_inertias,
+            (self.nbodies, 10),
+        )
+        frame_values = checked(
+            "frame_placements",
+            frame_placements,
+            self.values.frame_placements,
+            (self.nframes, 7),
+            normalize_pose=True,
+        )
+        inertia_cache = self.values.body_inertias_6x6 if inertias is self.values.body_inertias else None
+        rebound = dataclasses.replace(
+            self.values,
+            joint_placements=placements,
+            body_inertias=inertias,
+            frame_placements=frame_values,
+            body_inertias_6x6=inertia_cache,
+        )
+        # Validate value-to-value broadcasting now; the query batch is added
+        # at evaluation time.
+        rebound.execution_batch_shape(self.structure, self.values.q_neutral)
+        return self._shallow_rebind(
+            structure=self.structure,
+            values=rebound,
+            field_updates={
+                "joint_placements": placements,
+                "body_inertias": inertias,
+            },
+        )
+
     def to(self, device=None, dtype=None) -> "Model":
         """Return a new ``Model`` with every tensor buffer moved to the given
         device and/or dtype. Topology / names / joint models are shared by
         reference (they are immutable).
         """
-        def _t(tensor: torch.Tensor) -> torch.Tensor:
-            return tensor.to(device=device, dtype=dtype)
+        structure = self.structure.to(device=device, dtype=dtype)
+        values = self.values.to(device=device, dtype=dtype)
 
-        return dataclasses.replace(
-            self,
-            joint_placements=_t(self.joint_placements),
-            body_inertias=_t(self.body_inertias),
-            lower_pos_limit=_t(self.lower_pos_limit),
-            upper_pos_limit=_t(self.upper_pos_limit),
-            velocity_limit=_t(self.velocity_limit),
-            effort_limit=_t(self.effort_limit),
-            rotor_inertia=_t(self.rotor_inertia),
-            armature=_t(self.armature),
-            friction=_t(self.friction),
-            damping=_t(self.damping),
-            gravity=_t(self.gravity),
-            mimic_multiplier=_t(self.mimic_multiplier),
-            mimic_offset=_t(self.mimic_offset),
-            q_neutral=_t(self.q_neutral),
-            frames=tuple(
-                dataclasses.replace(frame, joint_placement=_t(frame.joint_placement))
-                for frame in self.frames
-            ),
-            reference_configurations={k: _t(v)
-                                       for k, v in self.reference_configurations.items()},
+        def _t(tensor: torch.Tensor) -> torch.Tensor:
+            target_dtype = dtype if tensor.is_floating_point() else tensor.dtype
+            return tensor.to(device=device, dtype=target_dtype)
+
+        field_updates: dict[str, object] = {
+            name: getattr(values, name)
+            for name in (
+                "joint_placements",
+                "body_inertias",
+                "lower_pos_limit",
+                "upper_pos_limit",
+                "velocity_limit",
+                "effort_limit",
+                "rotor_inertia",
+                "armature",
+                "friction",
+                "damping",
+                "gravity",
+                "mimic_multiplier",
+                "mimic_offset",
+                "q_neutral",
+            )
+        }
+        field_updates["frames"] = tuple(
+            dataclasses.replace(frame, joint_placement=_t(frame.joint_placement)) for frame in self.frames
+        )
+        field_updates["reference_configurations"] = {
+            name: _t(value) for name, value in self.reference_configurations.items()
+        }
+        return self._shallow_rebind(
+            structure=structure,
+            values=values,
+            field_updates=field_updates,
         )
 
     def create_data(
@@ -149,14 +271,82 @@ class Model:
     ):  # -> "Data"
         """Allocate an empty ``Data`` workspace shaped for this model."""
         from .data import Data
+
         _device = device or self.joint_placements.device
-        _dtype  = dtype  or self.joint_placements.dtype
+        _dtype = dtype or self.joint_placements.dtype
         q = torch.zeros(*batch_shape, self.nq, device=_device, dtype=_dtype)
-        return Data(_model_id=id(self), q=q)
+        return Data(q=q)
 
     def joint_id(self, name: str) -> int:
         """Return the integer id of the named joint. Raises ``KeyError`` if missing."""
         return self.joint_name_to_id[name]
+
+    def q_permutation(
+        self,
+        other_joint_order: Sequence[str],
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Return q/v gather indices from an external joint-slice order.
+
+        The external vectors must concatenate the same public per-joint
+        ``nqs``/``nvs`` slices as this model, in ``other_joint_order``. Names
+        for zero-DOF joints may be omitted. The returned tensors make the
+        remap one batched-safe trailing-dimension gather::
+
+            perm_q, perm_v = model.q_permutation(external_joint_names)
+            q_model = q_external[..., perm_q]
+            v_model = v_external[..., perm_v]
+        """
+        order = tuple(other_joint_order)
+        seen: set[str] = set()
+        duplicates: list[str] = []
+        for name in order:
+            if name in seen and name not in duplicates:
+                duplicates.append(name)
+            seen.add(name)
+        if duplicates:
+            raise ValueError(f"other_joint_order contains duplicate joint names: {duplicates}")
+
+        unknown = [name for name in order if name not in self.joint_name_to_id]
+        if unknown:
+            raise ValueError(f"other_joint_order contains unknown joint names: {unknown}")
+
+        provided = set(order)
+        missing = [
+            name
+            for joint_id, name in enumerate(self.joint_names)
+            if (self.nqs[joint_id] > 0 or self.nvs[joint_id] > 0) and name not in provided
+        ]
+        if missing:
+            raise ValueError(f"other_joint_order is missing joints with public q/v slices: {missing}")
+
+        q_starts: dict[str, int] = {}
+        v_starts: dict[str, int] = {}
+        q_offset = 0
+        v_offset = 0
+        for name in order:
+            joint_id = self.joint_name_to_id[name]
+            q_starts[name] = q_offset
+            v_starts[name] = v_offset
+            q_offset += self.nqs[joint_id]
+            v_offset += self.nvs[joint_id]
+
+        perm_q: list[int] = []
+        perm_v: list[int] = []
+        for joint_id, name in enumerate(self.joint_names):
+            nq_joint = self.nqs[joint_id]
+            nv_joint = self.nvs[joint_id]
+            if nq_joint:
+                start = q_starts[name]
+                perm_q.extend(range(start, start + nq_joint))
+            if nv_joint:
+                start = v_starts[name]
+                perm_v.extend(range(start, start + nv_joint))
+
+        device = self.joint_placements.device
+        return (
+            torch.tensor(perm_q, dtype=torch.long, device=device),
+            torch.tensor(perm_v, dtype=torch.long, device=device),
+        )
 
     def frame_id(self, name: str) -> int:
         """Return the integer id of the named frame."""
@@ -169,7 +359,8 @@ class Model:
     def body_inertia(self, body_id: int):
         """Typed accessor returning a single body's :class:`~better_robot.spatial.Inertia`."""
         from ..spatial.inertia import Inertia
-        return Inertia(self.body_inertias[body_id])
+
+        return Inertia(self.values.body_inertias[..., body_id, :])
 
     def get_subtree(self, joint_id: int) -> tuple[int, ...]:
         """Return the subtree rooted at ``joint_id``."""
@@ -207,8 +398,7 @@ class Model:
             q1j = q1[..., iq : iq + jm.nq]
             parts.append(jm.difference(q0j, q1j))
         if not parts:
-            return torch.zeros(*q0.shape[:-1], self.nv,
-                               device=q0.device, dtype=q0.dtype)
+            return torch.zeros(*q0.shape[:-1], self.nv, device=q0.device, dtype=q0.dtype)
         return torch.cat(parts, dim=-1)
 
     def random_configuration(self, generator: torch.Generator | None = None) -> torch.Tensor:

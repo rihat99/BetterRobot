@@ -5,6 +5,8 @@ See ``docs/concepts/parsers_and_ir.md §3`` for the 10 responsibilities.
 
 from __future__ import annotations
 
+import heapq
+
 import torch
 
 from ..data_model.frame import Frame
@@ -39,7 +41,7 @@ from .ir import IRBody, IRJoint, IRModel, IRError
 _WORLD_SENTINEL = "world"
 
 _EPS = 1e-6
-_IDENTITY_SE3_VALS = [0., 0., 0., 0., 0., 0., 1.]
+_IDENTITY_SE3_VALS = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
 
 
 def _check_topology_invariants(
@@ -60,36 +62,27 @@ def _check_topology_invariants(
     """
     # 1. Universe joint is rooted at -1.
     if parents[0] != -1:
-        raise ModelInconsistencyError(
-            f"parents[0] must be -1 (universe), got {parents[0]}"
-        )
+        raise ModelInconsistencyError(f"parents[0] must be -1 (universe), got {parents[0]}")
     # 2. Topologically sorted: parents[i] < i for i > 0.
     for i, p in enumerate(parents[1:], start=1):
         if p >= i:
-            raise ModelInconsistencyError(
-                f"parents[{i}]={p} >= {i}; topological sort violated"
-            )
+            raise ModelInconsistencyError(f"parents[{i}]={p} >= {i}; topological sort violated")
     # 3. sum(nqs) == nq, sum(nvs) == nv.
     if sum(nqs) != nq_total:
-        raise ModelInconsistencyError(
-            f"sum(nqs)={sum(nqs)} != nq={nq_total}"
-        )
+        raise ModelInconsistencyError(f"sum(nqs)={sum(nqs)} != nq={nq_total}")
     if sum(nvs) != nv_total:
-        raise ModelInconsistencyError(
-            f"sum(nvs)={sum(nvs)} != nv={nv_total}"
-        )
+        raise ModelInconsistencyError(f"sum(nvs)={sum(nvs)} != nv={nv_total}")
     # 4. Contiguous slicing: idx_qs[i] + nqs[i] == idx_qs[i+1] (and same for v).
     for i in range(len(nqs) - 1):
         if idx_qs[i] + nqs[i] != idx_qs[i + 1]:
             raise ModelInconsistencyError(
-                f"idx_qs[{i}] + nqs[{i}] = {idx_qs[i] + nqs[i]} "
-                f"!= idx_qs[{i+1}]={idx_qs[i+1]} (q-slicing gap)"
+                f"idx_qs[{i}] + nqs[{i}] = {idx_qs[i] + nqs[i]} != idx_qs[{i + 1}]={idx_qs[i + 1]} (q-slicing gap)"
             )
         if idx_vs[i] + nvs[i] != idx_vs[i + 1]:
             raise ModelInconsistencyError(
-                f"idx_vs[{i}] + nvs[{i}] = {idx_vs[i] + nvs[i]} "
-                f"!= idx_vs[{i+1}]={idx_vs[i+1]} (v-slicing gap)"
+                f"idx_vs[{i}] + nvs[{i}] = {idx_vs[i] + nvs[i]} != idx_vs[{i + 1}]={idx_vs[i + 1]} (v-slicing gap)"
             )
+
 
 # ─────────────────────────────── helpers ─────────────────────────────────��───
 
@@ -110,10 +103,7 @@ def _kind_to_joint_model(ir_joint: IRJoint) -> JointModel:
     joint_model = getattr(ir_joint, "joint_model", None)
     if joint_model is not None:
         if not isinstance(joint_model, JointModel):
-            raise IRError(
-                f"joint_model payload for joint {ir_joint.name!r} does not "
-                f"implement the JointModel protocol"
-            )
+            raise IRError(f"joint_model payload for joint {ir_joint.name!r} does not implement the JointModel protocol")
         if joint_model.kind != kind:
             raise IRError(
                 f"joint_model payload kind {joint_model.kind!r} does not match "
@@ -153,33 +143,31 @@ def _kind_to_joint_model(ir_joint: IRJoint) -> JointModel:
         return JointRZ()
     if kind == "revolute_unaligned":
         if axis is None:
-            raise IRError(
-                f"Joint {ir_joint.name!r} with kind {kind!r} requires an axis"
-            )
+            raise IRError(f"Joint {ir_joint.name!r} with kind {kind!r} requires an axis")
         return JointRevoluteUnaligned(axis=axis.float())
     if kind == "revolute_unbounded":
-        _ax = axis if axis is not None else torch.tensor([0., 0., 1.])
+        _ax = axis if axis is not None else torch.tensor([0.0, 0.0, 1.0])
         return JointRevoluteUnbounded(axis=_ax.float())
 
     if kind in ("revolute",):
-        if axis is None or _axis_near(axis, (1., 0., 0.)):
+        if axis is None or _axis_near(axis, (1.0, 0.0, 0.0)):
             return JointRX()
-        if _axis_near(axis, (0., 1., 0.)):
+        if _axis_near(axis, (0.0, 1.0, 0.0)):
             return JointRY()
-        if _axis_near(axis, (0., 0., 1.)):
+        if _axis_near(axis, (0.0, 0.0, 1.0)):
             return JointRZ()
         return JointRevoluteUnaligned(axis=axis.float())
 
     if kind in ("continuous",):
-        _ax = axis if axis is not None else torch.tensor([0., 0., 1.])
+        _ax = axis if axis is not None else torch.tensor([0.0, 0.0, 1.0])
         return JointRevoluteUnbounded(axis=_ax.float())
 
     if kind in ("prismatic",):
-        if axis is None or _axis_near(axis, (1., 0., 0.)):
+        if axis is None or _axis_near(axis, (1.0, 0.0, 0.0)):
             return JointPX()
-        if _axis_near(axis, (0., 1., 0.)):
+        if _axis_near(axis, (0.0, 1.0, 0.0)):
             return JointPY()
-        if _axis_near(axis, (0., 0., 1.)):
+        if _axis_near(axis, (0.0, 0.0, 1.0)):
             return JointPZ()
         return JointPrismaticUnaligned(axis=axis.float())
 
@@ -191,9 +179,7 @@ def _kind_to_joint_model(ir_joint: IRJoint) -> JointModel:
         return JointPZ()
     if kind == "prismatic_unaligned":
         if axis is None:
-            raise IRError(
-                f"Joint {ir_joint.name!r} with kind {kind!r} requires an axis"
-            )
+            raise IRError(f"Joint {ir_joint.name!r} with kind {kind!r} requires an axis")
         return JointPrismaticUnaligned(axis=axis.float())
 
     if kind in ("spherical", "ball"):
@@ -209,7 +195,7 @@ def _kind_to_joint_model(ir_joint: IRJoint) -> JointModel:
         return JointTranslation()
 
     if kind == "helical":
-        _ax = axis if axis is not None else torch.tensor([0., 0., 1.])
+        _ax = axis if axis is not None else torch.tensor([0.0, 0.0, 1.0])
         return JointHelical(axis=_ax.float(), pitch=ir_joint.pitch)
 
     if kind == "composite":
@@ -270,6 +256,45 @@ def _ir_topo_sort(
     return sorted_indices
 
 
+def _ir_stable_topo_sort(
+    ir: IRModel,
+    root_body: str,
+    ir_indices: list[int],
+) -> list[int]:
+    """Stable Kahn sort that preserves IR order whenever it is topological.
+
+    The heap key is the joint's IR index, so newly eligible joints are merged
+    with already eligible siblings in source order. Only the selected joint
+    subset participates; the explicit world joint is handled separately by
+    :func:`build_model`.
+    """
+    parent_to_joints: dict[str, list[int]] = {}
+    for index in ir_indices:
+        parent_to_joints.setdefault(ir.joints[index].parent_body, []).append(index)
+
+    ready = list(parent_to_joints.get(root_body, ()))
+    heapq.heapify(ready)
+    sorted_indices: list[int] = []
+    visited_bodies: set[str] = {root_body}
+
+    while ready:
+        joint_index = heapq.heappop(ready)
+        child_body = ir.joints[joint_index].child_body
+        if child_body in visited_bodies:
+            raise IRError(f"Cycle detected: body {child_body!r} reachable via multiple paths")
+        visited_bodies.add(child_body)
+        sorted_indices.append(joint_index)
+        for child_index in parent_to_joints.get(child_body, ()):
+            heapq.heappush(ready, child_index)
+
+    if len(sorted_indices) != len(ir_indices):
+        selected = set(sorted_indices)
+        names = [ir.joints[index].name for index in ir_indices if index not in selected]
+        raise IRError(f"Disconnected joints (not reachable from root): {names}")
+
+    return sorted_indices
+
+
 # ──────────────────────────────── main factory ───────────────────────────────
 
 
@@ -277,6 +302,7 @@ def build_model(
     ir: IRModel,
     *,
     root_joint: JointModel | None = None,
+    preserve_joint_order: bool = False,
     device: torch.device | None = None,
     dtype: torch.dtype = torch.float32,
 ) -> Model:
@@ -302,14 +328,16 @@ def build_model(
     the IR joint's ``kind`` is used instead (unless ``root_joint`` overrides
     it).  This lets programmatic builders embed a ``JointFreeFlyer`` root
     without extra ``load(…, free_flyer=True)`` kwargs.
+
+    Set ``preserve_joint_order=True`` to use a stable Kahn topological sort.
+    Already-topological IR joint order is then retained exactly (after the
+    universe entry); non-topological input is repaired stably. The default
+    remains the historical deterministic DFS order.
     """
     identity_se3 = torch.tensor(_IDENTITY_SE3_VALS, dtype=dtype)
 
     # ── 1. Identify root structure ────────────────────────────────────────────
-    world_ir_idxs = [
-        i for i, j in enumerate(ir.joints)
-        if j.parent_body == _WORLD_SENTINEL
-    ]
+    world_ir_idxs = [i for i, j in enumerate(ir.joints) if j.parent_body == _WORLD_SENTINEL]
 
     if world_ir_idxs:
         # IR has an explicit joint connecting world → root_body.
@@ -323,10 +351,7 @@ def build_model(
         root_body = world_ir_joint.child_body
 
         # Root joint model: IR kind OR user-supplied override
-        _root_jm: JointModel = (
-            root_joint if root_joint is not None
-            else _kind_to_joint_model(world_ir_joint)
-        )
+        _root_jm: JointModel = root_joint if root_joint is not None else _kind_to_joint_model(world_ir_joint)
         _root_placement = world_ir_joint.origin.to(dtype=dtype)
         _root_name = world_ir_joint.name
 
@@ -342,9 +367,7 @@ def build_model(
         else:
             candidates = [b.name for b in ir.bodies if b.name not in child_bodies]
             if len(candidates) != 1:
-                raise IRError(
-                    f"Expected exactly 1 root body, found {len(candidates)}: {candidates}"
-                )
+                raise IRError(f"Expected exactly 1 root body, found {len(candidates)}: {candidates}")
             root_body = candidates[0]
 
         _root_jm = root_joint if root_joint is not None else JointFixed()
@@ -353,7 +376,14 @@ def build_model(
         regular_ir_indices = list(range(len(ir.joints)))
 
     # ── 2. Topological sort of regular IR joints ──────────────────────────────
-    sorted_ir_indices = _ir_topo_sort(ir, root_body, regular_ir_indices)
+    if preserve_joint_order:
+        sorted_ir_indices = _ir_stable_topo_sort(
+            ir,
+            root_body,
+            regular_ir_indices,
+        )
+    else:
+        sorted_ir_indices = _ir_topo_sort(ir, root_body, regular_ir_indices)
 
     # ── 3. Model joint layout ─────────────────────────────────────────────────
     # joint 0 = universe (JointUniverse, body = "universe" placeholder)
@@ -450,30 +480,30 @@ def build_model(
         elif kind == "revolute_unbounded":
             lower_pos.extend([-_INF, -_INF])
             upper_pos.extend([_INF, _INF])
-            vel = ir_j.velocity_limit if ir_j is not None and ir_j.velocity_limit is not None else 0.
-            eff = ir_j.effort_limit if ir_j is not None and ir_j.effort_limit is not None else 0.
+            vel = ir_j.velocity_limit if ir_j is not None and ir_j.velocity_limit is not None else 0.0
+            eff = ir_j.effort_limit if ir_j is not None and ir_j.effort_limit is not None else 0.0
             vel_lim.append(vel)
             eff_lim.append(eff)
 
         elif kind == "spherical":
-            lower_pos.extend([-1.] * 4)
-            upper_pos.extend([1.] * 4)
-            v = ir_j.velocity_limit if ir_j is not None and ir_j.velocity_limit is not None else 0.
-            e = ir_j.effort_limit if ir_j is not None and ir_j.effort_limit is not None else 0.
+            lower_pos.extend([-1.0] * 4)
+            upper_pos.extend([1.0] * 4)
+            v = ir_j.velocity_limit if ir_j is not None and ir_j.velocity_limit is not None else 0.0
+            e = ir_j.effort_limit if ir_j is not None and ir_j.effort_limit is not None else 0.0
             vel_lim.extend([v] * 3)
             eff_lim.extend([e] * 3)
 
         elif kind == "planar":
-            lower_pos.extend([-_INF, -_INF, -1., -1.])
-            upper_pos.extend([_INF, _INF, 1., 1.])
-            vel_lim.extend([0.] * 3)
-            eff_lim.extend([0.] * 3)
+            lower_pos.extend([-_INF, -_INF, -1.0, -1.0])
+            upper_pos.extend([_INF, _INF, 1.0, 1.0])
+            vel_lim.extend([0.0] * 3)
+            eff_lim.extend([0.0] * 3)
 
         elif kind == "translation":
             lower_pos.extend([-_INF] * 3)
             upper_pos.extend([_INF] * 3)
-            vel_lim.extend([0.] * 3)
-            eff_lim.extend([0.] * 3)
+            vel_lim.extend([0.0] * 3)
+            eff_lim.extend([0.0] * 3)
 
         else:
             # Scalar IR limits apply to every coordinate of generic/custom
@@ -481,8 +511,8 @@ def build_model(
             if ir_j is not None:
                 lo = ir_j.lower if ir_j.lower is not None else -_INF
                 hi = ir_j.upper if ir_j.upper is not None else _INF
-                vel = ir_j.velocity_limit if ir_j.velocity_limit is not None else 0.
-                eff = ir_j.effort_limit if ir_j.effort_limit is not None else 0.
+                vel = ir_j.velocity_limit if ir_j.velocity_limit is not None else 0.0
+                eff = ir_j.effort_limit if ir_j.effort_limit is not None else 0.0
             else:
                 lo, hi, vel, eff = -_INF, _INF, _INF, _INF
             lower_pos.extend([lo] * jm.nq)
@@ -520,20 +550,24 @@ def build_model(
     # ── 12. Frames ────────────────────────────────────────────────────────────
     frames_list: list[Frame] = []
     for midx, bname in enumerate(body_names_list):
-        frames_list.append(Frame(
-            name=f"body_{bname}",
-            parent_joint=midx,
-            joint_placement=identity_se3.clone(),
-            frame_type="body",
-        ))
+        frames_list.append(
+            Frame(
+                name=f"body_{bname}",
+                parent_joint=midx,
+                joint_placement=identity_se3.clone(),
+                frame_type="body",
+            )
+        )
     for ir_frame in ir.frames:
         parent_midx = body_to_mjidx.get(ir_frame.parent_body, 1)
-        frames_list.append(Frame(
-            name=ir_frame.name,
-            parent_joint=parent_midx,
-            joint_placement=ir_frame.placement.to(dtype=dtype),
-            frame_type=ir_frame.frame_type,  # type: ignore[arg-type]
-        ))
+        frames_list.append(
+            Frame(
+                name=ir_frame.name,
+                parent_joint=parent_midx,
+                joint_placement=ir_frame.placement.to(dtype=dtype),
+                frame_type=ir_frame.frame_type,  # type: ignore[arg-type]
+            )
+        )
     frames = tuple(frames_list)
     nframes = len(frames)
     frame_names = tuple(f.name for f in frames)
@@ -559,19 +593,13 @@ def build_model(
     mimic_ir_joints: list[tuple[IRJoint, int]] = []
     if world_ir_idxs:
         mimic_ir_joints.append((world_ir_joint, 1))
-    mimic_ir_joints.extend(
-        (ir.joints[ir_ji], offset + 2)
-        for offset, ir_ji in enumerate(sorted_ir_indices)
-    )
+    mimic_ir_joints.extend((ir.joints[ir_ji], offset + 2) for offset, ir_ji in enumerate(sorted_ir_indices))
 
     for ir_j, mjidx in mimic_ir_joints:
         if ir_j.mimic_source is not None:
             src = ir_joint_name_to_mjidx.get(ir_j.mimic_source)
             if src is None:
-                raise IRError(
-                    f"Mimic source {ir_j.mimic_source!r} not found "
-                    f"(referenced by joint {ir_j.name!r})"
-                )
+                raise IRError(f"Mimic source {ir_j.mimic_source!r} not found (referenced by joint {ir_j.name!r})")
             if ir_j.mimic_multiplier != 1.0 or ir_j.mimic_offset != 0.0:
                 raise NotImplementedError(
                     f"Joint {ir_j.name!r} is a non-identity mimic joint "
@@ -597,9 +625,7 @@ def build_model(
         if jm.nq > 0:
             neutral_parts.append(jm.neutral())
     q_neutral = (
-        torch.cat(neutral_parts, dim=-1).to(dtype=dtype)
-        if neutral_parts
-        else torch.zeros(nq_total, dtype=dtype)
+        torch.cat(neutral_parts, dim=-1).to(dtype=dtype) if neutral_parts else torch.zeros(nq_total, dtype=dtype)
     )
 
     # ── 16. Gravity ───────────────────────────────────────────────────────────
@@ -607,6 +633,7 @@ def build_model(
 
     # ── 17. Move to device ────────────────────────────────────────────────────
     if device is not None:
+
         def _dev(t: torch.Tensor) -> torch.Tensor:
             return t.to(device=device)
 

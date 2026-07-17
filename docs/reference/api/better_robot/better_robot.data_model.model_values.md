@@ -224,6 +224,22 @@
 
 ````
 
+````{py:method} validate(structure: better_robot.data_model.model_structure.ModelStructure) -> None
+:canonical: better_robot.data_model.model_values.ModelValues.validate
+
+```{autodoc2-docstring} better_robot.data_model.model_values.ModelValues.validate
+```
+
+````
+
+````{py:method} execution_batch_shape(structure: better_robot.data_model.model_structure.ModelStructure, q: torch.Tensor) -> tuple[int, ...]
+:canonical: better_robot.data_model.model_values.ModelValues.execution_batch_shape
+
+```{autodoc2-docstring} better_robot.data_model.model_values.ModelValues.execution_batch_shape
+```
+
+````
+
 ````{py:method} from_model(model: better_robot.data_model.model.Model) -> better_robot.data_model.model_values.ModelValues
 :canonical: better_robot.data_model.model_values.ModelValues.from_model
 :classmethod:

@@ -23,9 +23,7 @@ from ..data_model.model_values import ModelValues
 from ..lie import se3, so3
 
 
-wp.config.kernel_cache_dir = os.environ.get(
-    "WARP_CACHE_PATH", "/tmp/betterrobot-warp-cache"
-)
+wp.config.kernel_cache_dir = os.environ.get("WARP_CACHE_PATH", "/tmp/betterrobot-warp-cache")
 wp.init()
 
 from ._warp_kernels import fk_frames_f32, fk_frames_f64  # noqa: E402
@@ -52,9 +50,7 @@ def _torch_joint_transform(  # noqa: PLR0911
     if kind in (2, 3, 4, 5):
         return se3.from_axis_angle(axis, q_slice[..., 0])
     if kind == 6:
-        return se3.from_axis_angle(
-            axis, torch.atan2(q_slice[..., 1], q_slice[..., 0])
-        )
+        return se3.from_axis_angle(axis, torch.atan2(q_slice[..., 1], q_slice[..., 0]))
     if kind in (7, 8, 9, 10):
         return se3.from_translation(axis, q_slice[..., 0])
     if kind == 11:
@@ -65,13 +61,9 @@ def _torch_joint_transform(  # noqa: PLR0911
     if kind == 13:
         x, y, cosine, sine = q_slice.unbind(dim=-1)
         half_cosine = torch.sqrt(((1.0 + cosine) * 0.5).clamp_min(0.0))
-        half_sine = (
-            torch.sqrt(((1.0 - cosine) * 0.5).clamp_min(0.0)) * torch.sign(sine)
-        )
+        half_sine = torch.sqrt(((1.0 - cosine) * 0.5).clamp_min(0.0)) * torch.sign(sine)
         zero = torch.zeros_like(x)
-        return torch.stack(
-            (x, y, zero, zero, zero, half_sine, half_cosine), dim=-1
-        )
+        return torch.stack((x, y, zero, zero, zero, half_sine, half_cosine), dim=-1)
     if kind == 14:
         zeros = q_slice.new_zeros((*q_slice.shape[:-1], 3))
         ones = q_slice.new_ones((*q_slice.shape[:-1], 1))
@@ -103,11 +95,21 @@ def _torch_fk_from_tables(
     q_exec = q.index_select(0, q_map.to(torch.int64))
     placements_exec = joint_placements.index_select(0, value_map.to(torch.int64))
     frames_exec = frame_placements.index_select(0, value_map.to(torch.int64))
-    parents_static = tuple(int(value) for value in parents.detach().cpu().tolist())  # bench-ok: prototype torch-VJP reads immutable topology
-    topo_static = tuple(int(value) for value in topo_order.detach().cpu().tolist())  # bench-ok: prototype torch-VJP reads immutable topology
-    kinds_static = tuple(int(value) for value in kinds.detach().cpu().tolist())  # bench-ok: prototype torch-VJP reads immutable topology
-    nqs_static = tuple(int(value) for value in nqs.detach().cpu().tolist())  # bench-ok: prototype torch-VJP reads immutable topology
-    idx_static = tuple(int(value) for value in idx_qs.detach().cpu().tolist())  # bench-ok: prototype torch-VJP reads immutable topology
+    parents_static = tuple(
+        int(value) for value in parents.detach().cpu().tolist()
+    )  # bench-ok: prototype torch-VJP reads immutable topology
+    topo_static = tuple(
+        int(value) for value in topo_order.detach().cpu().tolist()
+    )  # bench-ok: prototype torch-VJP reads immutable topology
+    kinds_static = tuple(
+        int(value) for value in kinds.detach().cpu().tolist()
+    )  # bench-ok: prototype torch-VJP reads immutable topology
+    nqs_static = tuple(
+        int(value) for value in nqs.detach().cpu().tolist()
+    )  # bench-ok: prototype torch-VJP reads immutable topology
+    idx_static = tuple(
+        int(value) for value in idx_qs.detach().cpu().tolist()
+    )  # bench-ok: prototype torch-VJP reads immutable topology
 
     world: list[torch.Tensor | None] = [None] * len(parents_static)
     local: list[torch.Tensor | None] = [None] * len(parents_static)
@@ -124,15 +126,11 @@ def _torch_fk_from_tables(
         local[joint_index] = local_pose
         parent = parents_static[joint_index]
         world[joint_index] = (
-            local_pose
-            if parent < 0
-            else se3.compose(world[parent], local_pose)  # type: ignore[arg-type]
+            local_pose if parent < 0 else se3.compose(world[parent], local_pose)  # type: ignore[arg-type]
         )
     local_tensor = torch.stack(local, dim=-2)  # type: ignore[arg-type]
     world_tensor = torch.stack(world, dim=-2)  # type: ignore[arg-type]
-    frame_tensor = se3.compose(
-        world_tensor.index_select(-2, frame_parents.to(torch.int64)), frames_exec
-    )
+    frame_tensor = se3.compose(world_tensor.index_select(-2, frame_parents.to(torch.int64)), frames_exec)
     return world_tensor, local_tensor, frame_tensor
 
 
@@ -160,9 +158,7 @@ def _vjp(
     with torch.enable_grad():
         original = (q, joint_placements, frame_placements)
         working = tuple(
-            value.detach().requires_grad_(True)
-            if detach_inputs or not value.requires_grad
-            else value
+            value.detach().requires_grad_(True) if detach_inputs or not value.requires_grad else value
             for value in original
         )
         outputs = _torch_fk_from_tables(
@@ -189,8 +185,7 @@ def _vjp(
             allow_unused=True,
         )
     return tuple(
-        torch.zeros_like(value) if gradient is None else gradient
-        for value, gradient in zip(original, gradients)
+        torch.zeros_like(value) if gradient is None else gradient for value, gradient in zip(original, gradients)
     )  # type: ignore[return-value]
 
 
@@ -285,11 +280,7 @@ def _warp_fk_forward(
     kernel = fk_frames_f32 if q.dtype == torch.float32 else fk_frames_f64
 
     device = wp.device_from_torch(q.device)
-    stream = (
-        wp.stream_from_torch(torch.cuda.current_stream(q.device))
-        if q.is_cuda
-        else None
-    )
+    stream = wp.stream_from_torch(torch.cuda.current_stream(q.device)) if q.is_cuda else None
     inputs = [
         wp.from_torch(q, dtype=scalar_dtype, requires_grad=False),
         wp.from_torch(joint_placements, dtype=transform_dtype, requires_grad=False),
@@ -353,7 +344,11 @@ def _setup_fk_context(ctx, inputs, output) -> None:
 
 def _fk_backward(ctx, grad_world, grad_local, grad_frames):
     saved = ctx.saved_tensors
-    grad_world = torch.zeros_like(saved[0].new_empty((saved[3].shape[0], saved[5].shape[0], 7))) if grad_world is None else grad_world
+    grad_world = (
+        torch.zeros_like(saved[0].new_empty((saved[3].shape[0], saved[5].shape[0], 7)))
+        if grad_world is None
+        else grad_world
+    )
     grad_local = torch.zeros_like(grad_world) if grad_local is None else grad_local
     grad_frames = saved[0].new_zeros((saved[3].shape[0], saved[12].shape[0], 7)) if grad_frames is None else grad_frames
     if torch.is_grad_enabled():
@@ -398,6 +393,7 @@ def try_warp_forward_kinematics(  # noqa: PLR0911
 ) -> WarpFKResult | None:
     """Run the opt-in prototype, or return ``None`` for torch fallback."""
 
+    values.validate(structure)
     if q.dtype not in (torch.float32, torch.float64):
         return None
     if any(code < 0 or code == JOINT_KIND_CODES["composite"] for code in structure.joint_kind_codes):
@@ -411,12 +407,10 @@ def try_warp_forward_kinematics(  # noqa: PLR0911
     frame_placements = values.frame_placements.to(dtype=q.dtype)
     execution = flatten_execution_batch(
         q,
-        (placements, frame_placements),
-        value_event_ndims=(2, 2),
+        (placements, frame_placements, values.body_inertias),
+        value_event_ndims=(2, 2, 2),
     )
-    if not torch.equal(
-        execution.values[0].batch_indices, execution.values[1].batch_indices
-    ):
+    if not torch.equal(execution.values[0].batch_indices, execution.values[1].batch_indices):
         return None
     q_unique = execution.q.tensor
     placement_unique = execution.values[0].tensor

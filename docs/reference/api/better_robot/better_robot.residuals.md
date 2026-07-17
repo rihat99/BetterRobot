@@ -15,6 +15,7 @@
 
 better_robot.residuals.temporal
 better_robot.residuals.base
+better_robot.residuals.human
 better_robot.residuals.contact
 better_robot.residuals.manipulability
 better_robot.residuals.collision

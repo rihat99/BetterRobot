@@ -55,7 +55,7 @@ better_robot.io.build_model
 ```
 ````
 
-````{py:function} load(source: str | pathlib.Path | typing.Any | typing.Callable[[], better_robot.io.ir.IRModel], *, format: typing.Literal[auto, urdf, mjcf, builder] = 'auto', root_joint: better_robot.data_model.joint_models.base.JointModel | None = None, free_flyer: bool = False, device: torch.device | None = None, dtype: torch.dtype = torch.float32) -> better_robot.data_model.model.Model
+````{py:function} load(source: str | pathlib.Path | typing.Any | typing.Callable[[], better_robot.io.ir.IRModel], *, format: typing.Literal[auto, urdf, mjcf, builder] = 'auto', root_joint: better_robot.data_model.joint_models.base.JointModel | None = None, free_flyer: bool = False, preserve_joint_order: bool = False, device: torch.device | None = None, dtype: torch.dtype = torch.float32) -> better_robot.data_model.model.Model
 :canonical: better_robot.io.load
 
 ```{autodoc2-docstring} better_robot.io.load

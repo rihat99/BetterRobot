@@ -19,6 +19,10 @@
   - ```{autodoc2-docstring} better_robot.residuals.regularization.RestResidual
     :summary:
     ```
+* - {py:obj}`JointRotationPrior <better_robot.residuals.regularization.JointRotationPrior>`
+  - ```{autodoc2-docstring} better_robot.residuals.regularization.JointRotationPrior
+    :summary:
+    ```
 * - {py:obj}`ReferenceTrajectoryResidual <better_robot.residuals.regularization.ReferenceTrajectoryResidual>`
   - ```{autodoc2-docstring} better_robot.residuals.regularization.ReferenceTrajectoryResidual
     :summary:
@@ -70,6 +74,32 @@
 :canonical: better_robot.residuals.regularization.RestResidual.jacobian_blocks
 
 ```{autodoc2-docstring} better_robot.residuals.regularization.RestResidual.jacobian_blocks
+```
+
+````
+
+`````
+
+`````{py:class} JointRotationPrior(model: better_robot.data_model.model.Model, q_mean: torch.Tensor, per_joint_weight: torch.Tensor, *, name: str = 'joint_rotation_prior')
+:canonical: better_robot.residuals.regularization.JointRotationPrior
+
+```{autodoc2-docstring} better_robot.residuals.regularization.JointRotationPrior
+```
+
+````{py:attribute} reads
+:canonical: better_robot.residuals.regularization.JointRotationPrior.reads
+:value: >
+   ('q',)
+
+```{autodoc2-docstring} better_robot.residuals.regularization.JointRotationPrior.reads
+```
+
+````
+
+````{py:method} jacobian(value: better_robot.residuals.base.ResidualState | collections.abc.Mapping[str, typing.Any]) -> torch.Tensor | None
+:canonical: better_robot.residuals.regularization.JointRotationPrior.jacobian
+
+```{autodoc2-docstring} better_robot.residuals.regularization.JointRotationPrior.jacobian
 ```
 
 ````

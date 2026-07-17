@@ -40,28 +40,56 @@ from .kinematic_tree import build_kinematic_tree_body, build_kinematic_tree_mode
 
 JOINT_NAMES: tuple[str, ...] = (
     "pelvis",
-    "left_hip", "right_hip", "spine1",
-    "left_knee", "right_knee", "spine2",
-    "left_ankle", "right_ankle", "spine3",
-    "left_foot", "right_foot", "neck",
-    "left_collar", "right_collar", "head",
-    "left_shoulder", "right_shoulder",
-    "left_elbow", "right_elbow",
-    "left_wrist", "right_wrist",
-    "left_hand", "right_hand",
+    "left_hip",
+    "right_hip",
+    "spine1",
+    "left_knee",
+    "right_knee",
+    "spine2",
+    "left_ankle",
+    "right_ankle",
+    "spine3",
+    "left_foot",
+    "right_foot",
+    "neck",
+    "left_collar",
+    "right_collar",
+    "head",
+    "left_shoulder",
+    "right_shoulder",
+    "left_elbow",
+    "right_elbow",
+    "left_wrist",
+    "right_wrist",
+    "left_hand",
+    "right_hand",
 )
 
 PARENTS: tuple[int, ...] = (
-    -1,               # pelvis → world (root)
-    0, 0, 0,          # l_hip, r_hip, spine1
-    1, 2, 3,          # l_knee, r_knee, spine2
-    4, 5, 6,          # l_ankle, r_ankle, spine3
-    7, 8, 9,          # l_foot, r_foot, neck
-    12, 12, 12,       # l_collar, r_collar, head
-    13, 14,           # l_shoulder, r_shoulder
-    16, 17,           # l_elbow, r_elbow
-    18, 19,           # l_wrist, r_wrist
-    20, 21,           # l_hand, r_hand
+    -1,  # pelvis → world (root)
+    0,
+    0,
+    0,  # l_hip, r_hip, spine1
+    1,
+    2,
+    3,  # l_knee, r_knee, spine2
+    4,
+    5,
+    6,  # l_ankle, r_ankle, spine3
+    7,
+    8,
+    9,  # l_foot, r_foot, neck
+    12,
+    12,
+    12,  # l_collar, r_collar, head
+    13,
+    14,  # l_shoulder, r_shoulder
+    16,
+    17,  # l_elbow, r_elbow
+    18,
+    19,  # l_wrist, r_wrist
+    20,
+    21,  # l_hand, r_hand
 )
 
 
@@ -70,30 +98,30 @@ def _default_offsets_tensor(height: float) -> torch.Tensor:
     s = height / 1.75
     return torch.tensor(
         [
-            [0., 0., 0.],                 # pelvis (root; placed by free-flyer)
-            [0., +0.09 * s, 0.],          # left_hip
-            [0., -0.09 * s, 0.],          # right_hip
-            [0., 0., 0.08 * s],           # spine1
-            [0., 0., -0.42 * s],          # left_knee
-            [0., 0., -0.42 * s],          # right_knee
-            [0., 0., 0.13 * s],           # spine2
-            [0., 0., -0.38 * s],          # left_ankle
-            [0., 0., -0.38 * s],          # right_ankle
-            [0., 0., 0.13 * s],           # spine3
-            [0.12 * s, 0., -0.06 * s],    # left_foot
-            [0.12 * s, 0., -0.06 * s],    # right_foot
-            [0., 0., 0.25 * s],           # neck
-            [0., +0.05 * s, 0.18 * s],    # left_collar
-            [0., -0.05 * s, 0.18 * s],    # right_collar
-            [0., 0., 0.08 * s],           # head
-            [0., +0.15 * s, 0.],          # left_shoulder
-            [0., -0.15 * s, 0.],          # right_shoulder
-            [0., 0., -0.27 * s],          # left_elbow
-            [0., 0., -0.27 * s],          # right_elbow
-            [0., 0., -0.24 * s],          # left_wrist
-            [0., 0., -0.24 * s],          # right_wrist
-            [0., 0., -0.08 * s],          # left_hand
-            [0., 0., -0.08 * s],          # right_hand
+            [0.0, 0.0, 0.0],  # pelvis (root; placed by free-flyer)
+            [0.0, +0.09 * s, 0.0],  # left_hip
+            [0.0, -0.09 * s, 0.0],  # right_hip
+            [0.0, 0.0, 0.08 * s],  # spine1
+            [0.0, 0.0, -0.42 * s],  # left_knee
+            [0.0, 0.0, -0.42 * s],  # right_knee
+            [0.0, 0.0, 0.13 * s],  # spine2
+            [0.0, 0.0, -0.38 * s],  # left_ankle
+            [0.0, 0.0, -0.38 * s],  # right_ankle
+            [0.0, 0.0, 0.13 * s],  # spine3
+            [0.12 * s, 0.0, -0.06 * s],  # left_foot
+            [0.12 * s, 0.0, -0.06 * s],  # right_foot
+            [0.0, 0.0, 0.25 * s],  # neck
+            [0.0, +0.05 * s, 0.18 * s],  # left_collar
+            [0.0, -0.05 * s, 0.18 * s],  # right_collar
+            [0.0, 0.0, 0.08 * s],  # head
+            [0.0, +0.15 * s, 0.0],  # left_shoulder
+            [0.0, -0.15 * s, 0.0],  # right_shoulder
+            [0.0, 0.0, -0.27 * s],  # left_elbow
+            [0.0, 0.0, -0.27 * s],  # right_elbow
+            [0.0, 0.0, -0.24 * s],  # left_wrist
+            [0.0, 0.0, -0.24 * s],  # right_wrist
+            [0.0, 0.0, -0.08 * s],  # left_hand
+            [0.0, 0.0, -0.08 * s],  # right_hand
         ],
         dtype=torch.float32,
     )
@@ -122,9 +150,7 @@ def make_smpl_like_body(
     by an external tool); leave them ``None`` to fall back to the legacy
     uniform-``mass / 24`` default.
     """
-    offsets = (
-        joint_offsets if joint_offsets is not None else _default_offsets_tensor(height)
-    )
+    offsets = joint_offsets if joint_offsets is not None else _default_offsets_tensor(height)
     mass_kw = mass_per_body if mass_per_body is not None else mass / 24.0
     return build_kinematic_tree_body(
         name=name,
@@ -149,13 +175,16 @@ def make_smpl_like_model(
     mass_per_body: float | Sequence[float] | None = None,
     com_per_body: torch.Tensor | Sequence[torch.Tensor] | None = None,
     inertia_per_body: torch.Tensor | Sequence[torch.Tensor] | None = None,
+    preserve_joint_order: bool = False,
     device: torch.device | None = None,
     dtype: torch.dtype = torch.float32,
 ) -> Model:
-    """Build an SMPL-topology frozen ``Model``. See :func:`make_smpl_like_body`."""
-    offsets = (
-        joint_offsets if joint_offsets is not None else _default_offsets_tensor(height)
-    )
+    """Build an SMPL-topology frozen ``Model``.
+
+    See :func:`make_smpl_like_body`. Set ``preserve_joint_order=True`` to
+    retain the public SMPL-like ``JOINT_NAMES`` ordering.
+    """
+    offsets = joint_offsets if joint_offsets is not None else _default_offsets_tensor(height)
     mass_kw = mass_per_body if mass_per_body is not None else mass / 24.0
     return build_kinematic_tree_model(
         name=name,
@@ -167,6 +196,7 @@ def make_smpl_like_model(
         mass_per_body=mass_kw,
         com_per_body=com_per_body,
         inertia_per_body=inertia_per_body,
+        preserve_joint_order=preserve_joint_order,
         device=device,
         dtype=dtype,
     )

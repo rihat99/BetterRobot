@@ -491,6 +491,14 @@
 
 ````
 
+````{py:method} with_values(*, joint_placements: torch.Tensor | None = None, body_inertias: torch.Tensor | None = None, frame_placements: torch.Tensor | None = None) -> better_robot.data_model.model.Model
+:canonical: better_robot.data_model.model.Model.with_values
+
+```{autodoc2-docstring} better_robot.data_model.model.Model.with_values
+```
+
+````
+
 ````{py:method} to(device=None, dtype=None) -> better_robot.data_model.model.Model
 :canonical: better_robot.data_model.model.Model.to
 
@@ -511,6 +519,14 @@
 :canonical: better_robot.data_model.model.Model.joint_id
 
 ```{autodoc2-docstring} better_robot.data_model.model.Model.joint_id
+```
+
+````
+
+````{py:method} q_permutation(other_joint_order: collections.abc.Sequence[str]) -> tuple[torch.Tensor, torch.Tensor]
+:canonical: better_robot.data_model.model.Model.q_permutation
+
+```{autodoc2-docstring} better_robot.data_model.model.Model.q_permutation
 ```
 
 ````

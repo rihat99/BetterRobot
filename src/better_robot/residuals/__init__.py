@@ -13,9 +13,10 @@ from .base import Residual, ResidualState
 from .collision import SelfCollisionResidual, WorldCollisionResidual
 from .limits import JointAccelLimit, JointPositionLimit, JointVelocityLimit
 from .manipulability import YoshikawaResidual
+from .human import SwingTwistLimitResidual
 from .pose import OrientationResidual, PoseResidual, PositionResidual
 from .contact import ContactConsistencyResidual
-from .regularization import NullspaceResidual, ReferenceTrajectoryResidual, RestResidual
+from .regularization import JointRotationPrior, NullspaceResidual, ReferenceTrajectoryResidual, RestResidual
 from .temporal import TimeIndexedResidual
 from .smoothness import AccelerationResidual, JerkResidual, VelocityResidual
 
@@ -28,7 +29,9 @@ __all__ = [
     "JointPositionLimit",
     "JointVelocityLimit",
     "JointAccelLimit",
+    "SwingTwistLimitResidual",
     "RestResidual",
+    "JointRotationPrior",
     "NullspaceResidual",
     "ReferenceTrajectoryResidual",
     "ContactConsistencyResidual",

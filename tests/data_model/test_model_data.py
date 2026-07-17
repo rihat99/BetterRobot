@@ -1,15 +1,16 @@
 """Tests for data_model/model.py and data_model/data.py."""
+
 import torch
-import pytest
-import dataclasses
 
 from better_robot.data_model.model import Model
 from better_robot.data_model.data import Data
-from better_robot.data_model.frame import Frame
 from better_robot.data_model.joint_models.fixed import JointUniverse, JointFixed
 from better_robot.data_model.joint_models.revolute import JointRZ
 from better_robot.data_model.topology import (
-    topo_sort, build_children, build_subtrees, build_supports,
+    topo_sort,
+    build_children,
+    build_subtrees,
+    build_supports,
 )
 
 
@@ -89,7 +90,6 @@ def test_model_create_data():
     model = _make_simple_model()
     data = model.create_data()
     assert data.q.shape == (2,)
-    assert data._model_id == id(model)
 
 
 def test_model_create_data_batch():
@@ -121,7 +121,7 @@ def test_model_random_configuration():
     assert q.shape == (2,)
     # Should be within limits
     assert (q >= -3.14).all()
-    assert (q <=  3.14).all()
+    assert (q <= 3.14).all()
 
 
 def test_model_to_device():
@@ -146,13 +146,14 @@ def test_model_support():
 
 # ──────────────────────────── Data ──────────────────────────────────────
 
+
 def test_data_batch_shape():
-    d = Data(_model_id=0, q=torch.zeros(3, 5))
+    d = Data(q=torch.zeros(3, 5))
     assert d.batch_shape == (3,)
 
 
 def test_data_reset():
-    d = Data(_model_id=0, q=torch.zeros(5))
+    d = Data(q=torch.zeros(5))
     d.joint_pose_world = torch.zeros(4, 7)
     d._kinematics_level = 2
     d.reset()
@@ -163,10 +164,9 @@ def test_data_reset():
 
 
 def test_data_clone():
-    d = Data(_model_id=42, q=torch.tensor([1., 2., 3.]))
+    d = Data(q=torch.tensor([1.0, 2.0, 3.0]))
     d.com_position = torch.tensor([0.1, 0.2, 0.3])
     d_clone = d.clone()
-    assert d_clone._model_id == 42
     assert torch.allclose(d_clone.q, d.q)
     # Mutation of clone should not affect original
     d_clone.q[0] = 99.0

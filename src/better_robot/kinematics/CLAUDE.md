@@ -9,6 +9,11 @@
 - `get_frame_jacobian(model, data, frame_id, reference=...)` — extracts `(B..., 6, nv)` for one frame
 - `get_joint_jacobian(model, data, joint_id, reference=...)` — same for joints
 
+All passes use one execution batch: the right-aligned broadcast of `q` with
+the joint-placement, body-inertia, and frame-placement value tables. Callers
+must add semantic singleton axes explicitly (for example `(B, 1, njoints, 7)`
+alongside `(B, T, nq)`); no auto-unsqueeze is performed.
+
 ## Jacobian Reference Frames (critical)
 
 `get_frame_jacobian` returns **LOCAL_WORLD_ALIGNED** by default:

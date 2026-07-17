@@ -72,7 +72,7 @@
 ```
 ````
 
-````{py:function} make_smpl_like_model(height: float = 1.75, mass: float = 70.0, *, name: str = 'smpl_body', shape_params: torch.Tensor | None = None, joint_offsets: torch.Tensor | None = None, mass_per_body: float | collections.abc.Sequence[float] | None = None, com_per_body: torch.Tensor | collections.abc.Sequence[torch.Tensor] | None = None, inertia_per_body: torch.Tensor | collections.abc.Sequence[torch.Tensor] | None = None, device: torch.device | None = None, dtype: torch.dtype = torch.float32) -> better_robot.data_model.model.Model
+````{py:function} make_smpl_like_model(height: float = 1.75, mass: float = 70.0, *, name: str = 'smpl_body', shape_params: torch.Tensor | None = None, joint_offsets: torch.Tensor | None = None, mass_per_body: float | collections.abc.Sequence[float] | None = None, com_per_body: torch.Tensor | collections.abc.Sequence[torch.Tensor] | None = None, inertia_per_body: torch.Tensor | collections.abc.Sequence[torch.Tensor] | None = None, preserve_joint_order: bool = False, device: torch.device | None = None, dtype: torch.dtype = torch.float32) -> better_robot.data_model.model.Model
 :canonical: better_robot.io.builders.smpl_like.make_smpl_like_model
 
 ```{autodoc2-docstring} better_robot.io.builders.smpl_like.make_smpl_like_model

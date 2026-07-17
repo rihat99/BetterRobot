@@ -136,14 +136,30 @@ input's unique rows with ``index_add_``. The ABI does not yet promise a
 heterogeneous collection of robot topologies; each pass still receives one
 ``ModelStructure``.
 
+The Torch lane uses the same contract without flattening. The execution batch
+is the right-aligned broadcast of the query batch and the leading dimensions
+of ``joint_placements``, ``body_inertias``, and ``frame_placements``. Bind new
+tables with ``model.with_values(...)``; their trailing shapes are respectively
+``(njoints, 7)``, ``(nbodies, 10)``, and ``(nframes, 7)``. Shared values remain
+stride-zero broadcast views rather than physical copies, and gradients reduce
+through normal Torch broadcasting.
+
+Right alignment is deliberate. A per-person table ``(B, njoints, 7)`` cannot
+be paired directly with a trajectory ``q.shape == (B, T, nq)`` because its
+``B`` axis would align with ``T``. Add the semantic time singleton explicitly:
+``(B, 1, njoints, 7)``. BetterRobot never guesses or auto-unsqueezes semantic
+axes; incompatible shapes raise ``ShapeError`` at the pass boundary.
+
 ## Device and dtype
 
 ``Model.to(device, dtype)`` returns a new model. ``ModelStructure.to`` moves
 its device tables while preserving integer dtypes, and ``ModelValues.to``
 moves the floating-point tensor pytree. The Python topology remains static.
 
-``Data`` follows the query tensor. Supported paths preserve the query device
-and working dtype. fp32 is primary and fp64 is used for derivative checks;
+``Data.q`` is a broadcast view over the complete execution batch, so every
+cache has the same leading shape even when only model values are batched.
+Supported paths preserve the query device and working dtype. fp32 is primary
+and fp64 is used for derivative checks;
 fp16 and bf16 are outside the numerical support contract even where an eager
 Torch operation happens to execute.
 

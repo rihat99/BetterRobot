@@ -309,7 +309,10 @@ NotImplementedError:
 `(..., 10)` tensor with layout
 `[mass, cx, cy, cz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]`. Factories
 (`from_sphere`, `from_box`, `from_capsule`, `from_ellipsoid`,
-`from_mass_com_matrix`) exist for the common cases. Methods accept
+`from_mass_com_matrix`) exist for the common cases. `from_mesh` performs
+batched, differentiable signed-tetrahedron integration over a closed,
+consistently wound triangle surface; it accepts either global winding and
+keeps gradients to vertices and uniform density entirely in Torch. Methods accept
 the typed wrapper or the raw tensor; methods that return an inertia
 return the typed wrapper.
 

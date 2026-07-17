@@ -70,7 +70,7 @@ Live, with analytic `.jacobian()`:
 | `pose.py` | `PoseResidual` | 6 | Frame-target SE(3) error via `Jr_inv(log_err)` |
 | `pose.py` | `PositionResidual` | 3 | Top three rows of the frame Jacobian |
 | `pose.py` | `OrientationResidual` | 3 | Bottom three rows + `Jr_inv_so3` |
-| `limits.py` | `JointPositionLimit` | 2 * nv | Diagonal ±1 / 0 |
+| `limits.py` | `JointPositionLimit` | 2 * nq | Diagonal ±1 / 0 |
 | `regularization.py` | `RestResidual` | nv | Manifold difference; approximate identity Jacobian |
 | `reference_trajectory.py` | `ReferenceTrajectoryResidual` | varies | Time-indexed knot tracking |
 | `contact.py` | `ContactConsistencyResidual` | 6 * n_contacts | Holonomic contact constraint |
@@ -80,11 +80,13 @@ Live, with analytic `.jacobian()`:
 | `acceleration.py` | `AccelerationResidual` | nv | Joint-space acceleration tracking |
 
 Live without an analytic Jacobian (their `.jacobian()` returns `None` and
-`AUTO` uses unbatched central finite differences):
+named-block `Problem` uses tangent-space `torch.func` AD; the legacy
+`CostStack` lane uses unbatched central finite differences:
 
 | File | Class | dim | Notes |
 |------|-------|-----|-------|
-| (none currently — every shipped residual has analytic support, see roadmap below) | | | |
+| `human.py` | `SwingTwistLimitResidual` | 3 * selected joints | Piecewise swing/twist limits; decomposition is singular at pure-pi swing |
+| `regularization.py` | `JointRotationPrior` | nv | Exact per-joint weighted manifold difference; no small-angle identity Jacobian claim |
 
 Stubs (raise `NotImplementedError`; signatures pinned):
 
@@ -97,9 +99,25 @@ Stubs (raise `NotImplementedError`; signatures pinned):
 | `limits.py` | `JointVelocityLimit.jacobian`, `JointAccelLimit` | `__call__` works; analytic Jacobian or full body pending |
 
 A residual with no analytic `.jacobian()` simply returns `None`; the
-solver currently dispatches to unbatched central finite differences at a
-cost of `2 * nv + 1` residual evaluations. A real `torch.func` fallback is
-scheduled for M2.
+legacy stack dispatches to unbatched central finite differences at a cost of
+`2 * nv + 1` residual evaluations. Named-block `Problem` instead differentiates
+through `RobotConfig.retract` with `torch.func.jacrev` or `jacfwd`.
+
+### Human spherical-joint limits and priors
+
+`SwingTwistLimitResidual` selects spherical joints and returns three one-sided
+rows per joint: swing above its cone limit, twist below its lower limit, and
+twist above its upper limit. The twist axis is joint-local, quaternion sign is
+folded across the double cover, and limits are non-wrapping intervals inside
+`(-pi, pi)`. Swing/twist decomposition cannot assign a unique twist to a pure
+180-degree swing; the implementation chooses zero twist in a tiny numerical
+neighbourhood and deliberately does not advertise a globally analytic
+Jacobian.
+
+`JointRotationPrior` evaluates `model.difference(q_mean, q)` and scales either
+each joint tangent slice or each individual tangent coordinate. It differs
+from `RestResidual` by declining the latter's small-step identity-Jacobian
+approximation: current named-block tasks receive the exact tangent AD block.
 
 ### Example — `RestResidual`
 

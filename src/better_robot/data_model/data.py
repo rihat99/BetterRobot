@@ -29,28 +29,37 @@ from ._kinematics_level import KinematicsLevel
 # Cache buckets per kinematic level. A field is at level ``L`` if its
 # value depends on inputs through level ``L`` (see §3.1).
 _PLACEMENT_CACHES: tuple[str, ...] = (
-    "joint_pose_local", "joint_pose_world", "frame_pose_world",
+    "joint_pose_local",
+    "joint_pose_world",
+    "frame_pose_world",
     "joint_jacobians",
-    "mass_matrix", "gravity_torque",
+    "mass_matrix",
+    "gravity_torque",
     "centroidal_momentum_matrix",
     "com_position",
 )
 _VELOCITY_CACHES: tuple[str, ...] = (
-    "joint_velocity_world", "joint_velocity_local",
+    "joint_velocity_world",
+    "joint_velocity_local",
     "joint_jacobians_dot",
-    "coriolis_matrix", "bias_forces",
+    "coriolis_matrix",
+    "bias_forces",
     "centroidal_momentum",
     "com_velocity",
 )
 _ACCELERATION_CACHES: tuple[str, ...] = (
-    "joint_acceleration_world", "joint_acceleration_local",
-    "joint_forces", "ddq",
+    "joint_acceleration_world",
+    "joint_acceleration_local",
+    "joint_forces",
+    "ddq",
     "com_acceleration",
 )
 
 # Aggregate, used by :meth:`Data.reset`.
 _CLEARABLE_FIELDS: tuple[str, ...] = (
-    "v", "a", "tau",
+    "v",
+    "a",
+    "tau",
     *_PLACEMENT_CACHES,
     *_VELOCITY_CACHES,
     *_ACCELERATION_CACHES,
@@ -67,47 +76,45 @@ class Data:
     :class:`~better_robot.exceptions.StaleCacheError` on a mismatch.
     """
 
-    _model_id: int
-
     # ──────────── configuration & derivatives ────────────
-    q: torch.Tensor                                 # (B..., nq)
-    v: Optional[torch.Tensor] = None                # (B..., nv)
-    a: Optional[torch.Tensor] = None                # (B..., nv)
-    tau: Optional[torch.Tensor] = None              # (B..., nv)
+    q: torch.Tensor  # (B..., nq)
+    v: Optional[torch.Tensor] = None  # (B..., nv)
+    a: Optional[torch.Tensor] = None  # (B..., nv)
+    tau: Optional[torch.Tensor] = None  # (B..., nv)
 
     # ──────────── kinematics placements ────────────
     # Parent-frame joint placement — ``T_{i-1, i}`` in Featherstone notation.
-    joint_pose_local:   Optional[torch.Tensor] = None    # (B..., njoints, 7)
+    joint_pose_local: Optional[torch.Tensor] = None  # (B..., njoints, 7)
     # World-frame joint placement — ``T_{0, i}`` (was ``oMi``).
-    joint_pose_world:   Optional[torch.Tensor] = None    # (B..., njoints, 7)
+    joint_pose_world: Optional[torch.Tensor] = None  # (B..., njoints, 7)
     # World-frame operational frame placement — ``T_{0, f}`` (was ``oMf``).
-    frame_pose_world:   Optional[torch.Tensor] = None    # (B..., nframes, 7)
+    frame_pose_world: Optional[torch.Tensor] = None  # (B..., nframes, 7)
 
     # ──────────── kinematics velocities / accelerations ────────────
-    joint_velocity_world:     Optional[torch.Tensor] = None   # (B..., njoints, 6)
-    joint_velocity_local:     Optional[torch.Tensor] = None   # (B..., njoints, 6)
-    joint_acceleration_world: Optional[torch.Tensor] = None   # (B..., njoints, 6)
-    joint_acceleration_local: Optional[torch.Tensor] = None   # (B..., njoints, 6)
+    joint_velocity_world: Optional[torch.Tensor] = None  # (B..., njoints, 6)
+    joint_velocity_local: Optional[torch.Tensor] = None  # (B..., njoints, 6)
+    joint_acceleration_world: Optional[torch.Tensor] = None  # (B..., njoints, 6)
+    joint_acceleration_local: Optional[torch.Tensor] = None  # (B..., njoints, 6)
     # RNEA / ABA internal spatial wrench per joint, body-frame (Pinocchio's data.f).
-    joint_forces:             Optional[torch.Tensor] = None   # (B..., njoints, 6)
+    joint_forces: Optional[torch.Tensor] = None  # (B..., njoints, 6)
 
     # ──────────── jacobians ────────────
-    joint_jacobians:     Optional[torch.Tensor] = None    # (B..., njoints, 6, nv)
-    joint_jacobians_dot: Optional[torch.Tensor] = None    # (B..., njoints, 6, nv)
+    joint_jacobians: Optional[torch.Tensor] = None  # (B..., njoints, 6, nv)
+    joint_jacobians_dot: Optional[torch.Tensor] = None  # (B..., njoints, 6, nv)
 
     # ──────────── dynamics ────────────
-    mass_matrix:     Optional[torch.Tensor] = None    # (B..., nv, nv) — M(q)
-    coriolis_matrix: Optional[torch.Tensor] = None    # (B..., nv, nv) — C(q, v)
-    gravity_torque:  Optional[torch.Tensor] = None    # (B..., nv)     — g(q)
-    bias_forces:     Optional[torch.Tensor] = None    # (B..., nv)     — C(q,v)v + g(q)
-    ddq:             Optional[torch.Tensor] = None    # (B..., nv)     — generalized accelerations
+    mass_matrix: Optional[torch.Tensor] = None  # (B..., nv, nv) — M(q)
+    coriolis_matrix: Optional[torch.Tensor] = None  # (B..., nv, nv) — C(q, v)
+    gravity_torque: Optional[torch.Tensor] = None  # (B..., nv)     — g(q)
+    bias_forces: Optional[torch.Tensor] = None  # (B..., nv)     — C(q,v)v + g(q)
+    ddq: Optional[torch.Tensor] = None  # (B..., nv)     — generalized accelerations
 
     # ──────────── centroidal ────────────
-    centroidal_momentum_matrix: Optional[torch.Tensor] = None   # (B..., 6, nv) — A_g(q)
-    centroidal_momentum:        Optional[torch.Tensor] = None   # (B..., 6)     — h_g = A_g v
-    com_position:               Optional[torch.Tensor] = None   # (B..., 3)
-    com_velocity:               Optional[torch.Tensor] = None   # (B..., 3)
-    com_acceleration:           Optional[torch.Tensor] = None   # (B..., 3)
+    centroidal_momentum_matrix: Optional[torch.Tensor] = None  # (B..., 6, nv) — A_g(q)
+    centroidal_momentum: Optional[torch.Tensor] = None  # (B..., 6)     — h_g = A_g v
+    com_position: Optional[torch.Tensor] = None  # (B..., 3)
+    com_velocity: Optional[torch.Tensor] = None  # (B..., 3)
+    com_acceleration: Optional[torch.Tensor] = None  # (B..., 3)
 
     # ──────────── cache bookkeeping ────────────
     _kinematics_level: KinematicsLevel = KinematicsLevel.NONE
@@ -164,24 +171,25 @@ class Data:
         """
         if int(self._kinematics_level) < int(level):
             from ..exceptions import StaleCacheError
+
             held = (
                 self._kinematics_level.name
                 if isinstance(self._kinematics_level, KinematicsLevel)
                 else str(self._kinematics_level)
             )
             raise StaleCacheError(
-                f"Data is at kinematics level {held}; need {level.name}. "
-                f"Call forward_kinematics first."
+                f"Data is at kinematics level {held}; need {level.name}. Call forward_kinematics first."
             )
 
     def clone(self) -> "Data":
-        """Return a deep copy, sharing ``_model_id``."""
+        """Return a deep copy of this evaluation workspace."""
         import copy
+
         return copy.deepcopy(self)
 
     @property
     def batch_shape(self) -> tuple[int, ...]:
-        """Leading batch shape, i.e. ``q.shape[:-1]``."""
+        """Leading execution batch shared by query and value-dependent caches."""
         return tuple(self.q.shape[:-1])
 
     def joint_pose(self, joint_id: int):
@@ -193,10 +201,10 @@ class Data:
         """
         if self.joint_pose_world is None:
             from ..exceptions import StaleCacheError
-            raise StaleCacheError(
-                "Data.joint_pose_world is None; call forward_kinematics first."
-            )
+
+            raise StaleCacheError("Data.joint_pose_world is None; call forward_kinematics first.")
         from ..lie.types import SE3
+
         return SE3(self.joint_pose_world[..., joint_id, :])
 
     def frame_pose(self, frame_id: int):
@@ -209,9 +217,11 @@ class Data:
         """
         if self.frame_pose_world is None:
             from ..exceptions import StaleCacheError
+
             raise StaleCacheError(
                 "Data.frame_pose_world is None; call forward_kinematics "
                 "with compute_frames=True (or update_frame_placements)."
             )
         from ..lie.types import SE3
+
         return SE3(self.frame_pose_world[..., frame_id, :])

@@ -91,6 +91,73 @@ class RestResidual:
         return {"q": full.index_select(-1, indices)}
 
 
+class JointRotationPrior:
+    """Per-joint weighted tangent deviation from a mean configuration.
+
+    ``r = per_joint_weight * model.difference(q_mean, q)`` with
+    ``dim = model.nv``. A weight table shaped ``(model.njoints,)`` is expanded
+    across each joint's tangent slice; an explicit ``(model.nv,)`` table may
+    weight individual tangent coordinates. Fixed joints naturally contribute
+    no rows.
+
+    Unlike :class:`RestResidual`, this class does not label the identity as an
+    analytic Jacobian. The exact derivative away from the mean includes Lie
+    right-Jacobian factors, so named-block callers use tangent AD and legacy
+    callers use finite differences.
+    """
+
+    reads = ("q",)
+
+    def __init__(
+        self,
+        model: Model,
+        q_mean: torch.Tensor,
+        per_joint_weight: torch.Tensor,
+        *,
+        name: str = "joint_rotation_prior",
+    ) -> None:
+        if not isinstance(name, str) or not name:
+            raise ValueError("name must be a non-empty string")
+        if not isinstance(q_mean, torch.Tensor) or not q_mean.is_floating_point():
+            raise TypeError("q_mean must be a floating torch.Tensor")
+        if tuple(q_mean.shape) != (model.nq,):
+            raise ValueError(f"q_mean must have shape ({model.nq},), got {tuple(q_mean.shape)}")
+        if not bool(torch.isfinite(q_mean).all()):
+            raise ValueError("q_mean must contain only finite values")
+        if not isinstance(per_joint_weight, torch.Tensor) or not per_joint_weight.is_floating_point():
+            raise TypeError("per_joint_weight must be a floating torch.Tensor")
+        if tuple(per_joint_weight.shape) == (model.njoints,):
+            repeats = torch.tensor(model.nvs, dtype=torch.long, device=per_joint_weight.device)
+            tangent_weight = torch.repeat_interleave(per_joint_weight, repeats)
+        elif tuple(per_joint_weight.shape) == (model.nv,):
+            tangent_weight = per_joint_weight
+        else:
+            raise ValueError(
+                f"per_joint_weight must have shape ({model.njoints},) or ({model.nv},), "
+                f"got {tuple(per_joint_weight.shape)}"
+            )
+        if not bool(torch.isfinite(tangent_weight).all()):
+            raise ValueError("per_joint_weight must contain only finite values")
+        if bool(torch.any(tangent_weight < 0.0)):
+            raise ValueError("per_joint_weight must be non-negative")
+
+        self.model = model
+        self.name = name
+        self.q_mean = q_mean
+        self.per_joint_weight = tangent_weight
+        self.dim = model.nv
+
+    def __call__(self, value: ResidualState | Mapping[str, Any]) -> torch.Tensor:
+        model, q = _residual_model_q(value, model=self.model)
+        q_mean = self.q_mean.to(device=q.device, dtype=q.dtype)
+        weight = self.per_joint_weight.to(device=q.device, dtype=q.dtype)
+        return model.difference(q_mean, q) * weight
+
+    def jacobian(self, value: ResidualState | Mapping[str, Any]) -> torch.Tensor | None:
+        """Return no small-angle approximation; use tangent AD or explicit FD."""
+        del value
+
+
 class ReferenceTrajectoryResidual:
     """Penalize tangent-space deviation of a trajectory from a reference.
 

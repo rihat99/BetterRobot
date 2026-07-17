@@ -44,6 +44,7 @@ def load(
     format: Literal["auto", "urdf", "mjcf", "builder"] = "auto",
     root_joint: JointModel | None = None,
     free_flyer: bool = False,
+    preserve_joint_order: bool = False,
     device: torch.device | None = None,
     dtype: torch.dtype = torch.float32,
 ) -> Model: ...
@@ -51,7 +52,7 @@ def load(
 
 Source: `src/better_robot/io/__init__.py`.
 
-The two arguments worth knowing:
+The three arguments worth knowing:
 
 - **`free_flyer=True`** is shorthand for
   `root_joint=JointFreeFlyer()`. It is what turns a fixed-base URDF
@@ -61,6 +62,11 @@ The two arguments worth knowing:
   `JointModel`. Most users want `JointFixed` (the default) or
   `JointFreeFlyer`; advanced users can plug in a custom joint kind
   for things like an underactuated rolling base.
+- **`preserve_joint_order=True`** uses a stable Kahn topological sort so an
+  already-topological source keeps its joint and q/v slice order. The default
+  remains the historical DFS layout for Pinocchio-compatible indexing. If an
+  established external order differs, `Model.q_permutation` provides the
+  vectorized trailing-dimension gather.
 
 ## The intermediate representation
 
@@ -133,6 +139,7 @@ def build_model(
     ir: IRModel,
     *,
     root_joint: JointModel | None = None,
+    preserve_joint_order: bool = False,
     device: torch.device | None = None,
     dtype: torch.dtype = torch.float32,
 ) -> Model:
@@ -148,7 +155,9 @@ Responsibilities, in order:
 2. Resolve mimic edges to `mimic_source` / `mimic_multiplier` /
    `mimic_offset` arrays (the gather trick from
    {doc}`joints_bodies_frames`).
-3. Topologically sort joints so parents precede children.
+3. Topologically sort joints so parents precede children. DFS remains the
+   default; ``preserve_joint_order=True`` selects a stable Kahn sort that
+   retains valid source order and stably repairs non-topological input.
 4. Assign `idx_q` / `idx_v` by accumulating per-joint dimensions.
 5. Select concrete `JointModel` instances based on `IRJoint.kind`
    plus `axis`. `kind="revolute", axis=[1,0,0]` becomes `JointRX()`;

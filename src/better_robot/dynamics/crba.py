@@ -27,6 +27,7 @@ from ..data_model.model_structure import ModelStructure
 from ..data_model.model_values import ModelValues
 from ..kinematics.forward import forward_kinematics_raw
 from ..lie import se3
+from ._execution import prepare_dynamics_inputs
 
 
 @dataclass(frozen=True)
@@ -44,14 +45,14 @@ def crba_raw(  # noqa: PLR0912, PLR0915 - composite-body passes are intentionall
     q: torch.Tensor,
 ) -> CRBAResult:
     """Return a fresh joint-space inertia result over the pure seam."""
+    q, _, batch = prepare_dynamics_inputs(structure, values, q, {})
     device, dtype = q.device, q.dtype
     njoints = structure.njoints
 
     # ── FK pass: oMi (unused) and liMi (drives the adjoints) ─────────────
     oMi, liMi = forward_kinematics_raw(structure, values, q)
-    batch = tuple(oMi.shape[:-2])
-    spatial_inertias = values.spatial_inertias().to(device=device, dtype=dtype)
-    motion_subspaces = structure.joint_motion_subspaces.to(device=device, dtype=dtype)
+    spatial_inertias = values.spatial_inertias()
+    motion_subspaces = structure.joint_motion_subspaces
 
     # ── Pre-compute Ad(liMi[i])^{-1} once per joint ──────────────────────
     Ad_inv: list[torch.Tensor | None] = [None] * njoints
@@ -59,12 +60,8 @@ def crba_raw(  # noqa: PLR0912, PLR0915 - composite-body passes are intentionall
         Ad_inv[i] = se3.adjoint_inv(liMi[..., i, :])  # (..., 6, 6)
 
     # ── Initialise composite-inertia matrices Y_c[i] (broadcast to batch) ─
-    composite_storage = torch.zeros(
-        (*batch, njoints, 6, 6), device=device, dtype=dtype
-    )
-    Y_c: list[torch.Tensor] = [
-        composite_storage[..., index, :, :] for index in range(njoints)
-    ]
+    composite_storage = torch.zeros((*batch, njoints, 6, 6), device=device, dtype=dtype)
+    Y_c: list[torch.Tensor] = [composite_storage[..., index, :, :] for index in range(njoints)]
     for i in range(njoints):
         I_i = spatial_inertias[..., i, :, :]
         Y_c[i] = I_i.expand(*batch, 6, 6).contiguous()
@@ -76,7 +73,7 @@ def crba_raw(  # noqa: PLR0912, PLR0915 - composite-body passes are intentionall
         p = structure.parents[i]
         if p < 0:
             continue
-        A = Ad_inv[i]                                                # (..., 6, 6)
+        A = Ad_inv[i]  # (..., 6, 6)
         Y_in_parent = A.transpose(-1, -2) @ Y_c[i] @ A
         Y_c[p] = Y_c[p] + Y_in_parent
 
@@ -101,9 +98,9 @@ def crba_raw(  # noqa: PLR0912, PLR0915 - composite-body passes are intentionall
         if nv_i == 0:
             continue
         iv_i = structure.idx_vs[i]
-        S_i = S_cache[i]                                             # (..., 6, nv_i)
-        F = Y_c[i] @ S_i                                             # (..., 6, nv_i)
-        M_ii = S_i.transpose(-1, -2) @ F                             # (..., nv_i, nv_i)
+        S_i = S_cache[i]  # (..., 6, nv_i)
+        F = Y_c[i] @ S_i  # (..., 6, nv_i)
+        M_ii = S_i.transpose(-1, -2) @ F  # (..., nv_i, nv_i)
         M[..., iv_i : iv_i + nv_i, iv_i : iv_i + nv_i] = M_ii
 
         # Walk up the chain transporting F into each ancestor's frame.
@@ -112,12 +109,12 @@ def crba_raw(  # noqa: PLR0912, PLR0915 - composite-body passes are intentionall
             p = structure.parents[j]
             if p <= 0:
                 break
-            F = Ad_inv[j].transpose(-1, -2) @ F                      # (..., 6, nv_i)
+            F = Ad_inv[j].transpose(-1, -2) @ F  # (..., 6, nv_i)
             nv_p = structure.nvs[p]
             if nv_p > 0:
                 iv_p = structure.idx_vs[p]
                 S_p = S_cache[p]
-                M_pi = S_p.transpose(-1, -2) @ F                     # (..., nv_p, nv_i)
+                M_pi = S_p.transpose(-1, -2) @ F  # (..., nv_p, nv_i)
                 M[..., iv_p : iv_p + nv_p, iv_i : iv_i + nv_i] = M_pi
                 M[..., iv_i : iv_i + nv_i, iv_p : iv_p + nv_p] = M_pi.transpose(-1, -2)
             j = p
@@ -128,6 +125,8 @@ def crba_raw(  # noqa: PLR0912, PLR0915 - composite-body passes are intentionall
 def crba(model: Model, data: Data, q: torch.Tensor) -> torch.Tensor:
     """Public CRBA wrapper that populates the caller's ``Data`` workspace."""
 
+    q, _, _ = prepare_dynamics_inputs(model.structure, model.values, q, {})
+    data.q = q
     result = crba_raw(model.structure, model.values, q)
     data.mass_matrix = result.mass_matrix
     data.joint_pose_world = result.joint_pose_world

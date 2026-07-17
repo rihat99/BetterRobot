@@ -14,6 +14,7 @@ import torch
 
 from ..data_model import KinematicsLevel
 from ..data_model.data import Data
+from ..data_model.execution_batch import broadcast_to_execution_batch
 from ..data_model.model import Model
 from ..lie import se3, so3
 from ..lie.tangents import hat_so3
@@ -32,12 +33,15 @@ def _compute_joint_jacobians_raw(model: Model, data: Data) -> torch.Tensor:
     contribution of joint ``j`` itself. Requires ``data.joint_pose_world``
     populated (call :func:`forward_kinematics` first).
     """
-    assert data.joint_pose_world is not None, (
-        "call forward_kinematics before compute_joint_jacobians"
-    )
+    assert data.joint_pose_world is not None, "call forward_kinematics before compute_joint_jacobians"
     joint_pose_world = data.joint_pose_world  # (B..., njoints, 7)
-    q = data.q
-    *batch, _ = q.shape
+    batch = tuple(joint_pose_world.shape[:-2])
+    q = broadcast_to_execution_batch(
+        data.q,
+        batch,
+        (model.nq,),
+        name="data.q",
+    )
     device, dtype = q.device, q.dtype
 
     J = torch.zeros(*batch, model.njoints, 6, model.nv, device=device, dtype=dtype)
@@ -53,10 +57,10 @@ def _compute_joint_jacobians_raw(model: Model, data: Data) -> torch.Tensor:
         if nv_j == 0:
             continue
 
-        T_j = joint_pose_world[..., j, :]   # (B..., 7)
-        p_j = T_j[..., :3]                  # (B..., 3)
-        R_j = so3.to_matrix(T_j[..., 3:])   # (B..., 3, 3)
-        hat_p = hat_so3(p_j)                # (B..., 3, 3)
+        T_j = joint_pose_world[..., j, :]  # (B..., 7)
+        p_j = T_j[..., :3]  # (B..., 3)
+        R_j = so3.to_matrix(T_j[..., 3:])  # (B..., 3, 3)
+        hat_p = hat_so3(p_j)  # (B..., 3, 3)
 
         nq_j = model.nqs[j]
         q_j = q[..., model.idx_qs[j] : model.idx_qs[j] + nq_j]
@@ -67,8 +71,8 @@ def _compute_joint_jacobians_raw(model: Model, data: Data) -> torch.Tensor:
         S_ang = S_local[..., 3:, :]  # (B..., 3, nv_j)
 
         # Ad(joint_pose_world[j]) @ S_local = [R @ S_lin + hat(p) @ R @ S_ang; R @ S_ang]
-        R_S_lin = torch.matmul(R_j, S_lin)            # (B..., 3, nv_j)
-        R_S_ang = torch.matmul(R_j, S_ang)            # (B..., 3, nv_j)
+        R_S_lin = torch.matmul(R_j, S_lin)  # (B..., 3, nv_j)
+        R_S_ang = torch.matmul(R_j, S_ang)  # (B..., 3, nv_j)
         hat_p_R_S_ang = torch.matmul(hat_p, R_S_ang)  # (B..., 3, nv_j)
 
         J[..., j, :3, v_j : v_j + nv_j] = R_S_lin + hat_p_R_S_ang
@@ -147,16 +151,19 @@ def get_frame_jacobian(
     See docs/concepts/kinematics.md §3.
     """
     data.require(KinematicsLevel.PLACEMENTS)
-    assert data.joint_pose_world is not None, (
-        "call forward_kinematics before get_frame_jacobian"
-    )
+    assert data.joint_pose_world is not None, "call forward_kinematics before get_frame_jacobian"
 
     frame = model.frames[frame_id]
     parent_joint = frame.parent_joint
-    q = data.q
-    *batch, _ = q.shape
-    device, dtype = q.device, q.dtype
     joint_pose_world = data.joint_pose_world
+    batch = tuple(joint_pose_world.shape[:-2])
+    q = broadcast_to_execution_batch(
+        data.q,
+        batch,
+        (model.nq,),
+        name="data.q",
+    )
+    device, dtype = q.device, q.dtype
 
     # -- Build the parent joint's world-frame Jacobian --
     # This is the WORLD Jacobian of the parent joint (velocity at world origin).
@@ -192,10 +199,15 @@ def get_frame_jacobian(
             J_parent[..., 3:, v_j : v_j + nv_j] = R_S_ang
 
     # -- Compute the frame's world pose (needed for LWA and LOCAL adjustments) --
-    T_local = frame.joint_placement.to(device=device, dtype=dtype)
+    T_local = broadcast_to_execution_batch(
+        model.values.frame_placements[..., frame_id, :],
+        batch,
+        (7,),
+        name="frame_placements row",
+    )
     T_parent = joint_pose_world[..., parent_joint, :]
-    T_frame = se3.compose(T_parent, T_local)   # (B..., 7) world frame pose
-    p_frame = T_frame[..., :3]                 # (B..., 3) world position
+    T_frame = se3.compose(T_parent, T_local)  # (B..., 7) world frame pose
+    p_frame = T_frame[..., :3]  # (B..., 3) world position
 
     if reference == "world":
         # Spatial velocity at world origin: frame's WORLD Jacobian equals its
@@ -205,16 +217,16 @@ def get_frame_jacobian(
     # Both LWA and LOCAL start from LWA: linear rows = velocity of the frame
     # origin in world frame. v_at_pf = v_at_world_origin + ω × p_f
     #                               = J_parent_lin - hat(p_f) @ J_parent_ang.
-    hat_pf = hat_so3(p_frame)                                          # (B..., 3, 3)
+    hat_pf = hat_so3(p_frame)  # (B..., 3, 3)
     J_lwa_lin = J_parent[..., :3, :] - torch.matmul(hat_pf, J_parent[..., 3:, :])
-    J_lwa = torch.cat([J_lwa_lin, J_parent[..., 3:, :]], dim=-2)       # (B..., 6, nv)
+    J_lwa = torch.cat([J_lwa_lin, J_parent[..., 3:, :]], dim=-2)  # (B..., 6, nv)
 
     if reference == "local_world_aligned":
         return J_lwa
     elif reference == "local":
         # Body-frame Jacobian: rotate the LWA rows by R_frame^T.
         # Do NOT apply full Ad(T_frame^{-1}) — that would subtract hat(p) twice.
-        R_frame = so3.to_matrix(T_frame[..., 3:])                      # (B..., 3, 3)
+        R_frame = so3.to_matrix(T_frame[..., 3:])  # (B..., 3, 3)
         J_local_lin = torch.matmul(R_frame.mT, J_lwa[..., :3, :])
         J_local_ang = torch.matmul(R_frame.mT, J_lwa[..., 3:, :])
         return torch.cat([J_local_lin, J_local_ang], dim=-2)
@@ -250,10 +262,7 @@ def residual_jacobian(
         except NotImplementedError:
             pass
         if strategy == JacobianStrategy.ANALYTIC:
-            raise ValueError(
-                f"Residual {residual.name!r} has no analytic Jacobian "
-                f"(strategy=ANALYTIC requires one)"
-            )
+            raise ValueError(f"Residual {residual.name!r} has no analytic Jacobian (strategy=ANALYTIC requires one)")
 
     # Unbatched fallback: one base evaluation plus two evaluations per
     # tangent dimension (2 * nv + 1 total) through model.integrate and FK.
@@ -263,6 +272,7 @@ def residual_jacobian(
     def _fn(v: torch.Tensor) -> torch.Tensor:
         q_new = model.integrate(q.detach(), v)
         from .forward import forward_kinematics
+
         data_new = forward_kinematics(model, q_new, compute_frames=True)
         state_new = RS(model=model, data=data_new, variables=q_new)
         return residual(state_new)

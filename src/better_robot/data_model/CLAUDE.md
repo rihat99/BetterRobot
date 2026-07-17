@@ -18,6 +18,13 @@ that explicit pair; an eligible Warp kernel consumes the same seam. Keep both
 representations of topology: Python tuples preserve static unrolling, while
 device tables provide the kernel ABI.
 
+`Model.with_values(joint_placements=..., body_inertias=...,
+frame_placements=...)` is the public differentiable rebind surface. It shares
+the exact same `ModelStructure`, validates trailing event shapes/device/dtype,
+normalizes placement quaternions, and accepts arbitrary right-broadcastable
+leading value axes. The frame table in `ModelValues` is the compute source of
+truth; `Frame.joint_placement` is an unbatched compatibility metadata view.
+
 ## Joint 0 Convention
 
 Joint 0 is always `universe` (root placeholder). First real joint is joint 1. For floating-base robots, joint 1 is `JointFreeFlyer` — no special "floating base mode" flag.
@@ -37,6 +44,10 @@ not duplicate parser-string dispatch inside FK or dynamics.
 ## nq != nv
 
 Free-flyer: nq=7 (quaternion), nv=6 (twist). Spherical: nq=4, nv=3. `model.idx_qs` and `model.idx_vs` map each joint to its slice of q and v.
+
+`Model.q_permutation(other_joint_order)` constructs scalar q/v gather tables
+from those public slices. It handles arbitrary leading batch dimensions via
+`q_external[..., perm_q]`; never replace it with a per-sample remap loop.
 
 ## Mimic Joints
 

@@ -23,7 +23,7 @@
 
 ### API
 
-````{py:function} build_model(ir: better_robot.io.ir.IRModel, *, root_joint: better_robot.data_model.joint_models.base.JointModel | None = None, device: torch.device | None = None, dtype: torch.dtype = torch.float32) -> better_robot.data_model.model.Model
+````{py:function} build_model(ir: better_robot.io.ir.IRModel, *, root_joint: better_robot.data_model.joint_models.base.JointModel | None = None, preserve_joint_order: bool = False, device: torch.device | None = None, dtype: torch.dtype = torch.float32) -> better_robot.data_model.model.Model
 :canonical: better_robot.io.build_model.build_model
 
 ```{autodoc2-docstring} better_robot.io.build_model.build_model

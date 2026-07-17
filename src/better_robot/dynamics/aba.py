@@ -32,6 +32,7 @@ from ..data_model.model_structure import ModelStructure
 from ..data_model.model_values import ModelValues
 from ..kinematics.forward import forward_kinematics_raw
 from ..lie import se3
+from ._execution import prepare_dynamics_inputs
 from .rnea import _cross_motion, _cross_motion_force
 
 
@@ -72,13 +73,27 @@ def aba_raw(  # noqa: PLR0912, PLR0915 - articulated-body passes are intentional
     ABAResult
         Fresh acceleration, pose, and local-motion tensors.
     """
+    query_inputs: dict[str, tuple[torch.Tensor, tuple[int, ...]]] = {
+        "v": (v, (structure.nv,)),
+        "tau": (tau, (structure.nv,)),
+    }
+    if fext is not None:
+        query_inputs["fext"] = (fext, (structure.njoints, 6))
+    q, prepared, batch = prepare_dynamics_inputs(
+        structure,
+        values,
+        q,
+        query_inputs,
+    )
+    v = prepared["v"]
+    tau = prepared["tau"]
+    fext = prepared.get("fext")
     device, dtype = q.device, q.dtype
     njoints = structure.njoints
     nv = structure.nv
 
     # ── FK pass (drives the adjoint matrices) ────────────────────────────
     oMi, liMi = forward_kinematics_raw(structure, values, q)
-    batch = tuple(oMi.shape[:-2])
 
     Ad_inv: list[torch.Tensor | None] = [None] * njoints
     for i in range(1, njoints):
@@ -86,9 +101,9 @@ def aba_raw(  # noqa: PLR0912, PLR0915 - articulated-body passes are intentional
 
     zero6 = torch.zeros((*batch, 6), device=device, dtype=dtype)
     zero_motion_subspace = torch.empty((*batch, 6, 0), device=device, dtype=dtype)
-    grav = values.gravity.to(device=device, dtype=dtype).expand(*batch, 6)
-    spatial_inertias = values.spatial_inertias().to(device=device, dtype=dtype)
-    motion_subspaces = structure.joint_motion_subspaces.to(device=device, dtype=dtype)
+    grav = values.gravity.expand(*batch, 6)
+    spatial_inertias = values.spatial_inertias()
+    motion_subspaces = structure.joint_motion_subspaces
 
     # ── Per-joint storage ────────────────────────────────────────────────
     v_body: list[torch.Tensor | None] = [None] * njoints
@@ -142,28 +157,24 @@ def aba_raw(  # noqa: PLR0912, PLR0915 - articulated-body passes are intentional
             continue
         nv_i = structure.nvs[i]
         iv = structure.idx_vs[i]
-        S_i = S_cache[i]                                                # (..., 6, nv_i)
+        S_i = S_cache[i]  # (..., 6, nv_i)
         IA_i = IA[i]
         pA_i = pA[i]
 
         if nv_i > 0:
-            U = IA_i @ S_i                                              # (..., 6, nv_i)
-            D = S_i.transpose(-1, -2) @ U                               # (..., nv_i, nv_i)
+            U = IA_i @ S_i  # (..., 6, nv_i)
+            D = S_i.transpose(-1, -2) @ U  # (..., nv_i, nv_i)
             tau_i = tau[..., iv : iv + nv_i]
             u = tau_i - (S_i.transpose(-1, -2) @ pA_i.unsqueeze(-1)).squeeze(-1)  # (..., nv_i)
-            D_inv = torch.linalg.inv(D)                                 # (..., nv_i, nv_i)
+            D_inv = torch.linalg.inv(D)  # (..., nv_i, nv_i)
             U_cache[i] = U
             D_inv_cache[i] = D_inv
             u_cache[i] = u
 
             # Subtract the joint's contribution and transport.
-            UDinvUT = U @ D_inv @ U.transpose(-1, -2)                   # (..., 6, 6)
+            UDinvUT = U @ D_inv @ U.transpose(-1, -2)  # (..., 6, 6)
             Ia = IA_i - UDinvUT
-            pa = (
-                pA_i
-                + (Ia @ c_body[i].unsqueeze(-1)).squeeze(-1)
-                + (U @ (D_inv @ u.unsqueeze(-1))).squeeze(-1)
-            )
+            pa = pA_i + (Ia @ c_body[i].unsqueeze(-1)).squeeze(-1) + (U @ (D_inv @ u.unsqueeze(-1))).squeeze(-1)
         else:
             Ia = IA_i
             pa = pA_i + (IA_i @ c_body[i].unsqueeze(-1)).squeeze(-1)
@@ -171,11 +182,11 @@ def aba_raw(  # noqa: PLR0912, PLR0915 - articulated-body passes are intentional
         p = structure.parents[i]
         if p >= 0:
             A = Ad_inv[i]
-            IA[p] = IA[p] + A.transpose(-1, -2) @ Ia @ A if IA[p] is not None else (
-                A.transpose(-1, -2) @ Ia @ A
-            )
-            pA[p] = pA[p] + (A.transpose(-1, -2) @ pa.unsqueeze(-1)).squeeze(-1) if pA[p] is not None else (
-                (A.transpose(-1, -2) @ pa.unsqueeze(-1)).squeeze(-1)
+            IA[p] = IA[p] + A.transpose(-1, -2) @ Ia @ A if IA[p] is not None else (A.transpose(-1, -2) @ Ia @ A)
+            pA[p] = (
+                pA[p] + (A.transpose(-1, -2) @ pa.unsqueeze(-1)).squeeze(-1)
+                if pA[p] is not None
+                else ((A.transpose(-1, -2) @ pa.unsqueeze(-1)).squeeze(-1))
             )
 
     # ── Pass 3: forward — solve for accelerations ────────────────────────
@@ -199,7 +210,7 @@ def aba_raw(  # noqa: PLR0912, PLR0915 - articulated-body passes are intentional
             D_inv = D_inv_cache[i]
             u = u_cache[i]
             UT_a = (U.transpose(-1, -2) @ a_pre.unsqueeze(-1)).squeeze(-1)  # (..., nv_i)
-            ddq_i = (D_inv @ (u - UT_a).unsqueeze(-1)).squeeze(-1)      # (..., nv_i)
+            ddq_i = (D_inv @ (u - UT_a).unsqueeze(-1)).squeeze(-1)  # (..., nv_i)
             for k in range(nv_i):
                 ddq_slots[iv + k] = ddq_i[..., k]
             a_body[i] = a_pre + (S_i @ ddq_i.unsqueeze(-1)).squeeze(-1)
@@ -231,6 +242,24 @@ def aba(
 ) -> torch.Tensor:
     """Public ABA wrapper that populates the caller's ``Data`` workspace."""
 
+    query_inputs: dict[str, tuple[torch.Tensor, tuple[int, ...]]] = {
+        "v": (v, (model.nv,)),
+        "tau": (tau, (model.nv,)),
+    }
+    if fext is not None:
+        query_inputs["fext"] = (fext, (model.njoints, 6))
+    q, prepared, _ = prepare_dynamics_inputs(
+        model.structure,
+        model.values,
+        q,
+        query_inputs,
+    )
+    v = prepared["v"]
+    tau = prepared["tau"]
+    fext = prepared.get("fext")
+    data.q = q
+    data.v = v
+    data.tau = tau
     result = aba_raw(model.structure, model.values, q, v, tau, fext=fext)
     data.ddq = result.ddq
     data.joint_pose_world = result.joint_pose_world

@@ -40,30 +40,21 @@ class TimeIndexedResidual:
     def _slice_state(self, state: ResidualState) -> ResidualState:
         q = state.variables
         if q.dim() != 2:  # bench-ok: trajectory-shape contract validation
-            raise ValueError(
-                f"TimeIndexedResidual expects (T, nq); got {tuple(q.shape)}"
-            )
+            raise ValueError(f"TimeIndexedResidual expects (T, nq); got {tuple(q.shape)}")
         if not (0 <= self.t_idx < q.shape[0]):
-            raise IndexError(
-                f"t_idx={self.t_idx} out of range for T={q.shape[0]}"
-            )
+            raise IndexError(f"t_idx={self.t_idx} out of range for T={q.shape[0]}")
 
         # Slice the single-timestep view of Data. frame_pose_world is (T, nframes, 7);
         # joint_pose_world is (T, njoints, 7). Any fields that are None stay None.
         from ..data_model._kinematics_level import KinematicsLevel
 
         data_sliced = Data(
-            _model_id=state.data._model_id,
             q=q[self.t_idx],
             joint_pose_world=(
-                state.data.joint_pose_world[self.t_idx]
-                if state.data.joint_pose_world is not None
-                else None
+                state.data.joint_pose_world[self.t_idx] if state.data.joint_pose_world is not None else None
             ),
             frame_pose_world=(
-                state.data.frame_pose_world[self.t_idx]
-                if state.data.frame_pose_world is not None
-                else None
+                state.data.frame_pose_world[self.t_idx] if state.data.frame_pose_world is not None else None
             ),
             joint_jacobians=None,  # recompute if needed at this timestep
         )
@@ -91,12 +82,10 @@ class TimeIndexedResidual:
         dim = int(J_inner.shape[0])
 
         J = torch.zeros(dim, T * nv, device=q.device, dtype=q.dtype)
-        J[:, self.t_idx * nv:(self.t_idx + 1) * nv] = J_inner
+        J[:, self.t_idx * nv : (self.t_idx + 1) * nv] = J_inner
         return J
 
-    def apply_jac_transpose(
-        self, state: ResidualState, vec: torch.Tensor
-    ) -> torch.Tensor:
+    def apply_jac_transpose(self, state: ResidualState, vec: torch.Tensor) -> torch.Tensor:
         """Sparse ``J^T @ vec`` — only ``t_idx`` knot is non-zero.
 
         Avoids allocating the dense ``(dim, T·nv)`` Jacobian — important
@@ -111,7 +100,7 @@ class TimeIndexedResidual:
         T = state.variables.shape[0]
         nv = state.model.nv
         out = torch.zeros(T * nv, device=vec.device, dtype=vec.dtype)
-        out[self.t_idx * nv:(self.t_idx + 1) * nv] = J_inner.mT @ vec
+        out[self.t_idx * nv : (self.t_idx + 1) * nv] = J_inner.mT @ vec
         return out
 
     @property

@@ -24,10 +24,11 @@ IR is flat and order-unconstrained — no topo-sort or idx_q/idx_v yet. That hap
 
 ## build_model()
 
-`build_model(ir, root_joint=None, device=None, dtype=float32)`:
+`build_model(ir, root_joint=None, preserve_joint_order=False, device=None, dtype=float32)`:
 1. Replace root joint with `root_joint` if supplied (e.g., `JointFreeFlyer` for floating-base)
 2. Resolve mimic edges
-3. Topo-sort parents-before-children
+3. Topo-sort parents-before-children (historical DFS by default; opt-in stable
+   Kahn ordering preserves already-topological IR order)
 4. Assign `idx_q`, `idx_v` by accumulating nq, nv
 5. Select concrete `JointModel` from kind + axis
 6. Pack tensors, build frames, return frozen `Model`
@@ -41,7 +42,8 @@ a concrete joint model, which retains an independent coordinate until M3.
 
 ## Public Entry Point
 
-`load(source, *, free_flyer=False, device=None, dtype=None)` — dispatches by suffix or type, calls parser + `build_model()`.
+`load(source, *, free_flyer=False, preserve_joint_order=False, device=None,
+dtype=None)` — dispatches by suffix or type, calls parser + `build_model()`.
 
 ## Adding a New Format
 
