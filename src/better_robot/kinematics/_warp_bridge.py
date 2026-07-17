@@ -95,21 +95,16 @@ def _torch_fk_from_tables(
     q_exec = q.index_select(0, q_map.to(torch.int64))
     placements_exec = joint_placements.index_select(0, value_map.to(torch.int64))
     frames_exec = frame_placements.index_select(0, value_map.to(torch.int64))
-    parents_static = tuple(
-        int(value) for value in parents.detach().cpu().tolist()
-    )  # bench-ok: prototype torch-VJP reads immutable topology
-    topo_static = tuple(
-        int(value) for value in topo_order.detach().cpu().tolist()
-    )  # bench-ok: prototype torch-VJP reads immutable topology
-    kinds_static = tuple(
-        int(value) for value in kinds.detach().cpu().tolist()
-    )  # bench-ok: prototype torch-VJP reads immutable topology
-    nqs_static = tuple(
-        int(value) for value in nqs.detach().cpu().tolist()
-    )  # bench-ok: prototype torch-VJP reads immutable topology
-    idx_static = tuple(
-        int(value) for value in idx_qs.detach().cpu().tolist()
-    )  # bench-ok: prototype torch-VJP reads immutable topology
+    parents_host = parents.detach().cpu()  # bench-ok: immutable prototype topology
+    topo_host = topo_order.detach().cpu()  # bench-ok: immutable prototype topology
+    kinds_host = kinds.detach().cpu()  # bench-ok: immutable prototype topology
+    nqs_host = nqs.detach().cpu()  # bench-ok: immutable prototype topology
+    idx_host = idx_qs.detach().cpu()  # bench-ok: immutable prototype topology
+    parents_static = tuple(int(value) for value in parents_host.tolist())
+    topo_static = tuple(int(value) for value in topo_host.tolist())
+    kinds_static = tuple(int(value) for value in kinds_host.tolist())
+    nqs_static = tuple(int(value) for value in nqs_host.tolist())
+    idx_static = tuple(int(value) for value in idx_host.tolist())
 
     world: list[torch.Tensor | None] = [None] * len(parents_static)
     local: list[torch.Tensor | None] = [None] * len(parents_static)
