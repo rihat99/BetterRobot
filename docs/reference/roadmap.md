@@ -37,6 +37,7 @@ entries.
 - `src/better_robot/residuals/smoothness.py`
 - `src/better_robot/spatial/force.py`
 - `src/better_robot/tasks/ik.py`
+- `src/better_robot/tasks/trajopt.py`
 - `src/better_robot/viewer/camera.py`
 - `src/better_robot/viewer/interaction.py`
 - `src/better_robot/viewer/overlays/com.py`
@@ -81,8 +82,10 @@ The full residual library is live except:
 
 ## Tasks
 
-`solve_ik` and `solve_trajopt` (with knot and B-spline parameterisations)
-are live. The former retargeting placeholder was removed; see
+`solve_ik` and knot-based `solve_trajopt` are live. `BSplineTrajectory` is a
+Euclidean numerical basis utility; robot use is rejected until M5 supplies
+manifold-safe interpolation/retraction, bounds, and sparse trajectory
+structure. The former retargeting placeholder was removed; see
 {doc}`m1_removed_symbols`.
 
 ## Viewer

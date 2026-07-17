@@ -2,25 +2,25 @@
 
 ## Design Rule
 
-Tasks are thin facades. No Jacobian code, no solver loops, no branching for fixed vs floating base. They assemble a `CostStack` + `LeastSquaresProblem` and call the optimizer.
+Tasks are thin facades. No Jacobian code, no solver loops, no branching for fixed vs floating base. IK assembles a named-block `Problem`; trajopt temporarily retains the legacy flat stack until M5.
 
 ## Implementation Status
 
 | Task | Status |
 |------|--------|
 | `solve_ik` | Implemented |
-| `solve_trajopt` | Implemented (with `KnotTrajectory` + `BSplineTrajectory` parameterisations) |
+| `solve_trajopt` | Implemented with `KnotTrajectory`; non-knot robot parameterisations are gated until M5 |
 | `Trajectory` | Implemented (`with_batch_dims`, `slice`, `resample(linear|sclerp)`, `downsample`, `to_data`) |
 
 ## solve_ik
 
-Assembles: `PoseResidual` per target + `JointPositionLimit` + `RestResidual` into a `CostStack`, wraps in `LeastSquaresProblem`, calls optimizer. Returns `IKResult` with `.q`, `.converged`, `.fk()`, `.frame_pose(name)`. Honours every documented `OptimizerConfig` knob (`linear_solver`, `kernel`, `damping`, `optimizer`).
+Assembles one bounded `RobotConfig` block, `PoseResidual` items, optional limit/rest items, and a lazy `RobotStateProvider`. Pose targets are declared differentiable `Problem.parameters`. Named-block LM/GN/Adam and `lm_then_adam` are supported; the L-BFGS spellings fail honestly. Arbitrary common leading batch axes return per-element diagnostics.
 
 **Single code path** — floating-base is transparent. First 7 DOF of q are base pose for free-flyer models. Solver doesn't need to know.
 
 ## solve_trajopt
 
-Flattens a `(T, nq)` trajectory into a `LeastSquaresProblem` vector, installs a per-knot `Model.integrate` retraction (for `KnotTrajectory`) or Euclidean update on control points (for `BSplineTrajectory`, with chain-rule Jacobian `J_q @ B_block`). The user supplies the `CostStack`; targets/keyframes are expressed via `TimeIndexedResidual(...)`.
+Flattens a `(T, nq)` knot trajectory into a `LeastSquaresProblem` vector and installs a per-knot `Model.integrate` retraction. The user supplies the `CostStack`; targets/keyframes are expressed via `TimeIndexedResidual(...)`. `BSplineTrajectory` remains a Euclidean numerical basis utility, but `solve_trajopt` rejects it: manifold-safe interpolation/retraction, bounds, and multi-stage replacement are deferred to M5.
 
 ## Trajectory
 

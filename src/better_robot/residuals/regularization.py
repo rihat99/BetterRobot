@@ -10,10 +10,13 @@ See ``docs/concepts/residuals_and_costs.md §2``.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Any
+
 import torch
 
 from ..data_model.model import Model
-from .base import ResidualState
+from .base import ResidualState, _residual_model_q
 
 
 class RestResidual:
@@ -30,6 +33,7 @@ class RestResidual:
     """
 
     name: str = "rest"
+    reads = ("q",)
 
     def __init__(
         self,
@@ -37,29 +41,54 @@ class RestResidual:
         q_rest: torch.Tensor,
         *,
         weight: float = 1.0,
+        name: str = "rest",
+        target_name: str | None = None,
     ) -> None:
+        if target_name is not None and (not isinstance(target_name, str) or not target_name):
+            raise TypeError("target_name must be a non-empty string or None")
         self.model = model
+        self.name = name
         self.q_rest = q_rest
+        self.target_name = target_name
+        self.reads = ("q", target_name) if target_name is not None else ("q",)
         self.weight = weight
         self.dim = model.nv
 
-    def __call__(self, state: ResidualState) -> torch.Tensor:
-        q = state.variables  # (B..., nq)
-        q_rest = self.q_rest.to(device=q.device, dtype=q.dtype)
+    def __call__(self, value: ResidualState | Mapping[str, Any]) -> torch.Tensor:
+        model, q = _residual_model_q(value, model=self.model)
+        q_rest = self.q_rest
+        if self.target_name is not None and not isinstance(value, ResidualState):
+            q_rest = value[self.target_name]
+            if not isinstance(q_rest, torch.Tensor):
+                raise TypeError(f"named-block context entry {self.target_name!r} must be a tensor")
+        q_rest = q_rest.to(device=q.device, dtype=q.dtype)
         # Broadcast q_rest across any leading batch dims.
         if q.dim() > 1 and q_rest.dim() == 1:
             q_rest = q_rest.expand_as(q)
-        return state.model.difference(q_rest, q) * self.weight  # (B..., nv)
+        return model.difference(q_rest, q) * self.weight  # (B..., nv)
 
-    def jacobian(self, state: ResidualState) -> torch.Tensor | None:
+    def jacobian(
+        self,
+        value: ResidualState | Mapping[str, Any],
+    ) -> torch.Tensor | None:
         """Identity Jacobian (scaled by ``weight``). Shape ``(B..., nv, nv)``."""
-        q = state.variables
-        nv = state.model.nv
+        model, q = _residual_model_q(value, model=self.model)
+        nv = model.nv
         *batch, _ = q.shape
-        I = torch.eye(nv, dtype=q.dtype, device=q.device)
+        identity = torch.eye(nv, dtype=q.dtype, device=q.device)
         if batch:
-            I = I.expand(*batch, nv, nv)
-        return I * self.weight
+            identity = identity.expand(*batch, nv, nv)
+        return identity * self.weight
+
+    def jacobian_blocks(
+        self,
+        ctx: Mapping[str, Any],
+    ) -> dict[str, torch.Tensor]:
+        """Return the mask-reduced analytic ``q`` block."""
+        full = self.jacobian(ctx)
+        assert full is not None
+        indices = ctx.free_indices("q").to(device=full.device)
+        return {"q": full.index_select(-1, indices)}
 
 
 class ReferenceTrajectoryResidual:
@@ -107,14 +136,10 @@ class ReferenceTrajectoryResidual:
     def __call__(self, state: ResidualState) -> torch.Tensor:
         q = state.variables
         if q.dim() != 2:  # bench-ok: trajectory-shape contract validation
-            raise ValueError(
-                f"ReferenceTrajectoryResidual expects (T, nq); got {tuple(q.shape)}"
-            )
+            raise ValueError(f"ReferenceTrajectoryResidual expects (T, nq); got {tuple(q.shape)}")
         T, nq = q.shape
         if T != self.q_ref.shape[0]:
-            raise ValueError(
-                f"trajectory length {T} != q_ref length {self.q_ref.shape[0]}"
-            )
+            raise ValueError(f"trajectory length {T} != q_ref length {self.q_ref.shape[0]}")
         q_ref = self.q_ref.to(device=q.device, dtype=q.dtype)
         r = state.model.difference(q_ref, q)  # (T, nv)
         w = self._per_frame_scale(T, q.device, q.dtype).unsqueeze(-1)  # (T, 1)
@@ -132,7 +157,7 @@ class ReferenceTrajectoryResidual:
         J = torch.zeros(T * nv, T * nv, device=device, dtype=dtype)
         eye = torch.eye(nv, device=device, dtype=dtype)
         for t in range(T):
-            J[t * nv:(t + 1) * nv, t * nv:(t + 1) * nv] = eye * w[t]
+            J[t * nv : (t + 1) * nv, t * nv : (t + 1) * nv] = eye * w[t]
         return J
 
     def apply_jac_transpose(self, state: ResidualState, r: torch.Tensor) -> torch.Tensor:

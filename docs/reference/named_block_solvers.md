@@ -10,7 +10,7 @@ named-block `Problem`; the identically named classes under
 
 ## Levenberg–Marquardt
 
-`````{py:class} LevenbergMarquardt(*, max_iter=50, gtol=1e-6, xtol=1e-9, ftol=1e-9, damping_parameter=1e-4, mu_min=1e-12, mu_max=4294967296.0, increase_factor_max=4294967296.0, bound_tolerance=1e-7, linear_solver=Cholesky(), kernel=L2(), jacobian_strategy="auto", fixed_damping=False)
+`````{py:class} LevenbergMarquardt(*, max_iter=50, gtol=1e-6, xtol=1e-9, ftol=1e-9, damping_parameter=1e-4, mu_min=1e-12, mu_max=4294967296.0, increase_factor_max=4294967296.0, bound_tolerance=1e-7, linear_solver=Cholesky(), kernel=L2(), jacobian_strategy="auto", fixed_damping=False, block_step_limits=())
 :canonical: better_robot.optim.LevenbergMarquardt
 
 ```{autodoc2-docstring} better_robot.optim.blocks.solver_lm.LevenbergMarquardt
@@ -19,6 +19,12 @@ named-block `Problem`; the identically named classes under
 `mu_min` must be strictly positive. A failed factorization escalates damping
 through `mu_max` and receives one solve attempt at that cap before the element
 becomes `FAILED`.
+
+`block_step_limits=(("translation", 0.2), ...)` caps each configured
+variable's physical tangent L2 norm before both the normal-equation and
+projected-gradient retractions. Names must identify blocks with at least one
+free tangent coordinate. Gain prediction continues to use the actual
+post-retraction tangent step.
 
 ````{py:method} init_state(values, problem, *, create_graph=False) -> LMState
 :canonical: better_robot.optim.LevenbergMarquardt.init_state
@@ -72,6 +78,81 @@ The `create_graph=True` path is a correctness oracle for a few explicitly
 unrolled steps, not a stable solver-differentiation guarantee. Implicit
 backward, active-set stability checks, and production differentiation through
 a complete solve remain M6 work.
+
+## Adam
+
+`````{py:class} Adam(*, lr=0.01, beta1=0.9, beta2=0.999, eps=1e-8, tol=1e-6, max_iter=100)
+:canonical: better_robot.optim.Adam
+
+```{autodoc2-docstring} better_robot.optim.blocks.solver_adam.Adam
+```
+
+````{py:method} init_state(values, problem) -> AdamState
+:canonical: better_robot.optim.Adam.init_state
+
+Validate the solve boundary and initialize one mask-reduced first/second moment
+tensor per named block.
+````
+
+````{py:method} update(values, state, problem) -> tuple[Values, AdamState]
+:canonical: better_robot.optim.Adam.update
+
+Apply one host-sync-free tangent-gradient step. This path calls the
+prevalidated objective VJP and feasible manifold retraction; it never calls
+Jacobian-block, dense-Jacobian, or normal-matrix assembly.
+````
+
+````{py:method} run(values, problem, state=None) -> tuple[Values, AdamState]
+:canonical: better_robot.optim.Adam.run
+
+Run the detached eager loop. A compatible state retains reduced moments and
+bias-correction step counts while current cost, gradient norm, convergence,
+and status are refreshed. Name/order, reduced shape, batch shape, dtype, and
+device mismatches are rejected.
+````
+
+`````
+
+`````{py:class} AdamState
+:canonical: better_robot.optim.AdamState
+
+A fixed tensor pytree containing reduced `m`/`v` mappings plus per-element
+step, cost, gradient norm, convergence, and status tensors.
+`````
+
+`````{py:class} AdamStatus
+:canonical: better_robot.optim.AdamStatus
+
+Per-element status enum: `RUNNING`, `CONVERGED`, `MAXITER`, or `FAILED`.
+`````
+
+Named-block LBFGS is deliberately unavailable: batching its per-element
+histories, line search, and curvature-validity/history-reset behavior is a
+dedicated later milestone. Use `Adam` for matrix-free first-order work or
+LM/GN when dense second-order assembly is appropriate.
+
+## Phases
+
+`````{py:class} Phase(name, iters, optimizer, weight_overrides={}, mask_overrides={}, on_start=None)
+:canonical: better_robot.optim.Phase
+
+```{autodoc2-docstring} better_robot.optim.blocks.phase.Phase
+`````
+
+`````{py:function} run_phases(problem, values, phases) -> PhaseResult
+:canonical: better_robot.optim.run_phases
+
+Runs phase-local functional `Problem` views in order, carries only values
+between phases, and creates fresh solver state for every nonempty phase. The
+input problem is never mutated.
+`````
+
+`````{py:class} PhaseResult
+:canonical: better_robot.optim.PhaseResult
+
+Final values plus one solver state (or `None` for a zero-iteration phase) per
+phase.
+`````
 
 ## State and status
 

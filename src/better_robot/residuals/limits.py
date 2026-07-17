@@ -8,10 +8,13 @@ See ``docs/concepts/residuals_and_costs.md §2``.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Any
+
 import torch
 
 from ..data_model.model import Model
-from .base import ResidualState
+from .base import ResidualState, _residual_model_q
 
 
 class JointPositionLimit:
@@ -31,9 +34,17 @@ class JointPositionLimit:
     """
 
     name: str = "joint_position_limit"
+    reads = ("q",)
 
-    def __init__(self, model: Model, *, weight: float = 1.0) -> None:
+    def __init__(
+        self,
+        model: Model,
+        *,
+        weight: float = 1.0,
+        name: str = "joint_position_limit",
+    ) -> None:
         self.model = model
+        self.name = name
         self.weight = weight
         self.dim = 2 * model.nq
 
@@ -51,19 +62,22 @@ class JointPositionLimit:
                 dq_dv[iq + k, iv + k] = 1.0
         self._dq_dv = dq_dv  # (nq, nv)
 
-    def __call__(self, state: ResidualState) -> torch.Tensor:
-        q = state.variables  # (B..., nq)
-        lo = self.model.lower_pos_limit.to(q.device, q.dtype)  # (nq,)
-        hi = self.model.upper_pos_limit.to(q.device, q.dtype)  # (nq,)
+    def __call__(self, value: ResidualState | Mapping[str, Any]) -> torch.Tensor:
+        model, q = _residual_model_q(value, model=self.model)
+        lo = model.lower_pos_limit.to(q.device, q.dtype)  # (nq,)
+        hi = model.upper_pos_limit.to(q.device, q.dtype)  # (nq,)
         lower_viol = torch.clamp(lo - q, min=0.0) * self.weight  # (B..., nq)
         upper_viol = torch.clamp(q - hi, min=0.0) * self.weight  # (B..., nq)
-        return torch.cat([lower_viol, upper_viol], dim=-1)       # (B..., 2*nq)
+        return torch.cat([lower_viol, upper_viol], dim=-1)  # (B..., 2*nq)
 
-    def jacobian(self, state: ResidualState) -> torch.Tensor | None:
+    def jacobian(
+        self,
+        value: ResidualState | Mapping[str, Any],
+    ) -> torch.Tensor | None:
         """Analytic Jacobian in tangent space. Shape ``(B..., 2*nq, nv)``."""
-        q = state.variables
-        lo = self.model.lower_pos_limit.to(q.device, q.dtype)
-        hi = self.model.upper_pos_limit.to(q.device, q.dtype)
+        model, q = _residual_model_q(value, model=self.model)
+        lo = model.lower_pos_limit.to(q.device, q.dtype)
+        hi = model.upper_pos_limit.to(q.device, q.dtype)
 
         # Per-q indicator of active lower/upper violation, scaled by weight.
         lower_diag = torch.where(
@@ -78,10 +92,20 @@ class JointPositionLimit:
         )  # (B..., nq)
 
         # Project to nv columns via the precomputed (nq, nv) mapping.
-        dq_dv = self._dq_dv.to(q.device, q.dtype)            # (nq, nv)
-        J_lower = lower_diag.unsqueeze(-1) * dq_dv           # (B..., nq, nv)
-        J_upper = upper_diag.unsqueeze(-1) * dq_dv           # (B..., nq, nv)
-        return torch.cat([J_lower, J_upper], dim=-2)         # (B..., 2*nq, nv)
+        dq_dv = self._dq_dv.to(q.device, q.dtype)  # (nq, nv)
+        J_lower = lower_diag.unsqueeze(-1) * dq_dv  # (B..., nq, nv)
+        J_upper = upper_diag.unsqueeze(-1) * dq_dv  # (B..., nq, nv)
+        return torch.cat([J_lower, J_upper], dim=-2)  # (B..., 2*nq, nv)
+
+    def jacobian_blocks(
+        self,
+        ctx: Mapping[str, Any],
+    ) -> dict[str, torch.Tensor]:
+        """Return the mask-reduced analytic ``q`` block."""
+        full = self.jacobian(ctx)
+        assert full is not None
+        indices = ctx.free_indices("q").to(device=full.device)
+        return {"q": full.index_select(-1, indices)}
 
 
 class JointVelocityLimit:

@@ -91,8 +91,9 @@ and acceleration smoothness, time-indexed residuals); `CostStack`;
 LM, GN, Adam, L-BFGS, and multi-stage optimisers; pluggable linear
 solvers (Cholesky, LSTSQ); pluggable robust
 kernels (L2, Huber, Cauchy, Tukey) and damping strategies (Constant,
-Adaptive); single-problem IK on fixed and floating-base robots;
-trajectory optimisation with knot and B-spline parameterisations;
+Adaptive); batched IK on fixed and floating-base robots;
+trajectory optimisation with knot parameterisation (the Euclidean B-spline
+basis is gated from robot trajopt until M5);
 Featherstone dynamics (RNEA, ABA, CRBA, CCRBA), centroidal momentum,
 and autograd-derived `compute_*_derivatives`; URDF and MJCF parsers; a programmatic
 `ModelBuilder`; a viewer with skeleton / URDF-mesh / collision render

@@ -6,8 +6,8 @@ Two optimization surfaces coexist. Keep their types and capabilities separate.
 
 | Surface | Problem type | What is implemented |
 |---|---|---|
-| Legacy solver stack | `optim.problem.LeastSquaresProblem` | Flat-variable `CostStack`; LM/GN/Adam/LBFGS/MultiStage; `optim.solve`; IK/trajopt task integration |
-| Named-block layer | `optim.blocks.problem.Problem` | Manifold blocks/providers/evaluation plus batched LM/GN, tensor-only `LMState`, robust groups, and projected active-set bounds |
+| Legacy solver stack | `optim.problem.LeastSquaresProblem` | Flat-variable `CostStack`; LM/GN/Adam/LBFGS/MultiStage; `optim.solve`; trajopt integration |
+| Named-block layer | `optim.blocks.problem.Problem` | Manifold blocks/providers/evaluation, matrix-free batched Adam, batched LM/GN, robust groups, and projected active-set bounds |
 
 Named-block residual-vector problems use
 `better_robot.optim.LevenbergMarquardt` or `GaussNewton`. Scalar
@@ -51,11 +51,11 @@ A block residual declares `name`, positive static `dim`, `reads`, and
 applied during M2a evaluation. Optional `jacobian_blocks(ctx)` entries are keyed
 by variable name and must already use mask-reduced tangent columns.
 
-`ResidualItem.kernel` and `ResidualItem.group_size` are recorded and validated
-by `Problem`; named-block LM/GN applies their group-wise IRLS row weights and
-uses the matching robust objective for trial acceptance. Direct
-`Problem.residual()` evaluation remains the weighted raw residual, not an IRLS
-view.
+`ResidualItem.kernel` and `ResidualItem.group_size` are validated by `Problem`.
+`Problem.objective()` sums grouped `rho`, and `Problem.gradient()`
+differentiates that same robust objective under `weight(s) = 2*rho'(s)`.
+Named-block LM/GN uses the matching group-wise IRLS rows. Direct
+`Problem.residual()` remains the weighted raw residual, not an IRLS view.
 
 `ObjectiveItem` represents a scalar term with output shape `(B...)`. Scalar
 terms participate in `Problem.objective` and tangent-space `Problem.gradient`,
@@ -112,8 +112,16 @@ factorization, convergence, status, and iteration tensors. Elements that are
 terminal or failed ride along without moving while their valid neighbors
 continue.
 
-The legacy optimizers and `solve_ik` remain single-problem solvers. Do not pass
-a block `Problem` to them merely because its evaluation methods are batched.
+Named-block `Adam` preserves those axes in its reduced per-block moments and
+per-element step/cost/gradient/status leaves. Its update calls only the
+prevalidated tangent objective VJP plus feasible retraction; Jacobian assembly
+is forbidden. `run` is detached and warm starts retain moments/step counts only
+across an exactly compatible named reduced layout. Batched named-block LBFGS is
+deferred; do not port the scalar dense-J legacy history.
+
+The legacy optimizers and legacy trajopt remain single-problem solvers.
+`solve_ik` uses the named-block stack. Do not pass a block `Problem` to a
+legacy optimizer merely because its evaluation methods are batched.
 
 ## Named-Block Solver Lifecycle
 

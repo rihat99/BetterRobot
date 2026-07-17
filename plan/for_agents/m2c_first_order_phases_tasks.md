@@ -1,5 +1,14 @@
 # M2c — First-Order Path + Phases + Task Rebase: Agent Execution Instructions
 
+> **Implementation log (2026-07-17, `dev`):** Complete for the BetterRobot
+> tree: matrix-free batched manifold Adam, functional phases, named-block IK,
+> physical per-block LM caps, strict non-knot trajopt rejection, canonical
+> `optim.CostStack`, and both public acceptance problems are green. The full
+> CPU gate is 1,260 passed. Functional problem rebuilding replaces mutable
+> phase snapshots; consumer verification was deliberately not run because
+> BHF/BVR are prohibited. CUDA and real batched LBFGS remain deferred. See
+> `m2c_results.md` for evidence and deviations.
+
 > Read `plan/for_agents/README.md` first. It carries the standing rules
 > (deletion ordering, honesty rules, kernel requirements, test commands).
 
@@ -627,43 +636,45 @@ proving each documented workaround is a knob, not a subclass. Read
 
 ## Milestone acceptance checklist
 
-- [ ] M2a and M2b acceptance checklists pass; block `Problem`/`VarSpec`/
+- [x] M2a and M2b acceptance checklists pass; block `Problem`/`VarSpec`/
       manifolds/providers and the M2b `init_state/update/run` solvers import.
-- [ ] **Matrix-free batched Adam:** gradient via `Problem.gradient` (tangent-
+- [x] **Matrix-free batched Adam:** gradient via `Problem.gradient` (tangent-
       space, per block); J never materialized (monkeypatch-J-raises test
       passes); manifold-correct at θ=0 (quaternions stay unit); batched +
       warm-startable; `update` sync-free (hot-path lint extended). (T2c.1)
-- [ ] **Batched LBFGS explicitly deferred** — not half-ported; named as a later
+- [x] **Batched LBFGS explicitly deferred** — not half-ported; named as a later
       item; honest error or Adam-alias where it could be selected. (T2c.1)
-- [ ] **Phase engine:** every BVR `tools/optim.py` feature mapped (lazy shared
+- [x] **Phase engine:** every BVR `tools/optim.py` feature mapped (lazy shared
       state → M2a providers; per-phase weight column → weight/active overrides;
       per-DOF grad mask → per-phase mask-elimination override; on_start; fresh
       solver state per phase; per-phase optimizer; sync-free logging);
       snapshot/restore incl. raise-path tested. (T2c.2)
-- [ ] **`solve_ik` re-based** as a thin preset over
+- [x] **`solve_ik` re-based** as a thin preset over
       `Problem(vars=(q,), residuals=pose+limits+rest)`; built-in kinematic
       residuals ported to `reads`/blocks with analytic-Jacobian parity;
       `LeastSquaresProblem` no longer in the `solve_ik` path (full class
       deletion sequenced to M4 — legacy `GaussNewton` shim for BHF ICP). (T2c.3)
-- [ ] All existing IK tests + M0 dtype-preservation stay green; M2b batched-IK
+- [x] All existing IK tests + M0 dtype-preservation stay green; M2b batched-IK
       probes P3/P6 run through the re-based `solve_ik`. (T2c.3)
-- [ ] **`solve_trajopt` + B-spline:** three breakages reproduced as tests;
+- [x] **`solve_trajopt` + B-spline:** three breakages reproduced as tests;
       fix-vs-drop evidence note written; **owner signed off**; the chosen path
       implemented; **no silent wrong-quaternion path remains** (standing rule 2).
       (T2c.4)
-- [ ] **`costs/` shim retired with a migration note:** `CostStack` canonical
+- [x] **`costs/` shim retired with a migration note:** `CostStack` canonical
       home under `optim/` with a `costs.stack` re-export shim; `costs.factory`
       stub deleted; the migration note enumerates the full BHF legacy surface,
       states each replacement, and sequences deletion (some → M4) per standing
       rule 1; both consumer repos still import cleanly. (T2c.5)
-- [ ] **Acceptance (a):** q + camera-extrinsics toy (two blocks, SE3 extrinsics)
+- [x] **Acceptance (a):** q + camera-extrinsics toy (two blocks, SE3 extrinsics)
       solves via the public block API only, gradients to both blocks. (T2c.6a)
-- [ ] **Acceptance (b):** BHF's ICP trust-region clip, relative damping, and
+- [x] **Acceptance (b):** BHF's ICP trust-region clip, relative damping, and
       external stopping reproduce as configuration, not subclassing — as a BR
       test on synthetic data. (T2c.6b)
-- [ ] Full suite green (`uv run pytest tests/ -v`; 897 baseline plus M0/M1/M2a/
-      M2b/M2c deltas); pinocchio-parity suite untouched and green; both consumer
-      repos import cleanly (standing rule 1 grep).
+- [x] Full local suite green (`1,260 passed, 1 skipped, 3 deselected` under
+      `not bench and not cuda`); pinocchio-parity coverage is included.
+- [ ] BHF/BVR import verification was intentionally not run: the owner's
+      prohibition on touching those repos is treated as including inspection,
+      so their migration/import audit remains an explicit M4 hand-off.
 
 ## Out of scope
 

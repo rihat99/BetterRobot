@@ -4,16 +4,17 @@
 
 PyTorch-native, GPU-ready library for robot kinematics and optimization. Pinocchio-style Model/Data architecture, PyTorch autograd throughout. Single code path for fixed-base and floating-base (free-flyer) robots.
 
-**Implemented:** forward kinematics, Jacobians (analytic + central finite-difference fallback), pose/position/orientation/limits/rest/smoothness/contact-consistency/reference-trajectory residuals, CostStack, LM/GN/Adam/LBFGS/MultiStage optimizers, single-problem IK (fixed + floating base), trajectory optimisation (`solve_trajopt`) with knot + B-spline parameterisations, dynamics (RNEA/ABA/CRBA/CCRBA, centroidal map + momentum, autograd-derived `compute_*_derivatives`), viewer V1 (Skeleton, URDFMesh, Grid, FrameAxes, Targets, ForceVectors, ViserBackend, build_joint_panel, minimal TrajectoryPlayer).
+**Implemented:** forward kinematics, Jacobians (analytic + central finite-difference fallback), pose/position/orientation/limits/rest/smoothness/contact-consistency/reference-trajectory residuals, CostStack, legacy LM/GN/Adam/LBFGS/MultiStage plus named-block LM/GN/Adam/phases, batched IK (fixed + floating base), knot-based trajectory optimisation (`solve_trajopt`; the Euclidean B-spline basis is gated until manifold-safe M5 work), dynamics (RNEA/ABA/CRBA/CCRBA, centroidal map + momentum, autograd-derived `compute_*_derivatives`), viewer V1 (Skeleton, URDFMesh, Grid, FrameAxes, Targets, ForceVectors, ViserBackend, build_joint_panel, minimal TrajectoryPlayer).
 **Stubs:** dynamic integrators (`semi_implicit_euler` / `symplectic_euler` / `rk4`), `compute_minverse`, `compute_coriolis_matrix`, analytic Carpentier–Mansard derivatives, jerk / Yoshikawa / collision / nullspace residuals, viewer COM/PathTrace/ResidualPlot overlays, `VideoRecorder`, and opt-in Warp whole-pass kernels. See `docs/reference/roadmap.md`.
 
 The named-block optimization layer is also implemented: `VarSpec`/`Values`/
 `Problem`, `Euclidean`/`SO3Manifold`/`SE3Manifold`/`RobotConfig` manifolds,
 state-space feasible retraction, eliminated tangent masks, evaluation-local
 provider DAGs, tangent gradients, and dense analytic/`jacrev`/`jacfwd`
-Jacobian blocks, plus batched LM/GN with tensor-only per-element state, robust
-groups, and projected active-set bounds. It coexists with the legacy flat
-solver stack and does not yet replace task routing.
+Jacobian blocks, plus matrix-free batched Adam, functional phase orchestration,
+and batched LM/GN with tensor-only per-element state, robust groups, per-block
+step caps, and projected active-set bounds. `solve_ik` uses this stack; legacy
+flat routing remains only where a BetterRobot-local caller still needs it.
 
 ## Commands
 
@@ -35,16 +36,16 @@ src/better_robot/
   residuals/        — Residual classes (Pose / Position / Orientation / JointPositionLimit / Rest /
                       Velocity / Acceleration / TimeIndexed / ContactConsistency /
                       ReferenceTrajectory; analytic `.jacobian()` + `apply_jac_transpose` overrides)
-  costs/            — CostStack
-  optim/            — legacy LeastSquaresProblem + LM/GN/Adam/LBFGS/MultiStage task backend;
-                      named-block Problem + batched LM/GN in optim/blocks
+  costs/            — forwarding compatibility imports for optim.cost_stack
+  optim/            — legacy CostStack/LeastSquaresProblem + LM/GN/Adam/LBFGS/MultiStage task backend;
+                      named-block Problem + batched Adam/LM/GN/phases in optim/blocks
   tasks/            — solve_ik(), solve_trajopt(), Trajectory, KnotTrajectory, BSplineTrajectory
   collision/        — geometry, pairs, RobotCollision (port of old capsule mode)
   io/               — load(), internal IRModel, parsers (URDF/MJCF), ModelBuilder, AssetResolver + concrete resolvers
   viewer/           — Visualizer, Scene, SkeletonMode, URDFMeshMode, ForceVectorsOverlay, …
 ```
 
-**Dependency rule (never violate):** `lie → spatial → data_model → (kinematics, dynamics) → residuals → costs → optim → tasks → viewer`. `io` reads from `data_model` only; `collision` is parallel to `kinematics`. Enforced by `tests/contract/test_layer_dependencies.py`.
+**Dependency rule (never violate):** `lie → spatial → data_model → (kinematics, dynamics) → residuals → optim → tasks → viewer`. The legacy `costs` import path is part of the `optim` layer. `io` reads from `data_model` only; `collision` is parallel to `kinematics`. Enforced by `tests/contract/test_layer_dependencies.py`.
 
 The compute seam is whole-pass: `ModelStructure` provides validated static/device topology, `ModelValues` provides the tensor pytree, and raw Torch passes are the default correctness lane. An optional Warp kernel is selected explicitly at the FK/RNEA-style integration point only after eligibility and parity checks. Warp is not a library layer and does not replace individual Lie operations.
 
@@ -110,7 +111,7 @@ J = br.get_joint_jacobian(model, data, joint_id)   # (B..., 6, nv)
 # IK
 from better_robot.tasks.ik import IKCostConfig, OptimizerConfig, solve_ik
 result = br.solve_ik(model, {"body_panda_hand": target_pose})
-result.q        # (nq,) solution
+result.q        # (B..., nq) solution
 result.fk()     # Data with FK at solution
 result.frame_pose("body_panda_hand")  # (7,) pose
 ```
@@ -120,7 +121,7 @@ result.frame_pose("body_panda_hand")  # (7,) pose
 ```python
 result = solve_ik(
     model,
-    targets={"frame_name": T_target},   # frame name → (7,) SE3 pose
+    targets={"frame_name": T_target},   # frame name → (B..., 7) SE3 pose
     initial_q=q,                         # optional; defaults to model.q_neutral
     cost_cfg=IKCostConfig(
         pos_weight=1.0,
@@ -130,7 +131,7 @@ result = solve_ik(
         rest_weight=0.01,
     ),
     optimizer_cfg=OptimizerConfig(
-        optimizer="lm",                  # "lm" | "gn" | "adam" | "lbfgs"
+        optimizer="lm",                  # "lm" | "gn" | "adam" | "lm_then_adam"
         max_iter=100,
         jacobian_strategy=JacobianStrategy.AUTO,
     ),
@@ -139,7 +140,7 @@ result = solve_ik(
 
 **Floating-base robots:** load with `free_flyer=True`. The first 7 DOF of `q` are `[tx, ty, tz, qx, qy, qz, qw]` for the base pose. `solve_ik` handles this transparently — no `initial_base_pose` argument.
 
-**Joint limits:** Panda joint 4 upper limit is −0.07 rad (range `[-3.07, -0.07]`). `q_neutral` has joint 4 = 0 which is outside bounds. Use `q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit)` as the starting point.
+**Joint limits:** Panda joint 4 upper limit is −0.07 rad (range `[-3.07, -0.07]`). `q_neutral` has joint 4 = 0, so the IK preset projects its seed before strict named-block validation. Direct block callers must supply feasible `Values` themselves.
 
 ## Model Attributes
 
@@ -179,10 +180,11 @@ residual/objective evaluation, tangent gradients, Jacobian blocks, and dense
 assembly. Named-block LM/GN preserves those axes in per-element damping,
 accept/reject, factorization, status, and convergence tensors.
 
-The legacy optimizer stack, top-level `optim.solve`, and `solve_ik` remain
-legacy single-problem paths requiring `(nq,)`; `optim.solve` accepts
-`LeastSquaresProblem`, not the named-block `Problem`. Named-block consumers
-call `optim.LevenbergMarquardt().run(values, problem)` directly.
+The legacy optimizer stack and top-level `optim.solve` remain single-problem
+paths; `optim.solve` accepts `LeastSquaresProblem`, not the named-block
+`Problem`. `solve_ik` uses named blocks and accepts arbitrary common leading
+batch axes with per-element diagnostics. Other named-block consumers call
+`optim.LevenbergMarquardt().run(values, problem)` directly.
 `ResidualItem.kernel`/`group_size` are active in that solver, scalar objectives
 are for consumer-owned first-order/manual loops and are rejected at GN/LM
 boundaries, state-space `Bounds` are not tangent-space step bounds, and provider

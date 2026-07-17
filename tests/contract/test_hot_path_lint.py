@@ -1,7 +1,8 @@
 """Forbid hot-path patterns that break ``torch.compile`` and CUDA throughput.
 
 AST-walks ``kinematics/``, ``dynamics/``, ``optim/optimizers/``,
-``optim/blocks/solver_lm.py``, ``residuals/``, and ``lie/`` and fails the test
+``optim/blocks/solver_lm.py``, ``optim/blocks/solver_adam.py``, ``residuals/``,
+and ``lie/`` and fails the test
 if any forbidden idiom appears:
 
 * ``.item()`` / ``.cpu()`` — force a CUDA-host sync.
@@ -31,7 +32,7 @@ WATCHED_DIRS = ("kinematics", "dynamics", "optim/optimizers", "residuals", "lie"
 # perform host-side boundary validation, while the prevalidated solver update
 # must remain sync-free.  ``run`` and initialization may use a reasoned
 # ``# bench-ok`` exemption at their documented eager/static boundaries.
-WATCHED_FILES = ("optim/blocks/solver_lm.py",)
+WATCHED_FILES = ("optim/blocks/solver_lm.py", "optim/blocks/solver_adam.py")
 ALLOC_FNS = ("zeros", "ones", "empty", "full", "rand", "randn", "eye")
 
 # Calls with these names are tensor evidence when reached through ``torch``.
@@ -132,7 +133,7 @@ def _function_name(parents: list[ast.AST]) -> str | None:
 
 
 def _is_named_block_solver(file: Path) -> bool:
-    return file.as_posix().endswith("/optim/blocks/solver_lm.py")
+    return any(file.as_posix().endswith(f"/{relative}") for relative in WATCHED_FILES)
 
 
 def _exempt(line: str) -> bool:
@@ -510,9 +511,10 @@ def test_new_forbidden_patterns_are_detected(name: str, src: str, needle: str) -
     assert any(needle in violation for violation in violations), violations
 
 
-def test_named_block_lm_update_module_is_watched() -> None:
+def test_named_block_update_modules_are_watched() -> None:
     watched = {path.relative_to(ROOT).as_posix() for path in _find_hot_path_files()}
     assert "optim/blocks/solver_lm.py" in watched
+    assert "optim/blocks/solver_adam.py" in watched
 
 
 def test_scalar_float_conversions_are_not_tensor_syncs() -> None:

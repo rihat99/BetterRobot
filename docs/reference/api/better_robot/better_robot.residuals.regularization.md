@@ -31,7 +31,7 @@
 
 ### API
 
-`````{py:class} RestResidual(model: better_robot.data_model.model.Model, q_rest: torch.Tensor, *, weight: float = 1.0)
+`````{py:class} RestResidual(model: better_robot.data_model.model.Model, q_rest: torch.Tensor, *, weight: float = 1.0, name: str = 'rest', target_name: str | None = None)
 :canonical: better_robot.residuals.regularization.RestResidual
 
 ```{autodoc2-docstring} better_robot.residuals.regularization.RestResidual
@@ -48,10 +48,28 @@
 
 ````
 
-````{py:method} jacobian(state: better_robot.residuals.base.ResidualState) -> torch.Tensor | None
+````{py:attribute} reads
+:canonical: better_robot.residuals.regularization.RestResidual.reads
+:value: >
+   ('q',)
+
+```{autodoc2-docstring} better_robot.residuals.regularization.RestResidual.reads
+```
+
+````
+
+````{py:method} jacobian(value: better_robot.residuals.base.ResidualState | collections.abc.Mapping[str, typing.Any]) -> torch.Tensor | None
 :canonical: better_robot.residuals.regularization.RestResidual.jacobian
 
 ```{autodoc2-docstring} better_robot.residuals.regularization.RestResidual.jacobian
+```
+
+````
+
+````{py:method} jacobian_blocks(ctx: collections.abc.Mapping[str, typing.Any]) -> dict[str, torch.Tensor]
+:canonical: better_robot.residuals.regularization.RestResidual.jacobian_blocks
+
+```{autodoc2-docstring} better_robot.residuals.regularization.RestResidual.jacobian_blocks
 ```
 
 ````

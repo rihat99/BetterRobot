@@ -19,7 +19,8 @@ from better_robot.tasks.ik import IKCostConfig, OptimizerConfig, solve_ik
 @pytest.fixture(scope="module")
 def panda():
     pytest.importorskip("robot_descriptions")
-    from robot_descriptions import panda_description
+    from robot_descriptions import panda_description  # noqa: PLC0415
+
     return load(panda_description.URDF_PATH)
 
 
@@ -39,6 +40,7 @@ def _feasible_q(model) -> torch.Tensor:
 
 
 # ── basic solve_ik tests ──────────────────────────────────────────────────────
+
 
 def test_solve_ik_returns_ik_result(panda):
     q = panda.q_neutral
@@ -119,8 +121,7 @@ def test_solve_ik_limits_respected(panda):
     hi = panda.upper_pos_limit
     # Clamp and check equality (within floating-point tolerance)
     q_clamped = result.q.clamp(lo, hi)
-    assert torch.allclose(result.q, q_clamped, atol=1e-5), \
-        "Result q is outside joint limits"
+    assert torch.allclose(result.q, q_clamped, atol=1e-5), "Result q is outside joint limits"
 
 
 def test_ik_result_fk(panda):
@@ -150,7 +151,8 @@ def test_ik_result_frame_pose(panda):
 
 # ── pluggable optimiser smoke tests ──────────────────────────────────────────
 
-@pytest.mark.parametrize("optimizer", ["lm", "gn", "adam", "lbfgs"])
+
+@pytest.mark.parametrize("optimizer", ["lm", "gn", "adam", "lm_then_adam"])
 def test_solve_ik_optimizers_reach_target(panda, optimizer):
     """Every optimiser should drive the Panda EE to a reachable target."""
     q_ref = _feasible_q(panda).clone()
@@ -161,7 +163,7 @@ def test_solve_ik_optimizers_reach_target(panda, optimizer):
 
     # Adam needs more iterations and a higher lr than the defaults; keep the
     # test quick by giving every solver enough budget.
-    max_iter = {"lm": 100, "gn": 100, "adam": 600, "lbfgs": 100}[optimizer]
+    max_iter = {"lm": 100, "gn": 100, "adam": 600, "lm_then_adam": 100}[optimizer]
     result = solve_ik(
         panda,
         {frame_name: T_target},
@@ -175,18 +177,36 @@ def test_solve_ik_optimizers_reach_target(panda, optimizer):
     assert pos_err < 0.05, f"{optimizer}: position error {pos_err:.4f} m too large"
 
 
+@pytest.mark.parametrize("optimizer", ["lbfgs", "lm_then_lbfgs"])
+def test_solve_ik_defers_named_block_lbfgs(panda, optimizer):
+    frame_name = _ee_frame(panda)
+    target = forward_kinematics(panda, _feasible_q(panda), compute_frames=True).frame_pose_world[
+        panda.frame_id(frame_name)
+    ]
+
+    with pytest.raises(NotImplementedError, match="L-BFGS|deferred|lm_then_adam"):
+        solve_ik(
+            panda,
+            {frame_name: target},
+            optimizer_cfg=OptimizerConfig(optimizer=optimizer),
+        )
+
+
 # ── floating-base (G1) regression ────────────────────────────────────────────
+
 
 @pytest.fixture(scope="module")
 def g1():
     pytest.importorskip("robot_descriptions")
-    from robot_descriptions import g1_description
+    from robot_descriptions import g1_description  # noqa: PLC0415
+
     return load(g1_description.URDF_PATH, free_flyer=True)
 
 
 def test_g1_is_free_flyer(g1):
     """G1 loaded with free_flyer=True has nq = nv + 1 and JointFreeFlyer at index 1."""
-    from better_robot.data_model.joint_models import JointFreeFlyer
+    from better_robot.data_model.joint_models import JointFreeFlyer  # noqa: PLC0415
+
     assert g1.nq == g1.nv + 1
     assert isinstance(g1.joint_models[1], JointFreeFlyer)
 
@@ -200,8 +220,8 @@ def test_solve_ik_floating_base_with_limits(g1):
     """
     # Neutral with base at standing height
     q0 = g1.q_neutral.clone()
-    q0[2] = 0.78   # base z
-    q0[6] = 1.0    # qw
+    q0[2] = 0.78  # base z
+    q0[6] = 1.0  # qw
     q0[7:] = q0[7:].clamp(g1.lower_pos_limit[7:], g1.upper_pos_limit[7:])
 
     # FK to get a reachable target for whichever EE frame exists
@@ -232,8 +252,8 @@ def test_solve_ik_floating_base_with_limits(g1):
 
 def test_joint_position_limit_jacobian_shape_floating_base(g1):
     """JointPositionLimit.jacobian must return (2*nq, nv), not (2*nq, nq)."""
-    from better_robot.residuals.base import ResidualState
-    from better_robot.residuals.limits import JointPositionLimit
+    from better_robot.residuals.base import ResidualState  # noqa: PLC0415
+    from better_robot.residuals.limits import JointPositionLimit  # noqa: PLC0415
 
     q = g1.q_neutral.clone()
     q[6] = 1.0
@@ -242,5 +262,4 @@ def test_joint_position_limit_jacobian_shape_floating_base(g1):
 
     res = JointPositionLimit(g1)
     J = res.jacobian(state)
-    assert J.shape == (2 * g1.nq, g1.nv), \
-        f"expected (2*nq={2*g1.nq}, nv={g1.nv}), got {tuple(J.shape)}"
+    assert J.shape == (2 * g1.nq, g1.nv), f"expected (2*nq={2 * g1.nq}, nv={g1.nv}), got {tuple(J.shape)}"

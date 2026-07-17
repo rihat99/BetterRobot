@@ -17,6 +17,12 @@ from .problem import ObjectiveItem as ObjectiveItem
 from .problem import Problem as Problem
 from .problem import ResidualItem as ResidualItem
 from .providers import RobotStateProvider as RobotStateProvider
+from .phase import Phase as Phase
+from .phase import PhaseResult as PhaseResult
+from .phase import run_phases as run_phases
+from .solver_adam import Adam as Adam
+from .solver_adam import AdamState as AdamState
+from .solver_adam import AdamStatus as AdamStatus
 from .solver_lm import GaussNewton as GaussNewton
 from .solver_lm import LevenbergMarquardt as LevenbergMarquardt
 from .solver_lm import LMState as LMState

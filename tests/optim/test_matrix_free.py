@@ -1,11 +1,9 @@
-"""Matrix-free gradient path on ``LeastSquaresProblem``.
+"""Gradient helpers on the legacy ``LeastSquaresProblem``.
 
-* ``problem.gradient(x)`` matches ``J(x).mT @ r(x)`` to fp64 ulp on
-  dense (no-spec) residuals — proves the iterator path agrees with the
-  classic dense formula.
-* Adam and L-BFGS run a non-trivial Panda IK *only* through
-  ``problem.gradient`` (we monkeypatch ``problem.jacobian`` to fail) and
-  still converge.
+These tests pin the gradient and per-item Jacobian-block contracts. They do
+not run a legacy optimizer or claim that legacy Adam/L-BFGS is matrix-free.
+The named-block Adam matrix-free solver contract is tested separately in
+``test_solver_adam_matrix_free.py``.
 
 See ``docs/concepts/solver_stack.md §8``.
 """
@@ -17,10 +15,10 @@ import math
 import pytest
 import torch
 
-from better_robot.costs.stack import CostStack
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics.forward import forward_kinematics
+from better_robot.optim import CostStack
 from better_robot.optim.problem import LeastSquaresProblem
 from better_robot.residuals.base import ResidualState
 from better_robot.residuals.pose import PoseResidual
@@ -33,14 +31,20 @@ def arm_problem():
     b.add_body("link1", mass=1.0)
     b.add_body("link2", mass=1.0)
     b.add_revolute_z(
-        "j1", parent="base", child="link1",
-        origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.], dtype=torch.float64),
-        lower=-math.pi, upper=math.pi,
+        "j1",
+        parent="base",
+        child="link1",
+        origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0], dtype=torch.float64),
+        lower=-math.pi,
+        upper=math.pi,
     )
     b.add_revolute_z(
-        "j2", parent="link1", child="link2",
-        origin=torch.tensor([0.3, 0., 0., 0., 0., 0., 1.], dtype=torch.float64),
-        lower=-math.pi, upper=math.pi,
+        "j2",
+        parent="link1",
+        child="link2",
+        origin=torch.tensor([0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], dtype=torch.float64),
+        lower=-math.pi,
+        upper=math.pi,
     )
     model = build_model(b.finalize(), dtype=torch.float64)
     q0 = model.q_neutral.clone()
@@ -60,7 +64,7 @@ def arm_problem():
         state_factory=_state,
         x0=q0 + 0.1,
         nv=model.nv,
-        retract=lambda q, dv: model.integrate(q, dv),
+        retract=model.integrate,
     )
 
 
@@ -69,21 +73,12 @@ def test_gradient_matches_jt_r_on_dense_residual(arm_problem) -> None:
     x = arm_problem.x0
     r = arm_problem.residual(x)
     J = arm_problem.jacobian(x)
-    jtr_dense = J.mT @ r * (1.5 ** 0)  # cost_stack already folded weight into r
-    # gradient method squares the per-item weight (w²·J^T·r_unweighted).
-    # The cost_stack residual is r_weighted = w·r_unweighted, so:
-    #   J^T @ (w·r_unweighted) = w·J^T·r_unweighted
-    # gradient gives w²·J^T·r_unweighted   →   gradient = w · (J^T r)
     g = arm_problem.gradient(x)
-    torch.testing.assert_close(g, 1.5 * (J.mT @ r) / 1.5, atol=1e-12, rtol=1e-12)
+    torch.testing.assert_close(g, J.mT @ r, atol=1e-12, rtol=1e-12)
 
 
-def test_adam_runs_without_dense_jacobian(arm_problem) -> None:
-    """Adam doesn't need ``jacobian(x)`` if it has ``gradient(x)``.
-
-    We don't actually swap Adam yet (P10-C task), but we verify the
-    matrix-free entry point is functional end-to-end.
-    """
+def test_gradient_entry_point_returns_finite_tangent(arm_problem) -> None:
+    """The legacy gradient helper returns one finite tangent vector."""
     g0 = arm_problem.gradient(arm_problem.x0)
     assert g0.shape == (arm_problem._nv,)
     assert torch.isfinite(g0).all()

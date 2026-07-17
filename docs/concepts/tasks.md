@@ -1,40 +1,22 @@
 # Tasks — IK, Trajectory Optimisation, Retargeting
 
-`tasks/` is the thinnest layer in the library, and that is on
-purpose. Every entry point here is a short facade that does the
-same five things in order:
-
-1. Pick frames / links / targets the user gave by name.
-2. Build a `CostStack` from residuals in `residuals/`.
-3. Wrap it in a `LeastSquaresProblem`.
-4. Call an `Optimizer`.
-5. Return a clean result type.
-
-There is no Jacobian code here, no solver loop, no fixed-vs-floating
-branch. All of that belongs one layer down. What lives in `tasks/`
-is the convenience translation between "give me an IK solution to
-this pose" and the substrate that already knows how to do it. If a
-user wants finer control, they drop down to `optim/` directly; the
-tasks layer is pure ergonomics on top of a fully-public solver
-stack.
+`tasks/` is the thin user-facing translation from a robot request to the
+optimization substrate. There is no Jacobian code or fixed-vs-floating branch
+here. `solve_ik` is a named-block `Problem` preset; `solve_trajopt` remains on
+the legacy flat stack until M5 supplies structured trajectory assembly.
 
 ## Inverse kinematics
 
 ```python
 def solve_ik(
     model: Model,
-    targets: dict[str, torch.Tensor],         # {frame_name: (7,) SE3 pose}
+    targets: dict[str, torch.Tensor],         # {frame_name: (B..., 7) SE3 pose}
     *,
     initial_q: torch.Tensor | None = None,
     cost_cfg: IKCostConfig | None = None,
     optimizer_cfg: OptimizerConfig | None = None,
 ) -> IKResult:
-    """Whole-body inverse kinematics for one or more frame targets.
-
-    There is one code path. Floating-base robots are those whose
-    model.joint_models[1] is JointFreeFlyer — the solver does not need
-    to know. All 7 quaternion-xyz values of the free-flyer live inside q.
-    """
+    """Solve one or an arbitrary leading batch of frame-target problems."""
 ```
 
 Source: `src/better_robot/tasks/ik.py`.
@@ -52,60 +34,58 @@ class IKCostConfig:
     q_rest: torch.Tensor | None = None        # default: model.q_neutral
 ```
 
-### Implementation sketch
+### Named-block preset
 
 ```python
 def solve_ik(model, targets, *, initial_q=None, cost_cfg=None,
              optimizer_cfg=None) -> IKResult:
     cost_cfg      = cost_cfg or IKCostConfig()
     optimizer_cfg = optimizer_cfg or OptimizerConfig()
-    q0            = initial_q if initial_q is not None else model.q_neutral.clone()
-
-    stack = CostStack()
-    for name, target in targets.items():
-        fid = model.frame_id(name)
-        stack.add(f"pose_{name}",
-                  PoseResidual(frame_id=fid, target=target,
-                               pos_weight=cost_cfg.pos_weight,
-                               ori_weight=cost_cfg.ori_weight),
-                  weight=cost_cfg.pose_weight)
-    stack.add("limits", JointPositionLimit(model), weight=cost_cfg.limit_weight)
+    seed = initial_q if initial_q is not None else model.q_neutral
     q_rest = cost_cfg.q_rest if cost_cfg.q_rest is not None else model.q_neutral
-    stack.add("rest",   RestResidual(model, q_rest),
-              weight=cost_cfg.rest_weight)
-    problem = LeastSquaresProblem(
-        cost_stack=stack,
-        state_factory=lambda x: ResidualState(
-            model=model,
-            data=forward_kinematics(model, x, compute_frames=True),
-            variables=x,
-        ),
-        x0=q0,
-        lower=model.lower_pos_limit,
-        upper=model.upper_pos_limit,
-        jacobian_strategy=optimizer_cfg.jacobian_strategy,
+    active_q_rest = q_rest if cost_cfg.rest_weight > 0.0 else None
+    q0 = broadcast_and_project(seed, targets, q_rest=active_q_rest)
+    parameters = {f"target_pose_{i}": target
+                  for i, target in enumerate(targets.values())}
+    differentiable_parameters = list(parameters)
+    residuals = pose_items(targets, parameters, cost_cfg)
+    residuals += optional_limit_items(model, cost_cfg)
+    if cost_cfg.rest_weight > 0.0:
+        parameters["target_rest"] = q_rest
+        differentiable_parameters.append("target_rest")
+        residuals.append(ResidualItem(
+            "rest",
+            RestResidual(model, q_rest, target_name="target_rest"),
+            weight=cost_cfg.rest_weight,
+        ))
+    problem = Problem(
+        vars=(VarSpec("q", (model.nq,), manifold=RobotConfig(model),
+                      bounds=configuration_bounds(model)),),
+        residuals=residuals,
+        providers=(RobotStateProvider(model),),
+        parameters=parameters,
+        differentiable_parameters=tuple(differentiable_parameters),
     )
-    optimizer = _build_optimizer(optimizer_cfg)
-    result = optimizer.minimize(problem, max_iter=optimizer_cfg.max_iter, ...)
-    return IKResult(q=result.x, residual=result.residual, iters=result.iters,
-                    converged=result.converged, model=model)
+    values, state = named_block_solver(optimizer_cfg).run({"q": q0}, problem)
+    return IKResult(q=values["q"], residual=problem.residual(values), ...)
 ```
 
-That is the entire task implementation: build a `CostStack`, wrap it
-in `LeastSquaresProblem`, hand it to an `Optimizer`, return an
-`IKResult`. Every line of solver math lives one layer down in
-`optim/`; every line of Jacobian assembly lives one layer further
-down in `kinematics/`.
+Pose targets and the enabled rest target are declared `Problem.parameters` and
+are read by name from the residual context. This keeps their differentiation
+role explicit for M6; no tensor-identity inference is used. `RestResidual`
+reads the latter through `target_name="target_rest"`. Built-in pose, limit, and
+rest residuals retain their legacy `ResidualState` call shape for flat trajopt
+while directly implementing the named-block protocol used here.
 
 ### `IKResult`
 
 ```python
 @dataclass
 class IKResult:
-    q: torch.Tensor                            # (nq,)
+    q: torch.Tensor                            # (B..., nq)
     residual: torch.Tensor
-    iters: int
-    converged: bool
+    iters: int | torch.Tensor
+    converged: bool | torch.Tensor
     model: Model
 
     def fk(self) -> Data:
@@ -118,32 +98,35 @@ class IKResult:
         return self.q
 ```
 
-`q` has shape `(nq,)`; the v0 optimizer stack is single-problem only.
-There is no separate "fixed-base
-returns `(n,)` / floating-base returns `(7,) + (n,)`" rule. If the
-user wants the free-flyer part separately, they slice
-`q[..., :7]`.
+Unbatched calls keep Python `int`/`bool` diagnostics. Batched calls return
+per-element tensors with the common leading batch shape. There is no separate
+fixed/floating return rule; a free-flyer remains part of `q`.
 
 ### Two-stage solver
 
-`lm_then_lbfgs` seeds with LM and refines the same cost stack with L-BFGS:
+`lm_then_adam` seeds with named-block LM and refines with matrix-free Adam:
 
 ```python
-cfg = OptimizerConfig(optimizer="lm_then_lbfgs",
+cfg = OptimizerConfig(optimizer="lm_then_adam",
                       max_iter=60)
 ```
 
 The iteration budget is split evenly between the stages. Entries named in
-`refine_disabled_items` are disabled for the L-BFGS stage. Collision is not
-wired into `solve_ik`; collision residuals remain M4 work.
+`refine_disabled_items` receive a zero weight in the Adam phase. Named-block
+L-BFGS is deliberately deferred because batching requires per-element history,
+line search, and curvature-reset semantics; `"lbfgs"` and
+`"lm_then_lbfgs"` fail with an actionable error. Collision is not wired into
+`solve_ik`; collision residuals remain M4 work.
 
-### Batched IK is not implemented
+### Batched IK
 
-FK and many residuals accept leading batch dimensions, but the v0 optimizer
-stack uses scalar damping, cost, acceptance, and convergence state.
-`solve_ik` therefore rejects a batched `initial_q` with an actionable
-`NotImplementedError`. Loop over configurations for now; per-element batched
-solving is scheduled for M2b.
+`initial_q`, every target, and an enabled optional `q_rest` use ordinary
+right-aligned Torch broadcasting over leading axes. When `rest_weight <= 0`,
+the rest residual and parameter are absent, so `q_rest` does not participate in
+broadcasting. One call solves the resulting common batch with independent
+damping, acceptance, convergence, and iteration state. The committed
+acceptance protocol compares one B=128 Panda call with 128 B=1 calls of this
+same facade.
 
 ## `Trajectory`
 
@@ -206,47 +189,32 @@ def solve_trajopt(
     *,
     horizon: int,
     dt: float,
-    keyframes: dict[int, dict[str, torch.Tensor]] | None = None,
-    initial_traj: Trajectory | None = None,
-    cost_cfg: TrajOptCostConfig | None = None,
-    optimizer_cfg: OptimizerConfig | None = None,
-    robot_collision: "RobotCollision | None" = None,
-    parameterization: Literal["knots", "bspline"] = "bspline",
-    n_control_points: int = 8,
+    initial_q_traj: torch.Tensor,
+    cost_stack: CostStack,
+    optimizer: Optimizer,
+    max_iter: int = 50,
+    lower: torch.Tensor | None = None,
+    upper: torch.Tensor | None = None,
+    parameterization: KnotTrajectory | None = None,
 ) -> TrajOptResult:
     """Kinematic trajectory optimisation.
 
-    Variable shape depends on parameterization:
-      - "knots"   → (B, T, nq)               one variable per knot
-      - "bspline" → (B, n_control_points, nq) cuRobo-style; smoothness implicit
-
-    Residual stack:
-        - one PoseResidual per keyframe target
-        - JointPositionLimit at every evaluated knot
-        - Velocity5pt / Accel5pt smoothness residuals (knots only)
-        - SelfCollision at every knot (sparse Jacobian)
+    KnotTrajectory is the only supported robot parameterisation. The caller
+    supplies residuals through CostStack and chooses the legacy Optimizer.
     """
 ```
 
 Source: `src/better_robot/tasks/trajopt.py`.
 
-### B-spline parameterisation (the default)
+### B-spline numerical utility
 
-`solve_trajopt(parameterization="bspline" | "knots", ...)` picks the
-optimisation variable. cuRobo's default — B-spline control points —
-gives three wins:
-
-1. **Fewer variables.** Optimise `n_control_points × nq` instead of
-   `T × nq`; the LM Jacobian shrinks by ~4×.
-2. **Implicit smoothness.** The B-spline basis is `C²`; no explicit
-   velocity / acceleration / jerk residuals needed.
-3. **Time-parameterisable.** The spline defines a function from
-   normalised time `s ∈ [0, 1]` to `q(s)`; resampling to a different
-   `dt` is closed-form.
-
-The knot-based path is retained as an opt-in for cases where
-smoothness residuals carry problem-specific weights (e.g. physical
-limits on higher derivatives).
+`BSplineTrajectory` builds and evaluates a Euclidean cubic basis, so it is
+useful for numerical compression experiments. It is **not** accepted by robot
+`solve_trajopt`. Linear interpolation of configuration coordinates does not
+preserve quaternion manifolds; the former path also discarded bounds and was
+not compatible with multi-stage problem replacement. A correct
+spline-on-manifold trajectory path—including matching retraction/Jacobian and
+feasible bounds—is roadmap milestone M5. Use `KnotTrajectory` today.
 
 ### `TrajectoryParameterization` Protocol
 
@@ -257,34 +225,23 @@ vector, etc. The Protocol that owns this mapping:
 
 ```python
 class TrajectoryParameterization(Protocol):
-    """Map a flat optimisation variable z to a Trajectory.
-
-    The solver works in z-space; residuals consume the unpacked
-    Trajectory. Differentiable: chain rule from residual.jacobian
-    wrt q composes back to z via the parameterisation Jacobian.
-    """
-    @property
-    def tangent_dim(self) -> int: ...
-    def unpack(self, z: torch.Tensor) -> Trajectory: ...
-    def retract(self, z: torch.Tensor, dz: torch.Tensor) -> torch.Tensor: ...
-    def pack_initial(self, traj: Trajectory) -> torch.Tensor: ...
+    """Map an optimisation variable z to a sampled trajectory."""
+    def init(self, q_traj_seed: torch.Tensor) -> torch.Tensor: ...
+    def expand(self, z: torch.Tensor, *, T: int, nq: int) -> torch.Tensor: ...
+    def tangent_dim_per_step(self) -> int: ...
 
 class KnotTrajectory(TrajectoryParameterization):
-    """Identity parameterisation: z is the per-knot Trajectory after
-    a reshape. Right for dense exact-per-timestep constraints."""
+    """Identity parameterisation: z is the per-knot configuration tensor."""
 
 class BSplineTrajectory(TrajectoryParameterization):
-    """B-spline control points. Variable is (B, K, nq); the trajectory
-    is reconstructed via a fixed basis at given knot times."""
+    """Euclidean B-spline basis utility; not safe robot trajopt."""
 ```
 
 Source: `src/better_robot/tasks/parameterization.py`.
 
-The parameterisation handles its own manifold retraction so SO(3)
-blocks of a control point retract correctly; the LM linear solver
-works in `dz`-space. Residuals continue to read from `Trajectory` —
-they do not see the parameterisation. Cross-references the
-`ResidualSpec.time_coupling` field from {doc}`residuals_and_costs`.
+The structural Protocol describes the numerical mapping only; it does not
+promise manifold or bound semantics. Until M5 defines that richer contract,
+the robot task facade accepts only `KnotTrajectory`.
 
 ### Sparsity and matrix-free
 
@@ -292,15 +249,12 @@ they do not see the parameterisation. Cross-references the
   list of per-knot `Data` objects.
 - Smoothness residuals use 5-point finite differences vectorised
   along `T`.
-- Per-knot limits broadcast across `T`; the solver sees a single
-  flat variable `(B, T * nv)` (knots) or `(B, n_control_points * nv)`
-  (B-spline).
+- Per-knot limits broadcast across `T`; the solver sees a single flat knot
+  variable `(T * nv)`.
 - Each collision residual touches only the knots and chains it
   observes; `ResidualSpec` carries the sparsity hints.
-- Long-horizon trajopt does **not** materialise a dense Jacobian.
-  Adam and L-BFGS read `LeastSquaresProblem.gradient(x)` (matrix-free).
-  Temporal residuals override `apply_jac_transpose` for banded `J^T r`
-  in `O(T·nv)` memory.
+- The current legacy task path can materialise a dense Jacobian. Sparse and
+  banded long-horizon structure, including manifold splines, is M5 work.
 
 ## Examples
 
@@ -333,28 +287,26 @@ without a release note, but the internals may iterate.
 
 ## Sharp edges
 
-- **Initial `q` is not clamped.** `solve_ik` projects every LM trial point to
-  `[lower, upper]` before evaluating it but does not project the
-  initial guess. Callers must ensure `q0` is feasible if limits
-  matter — `model.q_neutral` is *not* automatically inside bounds for
-  every URDF (Panda's joint 4 upper limit is `-0.07` rad, while
-  `q_neutral[3] = 0`; use `q_neutral.clamp(lower, upper)` as the
-  starting point).
+- **The IK preset projects its seed.** Public `VarSpec` validation rejects an
+  infeasible start, so `solve_ik` first projects `initial_q` (or
+  `model.q_neutral`) to supported state bounds. This intentionally handles
+  URDFs such as Panda whose neutral joint 4 lies outside its declared box.
+  Direct named-block callers remain responsible for supplying a feasible
+  initial `Values` mapping.
 - **Free-flyer Jacobian shape.** For G1 (`nv = 42`), a single-frame
   Jacobian is `(B..., 6, 42)`. The first 6 columns are the base
   block. Slice if you need only the actuated subspace.
-- **`solve_trajopt(parameterization="bspline")` smoothness is
-  implicit.** Adding a `Velocity5pt` residual on top of a B-spline
-  parameterisation double-counts smoothness; the knot path is the
-  right choice if you want explicit smoothness residuals.
+- **Non-knot robot trajopt is rejected.** `BSplineTrajectory` is a Euclidean
+  numerical basis, not a manifold-aware robot parameterisation. Use
+  `KnotTrajectory` until M5 supplies the required spline semantics.
 - **`Trajectory.resample` uses sclerp for SO(3).** Raw quaternion
   lerp would produce non-unit quaternions and is intentionally not
   exposed.
 
 ## Where to look next
 
-- {doc}`solver_stack` — `LeastSquaresProblem` and the four
-  pluggable axes that `solve_ik` builds.
+- {doc}`solver_stack` — named-block Adam/LM/GN/phases used by `solve_ik`, plus
+  the remaining legacy flat stack.
 - {doc}`residuals_and_costs` — the residual library that
   `solve_ik` and `solve_trajopt` compose.
 - {doc}`viewer` — interactive IK with a draggable target gizmo

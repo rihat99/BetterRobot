@@ -31,10 +31,9 @@ LAYER_RANK: dict[str, int] = {
     "dynamics": 5,
     "collision": 5,
     "residuals": 6,
-    "costs": 7,
-    "optim": 8,
-    "tasks": 9,
-    "viewer": 10,
+    "optim": 7,
+    "tasks": 8,
+    "viewer": 9,
 }
 
 
@@ -42,7 +41,10 @@ def _layer_of(module_parts: tuple[str, ...]) -> str | None:
     """Return the top-level sub-package name, or ``None`` for the root."""
     if not module_parts:
         return None
-    return module_parts[0]
+    layer = module_parts[0]
+    # ``costs`` is a compatibility import path, not a separate dependency
+    # layer. Its implementation moved into ``optim`` in M2c.
+    return "optim" if layer == "costs" else layer
 
 
 def _iter_py_files() -> Iterable[Path]:
@@ -130,17 +132,14 @@ def test_no_upward_imports() -> None:
             if isinstance(node, ast.ImportFrom):
                 target = _resolve_import(file_parts, node)
             else:
-                targets: list[tuple[str, ...] | None] = [
-                    _resolve_plain_import(alias.name) for alias in node.names
-                ]
+                targets: list[tuple[str, ...] | None] = [_resolve_plain_import(alias.name) for alias in node.names]
                 # process every alias separately
                 for t in targets:
                     if t is not None:
                         importee_layer = _layer_of(t)
                         if _is_violation(importer_layer, importee_layer):
                             violations.append(
-                                f"{path.relative_to(SRC)} imports {'.'.join(t)} "
-                                f"({importer_layer} → {importee_layer})"
+                                f"{path.relative_to(SRC)} imports {'.'.join(t)} ({importer_layer} → {importee_layer})"
                             )
                 continue
             if target is None:
@@ -148,8 +147,7 @@ def test_no_upward_imports() -> None:
             importee_layer = _layer_of(target)
             if _is_violation(importer_layer, importee_layer):
                 violations.append(
-                    f"{path.relative_to(SRC)} imports {'.'.join(target)} "
-                    f"({importer_layer} → {importee_layer})"
+                    f"{path.relative_to(SRC)} imports {'.'.join(target)} ({importer_layer} → {importee_layer})"
                 )
     assert not violations, "layer violations:\n  " + "\n  ".join(violations)
 
@@ -157,6 +155,19 @@ def test_no_upward_imports() -> None:
 def test_retired_compute_backends_package_is_absent() -> None:
     """The old per-operation backend registry must not grow back."""
     assert not (SRC / "backends").exists()
+
+
+def test_costs_package_is_an_optim_compatibility_path() -> None:
+    """The retired layer may contain forwarding modules, not implementation."""
+    assert "costs" not in LAYER_RANK
+    assert _layer_of(("costs", "stack")) == "optim"
+
+    costs_dir = SRC / "costs"
+    python_files = {path.name for path in costs_dir.glob("*.py")}
+    assert python_files == {"__init__.py", "stack.py"}
+
+    tree = ast.parse((costs_dir / "stack.py").read_text())
+    assert not any(isinstance(node, (ast.ClassDef, ast.FunctionDef)) for node in tree.body)
 
 
 def test_no_pypose_imports() -> None:
@@ -172,9 +183,7 @@ def test_no_pypose_imports() -> None:
             stripped = line.strip()
             if stripped.startswith("import pypose") or stripped.startswith("from pypose"):
                 offenders.append(f"{path.relative_to(SRC)}:{lineno}: {stripped}")
-    assert not offenders, (
-        "modules importing pypose after P10-D drop:\n  " + "\n  ".join(offenders)
-    )
+    assert not offenders, "modules importing pypose after P10-D drop:\n  " + "\n  ".join(offenders)
 
 
 # ---------------------------------------------------------------------------
@@ -193,9 +202,7 @@ def _check_forbidden_import(allowed_file_suffix: str, forbidden_pkg: str) -> lis
         text = path.read_text()
         for lineno, line in enumerate(text.splitlines(), start=1):
             stripped = line.strip()
-            if stripped.startswith(f"import {forbidden_pkg}") or stripped.startswith(
-                f"from {forbidden_pkg}"
-            ):
+            if stripped.startswith(f"import {forbidden_pkg}") or stripped.startswith(f"from {forbidden_pkg}"):
                 offenders.append(f"{path.relative_to(SRC)}:{lineno}: {stripped}")
     return offenders
 
@@ -206,9 +213,7 @@ def test_only_viser_backend_imports_viser() -> None:
     See docs/concepts/viewer.md §17.
     """
     offenders = _check_forbidden_import("viser_backend.py", "viser")
-    assert not offenders, (
-        "non-viser_backend files importing viser:\n  " + "\n  ".join(offenders)
-    )
+    assert not offenders, "non-viser_backend files importing viser:\n  " + "\n  ".join(offenders)
 
 
 def test_only_offscreen_backend_imports_pyrender() -> None:
@@ -217,9 +222,7 @@ def test_only_offscreen_backend_imports_pyrender() -> None:
     See docs/concepts/viewer.md §17.
     """
     offenders = _check_forbidden_import("offscreen_backend.py", "pyrender")
-    assert not offenders, (
-        "non-offscreen_backend files importing pyrender:\n  " + "\n  ".join(offenders)
-    )
+    assert not offenders, "non-offscreen_backend files importing pyrender:\n  " + "\n  ".join(offenders)
 
 
 def test_only_urdf_mesh_imports_trimesh() -> None:
@@ -228,9 +231,7 @@ def test_only_urdf_mesh_imports_trimesh() -> None:
     See docs/concepts/viewer.md §17.
     """
     offenders = _check_forbidden_import("urdf_mesh.py", "trimesh")
-    assert not offenders, (
-        "non-urdf_mesh files importing trimesh:\n  " + "\n  ".join(offenders)
-    )
+    assert not offenders, "non-urdf_mesh files importing trimesh:\n  " + "\n  ".join(offenders)
 
 
 def test_only_recorder_imports_imageio() -> None:
@@ -247,6 +248,4 @@ def test_only_recorder_imports_imageio() -> None:
             stripped = line.strip()
             if stripped.startswith("import imageio") or stripped.startswith("from imageio"):
                 offenders.append(f"{path.relative_to(SRC)}:{lineno}: {stripped}")
-    assert not offenders, (
-        "non-recorder files importing imageio:\n  " + "\n  ".join(offenders)
-    )
+    assert not offenders, "non-recorder files importing imageio:\n  " + "\n  ".join(offenders)

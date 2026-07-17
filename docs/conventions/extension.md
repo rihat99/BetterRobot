@@ -71,9 +71,9 @@ residual shapes, provider lifetime, robust groups, analytic blocks, and
 per-element failure signaling.
 
 The `ResidualState`/`CostStack` recipe below belongs to the legacy
-single-variable solver stack. It remains supported by existing task APIs, but
-is explicitly legacy until M2c migrates those tasks. Do not use it as the
-starting point for new named-block integrations.
+single-variable solver stack. It remains for current trajopt and direct
+compatibility callers; `solve_ik` already uses named blocks. Do not use it as
+the starting point for new integrations.
 :::
 
 ```python
@@ -397,25 +397,27 @@ registry.
 
 ## 12 · Trajectory parameterisations
 
-**Use when:** you want a different optimisation variable shape for
-trajopt (e.g. log/cosine basis, segmented polynomials, time-warped knot
-grids). The Protocol owns the mapping `z ↔ Trajectory`:
+**Use when:** you are implementing a numerical mapping between sampled values
+and a lower-dimensional basis (for example a cosine basis). Custom robot
+trajopt integration is gated until M5 defines its manifold and bound contract.
+The current Protocol owns the numerical mapping `z ↔ q_traj`:
 
 ```python
 # my_package/parameterizations/log_basis.py
-from better_robot.tasks.parameterization import TrajectoryParameterization, Trajectory
+from better_robot.tasks.parameterization import TrajectoryParameterization
 import torch
 
 class LogBasisTrajectory(TrajectoryParameterization):
-    @property
-    def tangent_dim(self) -> int: ...
-    def unpack(self, z: torch.Tensor) -> Trajectory: ...
-    def retract(self, z: torch.Tensor, dz: torch.Tensor) -> torch.Tensor: ...
-    def pack_initial(self, traj: Trajectory) -> torch.Tensor: ...
+    def init(self, q_traj_seed: torch.Tensor) -> torch.Tensor: ...
+    def expand(self, z: torch.Tensor, *, T: int, nq: int) -> torch.Tensor: ...
+    def tangent_dim_per_step(self) -> int: ...
 ```
 
-The shipped implementations are `KnotTrajectory` (identity) and
-`BSplineTrajectory` (cuRobo-style smooth). See {doc}`/concepts/tasks`.
+The shipped numerical implementations are `KnotTrajectory` (identity) and
+`BSplineTrajectory` (Euclidean cubic basis). Robot `solve_trajopt` currently
+accepts only `KnotTrajectory`: the richer custom-parameterisation contract for
+manifold-safe interpolation/retraction and bounds is deferred to M5. See
+{doc}`/concepts/tasks`.
 
 ## 13 · Asset resolvers
 

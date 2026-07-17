@@ -35,12 +35,15 @@ from typing import Any, Literal, Protocol, TypeAlias, runtime_checkable
 
 import torch
 
-from .autograd import tangent_grad
+from ..kernels import L2
+from ..kernels.base import RobustKernel
+from .autograd import _tangent_value_and_grad_prevalidated
 from .providers import EvaluationContext, Provider
 from .variables import Values, VarSpec
 
 Weight: TypeAlias = float | torch.Tensor
 JacobianStrategy: TypeAlias = Literal["auto", "analytic", "jacrev", "jacfwd", "finite_difference"]
+_L2_KERNEL = L2()
 
 
 @runtime_checkable
@@ -66,17 +69,18 @@ class ObjectiveTerm(Protocol):
 
 @dataclass(frozen=True)
 class ResidualItem:
-    """A named residual with residual multiplier and future robust kernel.
+    """A named residual with residual multiplier and grouped robust kernel.
 
     ``group_size`` partitions the final residual axis into contiguous robust
-    groups. A scalar-row loss uses 1; point displacements commonly use 3. M2a
-    records the semantics while M2b applies the kernel/IRLS weights.
+    groups. A scalar-row loss uses 1; point displacements commonly use 3.
+    ``Problem.objective``/``gradient`` apply grouped rho directly; LM/GN use
+    the matching IRLS row weights.
     """
 
     name: str
     residual: Residual
     weight: Weight = 1.0
-    kernel: Any | None = None
+    kernel: RobustKernel | None = None
     group_size: int = 1
 
     def __post_init__(self) -> None:
@@ -94,6 +98,10 @@ class ResidualItem:
             raise ValueError(
                 f"ResidualItem {self.name!r} group_size must be a positive divisor "
                 f"of dim={dim}, got {self.group_size!r}"
+            )
+        if self.kernel is not None and not isinstance(self.kernel, RobustKernel):
+            raise TypeError(
+                f"ResidualItem {self.name!r} kernel must implement rho(squared_norm) and weight(squared_norm)"
             )
         _validate_weight_type(self.name, self.weight)
 
@@ -439,6 +447,23 @@ class Problem:
         for name, weight in weights.items():
             _validate_weight_type(name, weight)
 
+    def _validate_runtime_weights(
+        self,
+        weights: Mapping[str, Weight] | None,
+        *,
+        batch_shape: tuple[int, ...],
+        exemplar: torch.Tensor,
+    ) -> None:
+        """Validate effective tensor weights once at an evaluation boundary."""
+        self._validate_weights(weights)
+        for item in (*self.residuals, *self.objectives):
+            _validate_runtime_weight(
+                item.name,
+                self._weights_for(item, weights),
+                batch_shape,
+                exemplar,
+            )
+
     @staticmethod
     def _validate_residual_output(
         item: ResidualItem,
@@ -513,30 +538,51 @@ class Problem:
         batch_shape: tuple[int, ...],
         ctx: EvaluationContext,
         weights: Mapping[str, Weight] | None,
+        *,
+        validate_runtime: bool = True,
     ) -> tuple[torch.Tensor, dict[str, dict]]:
-        residual = self._residual_with_context(values, batch_shape, ctx, weights)
-        total = 0.5 * residual.square().sum(dim=-1)
+        residual = self._residual_with_context(
+            values,
+            batch_shape,
+            ctx,
+            weights,
+            validate_runtime=validate_runtime,
+        )
+        robust_costs: list[torch.Tensor] = []
+        for item in self.residuals:
+            rows = residual[..., self.row_offsets[item.name]]
+            groups = rows.reshape(
+                *batch_shape,
+                item.residual.dim // item.group_size,
+                item.group_size,
+            )
+            squared_norm = groups.square().sum(dim=-1)
+            kernel = item.kernel if item.kernel is not None else _L2_KERNEL
+            robust_costs.append(kernel.rho(squared_norm).sum(dim=-1))
+        exemplar = values[self.vars[0].name]
+        total = torch.stack(robust_costs, dim=-1).sum(dim=-1) if robust_costs else exemplar.new_zeros(batch_shape)
         diagnostics: dict[str, dict] = {}
         for item in self.objectives:
             weight = self._weights_for(item, weights)
-            exemplar = values[self.vars[0].name]
-            _validate_runtime_weight(item.name, weight, batch_shape, exemplar)
+            if validate_runtime:
+                _validate_runtime_weight(item.name, weight, batch_shape, exemplar)
             if _is_inactive(weight):
                 continue
             raw = item.term(ctx.restrict(item.term.reads))
             value, info = raw if isinstance(raw, tuple) else (raw, {})
-            if not isinstance(value, torch.Tensor) or tuple(value.shape) != batch_shape:
-                actual = tuple(value.shape) if isinstance(value, torch.Tensor) else type(value).__name__
-                raise ValueError(
-                    f"Objective term {item.name!r} must return scalar batch shape {batch_shape}, got {actual}"
-                )
-            if value.dtype != exemplar.dtype or value.device != exemplar.device:
-                raise ValueError(
-                    f"Objective term {item.name!r} must preserve working dtype/device "
-                    f"{exemplar.dtype}/{exemplar.device}, got {value.dtype}/{value.device}"
-                )
+            if validate_runtime:
+                if not isinstance(value, torch.Tensor) or tuple(value.shape) != batch_shape:
+                    actual = tuple(value.shape) if isinstance(value, torch.Tensor) else type(value).__name__
+                    raise ValueError(
+                        f"Objective term {item.name!r} must return scalar batch shape {batch_shape}, got {actual}"
+                    )
+                if value.dtype != exemplar.dtype or value.device != exemplar.device:
+                    raise ValueError(
+                        f"Objective term {item.name!r} must preserve working dtype/device "
+                        f"{exemplar.dtype}/{exemplar.device}, got {value.dtype}/{value.device}"
+                    )
             total = total + value * _broadcast_weight(weight, value)
-            if not isinstance(info, Mapping):
+            if validate_runtime and not isinstance(info, Mapping):
                 raise TypeError(
                     f"Objective term {item.name!r} diagnostics must be a mapping, got {type(info).__name__}"
                 )
@@ -568,26 +614,81 @@ class Problem:
         weights: Mapping[str, Weight] | None = None,
         create_graph: bool = False,
     ) -> Values:
-        """Return one VJP per variable in reduced tangent coordinates."""
-        self._validate_weights(weights)
-        self._validate_values(values)
+        """Return the robust objective VJP in reduced tangent coordinates."""
+        batch_shape = self._validate_values(values)
+        self._validate_runtime_weights(
+            weights,
+            batch_shape=batch_shape,
+            exemplar=values[self.vars[0].name],
+        )
+        return self._gradient_prevalidated(
+            values,
+            batch_shape=batch_shape,
+            weights=weights,
+            create_graph=create_graph,
+        )
+
+    def _objective_gradient_prevalidated(
+        self,
+        values: Mapping[str, torch.Tensor],
+        *,
+        batch_shape: tuple[int, ...],
+        weights: Mapping[str, Weight] | None = None,
+        create_graph: bool = False,
+    ) -> tuple[torch.Tensor, Values]:
+        """Evaluate objective and reduced gradient after boundary validation."""
 
         def closure(perturbed: Values) -> torch.Tensor:
-            batch_shape = next(spec.batch_shape(perturbed[spec.name]) for spec in self.vars)
             return self._objective_with_context(
                 perturbed,
                 batch_shape,
                 self._make_context(perturbed),
                 weights,
+                validate_runtime=False,
             )[0]
 
-        return tangent_grad(
+        return _tangent_value_and_grad_prevalidated(
             closure,
             self.vars,
             values,
+            batch_shape=batch_shape,
             create_graph=create_graph,
             graph_inputs=tuple(self.differentiable_external_parameters.values()),
         )
+
+    def _gradient_prevalidated(
+        self,
+        values: Mapping[str, torch.Tensor],
+        *,
+        batch_shape: tuple[int, ...],
+        weights: Mapping[str, Weight] | None = None,
+        create_graph: bool = False,
+    ) -> Values:
+        """Return reduced gradients without repeating public validation."""
+        _objective, gradient = self._objective_gradient_prevalidated(
+            values,
+            batch_shape=batch_shape,
+            weights=weights,
+            create_graph=create_graph,
+        )
+        return gradient
+
+    def _objective_prevalidated(
+        self,
+        values: Mapping[str, torch.Tensor],
+        *,
+        batch_shape: tuple[int, ...],
+        weights: Mapping[str, Weight] | None = None,
+    ) -> torch.Tensor:
+        """Return the robust objective without repeating public validation."""
+        objective = self._objective_with_context(
+            values,
+            batch_shape,
+            self._make_context(values),
+            weights,
+            validate_runtime=False,
+        )[0]
+        return objective.detach()
 
     def retract(
         self,

@@ -25,6 +25,7 @@ better_robot.optim.solvers
 :titlesonly:
 :maxdepth: 1
 
+better_robot.optim.cost_stack
 better_robot.optim.state
 better_robot.optim.problem
 better_robot.optim.jacobian_spec

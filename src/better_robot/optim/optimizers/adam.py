@@ -1,18 +1,18 @@
 """Adam first-order optimiser in tangent space.
 
-Runs Adam over ``0.5 * ||r(x)||²``. The gradient is pulled from
-``problem.jacobian(x)`` — specifically ``Jᵀ r`` — instead of routing
-autograd through the residual. The ``problem.gradient(x)`` route is
-preferred because it amortises the Jacobian build with the LM/GN
-warm-up stage in ``MultiStageOptimizer``. Both fixed-base and
-free-flyer robots use the same code path: every moment is tracked in
-``nv`` space and applied through ``problem.step`` (the manifold
-retraction).
+Runs Adam over ``0.5 * ||r(x)||²``. This retained legacy implementation
+materialises ``problem.jacobian(x)`` on every iteration and forms ``Jᵀ r``;
+it does not call ``problem.gradient(x)``. Use ``better_robot.optim.Adam`` for
+the named-block, batched, matrix-free path. Both fixed-base and free-flyer
+robots use the same legacy code path: every moment is tracked in ``nv`` space
+and applied through ``problem.step`` (the manifold retraction).
 
 See ``docs/concepts/solver_stack.md §5``.
 """
 
 from __future__ import annotations
+
+import warnings
 
 import torch
 
@@ -56,10 +56,7 @@ class Adam:
 
         See docs/concepts/solver_stack.md §5.
         """
-        import warnings
-        for _name, _val in (("linear_solver", linear_solver),
-                            ("kernel", kernel),
-                            ("strategy", strategy)):
+        for _name, _val in (("linear_solver", linear_solver), ("kernel", kernel), ("strategy", strategy)):
             if _val is not None:
                 warnings.warn(
                     f"Adam ignores {_name}={_val!r} — first-order method has "
@@ -76,13 +73,13 @@ class Adam:
 
         it = 0
         for it in range(1, max_iter + 1):
-            J = problem.jacobian(state.x)        # (dim, nv)
-            grad = J.mT @ state.residual        # (nv,) — ∇ (½‖r‖²)
+            J = problem.jacobian(state.x)  # (dim, nv)
+            grad = J.mT @ state.residual  # (nv,) — ∇ (½‖r‖²)
 
             m = self.beta1 * m + (1.0 - self.beta1) * grad
             v = self.beta2 * v + (1.0 - self.beta2) * (grad * grad)
-            m_hat = m / (1.0 - self.beta1 ** it)
-            v_hat = v / (1.0 - self.beta2 ** it)
+            m_hat = m / (1.0 - self.beta1**it)
+            v_hat = v / (1.0 - self.beta2**it)
             delta_v = -self.lr * m_hat / (torch.sqrt(v_hat) + self.eps)
 
             x_new = problem.step(state.x, delta_v)
@@ -93,7 +90,8 @@ class Adam:
                 )
             state.x = x_new
             state.residual = problem.residual(state.x)
-            cost = float(0.5 * (state.residual @ state.residual).sum())  # bench-ok: Python history records scalar diagnostics
+            cost_tensor = 0.5 * (state.residual @ state.residual).sum()
+            cost = float(cost_tensor)  # bench-ok: Python history records scalar diagnostics
             state.residual_norm = torch.as_tensor(cost)
             state.history.append({"iter": it, "cost": cost})
 

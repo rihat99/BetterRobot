@@ -1,9 +1,9 @@
-"""Tests for the ``lm_then_lbfgs`` composite solver.
+"""Tests for phased IK and the retained legacy composite solver.
 
 Pattern from cuRobo (docs/concepts/tasks.md): LM coarse solve → LBFGS refinement.
 
 This suite checks:
-1. ``solve_ik(optimizer="lm_then_lbfgs")`` reaches a reachable Panda target.
+1. ``solve_ik(optimizer="lm_then_adam")`` reaches a reachable Panda target.
 2. ``LMThenLBFGS.minimize`` returns a ``SolverState``.
 3. ``stage2_disabled_items`` correctly reactivates items after refinement.
 4. ``LMThenLBFGS`` satisfies the ``Optimizer`` Protocol.
@@ -25,7 +25,8 @@ from better_robot.tasks.ik import IKCostConfig, OptimizerConfig, solve_ik
 @pytest.fixture(scope="module")
 def panda():
     pytest.importorskip("robot_descriptions")
-    from robot_descriptions import panda_description
+    from robot_descriptions import panda_description  # noqa: PLC0415
+
     return load(panda_description.URDF_PATH)
 
 
@@ -44,7 +45,7 @@ def test_lm_then_lbfgs_satisfies_optimizer_protocol() -> None:
     assert isinstance(LMThenLBFGS(), Optimizer)
 
 
-def test_lm_then_lbfgs_reaches_panda_target(panda) -> None:
+def test_lm_then_adam_reaches_panda_target(panda) -> None:
     q_ref = _feasible_q(panda).clone()
     q_ref[0] = 0.25
     data = forward_kinematics(panda, q_ref, compute_frames=True)
@@ -56,15 +57,15 @@ def test_lm_then_lbfgs_reaches_panda_target(panda) -> None:
         {frame_name: T_target},
         initial_q=_feasible_q(panda),
         cost_cfg=IKCostConfig(limit_weight=0.0, rest_weight=0.0),
-        optimizer_cfg=OptimizerConfig(optimizer="lm_then_lbfgs", max_iter=80),
+        optimizer_cfg=OptimizerConfig(optimizer="lm_then_adam", max_iter=80),
     )
     data_sol = forward_kinematics(panda, result.q, compute_frames=True)
     T_sol = data_sol.frame_pose_world[panda.frame_id(frame_name)]
     pos_err = float((T_sol[:3] - T_target[:3]).norm())
-    assert pos_err < 0.02, f"lm_then_lbfgs position error {pos_err:.4f} m"
+    assert pos_err < 0.02, f"lm_then_adam position error {pos_err:.4f} m"
 
 
-def test_lm_then_lbfgs_returns_solver_state(panda) -> None:
+def test_lm_then_adam_returns_public_diagnostics(panda) -> None:
     q = _feasible_q(panda)
     data = forward_kinematics(panda, q, compute_frames=True)
     frame_name = _ee_frame(panda)
@@ -74,12 +75,29 @@ def test_lm_then_lbfgs_returns_solver_state(panda) -> None:
         panda,
         {frame_name: T_target},
         initial_q=q,
-        optimizer_cfg=OptimizerConfig(optimizer="lm_then_lbfgs", max_iter=20),
+        optimizer_cfg=OptimizerConfig(optimizer="lm_then_adam", max_iter=20),
     )
     # ``solve_ik`` wraps the raw solver result into ``IKResult``; we can
     # still exercise the underlying state via the composite directly.
     assert hasattr(result, "q")
     assert hasattr(result, "converged")
+    assert isinstance(result.iters, int)
+    assert isinstance(result.converged, bool)
+
+
+@pytest.mark.parametrize("optimizer", ["lbfgs", "lm_then_lbfgs"])
+def test_solve_ik_fails_honestly_for_deferred_lbfgs(panda, optimizer) -> None:
+    q = _feasible_q(panda)
+    frame_name = _ee_frame(panda)
+    target = forward_kinematics(panda, q, compute_frames=True).frame_pose_world[panda.frame_id(frame_name)]
+
+    with pytest.raises(NotImplementedError, match="L-BFGS|deferred|lm_then_adam"):
+        solve_ik(
+            panda,
+            {frame_name: target},
+            initial_q=q,
+            optimizer_cfg=OptimizerConfig(optimizer=optimizer),
+        )
 
 
 def test_lm_then_lbfgs_reactivates_disabled_cost_items(panda) -> None:
@@ -89,11 +107,11 @@ def test_lm_then_lbfgs_reactivates_disabled_cost_items(panda) -> None:
     frame_name = _ee_frame(panda)
     T_target = data.frame_pose_world[panda.frame_id(frame_name)].clone()
 
-    from better_robot.costs.stack import CostStack
-    from better_robot.optim.problem import LeastSquaresProblem
-    from better_robot.residuals.base import ResidualState
-    from better_robot.residuals.pose import PoseResidual
-    from better_robot.residuals.regularization import RestResidual
+    from better_robot.costs.stack import CostStack  # noqa: PLC0415
+    from better_robot.optim.problem import LeastSquaresProblem  # noqa: PLC0415
+    from better_robot.residuals.base import ResidualState  # noqa: PLC0415
+    from better_robot.residuals.pose import PoseResidual  # noqa: PLC0415
+    from better_robot.residuals.regularization import RestResidual  # noqa: PLC0415
 
     stack = CostStack()
     stack.add("pose", PoseResidual(frame_id=panda.frame_id(frame_name), target=T_target))
@@ -110,7 +128,7 @@ def test_lm_then_lbfgs_reactivates_disabled_cost_items(panda) -> None:
         lower=panda.lower_pos_limit,
         upper=panda.upper_pos_limit,
         nv=panda.nv,
-        retract=lambda q_, dv: panda.integrate(q_, dv),
+        retract=panda.integrate,
     )
     assert stack.items["rest"].active is True
 

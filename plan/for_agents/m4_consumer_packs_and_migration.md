@@ -616,6 +616,10 @@ inventory below (grep evidence 2026-07-17) seeds it; expand/verify with
 file paths before executing. Each row: *consumer symbol @ site → BR
 replacement → landing milestone → delete-after*.
 
+M2c's inherited, deliberately unverified seed ledger is
+`plan/migration/bhf_legacy_surface.md`; re-grep the consumer before relying on
+any row as deletion evidence.
+
 **Migration table (verified import inventory — seed, expand in the PR):**
 
 | Consumer symbol @ site | Replacement | Lands | Notes |

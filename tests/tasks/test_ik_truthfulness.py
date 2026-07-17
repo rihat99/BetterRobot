@@ -34,16 +34,21 @@ def _neutral_target(model) -> torch.Tensor:
     return data.frame_pose_world[model.frame_id("body_link")].clone()
 
 
-def test_solve_ik_rejects_batched_initial_configuration() -> None:
+def test_solve_ik_accepts_batched_initial_configuration() -> None:
     model = _arm_model()
     q_batch = model.q_neutral.expand(4, -1).clone()
 
-    with pytest.raises(NotImplementedError, match="Batched|batched|M2b"):
-        solve_ik(
-            model,
-            {"body_link": _neutral_target(model)},
-            initial_q=q_batch,
-        )
+    result = solve_ik(
+        model,
+        {"body_link": _neutral_target(model)},
+        initial_q=q_batch,
+    )
+
+    assert result.q.shape == (4, model.nq)
+    assert isinstance(result.iters, torch.Tensor) and result.iters.shape == (4,)
+    assert isinstance(result.converged, torch.Tensor)
+    assert result.converged.shape == (4,)
+    assert bool(result.converged.all())
 
 
 def test_solver_state_rejects_batched_residual_backstop() -> None:

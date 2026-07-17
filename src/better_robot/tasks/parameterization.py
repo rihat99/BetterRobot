@@ -2,10 +2,10 @@
 
 A ``TrajectoryParameterization`` maps a low-dimensional optimisation
 variable ``z`` to a full ``(T, nq)`` trajectory and back. ``KnotTrajectory``
-is the identity (``z`` *is* the trajectory). ``BSplineTrajectory`` uses a
-fixed cubic B-spline basis whose control points are the optimisation
-variables — fewer parameters, smoother trajectories, faster IK in the
-trajopt loop.
+is the identity (``z`` *is* the trajectory). ``BSplineTrajectory`` is a
+low-level Euclidean basis/compression utility.  It is not a manifold-safe
+robot trajectory parameterisation and ``solve_trajopt`` rejects it until the
+M5 trajectory work supplies matching retraction, Jacobian, and bound semantics.
 
 See ``docs/concepts/tasks.md §3`` and
 ``docs/claude_plan/accepted/16_optim_wiring_and_matrix_free.md``.
@@ -43,17 +43,13 @@ class KnotTrajectory:
 
     def init(self, q_traj_seed: torch.Tensor) -> torch.Tensor:
         if q_traj_seed.dim() != 2:
-            raise ValueError(
-                f"KnotTrajectory.init expects (T, nq); got {tuple(q_traj_seed.shape)}"
-            )
+            raise ValueError(f"KnotTrajectory.init expects (T, nq); got {tuple(q_traj_seed.shape)}")
         self._nq = int(q_traj_seed.shape[1])
         return q_traj_seed.detach().clone()
 
     def expand(self, z: torch.Tensor, *, T: int, nq: int) -> torch.Tensor:
         if z.shape != (T, nq):
-            raise ValueError(
-                f"KnotTrajectory.expand: z.shape {tuple(z.shape)} != ({T}, {nq})"
-            )
+            raise ValueError(f"KnotTrajectory.expand: z.shape {tuple(z.shape)} != ({T}, {nq})")
         return z
 
     def tangent_dim_per_step(self) -> int:
@@ -63,23 +59,27 @@ class KnotTrajectory:
 
 
 class BSplineTrajectory:
-    """Cubic B-spline trajectory with ``num_control_points`` control points.
+    """Numerical cubic B-spline basis with ``num_control_points`` controls.
 
     The control points (size ``(C, nq)``) are the optimisation variable.
     The basis matrix ``B ∈ R^{T×C}`` is fixed, sampled uniformly between
     the first and last control point. ``expand(z) = B @ z`` (batched
     over the second dim). For ``C == T`` this reduces to identity (modulo
     boundary effects). For ``C ≪ T`` the parameterisation enforces
-    smoothness implicitly and shrinks the optimisation variable.
+    smoothness implicitly and shrinks the numerical variable.
+
+    This class linearly mixes every coordinate.  It does not understand robot
+    manifolds, so interpolating quaternion configuration entries can produce
+    non-unit values.  It is retained for Euclidean numerical basis work only;
+    :func:`better_robot.tasks.solve_trajopt` rejects it pending the
+    manifold-safe trajectory implementation in roadmap milestone M5.
 
     See ``docs/concepts/tasks.md §3``.
     """
 
     def __init__(self, *, num_control_points: int, degree: int = 3) -> None:
         if num_control_points < degree + 1:
-            raise ValueError(
-                f"num_control_points={num_control_points} must be ≥ degree+1={degree+1}"
-            )
+            raise ValueError(f"num_control_points={num_control_points} must be ≥ degree+1={degree + 1}")
         self.num_control_points = int(num_control_points)
         self.degree = int(degree)
         self._basis: torch.Tensor | None = None
@@ -93,15 +93,18 @@ class BSplineTrajectory:
 
         # Open-clamped uniform knot vector of length C + deg + 1.
         n_knots = C + deg + 1
-        n_inner = n_knots - 2 * (deg + 1) + 2  # interior knots incl. endpoints
-        if n_inner < 2:
-            n_inner = 2
+        n_inner = max(
+            n_knots - 2 * (deg + 1) + 2,
+            2,
+        )  # interior knots incl. endpoints
         inner = torch.linspace(0.0, 1.0, n_inner, dtype=dtype, device=device)
-        knots = torch.cat([
-            torch.zeros(deg, dtype=dtype, device=device),
-            inner,
-            torch.ones(deg, dtype=dtype, device=device),
-        ])
+        knots = torch.cat(
+            [
+                torch.zeros(deg, dtype=dtype, device=device),
+                inner,
+                torch.ones(deg, dtype=dtype, device=device),
+            ]
+        )
         # Sample at T uniformly spaced parameters in [0, 1].
         u = torch.linspace(0.0, 1.0, T, dtype=dtype, device=device)
 
@@ -129,9 +132,7 @@ class BSplineTrajectory:
     def init(self, q_traj_seed: torch.Tensor) -> torch.Tensor:
         """Project the seed trajectory onto the spline basis (least squares)."""
         if q_traj_seed.dim() != 2:
-            raise ValueError(
-                f"BSplineTrajectory.init expects (T, nq); got {tuple(q_traj_seed.shape)}"
-            )
+            raise ValueError(f"BSplineTrajectory.init expects (T, nq); got {tuple(q_traj_seed.shape)}")
         T, nq = q_traj_seed.shape
         self._nq = int(nq)
         self._cached_T = int(T)
@@ -143,10 +144,7 @@ class BSplineTrajectory:
 
     def expand(self, z: torch.Tensor, *, T: int, nq: int) -> torch.Tensor:
         if z.shape != (self.num_control_points, nq):
-            raise ValueError(
-                f"BSplineTrajectory.expand: z.shape {tuple(z.shape)} != "
-                f"({self.num_control_points}, {nq})"
-            )
+            raise ValueError(f"BSplineTrajectory.expand: z.shape {tuple(z.shape)} != ({self.num_control_points}, {nq})")
         if self._basis is None or self._cached_T != T:
             self._basis = self._build_basis(T, z.dtype, z.device)
             self._cached_T = T

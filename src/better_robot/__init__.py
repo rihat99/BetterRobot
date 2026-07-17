@@ -19,9 +19,8 @@ Layered DAG (arrows point from dependent to dependency)::
 
 from __future__ import annotations
 
-from . import exceptions, io
-from ._version import __version__
-from .costs import CostStack
+from . import exceptions as exceptions, io as io
+from ._version import __version__ as __version__
 from .data_model import Body, Data, Frame, Joint, Model
 from .dynamics import (
     aba,
@@ -41,6 +40,7 @@ from .kinematics import (
 )
 from .lie.types import SE3
 from .optim import LeastSquaresProblem
+from .optim.cost_stack import CostStack
 from .tasks import Trajectory, solve_ik, solve_trajopt
 
 __all__ = [

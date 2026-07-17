@@ -1,17 +1,19 @@
 # Named-Block Evaluation and the Legacy Solver Stack
 
-BetterRobot temporarily exposes two optimization contracts while tasks migrate
-to named variable blocks. They coexist deliberately through M2c:
+BetterRobot temporarily exposes two optimization contracts while the remaining
+flat trajectory path migrates to named variable blocks:
 
 - **Named-block optimization** is the new public construction and batched
-  second-order API. A `Problem` owns named `VarSpec` blocks, structural
+  first-/second-order API. A `Problem` owns named `VarSpec` blocks, structural
   residuals and scalar objective terms, and a lazy provider DAG. It evaluates
   residuals, objectives, tangent gradients, and Jacobian blocks;
+  matrix-free `Adam` consumes its tangent gradient, while
   `LevenbergMarquardt` and `GaussNewton` solve residual-vector problems with
   independent tensor state for every batch element.
-- **The legacy solver stack** still powers `solve_ik`, `solve_trajopt`, and the
-  optimizers under `better_robot.optim.optimizers`. It composes `CostStack`,
-  `LeastSquaresProblem`, and `Optimizer`. The convenience
+- **The legacy solver stack** still powers `solve_trajopt` and the optimizers
+  under `better_robot.optim.optimizers`. It composes `CostStack`,
+  `LeastSquaresProblem`, and `Optimizer`. `solve_ik` is already named-block.
+  The convenience
   `better_robot.optim.solve` still belongs exclusively to this legacy path.
 
 ## Named-block evaluation
@@ -21,6 +23,9 @@ The canonical imports live under `better_robot.optim`; the top-level
 
 ```python
 from better_robot.optim import (
+    Adam,
+    AdamState,
+    AdamStatus,
     Bounds,
     Euclidean,
     GaussNewton,
@@ -28,6 +33,7 @@ from better_robot.optim import (
     LMState,
     LMStatus,
     ObjectiveItem,
+    Phase,
     Problem,
     ResidualItem,
     RobotConfig,
@@ -37,6 +43,7 @@ from better_robot.optim import (
     Values,
     VarSpec,
     detach_values,
+    run_phases,
 )
 ```
 
@@ -67,11 +74,13 @@ The public evaluation operations are:
 - `normal_matrix(values)` for dense correctness and solver hand-off; and
 - `retract(values, steps)`, which applies manifold-aware feasible steps.
 
-`ResidualItem.kernel` and `group_size` define robust-loss groups consumed by
-the named-block second-order solvers. Scalar `ObjectiveItem`s still
-participate in `objective()` and `gradient()` for a caller-owned first-order
-loop, but LM/GN reject them via `Problem.require_least_squares()` instead of
-silently changing their mathematical meaning.
+`ResidualItem.kernel` and `group_size` define robust-loss groups. Direct
+`residual()` remains the weighted raw vector; `objective()` sums each group's
+`rho`, and `gradient()` differentiates that same objective using the normalized
+`weight(s) = 2*rho'(s)` convention. Scalar `ObjectiveItem`s keep their linear
+objective weights and participate in `objective()`/`gradient()` and Adam, but
+LM/GN reject them via `Problem.require_least_squares()` instead of silently
+changing their mathematical meaning.
 
 ## Named-block LM/GN
 
@@ -109,6 +118,11 @@ on a free-flyer translation are rejected because they are not axis-aligned in
 the right-local `SE(3)` tangent; express those constraints as residuals until
 constraint-normal support lands.
 
+`block_step_limits=(("translation", 0.2), ...)` optionally caps the physical
+reduced-tangent L2 norm of individual free blocks before both the LM and
+projected-gradient retractions. Gain prediction uses the actual post-
+retraction tangent step. This is a solver trust-region knob, not a state bound.
+
 `update` is a pure, fixed-shape, sync-free tensor program. Public validation
 and static layout construction happen in `init_state`; `run` is an eager
 convenience loop and may perform one host-side all-terminal check per
@@ -137,12 +151,50 @@ The legacy optimizer classes have the same human-readable LM/GN names but live
 under `better_robot.optim.optimizers`; they consume `LeastSquaresProblem` and
 offer `minimize`, not this step API.
 
-## Legacy solver stack (task backend through M2c)
+## Named-block matrix-free Adam
+
+`Adam` uses the same `init_state(values, problem)`, pure
+`update(values, state, problem)`, and detached `run(values, problem,
+state=None)` lifecycle. Its moments end in each block's mask-reduced tangent
+dimension, and every step goes through the block manifold's feasible
+retraction. Arbitrary common leading batch axes produce independent step,
+cost, gradient-norm, convergence, and status tensors.
+
+The update calls a prevalidated tangent VJP of the robust `Problem.objective`.
+It does not call `jacobian_blocks`, `dense_jacobian`, or `normal_matrix`.
+Warm-start moments and bias-correction counts are retained only when variable
+names/order, reduced shapes, batch shape, dtype, and device match; current
+target-dependent diagnostics/status are always recomputed. `run` detaches all
+returned leaves and may synchronize only for its all-terminal loop check.
+
+Named-block LBFGS is deferred rather than half-ported: correct batching needs
+per-element histories and line searches plus curvature-validity/history-reset
+rules. Use matrix-free `Adam` or named-block LM/GN until that dedicated
+milestone lands.
+
+## Functional phases
+
+`Phase` combines a solver instance and iteration budget with absolute item
+weight overrides, static per-block tangent masks, and an optional `on_start`
+hook. `run_phases(problem, values, phases)` carries accepted values forward but
+creates fresh solver state for every phase, so Adam momentum cannot leak across
+a DOF transition.
+
+Problems and variable specs are immutable, so phase application is a cheap
+functional rebuild rather than in-place snapshot/restore. The caller's
+`Problem` is unchanged even when a phase raises. A phase mask intersects the
+base mask and therefore cannot unfreeze a permanently fixed coordinate. A
+Python-zero weight removes the item from evaluation, including providers read
+only by that item. `on_start` runs once even when the phase has zero iterations.
+
+## Legacy solver stack (remaining flat trajectory backend)
 
 A `CostStack` knows how to compute residuals; it does not know how to minimise
 them. In the legacy contract, that job belongs to `LeastSquaresProblem` (which
 packs the cost stack, the initial guess, and the manifold retraction into a
 single self-describing problem) and to an `Optimizer` (which iterates on it).
+The canonical stack definitions live in `src/better_robot/optim/cost_stack.py`;
+`better_robot.costs.stack` is an identity-preserving compatibility shim.
 The optimizer does *not* fuse the linear-solver choice, robust kernel, damping
 schedule, or stop condition into its loop; those remain independently
 pluggable axes.
@@ -156,8 +208,8 @@ legacy optimizer contract with different components.
 
 The rest of this chapter documents `LeastSquaresProblem` and its four
 pluggable axes (Optimizer, LinearSolver, RobustKernel, DampingStrategy), then
-ends with its loop sketch. These details remain current for the task facades
-until their M2c rebase.
+ends with its loop sketch. These details remain current for legacy direct
+callers and `solve_trajopt`; they do not describe `solve_ik`.
 
 ## `LeastSquaresProblem`
 
@@ -186,12 +238,12 @@ class LeastSquaresProblem:
     def jacobian(self, x: Tensor) -> Tensor: ...
 
     def gradient(self, x: Tensor) -> Tensor:
-        """J(x)^T @ r(x), matrix-free.
+        """Return the per-item J(x)^T @ r(x) helper.
 
         Iterates the active CostStack items and accumulates each item's
-        ``apply_jac_transpose(state, r_item)`` contribution. Used by
-        Adam, L-BFGS, and any optimiser that does not need the dense
-        Jacobian.
+        ``apply_jac_transpose(state, r_item)`` contribution when available;
+        otherwise that item materialises its Jacobian. The shipped legacy
+        optimisers do not call this helper.
         """
 
     def jacobian_blocks(self, x: Tensor) -> dict["BlockKey", Tensor]:
@@ -211,20 +263,15 @@ solving IK, trajopt, or pose-graph SLAM.
 
 The two extras worth highlighting:
 
-- **`gradient(x)` is matrix-free.** Adam, L-BFGS, and any optimiser
-  that does not need the dense Jacobian read this instead of
-  `jacobian(x)`. For dense residuals the default
-  `apply_jac_transpose` falls back to `J.T @ r`; for banded /
-  temporal residuals a per-knot kernel keeps the per-iteration
-  memory at `O(T·nv)`. This is what makes a 200-knot G1 trajopt fit
-  inside the 200 MiB CUDA peak watermark from {doc}`/conventions/performance` §1.3.
-- **`jacobian_blocks(x)` exposes structure.** It is metadata for the future
-  block-sparse trajopt solvers planned for M5; the shipped linear solvers are
-  dense. Residuals whose
-  `spec.structure` is `"dense"` contribute one block;
-  `"block"` / `"banded"` items contribute their declared blocks;
-  `"matrix_free"` items raise — those should be solved with a
-  gradient-based optimiser, not assembly-based LM.
+- **`gradient(x)` is only conditionally matrix-free per item.** A residual
+  with `apply_jac_transpose` can avoid its dense Jacobian; every other item
+  falls back to `J.T @ r`. The legacy Adam and L-BFGS implementations call
+  `jacobian(x)` directly and therefore assemble dense J. Named-block
+  `better_robot.optim.Adam` is the separate, shipped matrix-free path.
+- **`jacobian_blocks(x)` returns weighted per-item dense Jacobians.** Current
+  legacy solvers ignore this dictionary, and the method does not consume
+  `ResidualSpec` sparsity hints. A structured/banded trajectory backend that
+  uses such metadata is M5 work.
 
 ## The `Optimizer` Protocol
 
@@ -257,8 +304,8 @@ Built-in optimisers:
 |------|-------|-------|
 | `levenberg_marquardt.py` | `LevenbergMarquardt` | Default; analytic Jacobian + adaptive damping |
 | `gauss_newton.py` | `GaussNewton` | Pure GN; no damping |
-| `adam.py` | `Adam` | Reads `problem.gradient(x)`; never materialises J |
-| `lbfgs.py` | `LBFGS` | Same |
+| `adam.py` | `Adam` | Legacy flat solver; currently assembles dense J |
+| `lbfgs.py` | `LBFGS` | Legacy flat solver; currently assembles dense J |
 | `multi_stage.py` | `MultiStageOptimizer` | Sequence of stages with weight overrides |
 | `lm_then_lbfgs.py` | `LMThenLBFGS` | Backward-compat wrapper around `MultiStageOptimizer` |
 
@@ -363,15 +410,18 @@ unimplemented trust-region placeholder was removed; the bounded second-order
 algorithm is implemented as part of the new M2b solver rather than a legacy
 damping strategy.
 
-## `OptimizerConfig` — every knob is wired
+## IK `OptimizerConfig`
 
-`OptimizerConfig` is the user-facing dial. Every declared knob is
-honoured — there are no decorative fields.
+`OptimizerConfig` is the user-facing dial. Solver-selection fields are
+validated at the facade boundary, and a non-default method-specific setting
+is either applied by the selected method or rejected; it is not silently
+ignored.
 
 ```python
 @dataclass
 class OptimizerConfig:
-    optimizer: Literal["lm", "gn", "adam", "lbfgs", "lm_then_lbfgs"] = "lm"
+    optimizer: Literal["lm", "gn", "adam", "lbfgs",
+                       "lm_then_adam", "lm_then_lbfgs"] = "lm"
     max_iter: int = 100
     jacobian_strategy: JacobianStrategy = JacobianStrategy.AUTO
 
@@ -382,55 +432,40 @@ class OptimizerConfig:
     refine_disabled_items: tuple[str, ...] = ()
 ```
 
-`solve_ik` builds the optimiser, linear solver, robust kernel, and
-damping strategy explicitly:
+`solve_ik` maps these fields to the named-block solvers explicitly:
 
 ```python
-optimizer = LevenbergMarquardt(tol=cfg.tol)  # for cfg.optimizer == "lm"
-linear    = _make_linear_solver(cfg.linear_solver)
-kernel    = _make_robust_kernel(cfg.kernel)
-damping   = _make_damping_strategy(cfg.damping)
-state = optimizer.minimize(problem,
-                           linear_solver=linear,
-                           kernel=kernel,
-                           strategy=damping,
-                           max_iter=cfg.max_iter)
+solver = LevenbergMarquardt(
+    max_iter=cfg.max_iter,
+    gtol=cfg.tol,
+    linear_solver=_make_linear_solver(cfg.linear_solver),
+    kernel=_make_robust_kernel(cfg.kernel),
+    jacobian_strategy=map_strategy(cfg.jacobian_strategy),
+    fixed_damping=cfg.damping == "constant",
+)
+values, state = solver.run(values, problem)
 ```
 
-If a knob is set but ignored by the chosen optimiser (Adam does not
-take a linear solver), the build step warns rather than silently
-swallowing it. Focused tests check the factories and exercise both
-supported linear solvers through LM.
+Adam intentionally has no linear-solver, Jacobian-strategy, or damping
+arguments. Non-default values for those fields are rejected when
+`optimizer="adam"`; Gauss--Newton likewise rejects a non-default damping
+selector. `refine_disabled_items` is accepted only by `lm_then_adam`.
+Named-block L-BFGS is not half-ported: `"lbfgs"` and `"lm_then_lbfgs"` raise an
+actionable error, while `"lm_then_adam"` uses the functional phase engine.
 
-## `MultiStageOptimizer`
+## Legacy multi-stage and named-block phases
 
-The historical `LMThenLBFGS` is the special case of a more general
-construct:
+The historical `LMThenLBFGS` remains a wrapper around the legacy
+`MultiStageOptimizer` for `LeastSquaresProblem`. That implementation uses its
+private `_cost_stack_snapshot` context manager to save the affected item
+weights/active flags and restore them in `__exit__`, including when a stage
+raises. `CostStack` itself has no `snapshot()` or `restore()` methods.
 
-```python
-@dataclass(frozen=True)
-class OptimizerStage:
-    optimizer: Optimizer
-    max_iter: int
-    active_items: tuple[str, ...] | None = None
-    disabled_items: tuple[str, ...] = ()
-    weight_overrides: dict[str, float] | None = None
-    tol: float | None = None
-
-class MultiStageOptimizer(Optimizer):
-    """Run a fixed sequence of solver stages. Each stage may toggle
-    cost-stack active flags or override item weights. ``LMThenLBFGS``
-    is implemented as ``MultiStageOptimizer(stages=(LM, LBFGS))``.
-
-    The multi-stage optimiser **must restore active-flag and
-    weight-override state** even if a stage raises. A try/finally
-    around ``cost_stack.snapshot()`` / ``.restore()`` keeps the
-    user's CostStack intact regardless of outcome.
-    """
-```
-
-Tested explicitly: stage-wise weight overrides correctly restore the
-original `CostStack` weights after the run, including in error paths.
+New named-block code uses `Phase` and `run_phases()` instead. A phase creates a
+functional `Problem` view with weight and variable-mask overrides, runs a fresh
+solver state, and discards the view. Because the caller's `Problem` is
+immutable and never mutated, normal return and raise paths both leave it
+unchanged without a mutable snapshot protocol.
 
 ## The `LevenbergMarquardt.minimize` sketch
 
@@ -504,9 +539,9 @@ class OptimizationResult:
     history: list[dict]              # per-iter {step, loss, lam} — optional
 ```
 
-The task layer (`solve_ik`, `solve_trajopt`) wraps this in a
-task-specific result type (`IKResult`, `TrajOptResult`) that carries
-the model and a frame-pose accessor.
+`solve_trajopt` wraps this legacy result in `TrajOptResult`. `solve_ik`
+instead converts named-block tensor state to an `IKResult` with scalar
+diagnostics for unbatched calls and per-element tensors for batches.
 
 ## What this lets users do
 
@@ -516,8 +551,7 @@ from robot_descriptions import panda_description
 from better_robot.residuals.pose          import PoseResidual
 from better_robot.residuals.limits        import JointPositionLimit
 from better_robot.residuals.regularization import RestResidual
-from better_robot.costs                    import CostStack
-from better_robot.optim                    import LeastSquaresProblem
+from better_robot.optim                    import CostStack, LeastSquaresProblem
 from better_robot.optim.optimizers         import LevenbergMarquardt
 from better_robot.optim.strategies         import Adaptive
 from better_robot.optim.solvers            import Cholesky
@@ -529,7 +563,7 @@ hand_id = model.frame_id("body_panda_hand")
 stack = CostStack()
 stack.add("pose", PoseResidual(frame_id=hand_id, target=target_pose))
 stack.add("limits", JointPositionLimit(model), weight=0.1)
-stack.add("rest",   RestResidual(model.q_neutral), weight=0.01)
+stack.add("rest",   RestResidual(model, model.q_neutral), weight=0.01)
 
 problem = LeastSquaresProblem(
     cost_stack=stack,
@@ -554,18 +588,18 @@ result = LevenbergMarquardt().minimize(
 
 No fixed-vs-floating special case. No `solver_params` dict. No
 `jacobian_fn` argument. This remains the single legacy path from a
-`CostStack` to `result.x`; the named-block `Problem` evaluation contract above
-is separate until M2c.
+`CostStack` to `result.x`; it remains for legacy direct use and current
+`solve_trajopt` only.
 
-In normal use you would never write that loop; `solve_ik` does it
-internally. The example exists to show that the four pluggable axes
-compose cleanly.
+The example exists to show that the four legacy pluggable axes compose
+cleanly. New IK and multi-block code should use the named-block API above.
 
 ## Sharp edges
 
-- **Adam and L-BFGS read `problem.gradient(x)`, not
-  `problem.jacobian(x)`.** They never materialise the dense
-  Jacobian. Long-horizon trajopt depends on this for memory.
+- **Only named-block Adam is matrix-free.**
+  `better_robot.optim.Adam` uses the tangent objective VJP. The legacy flat
+  classes under `optim.optimizers` still assemble dense J; do not use them as
+  a long-horizon matrix-free path. Batched named-block LBFGS is deferred.
 - **Legacy LM bounds are projection-only.** Every trial point is projected onto
   `[lower, upper]` *before* its residual is evaluated, and acceptance is a
   bare objective comparison. There is no active set, projected-gradient
@@ -574,22 +608,22 @@ compose cleanly.
   `x0` is **not** projected. This describes only
   `optim.optimizers.LevenbergMarquardt`; the named-block solver above owns the
   projected active set and KKT statuses.
-- **`MultiStageOptimizer` restores weights / active flags via
-  try/finally.** Stage-wise overrides do not leak even if a stage
-  raises.
+- **Legacy `MultiStageOptimizer` restores weights / active flags through its
+  private context manager.** Named-block `run_phases` instead uses immutable
+  functional problem views; neither path calls `CostStack.snapshot()`.
 - **`OptimizerConfig` exposes only supported choices.** Dense Cholesky and
   LSTSQ are the only linear-solver choices; unimplemented iterative, sparse,
-  and trust-region placeholders are not importable.
+  and trust-region placeholders are not importable. Incompatible
+  method-specific non-defaults fail at the `solve_ik` boundary.
 
 ## Where to look next
 
-- {doc}`tasks` — `solve_ik` and `solve_trajopt`, which assemble a
-  `CostStack`, build a `LeastSquaresProblem`, and call an
-  `Optimizer`.
+- {doc}`tasks` — named-block `solve_ik` and the remaining legacy
+  `solve_trajopt` path.
 - {doc}`/conventions/extension` §3, §4, §5, §6 — recipes for adding
   a custom optimiser, damping strategy, linear solver, or robust
   kernel.
 - {doc}`/guides/custom_residuals` — author a residual for the named-block
   evaluation contract.
-- {doc}`/conventions/performance` §2.7 — matrix-free trajopt and the
-  memory wins it brings.
+- {doc}`/conventions/performance` §2.7 — current matrix-free and allocation
+  boundaries, plus the M5 trajectory roadmap.

@@ -29,8 +29,9 @@ The first stable release of the PyTorch-native BetterRobot stack.
 - **Featherstone dynamics.** RNEA, ABA, CRBA, CCRBA, centroidal momentum,
   centre of mass, autograd-derived `compute_*_derivatives`. Three-layer
   Crocoddyl-style action models for future optimal-control work.
-- **Trajectory optimisation.** `solve_trajopt` with knot and B-spline
-  parameterisations; manifold-aware `Trajectory.resample`.
+- **Trajectory optimisation.** `solve_trajopt` with knot parameterisation;
+  manifold-aware `Trajectory.resample`. The Euclidean B-spline basis remains a
+  numerical utility and is gated from robot trajopt until M5.
 - **URDF + MJCF parsers.** `br.load(path)` dispatches by suffix;
   `free_flyer=True` adds a free-flyer root. Programmatic `ModelBuilder`
   for robots not described by a file.

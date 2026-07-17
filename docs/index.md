@@ -14,16 +14,16 @@ The five commitments that shape every other decision:
   extension that breaks the gradient graph.
 - **Batched tensor math.** FK, residuals, and analytic Jacobians accept
   `(B..., feature)`. The named-block `Problem` also evaluates independent
-  batches, while the shipped solver and task facades remain single-problem;
-  batched solving is M2b.
+  batches; named-block Adam/LM/GN and `solve_ik` preserve those axes with
+  per-element solver state.
 - **One code path for fixed and floating base.** A floating-base
   robot is one whose root joint is `JointFreeFlyer`. The IK solver
   does not know the difference.
 - **An explicit optimization migration.** New multi-block code uses named
   `VarSpec`s, a `Problem`, structural residuals, and evaluation-local
-  providers. IK and trajectory optimization continue to use the legacy
-  `Residual` / `CostStack` / `LeastSquaresProblem` / `Optimizer` contract
-  through M2c; neither path is presented as the other.
+  providers. IK uses that named-block stack; trajectory optimization retains
+  the legacy `Residual` / `CostStack` / `LeastSquaresProblem` / `Optimizer`
+  contract until M5.
 - **A whole-pass compute seam that does not leak.** Torch raw passes consume
   `ModelStructure` plus `ModelValues` by default. An eligible opt-in kernel
   may replace an entire pass without changing the public `torch.Tensor`
@@ -72,8 +72,9 @@ velocity and acceleration smoothness, time-indexed residuals); `CostStack`;
 LM, GN, Adam, L-BFGS, and multi-stage optimizers; pluggable linear
 solvers (Cholesky, LSTSQ); pluggable robust
 kernels (L2, Huber, Cauchy, Tukey) and damping strategies (Constant,
-Adaptive); single-problem IK on fixed and floating-base robots;
-trajectory optimisation with knot and B-spline parameterisations;
+Adaptive); batched IK on fixed and floating-base robots;
+trajectory optimisation with knot parameterisation (the Euclidean B-spline
+basis is numerical-only until manifold-safe M5 work);
 Featherstone dynamics (RNEA / ABA / CRBA / CCRBA), centroidal
 momentum, and autograd-derived `compute_*_derivatives`; URDF and MJCF parsers; a programmatic
 `ModelBuilder`; a viewer with skeleton / URDF-mesh render modes,

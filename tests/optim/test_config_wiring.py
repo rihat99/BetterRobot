@@ -45,9 +45,12 @@ def arm_problem():
     b.add_body("base", mass=0.5)
     b.add_body("link1", mass=1.0)
     b.add_revolute_z(
-        "j1", parent="base", child="link1",
-        origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]),
-        lower=-math.pi, upper=math.pi,
+        "j1",
+        parent="base",
+        child="link1",
+        origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]),
+        lower=-math.pi,
+        upper=math.pi,
     )
     model = build_model(b.finalize())
     q0 = model.q_neutral.clone().float()
@@ -70,7 +73,7 @@ def arm_problem():
         lower=model.lower_pos_limit.float(),
         upper=model.upper_pos_limit.float(),
         nv=model.nv,
-        retract=lambda q, dv: model.integrate(q, dv),
+        retract=model.integrate,
     )
 
 
@@ -84,7 +87,7 @@ def test_linear_solver_factory_returns_correct_types() -> None:
 
 
 def test_robust_kernel_factory_returns_correct_types() -> None:
-    assert _make_robust_kernel("l2") is None
+    assert isinstance(_make_robust_kernel("l2"), L2)
     assert isinstance(_make_robust_kernel("huber"), Huber)
     with pytest.raises(ValueError, match="Unknown kernel"):
         _make_robust_kernel("does_not_exist")
@@ -101,12 +104,8 @@ def test_damping_strategy_factory_returns_correct_types() -> None:
 
 def test_linear_solver_wired_into_lm(arm_problem) -> None:
     """Different linear solvers produce different trajectories on the same problem."""
-    s_chol = LevenbergMarquardt().minimize(
-        arm_problem, max_iter=2, linear_solver=Cholesky()
-    )
-    s_lstsq = LevenbergMarquardt().minimize(
-        arm_problem, max_iter=2, linear_solver=LSTSQ()
-    )
+    s_chol = LevenbergMarquardt().minimize(arm_problem, max_iter=2, linear_solver=Cholesky())
+    s_lstsq = LevenbergMarquardt().minimize(arm_problem, max_iter=2, linear_solver=LSTSQ())
     # Both should make progress; we check the wiring fired (no exception),
     # not bit-identity (different solvers have different numerical noise).
     assert s_chol.iters >= 1
@@ -115,6 +114,7 @@ def test_linear_solver_wired_into_lm(arm_problem) -> None:
 
 def test_huber_kernel_changes_lm_step() -> None:
     """A Huber kernel reweights residual rows, so the first step differs from L2."""
+
     # Build a problem with a 3-D residual in nv=2 — the third row is an
     # outlier well outside the Huber band.
     class _Toy:
@@ -125,7 +125,8 @@ def test_huber_kernel_changes_lm_step() -> None:
         nv = 2
 
         @property
-        def _nv(self): return 2
+        def _nv(self):
+            return 2
 
         def residual(self, x):
             return torch.stack([x[0] - 0.1, x[1] - 0.1, x[0] * 50.0 - 100.0])
@@ -148,15 +149,19 @@ def test_solve_ik_honours_linear_solver_string(arm_problem) -> None:
     b.add_body("base", mass=0.5)
     b.add_body("link1", mass=1.0)
     b.add_revolute_z(
-        "j1", parent="base", child="link1",
-        origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]),
-        lower=-math.pi, upper=math.pi,
+        "j1",
+        parent="base",
+        child="link1",
+        origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]),
+        lower=-math.pi,
+        upper=math.pi,
     )
     model = build_model(b.finalize())
-    target = forward_kinematics(model, model.q_neutral.clone().float(),
-                                compute_frames=True).frame_pose_world[
-        model.frame_id("body_link1")
-    ].clone()
+    target = (
+        forward_kinematics(model, model.q_neutral.clone().float(), compute_frames=True)
+        .frame_pose_world[model.frame_id("body_link1")]
+        .clone()
+    )
     target[..., 0] += 0.02
 
     res = solve_ik(

@@ -69,16 +69,16 @@ set to a fixed maximum and carry a mask in the context instead.
 axis. Its default is `1`, matching scalar-row robust weighting. Set
 `group_size=3` for a flattened sequence of 3D displacement vectors, for
 example; `dim` must be divisible by the group size. One robust kernel is stored
-per residual item, and named-block LM/GN applies it independently to each
-contiguous group.
+per residual item and applies independently to each contiguous group.
 
 Do not put unrelated units into one group. Pixel `x/y` error may be a 2-vector;
 3D point error may be a 3-vector; a scalar hinge remains a scalar group. Split
 terms with different kernels, scales, or meanings into separate residual
-items. Direct `Problem.residual()`/`objective()` evaluation does not apply
-IRLS; the named-block solver applies `sqrt(kernel.weight(squared_norm))` to
-each group's residual and Jacobian rows and uses the matching robust objective
-for acceptance.
+items. Direct `Problem.residual()` remains the weighted raw vector.
+`Problem.objective()` sums grouped `kernel.rho(squared_norm)`, and
+`Problem.gradient()` differentiates that same objective. Named-block LM/GN
+applies `sqrt(kernel.weight(squared_norm))` to each group's residual and
+Jacobian rows using the matching normalized `weight = 2*rho'` convention.
 
 ## 3. Add analytic blocks only when they are complete
 

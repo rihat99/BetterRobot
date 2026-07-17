@@ -1,6 +1,8 @@
-"""``better_robot.costs`` — ``CostStack`` composition over residuals.
+"""Compatibility imports for :mod:`better_robot.optim` cost composition.
 
-See ``docs/concepts/residuals_and_costs.md §3``.
+``CostStack`` and ``CostItem`` are canonically defined under
+:mod:`better_robot.optim`. This package remains only while BetterRobot's
+legacy flat-problem paths migrate to named blocks.
 """
 
 from __future__ import annotations

@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, ClassVar
-
 import torch
 
 from better_robot.data_model.model import Model
@@ -17,41 +14,9 @@ from better_robot.optim.blocks import (
     RobotStateProvider,
     VarSpec,
 )
-from better_robot.residuals.base import ResidualState
 from better_robot.residuals.limits import JointPositionLimit
 from better_robot.residuals.pose import PoseResidual
 from better_robot.residuals.regularization import RestResidual
-
-
-@dataclass(frozen=True)
-class StateResidualAdapter:
-    """Expose a legacy ``ResidualState`` residual through the block protocol."""
-
-    model: Model
-    residual: Any
-    name: str
-    reads: ClassVar[tuple[str, ...]] = ("q", "data")
-
-    @property
-    def dim(self) -> int:
-        return int(self.residual.dim)
-
-    def _state(self, ctx) -> ResidualState:
-        return ResidualState(
-            model=self.model,
-            data=ctx["data"],
-            variables=ctx["q"],
-        )
-
-    def __call__(self, ctx) -> torch.Tensor:
-        return self.residual(self._state(ctx))
-
-    def jacobian_blocks(self, ctx) -> dict[str, torch.Tensor]:
-        full = self.residual.jacobian(self._state(ctx))
-        if full is None:  # pragma: no cover - every probe residual is analytic
-            raise RuntimeError(f"probe residual {self.name!r} returned no Jacobian")
-        free = ctx.free_indices("q").to(device=full.device)
-        return {"q": full.index_select(-1, free)}
 
 
 def panda_frame_id(model: Model) -> int:
@@ -112,15 +77,16 @@ def make_panda_problem(
     regularized: bool,
 ) -> Problem:
     """Build the M2a block problem used by P1/P3/P4/P6 and P7."""
-    pose = StateResidualAdapter(
-        model,
-        PoseResidual(frame_id=panda_frame_id(model), target=target),
-        "pose",
+    pose = PoseResidual(
+        frame_id=panda_frame_id(model),
+        target=target,
+        model=model,
+        name="pose",
     )
     residuals = [ResidualItem("pose", pose, group_size=6)]
     if regularized:
-        limits = StateResidualAdapter(model, JointPositionLimit(model), "limits")
-        rest = StateResidualAdapter(model, RestResidual(model, model.q_neutral), "rest")
+        limits = JointPositionLimit(model, name="limits")
+        rest = RestResidual(model, model.q_neutral, name="rest")
         residuals.extend(
             (
                 ResidualItem("limits", limits, weight=0.1),

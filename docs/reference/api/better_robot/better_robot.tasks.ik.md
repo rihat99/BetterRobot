@@ -125,7 +125,7 @@
 
 ````{py:attribute} optimizer
 :canonical: better_robot.tasks.ik.OptimizerConfig.optimizer
-:type: typing.Literal[lm, gn, adam, lbfgs, lm_then_lbfgs]
+:type: better_robot.tasks.ik._OptimizerName
 :value: >
    'lm'
 
@@ -243,7 +243,7 @@
 
 ````{py:attribute} iters
 :canonical: better_robot.tasks.ik.IKResult.iters
-:type: int
+:type: int | torch.Tensor
 :value: >
    None
 
@@ -254,7 +254,7 @@
 
 ````{py:attribute} converged
 :canonical: better_robot.tasks.ik.IKResult.converged
-:type: bool
+:type: bool | torch.Tensor
 :value: >
    None
 

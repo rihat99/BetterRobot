@@ -18,8 +18,12 @@ becomes a passing or failing benchmark. The second is a small set of
 **techniques** that earn the budget back: leading-batch shapes that
 avoid Python loops, frozen `Model` topology that lets `torch.compile`
 unroll cleanly, analytic Jacobians for the routines that dominate the
-hot path, and matrix-free trajopt so long horizons stay inside GPU
-memory. The third is a **gate-promotion ladder** — benchmarks land
+hot path, and matrix-free first-order building blocks that avoid dense
+Jacobians where that contract is implemented. Today, named-block Adam is the
+shipped matrix-free solver; the legacy trajectory backend still materialises
+Jacobians, and structured
+long-horizon trajectory solves remain M5 work. The third is a
+**gate-promotion ladder** — benchmarks land
 advisory, collect signal, and only flip to blocking once their variance
 is low enough that flipping does not produce flaky CI.
 
@@ -62,7 +66,7 @@ do not let it rot.
 |----------|--------|
 | `Model` (tensors only) for Panda | ≤ 50 KiB |
 | `Data` for `B=1024, njoints=8` | ≤ 5 MiB |
-| Future batched IK working set, `B=1024` | ≤ 200 MiB (M2b target; not shipped) |
+| Batched IK working set, `B=1024` | ≤ 200 MiB (tracked target; not yet benchmark-certified) |
 
 ### 1.4 Non-targets
 
@@ -78,8 +82,9 @@ We do **not** set targets for:
 
 Tensor kernels such as FK, residual evaluation, and analytic Jacobians
 accept `(B..., feature)` tensors and walk the robot topology **once** per
-call, regardless of `B`. The optimizer stack and `solve_ik` are currently
-single-problem and reject batched inputs; batched solving is M2b work. See
+call, regardless of `B`. Named-block Adam/LM/GN and `solve_ik` preserve the
+same leading axes with per-element state; legacy flat optimizers remain
+single-problem. See
 {doc}`/concepts/batching_and_backends`.
 
 ### 2.2 Static topology, dynamic values
@@ -154,28 +159,31 @@ a graph-break proxy. Actual capture remains opt-in until M6 records and
 replays the full solver lifecycle and any custom-kernel adjoints with parity.
 There is currently no public capture decorator or context manager.
 
-### 2.7 Memory reuse and matrix-free trajopt
+### 2.7 Current allocation and matrix-free limits
 
-- `Data` is allocated once per problem; fields are reset in place via
-  `Data.reset()` rather than allocating new tensors.
-- The LM solver pre-allocates `JᵀJ` and `Jᵀr` buffers sized from the
-  residual spec.
-- Trajectory optimisation preallocates the per-knot cost buffer. No
-  per-iteration `torch.zeros`.
-- **Matrix-free trajopt.** Long horizons (T > 100) never materialise
-  the dense Jacobian. Adam and L-BFGS read
-  `LeastSquaresProblem.gradient(x)` (J^T r matrix-free); temporal
-  residuals override `apply_jac_transpose` for banded `J^T r` in
-  `O(T·nv)` memory. This is what keeps a 200-knot G1 trajopt under the
-  200 MiB CUDA peak watermark in §1.3.
+- Named-block `Adam` differentiates `Problem.objective` through tangent
+  retractions and does not assemble a Jacobian. This is the shipped
+  matrix-free first-order path.
+- Named-block LM/GN assemble a dense Jacobian and dense normal system on each
+  update. Their fixed-shape tensor state does not imply preallocated
+  `JᵀJ`/`Jᵀr` workspaces.
+- `optim/cost_stack.py` assembles legacy residuals and Jacobians with
+  `torch.cat`; it does not own a persistent flat buffer.
+- `solve_trajopt` still uses the legacy flat backend. Legacy Adam and L-BFGS
+  call `LeastSquaresProblem.jacobian(x)` directly, so long-horizon trajectory
+  solves have no shipped matrix-free memory guarantee. Structured/banded
+  assembly and manifold-safe spline integration are M5 work.
 
-### 2.8 Sparse Jacobian for collision
+The memory values in §1.3 are tracked targets, not evidence that a 200-knot
+trajectory solve currently meets them.
 
-Self-collision residuals are sparse: only the two kinematic chains
-connecting a colliding pair contribute non-zero columns. The collision
-residual exposes a sparsity mask via `ResidualSpec`; the LM solver
-skips zero blocks in the normal-equation assembly. Measured speed-up
-on G1: ~6× for the collision-Jacobian step.
+### 2.8 Sparse collision roadmap
+
+`ResidualSpec` can describe sparse or banded structure, but the shipped LM/GN
+solvers do not consume those hints and self-collision optimisation is not a
+measured sparse-solver path today. Collision residual integration and a
+structured solver that exploits chain sparsity are roadmap work; no collision
+speed-up claim is certified here.
 
 ### 2.9 Opt-in Warp whole-pass lane
 
@@ -296,12 +304,14 @@ path to avoid re-compiling across jobs.
 | `kinematics/forward.py` | FK topo walk and lane boundary | Torch raw pass unrolls on static topology; whole-pass kernels stay local |
 | `kinematics/jacobian.py` | Spatial Jacobian | Analytic; automatic compilation is roadmap work |
 | `dynamics/*.py` | RNEA / ABA / CRBA | Analytic derivatives; compile-friendly recursion |
-| `residuals/*.py` | Pure functions | Analytic `.jacobian()` and `apply_jac_transpose`; `ResidualSpec` advertises sparsity |
-| `costs/stack.py` | Concatenation | Flat buffer, write-into-slice |
-| `optim/optimizers/*.py` | Solver loops | Pre-allocated buffers; graph-capture-ready; matrix-free path via `problem.gradient(x)` |
-| `optim/linear_solvers/*.py` | Linear solves | `torch.linalg.cholesky_ex`; fall back to `lstsq`; block-Cholesky for trajopt |
-| `tasks/parameterization.py` | Trajectory parameterisations | B-spline gives ~4× fewer optim variables than knot-based |
-| `collision/*.py` | SDF pairs | Sparsity-aware residual; vectorised pairs; stable `dim` across iterations |
+| `residuals/*.py` | Residual evaluation | Analytic Jacobians where implemented; `ResidualSpec` is metadata only |
+| `optim/cost_stack.py` | Legacy concatenation | Fresh `torch.cat` assembly; no persistent flat buffer |
+| `optim/blocks/solver_adam.py` | Named-block first-order solve | Tangent objective VJP; no Jacobian assembly; CUDA replay certification deferred to M6 |
+| `optim/blocks/solver_lm.py` | Named-block LM/GN | Dense Jacobian/normal system with fixed-shape tensor state; CUDA replay certification deferred to M6 |
+| `optim/optimizers/*.py` | Legacy flat solver loops | Dense Jacobian path, including legacy Adam/L-BFGS; eager and single-problem |
+| `optim/linear_solvers/*.py` | Linear solves | Dense Cholesky or `lstsq`; structured trajectory solves are M5 work |
+| `tasks/parameterization.py` | Numerical trajectory bases | B-spline compression utility; robot integration deferred to M5 |
+| `collision/*.py` | Geometry primitives and roadmap residuals | Stable-shape/sparsity contracts; solver integration is not yet shipped |
 | `io/*.py` | One-shot parse | Not hot; readability > speed; `AssetResolver` Protocol |
 | `viewer/*.py` | Scene updates | 60 fps budget |
 

@@ -1,9 +1,10 @@
 """``better_robot.optim`` — optimization problems and solver components.
 
 The legacy ``solve`` wrapper consumes :class:`LeastSquaresProblem`. Named-block
-:class:`Problem` values use the batched :class:`LevenbergMarquardt` or
-:class:`GaussNewton` step API directly. Keeping both entry points explicit
-until M2c prevents accidental dispatch into the deprecated legacy stack.
+:class:`Problem` values use batched :class:`Adam`,
+:class:`LevenbergMarquardt`, or :class:`GaussNewton` directly and may be
+orchestrated with :class:`Phase`. Keeping both entry points explicit prevents
+accidental dispatch into the deprecated legacy stack.
 
 See ``docs/concepts/solver_stack.md``.
 """
@@ -11,6 +12,9 @@ See ``docs/concepts/solver_stack.md``.
 from __future__ import annotations
 
 from .blocks import (
+    Adam,
+    AdamState,
+    AdamStatus,
     Bounds,
     Euclidean,
     GaussNewton,
@@ -18,6 +22,8 @@ from .blocks import (
     LMState,
     LMStatus,
     ObjectiveItem,
+    Phase,
+    PhaseResult,
     Problem,
     ResidualItem,
     RobotConfig,
@@ -27,7 +33,9 @@ from .blocks import (
     Values,
     VarSpec,
     detach_values,
+    run_phases,
 )
+from .cost_stack import CostItem, CostKind, CostStack
 from .jacobian_spec import ResidualSpec
 from .optimizers.base import OptimizationResult, Optimizer
 from .problem import LeastSquaresProblem
@@ -79,6 +87,9 @@ __all__ = [
     "SolverState",
     "ResidualSpec",
     "solve",
+    "CostKind",
+    "CostItem",
+    "CostStack",
     # Named-block evaluation and solver API. Deliberately qualified under ``optim``;
     # the package root keeps its existing Lie ``SE3`` identity.
     "Bounds",
@@ -93,6 +104,12 @@ __all__ = [
     "ObjectiveItem",
     "RobotStateProvider",
     "detach_values",
+    "Phase",
+    "PhaseResult",
+    "run_phases",
+    "Adam",
+    "AdamState",
+    "AdamStatus",
     "LevenbergMarquardt",
     "GaussNewton",
     "LMState",

@@ -23,4 +23,6 @@ those call sites before it follows the redesign branch. BetterVideoReconstructio
 had no matching BetterRobot API references. `CostStack` and `ResidualSpec`
 remain because BetterRobot itself uses them; BetterHumanForce also imports
 `better_robot.costs.stack.CostStack` in
-`scripts/motion/optimize_motion.py:210`.
+`scripts/motion/optimize_motion.py:210`. Since M2c, `CostStack` is canonically
+defined in `better_robot.optim.cost_stack`; the old module forwards to the same
+class identity while BetterRobot's legacy flat-problem callers remain.

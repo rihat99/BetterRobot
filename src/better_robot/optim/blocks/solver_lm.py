@@ -140,6 +140,50 @@ def _retract_reduced(
     )
 
 
+def _limit_block_step_norms(
+    step: torch.Tensor,
+    problem: Problem,
+    limits: tuple[tuple[str, float], ...],
+) -> torch.Tensor:
+    """Clamp configured physical tangent-block norms without tensor branching."""
+    if not limits:
+        return step
+    by_name = dict(limits)
+    blocks: list[torch.Tensor] = []
+    for spec in problem.vars:
+        block = step[..., problem.column_offsets[spec.name]]
+        limit = by_name.get(spec.name)
+        if limit is not None and spec.free_dim:
+            norm = torch.linalg.vector_norm(block, dim=-1, keepdim=True)
+            denominator = norm.clamp_min(torch.finfo(step.dtype).tiny)
+            multiplier = (limit / denominator).clamp(max=1.0)
+            block = block * multiplier
+        blocks.append(block)
+    return torch.cat(blocks, dim=-1)
+
+
+def _validate_block_step_limits(limits: tuple[tuple[str, float], ...]) -> None:
+    if not isinstance(limits, tuple):
+        raise TypeError("block_step_limits must be a tuple of (block_name, max_norm) pairs")
+    seen: set[str] = set()
+    for entry in limits:
+        if not isinstance(entry, tuple) or len(entry) != 2:
+            raise TypeError("block_step_limits must be a tuple of (block_name, max_norm) pairs")
+        block_name, max_norm = entry
+        if not isinstance(block_name, str) or not block_name:
+            raise TypeError("block_step_limits block names must be non-empty strings")
+        if block_name in seen:
+            raise ValueError(f"duplicate block_step_limits entry for {block_name!r}")
+        seen.add(block_name)
+        if (
+            isinstance(max_norm, (bool, torch.Tensor))
+            or not isinstance(max_norm, (int, float))
+            or not math.isfinite(float(max_norm))
+            or float(max_norm) <= 0.0
+        ):
+            raise ValueError(f"block_step_limits max norm for {block_name!r} must be a finite positive Python number")
+
+
 def _blend_values(mask: torch.Tensor, yes: Values, no: Values) -> Values:
     return {
         name: torch.where(
@@ -441,7 +485,9 @@ class LevenbergMarquardt:
     oracle; ``run`` is the detached default driver and performs at most one
     host-side terminal check per iteration. It is capture-ready by
     construction under the M2 checklist and capture-certified only by M6's
-    CUDA capture/replay parity test.
+    CUDA capture/replay parity test. ``block_step_limits`` optionally caps the
+    physical tangent norm of named variable blocks before every retraction;
+    state-space bounds remain the responsibility of :class:`VarSpec`.
     """
 
     max_iter: int = 50
@@ -457,12 +503,14 @@ class LevenbergMarquardt:
     kernel: RobustKernel = field(default_factory=L2)
     jacobian_strategy: JacobianStrategy = "auto"
     fixed_damping: bool = False
+    block_step_limits: tuple[tuple[str, float], ...] = ()
 
     def __post_init__(self) -> None:
         if isinstance(self.max_iter, bool) or not isinstance(self.max_iter, int) or self.max_iter < 0:
             raise ValueError("max_iter must be a non-negative int")
         if not isinstance(self.fixed_damping, bool):
             raise TypeError("fixed_damping must be a static bool")
+        _validate_block_step_limits(self.block_step_limits)
         for name in (
             "gtol",
             "xtol",
@@ -484,8 +532,14 @@ class LevenbergMarquardt:
             raise ValueError("require 0 < mu_min <= mu_max")
         if self.increase_factor_max < 2.0:
             raise ValueError("increase_factor_max must be >= 2")
-        if self.jacobian_strategy not in {"auto", "analytic", "jacrev", "jacfwd"}:
-            raise ValueError("solver jacobian_strategy must be auto/analytic/jacrev/jacfwd")
+        if self.jacobian_strategy not in {
+            "auto",
+            "analytic",
+            "jacrev",
+            "jacfwd",
+            "finite_difference",
+        }:
+            raise ValueError("solver jacobian_strategy must be auto/analytic/jacrev/jacfwd/finite_difference")
         if not isinstance(self.linear_solver, LinearSolver):
             raise TypeError("linear_solver must implement solve(A, b, ridge=None)")
         if not isinstance(self.kernel, RobustKernel):
@@ -504,6 +558,16 @@ class LevenbergMarquardt:
         problem.require_least_squares(type(self).__name__)
         if not problem.residuals:
             raise ValueError(f"{type(self).__name__} requires at least one residual vector")
+        limited_names = {name for name, _limit in self.block_step_limits}
+        unknown_step_limits = limited_names - {spec.name for spec in problem.vars}
+        if unknown_step_limits:
+            raise ValueError(f"block_step_limits contain unknown variable names {sorted(unknown_step_limits)}")
+        fixed_step_limits = {spec.name for spec in problem.vars if spec.name in limited_names and spec.free_dim == 0}
+        if fixed_step_limits:
+            raise ValueError(
+                "block_step_limits require blocks with at least one free tangent "
+                f"coordinate; fully fixed {sorted(fixed_step_limits)}"
+            )
         if problem.tangent_dim_total <= 0:
             raise ValueError(f"{type(self).__name__} requires at least one free tangent coordinate")
         batch_shape = problem._validate_values(values)
@@ -618,17 +682,28 @@ class LevenbergMarquardt:
         movable_element = current_status == LMStatus.RUNNING.value
 
         lm_step, factorization_ok = self._solve_step(model, state)
+        lm_step = _limit_block_step_norms(lm_step, problem, self.block_step_limits)
         lm_values = _retract_reduced(values, lm_step, problem, batch_shape)
         lm_actual_step = _difference_reduced(values, lm_values, problem, batch_shape)
         lm_jp = (model.jacobian @ lm_actual_step.unsqueeze(-1)).squeeze(-1)
         lm_prediction = -((model.gradient * lm_actual_step).sum(dim=-1) + 0.5 * lm_jp.square().sum(dim=-1))
 
-        pg1_values = _retract_reduced(values, -model.gradient, problem, batch_shape)
+        pg1_proposal = _limit_block_step_norms(
+            -model.gradient,
+            problem,
+            self.block_step_limits,
+        )
+        pg1_values = _retract_reduced(values, pg1_proposal, problem, batch_shape)
         pg1_step = _difference_reduced(values, pg1_values, problem, batch_shape)
         pg1_h = (model.normal_matrix @ pg1_step.unsqueeze(-1)).squeeze(-1)
         pg_denominator = (pg1_step * pg1_h).sum(dim=-1).clamp(min=torch.finfo(model.cost.dtype).eps)
         pg_beta = (-(model.gradient * pg1_step).sum(dim=-1) / pg_denominator).clamp(min=0.0, max=1.0)
-        pg_values = _retract_reduced(values, pg_beta.unsqueeze(-1) * pg1_step, problem, batch_shape)
+        pg_proposal = _limit_block_step_norms(
+            pg_beta.unsqueeze(-1) * pg1_step,
+            problem,
+            self.block_step_limits,
+        )
+        pg_values = _retract_reduced(values, pg_proposal, problem, batch_shape)
         pg_actual_step = _difference_reduced(values, pg_values, problem, batch_shape)
         pg_jp = (model.jacobian @ pg_actual_step.unsqueeze(-1)).squeeze(-1)
         pg_prediction = -((model.gradient * pg_actual_step).sum(dim=-1) + 0.5 * pg_jp.square().sum(dim=-1))

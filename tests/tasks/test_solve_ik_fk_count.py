@@ -6,20 +6,15 @@ from types import SimpleNamespace
 
 import torch
 
-import better_robot.tasks.ik as ik_module
+import better_robot.optim.blocks.providers as provider_module
 from better_robot.costs.stack import CostStack
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics.forward import forward_kinematics
 from better_robot.optim.problem import LeastSquaresProblem
+from better_robot.optim import Problem, ResidualItem, RobotConfig, RobotStateProvider, VarSpec
+from better_robot.residuals.pose import PoseResidual
 from better_robot.residuals.base import ResidualState
-
-
-class _UncachedProblem(LeastSquaresProblem):
-    """Pre-T1.11 behavior used only as the numerical/count baseline."""
-
-    def _state_at(self, x: torch.Tensor) -> ResidualState:
-        return self.state_factory(x)
 
 
 class _DerivedResidual:
@@ -41,58 +36,50 @@ def _make_arm():
 
     identity = torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
     offset = torch.tensor([0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
-    builder.add_revolute_z(
-        "j1", parent="base", child="link1", origin=identity, lower=-2.5, upper=2.5
-    )
-    builder.add_revolute_y(
-        "j2", parent="link1", child="link2", origin=offset, lower=-2.0, upper=2.0
-    )
-    builder.add_revolute_y(
-        "j3", parent="link2", child="link3", origin=offset, lower=-2.0, upper=2.0
-    )
+    builder.add_revolute_z("j1", parent="base", child="link1", origin=identity, lower=-2.5, upper=2.5)
+    builder.add_revolute_y("j2", parent="link1", child="link2", origin=offset, lower=-2.0, upper=2.0)
+    builder.add_revolute_y("j3", parent="link2", child="link3", origin=offset, lower=-2.0, upper=2.0)
     return build_model(builder.finalize())
 
 
-def _solve_fixed_iterations(model, target: torch.Tensor):
-    return ik_module.solve_ik(
-        model,
-        {"body_link3": target},
-        initial_q=torch.zeros(model.nq),
-        cost_cfg=ik_module.IKCostConfig(limit_weight=0.0, rest_weight=0.0),
-        optimizer_cfg=ik_module.OptimizerConfig(max_iter=5, tol=0.0),
-    )
-
-
-def test_solve_ik_reuses_fk_without_changing_solution(monkeypatch) -> None:
+def test_block_kinematic_residuals_share_one_fk_per_context(monkeypatch) -> None:
     model = _make_arm()
-    q_target = torch.tensor([1.0, -0.8, 0.6])
-    target = forward_kinematics(
-        model, q_target, compute_frames=True
-    ).frame_pose_world[model.frame_id("body_link3")].clone()
+    q = torch.tensor([1.0, -0.8, 0.6])
+    data = forward_kinematics(model, q, compute_frames=True)
 
     fk_calls = 0
-    original_fk = ik_module.forward_kinematics
+    original_fk = provider_module.forward_kinematics
 
     def counted_fk(*args, **kwargs):
         nonlocal fk_calls
         fk_calls += 1
         return original_fk(*args, **kwargs)
 
-    monkeypatch.setattr(ik_module, "forward_kinematics", counted_fk)
-    monkeypatch.setattr(ik_module, "LeastSquaresProblem", _UncachedProblem)
-    uncached = _solve_fixed_iterations(model, target)
-    uncached_fk_calls = fk_calls
+    monkeypatch.setattr(provider_module, "forward_kinematics", counted_fk)
+    residuals = []
+    for link in ("body_link2", "body_link3"):
+        name = f"pose_{link}"
+        residuals.append(
+            ResidualItem(
+                name,
+                PoseResidual(
+                    frame_id=model.frame_id(link),
+                    target=data.frame_pose_world[model.frame_id(link)],
+                    model=model,
+                    name=name,
+                ),
+            )
+        )
+    problem = Problem(
+        vars=(VarSpec("q", (model.nq,), manifold=RobotConfig(model)),),
+        residuals=tuple(residuals),
+        providers=(RobotStateProvider(model),),
+    )
 
-    fk_calls = 0
-    monkeypatch.setattr(ik_module, "LeastSquaresProblem", LeastSquaresProblem)
-    cached = _solve_fixed_iterations(model, target)
-
-    assert uncached.iters == cached.iters == 5
-    assert uncached_fk_calls == 1 + 2 * uncached.iters
-    assert fk_calls == 1 + cached.iters
-    assert cached.converged is uncached.converged
-    torch.testing.assert_close(cached.q, uncached.q, atol=1e-7, rtol=0.0)
-    torch.testing.assert_close(cached.residual, uncached.residual, atol=1e-7, rtol=0.0)
+    problem.residual({"q": q})
+    assert fk_calls == 1
+    problem.jacobian_blocks({"q": q})
+    assert fk_calls == 2
 
 
 def test_state_cache_invalidates_after_in_place_iterate_change() -> None:

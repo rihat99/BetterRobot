@@ -22,6 +22,7 @@ from better_robot.optim.blocks import (
     VarSpec,
 )
 from better_robot.optim.kernels import Huber, L2, Tukey
+from better_robot.tasks.ik import IKCostConfig, OptimizerConfig, solve_ik
 
 from .solver_quality_support import (
     bounded_start,
@@ -90,6 +91,28 @@ def test_p3_block_level_feasible_panda_target(panda_model) -> None:
 
     assert int(state.status) == int(LMStatus.CONVERGED)
     assert _position_error(panda_model, values["q"], target) < 1e-3
+
+
+def test_p3_feasible_panda_target_through_solve_ik_facade(panda_model) -> None:
+    """The M2c facade reaches the same default-regularized feasible target."""
+    q_target = sample_nearby_configurations(
+        panda_model,
+        1,
+        seed=PANDA_SEED,
+        fraction=0.1,
+    )[0]
+    target = target_poses(panda_model, q_target)
+    frame_name = panda_model.frame_names[panda_frame_id(panda_model)]
+
+    result = solve_ik(
+        panda_model,
+        {frame_name: target},
+        initial_q=bounded_start(panda_model),
+        optimizer_cfg=OptimizerConfig(max_iter=60, tol=1e-5),
+    )
+
+    assert result.converged is True
+    assert _position_error(panda_model, result.q, target) < 1e-3
 
 
 def test_p4_gauss_newton_is_monotone_and_reports_an_honest_status(panda_model) -> None:
@@ -299,5 +322,75 @@ def test_p6_one_call_batched_panda_matches_128_sequential_solves(panda_model) ->
     assert bool(((batched_state.cost - seq_cost).abs() <= 1e-6 + 1e-2 * scale)[both_converged].all())
     batched_error = _position_error(panda_model, batched_values["q"], targets)
     sequential_error = _position_error(panda_model, seq_q, targets)
+    assert bool((batched_error[both_converged] < 1e-3).all())
+    assert bool((sequential_error[both_converged] < 1e-3).all())
+
+
+@pytest.mark.slow
+def test_p6_solve_ik_facade_one_call_matches_128_sequential_solves(panda_model) -> None:
+    """The public facade preserves the M2b one-call B=128 parity contract."""
+    batch = 128
+    target_q = sample_nearby_configurations(
+        panda_model,
+        batch,
+        seed=PANDA_SEED,
+        fraction=0.04,
+    )
+    targets = target_poses(panda_model, target_q)
+    start = bounded_start(panda_model)
+    frame_name = panda_model.frame_names[panda_frame_id(panda_model)]
+    costs = IKCostConfig(limit_weight=0.0, rest_weight=0.0)
+    optimizer = OptimizerConfig(max_iter=40, tol=1e-5)
+
+    batched = solve_ik(
+        panda_model,
+        {frame_name: targets},
+        initial_q=start,
+        cost_cfg=costs,
+        optimizer_cfg=optimizer,
+    )
+    sequential = [
+        solve_ik(
+            panda_model,
+            {frame_name: targets[index]},
+            initial_q=start,
+            cost_cfg=costs,
+            optimizer_cfg=optimizer,
+        )
+        for index in range(batch)
+    ]
+    sequential_q = torch.stack([result.q for result in sequential])
+    sequential_cost = torch.stack([0.5 * result.residual.square().sum() for result in sequential])
+    sequential_converged = torch.tensor(
+        [result.converged for result in sequential],
+        dtype=torch.bool,
+        device=batched.q.device,
+    )
+    sequential_iterations = torch.tensor(
+        [result.iters for result in sequential],
+        dtype=torch.int64,
+        device=batched.q.device,
+    )
+    batched_cost = 0.5 * batched.residual.square().sum(dim=-1)
+
+    assert batched.q.shape == (batch, panda_model.nq)
+    assert isinstance(batched.converged, torch.Tensor)
+    assert isinstance(batched.iters, torch.Tensor)
+    assert batched.converged.shape == batched.iters.shape == (batch,)
+    exact_convergence = batched.converged == sequential_converged
+    iteration_carveout = batched.iters != sequential_iterations
+    assert exact_convergence.float().mean() >= 0.90
+    assert bool((exact_convergence | iteration_carveout).all())
+
+    both_converged = batched.converged & sequential_converged
+    assert bool(both_converged.any())
+    torch.testing.assert_close(
+        batched_cost[both_converged],
+        sequential_cost[both_converged],
+        atol=1e-6,
+        rtol=1e-2,
+    )
+    batched_error = _position_error(panda_model, batched.q, targets)
+    sequential_error = _position_error(panda_model, sequential_q, targets)
     assert bool((batched_error[both_converged] < 1e-3).all())
     assert bool((sequential_error[both_converged] < 1e-3).all())

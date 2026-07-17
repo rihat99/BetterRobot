@@ -31,7 +31,7 @@
 
 ### API
 
-`````{py:class} JointPositionLimit(model: better_robot.data_model.model.Model, *, weight: float = 1.0)
+`````{py:class} JointPositionLimit(model: better_robot.data_model.model.Model, *, weight: float = 1.0, name: str = 'joint_position_limit')
 :canonical: better_robot.residuals.limits.JointPositionLimit
 
 ```{autodoc2-docstring} better_robot.residuals.limits.JointPositionLimit
@@ -48,10 +48,28 @@
 
 ````
 
-````{py:method} jacobian(state: better_robot.residuals.base.ResidualState) -> torch.Tensor | None
+````{py:attribute} reads
+:canonical: better_robot.residuals.limits.JointPositionLimit.reads
+:value: >
+   ('q',)
+
+```{autodoc2-docstring} better_robot.residuals.limits.JointPositionLimit.reads
+```
+
+````
+
+````{py:method} jacobian(value: better_robot.residuals.base.ResidualState | collections.abc.Mapping[str, typing.Any]) -> torch.Tensor | None
 :canonical: better_robot.residuals.limits.JointPositionLimit.jacobian
 
 ```{autodoc2-docstring} better_robot.residuals.limits.JointPositionLimit.jacobian
+```
+
+````
+
+````{py:method} jacobian_blocks(ctx: collections.abc.Mapping[str, typing.Any]) -> dict[str, torch.Tensor]
+:canonical: better_robot.residuals.limits.JointPositionLimit.jacobian_blocks
+
+```{autodoc2-docstring} better_robot.residuals.limits.JointPositionLimit.jacobian_blocks
 ```
 
 ````
