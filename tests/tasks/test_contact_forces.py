@@ -125,3 +125,28 @@ def test_contact_inputs_reject_lossy_ids_and_invalid_float_masks() -> None:
         solve_contact_forces(model, q, [1.5], torch.ones(3, 1), dt=0.1)
     with pytest.raises(ValueError, match=r"lie in \[0, 1\]"):
         solve_contact_forces(model, q, [1], torch.full((3, 1), 1.5), dt=0.1)
+
+
+def test_contact_force_gravity_accepts_per_clip_values() -> None:
+    model = _floating_body()
+    q = _clip(model).expand(2, -1, -1).clone()
+    gravity = torch.stack(
+        (
+            torch.zeros(3, dtype=q.dtype),
+            model.values.gravity[:3],
+        )
+    )
+    result = solve_contact_forces(
+        model,
+        q,
+        [1],
+        torch.ones(2, 3, 1, dtype=torch.bool),
+        dt=0.1,
+        gravity=gravity,
+        weights=ContactForceWeights(base_wrench=1.0, force_magnitude=1e-6),
+        max_iter=30,
+        tolerance=1e-9,
+    )
+
+    assert result.forces_world[0].abs().max() < 1e-10
+    assert result.generalized_force[..., :6].norm(dim=-1).max() < 1e-4

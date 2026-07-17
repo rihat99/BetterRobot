@@ -55,23 +55,17 @@ def smooth_trajectory(
             kind = "se3"
         else:
             raise ValueError(
-                "kind='auto' requires quaternion (..., 4) or SE3 (..., 7) "
-                f"samples; got q.shape={tuple(q.shape)}"
+                f"kind='auto' requires quaternion (..., 4) or SE3 (..., 7) samples; got q.shape={tuple(q.shape)}"
             )
     elif kind not in ("so3", "se3"):
         raise ValueError(f"kind must be 'auto', 'so3', or 'se3'; got {kind!r}")
     expected_dim = 4 if kind == "so3" else 7
     if q.shape[-1] != expected_dim:
-        raise ValueError(
-            f"kind={kind!r} requires q.shape[-1] == {expected_dim}; "
-            f"got {q.shape[-1]}"
-        )
+        raise ValueError(f"kind={kind!r} requires q.shape[-1] == {expected_dim}; got {q.shape[-1]}")
 
     kernel = torch.as_tensor(kernel, dtype=q.dtype, device=q.device)
     if kernel.ndim != 1 or kernel.numel() == 0 or kernel.numel() % 2 == 0:
-        raise ValueError(
-            f"kernel must be a non-empty odd-length 1D tensor; got {tuple(kernel.shape)}"
-        )
+        raise ValueError(f"kernel must be a non-empty odd-length 1D tensor; got {tuple(kernel.shape)}")
     if bool((kernel < 0).any()):
         raise ValueError("kernel weights must be non-negative")
     if bool(kernel.sum() <= 0):
@@ -88,18 +82,22 @@ def smooth_trajectory(
     indices = (centers + offsets).clamp(0, num_knots - 1)
     windows = aligned[..., indices, :]
 
-    positive = torch.where(weights > 0)[0]
-    first_index = int(positive[0])
-    mean = windows[..., first_index, :]
-    accumulated = weights[first_index]
+    mean = windows[..., 0, :]
+    accumulated = weights[0]
     interpolate = so3.slerp if kind == "so3" else se3.sclerp
-    for index in positive[1:].tolist():
+    for index in range(1, weights.numel()):
         next_weight = weights[index]
-        accumulated = accumulated + next_weight
-        mean = interpolate(mean, windows[..., index, :], next_weight / accumulated)
+        next_total = accumulated + next_weight
+        alpha = next_weight / next_total.clamp_min(torch.finfo(q.dtype).tiny)
+        candidate = interpolate(mean, windows[..., index, :], alpha)
+        mean = torch.where(next_weight > 0.0, candidate, mean)
+        accumulated = next_total
 
     identical = (windows == windows[..., :1, :]).all(dim=(-2, -1), keepdim=False)
-    smoothed_q = torch.where(identical.unsqueeze(-1), windows[..., 0, :], mean)
+    # Preserve bit-identical forward values without replacing the weighted
+    # mean's gradient by the first replicated sample's gradient.
+    exact_forward = windows[..., 0, :].detach() + (mean - mean.detach())
+    smoothed_q = torch.where(identical.unsqueeze(-1), exact_forward, mean)
     return Trajectory(
         t=trajectory.t,
         q=smoothed_q,

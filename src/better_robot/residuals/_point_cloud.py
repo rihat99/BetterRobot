@@ -122,12 +122,32 @@ def _detached_nearest(
 
         # The detached score tensor owns all discrete choices.  Continuous
         # deltas are rebuilt below from the original graph-carrying tensors.
-        detached_delta = query_chunk.detach().unsqueeze(-2) - reference.detach().unsqueeze(-3)
+        detached_query = torch.where(
+            query_validity[..., start:stop].unsqueeze(-1),
+            query_chunk.detach(),
+            torch.zeros_like(query_chunk),
+        )
+        detached_reference = torch.where(
+            reference_validity.unsqueeze(-1),
+            reference.detach(),
+            torch.zeros_like(reference),
+        )
+        detached_delta = detached_query.unsqueeze(-2) - detached_reference.unsqueeze(-3)
         score = detached_delta.square().sum(dim=-1)
         score = score.masked_fill(~reference_validity.unsqueeze(-2), torch.inf)
         index = score.argmin(dim=-1)
         selected = _gather_rows(reference, index)
-        delta = query_chunk - selected
+        safe_query = torch.where(
+            valid_chunk.unsqueeze(-1),
+            query_chunk,
+            torch.zeros_like(query_chunk),
+        )
+        safe_selected = torch.where(
+            valid_chunk.unsqueeze(-1),
+            selected,
+            torch.zeros_like(selected),
+        )
+        delta = safe_query - safe_selected
         distance = torch.linalg.vector_norm(delta, dim=-1)
 
         deltas.append(torch.where(valid_chunk.unsqueeze(-1), delta, torch.zeros_like(delta)))

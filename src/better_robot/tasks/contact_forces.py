@@ -189,12 +189,15 @@ def _gravity_values(
     model: Model,
     gravity: torch.Tensor | None,
     batch_shape: tuple[int, ...],
+    *,
+    dtype: torch.dtype,
+    device: torch.device,
 ) -> ModelValues:
     if gravity is None:
         return model.values
     if not isinstance(gravity, torch.Tensor):
         raise TypeError("gravity must be a torch.Tensor or None")
-    if gravity.device != model.device or gravity.dtype != model.dtype:
+    if gravity.device != device or gravity.dtype != dtype:
         raise ValueError("gravity must share the model dtype and device")
     if gravity.shape[-1:] == (3,):
         gravity = torch.cat((gravity, torch.zeros_like(gravity)), dim=-1)
@@ -204,6 +207,10 @@ def _gravity_values(
         gravity = torch.broadcast_to(gravity, (*batch_shape, 6))
     except RuntimeError as error:
         raise ValueError(f"gravity is not broadcastable to {(*batch_shape, 6)}") from error
+    # RNEA sees time as the final execution-batch axis. A singleton time
+    # dimension lets per-clip gravity broadcast over every knot.
+    if batch_shape:
+        gravity = gravity.unsqueeze(-2)
     return dataclasses.replace(model.values, gravity=gravity)
 
 
@@ -298,7 +305,13 @@ def solve_contact_forces(  # noqa: PLR0912, PLR0915 - validates one complete pub
     joint_pose = data.joint_pose_world.index_select(-2, ids)
     world_to_local = so3.to_matrix(joint_pose[..., 3:]).mT.detach()
     contact_to_joint = torch.nn.functional.one_hot(ids, num_classes=model.njoints).to(dtype=q.dtype)
-    values = _gravity_values(model, gravity, batch_shape)
+    values = _gravity_values(
+        model,
+        gravity,
+        batch_shape,
+        dtype=q.dtype,
+        device=q.device,
+    )
 
     force_shape = (*batch_shape, time, contacts, 3)
     if initial_forces is None:

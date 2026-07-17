@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 import torch
 
 from better_robot.lie import so3, umeyama
@@ -13,9 +14,7 @@ def _transform(
     rotation: torch.Tensor,
     translation: torch.Tensor,
 ) -> torch.Tensor:
-    return scale[..., None, None] * torch.einsum(
-        "...ij,...nj->...ni", rotation, source
-    ) + translation[..., None, :]
+    return scale[..., None, None] * torch.einsum("...ij,...nj->...ni", rotation, source) + translation[..., None, :]
 
 
 def test_umeyama_recovers_known_batched_similarity() -> None:
@@ -50,9 +49,7 @@ def test_umeyama_reflection_fix_returns_proper_rotation() -> None:
 def test_umeyama_weights_downweight_outlier() -> None:
     generator = torch.Generator().manual_seed(8)
     source = torch.randn((10, 3), generator=generator, dtype=torch.float64)
-    rotation = so3.to_matrix(
-        so3.from_euler(torch.tensor([0.3, -0.2, 0.4], dtype=torch.float64))
-    )
+    rotation = so3.to_matrix(so3.from_euler(torch.tensor([0.3, -0.2, 0.4], dtype=torch.float64)))
     scale = torch.tensor(1.4, dtype=torch.float64)
     translation = torch.tensor([0.2, -0.5, 0.7], dtype=torch.float64)
     clean_target = _transform(source, scale, rotation, translation)
@@ -65,15 +62,9 @@ def test_umeyama_weights_downweight_outlier() -> None:
     weighted = umeyama(source, target, weights=weights)
 
     unweighted_error = (
-        (unweighted[0] - scale).abs()
-        + (unweighted[1] - rotation).norm()
-        + (unweighted[2] - translation).norm()
+        (unweighted[0] - scale).abs() + (unweighted[1] - rotation).norm() + (unweighted[2] - translation).norm()
     )
-    weighted_error = (
-        (weighted[0] - scale).abs()
-        + (weighted[1] - rotation).norm()
-        + (weighted[2] - translation).norm()
-    )
+    weighted_error = (weighted[0] - scale).abs() + (weighted[1] - rotation).norm() + (weighted[2] - translation).norm()
     assert weighted_error < unweighted_error * 1e-6
     torch.testing.assert_close(weighted[0], scale)
     torch.testing.assert_close(weighted[1], rotation)
@@ -83,14 +74,10 @@ def test_umeyama_weights_downweight_outlier() -> None:
 def test_umeyama_rigid_fit_disables_scale() -> None:
     generator = torch.Generator().manual_seed(12)
     source = torch.randn((9, 3), generator=generator, dtype=torch.float64)
-    rotation = so3.to_matrix(
-        so3.from_euler(torch.tensor([-0.2, 0.1, 0.3], dtype=torch.float64))
-    )
+    rotation = so3.to_matrix(so3.from_euler(torch.tensor([-0.2, 0.1, 0.3], dtype=torch.float64)))
     translation = torch.tensor([-0.4, 0.6, 0.2], dtype=torch.float64)
     target = _transform(source, torch.tensor(1.0), rotation, translation)
-    scale, fitted_rotation, fitted_translation = umeyama(
-        source, target, estimate_scale=False
-    )
+    scale, fitted_rotation, fitted_translation = umeyama(source, target, estimate_scale=False)
     torch.testing.assert_close(scale, torch.tensor(1.0, dtype=source.dtype))
     torch.testing.assert_close(fitted_rotation, rotation)
     torch.testing.assert_close(fitted_translation, translation)
@@ -105,3 +92,46 @@ def test_umeyama_gradients_are_finite() -> None:
     assert source.grad is not None
     assert torch.isfinite(source.grad).all()
 
+
+def test_umeyama_rejects_mismatched_dtypes() -> None:
+    source = torch.randn((5, 3), dtype=torch.float32)
+    target = torch.randn((5, 3), dtype=torch.float64)
+
+    with pytest.raises(ValueError, match="source and target must share dtype and device"):
+        umeyama(source, target)
+
+    with pytest.raises(ValueError, match="weights must share source dtype and device"):
+        umeyama(source, source.clone(), weights=torch.ones(5, dtype=torch.float64))
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is required for device mismatch coverage")
+def test_umeyama_rejects_mismatched_devices() -> None:
+    source = torch.randn((5, 3), device="cpu")
+    target = torch.randn((5, 3), device="cuda")
+
+    with pytest.raises(ValueError, match="source and target must share dtype and device"):
+        umeyama(source, target)
+
+    with pytest.raises(ValueError, match="weights must share source dtype and device"):
+        umeyama(source, source.clone(), weights=torch.ones(5, device="cuda"))
+
+
+@pytest.mark.parametrize(("input_name", "nonfinite"), [("source", torch.nan), ("target", torch.inf)])
+def test_umeyama_rejects_nonfinite_point_inputs(input_name: str, nonfinite: float) -> None:
+    source = torch.randn((5, 3))
+    target = torch.randn((5, 3))
+    value = source if input_name == "source" else target
+    value[0, 0] = nonfinite
+
+    with pytest.raises(ValueError, match="source and target must contain only finite values"):
+        umeyama(source, target)
+
+
+@pytest.mark.parametrize("nonfinite", [torch.nan, torch.inf, -torch.inf])
+def test_umeyama_rejects_nonfinite_weights(nonfinite: float) -> None:
+    source = torch.randn((5, 3))
+    weights = torch.ones(5)
+    weights[0] = nonfinite
+
+    with pytest.raises(ValueError, match="weights must be finite and non-negative"):
+        umeyama(source, source.clone(), weights=weights)

@@ -108,3 +108,28 @@ def test_chamfer_gradient_uses_selected_valid_correspondence_only() -> None:
     torch.testing.assert_close(source_gradient, torch.tensor([[[-1.0, 0.0, 0.0]]]))
     torch.testing.assert_close(target_gradient[0, 0], torch.tensor([1.0, 0.0, 0.0]))
     torch.testing.assert_close(target_gradient[0, 1:], torch.zeros(2, 3))
+
+
+def test_chamfer_masked_nan_padding_has_zero_value_and_gradients() -> None:
+    residual = MaskedChamferResidual(1, 1, 1, chunk_size=1)
+    source = torch.zeros((1, 1, 3), requires_grad=True)
+    target = torch.full((1, 1, 3), torch.nan, requires_grad=True)
+
+    value = residual(
+        {
+            "points": source,
+            "target_points": target,
+            "point_validity": torch.ones(1, 1, dtype=torch.bool),
+            "target_validity": torch.zeros(1, 1, dtype=torch.bool),
+        }
+    )
+    source_gradient, target_gradient = torch.autograd.grad(
+        value.sum(),
+        (source, target),
+    )
+
+    torch.testing.assert_close(value, torch.zeros(2))
+    assert torch.isfinite(source_gradient).all()
+    assert torch.isfinite(target_gradient).all()
+    torch.testing.assert_close(source_gradient, torch.zeros_like(source_gradient))
+    torch.testing.assert_close(target_gradient, torch.zeros_like(target_gradient))

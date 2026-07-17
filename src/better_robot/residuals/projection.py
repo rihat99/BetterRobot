@@ -63,7 +63,8 @@ def _projection_jacobian(
     numerator_jacobian = intrinsics[..., :2, :].unsqueeze(-3)
 
     depth_axis = points_camera.new_tensor((0.0, 0.0, 1.0))
-    depth_active = (depth_raw > min_depth).to(dtype=points_camera.dtype)
+    # ``clamp_min`` chooses the identity derivative at the boundary.
+    depth_active = (depth_raw >= min_depth).to(dtype=points_camera.dtype)
     denominator_term = (
         numerator.unsqueeze(-1)
         * depth_axis
@@ -113,6 +114,36 @@ def _require_same_dtype_device(
         raise ValueError(f"{name} must be on device {reference.device}, got {value.device}")
 
 
+def _validate_parameter_names(names: Mapping[str, str | None]) -> tuple[str, ...]:
+    declared: list[str] = []
+    for label, value in names.items():
+        if value is None:
+            continue
+        if not isinstance(value, str) or not value:
+            raise TypeError(f"{label} must be a non-empty string or None")
+        if value == "data":
+            raise ValueError(f"{label} cannot use the reserved provider output 'data'")
+        declared.append(value)
+    if len(set(declared)) != len(declared):
+        raise ValueError("ProjectionResidual parameter names must be unique")
+    return tuple(declared)
+
+
+def _context_tensor(
+    ctx: Mapping[str, Any],
+    fallback: torch.Tensor | None,
+    parameter_name: str | None,
+    *,
+    label: str,
+) -> torch.Tensor | None:
+    if parameter_name is None:
+        return fallback
+    value = ctx[parameter_name]
+    if not isinstance(value, torch.Tensor):
+        raise TypeError(f"named context entry {parameter_name!r} for {label} must be a tensor")
+    return value
+
+
 class ProjectionResidual:
     """Pinhole reprojection error for frame, marker, or site rows.
 
@@ -136,6 +167,11 @@ class ProjectionResidual:
     valid_mask
         Optional boolean mask with shape ``(..., N)``. Invalid points produce
         two finite zero rows.
+    K_name, extrinsics_name, target_name, weights_name, valid_mask_name
+        Optional names for resolving the corresponding tensors from a
+        :class:`~better_robot.optim.Problem` context. Named tensors take
+        precedence over their constructor fallbacks and are included in
+        ``reads``, making differentiable observations explicit.
     min_depth
         Positive camera-space depth floor. Points at or behind the floor are
         projected with the clamped denominator instead of producing NaNs.
@@ -160,6 +196,11 @@ class ProjectionResidual:
         *,
         weights: torch.Tensor | None = None,
         valid_mask: torch.Tensor | None = None,
+        K_name: str | None = None,
+        extrinsics_name: str | None = None,
+        target_name: str | None = None,
+        weights_name: str | None = None,
+        valid_mask_name: str | None = None,
         min_depth: float = 1.0e-6,
         name: str = "projection",
     ) -> None:
@@ -201,16 +242,31 @@ class ProjectionResidual:
             raise ValueError(f"min_depth must be finite and positive, got {min_depth!r}")
         if not isinstance(name, str) or not name:
             raise ValueError("name must be a non-empty string")
+        declared_parameters = _validate_parameter_names(
+            {
+                "K_name": K_name,
+                "extrinsics_name": extrinsics_name,
+                "target_name": target_name,
+                "weights_name": weights_name,
+                "valid_mask_name": valid_mask_name,
+            }
+        )
 
         self.model = model
         self.name = name
+        self.reads = ("data", *declared_parameters)
         self.point_ids = ids
-        self._point_ids = torch.tensor(ids, dtype=torch.long, device=K.device)
+        self._point_ids = torch.tensor(ids, dtype=torch.long, device=model.q_neutral.device)
         self.K = K
         self.extrinsics = extrinsics
         self.target_px = target_px
         self.weights = weights
         self.valid_mask = valid_mask
+        self.K_name = K_name
+        self.extrinsics_name = extrinsics_name
+        self.target_name = target_name
+        self.weights_name = weights_name
+        self.valid_mask_name = valid_mask_name
         self.min_depth = min_depth
         self.dim = 2 * count
 
@@ -219,47 +275,100 @@ class ProjectionResidual:
         frame_pose_world = getattr(data, "frame_pose_world", None)
         if frame_pose_world is None:
             raise RuntimeError("ProjectionResidual requires RobotStateProvider FK with frame placements")
-        if frame_pose_world.dtype != self.K.dtype:
-            raise TypeError(
-                "ProjectionResidual observation dtype does not match the evaluated "
-                f"model state: {self.K.dtype} != {frame_pose_world.dtype}"
-            )
-        if frame_pose_world.device != self.K.device:
-            raise ValueError(
-                "ProjectionResidual observations and evaluated model state must be "
-                f"on the same device: {self.K.device} != {frame_pose_world.device}"
-            )
         return frame_pose_world.index_select(-2, self._point_ids)[..., :3]
 
-    def _camera_tensors(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        return self.K, self.extrinsics, self.target_px
+    def _camera_tensors(
+        self,
+        ctx: Mapping[str, Any],
+        exemplar: torch.Tensor,
+    ) -> tuple[
+        torch.Tensor,
+        torch.Tensor,
+        torch.Tensor,
+        torch.Tensor | None,
+        torch.Tensor | None,
+    ]:
+        count = len(self.point_ids)
+        intrinsics = _context_tensor(ctx, self.K, self.K_name, label="K")
+        extrinsics = _context_tensor(
+            ctx,
+            self.extrinsics,
+            self.extrinsics_name,
+            label="extrinsics",
+        )
+        target_px = _context_tensor(ctx, self.target_px, self.target_name, label="target_px")
+        weights = _context_tensor(ctx, self.weights, self.weights_name, label="weights")
+        valid_mask = _context_tensor(
+            ctx,
+            self.valid_mask,
+            self.valid_mask_name,
+            label="valid_mask",
+        )
+        assert intrinsics is not None and extrinsics is not None and target_px is not None
+        intrinsics = _require_floating_tensor(intrinsics, name="K", suffix=(3, 3))
+        extrinsics = _require_floating_tensor(extrinsics, name="extrinsics", suffix=(4, 4))
+        target_px = _require_floating_tensor(target_px, name="target_px", suffix=(count, 2))
+        for label, value in (
+            ("K", intrinsics),
+            ("extrinsics", extrinsics),
+            ("target_px", target_px),
+        ):
+            _require_same_dtype_device(exemplar, value, name=label)
+        if weights is not None:
+            weights = _require_floating_tensor(weights, name="weights", suffix=(count,))
+            _require_same_dtype_device(exemplar, weights, name="weights")
+            if not bool(torch.isfinite(weights).all()) or bool(torch.any(weights < 0.0)):
+                raise ValueError("weights must be finite and non-negative")
+        if valid_mask is not None:
+            if valid_mask.dtype != torch.bool:
+                raise TypeError("valid_mask must be a boolean torch.Tensor")
+            if tuple(valid_mask.shape[-1:]) != (count,):
+                raise ValueError(f"valid_mask must end in shape ({count},), got {tuple(valid_mask.shape)}")
+            if valid_mask.device != exemplar.device:
+                raise ValueError(f"valid_mask must be on device {exemplar.device}, got {valid_mask.device}")
+        return intrinsics, extrinsics, target_px, weights, valid_mask
 
-    def _multipliers(self, exemplar: torch.Tensor) -> torch.Tensor:
+    @staticmethod
+    def _multipliers(
+        exemplar: torch.Tensor,
+        weights: torch.Tensor | None,
+        valid_mask: torch.Tensor | None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         multiplier = torch.ones_like(exemplar)
-        if self.weights is not None:
-            multiplier = multiplier * self.weights
-        if self.valid_mask is not None:
-            multiplier = multiplier * self.valid_mask
-        return multiplier
+        active = torch.ones_like(exemplar, dtype=torch.bool)
+        if weights is not None:
+            multiplier = multiplier * weights
+            active = active & (weights != 0.0)
+        if valid_mask is not None:
+            multiplier = multiplier * valid_mask
+            active = active & valid_mask
+        return multiplier, active
 
     def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
         points_world = self._frame_points(ctx)
-        intrinsics, extrinsics, target_px = self._camera_tensors()
+        intrinsics, extrinsics, target_px, weights, valid_mask = self._camera_tensors(
+            ctx,
+            points_world,
+        )
         points_camera = _transform_points(points_world, extrinsics)
         predicted_px = _project_points(
             points_camera,
             intrinsics,
             min_depth=self.min_depth,
         )
-        multiplier = self._multipliers(predicted_px[..., 0])
+        multiplier, active = self._multipliers(predicted_px[..., 0], weights, valid_mask)
         rows = (predicted_px - target_px) * multiplier.unsqueeze(-1)
+        rows = torch.where(active.unsqueeze(-1), rows, torch.zeros_like(rows))
         return rows.reshape(*rows.shape[:-2], self.dim)
 
     def jacobian_blocks(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
         """Return the complete mask-reduced analytic ``q`` Jacobian block."""
         data = ctx["data"]
         points_world = self._frame_points(ctx)
-        intrinsics, extrinsics, _target_px = self._camera_tensors()
+        intrinsics, extrinsics, _target_px, weights, valid_mask = self._camera_tensors(
+            ctx,
+            points_world,
+        )
         points_camera = _transform_points(points_world, extrinsics)
 
         frame_jacobians = torch.stack(
@@ -286,8 +395,13 @@ class ProjectionResidual:
             min_depth=self.min_depth,
         )
         full = torch.matmul(pixel_from_camera, point_jacobians_camera)
-        multiplier = self._multipliers(points_camera[..., 0])
+        multiplier, active = self._multipliers(points_camera[..., 0], weights, valid_mask)
         full = full * multiplier.unsqueeze(-1).unsqueeze(-1)
+        full = torch.where(
+            active.unsqueeze(-1).unsqueeze(-1),
+            full,
+            torch.zeros_like(full),
+        )
         full = full.reshape(*full.shape[:-3], self.dim, self.model.nv)
 
         indices = ctx.free_indices("q").to(device=full.device)

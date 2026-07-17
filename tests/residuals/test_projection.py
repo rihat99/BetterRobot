@@ -11,7 +11,11 @@ from better_robot.io import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.optim import Problem, ResidualItem, RobotConfig, RobotStateProvider, VarSpec
 from better_robot.optim.kernels import GemanMcClure
-from better_robot.residuals.projection import ProjectionResidual
+from better_robot.residuals.projection import (
+    ProjectionResidual,
+    _project_points,
+    _projection_jacobian,
+)
 
 
 def _camera_arm(*, dtype: torch.dtype = torch.float32):
@@ -72,6 +76,22 @@ def _problem(model, residual: ProjectionResidual, *, kernel=None) -> Problem:
             ),
         ),
         providers=(RobotStateProvider(model),),
+    )
+
+
+def _parameter_problem(
+    model,
+    residual: ProjectionResidual,
+    *,
+    parameters: dict[str, torch.Tensor],
+    differentiable_parameters: tuple[str, ...] = (),
+) -> Problem:
+    return Problem(
+        vars=(VarSpec("q", (model.nq,), manifold=RobotConfig(model)),),
+        residuals=(ResidualItem(residual.name, residual, group_size=2),),
+        providers=(RobotStateProvider(model),),
+        parameters=parameters,
+        differentiable_parameters=differentiable_parameters,
     )
 
 
@@ -193,6 +213,98 @@ def test_projection_clamps_points_behind_camera_without_nan() -> None:
 
     assert bool(torch.isfinite(rows).all())
     assert bool(torch.isfinite(jacobian).all())
+
+
+def test_projection_jacobian_matches_clamp_derivative_at_depth_floor() -> None:
+    intrinsics, _ = _camera_tensors(torch.float64)
+    point = torch.tensor([0.2, -0.1, 0.1], dtype=torch.float64)
+
+    analytic = _projection_jacobian(
+        point.unsqueeze(0),
+        intrinsics,
+        min_depth=0.1,
+    ).squeeze(0)
+    autodiff = torch.func.jacrev(
+        lambda value: _project_points(
+            value.unsqueeze(0),
+            intrinsics,
+            min_depth=0.1,
+        ).squeeze(0)
+    )(point)
+
+    torch.testing.assert_close(analytic, autodiff)
+
+
+def test_projection_invalid_nan_target_produces_finite_zero_rows() -> None:
+    model = _camera_arm()
+    intrinsics, extrinsics = _camera_tensors(torch.float32)
+    residual = ProjectionResidual(
+        model,
+        _point_ids(model),
+        intrinsics,
+        extrinsics,
+        torch.full((2, 2), torch.nan),
+        valid_mask=torch.zeros(2, dtype=torch.bool),
+    )
+
+    rows = _problem(model, residual).residual({"q": torch.tensor([0.2])})
+
+    torch.testing.assert_close(rows, torch.zeros(4))
+
+
+def test_projection_named_target_is_declared_and_graph_visible() -> None:
+    model = _camera_arm(dtype=torch.float64)
+    intrinsics, extrinsics = _camera_tensors(torch.float64)
+    fallback = torch.zeros(2, 2, dtype=torch.float64)
+    target = torch.tensor(
+        [[300.0, 200.0], [315.0, 215.0]],
+        dtype=torch.float64,
+        requires_grad=True,
+    )
+    residual = ProjectionResidual(
+        model,
+        _point_ids(model),
+        intrinsics,
+        extrinsics,
+        fallback,
+        target_name="observed_px",
+    )
+    problem = _parameter_problem(
+        model,
+        residual,
+        parameters={"observed_px": target},
+        differentiable_parameters=("observed_px",),
+    )
+    values = {"q": torch.tensor([0.2], dtype=torch.float64)}
+
+    assert residual.reads == ("data", "observed_px")
+    gradient = problem.gradient(values, create_graph=True)["q"]
+    target_vjp = torch.autograd.grad(gradient.sum(), target)[0]
+
+    assert bool(torch.isfinite(gradient).all())
+    assert bool(torch.isfinite(target_vjp).all())
+    assert bool(torch.any(target_vjp != 0.0))
+
+
+def test_projection_named_observations_validate_runtime_dtype() -> None:
+    model = _camera_arm()
+    intrinsics, extrinsics = _camera_tensors(torch.float32)
+    residual = ProjectionResidual(
+        model,
+        _point_ids(model),
+        intrinsics,
+        extrinsics,
+        torch.zeros(2, 2),
+        target_name="observed_px",
+    )
+    problem = _parameter_problem(
+        model,
+        residual,
+        parameters={"observed_px": torch.zeros(2, 2, dtype=torch.float64)},
+    )
+
+    with pytest.raises(TypeError, match="target_px must have dtype"):
+        problem.residual({"q": torch.tensor([0.2])})
 
 
 def test_projection_groups_feed_geman_mcclure_per_point() -> None:

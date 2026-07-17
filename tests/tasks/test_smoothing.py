@@ -33,10 +33,34 @@ def test_constant_quaternion_trajectory_is_bit_identical() -> None:
     assert torch.equal(smoothed.q, q)
 
 
-def test_smoothing_reduces_noisy_rotation_variance() -> None:
-    angles = torch.tensor(
-        [0.0, 0.5, -0.4, 0.6, -0.5, 0.45, -0.35, 0.0], dtype=torch.float64
+def test_constant_trajectory_keeps_iterative_mean_gradient() -> None:
+    euler = torch.tensor(
+        [[0.3, -0.2, 0.4]] * 5,
+        dtype=torch.float64,
+        requires_grad=True,
     )
+    q = so3.from_euler(euler)
+    kernel = torch.tensor([1.0, 2.0, 1.0], dtype=q.dtype)
+    actual = smooth_trajectory(
+        Trajectory(t=torch.arange(5, dtype=q.dtype), q=q),
+        kernel,
+    ).q
+    reference = _reference_iterative_mean(q, kernel, kind="so3")
+    coefficients = torch.linspace(-1.0, 1.0, actual.numel(), dtype=q.dtype).reshape_as(actual)
+
+    actual_gradient = torch.autograd.grad(
+        (actual * coefficients).sum(),
+        euler,
+        retain_graph=True,
+    )[0]
+    reference_gradient = torch.autograd.grad((reference * coefficients).sum(), euler)[0]
+
+    assert torch.equal(actual, q)
+    torch.testing.assert_close(actual_gradient, reference_gradient)
+
+
+def test_smoothing_reduces_noisy_rotation_variance() -> None:
+    angles = torch.tensor([0.0, 0.5, -0.4, 0.6, -0.5, 0.45, -0.35, 0.0], dtype=torch.float64)
     euler = torch.zeros((angles.numel(), 3), dtype=angles.dtype)
     euler[:, 2] = angles
     trajectory = Trajectory(t=torch.arange(angles.numel(), dtype=angles.dtype), q=so3.from_euler(euler))
@@ -83,12 +107,7 @@ def test_batched_smoothing_matches_looped_batches() -> None:
     looped = torch.stack(
         [
             torch.stack(
-                [
-                    smooth_trajectory(
-                        Trajectory(t=t[i, j], q=q[i, j]), kernel, kind="so3"
-                    ).q
-                    for j in range(q.shape[1])
-                ]
+                [smooth_trajectory(Trajectory(t=t[i, j], q=q[i, j]), kernel, kind="so3").q for j in range(q.shape[1])]
             )
             for i in range(q.shape[0])
         ]

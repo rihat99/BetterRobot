@@ -73,10 +73,10 @@ def from_matrix(matrix: torch.Tensor) -> torch.Tensor:
     block and translation in the last column.  The result has shape
     ``(..., 7)`` and layout ``[tx, ty, tz, qx, qy, qz, qw]``.
     """
+    if not isinstance(matrix, torch.Tensor) or not matrix.is_floating_point():
+        raise TypeError("matrix must be a floating torch.Tensor")
     if matrix.shape[-2:] != (4, 4):
-        raise ValueError(
-            f"matrix must have shape (..., 4, 4); got {tuple(matrix.shape)}"
-        )
+        raise ValueError(f"matrix must have shape (..., 4, 4); got {tuple(matrix.shape)}")
     translation = matrix[..., :3, 3]
     quaternion = so3.from_matrix(matrix[..., :3, :3])
     return torch.cat((translation, quaternion), dim=-1)
@@ -89,6 +89,8 @@ def to_matrix(t: torch.Tensor) -> torch.Tensor:
     ``[tx, ty, tz, qx, qy, qz, qw]``.  The result has shape
     ``(..., 4, 4)`` and bottom row ``[0, 0, 0, 1]``.
     """
+    if not isinstance(t, torch.Tensor) or not t.is_floating_point():
+        raise TypeError("t must be a floating torch.Tensor")
     if t.shape[-1:] != (7,):
         raise ValueError(f"t must have shape (..., 7); got {tuple(t.shape)}")
     rotation = so3.to_matrix(t[..., 3:7])
@@ -122,7 +124,9 @@ def apply_base(base: torch.Tensor, poses: torch.Tensor) -> torch.Tensor:
 
 
 def sclerp(
-    T1: torch.Tensor, T2: torch.Tensor, t: torch.Tensor | float,
+    T1: torch.Tensor,
+    T2: torch.Tensor,
+    t: torch.Tensor | float,
 ) -> torch.Tensor:
     """SE3 screw-linear interpolation. ``(..., 7), (..., 7), (...) → (..., 7)``.
 

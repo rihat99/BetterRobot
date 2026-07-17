@@ -114,6 +114,11 @@ class SceneSDFProvider:
         if normals.dtype != query.dtype or normals.device != query.device:
             raise ValueError("scene_normals must share query point dtype/device")
         nearest_normal = _gather_rows(normals, correspondence.index)
+        nearest_normal = torch.where(
+            correspondence.valid.unsqueeze(-1),
+            nearest_normal,
+            torch.zeros_like(nearest_normal),
+        )
         epsilon = max(self.eps, torch.finfo(query.dtype).eps)
         normal_norm = torch.linalg.vector_norm(nearest_normal, dim=-1, keepdim=True)
         unit_normal = nearest_normal / normal_norm.clamp_min(epsilon)
@@ -144,6 +149,11 @@ class SceneSDFProvider:
                 scene_confidence.unsqueeze(-1),
                 correspondence.index,
             ).squeeze(-1)
+            gathered_confidence = torch.where(
+                correspondence.valid,
+                gathered_confidence,
+                torch.zeros_like(gathered_confidence),
+            )
             confidence = confidence * gathered_confidence.clamp(min=0.0, max=1.0)
 
         valid = correspondence.valid & (normal_norm.squeeze(-1) > epsilon)

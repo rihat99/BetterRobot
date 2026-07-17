@@ -75,6 +75,8 @@ def from_euler(euler: torch.Tensor) -> torch.Tensor:
     not accept other axis orders.  See :func:`to_euler` for the inverse and
     its gimbal-lock behaviour.
     """
+    if not isinstance(euler, torch.Tensor) or not euler.is_floating_point():
+        raise TypeError("euler must be a floating torch.Tensor")
     if euler.shape[-1:] != (3,):
         raise ValueError(f"euler must have shape (..., 3); got {tuple(euler.shape)}")
 
@@ -100,6 +102,8 @@ def to_euler(q: torch.Tensor) -> torch.Tensor:
     ``[-pi/2, pi/2]``.  As with every Euler representation, roll and yaw
     are not individually identifiable at pitch ``+/- pi/2``.
     """
+    if not isinstance(q, torch.Tensor) or not q.is_floating_point():
+        raise TypeError("q must be a floating torch.Tensor")
     if q.shape[-1:] != (4,):
         raise ValueError(f"q must have shape (..., 4); got {tuple(q.shape)}")
 
@@ -129,7 +133,9 @@ def normalize(q: torch.Tensor) -> torch.Tensor:
 
 
 def slerp(
-    q1: torch.Tensor, q2: torch.Tensor, t: torch.Tensor | float,
+    q1: torch.Tensor,
+    q2: torch.Tensor,
+    t: torch.Tensor | float,
 ) -> torch.Tensor:
     """SO3 spherical linear interpolation. ``(..., 4), (..., 4), (...) → (..., 4)``.
 

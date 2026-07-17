@@ -146,6 +146,39 @@ def test_scene_sdf_gradient_reaches_only_the_detached_nearest_match() -> None:
     torch.testing.assert_close(scene_gradient[0, 1], torch.zeros(3))
 
 
+def test_scene_sdf_masked_nan_padding_has_zero_value_and_gradients() -> None:
+    query = torch.zeros((1, 1, 3), requires_grad=True)
+    scene = torch.full((1, 1, 3), torch.nan, requires_grad=True)
+    normals = torch.full((1, 1, 3), torch.nan, requires_grad=True)
+    confidence = torch.full((1, 1), torch.nan, requires_grad=True)
+    provider = SceneSDFProvider(scene_confidence="scene_confidence", chunk_size=1)
+
+    result = provider(
+        {
+            "scene_query_points": query,
+            "scene_query_validity": torch.ones(1, 1, dtype=torch.bool),
+            "scene_points": scene,
+            "scene_normals": normals,
+            "scene_validity": torch.zeros(1, 1, dtype=torch.bool),
+            "scene_confidence": confidence,
+        }
+    )["scene_sdf"]
+    value = SceneAttractionResidual(1, 1)({"scene_sdf": result})
+    gradients = torch.autograd.grad(
+        value.sum(),
+        (query, scene, normals, confidence),
+    )
+
+    torch.testing.assert_close(result.signed_distance, torch.zeros(1, 1))
+    torch.testing.assert_close(result.dmin, torch.zeros(1, 1))
+    torch.testing.assert_close(result.confidence, torch.zeros(1, 1))
+    assert not result.has_point.any()
+    torch.testing.assert_close(value, torch.zeros(1))
+    for gradient in gradients:
+        assert torch.isfinite(gradient).all()
+        torch.testing.assert_close(gradient, torch.zeros_like(gradient))
+
+
 def test_scene_sdf_forward_and_reverse_tangent_jacobians_match() -> None:
     data = _scene_data()
     residual = ScenePenetrationResidual(FRAMES, QUERIES)
