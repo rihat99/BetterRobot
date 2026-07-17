@@ -61,11 +61,7 @@ def crba_raw(  # noqa: PLR0912, PLR0915 - composite-body passes are intentionall
         Ad_inv[i] = se3.adjoint_inv(liMi[..., i, :])  # (..., 6, 6)
 
     # ── Initialise composite-inertia matrices Y_c[i] (broadcast to batch) ─
-    composite_storage = torch.zeros((*batch, njoints, 6, 6), device=device, dtype=dtype)
-    Y_c: list[torch.Tensor] = [composite_storage[..., index, :, :] for index in range(njoints)]
-    for i in range(njoints):
-        I_i = spatial_inertias[..., i, :, :]
-        Y_c[i] = I_i.expand(*batch, 6, 6).contiguous()
+    Y_c = [spatial_inertias[..., i, :, :].expand(*batch, 6, 6).contiguous() for i in range(njoints)]
 
     # ── Backward pass: accumulate Y_c up the kinematic tree ──────────────
     for i in reversed(structure.topo_order):
