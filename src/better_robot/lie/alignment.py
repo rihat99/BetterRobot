@@ -5,6 +5,14 @@ from __future__ import annotations
 import torch
 
 
+def _require_tensor_condition(condition: torch.Tensor, message: str) -> None:
+    """Reject invalid eager inputs without synchronizing valid CUDA calls."""
+    try:
+        torch._assert_async(condition, message)
+    except RuntimeError as exc:
+        raise ValueError(message) from exc
+
+
 def _validate_point_sets(source: torch.Tensor, target: torch.Tensor) -> None:
     if not isinstance(source, torch.Tensor) or not isinstance(target, torch.Tensor):
         raise TypeError("source and target must be torch.Tensor values")
@@ -20,8 +28,10 @@ def _validate_point_sets(source: torch.Tensor, target: torch.Tensor) -> None:
         raise TypeError("source and target must be floating torch.Tensor values")
     if source.dtype != target.dtype or source.device != target.device:
         raise ValueError("source and target must share dtype and device")
-    if not bool(torch.isfinite(source).all()) or not bool(torch.isfinite(target).all()):
-        raise ValueError("source and target must contain only finite values")
+    _require_tensor_condition(
+        torch.isfinite(source).all() & torch.isfinite(target).all(),
+        "source and target must contain only finite values",
+    )
 
 
 def _normalized_fit_weights(
@@ -41,11 +51,12 @@ def _normalized_fit_weights(
         except RuntimeError as exc:
             raise ValueError(f"weights must broadcast to {tuple(weight_shape)}; got {tuple(weights.shape)}") from exc
 
-    if not bool(torch.isfinite(fit_weights).all()) or bool((fit_weights < 0).any()):
-        raise ValueError("weights must be finite and non-negative")
+    _require_tensor_condition(
+        torch.isfinite(fit_weights).all() & (fit_weights >= 0).all(),
+        "weights must be finite and non-negative",
+    )
     weight_sum = fit_weights.sum(dim=-1, keepdim=True)
-    if bool((weight_sum <= 0).any()):
-        raise ValueError("weights must have a positive sum")
+    _require_tensor_condition((weight_sum > 0).all(), "weights must have a positive sum")
     return fit_weights / weight_sum
 
 
@@ -97,8 +108,10 @@ def umeyama(
     rotation = (u * correction.unsqueeze(-2)) @ vh
 
     source_variance = (normalized_weights * source_centered.square().sum(dim=-1)).sum(dim=-1)
-    if bool((source_variance <= torch.finfo(source.dtype).eps).any()):
-        raise ValueError("source point set has zero weighted variance")
+    _require_tensor_condition(
+        (source_variance > torch.finfo(source.dtype).eps).all(),
+        "source point set has zero weighted variance",
+    )
     if estimate_scale:
         scale = (singular_values * correction).sum(dim=-1) / source_variance
     else:

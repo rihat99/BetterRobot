@@ -62,12 +62,19 @@ def _projection_jacobian(
     depth = depth_raw.clamp_min(min_depth)
     numerator_jacobian = intrinsics[..., :2, :].unsqueeze(-3)
 
-    depth_axis = points_camera.new_tensor((0.0, 0.0, 1.0))
+    depth_axis = torch.stack(
+        (
+            torch.zeros_like(depth_raw),
+            torch.zeros_like(depth_raw),
+            torch.ones_like(depth_raw),
+        ),
+        dim=-1,
+    )
     # ``clamp_min`` chooses the identity derivative at the boundary.
     depth_active = (depth_raw >= min_depth).to(dtype=points_camera.dtype)
     denominator_term = (
         numerator.unsqueeze(-1)
-        * depth_axis
+        * depth_axis.unsqueeze(-2)
         * depth_active.unsqueeze(-1).unsqueeze(-1)
         / depth.square().unsqueeze(-1).unsqueeze(-1)
     )
@@ -84,7 +91,7 @@ def _normalize_point_ids(point_ids: Sequence[int] | torch.Tensor) -> tuple[int, 
             torch.uint8,
         }:
             raise TypeError("point_ids tensor must be one-dimensional with an integer dtype")
-        raw_ids = point_ids.detach().cpu().tolist()
+        raw_ids = point_ids.detach().cpu().tolist()  # bench-ok: one-time static frame-id metadata
     else:
         raw_ids = list(point_ids)
     if not raw_ids:
