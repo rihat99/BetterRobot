@@ -180,7 +180,7 @@ The user-facing names already follow the conventions above:
 |------|---------|---------|
 | `ReferenceFrame` (in `kinematics`) | Replaces `reference="..."` strings on `get_*_jacobian` | `WORLD`, `LOCAL`, `LOCAL_WORLD_ALIGNED` |
 | `KinematicsLevel` (in `data_model`) | Tracks how far FK has been computed on a `Data` | `NONE` (0), `PLACEMENTS` (1), `VELOCITIES` (2), `ACCELERATIONS` (3) |
-| `JacobianStrategy` (in `kinematics`) | Selects analytic / autodiff / FD | `ANALYTIC`, `AUTODIFF`, `FUNCTIONAL`, `FINITE_DIFF`, `AUTO` |
+| `JacobianStrategy` (in `kinematics`) | Selects analytic / central FD | `ANALYTIC`, `FINITE_DIFF`, `AUTO` |
 
 All three subclass `str` (`int` for `KinematicsLevel`) so user code that
 still compares to a string literal continues to work.

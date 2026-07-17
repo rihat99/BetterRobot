@@ -12,9 +12,9 @@ The five commitments that shape every other decision:
   residuals, costs, and solver iterates all participate in autograd.
   No `AutoDiffXd` scalar to switch into, no JAX mode flag, no C
   extension that breaks the gradient graph.
-- **Batched by default.** Every public function accepts
-  `(B..., feature)`. A "single pose" is `(1, 7)`. There is no scalar
-  fast path that diverges from the batched one.
+- **Batched tensor math.** FK, residuals, and analytic Jacobians accept
+  `(B..., feature)`. The current optimizer stack is single-problem; batched
+  solving is scheduled for M2b.
 - **One code path for fixed and floating base.** A floating-base
   robot is one whose root joint is `JointFreeFlyer`. The IK solver
   does not know the difference.
@@ -29,26 +29,43 @@ The five commitments that shape every other decision:
 A minimal example — load a Panda URDF, solve IK to a target pose,
 read back the joint solution:
 
+<!-- front-page-example:start -->
 ```python
 import better_robot as br
+from better_robot.tasks.ik import IKCostConfig, OptimizerConfig
+from robot_descriptions import panda_description
 
-model  = br.load("panda.urdf")
-result = br.solve_ik(model, {"panda_hand": target_pose})
+model = br.load(panda_description.URDF_PATH)
+q0 = model.q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit)
+q_goal = q0.clone()
+q_goal[0] = 0.25
+target_pose = br.forward_kinematics(
+    model, q_goal, compute_frames=True
+).frame_pose_world[model.frame_id("body_panda_hand")].clone()
 
-result.q                          # (nq,) joint solution
-result.frame_pose("panda_hand")   # (7,) SE(3) pose at the solution
+result = br.solve_ik(
+    model,
+    {"body_panda_hand": target_pose},
+    initial_q=q0,
+    cost_cfg=IKCostConfig(limit_weight=0.0, rest_weight=0.0),
+    optimizer_cfg=OptimizerConfig(max_iter=100),
+)
+
+result.q  # (nq,) joint solution
+result.frame_pose("body_panda_hand")  # (7,) SE(3) pose at the solution
 ```
+<!-- front-page-example:end -->
 
 ## What ships today
 
-Forward kinematics; analytic and autograd Jacobians; the residual
+Forward kinematics; analytic Jacobians with an unbatched central-FD fallback; the residual
 library (pose / position / orientation, joint position limits, rest,
 contact consistency, reference trajectories, velocity and
 acceleration smoothness, time-indexed residuals); `CostStack`;
 LM, GN, Adam, L-BFGS, and multi-stage optimisers; pluggable linear
-solvers (Cholesky, LSTSQ, CG, sparse Cholesky); pluggable robust
+solvers (Cholesky, LSTSQ); pluggable robust
 kernels (L2, Huber, Cauchy, Tukey) and damping strategies (Constant,
-Adaptive, TrustRegion); IK on fixed and floating-base robots;
+Adaptive); single-problem IK on fixed and floating-base robots;
 trajectory optimisation with knot and B-spline parameterisations;
 Featherstone dynamics (RNEA / ABA / CRBA / CCRBA), centroidal
 momentum, and autograd-derived `compute_*_derivatives`; a three-layer

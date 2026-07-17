@@ -11,10 +11,10 @@ job that makes both sustainable: have only one path through.
 The library has exactly one FK function (`forward_kinematics`),
 exactly one Jacobian assembly function
 (`compute_joint_jacobians`), and exactly one residual-Jacobian
-dispatcher (`residual_jacobian`). The dispatcher picks analytic,
-autodiff, functional, or finite-diff at call time via a
-`JacobianStrategy` flag — but the call site, the residual, and the
-solver never see the difference. This is the discipline that prevents
+dispatcher (`residual_jacobian`). The dispatcher picks an analytic
+Jacobian or the current central finite-difference fallback via a
+`JacobianStrategy` flag. Real `torch.func` strategies are scheduled for
+the M2 residual redesign and are not selectable today. This discipline prevents
 "fixed base" and "floating base" Jacobian variants from accreting
 back into the codebase.
 
@@ -39,6 +39,7 @@ def forward_kinematics(
     q_or_data: torch.Tensor | Data,
     *,
     compute_frames: bool = False,
+    check_quaternion_norm: bool = False,
 ) -> Data:
     """Compute the placements of every joint, batched.
 
@@ -94,6 +95,10 @@ Properties of this FK:
 - **Compile-friendly.** `model.topo_order` is a Python tuple;
   `joint_models` is a tuple; the loop unrolls cleanly under
   `torch.compile`.
+- **No default host sync.** Free-flyer quaternions are assumed normalized.
+  The public wrapper can opt into a diagnostic norm check with
+  `check_quaternion_norm=True`; that check synchronizes and is excluded from
+  `forward_kinematics_raw`.
 
 `update_frame_placements(model, data)` is the second-step companion:
 
@@ -170,33 +175,29 @@ and angular errors that no IK solver will ever resolve. The unit test
 `tests/kinematics/test_jacobian_reference_frames.py` pins the
 convention.
 
-## `JacobianStrategy` — one entry point, four strategies
+## `JacobianStrategy` — one entry point, two implementations
 
 ```python
 class JacobianStrategy(str, Enum):
     ANALYTIC    = "analytic"     # call residual.jacobian(state); error if None
-    AUTODIFF    = "autodiff"     # torch.func.jacrev(residual)(state)
-    FUNCTIONAL  = "functional"   # torch.func.jacfwd (useful when outputs << inputs)
-    FINITE_DIFF = "finite_diff"  # opt-in central FD; useful for hand-validating analytic
-    AUTO        = "auto"         # prefer ANALYTIC, fall back to AUTODIFF
+    FINITE_DIFF = "finite_diff"  # unbatched central finite differences
+    AUTO        = "auto"         # prefer ANALYTIC, fall back to FINITE_DIFF
 ```
 
 Source: `src/better_robot/kinematics/jacobian_strategy.py`.
 
-`AUTO` is the default everywhere. The library's analytic-vs-autodiff
-discipline reads:
+`AUTO` is the default everywhere:
 
 - Residuals that have a hand-written `.jacobian()` use it
   (`AUTO → ANALYTIC`).
 - Residuals that return `None` from `.jacobian()` fall through to
-  autodiff (`AUTO → AUTODIFF`). Their slot in the cost-stack
-  Jacobian is filled by `torch.func.jacrev` over that one residual,
-  not over the whole stack — so a single residual without analytic
-  support does not force the whole problem onto autodiff.
-- `FINITE_DIFF` is opt-in for hand-validating analytic Jacobians
-  during development. eps: `1e-3` (fp32), `1e-7` (fp64). It is not
-  used as a fallback in production code; the torch-native Lie backend
-  has clean autograd, so `AUTO → AUTODIFF` is the production path.
+  central finite differences (`AUTO → FINITE_DIFF`). The fallback is
+  unbatched and costs exactly `2·nv + 1` complete residual/FK evaluations:
+  one at the base point and two per tangent coordinate. Its epsilon is
+  `1e-3` (fp32) or `1e-7` (fp64).
+- `FINITE_DIFF` selects that same fallback explicitly, which is useful for
+  validating analytic Jacobians. The removed `AUTODIFF` and `FUNCTIONAL`
+  values are re-added only when real `torch.func` implementations land in M2.
 
 ```python
 def residual_jacobian(
@@ -207,17 +208,13 @@ def residual_jacobian(
 ) -> torch.Tensor:
     """Unified residual Jacobian. Shape: (B..., dim, state_dim).
 
-    AUTO        — call residual.jacobian(state); fall back to AUTODIFF if None.
+    AUTO        — call residual.jacobian(state); fall back to FINITE_DIFF if None.
     ANALYTIC    — require residual.jacobian(state) to return a tensor.
-    AUTODIFF    — torch.func.jacrev over residual.__call__.
-    FUNCTIONAL  — torch.func.jacfwd over residual.__call__.
-    FINITE_DIFF — central FD, opt-in.
+    FINITE_DIFF — unbatched central FD (2*nv + 1 evaluations).
     """
 ```
 
-The solver in `optim/` never writes Jacobian code — it asks this
-function. That is how the four-way Jacobian path (fixed analytic,
-fixed autodiff, floating analytic, floating autodiff) becomes one.
+The solver in `optim/` never writes Jacobian code — it asks this function.
 
 ## Pose residual analytic Jacobian — the elegant version
 
@@ -306,7 +303,7 @@ because analytic Jacobians are sensitive to it.
 | `compute_joint_jacobians` | Live (analytic, world frame) |
 | `get_joint_jacobian` | Live |
 | `get_frame_jacobian` | Live (LWA, LOCAL, WORLD reference frames) |
-| `residual_jacobian` | Live (ANALYTIC / AUTODIFF / FUNCTIONAL / FINITE_DIFF / AUTO) |
+| `residual_jacobian` | Live (ANALYTIC / FINITE_DIFF / AUTO; FD is unbatched) |
 
 ## Sharp edges
 

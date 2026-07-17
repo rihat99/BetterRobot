@@ -12,14 +12,13 @@ class JacobianStrategy(str, Enum):
     """How to compute the Jacobian of a residual.
 
     ANALYTIC    — require ``residual.jacobian(state)`` to return a tensor.
-    AUTODIFF    — ``torch.func.jacrev`` over ``residual.__call__``.
-    FUNCTIONAL  — ``torch.func.jacfwd`` (useful when outputs << inputs).
     FINITE_DIFF — central finite differences through ``model.integrate``.
-    AUTO        — prefer analytic, fall back to autodiff per-residual.
+    AUTO        — prefer analytic, fall back to finite differences.
+
+    Real ``torch.func`` strategies will be added with the M2 residual
+    redesign; they are intentionally not selectable before they exist.
     """
 
     ANALYTIC = "analytic"
-    AUTODIFF = "autodiff"
-    FUNCTIONAL = "functional"
     FINITE_DIFF = "finite_diff"
     AUTO = "auto"

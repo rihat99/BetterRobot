@@ -4,7 +4,7 @@
 
 - `forward_kinematics(model, q_or_data, compute_frames=False)` — single topological pass, fills `oMi` (and `oMf` if `compute_frames=True`)
 - `update_frame_placements(model, data)` — fills `oMf` from existing `oMi`
-- `compute_joint_jacobians(model, data)` — fills `data.J` for all joints
+- `compute_joint_jacobians(model, data)` — fills `data.joint_jacobians` for all joints
 - `get_frame_jacobian(model, data, frame_id, reference=...)` — extracts `(B..., 6, nv)` for one frame
 - `get_joint_jacobian(model, data, joint_id, reference=...)` — same for joints
 
@@ -31,12 +31,14 @@ J_local = torch.cat([R_ee.mT @ J_world[..., :3, :], R_ee.mT @ J_world[..., 3:, :
 ```python
 class JacobianStrategy(str, Enum):
     ANALYTIC = "analytic"     # call residual.jacobian(state)
-    AUTODIFF = "autodiff"     # torch.func.jacrev
-    FUNCTIONAL = "functional" # torch.func.jacfwd
-    AUTO = "auto"             # prefer analytic, fall back to autodiff
+    FINITE_DIFF = "finite_diff" # central FD, 2*nv + 1 evaluations
+    AUTO = "auto"             # prefer analytic, fall back to finite diff
 ```
 
-`residual_jacobian`'s AUTO fallback uses central finite differences. The pure-PyTorch Lie backend has clean autograd, so `torch.autograd.functional.jacobian` is also valid; FD is kept because it's joint-kind-agnostic and matches analytic Jacobians to numerical noise.
+`residual_jacobian`'s AUTO fallback is unbatched central finite differences:
+one base evaluation plus two evaluations per tangent dimension. Real
+`torch.func` strategies are scheduled for the M2 residual redesign and are
+not selectable today.
 
 ## FK Hot Path
 

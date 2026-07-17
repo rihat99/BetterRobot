@@ -20,6 +20,6 @@ class Cauchy:
         return 0.5 * c2 * torch.log1p(squared_norm / c2)
 
     def weight(self, squared_norm: torch.Tensor) -> torch.Tensor:
-        """IRLS weight ``rho'(s) = 1 / (1 + s / c²)``."""
+        """Normalized IRLS weight ``2·rho'(s) = 1 / (1 + s / c²)``."""
         c2 = self.c * self.c
         return 1.0 / (1.0 + squared_norm / c2)

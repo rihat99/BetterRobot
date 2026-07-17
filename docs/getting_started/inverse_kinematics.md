@@ -11,9 +11,9 @@ target = torch.tensor(
     [0.4, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0],   # [tx ty tz qx qy qz qw]
     dtype=torch.float64,
 )
-result = br.solve_ik(model, {"panda_hand": target})
+result = br.solve_ik(model, {"body_panda_hand": target})
 print(result.q)
-print(result.frame_pose("panda_hand"))
+print(result.frame_pose("body_panda_hand"))
 ```
 
 `solve_ik` returns an `IKResult` with the converged `q`, a `fk()`
@@ -27,7 +27,7 @@ from better_robot.tasks.ik import IKCostConfig, OptimizerConfig
 
 result = br.solve_ik(
     model,
-    {"panda_hand": target},
+    {"body_panda_hand": target},
     optimizer_cfg=OptimizerConfig(optimizer="lm", max_iter=200),
     cost_cfg=IKCostConfig(pos_weight=1.0, ori_weight=1.0, limit_weight=0.1),
 )
@@ -44,8 +44,8 @@ kernel:
 ```python
 result = br.solve_ik(
     model,
-    {"panda_hand": target},
-    cost_cfg=IKCostConfig(pose_kernel="huber", pose_kernel_param=0.05),
+    {"body_panda_hand": target},
+    optimizer_cfg=OptimizerConfig(kernel="huber"),
 )
 ```
 

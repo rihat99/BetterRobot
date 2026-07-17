@@ -18,6 +18,8 @@ import math
 
 import torch
 
+from ._torch_native_backend import _taylor_theta2
+
 # ────────────────────────── hat / vee ──────────────────────────────────────
 
 
@@ -83,22 +85,22 @@ def _so3_jac_coefficients(theta2: torch.Tensor) -> tuple[torch.Tensor, torch.Ten
 
     Uses Taylor expansion near theta=0 for numerical stability.
     """
-    theta = torch.sqrt(theta2.clamp(min=0.0))
-    # Taylor threshold: below this, use the small-angle series
-    safe = theta2 > 1e-10
+    use_taylor = theta2 < _taylor_theta2(theta2.dtype)
+    theta2_safe = torch.where(use_taylor, torch.ones_like(theta2), theta2)
+    theta = theta2_safe.sqrt()
 
     # Full expressions
     cos_t = torch.cos(theta)
     sin_t = torch.sin(theta)
-    A_full = (1.0 - cos_t) / theta2.clamp(min=1e-30)
-    B_full = (theta - sin_t) / (theta * theta2).clamp(min=1e-30)
+    A_full = (1.0 - cos_t) / theta2_safe.clamp(min=1e-30)
+    B_full = (theta - sin_t) / (theta * theta2_safe).clamp(min=1e-30)
 
     # Taylor: A ≈ 1/2 - theta^2/24, B ≈ 1/6 - theta^2/120
     A_taylor = 0.5 - theta2 / 24.0
     B_taylor = 1.0 / 6.0 - theta2 / 120.0
 
-    A = torch.where(safe, A_full, A_taylor)
-    B = torch.where(safe, B_full, B_taylor)
+    A = torch.where(use_taylor, A_taylor, A_full)
+    B = torch.where(use_taylor, B_taylor, B_full)
     return A, B
 
 
@@ -126,16 +128,17 @@ def right_jacobian_inv_so3(omega: torch.Tensor) -> torch.Tensor:
     where C = 1/θ² - (1+cosθ)/(2θ sinθ)  →  1/12 for θ→0.
     """
     theta2 = (omega * omega).sum(dim=-1)
-    theta = torch.sqrt(theta2.clamp(min=0.0))
-    safe = theta2 > 1e-10
+    use_taylor = theta2 < _taylor_theta2(omega.dtype)
+    theta2_safe = torch.where(use_taylor, torch.ones_like(theta2), theta2)
+    theta = theta2_safe.sqrt()
 
     cos_t = torch.cos(theta)
     sin_t = torch.sin(theta)
     # C_full = 1/theta2 - (1+cos_t) / (2 * theta * sin_t)
-    C_full = 1.0 / theta2.clamp(min=1e-30) - (1.0 + cos_t) / (2.0 * theta * sin_t).clamp(min=1e-30)
+    C_full = 1.0 / theta2_safe.clamp(min=1e-30) - (1.0 + cos_t) / (2.0 * theta * sin_t).clamp(min=1e-30)
     C_taylor = 1.0 / 12.0 + theta2 / 720.0
 
-    C = torch.where(safe, C_full, C_taylor)
+    C = torch.where(use_taylor, C_taylor, C_full)
 
     H = hat_so3(omega)
     H2 = H @ H

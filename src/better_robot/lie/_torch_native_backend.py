@@ -13,17 +13,28 @@ Singularity handling uses the Taylor expansions
   ``b = (1 − cos θ)/θ²    ≈ 1/2 − θ²/24    + O(θ⁴)``
   ``c = (θ − sin θ)/θ³    ≈ 1/6 − θ²/120  + O(θ⁴)``
 
-stitched in via ``torch.where`` against a ``θ²`` cutoff so the autograd
-graph stays smooth across ``θ = 0``.
+stitched via ``torch.where`` against a dtype-aware ``θ²`` cutoff.  The
+full-formula branches use safe dummy inputs in the Taylor region so both
+first- and second-order gradients remain finite at ``θ = 0``.
 """
 
 from __future__ import annotations
 
 import torch
 
-# Cutoffs below which we use the Taylor expansion. Both cover the dtype
-# precision range (`fp32 ≈ 1e-7`, `fp64 ≈ 1e-14`).
-_TAYLOR_THETA2 = 1e-8
+# ``1 - cos(theta)`` loses significance much earlier in fp32 than fp64.
+# These cutoffs are on theta squared, not theta.
+_TAYLOR_THETA2_FP32 = 1e-5
+_TAYLOR_THETA2_FP64 = 1e-8
+
+
+def _taylor_theta2(dtype: torch.dtype) -> float:
+    """Return the small-angle ``theta²`` cutoff for ``dtype``.
+
+    The dtype branch is static under ``torch.compile``.  Lower-precision
+    floating dtypes use the fp32 cutoff rather than the fp64 one.
+    """
+    return _TAYLOR_THETA2_FP64 if dtype == torch.float64 else _TAYLOR_THETA2_FP32
 
 
 # ─────────────────────────────── helpers ───────────────────────────────
@@ -145,10 +156,13 @@ def so3_inverse(q: torch.Tensor) -> torch.Tensor:
 def so3_exp(omega: torch.Tensor) -> torch.Tensor:
     """``(..., 3)`` axis-angle → ``(..., 4)`` quaternion ``[qx, qy, qz, qw]``."""
     theta2 = (omega * omega).sum(dim=-1, keepdim=True)
-    theta = theta2.clamp(min=0.0).sqrt()
+    use_taylor = theta2 < _taylor_theta2(omega.dtype)
+    # ``where`` evaluates both branches in backward.  Feed the unselected
+    # full branch a benign value so sqrt/division derivatives stay finite.
+    theta2_safe = torch.where(use_taylor, torch.ones_like(theta2), theta2)
+    theta = theta2_safe.sqrt()
     half = theta / 2.0
     # ``sin(θ/2)/θ`` factor with a Taylor-stitch at small θ.
-    use_taylor = theta2 < _TAYLOR_THETA2
     sin_half_over_theta_full = torch.sin(half) / theta.clamp(min=1e-30)
     # Taylor: sin(θ/2)/θ = 1/2 − θ²/48 + O(θ⁴).
     sin_half_over_theta_taylor = 0.5 - theta2 / 48.0
@@ -156,7 +170,9 @@ def so3_exp(omega: torch.Tensor) -> torch.Tensor:
         use_taylor, sin_half_over_theta_taylor, sin_half_over_theta_full
     )
     qxyz = sin_half_over_theta * omega
-    qw = torch.cos(half)
+    # Keep the scalar component on the Taylor branch too: otherwise the
+    # unmasked sqrt derivative leaks ``0 * inf = NaN`` at the identity.
+    qw = torch.where(use_taylor, 1.0 - theta2 / 8.0, torch.cos(half))
     return torch.cat([qxyz, qw], dim=-1)
 
 
@@ -171,11 +187,14 @@ def so3_log(q: torch.Tensor) -> torch.Tensor:
     qxyz = q[..., :3]
     qw = q[..., 3:4]
     sin_half2 = (qxyz * qxyz).sum(dim=-1, keepdim=True)
-    sin_half = sin_half2.clamp(min=0.0).sqrt()
+    use_taylor = sin_half2 < _taylor_theta2(q.dtype) / 4.0
+    sin_half2_safe = torch.where(
+        use_taylor, torch.ones_like(sin_half2), sin_half2
+    )
+    sin_half = sin_half2_safe.sqrt()
 
     # θ = 2·atan2(|qxyz|, qw); then ω = (θ/sin(θ/2))·qxyz.
     theta = 2.0 * torch.atan2(sin_half, qw.clamp(min=-1.0, max=1.0))
-    use_taylor = sin_half2 < _TAYLOR_THETA2 / 4.0  # since sin(θ/2)² ~ θ²/4
     factor_full = theta / sin_half.clamp(min=1e-30)
     # Taylor: θ/sin(θ/2) ≈ 2 + θ²/12 + O(θ⁴), and ω = qxyz · (θ/sin(θ/2));
     # for small θ, qxyz ≈ ω/2, so ω ≈ 2·qxyz · (1 + sin_half²·…).
@@ -267,14 +286,15 @@ def se3_exp(xi: torch.Tensor) -> torch.Tensor:
     v = xi[..., :3]
     omega = xi[..., 3:6]
     theta2 = (omega * omega).sum(dim=-1, keepdim=True)
-    theta = theta2.clamp(min=0.0).sqrt()
-    use_taylor = theta2 < _TAYLOR_THETA2
+    use_taylor = theta2 < _taylor_theta2(xi.dtype)
+    theta2_safe = torch.where(use_taylor, torch.ones_like(theta2), theta2)
+    theta = theta2_safe.sqrt()
 
-    b_full = (1.0 - torch.cos(theta)) / theta2.clamp(min=1e-30)
+    b_full = (1.0 - torch.cos(theta)) / theta2_safe.clamp(min=1e-30)
     b_taylor = 0.5 - theta2 / 24.0
     b = torch.where(use_taylor, b_taylor, b_full)
 
-    c_full = (theta - torch.sin(theta)) / (theta * theta2).clamp(min=1e-30)
+    c_full = (theta - torch.sin(theta)) / (theta * theta2_safe).clamp(min=1e-30)
     c_taylor = (1.0 / 6.0) - theta2 / 120.0
     c = torch.where(use_taylor, c_taylor, c_full)
 
@@ -293,13 +313,14 @@ def se3_log(t: torch.Tensor) -> torch.Tensor:
     q = t[..., 3:7]
     omega = so3_log(q)  # (..., 3)
     theta2 = (omega * omega).sum(dim=-1, keepdim=True)
-    theta = theta2.clamp(min=0.0).sqrt()
-    use_taylor = theta2 < _TAYLOR_THETA2
+    use_taylor = theta2 < _taylor_theta2(t.dtype)
+    theta2_safe = torch.where(use_taylor, torch.ones_like(theta2), theta2)
+    theta = theta2_safe.sqrt()
 
     # V(ω)⁻¹ = I − ½·W + (1/θ² − (1+cos θ)/(2θ·sin θ)) · W²
     half_theta = theta / 2.0
     cot_half = torch.cos(half_theta) / torch.sin(half_theta).clamp(min=1e-30)
-    coeff_full = (1.0 / theta2.clamp(min=1e-30)) - cot_half / (2.0 * theta.clamp(min=1e-30))
+    coeff_full = (1.0 / theta2_safe.clamp(min=1e-30)) - cot_half / (2.0 * theta.clamp(min=1e-30))
     coeff_taylor = (1.0 / 12.0) + theta2 / 720.0
     coeff = torch.where(use_taylor, coeff_taylor, coeff_full)
 

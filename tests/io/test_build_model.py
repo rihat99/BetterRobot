@@ -279,7 +279,7 @@ def test_multi_joint_chain():
     assert model.njoints == 5  # universe + root + 3 ir joints
 
 
-def test_mimic_joint():
+def _mimic_ir(*, multiplier: float = 1.0, offset: float = 0.0):
     b = ModelBuilder("mimic")
     b.add_body("root")
     b.add_body("finger1")
@@ -288,15 +288,36 @@ def test_mimic_joint():
                      origin=_id7(), lower=-1., upper=1.)
     b.add_revolute_z("mimic_j", parent="root", child="finger2",
                      origin=_id7(), lower=-1., upper=1.,
-                     mimic_source="main_j", mimic_multiplier=0.5, mimic_offset=0.1)
-    ir = b.finalize()
-    model = build_model(ir)
-    # mimic_source for mimic_j should point to main_j
+                     mimic_source="main_j", mimic_multiplier=multiplier,
+                     mimic_offset=offset)
+    return b.finalize()
+
+
+@pytest.mark.parametrize(
+    ("multiplier", "offset"),
+    [(0.5, 0.0), (1.0, 0.1)],
+    ids=["multiplier", "offset"],
+)
+def test_non_identity_mimic_joint_raises(multiplier, offset):
+    with pytest.raises(NotImplementedError) as exc_info:
+        build_model(_mimic_ir(multiplier=multiplier, offset=offset))
+    message = str(exc_info.value)
+    assert "mimic" in message.lower()
+    assert "milestone M3" in message
+    assert "plan/04_roadmap.md" in message
+
+
+def test_identity_mimic_joint_preserves_metadata_and_independent_dofs():
+    model = build_model(_mimic_ir())
     main_j_midx = model.joint_id("main_j")
     mimic_j_midx = model.joint_id("mimic_j")
+
     assert model.mimic_source[mimic_j_midx] == main_j_midx
-    assert abs(float(model.mimic_multiplier[mimic_j_midx]) - 0.5) < 1e-6
-    assert abs(float(model.mimic_offset[mimic_j_midx]) - 0.1) < 1e-6
+    assert model.mimic_multiplier[mimic_j_midx].item() == pytest.approx(1.0)
+    assert model.mimic_offset[mimic_j_midx].item() == pytest.approx(0.0)
+    assert model.nqs[main_j_midx] == model.nqs[mimic_j_midx] == 1
+    assert model.nvs[main_j_midx] == model.nvs[mimic_j_midx] == 1
+    assert model.idx_qs[main_j_midx] != model.idx_qs[mimic_j_midx]
 
 
 def test_mimic_bad_source_raises():

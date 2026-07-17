@@ -27,7 +27,7 @@ class Huber:
         return torch.where(s <= d2, inside, outside)
 
     def weight(self, squared_norm: torch.Tensor) -> torch.Tensor:
-        """IRLS weight ``rho'(s) = min(1, delta / sqrt(s))``.
+        """Normalized IRLS weight ``2·rho'(s) = min(1, delta / sqrt(s))``.
 
         Returns 1.0 inside the quadratic region (``s ≤ delta²``) and decays
         as ``delta / sqrt(s)`` outside it. The ``sqrt`` of the resulting

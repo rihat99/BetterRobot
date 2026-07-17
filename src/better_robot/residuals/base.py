@@ -1,8 +1,9 @@
 """``Residual`` protocol and ``ResidualState`` struct.
 
 Every residual is a **callable object** — not a plain function — so it can
-optionally own an analytic ``.jacobian()``. Fallback to autodiff happens
-one layer up in ``kinematics.jacobian.residual_jacobian``.
+optionally own an analytic ``.jacobian()``. The current fallback is central
+finite differences in ``kinematics.jacobian.residual_jacobian``; real
+``torch.func`` fallback is scheduled for M2.
 
 Trajectory-scale problems can also implement
 ``apply_jac_transpose(state, vec) -> Tensor`` to compute ``J^T @ vec`` in
@@ -62,7 +63,7 @@ class Residual(Protocol):
 
     def jacobian(self, state: ResidualState) -> torch.Tensor | None:
         """Return an analytic Jacobian of shape ``(B..., dim, nx)``, or
-        ``None`` to fall back to autodiff."""
+        ``None`` to fall back to central finite differences."""
         ...
 
 

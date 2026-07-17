@@ -157,6 +157,33 @@ def test_spherical_integrate_difference():
     _check_integrate_difference(jm, q, v)
 
 
+@pytest.mark.parametrize("theta", [0.0, 1e-9], ids=["identity", "theta_1e-9"])
+def test_spherical_identical_difference_has_finite_gradient(theta):
+    """An identical-quaternion difference evaluates Log at SO3 identity."""
+    jm = JointSpherical()
+    omega = torch.tensor([theta, 0.0, 0.0], dtype=torch.float64)
+    q = _so3.exp(omega).detach().requires_grad_(True)
+
+    assert torch.autograd.gradcheck(
+        lambda value: jm.difference(value, value),
+        (q,),
+        atol=1e-6,
+        rtol=1e-5,
+    )
+    assert torch.autograd.gradgradcheck(
+        lambda value: jm.difference(value, value),
+        (q,),
+        atol=1e-6,
+        rtol=1e-5,
+    )
+
+    loss = jm.difference(q, q).square().sum()
+    loss.backward()
+    assert q.grad is not None
+    assert torch.isfinite(q.grad).all()
+    torch.testing.assert_close(q.grad, torch.zeros_like(q))
+
+
 def test_spherical_batch():
     jm = JointSpherical()
     q = torch.randn(4, 4)

@@ -30,20 +30,24 @@ Connects the cost stack to the solver:
 - Multi-stage: `MultiStageOptimizer` + `OptimizerStage` (snapshots `cost_stack` state on entry; restores in a `try / finally` so a stage that raises does not leak `active`/`weight` changes)
 - `LMThenLBFGS` is a thin wrapper around `MultiStageOptimizer((LM, LBFGS))` with optional stage-2 disabled items.
 
-**Linear solvers** (`solvers/`): `Cholesky`, `LSTSQ`, `CG`, `SparseCholesky`
-**Damping strategies** (`strategies/`): `Constant`, `Adaptive`, `TrustRegion`
+**Linear solvers** (`solvers/`): `Cholesky`, `LSTSQ`. `CG` and `SparseCholesky` are importable stubs whose `solve()` methods raise `NotImplementedError`; they are not supported task-configuration choices.
+**Damping strategies** (`strategies/`): `Constant`, `Adaptive`. `TrustRegion` is an importable stub whose methods raise `NotImplementedError`; it is not a supported task-configuration choice.
 **Robust kernels** (`kernels/`): `L2`, `Huber`, `Cauchy`, `Tukey`
 
 All four pluggable layers are runtime-checkable Protocols (`base.py` in each subpackage); they're enforced by `tests/contract/test_pluggable_protocols.py`.
 
 ## LM Details
 
-- IRLS reweighting: a non-`L2` kernel produces per-row `w_i = kernel.weight(r_i²)`; the residual and Jacobian rows are scaled by `sqrt(w_i)` before forming the normal equations.
+- IRLS reweighting: a kernel produces per-row `w_i = kernel.weight(r_i²)`; the residual and Jacobian rows are scaled by `sqrt(w_i)` before forming the normal equations. Built-ins use the normalized convention `w_i = 2·rho'(r_i²)`.
+- Robust acceptance: trial steps and actual gain use `sum(kernel.rho(r_i²))`; without a kernel they use `0.5·‖r‖²`. `SolverState.residual_norm` always remains raw `0.5·‖r‖²`.
+- Kernels see residual rows after `CostItem.weight` scaling, so kernel thresholds are in weighted residual units.
 - Adaptive damping (default): starts at `lam0=1e-4`, doubles on reject, halves on accept.
-- After each accepted step: clamps `x_new` to `[lower, upper]` (no-op for ±∞ bounds).
+- Every trial point is clamped to `[lower, upper]` before its residual is evaluated (no-op for ±∞ bounds).
 - Initial `x0` is NOT clamped — caller must provide a feasible start.
+- Bounds are projection-only: LM has no active set, projected-gradient test, or KKT termination. It can stall at active bounds with residual error and exhaust the budget as `status="maxiter"`; a real bounded solver is M2b scope.
 - Convergence: `||J^T r|| < tol`.
-- Gain ratio (`actual / predicted` cost decrease) is recorded on every accept.
+- Gain ratio (robust actual / IRLS-surrogate predicted decrease) is recorded on every accept. Default `Adaptive` damping does not use it.
+- LM emits `converged` or `maxiter`, not `stalled`; only LBFGS currently emits `stalled`.
 
 ## ResidualSpec
 

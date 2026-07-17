@@ -1,6 +1,6 @@
-"""Tests for kinematics Jacobians — shape checks and analytic vs autodiff.
+"""Tests for kinematics Jacobians — shape checks and analytic vs finite diff.
 
-Phase 4 pass criterion: analytic and autodiff Jacobians agree within ``1e-5``.
+Phase 4 pass criterion: analytic and finite-difference Jacobians agree.
 
 See ``docs/concepts/kinematics.md §3``.
 """
@@ -97,10 +97,10 @@ def test_chain_jacobian_shape(chain):
     assert J.shape == (6, chain.nv)  # (6, 2)
 
 
-# ── analytic vs autodiff ──────────────────────────────────────────────────────
+# ── analytic vs finite diff ───────────────────────────────────────────────────
 
-def _analytic_vs_autodiff(model, q, frame_id, rtol=1e-3, atol=1e-4):
-    """Helper: compare analytic and autodiff Jacobian for PoseResidual."""
+def _analytic_vs_finite_diff(model, q, frame_id, rtol=1e-3, atol=1e-4):
+    """Helper: compare analytic and central-FD Jacobians for PoseResidual."""
     data = forward_kinematics(model, q, compute_frames=True)
     T_target = data.frame_pose_world[frame_id].clone()  # use current pose as target → r≈0 near neutral
 
@@ -108,33 +108,65 @@ def _analytic_vs_autodiff(model, q, frame_id, rtol=1e-3, atol=1e-4):
     state = ResidualState(model=model, data=data, variables=q)
 
     J_analytic = residual_jacobian(residual, state, strategy=JacobianStrategy.ANALYTIC)
-    J_autodiff = residual_jacobian(residual, state, strategy=JacobianStrategy.AUTODIFF)
+    J_finite_diff = residual_jacobian(
+        residual, state, strategy=JacobianStrategy.FINITE_DIFF
+    )
 
-    assert J_analytic.shape == J_autodiff.shape, \
-        f"Shape mismatch: {J_analytic.shape} vs {J_autodiff.shape}"
+    assert J_analytic.shape == J_finite_diff.shape, \
+        f"Shape mismatch: {J_analytic.shape} vs {J_finite_diff.shape}"
     # Near the target pose, both Jacobians should agree
-    torch.testing.assert_close(J_analytic, J_autodiff, rtol=rtol, atol=atol)
+    torch.testing.assert_close(J_analytic, J_finite_diff, rtol=rtol, atol=atol)
 
 
-def test_analytic_vs_autodiff_simple_arm(arm):
+def test_analytic_vs_finite_diff_simple_arm(arm):
     q = arm.q_neutral
     frame_id = arm.frame_id("body_link1")
-    _analytic_vs_autodiff(arm, q, frame_id)
+    _analytic_vs_finite_diff(arm, q, frame_id)
 
 
-def test_analytic_vs_autodiff_simple_arm_nonzero_q(arm):
+def test_analytic_vs_finite_diff_simple_arm_nonzero_q(arm):
     q = arm.q_neutral.clone()
     q[0] = 0.5
     frame_id = arm.frame_id("body_link1")
-    _analytic_vs_autodiff(arm, q, frame_id)
+    _analytic_vs_finite_diff(arm, q, frame_id)
 
 
-def test_analytic_vs_autodiff_chain_j1(chain):
+def test_analytic_vs_finite_diff_chain_j1(chain):
     q = chain.q_neutral.clone()
     q[0] = 0.3
     q[1] = -0.4
     frame_id = chain.frame_id("body_l2")
-    _analytic_vs_autodiff(chain, q, frame_id)
+    _analytic_vs_finite_diff(chain, q, frame_id)
+
+
+def test_finite_diff_fallback_costs_two_nv_plus_one_evaluations(arm):
+    """The unbatched central-FD fallback performs one base and 2*nv probes."""
+
+    class CountingResidual:
+        name = "counting"
+        dim = 1
+
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def __call__(self, state: ResidualState) -> torch.Tensor:
+            self.calls += 1
+            return state.variables[:1]
+
+        def jacobian(self, state: ResidualState) -> None:
+            return None
+
+    q = arm.q_neutral.clone()
+    data = forward_kinematics(arm, q, compute_frames=True)
+    state = ResidualState(model=arm, data=data, variables=q)
+    residual = CountingResidual()
+
+    J = residual_jacobian(
+        residual, state, strategy=JacobianStrategy.FINITE_DIFF
+    )
+
+    assert J.shape == (1, arm.nv)
+    assert residual.calls == 2 * arm.nv + 1
 
 
 # ── panda Jacobian check ──────────────────────────────────────────────────────
@@ -158,10 +190,9 @@ def test_panda_frame_jacobian_shape(panda_model):
     assert J.shape == (6, panda_model.nv)
 
 
-def test_panda_analytic_vs_autodiff(panda_model):
+def test_panda_analytic_vs_finite_diff(panda_model):
     q = panda_model.q_neutral
-    data = forward_kinematics(panda_model, q, compute_frames=True)
     frame_name = "body_panda_hand" if "body_panda_hand" in panda_model.frame_name_to_id \
         else panda_model.frame_names[-1]
     frame_id = panda_model.frame_id(frame_name)
-    _analytic_vs_autodiff(panda_model, q, frame_id, rtol=1e-3, atol=1e-4)
+    _analytic_vs_finite_diff(panda_model, q, frame_id, rtol=1e-3, atol=1e-4)

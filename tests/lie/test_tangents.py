@@ -87,6 +87,25 @@ def test_right_jacobian_so3_small_angle():
     assert torch.allclose(Jr, Jr_approx, atol=1e-5)
 
 
+@pytest.mark.parametrize(
+    "op",
+    [tangents.right_jacobian_so3, tangents.right_jacobian_inv_so3],
+    ids=["right_jacobian", "right_jacobian_inverse"],
+)
+@pytest.mark.parametrize("theta", [0.0, 1e-9], ids=["identity", "theta_1e-9"])
+def test_right_jacobian_singularities_gradcheck(op, theta):
+    """SO3 Jacobians have finite fp64 derivatives through second order."""
+    omega = torch.tensor(
+        [theta, 0.0, 0.0], dtype=torch.float64, requires_grad=True
+    )
+
+    assert torch.autograd.gradcheck(op, (omega,), atol=1e-6, rtol=1e-5)
+    assert torch.autograd.gradgradcheck(op, (omega,), atol=1e-6, rtol=1e-5)
+
+    gradient, = torch.autograd.grad(op(omega).sum(), omega)
+    assert torch.isfinite(gradient).all()
+
+
 def test_jr_jrinv_so3_product():
     """Jr(omega) @ Jr_inv(omega) == I."""
     omega = torch.randn(3) * 0.8

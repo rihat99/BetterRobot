@@ -10,7 +10,9 @@ __call__(state: ResidualState) -> Tensor     # (B..., dim) residual vector
 jacobian(state: ResidualState) -> Tensor | None  # (B..., dim, nv) or None
 ```
 
-If `jacobian()` returns `None`, the solver falls back to autodiff on `__call__`. This is the `JacobianStrategy.AUTO` pattern.
+If `jacobian()` returns `None`, `JacobianStrategy.AUTO` falls back to
+unbatched central finite differences. The fallback evaluates the residual
+`2 * nv + 1` times; real `torch.func` strategies are scheduled for M2.
 
 Trajectory residuals can also override:
 ```python
@@ -52,7 +54,7 @@ Use `@register_residual("name")` decorator. Lookup via `get_residual("name")`.
 | `JerkResidual` | — | — | Stub |
 | `TimeIndexedResidual` | wraps inner residual at fixed knot | passes through | Implemented |
 | `ContactConsistencyResidual` (3*K*(T-1)) | LWA frame-Jacobian linear rows | overridden | Implemented |
-| `YoshikawaResidual` (1) | — | default (autodiff) | Stub |
+| `YoshikawaResidual` (1) | — | — | Stub |
 | `SelfCollisionResidual` (n_pairs) | sparse analytic | default | Stub |
 | `WorldCollisionResidual` | sparse analytic | default | Stub |
 

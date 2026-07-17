@@ -68,12 +68,12 @@ or more leading batch axes and `feature` is the semantic last-axis
 - Quaternion format is **`[qx, qy, qz, qw]`** (scalar last). Every
   function accepting an SE(3) pose reads it as `[tx, ty, tz, qx, qy,
   qz, qw]`.
-- Quaternions are assumed unit-norm on input. The library normalises
-  once on entry to `forward_kinematics` and any top-level solver;
-  internal kernels do not re-normalise.
-- A non-unit quaternion with norm outside `[0.9, 1.1]` raises
-  `QuaternionNormError`. Norms inside `[0.9, 1.1]` are renormalised
-  silently (tolerance for float drift).
+- Quaternions are assumed unit-norm on input; FK does not normalize them.
+  `forward_kinematics(..., check_quaternion_norm=True)` enables an opt-in
+  boundary check for free-flyer configurations. The check synchronizes
+  accelerator tensors and is therefore disabled on the default hot path.
+- With that diagnostic enabled, a norm outside `[0.9, 1.1]` raises
+  `QuaternionNormError`. Normalize configurations before calling FK.
 
 ### 1.4 Joint limits
 
@@ -110,7 +110,7 @@ responsible layer and a documented remediation.
 | `IRSchemaVersionError` | `io.build_model` | `IRModel.schema_version` does not match the build's expected version | Re-parse the source asset; regenerate cached `.npz` IR |
 | `DeviceMismatchError` | `kinematics`, `dynamics`, `optim` | `q.device != model.device` | Call `model.to(q.device)` or vice versa |
 | `DtypeMismatchError` | as above | `q.dtype` incompatible with `model.dtype` | Cast one side; see §1.2 |
-| `QuaternionNormError` | `lie`, `kinematics` entry | Input quaternion norm outside `[0.9, 1.1]` | Normalise before passing |
+| `QuaternionNormError` | `kinematics` opt-in debug check | Free-flyer quaternion norm outside `[0.9, 1.1]` | Normalise before passing or enable the check only while debugging |
 | `ShapeError` | every public entry | Wrong trailing-axis size | Match the published shape |
 | `StaleCacheError` | `kinematics`, `dynamics` | `Data._kinematics_level` below required level | Call `forward_kinematics(model, data)` first; or `data.invalidate(NONE)` then re-run |
 | `ConvergenceError` | `optim.solve` (optional) | Solver did not converge within `max_iter` | Inspect the returned `SolverState` |
@@ -185,10 +185,10 @@ is per-query, it may be mutable.
 - Every public hot-path function participates in autograd: gradients
   flow from `q` → FK output → residual → loss without special
   handling.
-- `residual_jacobian(..., strategy=AUTODIFF)` uses
-  `torch.func.jacrev`. `strategy=ANALYTIC` uses the residual's
-  `.jacobian()` method. `strategy=AUTO` prefers analytic, falls back
-  to autodiff, falls back to central finite differences.
+- `residual_jacobian(..., strategy=ANALYTIC)` uses the residual's
+  `.jacobian()` method. `strategy=AUTO` prefers analytic and falls back to
+  unbatched central finite differences at a cost of `2·nv + 1` residual
+  evaluations. Real `torch.func` strategies are scheduled for M2.
 - **Forbidden**: in-place mutation of a tensor currently on the
   autograd tape. The library uses functional-style ops throughout;
   contributions must too.

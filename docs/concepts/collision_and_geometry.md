@@ -274,6 +274,6 @@ humanoids will need it once the residual side lands.
 
 - {doc}`residuals_and_costs` — how the (still-stubbed) collision
   residuals plug into a `CostStack`.
-- {doc}`tasks` — `solve_ik(..., robot_collision=...)` is wired and
-  ready for the residual to land.
+- {doc}`tasks` — collision is deliberately not accepted by `solve_ik` while
+  its residuals are stubbed; task integration is scheduled for M4.
 - {doc}`/reference/roadmap` — what is currently stubbed and where.

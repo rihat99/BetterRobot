@@ -9,7 +9,7 @@ See ``docs/concepts/tasks.md §1``.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 import torch
@@ -30,7 +30,6 @@ from ..residuals.pose import PoseResidual
 from ..residuals.regularization import RestResidual
 
 if TYPE_CHECKING:
-    from ..collision.robot_collision import RobotCollision
     from ..data_model.data import Data
 
 
@@ -43,8 +42,6 @@ class IKCostConfig:
     pose_weight: float = 1.0
     limit_weight: float = 0.1
     rest_weight: float = 0.01
-    collision_margin: float = 0.02
-    collision_weight: float = 1.0
     q_rest: torch.Tensor | None = None
 
 
@@ -62,9 +59,9 @@ class OptimizerConfig:
     optimizer: Literal["lm", "gn", "adam", "lbfgs", "lm_then_lbfgs"] = "lm"
     max_iter: int = 100
     jacobian_strategy: JacobianStrategy = JacobianStrategy.AUTO
-    linear_solver: Literal["cholesky", "lstsq", "cg"] = "cholesky"
+    linear_solver: Literal["cholesky", "lstsq"] = "cholesky"
     kernel: Literal["l2", "huber", "cauchy", "tukey"] = "l2"
-    damping: Literal["constant", "adaptive", "trust_region"] = "adaptive"
+    damping: Literal["constant", "adaptive"] = "adaptive"
     tol: float = 1e-6
     refine_disabled_items: tuple[str, ...] = ()
 
@@ -101,11 +98,10 @@ class IKResult:
 
 def _make_linear_solver(name: str):
     """Return a fresh ``LinearSolver`` instance for the named string."""
-    from ..optim.solvers.cg import CG
     from ..optim.solvers.cholesky import Cholesky
     from ..optim.solvers.lstsq import LSTSQ
 
-    table = {"cholesky": Cholesky, "lstsq": LSTSQ, "cg": CG}
+    table = {"cholesky": Cholesky, "lstsq": LSTSQ}
     if name not in table:
         raise ValueError(
             f"Unknown linear_solver {name!r}; expected one of {sorted(table)}"
@@ -137,9 +133,8 @@ def _make_damping_strategy(name: str):
     """Return a fresh ``DampingStrategy`` instance for the named string."""
     from ..optim.strategies.adaptive import Adaptive
     from ..optim.strategies.constant import Constant
-    from ..optim.strategies.trust_region import TrustRegion
 
-    table = {"adaptive": Adaptive, "constant": Constant, "trust_region": TrustRegion}
+    table = {"adaptive": Adaptive, "constant": Constant}
     if name not in table:
         raise ValueError(
             f"Unknown damping {name!r}; expected one of {sorted(table)}"
@@ -154,7 +149,6 @@ def solve_ik(
     initial_q: torch.Tensor | None = None,
     cost_cfg: IKCostConfig | None = None,
     optimizer_cfg: OptimizerConfig | None = None,
-    robot_collision: "RobotCollision | None" = None,
 ) -> IKResult:
     """Whole-body inverse kinematics for one or more frame targets.
 
@@ -168,7 +162,6 @@ def solve_ik(
     initial_q : optional starting configuration ``(nq,)``
     cost_cfg : IK cost weights
     optimizer_cfg : optimizer settings
-    robot_collision : optional collision model (unused in this version)
 
     Returns
     -------
@@ -183,9 +176,20 @@ def solve_ik(
 
     # ── initial configuration ──────────────────────────────────────────
     if initial_q is not None:
-        x0 = initial_q.clone().detach().float()
+        x0 = initial_q.clone().detach()
     else:
-        x0 = model.q_neutral.clone().float()
+        x0 = model.q_neutral.clone()
+
+    if x0.dim() > 1:
+        raise NotImplementedError(
+            f"solve_ik received a batched initial_q with batch dims "
+            f"{tuple(x0.shape[:-1])}. The optimizer stack is single-problem "
+            f"only today: LM/GN/Adam/LBFGS use scalar damping, cost, and "
+            f"accept/reject logic. Batched solving (per-element damping and "
+            f"convergence) is scheduled for milestone M2b "
+            f"(see plan/04_roadmap.md). Pass a single (nq,) configuration, "
+            f"or loop over the batch."
+        )
 
     # ── build cost stack ───────────────────────────────────────────────
     stack = CostStack()
@@ -218,8 +222,8 @@ def solve_ik(
         cost_stack=stack,
         state_factory=_state_factory,
         x0=x0,
-        lower=model.lower_pos_limit.float(),
-        upper=model.upper_pos_limit.float(),
+        lower=model.lower_pos_limit.to(device=x0.device, dtype=x0.dtype),
+        upper=model.upper_pos_limit.to(device=x0.device, dtype=x0.dtype),
         jacobian_strategy=optimizer_cfg.jacobian_strategy,
         nv=model.nv,
         retract=lambda q, dv: model.integrate(q, dv),

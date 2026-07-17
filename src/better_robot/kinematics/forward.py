@@ -26,14 +26,12 @@ if TYPE_CHECKING:
     from ..backends.protocol import Backend
 
 
-#: Tolerance on quaternion norm at a public entry point.
-#: Anything within this band of 1.0 is re-normalised silently by downstream
-#: code; anything outside is rejected (see docs/conventions/contracts.md §1.3).
+#: Tolerance used by the opt-in free-flyer quaternion debug check.
 _QUAT_NORM_TOL = 0.1
 
 
 def _validate_q(model: Model, q: torch.Tensor) -> None:
-    """Sanity-check a configuration tensor at a public entry point.
+    """Check the shape and device of a configuration tensor.
 
     Raises
     ------
@@ -41,9 +39,6 @@ def _validate_q(model: Model, q: torch.Tensor) -> None:
         If ``q.shape[-1] != model.nq``.
     DeviceMismatchError
         If ``q.device`` differs from the model's tensor device.
-    QuaternionNormError
-        If the model has a free-flyer root and ``q[..., 3:7]`` is outside
-        ``[1 - TOL, 1 + TOL]``.
 
     See ``docs/conventions/contracts.md §1``.
     """
@@ -57,6 +52,15 @@ def _validate_q(model: Model, q: torch.Tensor) -> None:
             f"q.device={q.device} != model.device={model_device}. "
             f"Call model.to(q.device) or q.to(model.device) first."
         )
+
+
+def _validate_free_flyer_quaternion_norm(model: Model, q: torch.Tensor) -> None:
+    """Debug-check the free-flyer quaternion norm.
+
+    This check converts a tensor predicate to a Python ``bool`` and therefore
+    synchronizes accelerators.  It must only be called from an explicitly
+    requested public-boundary check, never from tensor-only primitives.
+    """
     if model.njoints >= 2 and isinstance(model.joint_models[1], JointFreeFlyer):
         # Free-flyer q layout: [tx, ty, tz, qx, qy, qz, qw]
         quat = q[..., 3:7]
@@ -91,6 +95,12 @@ def forward_kinematics_raw(
         World-frame joint placements (the quantity historically called ``oMi``).
     joint_pose_local : (B..., njoints, 7)
         Parent-frame joint placements (``liMi``).
+
+    Notes
+    -----
+    Free-flyer quaternions are assumed to be pre-normalized.  Use
+    :func:`forward_kinematics` with ``check_quaternion_norm=True`` to run the
+    opt-in debug check before calling this hot-path primitive.
 
     See docs/concepts/kinematics.md §6 and docs/conventions/naming.md for the rename.
     """
@@ -140,6 +150,7 @@ def forward_kinematics(
     q_or_data: torch.Tensor | Data,
     *,
     compute_frames: bool = False,
+    check_quaternion_norm: bool = False,
     backend: "Backend | None" = None,
 ) -> Data:
     """Compute joint (and optionally frame) placements.
@@ -153,6 +164,11 @@ def forward_kinematics(
         pre-allocated ``Data`` whose ``q`` field is populated.
     compute_frames : bool
         If true, also populate ``data.frame_pose_world``.
+    check_quaternion_norm : bool
+        If true, verify that a free-flyer quaternion has norm within 0.1 of
+        one and raise :class:`~better_robot.exceptions.QuaternionNormError`
+        otherwise.  This opt-in debug check synchronizes accelerator tensors;
+        the default hot path assumes free-flyer quaternions are pre-normalized.
     backend : Backend, optional
         Backend instance to dispatch through. ``None`` uses the active
         default (see :func:`better_robot.backends.default_backend`).
@@ -177,8 +193,11 @@ def forward_kinematics(
         )
         data.q = q
 
-    # Validate at the public boundary; the backend impl trusts inputs.
+    # Validate at the public boundary; the backend impl trusts inputs.  Keep
+    # the tensor-to-Python norm check opt-in so the default path is sync-free.
     _validate_q(model, q)
+    if check_quaternion_norm:
+        _validate_free_flyer_quaternion_norm(model, q)
     backend = backend or default_backend()
     joint_pose_world, joint_pose_local = backend.kinematics.forward_kinematics(model, q)
     data.joint_pose_world = joint_pose_world

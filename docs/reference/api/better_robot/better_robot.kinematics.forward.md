@@ -38,7 +38,7 @@
 ```
 ````
 
-````{py:function} forward_kinematics(model: better_robot.data_model.model.Model, q_or_data: torch.Tensor | better_robot.data_model.data.Data, *, compute_frames: bool = False, backend: Backend | None = None) -> better_robot.data_model.data.Data
+````{py:function} forward_kinematics(model: better_robot.data_model.model.Model, q_or_data: torch.Tensor | better_robot.data_model.data.Data, *, compute_frames: bool = False, check_quaternion_norm: bool = False, backend: Backend | None = None) -> better_robot.data_model.data.Data
 :canonical: better_robot.kinematics.forward.forward_kinematics
 
 ```{autodoc2-docstring} better_robot.kinematics.forward.forward_kinematics

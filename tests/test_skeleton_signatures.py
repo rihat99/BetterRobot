@@ -114,7 +114,9 @@ def test_data_exposes_deprecated_aliases() -> None:
 
 def test_jacobian_strategy_enum_values() -> None:
     values = {e.value for e in br.JacobianStrategy}
-    assert values == {"analytic", "autodiff", "functional", "finite_diff", "auto"}
+    assert values == {"analytic", "finite_diff", "auto"}
+    assert not hasattr(br.JacobianStrategy, "AUTODIFF")
+    assert not hasattr(br.JacobianStrategy, "FUNCTIONAL")
 
 
 def test_solve_ik_signature_shape() -> None:
@@ -125,7 +127,7 @@ def test_solve_ik_signature_shape() -> None:
     assert "initial_q" in params
     assert "cost_cfg" in params
     assert "optimizer_cfg" in params
-    assert "robot_collision" in params
+    assert "robot_collision" not in params
 
 
 def test_register_residual_is_decorator_factory() -> None:

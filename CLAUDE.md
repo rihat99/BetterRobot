@@ -4,7 +4,7 @@
 
 PyTorch-native, GPU-ready library for robot kinematics and optimization. Pinocchio-style Model/Data architecture, PyTorch autograd throughout. Single code path for fixed-base and floating-base (free-flyer) robots.
 
-**Implemented:** forward kinematics, Jacobians (analytic + autograd + finite-diff fallback), pose/position/orientation/limits/rest/smoothness/contact-consistency/reference-trajectory residuals, CostStack, LM/GN/Adam/LBFGS/MultiStage optimizers, IK (fixed + floating base), trajectory optimisation (`solve_trajopt`) with knot + B-spline parameterisations, dynamics (RNEA/ABA/CRBA/CCRBA, centroidal map + momentum, autograd-derived `compute_*_derivatives`, three-layer Crocoddyl-style action models), viewer V1 (Skeleton, URDFMesh, Grid, FrameAxes, Targets, ForceVectors, ViserBackend, build_joint_panel, minimal TrajectoryPlayer).
+**Implemented:** forward kinematics, Jacobians (analytic + central finite-difference fallback), pose/position/orientation/limits/rest/smoothness/contact-consistency/reference-trajectory residuals, CostStack, LM/GN/Adam/LBFGS/MultiStage optimizers, single-problem IK (fixed + floating base), trajectory optimisation (`solve_trajopt`) with knot + B-spline parameterisations, dynamics (RNEA/ABA/CRBA/CCRBA, centroidal map + momentum, autograd-derived `compute_*_derivatives`, three-layer Crocoddyl-style action models), viewer V1 (Skeleton, URDFMesh, Grid, FrameAxes, Targets, ForceVectors, ViserBackend, build_joint_panel, minimal TrajectoryPlayer).
 **Stubs:** dynamic integrators (`semi_implicit_euler` / `symplectic_euler` / `rk4`), `compute_minverse`, `compute_coriolis_matrix`, analytic Carpentier–Mansard derivatives, `solve_retarget`, jerk / Yoshikawa / collision / nullspace residuals, viewer COM/PathTrace/ResidualPlot overlays, `VideoRecorder`, Warp backend kernels. See `docs/reference/roadmap.md`.
 
 ## Commands
@@ -30,7 +30,7 @@ src/better_robot/
                       ReferenceTrajectory; analytic `.jacobian()` + `apply_jac_transpose` overrides)
   costs/            — CostStack
   optim/            — LeastSquaresProblem (with `gradient(x)` + `jacobian_blocks(x)`); LM/GN/Adam/LBFGS/MultiStage/LMThenLBFGS
-                      optimizers; Cholesky/LSTSQ/CG/SparseCholesky linear solvers; Constant/Adaptive/TrustRegion damping; L2/Huber/Cauchy/Tukey kernels
+                      optimizers; selectable Cholesky/LSTSQ linear solvers; selectable Constant/Adaptive damping; L2/Huber/Cauchy/Tukey kernels
   tasks/            — solve_ik(), solve_trajopt(), Trajectory, KnotTrajectory, BSplineTrajectory, retarget (stub)
   collision/        — geometry, pairs, RobotCollision (port of old capsule mode)
   io/               — load(), IRModel + schema_version, parsers (URDF/MJCF), ModelBuilder, AssetResolver + concrete resolvers
@@ -77,9 +77,10 @@ J_local = se3.adjoint_inv(T_ee) @ J_world
 
 ```python
 import better_robot as br
+from robot_descriptions import panda_description
 
 # Load robot (URDF path, yourdfpy.URDF object, or callable builder)
-model = br.load("panda.urdf")
+model = br.load(panda_description.URDF_PATH)
 model = br.load(urdf_obj)                          # yourdfpy.URDF
 model = br.load("g1.urdf", free_flyer=True)        # floating-base
 
@@ -88,16 +89,16 @@ data = br.forward_kinematics(model, q)             # (nq,) or (B, nq)
 data = br.forward_kinematics(model, q, compute_frames=True)  # also fills oMf
 
 # Jacobians
-br.compute_joint_jacobians(model, data)            # fills data.J
+br.compute_joint_jacobians(model, data)            # fills data.joint_jacobians
 J = br.get_frame_jacobian(model, data, frame_id)   # (B..., 6, nv)
 J = br.get_joint_jacobian(model, data, joint_id)   # (B..., 6, nv)
 
 # IK
 from better_robot.tasks.ik import IKCostConfig, OptimizerConfig, solve_ik
-result = br.solve_ik(model, {"panda_hand": target_pose})
+result = br.solve_ik(model, {"body_panda_hand": target_pose})
 result.q        # (nq,) solution
 result.fk()     # Data with FK at solution
-result.frame_pose("panda_hand")  # (7,) pose
+result.frame_pose("body_panda_hand")  # (7,) pose
 ```
 
 ## IK API
@@ -135,8 +136,8 @@ model.njoints     # number of joints (including universe joint 0)
 model.nbodies     # number of bodies
 model.nframes     # number of frames
 model.q_neutral   # neutral configuration (nq,)
-model.lower_pos_limit  # (nv,) lower joint limits
-model.upper_pos_limit  # (nv,) upper joint limits
+model.lower_pos_limit  # (nq,) lower joint limits
+model.upper_pos_limit  # (nq,) upper joint limits
 model.frame_id("name")  # → int
 model.integrate(q, dv)  # SE3-aware retraction: q ⊕ dv
 ```
@@ -144,12 +145,13 @@ model.integrate(q, dv)  # SE3-aware retraction: q ⊕ dv
 ## LM Solver Notes
 
 - Adaptive damping: starts at `1e-4`, doubles on reject, halves on accept.
-- After each accepted step: clamps `x_new` to `[lower, upper]`.
+- Every LM trial point is clamped to `[lower, upper]` before residual evaluation.
+- Bounds have no active-set, projected-gradient, or KKT treatment; an active-bound run can exit `maxiter` with error remaining (M2b).
 - Initial `x0` is **not** clamped — caller must provide feasible `x0` if limits matter.
 
 ## Batching Rules
 
-All tensors carry a leading batch dimension. No "unbatched mode" — single poses are `(1, nq)`. No `if x.dim() == 1:` branches in hot paths. Shape convention: `(B..., feature)` for configs, `(B..., njoints, 7)` for FK output, `(B..., 6, nv)` for Jacobians.
+Tensor math such as FK, residuals, and analytic Jacobians accepts arbitrary leading batch dimensions. The current optimizer stack and `solve_ik` are single-problem only and require `(nq,)`; batched solving is scheduled for M2b.
 
 ## torch.compile Friendliness
 

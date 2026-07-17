@@ -10,15 +10,14 @@ stop-condition into its own loop; those are independently pluggable
 axes that compose at construction.
 
 That separation is the whole reason "swap LM for Adam" or "switch
-the linear solver to CG for a sparse trajopt" is one Protocol swap
+Cholesky to LSTSQ for a rank-deficient problem" is one Protocol swap
 instead of a rewrite. Every optimiser implements the same
 `Optimizer` Protocol; every linear solver implements the same
 `LinearSolver` Protocol; every robust kernel and damping strategy
 likewise. The solver loop sketch at the bottom of this chapter is
 deliberately short — it is the *only* solver loop in the library.
-The four stages of the LM-then-LBFGS multi-stage solver, the
-collision-aware refinement pass, and the trajopt block-Cholesky path
-all reduce to the same shape with different components.
+The LM-then-LBFGS multi-stage solver and its individual stages all use
+that same optimizer contract with different components.
 
 This chapter walks through `LeastSquaresProblem` and the four
 pluggable axes (Optimizer, LinearSolver, RobustKernel,
@@ -34,7 +33,8 @@ class LeastSquaresProblem:
     - The cost stack supplies residuals r(x) and (optionally) J(x).
     - Equality / inequality constraints are exposed as cost items with
       kind="constraint_leq_zero" (Crocoddyl-like).
-    - Variable bounds are hard — enforced by projection at every step.
+    - Variable bounds preserve feasibility by projecting every trial point
+      before evaluation; this is not an active-set bounded solver.
 
     The problem is intentionally minimal; the solvers in
     optim/optimizers/ own the iteration strategy.
@@ -61,7 +61,7 @@ class LeastSquaresProblem:
     def jacobian_blocks(self, x: Tensor) -> dict["BlockKey", Tensor]:
         """Block-sparse Jacobian per ResidualSpec.
 
-        Used by the block-Cholesky linear solver for trajopt.
+        Metadata for future block-sparse trajopt solvers.
         """
 ```
 
@@ -82,8 +82,9 @@ The two extras worth highlighting:
   temporal residuals a per-knot kernel keeps the per-iteration
   memory at `O(T·nv)`. This is what makes a 200-knot G1 trajopt fit
   inside the 200 MiB CUDA peak watermark from {doc}`/conventions/performance` §1.3.
-- **`jacobian_blocks(x)` exposes structure.** The block-Cholesky
-  linear solver reads it to skip zero blocks. Residuals whose
+- **`jacobian_blocks(x)` exposes structure.** It is metadata for the future
+  block-sparse trajopt solver; the current `SparseCholesky` class is only an
+  importable stub. Residuals whose
   `spec.structure` is `"dense"` contribute one block;
   `"block"` / `"banded"` items contribute their declared blocks;
   `"matrix_free"` items raise — those should be solved with a
@@ -136,20 +137,25 @@ custom diagnostics:
 class SolverState:
     x:             Tensor              # (B..., nx) current iterate
     residual:      Tensor              # (B..., total_dim) r(x)
-    residual_norm: Tensor              # (B...,) ||r(x)||
+    residual_norm: Tensor              # (B...,) raw 0.5·||r(x)||²
     iters:         int
-    damping:       float               # λ for LM / trust-region radius for TR
+    damping:       float               # λ for LM; 0.0 for other solvers
     gain_ratio:    float | None = None
     status:        Literal["running", "converged", "stalled", "maxiter"] = "running"
 
     @classmethod
     def from_problem(cls, problem: LeastSquaresProblem) -> "SolverState": ...
-    def converged(self, tol: float) -> bool: ...
+    @property
+    def converged(self) -> bool: ...
 ```
 
 Source: `src/better_robot/optim/state.py`. The "one struct passes
 through every component" pattern (cuRobo) replaces the ad-hoc tuple
 returns the early prototype carried.
+
+`stalled` is currently emitted only by LBFGS. LM and Gauss–Newton emit
+`converged` or `maxiter`; in particular, bounds-limited LM progress is not
+misreported as convergence and normally exhausts the budget as `maxiter`.
 
 ## Linear solvers
 
@@ -159,22 +165,22 @@ class LinearSolver(Protocol):
 
 class Cholesky(LinearSolver): ...        # dense, SPD
 class LSTSQ(LinearSolver): ...           # rank-deficient safe
-class CG(LinearSolver): ...              # conjugate gradients for large sparse
-class SparseCholesky(LinearSolver): ...  # block-sparse for trajopt
+class CG(LinearSolver): ...              # stub: solve() raises
+class SparseCholesky(LinearSolver): ...  # stub: solve() raises
 ```
 
-Source: `src/better_robot/optim/linear_solvers/`.
+Source: `src/better_robot/optim/solvers/`.
 
-`Cholesky` is the default for dense IK problems. `SparseCholesky` is
-the default for trajopt problems where the Jacobian has banded /
-block structure (driven by `ResidualSpec`). `CG` is the choice for
-very large problems where assembly-based methods exhaust memory;
-`LSTSQ` is for cases where `JᵀJ` may be rank-deficient.
+`Cholesky` is the default for dense IK problems; `LSTSQ` handles cases
+where `JᵀJ` may be rank-deficient. `CG` and `SparseCholesky` remain
+importable placeholders whose `solve()` methods raise
+`NotImplementedError`; neither can be selected through `OptimizerConfig`.
 
 ## Robust kernels
 
 ```python
 class RobustKernel(Protocol):
+    def rho(self, squared_norm: Tensor) -> Tensor: ...
     def weight(self, squared_norm: Tensor) -> Tensor: ...
 
 class L2(RobustKernel):    ...   # trivial identity
@@ -185,10 +191,14 @@ class Tukey(RobustKernel): ...
 
 Source: `src/better_robot/optim/kernels/`.
 
-Robust kernels reweight `r → ρ(r)` per residual, not per cost stack
-— different terms can use different kernels. The IRLS-style
-reweighting happens once per outer iteration before the linear
-solve.
+The selected kernel is applied to each residual row after
+`CostItem.weight` scaling, so thresholds such as Huber's `delta` are in
+weighted residual units. Built-ins use the normalized IRLS convention
+`weight(s) = 2·ρ'(s)`: residual and Jacobian rows are multiplied by
+`sqrt(weight(r²))` before the linear solve. LM accepts trials using the
+matching robust objective `Σ ρ(r_i²)`; without a kernel, it uses
+`0.5·‖r‖²`. `SolverState.residual_norm` remains raw `0.5·‖r‖²` in both
+cases.
 
 ## Damping strategies
 
@@ -200,14 +210,15 @@ class DampingStrategy(Protocol):
 
 class Constant(DampingStrategy):    ...
 class Adaptive(DampingStrategy):    ...   # double on reject, halve on accept
-class TrustRegion(DampingStrategy): ...
+class TrustRegion(DampingStrategy): ...   # stub: methods raise
 ```
 
-Source: `src/better_robot/optim/damping/`.
+Source: `src/better_robot/optim/strategies/`.
 
 `Adaptive` is the default for LM. It starts at `1e-4`, doubles on
-reject, halves on accept. `TrustRegion` is the right choice when the
-problem has known step-size constraints.
+reject, and halves on accept. `Constant` keeps lambda fixed.
+`TrustRegion` is an importable placeholder whose methods raise
+`NotImplementedError`; it cannot be selected through `OptimizerConfig`.
 
 ## `OptimizerConfig` — every knob is wired
 
@@ -215,38 +226,27 @@ problem has known step-size constraints.
 honoured — there are no decorative fields.
 
 ```python
-@dataclass(frozen=True)
+@dataclass
 class OptimizerConfig:
-    optimizer: Literal["lm", "gn", "adam", "lbfgs",
-                       "lm_then_lbfgs", "multi_stage"] = "lm"
+    optimizer: Literal["lm", "gn", "adam", "lbfgs", "lm_then_lbfgs"] = "lm"
     max_iter: int = 100
     jacobian_strategy: JacobianStrategy = JacobianStrategy.AUTO
 
-    linear_solver: Literal["cholesky", "lstsq", "cg", "sparse_cholesky"] = "cholesky"
+    linear_solver: Literal["cholesky", "lstsq"] = "cholesky"
     kernel: Literal["l2", "huber", "cauchy", "tukey"] = "l2"
-    huber_delta: float | None = None
-    tukey_c: float | None = None
-    damping: float | Literal["constant", "adaptive", "trust_region"] = "adaptive"
-    tol: float = 1e-7
-
-    # Two-stage refinement (cuRobo pattern).
-    refine_max_iter: int = 30
-    refine_cost_mask: tuple[str, ...] = (
-        "pose_*", "limits", "rest", "self_collision", "world_collision",
-    )
-
-    # Multi-stage (generalises lm_then_lbfgs).
-    stages: tuple["OptimizerStage", ...] | None = None
+    damping: Literal["constant", "adaptive"] = "adaptive"
+    tol: float = 1e-6
+    refine_disabled_items: tuple[str, ...] = ()
 ```
 
 `solve_ik` builds the optimiser, linear solver, robust kernel, and
 damping strategy explicitly:
 
 ```python
-optimizer = _make_optimizer     (cfg)
-linear    = _make_linear_solver (cfg)
-kernel    = _make_robust_kernel (cfg)
-damping   = _make_damping       (cfg)
+optimizer = LevenbergMarquardt(tol=cfg.tol)  # for cfg.optimizer == "lm"
+linear    = _make_linear_solver(cfg.linear_solver)
+kernel    = _make_robust_kernel(cfg.kernel)
+damping   = _make_damping_strategy(cfg.damping)
 state = optimizer.minimize(problem,
                            linear_solver=linear,
                            kernel=kernel,
@@ -256,10 +256,8 @@ state = optimizer.minimize(problem,
 
 If a knob is set but ignored by the chosen optimiser (Adam does not
 take a linear solver), the build step warns rather than silently
-swallowing it. A contract test asserts
-`OptimizerConfig(linear_solver="lstsq")` produces a *different*
-numerical trajectory than the default — declared knobs are wired,
-never decorative.
+swallowing it. Focused tests check the factories and exercise both
+supported linear solvers through LM.
 
 ## `MultiStageOptimizer`
 
@@ -295,28 +293,37 @@ original `CostStack` weights after the run, including in error paths.
 
 ```python
 def minimize(self, problem, *, max_iter, linear_solver, kernel, strategy, scheduler=None):
-    x   = problem.x0.clone()
-    lam = strategy.init(problem)
+    state = SolverState.from_problem(problem)
+    state.damping = strategy.init(problem)
+    cost = _robust_cost(state.residual, kernel)
+
     for step in range(max_iter):
-        r = problem.residual(x)
-        J = problem.jacobian(x)
-        r = kernel.weight(r.pow(2).sum(-1, keepdim=True)).sqrt() * r
-        JtJ = J.mT @ J
-        Jtr = J.mT @ r
+        J = problem.jacobian(state.x)
+        r_weighted, J_weighted = _apply_kernel(state.residual, J, kernel)
+        JtJ = J_weighted.mT @ J_weighted
+        Jtr = J_weighted.mT @ r_weighted
 
-        while True:
-            A = JtJ + lam * torch.eye(x.shape[-1], dtype=x.dtype, device=x.device)
-            delta = linear_solver.solve(A, -Jtr)
-            x_new = _project(x + delta, problem.lower, problem.upper)
-            if problem.residual(x_new).norm() <= r.norm():
-                x, lam = x_new, strategy.accept(lam)
-                break
-            lam = strategy.reject(lam)
-            if lam > MAX_LAM: break
+        A = JtJ + state.damping * torch.eye(problem._nv, dtype=J.dtype, device=J.device)
+        delta = linear_solver.solve(A, -Jtr)
+        x_new = problem.step(state.x, delta)
+        if problem.lower is not None:
+            x_new = x_new.clamp(min=problem.lower, max=problem.upper)
+        r_new = problem.residual(x_new)
+        cost_new = _robust_cost(r_new, kernel)
 
-        if scheduler and scheduler.should_stop(step, r, x):
-            break
-    return OptimizationResult(x=x, residual=r, iters=step + 1)
+        if cost_new < cost:
+            state.x, state.residual = x_new, r_new
+            state.residual_norm = 0.5 * r_new.square().sum()  # always raw L2
+            state.damping = strategy.accept(state.damping)
+            cost = cost_new
+            if Jtr.norm() < self.tol:
+                state.status = "converged"
+                return state
+        else:
+            state.damping = strategy.reject(state.damping)
+
+    state.status = "maxiter"
+    return state
 ```
 
 Source: `src/better_robot/optim/optimizers/levenberg_marquardt.py`.
@@ -325,6 +332,11 @@ This is one loop. The four optimisers' worth of code that the early
 prototype carried (our LM, PyPose LM, fixed-base autodiff LM,
 floating-base analytic LM) all collapse into this with different
 components plugged in.
+
+`_robust_cost(r, kernel)` is `Σ kernel.rho(r_i²)`, or `0.5·‖r‖²`
+when no kernel is selected. The actual implementation also records the
+gain ratio and returns `status="converged"` when its gradient tolerance
+is met.
 
 ## Stop schedulers
 
@@ -357,18 +369,19 @@ the model and a frame-pose accessor.
 
 ```python
 import better_robot as br
+from robot_descriptions import panda_description
 from better_robot.residuals.pose          import PoseResidual
 from better_robot.residuals.limits        import JointPositionLimit
 from better_robot.residuals.regularization import RestResidual
 from better_robot.costs                    import CostStack
 from better_robot.optim                    import LeastSquaresProblem
 from better_robot.optim.optimizers         import LevenbergMarquardt
-from better_robot.optim.damping            import Adaptive
-from better_robot.optim.linear_solvers     import Cholesky
+from better_robot.optim.strategies         import Adaptive
+from better_robot.optim.solvers            import Cholesky
 from better_robot.optim.kernels            import Huber
 
-model = br.load("panda.urdf")
-hand_id = model.frame_id("panda_hand")
+model = br.load(panda_description.URDF_PATH)
+hand_id = model.frame_id("body_panda_hand")
 
 stack = CostStack()
 stack.add("pose", PoseResidual(frame_id=hand_id, target=target_pose))
@@ -408,15 +421,19 @@ compose cleanly.
 - **Adam and L-BFGS read `problem.gradient(x)`, not
   `problem.jacobian(x)`.** They never materialise the dense
   Jacobian. Long-horizon trajopt depends on this for memory.
-- **The LM solver projects after each accepted step.** Initial `x0`
-  is **not** projected — caller must provide a feasible `x0` if
-  bounds matter.
+- **LM bounds are projection-only.** Every trial point is projected onto
+  `[lower, upper]` *before* its residual is evaluated, and acceptance is a
+  bare objective comparison. There is no active set, projected-gradient
+  test, or KKT termination, so a run pinned at active bounds can stall with
+  residual error and exhaust its budget as `status="maxiter"`. Initial
+  `x0` is **not** projected. Active-set LM or a reflective trust region with
+  KKT termination is planned for M2b.
 - **`MultiStageOptimizer` restores weights / active flags via
   try/finally.** Stage-wise overrides do not leak even if a stage
   raises.
-- **`OptimizerConfig` knobs are honoured.** A contract test asserts
-  setting `linear_solver="lstsq"` produces a different numerical
-  trajectory than the default. Decorative knobs would fail the test.
+- **`OptimizerConfig` exposes only supported choices.** CG, sparse
+  Cholesky, and trust-region placeholders are importable for future work
+  but cannot be selected through the task facade.
 
 ## Where to look next
 

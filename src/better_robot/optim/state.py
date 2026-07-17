@@ -89,6 +89,11 @@ class SolverState:
         """
         x0 = problem.x0.clone().detach()
         r0 = problem.residual(x0)
+        if r0.dim() > 1:
+            raise NotImplementedError(
+                "Batched residuals are not supported by the optimizer stack; "
+                "see roadmap milestone M2b."
+            )
         return cls(
             x=x0,
             residual=r0,

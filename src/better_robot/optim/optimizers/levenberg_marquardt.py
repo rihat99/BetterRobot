@@ -8,10 +8,20 @@ manifold-aware update.
 If a non-trivial ``kernel`` is supplied, the residual and Jacobian are
 re-weighted IRLS-style each iteration: every row ``i`` is scaled by
 ``sqrt(kernel.weight(r_i²))`` before forming the normal equations.
+Trial steps are accepted using the matching robust objective
+``Σ kernel.rho(r_i²)`` (or ``0.5·‖r‖²`` without a kernel).
+
+Box bounds are enforced by projecting every trial point onto
+``[lower, upper]`` before evaluating its residual. This is not a bounded-LM
+algorithm: acceptance is a bare objective comparison, with no active set,
+projected-gradient test, or KKT termination. A run limited by active bounds
+can therefore stall with residual error and terminate as ``"maxiter"``.
+Active-set LM or a reflective trust region is planned for M2b.
 
 Returns a :class:`~better_robot.optim.state.SolverState` whose
 ``status`` is ``"converged"`` when the gradient norm drops below ``tol``
-and ``"maxiter"`` otherwise.
+and ``"maxiter"`` when the iteration budget is exhausted. The LM path does
+not currently emit ``"stalled"``.
 
 See ``docs/concepts/solver_stack.md §5``.
 """
@@ -31,10 +41,10 @@ def _apply_kernel(
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Return ``(sqrt(w)·r, sqrt(w)·J)`` for IRLS reweighting.
 
-    ``kernel.weight(r_i²)`` produces a per-row weight; the standard
-    equivalence between ``argmin Σ ρ(r_i²)`` and ``argmin Σ w_i r_i²`` is
-    realised by scaling each residual row and the matching Jacobian row by
-    ``sqrt(w_i)`` (Triggs et al. 2000, §4).
+    ``kernel.weight(r_i²)`` produces a per-row weight. Built-in kernels use
+    the normalized convention ``w_i = 2·rho'(r_i²)``, and scaling each
+    residual row and matching Jacobian row by ``sqrt(w_i)`` gives the IRLS
+    normal equations (Triggs et al. 2000, §4).
     """
     if kernel is None:
         return r, J
@@ -42,6 +52,14 @@ def _apply_kernel(
     w = kernel.weight(sq)
     sw = torch.sqrt(w.clamp(min=0.0))
     return r * sw, J * sw.unsqueeze(-1)
+
+
+def _robust_cost(r: torch.Tensor, kernel) -> torch.Tensor:
+    """Return the scalar objective used for LM trial-step acceptance."""
+    squared = r * r
+    if kernel is None:
+        return 0.5 * squared.sum()
+    return kernel.rho(squared).sum()
 
 
 class LevenbergMarquardt:
@@ -83,7 +101,7 @@ class LevenbergMarquardt:
         state = SolverState.from_problem(problem)
         state.damping = strat.init(problem)
         nv = problem._nv
-        cost = float(state.residual_norm)
+        cost = float(_robust_cost(state.residual, kernel))
 
         it = -1
         for it in range(max_iter):
@@ -107,7 +125,7 @@ class LevenbergMarquardt:
                 )
 
             r_new = problem.residual(x_new)
-            cost_new = float(0.5 * (r_new @ r_new).sum())
+            cost_new = float(_robust_cost(r_new, kernel))
 
             state.history.append({"iter": it, "cost": cost, "lam": state.damping})
 
@@ -118,7 +136,9 @@ class LevenbergMarquardt:
 
                 state.x = x_new
                 state.residual = r_new
-                state.residual_norm = torch.as_tensor(cost_new)
+                # ``residual_norm`` remains the raw 0.5·‖r‖² diagnostic even
+                # when robust rho drives acceptance.
+                state.residual_norm = 0.5 * (r_new * r_new).sum()
                 cost = cost_new
                 state.damping = strat.accept(state.damping)
 

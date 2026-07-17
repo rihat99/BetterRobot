@@ -19,13 +19,13 @@ The first stable release of the PyTorch-native BetterRobot stack.
   runs over any batch shape with no Python loops.
 - **Analytic Jacobians.** All built-in residuals have a `.jacobian()`
   method; `JacobianStrategy.AUTO` prefers analytic, falls back to
-  autodiff.
+  central finite differences.
 - **Unified solver stack.** `LeastSquaresProblem` + `CostStack` + `Optimizer`
   serves IK and trajectory optimisation through the same substrate.
   Pluggable optimisers (LM / GN / Adam / L-BFGS / multi-stage), linear
-  solvers (Cholesky / LSTSQ / CG / sparse Cholesky), robust kernels
+  selectable solvers (Cholesky / LSTSQ), robust kernels
   (L2 / Huber / Cauchy / Tukey), and damping strategies (Constant /
-  Adaptive / TrustRegion).
+  Adaptive). CG, sparse Cholesky, and TrustRegion remain explicit stubs.
 - **Featherstone dynamics.** RNEA, ABA, CRBA, CCRBA, centroidal momentum,
   centre of mass, autograd-derived `compute_*_derivatives`. Three-layer
   Crocoddyl-style action models for future optimal-control work.

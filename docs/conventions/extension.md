@@ -90,7 +90,7 @@ class MinTorqueResidual:
         tau = rnea(state.model, state.data, state.q, state.v, state.a)
         return self.weight * tau
 
-    # Optional — CostStack falls back to autodiff or FD if omitted.
+    # Optional — CostStack falls back to central FD if omitted.
     def jacobian(self, state) -> torch.Tensor:
         ...
 ```
@@ -110,7 +110,7 @@ Contract (`Residual` Protocol — see {doc}`/concepts/residuals_and_costs`):
 | `dim` | `int` property, post-attach | Yes |
 | `attach(model, cost_stack)` | binds to a model | Yes |
 | `__call__(state) -> Tensor` | residual `(B..., dim)` | Yes |
-| `jacobian(state) -> Tensor` | `(B..., dim, nv)` | No (falls back to autodiff) |
+| `jacobian(state) -> Tensor` | `(B..., dim, nv)` | No (unbatched central-FD fallback) |
 | `sparsity() -> Tensor[bool]` | column-sparsity mask | No (assumed dense) |
 
 The registry (`better_robot.residuals.registry`) keeps names → classes.
@@ -255,15 +255,23 @@ Contract: one method, `solve(JtJ: (n,n), Jtr: (n,)) -> (n,)`.
 
 ```python
 # my_package/optim/kernels/soft_l1.py
-from better_robot.optim.kernels import RobustKernel
+import torch
+
+from better_robot.optim.kernels.base import RobustKernel
 
 class SoftL1(RobustKernel):
-    def apply(self, r: torch.Tensor) -> torch.Tensor:
-        ...
-    def weights(self, r: torch.Tensor) -> torch.Tensor:
-        """Per-residual IRLS weights."""
-        ...
+    def rho(self, squared_norm: torch.Tensor) -> torch.Tensor:
+        """Soft-L1 objective ``sqrt(1 + s) - 1``."""
+        return torch.sqrt(1.0 + squared_norm) - 1.0
+
+    def weight(self, squared_norm: torch.Tensor) -> torch.Tensor:
+        """Normalized IRLS weight ``2·rho'(s)``."""
+        return torch.rsqrt(1.0 + squared_norm)
 ```
+
+LM uses `rho(s)` to accept trial steps and `weight(s)` to form the IRLS
+normal equations. Both methods preserve the input shape; built-in kernels
+use the normalized convention `weight(s) = 2·rho'(s)`.
 
 ## 7 · Add a collision primitive
 

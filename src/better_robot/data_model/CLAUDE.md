@@ -30,7 +30,7 @@ Free-flyer: nq=7 (quaternion), nv=6 (twist). Spherical: nq=4, nv=3. `model.idx_q
 
 ## Mimic Joints
 
-Handled via tensors (`mimic_multiplier`, `mimic_offset`, `mimic_source`) with no Python branching. Mimic joints have nq=0, nv=0.
+Non-identity mimic joints are rejected at build (`NotImplementedError`); reduced-coordinate enforcement is scheduled for M3. Exact identity tags are temporarily accepted for Panda compatibility, but they are **not coupled**: both joints retain independent coordinates until M3.
 
 ## Adding a New Joint Type
 

@@ -26,7 +26,7 @@ data = br.forward_kinematics(model, q, compute_frames=True)
 
 print(data.joint_pose_world.shape)   # (njoints, 7)
 print(data.frame_pose_world.shape)   # (nframes, 7)
-print(br.get_frame_jacobian(model, data, model.frame_id("panda_hand")).shape)
+print(br.get_frame_jacobian(model, data, model.frame_id("body_panda_hand")).shape)
 # (6, nv)
 ```
 
@@ -44,8 +44,8 @@ data_batch = br.forward_kinematics(model, q_batch)
 print(data_batch.joint_pose_world.shape)  # (8, njoints, 7)
 ```
 
-There is no "unbatched mode" — single configurations are just `B=1`.
-See {doc}`/concepts/batching_and_backends`.
+A single configuration uses the empty batch prefix `(nq,)`; arbitrary leading
+batch dimensions are also accepted. See {doc}`/concepts/batching_and_backends`.
 
 ## Next
 

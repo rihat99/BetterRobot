@@ -92,6 +92,23 @@ def test_panda_nq(panda_model):
     assert panda_model.nq == 9
 
 
+def test_panda_identity_mimic_is_accepted_with_metadata(panda_model, panda_ir):
+    mimic_joints = [joint for joint in panda_ir.joints
+                    if joint.mimic_source is not None]
+    assert mimic_joints
+
+    for joint in mimic_joints:
+        assert joint.mimic_multiplier == 1.0
+        assert joint.mimic_offset == 0.0
+        joint_id = panda_model.joint_id(joint.name)
+        source_id = panda_model.joint_id(joint.mimic_source)
+        assert panda_model.mimic_source[joint_id] == source_id
+        assert panda_model.mimic_multiplier[joint_id].item() == pytest.approx(1.0)
+        assert panda_model.mimic_offset[joint_id].item() == pytest.approx(0.0)
+        assert panda_model.nqs[joint_id] == 1
+        assert panda_model.nvs[joint_id] == 1
+
+
 def test_panda_njoints(panda_model, panda_ir):
     # njoints = 2 (universe + root_joint) + len(ir.joints)
     assert panda_model.njoints == 2 + len(panda_ir.joints)

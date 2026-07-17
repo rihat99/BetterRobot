@@ -104,28 +104,6 @@
 
 ````
 
-````{py:attribute} collision_margin
-:canonical: better_robot.tasks.ik.IKCostConfig.collision_margin
-:type: float
-:value: >
-   0.02
-
-```{autodoc2-docstring} better_robot.tasks.ik.IKCostConfig.collision_margin
-```
-
-````
-
-````{py:attribute} collision_weight
-:canonical: better_robot.tasks.ik.IKCostConfig.collision_weight
-:type: float
-:value: >
-   1.0
-
-```{autodoc2-docstring} better_robot.tasks.ik.IKCostConfig.collision_weight
-```
-
-````
-
 ````{py:attribute} q_rest
 :canonical: better_robot.tasks.ik.IKCostConfig.q_rest
 :type: torch.Tensor | None
@@ -180,7 +158,7 @@
 
 ````{py:attribute} linear_solver
 :canonical: better_robot.tasks.ik.OptimizerConfig.linear_solver
-:type: typing.Literal[cholesky, lstsq, cg]
+:type: typing.Literal[cholesky, lstsq]
 :value: >
    'cholesky'
 
@@ -202,7 +180,7 @@
 
 ````{py:attribute} damping
 :canonical: better_robot.tasks.ik.OptimizerConfig.damping
-:type: typing.Literal[constant, adaptive, trust_region]
+:type: typing.Literal[constant, adaptive]
 :value: >
    'adaptive'
 
@@ -322,7 +300,7 @@
 
 `````
 
-````{py:function} solve_ik(model: better_robot.data_model.model.Model, targets: dict[str, torch.Tensor], *, initial_q: torch.Tensor | None = None, cost_cfg: better_robot.tasks.ik.IKCostConfig | None = None, optimizer_cfg: better_robot.tasks.ik.OptimizerConfig | None = None, robot_collision: RobotCollision | None = None) -> better_robot.tasks.ik.IKResult
+````{py:function} solve_ik(model: better_robot.data_model.model.Model, targets: dict[str, torch.Tensor], *, initial_q: torch.Tensor | None = None, cost_cfg: better_robot.tasks.ik.IKCostConfig | None = None, optimizer_cfg: better_robot.tasks.ik.OptimizerConfig | None = None) -> better_robot.tasks.ik.IKResult
 :canonical: better_robot.tasks.ik.solve_ik
 
 ```{autodoc2-docstring} better_robot.tasks.ik.solve_ik

@@ -48,6 +48,14 @@ dev = [
     "jaxtyping>=0.2.30",
 ]
 
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu126" }
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/better_robot"]
 

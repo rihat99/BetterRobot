@@ -41,26 +41,6 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ````
 
-````{py:attribute} AUTODIFF
-:canonical: better_robot.kinematics.jacobian_strategy.JacobianStrategy.AUTODIFF
-:value: >
-   'autodiff'
-
-```{autodoc2-docstring} better_robot.kinematics.jacobian_strategy.JacobianStrategy.AUTODIFF
-```
-
-````
-
-````{py:attribute} FUNCTIONAL
-:canonical: better_robot.kinematics.jacobian_strategy.JacobianStrategy.FUNCTIONAL
-:value: >
-   'functional'
-
-```{autodoc2-docstring} better_robot.kinematics.jacobian_strategy.JacobianStrategy.FUNCTIONAL
-```
-
-````
-
 ````{py:attribute} FINITE_DIFF
 :canonical: better_robot.kinematics.jacobian_strategy.JacobianStrategy.FINITE_DIFF
 :value: >

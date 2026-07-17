@@ -38,7 +38,6 @@ contract is met; the lint rules are the discipline that keeps it met.
 | `compute_joint_jacobians(model, data)` | **≤ 300 µs** per call, `B=1` | Analytic, world frame |
 | `get_frame_jacobian(model, data, fid)` | **≤ 50 µs** per call | Cache hit — pure gather + rotate |
 | `solve_ik(model, targets, max_iter=30)` | **≤ 8 ms** per call, `B=1` | 30 LM iterations, pose cost only |
-| `solve_ik(...)` | **≤ 40 ms** per call, `B=1024` | Batched warm-starts; same iter count |
 
 Humanoid (G1, 36 DoF, floating-base):
 
@@ -63,7 +62,7 @@ do not let it rot.
 |----------|--------|
 | `Model` (tensors only) for Panda | ≤ 50 KiB |
 | `Data` for `B=1024, njoints=8` | ≤ 5 MiB |
-| Peak GPU working set during IK, `B=1024` | ≤ 200 MiB |
+| Future batched IK working set, `B=1024` | ≤ 200 MiB (M2b target; not shipped) |
 
 ### 1.4 Non-targets
 
@@ -77,9 +76,10 @@ We do **not** set targets for:
 
 ### 2.1 Batching is the default, not a mode
 
-Every hot-path function accepts `(B..., feature)` tensors and walks the
-robot topology **once** per call, regardless of `B`. No Python loop
-over the batch axis. No `if` on `tensor.dim()`. See
+Tensor kernels such as FK, residual evaluation, and analytic Jacobians
+accept `(B..., feature)` tensors and walk the robot topology **once** per
+call, regardless of `B`. The optimizer stack and `solve_ik` are currently
+single-problem and reject batched inputs; batched solving is M2b work. See
 {doc}`/concepts/batching_and_backends`.
 
 ### 2.2 Static topology, dynamic values
@@ -100,26 +100,27 @@ device) triple, not per query.
   current shipping body uses autograd through the differentiable RNEA /
   ABA / CRBA passes (live, gradcheck-clean) and will switch to the
   analytic recursion in a future minor release.
-- Everything else: autodiff or central finite differences as a
-  fallback. `JacobianStrategy.AUTO` dispatches.
+- Everything else: unbatched central finite differences as the current
+  fallback. `JacobianStrategy.AUTO` prefers analytic evaluation; real
+  `torch.func` strategies are scheduled for M2.
 
 **Rationale:** analytic derivatives are 3–10× faster than autodiff for
 rigid-body routines and 100× faster than finite differences.
 
 ### 2.4 Kernel fusion (torch.compile boundary)
 
-`@torch.compile(fullgraph=True)` is applied at three boundaries:
+No automatic `@torch.compile` decorator is installed today.
+`forward_kinematics_raw` is tested as compatible with an explicit caller-side
+`torch.compile(..., fullgraph=True)` wrapper. The next intended compilation
+boundaries are:
 
 1. `forward_kinematics.inner(q, joint_placements, ...)` — the topo walk.
 2. `compute_joint_jacobians.inner(joint_pose_world_stack, motion_subspaces, ...)`.
 3. `CostStack.__call__.inner(state)` — residual concatenation loop.
 
-Each compiled region has no Python control flow on tensor values, no
-`.item()` / `.cpu()` / `.numpy()`, no un-guarded `.to(device, dtype)`,
-and caches its compiled artefact per `(nq, nv, njoints, dtype, device)`
-key. The outer Python — `Model` construction, `Data` allocation,
-solver iteration — stays eager. Optimisers that call the compiled FK
-many times per step inherit fusion for free.
+The Jacobian and `CostStack` boundaries remain roadmap work. The outer
+Python — `Model` construction, `Data` allocation, and solver iteration —
+stays eager.
 
 ### 2.5 Adaptive kernel dispatch
 
@@ -251,27 +252,25 @@ Baseline is bumped only when:
 
 ### 4.3 Profiling (opt-in)
 
-`BR_PROFILE=1 python ...` enables `torch.profiler` with NVTX ranges
-around every compiled region. Output is consumable in Chrome Trace or
-Nsight Systems. No runtime cost when the flag is off.
+The proposed `BR_PROFILE=1` profiler/NVTX hook is not wired yet. Use
+`torch.profiler` directly until that M1 roadmap item lands.
 
 ### 4.4 Memory watermark
 
-`tests/bench/mem_watermark.py` runs the hot scenarios under
-`torch.cuda.memory._record_memory_history()` and asserts peak GPU
-working set against §1.3.
+A blocking CUDA memory-watermark benchmark is not present yet. The budgets
+in §1.3 remain targets until that benchmark and CI gate land.
 
 ## 5 · Compile / JIT lifecycle
 
 ### 5.1 Cold start
 
-On first call, every `@torch.compile` block records shapes and
-compiles. On Panda at `B=1024`, cold start adds ~800 ms to the first
-FK call. This is a one-time cost, not repeated across queries.
+When a caller explicitly wraps a compatible kernel with `torch.compile`,
+the first call records shapes and compiles. Cold-start cost depends on the
+PyTorch version, backend, device, and input shape and is not currently gated.
 
 ### 5.2 Recompile triggers
 
-Recompilation happens when:
+For caller-compiled kernels, recompilation can happen when:
 
 - `B` (the batch prefix) changes across queries → compile per shape.
   Mitigated by the shape-specialisation cache; if the user cycles
@@ -293,8 +292,8 @@ path to avoid re-compiling across jobs.
 | `backends/` | Backend Protocol; per-backend kernel implementations | Explicit `backend=` kwargs avoid global state in compiled code |
 | `lie/` | SE3/SO3 group ops, typed wrappers | Pure-PyTorch; closed-form; compile-friendly |
 | `spatial/` | 6D operators | Dataclass wrappers; no branching |
-| `kinematics/forward.py` | FK topo walk | `@torch.compile(fullgraph=True)`; unroll on `topo_order` |
-| `kinematics/jacobian.py` | Spatial Jacobian | Analytic; compiled |
+| `kinematics/forward.py` | FK topo walk | Explicitly compile-compatible; unroll on `topo_order` |
+| `kinematics/jacobian.py` | Spatial Jacobian | Analytic; automatic compilation is roadmap work |
 | `dynamics/*.py` | RNEA / ABA / CRBA | Analytic derivatives; compile-friendly recursion |
 | `residuals/*.py` | Pure functions | Analytic `.jacobian()` and `apply_jac_transpose`; `ResidualSpec` advertises sparsity |
 | `costs/stack.py` | Concatenation | Flat buffer, write-into-slice |

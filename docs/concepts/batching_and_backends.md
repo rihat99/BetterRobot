@@ -1,11 +1,10 @@
 # Batching and Backends
 
-The whole library has one tensor convention: `(B, [T,] ..., feature)`,
-where `B` is one or more leading batch axes, `T` is an optional time
-axis (trajectories only), and `feature` is the semantic last axis.
-A "single pose" is `(1, 7)`, not `(7,)`. There is no scalar fast
-path that diverges from the batched one; there is no
-`if x.dim() == 1:` branch in the hot path.
+Tensor math uses the convention `(B..., feature)`, where `B...` may be an
+empty or multi-axis batch prefix and `feature` is the semantic last axis.
+A single pose is `(7,)`; a batch of one is `(1, 7)`. FK, residuals, and
+analytic Jacobians support leading batches. The current optimizer stack and
+`solve_ik` are explicitly single-problem until M2b.
 
 The reason is throughput. PyRoki, brax, mjlab, mjwarp, and IsaacLab
 all converged on leading-batch tensors for the same reason: when the
@@ -49,16 +48,15 @@ Second dim:      (optional) time axis T (trajectories only)
 First dim:       batch axis B
 ```
 
-A function that handles a single pose still accepts a leading batch
-of 1 — never a dropped batch axis. There is no "unbatched mode," no
-`if x.dim() == 1:` branches in the hot path.
+A tensor routine treats a missing batch prefix and arbitrary leading batch
+prefixes through the same trailing-feature convention.
 
 ### Examples
 
 | Object | Shape |
 |--------|-------|
-| Single SE3 pose | `(1, 7)` |
-| Joint config, fixed-base Panda | `(B, 7)` or `(B, T, 7)` |
+| Single SE3 pose | `(7,)` |
+| Joint config, fixed-base Panda | `(B..., 9)` |
 | Joint config, G1 free-flyer | `(B, 7 + n_act)` |
 | `forward_kinematics` output | `(B, njoints, 7)` |
 | Spatial Jacobian | `(B, 6, nv)` |
@@ -72,7 +70,7 @@ of 1 — never a dropped batch axis. There is no "unbatched mode," no
 q = torch.rand(4096, model.nq, device="cuda") * (model.upper_pos_limit - model.lower_pos_limit) \
                                               + model.lower_pos_limit
 data  = forward_kinematics(model, q, compute_frames=True)
-poses = data.frame_pose_world[..., model.frame_id("panda_hand"), :]   # (4096, 7)
+poses = data.frame_pose_world[..., model.frame_id("body_panda_hand"), :]   # (4096, 7)
 ```
 
 Inside `forward_kinematics`, the loop is over `model.topo_order` (a
@@ -252,20 +250,10 @@ The reasons the global is sugar, not the architectural core:
 
 ## CUDA graph capture
 
-```python
-import better_robot as br
-
-@br.backends.graph_capture
-def ik_step(x0, target):
-    return br.tasks.solve_ik(model, {"panda_hand": target}, initial_q=x0).q
-```
-
-When the Warp backend is active, the decorator builds a CUDA graph;
-when `torch_native` is active, it is a no-op that just calls the
-function. Users get the speedup without porting their code to Warp
-kernels. Today the body lives behind a placeholder that lands with
-the Warp backend — the API is stable so user code does not need to
-change later.
+CUDA-graph capture and a capture-ready batched solver are roadmap work. The
+current Python optimizer loop converts tensor values to Python scalars and is
+not graph-capturable; M1 removes remaining hot-path breaks and M2b rebuilds the
+second-order solver state.
 
 ## Warp principles (the future kernel path)
 

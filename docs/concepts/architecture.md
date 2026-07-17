@@ -165,9 +165,9 @@ src/better_robot/
 │   ├── problem.py                 # LeastSquaresProblem
 │   ├── state.py                   # SolverState
 │   ├── optimizers/                # LM / GN / Adam / LBFGS / MultiStage
-│   ├── linear_solvers/            # Cholesky / LSTSQ / CG / SparseCholesky
+│   ├── solvers/                   # Cholesky / LSTSQ; CG / SparseCholesky stubs
 │   ├── kernels/                   # L2 / Huber / Cauchy / Tukey
-│   ├── damping/                   # Constant / Adaptive / TrustRegion
+│   ├── strategies/                # Constant / Adaptive; TrustRegion stub
 │   └── jacobian_spec.py           # ResidualSpec
 │
 ├── tasks/
@@ -277,10 +277,10 @@ grows.
 - **`data_model/joint_models/` one-file-per-joint.** Adding a new
   joint kind is an isolated change. See
   {doc}`joints_bodies_frames`.
-- **One Jacobian entry point.** `kinematics/jacobian_strategy.py` is
-  a tiny dispatch module that picks analytic, autodiff, or
-  functional. There is **one** Jacobian function the solver calls;
-  see {doc}`kinematics`.
+- **One Jacobian entry point.** `kinematics/jacobian_strategy.py` selects
+  an analytic Jacobian or the current unbatched central-finite-difference
+  fallback. There is **one** Jacobian function the solver calls; real
+  `torch.func` strategies are M2 work. See {doc}`kinematics`.
 - **`residuals` above `kinematics`.** Every residual reaches down
   through FK; none reaches into solvers. `costs/` is a pure
   composition layer above residuals. `optim/` knows about

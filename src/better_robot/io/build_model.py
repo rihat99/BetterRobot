@@ -497,6 +497,19 @@ def build_model(
                     f"Mimic source {ir_j.mimic_source!r} not found "
                     f"(referenced by joint {ir_j.name!r})"
                 )
+            if ir_j.mimic_multiplier != 1.0 or ir_j.mimic_offset != 0.0:
+                raise NotImplementedError(
+                    f"Joint {ir_j.name!r} is a non-identity mimic joint "
+                    f"(mimics {ir_j.mimic_source!r}, "
+                    f"multiplier={ir_j.mimic_multiplier}, "
+                    f"offset={ir_j.mimic_offset}). BetterRobot does not "
+                    f"enforce mimic constraints yet. Exact identity mimic "
+                    f"tags (multiplier=1.0, offset=0.0) are temporarily "
+                    f"accepted for Panda compatibility, but remain "
+                    f"independent coordinates. Remove the <mimic> tag, or "
+                    f"track reduced-coordinate enforcement in milestone M3 "
+                    f"(see plan/04_roadmap.md, M3 item 3)."
+                )
             mimic_src_list[mjidx] = src
             mimic_mult[mjidx] = ir_j.mimic_multiplier
             mimic_off[mjidx] = ir_j.mimic_offset

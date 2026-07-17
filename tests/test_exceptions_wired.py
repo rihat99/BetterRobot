@@ -91,7 +91,11 @@ def test_quaternion_norm_error_on_floating_base(free_flyer_model):
     # Deliberately zero out the quaternion (norm 0) — well outside the band.
     q[3:7] = 0.0
     with pytest.raises(QuaternionNormError, match="quaternion norm"):
-        forward_kinematics_raw(free_flyer_model, q)
+        forward_kinematics(
+            free_flyer_model,
+            q,
+            check_quaternion_norm=True,
+        )
 
 
 def test_quaternion_norm_accepts_small_drift(free_flyer_model):
@@ -99,7 +103,11 @@ def test_quaternion_norm_accepts_small_drift(free_flyer_model):
     q = free_flyer_model.q_neutral.clone()
     q[3:7] = q[3:7] * 1.02  # ~2% over unit norm — fine
     # No exception:
-    forward_kinematics_raw(free_flyer_model, q)
+    forward_kinematics(
+        free_flyer_model,
+        q,
+        check_quaternion_norm=True,
+    )
 
 
 def test_fixed_base_bypasses_quaternion_check(arm_model):

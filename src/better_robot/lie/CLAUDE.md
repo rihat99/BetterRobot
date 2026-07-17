@@ -17,7 +17,7 @@ Pure-PyTorch SE3/SO3 implementation lives in `_torch_native_backend.py`. There i
 
 ## Numerics
 
-`_torch_native_backend.py` stitches Taylor expansions at `θ → 0` via `torch.where` against a `θ²` cutoff (1e-8) so SE3/SO3 `exp` and `log` stay smooth and differentiable across the singularity. `_matrix_to_quat` uses Shepperd 1978 four-branch selection for stable conversion when `qw → 0`. fp64 `gradcheck` covers `se3_{log,exp,inverse,compose,act}` and `so3_{exp,log}`.
+`_torch_native_backend.py` stitches Taylor expansions at `θ → 0` via `torch.where` against dtype-aware `θ²` cutoffs. The full-formula branches use safe dummy inputs in the Taylor region so first- and second-order gradients are finite at `θ = 0`. `_matrix_to_quat` uses Shepperd 1978 four-branch selection for stable conversion when `qw → 0`. fp64 `gradcheck` and `gradgradcheck` cover `se3_{log,exp}`, `so3_{log,exp}`, and the SO3 right Jacobians at identity and near identity.
 
 ## Modules
 

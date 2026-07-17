@@ -235,9 +235,13 @@ def residual_jacobian(
 ) -> torch.Tensor:
     """Unified residual Jacobian — ``(B..., dim, nv)``.
 
-    Dispatches analytic / autodiff per-residual. This is the single place
-    where analytic/autodiff coexist cleanly — the solver never writes
-    Jacobian code itself.
+    ``ANALYTIC`` requires a residual-provided Jacobian. ``AUTO`` first tries
+    that path and otherwise uses unbatched central finite differences, as
+    does ``FINITE_DIFF``. The fallback costs exactly ``2 * nv + 1`` residual
+    evaluations and uses epsilon ``1e-3`` for fp32 or ``1e-7`` for fp64.
+
+    A real ``torch.func`` fallback is scheduled with the M2 residual
+    redesign; the solver never writes Jacobian code itself.
 
     See docs/concepts/kinematics.md §3.
     """
@@ -256,10 +260,8 @@ def residual_jacobian(
                 f"(strategy=ANALYTIC requires one)"
             )
 
-    # Fallback: central finite differences through model.integrate and FK.
-    # Kept as the AUTO-fallback because it matches analytic Jacobians to
-    # numerical noise and is robust across joint kinds without relying on
-    # autograd through SE3 retraction.
+    # Unbatched fallback: one base evaluation plus two evaluations per
+    # tangent dimension (2 * nv + 1 total) through model.integrate and FK.
     model = state.model
     q = state.variables
 
@@ -278,7 +280,9 @@ def residual_jacobian(
     eps = 1e-3 if q.dtype == torch.float32 else 1e-7
     J = torch.zeros(dim, model.nv, dtype=q.dtype, device=q.device)
     for i in range(model.nv):
-        v_p = v0.clone(); v_p[i] += eps
-        v_m = v0.clone(); v_m[i] -= eps
+        v_p = v0.clone()
+        v_p[i] += eps
+        v_m = v0.clone()
+        v_m[i] -= eps
         J[:, i] = (_fn(v_p) - _fn(v_m)) / (2.0 * eps)
     return J  # (dim, nv)

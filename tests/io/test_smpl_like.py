@@ -13,6 +13,8 @@ import torch
 from better_robot.io import load, build_model
 from better_robot.io.builders.smpl_like import make_smpl_like_body
 from better_robot.data_model.joint_models import JointFreeFlyer, JointSpherical
+from better_robot.residuals.base import ResidualState
+from better_robot.residuals.regularization import RestResidual
 
 
 @pytest.fixture(scope="module")
@@ -98,3 +100,21 @@ def test_smpl_custom_height():
 
 def test_smpl_q_neutral_shape(smpl_model):
     assert smpl_model.q_neutral.shape == (smpl_model.nq,)
+
+
+def test_smpl_rest_residual_backward_is_nan_free(smpl_model):
+    """RestResidual traverses one free-flyer and 23 identity SO3 logs."""
+    q_rest = smpl_model.q_neutral.to(dtype=torch.float64)
+    q = q_rest.detach().clone().requires_grad_(True)
+    state = ResidualState(
+        model=smpl_model,
+        data=smpl_model.create_data(dtype=torch.float64),
+        variables=q,
+    )
+
+    residual = RestResidual(smpl_model, q_rest)(state)
+    residual.square().sum().backward()
+
+    assert q.grad is not None
+    assert torch.isfinite(q.grad).all()
+    torch.testing.assert_close(q.grad, torch.zeros_like(q))

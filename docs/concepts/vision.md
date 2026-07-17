@@ -66,36 +66,34 @@ APIs.
 
 ## What "looks like a story" means in code
 
-A minimal example — load a Panda URDF, solve IK to a target pose,
-read back the joint solution:
+Once a model and target pose are available, solving and inspecting IK stays
+at the task API:
 
 ```python
-import better_robot as br
+result = br.solve_ik(model, {"body_panda_hand": target_pose})
 
-model  = br.load("panda.urdf")
-result = br.solve_ik(model, {"panda_hand": target_pose})
-
-result.q                          # (nq,) joint solution
-result.frame_pose("panda_hand")   # (7,) SE(3) pose at the solution
+result.q  # (nq,) joint solution
+result.frame_pose("body_panda_hand")  # (7,) SE(3) pose at the solution
 ```
 
-Three function calls. No solver to instantiate, no problem object to
-build, no fixed/floating mode flag. The same three lines work for the
-G1 humanoid if you load it with `free_flyer=True`. The first 7 DOFs
-of `result.q` are then the base pose; the remaining 29 are the joint
-configuration. `solve_ik` does not need to be told.
+The {doc}`../index` front page contains the complete Panda example and is
+mechanically executed by the test suite. No solver or problem object needs
+to be instantiated. The same task call accepts a G1 loaded with
+`free_flyer=True`; its first seven configuration entries are the base pose
+and the remaining 29 are articulated coordinates. `solve_ik` itself does
+not need a separate fixed/floating mode flag.
 
 ## What ships today
 
-Implemented and tested: forward kinematics; analytic and autograd
-Jacobians (with a finite-diff fallback for diagnostics); the full
+Implemented and tested: forward kinematics; analytic Jacobians with an
+unbatched central finite-difference fallback; the
 residual library (pose / position / orientation, joint position
 limits, rest, contact consistency, reference trajectories, velocity
 and acceleration smoothness, time-indexed residuals); `CostStack`;
 LM, GN, Adam, L-BFGS, and multi-stage optimisers; pluggable linear
-solvers (Cholesky, LSTSQ, CG, sparse Cholesky); pluggable robust
+solvers (Cholesky, LSTSQ); pluggable robust
 kernels (L2, Huber, Cauchy, Tukey) and damping strategies (Constant,
-Adaptive, TrustRegion); IK on fixed and floating-base robots;
+Adaptive); single-problem IK on fixed and floating-base robots;
 trajectory optimisation with knot and B-spline parameterisations;
 Featherstone dynamics (RNEA, ABA, CRBA, CCRBA), centroidal momentum,
 and autograd-derived `compute_*_derivatives`; a three-layer

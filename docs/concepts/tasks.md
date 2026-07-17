@@ -28,7 +28,6 @@ def solve_ik(
     initial_q: torch.Tensor | None = None,
     cost_cfg: IKCostConfig | None = None,
     optimizer_cfg: OptimizerConfig | None = None,
-    robot_collision: "RobotCollision | None" = None,
 ) -> IKResult:
     """Whole-body inverse kinematics for one or more frame targets.
 
@@ -43,15 +42,13 @@ Source: `src/better_robot/tasks/ik.py`.
 ### `IKCostConfig`
 
 ```python
-@dataclass(frozen=True)
+@dataclass
 class IKCostConfig:
     pos_weight:       float = 1.0
     ori_weight:       float = 1.0
     pose_weight:      float = 1.0
     limit_weight:     float = 0.1
     rest_weight:      float = 0.01
-    collision_margin: float = 0.02
-    collision_weight: float = 1.0
     q_rest: torch.Tensor | None = None        # default: model.q_neutral
 ```
 
@@ -59,7 +56,7 @@ class IKCostConfig:
 
 ```python
 def solve_ik(model, targets, *, initial_q=None, cost_cfg=None,
-             optimizer_cfg=None, robot_collision=None) -> IKResult:
+             optimizer_cfg=None) -> IKResult:
     cost_cfg      = cost_cfg or IKCostConfig()
     optimizer_cfg = optimizer_cfg or OptimizerConfig()
     q0            = initial_q if initial_q is not None else model.q_neutral.clone()
@@ -73,14 +70,9 @@ def solve_ik(model, targets, *, initial_q=None, cost_cfg=None,
                                ori_weight=cost_cfg.ori_weight),
                   weight=cost_cfg.pose_weight)
     stack.add("limits", JointPositionLimit(model), weight=cost_cfg.limit_weight)
-    stack.add("rest",   RestResidual(cost_cfg.q_rest or model.q_neutral),
+    q_rest = cost_cfg.q_rest if cost_cfg.q_rest is not None else model.q_neutral
+    stack.add("rest",   RestResidual(model, q_rest),
               weight=cost_cfg.rest_weight)
-    if robot_collision is not None:
-        stack.add("self_collision",
-                  SelfCollisionResidual(model, robot_collision,
-                                        margin=cost_cfg.collision_margin),
-                  weight=cost_cfg.collision_weight)
-
     problem = LeastSquaresProblem(
         cost_stack=stack,
         state_factory=lambda x: ResidualState(
@@ -110,7 +102,7 @@ down in `kinematics/`.
 ```python
 @dataclass
 class IKResult:
-    q: torch.Tensor                            # (B..., nq)
+    q: torch.Tensor                            # (nq,)
     residual: torch.Tensor
     iters: int
     converged: bool
@@ -126,51 +118,32 @@ class IKResult:
         return self.q
 ```
 
-`q` always has shape `(B..., nq)`. There is no separate "fixed-base
+`q` has shape `(nq,)`; the v0 optimizer stack is single-problem only.
+There is no separate "fixed-base
 returns `(n,)` / floating-base returns `(7,) + (n,)`" rule. If the
 user wants the free-flyer part separately, they slice
 `q[..., :7]`.
 
-### Two-stage solver (cuRobo-style)
+### Two-stage solver
 
-High-DOF humanoids fail single-stage LM when the cost includes
-collisions: the pose-only Hessian is well-conditioned but the
-collision terms add near-zero gradients far from contact, stalling
-the solver. The fix is **seed with LM (pose-only), refine with L-BFGS
-(full cost)**:
+`lm_then_lbfgs` seeds with LM and refines the same cost stack with L-BFGS:
 
 ```python
 cfg = OptimizerConfig(optimizer="lm_then_lbfgs",
-                      max_iter=30,          # LM seed
-                      refine_max_iter=30)   # L-BFGS refine
+                      max_iter=60)
 ```
 
-`_build_optimizer(cfg)` returns a composite optimiser that:
+The iteration budget is split evenly between the stages. Entries named in
+`refine_disabled_items` are disabled for the L-BFGS stage. Collision is not
+wired into `solve_ik`; collision residuals remain M4 work.
 
-1. **Stage 1.** Runs LM with
-   `CostStack.set_active("self_collision", False)` and
-   `set_active("world_collision", False)`. ~30 iterations, analytic
-   pose Jacobian, fast.
-2. **Stage 2.** Re-enables the full stack and runs L-BFGS for
-   `refine_max_iter` iterations starting from stage-1's solution.
+### Batched IK is not implemented
 
-Convergence is measured on the full cost from the user's
-perspective, but the heavy lifting happens on the simpler
-sub-problem.
-
-### Warm-started batched IK
-
-All shapes are batched:
-
-```python
-q0 = torch.randn(128, model.nq)           # (128, nq)
-targets = {"tool0": target_batch}         # (128, 7)
-res = solve_ik(model, targets, initial_q=q0)
-res.q                                     # (128, nq)
-```
-
-Residuals, cost stack, and solvers all accept the leading batch
-dim; the FK traverses `(B, njoints, 7)`.
+FK and many residuals accept leading batch dimensions, but the v0 optimizer
+stack uses scalar damping, cost, acceptance, and convergence state.
+`solve_ik` therefore rejects a batched `initial_q` with an actionable
+`NotImplementedError`. Loop over configurations for now; per-element batched
+solving is scheduled for M2b.
 
 ## `Trajectory`
 
@@ -385,8 +358,8 @@ without a release note, but the internals may iterate.
 
 ## Sharp edges
 
-- **Initial `q` is not clamped.** `solve_ik` projects `x_new` to
-  `[lower, upper]` after each accepted step but does not project the
+- **Initial `q` is not clamped.** `solve_ik` projects every LM trial point to
+  `[lower, upper]` before evaluating it but does not project the
   initial guess. Callers must ensure `q0` is feasible if limits
   matter — `model.q_neutral` is *not* automatically inside bounds for
   every URDF (Panda's joint 4 upper limit is `-0.07` rad, while

@@ -1,11 +1,66 @@
 # Roadmap
 
-BetterRobot ships a complete kinematics + optimisation stack today. A
-small set of named symbols are deliberately stubbed — they have the
-correct signature, raise `NotImplementedError`, and point here. This
-page is the single canonical list.
+BetterRobot ships a kinematics + optimisation stack with a number of
+deliberately unfinished extension points and fail-fast capability guards.
+The inventory below is the canonical list of Python source files that contain
+an explicit `raise NotImplementedError`. It is machine-checked against the
+source tree; the later tables provide human-oriented detail for the main
+planned capabilities.
 
-If a symbol is *not* on this page, it is implemented and tested.
+The inventory is file-level because one file can contain several related
+raise sites. Absence from it means only that a file has no explicit
+`NotImplementedError`, not that every conceivable capability is implemented.
+
+## Complete explicit-raise inventory
+
+Paths are relative to the repository root. Keep this block sorted; the
+contract test reports both missing source files and stale documentation
+entries.
+
+<!-- not-implemented-inventory:start -->
+- `src/better_robot/backends/warp/__init__.py`
+- `src/better_robot/backends/warp/bridge.py`
+- `src/better_robot/collision/closest_pts.py`
+- `src/better_robot/collision/geometry.py`
+- `src/better_robot/collision/pairs.py`
+- `src/better_robot/collision/robot_collision.py`
+- `src/better_robot/costs/factory.py`
+- `src/better_robot/data_model/indexing.py`
+- `src/better_robot/dynamics/action/differential.py`
+- `src/better_robot/dynamics/crba.py`
+- `src/better_robot/dynamics/derivatives.py`
+- `src/better_robot/dynamics/integrators.py`
+- `src/better_robot/dynamics/rnea.py`
+- `src/better_robot/io/build_model.py`
+- `src/better_robot/kinematics/chain.py`
+- `src/better_robot/optim/solvers/cg.py`
+- `src/better_robot/optim/solvers/sparse_cholesky.py`
+- `src/better_robot/optim/state.py`
+- `src/better_robot/optim/strategies/trust_region.py`
+- `src/better_robot/residuals/collision.py`
+- `src/better_robot/residuals/contact.py`
+- `src/better_robot/residuals/limits.py`
+- `src/better_robot/residuals/manipulability.py`
+- `src/better_robot/residuals/regularization.py`
+- `src/better_robot/residuals/smoothness.py`
+- `src/better_robot/spatial/force.py`
+- `src/better_robot/tasks/ik.py`
+- `src/better_robot/tasks/retarget.py`
+- `src/better_robot/utils/batching.py`
+- `src/better_robot/utils/broadcasting.py`
+- `src/better_robot/utils/testing.py`
+- `src/better_robot/viewer/camera.py`
+- `src/better_robot/viewer/interaction.py`
+- `src/better_robot/viewer/overlays/com.py`
+- `src/better_robot/viewer/overlays/path_trace.py`
+- `src/better_robot/viewer/overlays/residual_plot.py`
+- `src/better_robot/viewer/recorder.py`
+- `src/better_robot/viewer/render_modes/collision.py`
+- `src/better_robot/viewer/renderers/offscreen_backend.py`
+- `src/better_robot/viewer/renderers/viser_backend.py`
+- `src/better_robot/viewer/trajectory_player.py`
+- `src/better_robot/viewer/visualizer.py`
+<!-- not-implemented-inventory:end -->
 
 ## Dynamics
 

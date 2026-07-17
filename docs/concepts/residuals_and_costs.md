@@ -120,7 +120,8 @@ Live, with analytic `.jacobian()`:
 | `velocity.py` | `VelocityResidual` | nv | Joint-space velocity tracking |
 | `acceleration.py` | `AccelerationResidual` | nv | Joint-space acceleration tracking |
 
-Live but autodiff-only (their `.jacobian()` returns `None`):
+Live without an analytic Jacobian (their `.jacobian()` returns `None` and
+`AUTO` uses unbatched central finite differences):
 
 | File | Class | dim | Notes |
 |------|-------|-----|-------|
@@ -131,13 +132,15 @@ Stubs (raise `NotImplementedError`; signatures pinned):
 | File | Class | Notes |
 |------|-------|-------|
 | `smoothness.py` | `JerkResidual` | Third-derivative smoothness |
-| `manipulability.py` | `YoshikawaResidual` | det(J Jᵀ)^½ — autodiff-only |
+| `manipulability.py` | `YoshikawaResidual` | det(J Jᵀ)^½ |
 | `regularization.py` | `NullspaceResidual` | Project gradient onto null space |
 | `collision.py` | `SelfCollisionResidual`, `WorldCollisionResidual` | Live geometry; residual side stubbed |
 | `limits.py` | `JointVelocityLimit.jacobian`, `JointAccelLimit` | `__call__` works; analytic Jacobian or full body pending |
 
 A residual with no analytic `.jacobian()` simply returns `None`; the
-solver dispatches transparently to autodiff.
+solver currently dispatches to unbatched central finite differences at a
+cost of `2 * nv + 1` residual evaluations. A real `torch.func` fallback is
+scheduled for M2.
 
 ### Example — `RestResidual`
 
@@ -221,8 +224,8 @@ Source: `src/better_robot/costs/stack.py`.
 
 `stack.residual()` evaluates every active residual and concatenates
 the results along the last dim. `stack.jacobian()` does the same for
-Jacobians, dispatching analytic / autodiff per residual via the
-strategy flag.
+Jacobians, dispatching analytic or central-finite-difference evaluation per
+residual via the strategy flag.
 
 The memory layout follows Crocoddyl's discipline:
 
@@ -308,21 +311,23 @@ and damping stable, the contract is:
 - `ResidualSpec.dynamic_dim = True` declares the slot reservation so
   LM preallocates once.
 
-This is what makes `solve_ik` with `SelfCollisionResidual` work
-without re-allocating per iteration.
+This is the reserved shape contract for a future
+`SelfCollisionResidual`. That residual still raises `NotImplementedError`;
+collision-aware `solve_ik` integration is roadmap work.
 
 ## Mapping to current code
 
 ```python
 # Construction
 import better_robot as br
+from robot_descriptions import panda_description
 from better_robot.residuals.pose          import PoseResidual
 from better_robot.residuals.limits        import JointPositionLimit
 from better_robot.residuals.regularization import RestResidual
 from better_robot.costs                    import CostStack
 
-model = br.load("panda.urdf")
-hand_id = model.frame_id("panda_hand")
+model = br.load(panda_description.URDF_PATH)
+hand_id = model.frame_id("body_panda_hand")
 
 stack = CostStack()
 stack.add("pose",   PoseResidual(frame_id=hand_id, target=target_pose))

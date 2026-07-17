@@ -124,7 +124,7 @@ defaults return zero so simple kinds inherit them automatically.
 | `JointPlanar` | `planar` | 4 | 3 | SE(2) — `(x, y, cosθ, sinθ)`. |
 | `JointHelical` | `helical` | 1 | 1 | Pitch-coupled rotation + translation. |
 | `JointComposite` | `composite` | Σ | Σ | Stack of sub-joints. |
-| `JointMimic` | `mimic` | 0 | 0 | Zero-DOF, value derived from another joint. |
+| `JointMimic` | `mimic` | 0 | 0 | Unused placeholder; model loading does not select it. |
 
 Source: `src/better_robot/data_model/joint_models/`.
 
@@ -153,9 +153,10 @@ A floating-base robot is loaded with `free_flyer=True`:
 
 ```python
 import better_robot as br
+from robot_descriptions import g1_description, panda_description
 
-panda = br.load("panda.urdf")                     # fixed base; nq=7, nv=7
-g1    = br.load("g1.urdf", free_flyer=True)       # floating base; nq=43, nv=42
+panda = br.load(panda_description.URDF_PATH)                 # nq=9, nv=9
+g1 = br.load(g1_description.URDF_PATH, free_flyer=True)      # nq=36, nv=35
 ```
 
 For G1, `g1.joint_models[1]` is `JointFreeFlyer`. The first 7 entries
@@ -171,7 +172,7 @@ is no `setFloatingBase()` call, no `base_pose` argument, no
 both:
 
 ```python
-panda_result = br.solve_ik(panda, {"panda_hand": target})
+panda_result = br.solve_ik(panda, {"body_panda_hand": target})
 g1_result    = br.solve_ik(g1,    {"left_hand": lh_target,
                                     "right_hand": rh_target})
 ```
@@ -182,15 +183,24 @@ calls `solve_ik` for four whole-body targets, and verifies that the
 result frame poses match within tolerance — using the same code path
 as the Panda test.
 
-## Mimic joints — the gather trick
+## Mimic joints — temporary identity exemption
 
 URDF supports `<mimic>` joints whose configuration is a linear
-function of another joint's. A naive implementation runs an
-`if joint.kind == "mimic"` check inside the FK loop; that branches
-the hot path and breaks `torch.compile`.
+function of another joint's. BetterRobot parses that metadata, but it
+does not yet apply the required reduced-coordinate map in FK,
+Jacobians, limits, or dynamics. Consequently, model loading rejects a
+mimic tag with any non-identity parameters (`multiplier != 1.0` or
+`offset != 0.0`) with a `NotImplementedError` pointing to milestone
+M3.
 
-PyRoki's solution, which we adopted: store three tensors on `Model`,
-one entry per joint:
+Exact identity tags (`multiplier=1.0`, `offset=0.0`) are temporarily
+accepted so the stock Panda remains loadable. This is a compatibility
+exemption, **not mimic enforcement**: the declared source and target
+joints still have independent entries in `q` and `v`, and changing the
+source does not change the target. Code that assumes those joints are
+coupled will get incorrect kinematics until M3.
+
+`Model` retains the parsed relationship metadata for identity tags:
 
 ```python
 mimic_multiplier: torch.Tensor   # (njoints,)  1.0 for non-mimic joints
@@ -198,17 +208,10 @@ mimic_offset:     torch.Tensor   # (njoints,)  0.0 for non-mimic joints
 mimic_source:     tuple[int, ...]  # source-joint index, or self-index
 ```
 
-The full-q expansion is then a vectorised gather + multiply with no
-Python branching:
-
-```python
-q_full[i] = mult[i] * q_active[src[i]] + off[i]
-```
-
-For non-mimic joints, `mult[i] = 1.0`, `off[i] = 0.0`, `src[i] = i`,
-so the formula is the identity. For mimic joints, the values come from
-the URDF `<mimic>` tag. The hot path is one tensor expression
-regardless of whether the robot has mimic joints.
+For ordinary joints, the values are identity defaults. No kinematics or
+dynamics implementation consumes these fields today. M3 will replace
+this temporary policy with consistent reduced-coordinate enforcement
+across every computational pass.
 
 ## `Frame` — the indirection layer
 
@@ -231,7 +234,7 @@ is computed on demand by `update_frame_placements` and lives on
 
 Why this indirection is worth its weight:
 
-- IK targets address frames by name (`{"panda_hand": target}`),
+- IK targets address frames by name (`{"body_panda_hand": target}`),
   not joint indices. The user never has to compute "joint 7's
   position offset by the tool tip."
 - Visualisation code can query `data.frame_pose("camera_optical")`
@@ -240,10 +243,10 @@ Why this indirection is worth its weight:
   are frames, not bodies. Adding a frame is a metadata-only change.
 
 ```python
-frame_id    = model.frame_id("panda_hand_tcp")
+frame_id    = model.frame_id("body_panda_hand_tcp")
 target_pose = data.frame_pose_world[..., frame_id, :]
 # Or, typed:
-T_tool = data.frame_pose("panda_hand_tcp")           # SE3
+T_tool = data.frame_pose("body_panda_hand_tcp")           # SE3
 ```
 
 Every body gets a default frame named `"body_<bodyname>"`, located at
@@ -285,9 +288,9 @@ Joint 0's "body" is the universe (zero inertia, no visual geometry).
   revolute joints. It cannot be substituted by an XYZ Euler set —
   the Euler representation has gimbal-lock singularities that an SO(3)
   parameterisation does not.
-- `JointMimic` has `nq=0` / `nv=0`. The "shadow" configuration of a
-  mimic joint is computed from the source via the gather trick and
-  does not occupy any slot in `q`.
+- An accepted identity `<mimic>` tag does not select `JointMimic` or
+  remove a coordinate. Its target joint retains an independent slot in
+  `q` and `v` until reduced-coordinate enforcement lands in M3.
 
 ## Where to look next
 

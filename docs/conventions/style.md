@@ -159,6 +159,7 @@ def forward_kinematics(
     q_or_data: Float[Tensor, "*B nq"] | "Data",
     *,
     compute_frames: bool = False,
+    check_quaternion_norm: bool = False,
 ) -> "Data": ...
 ```
 
@@ -179,6 +180,7 @@ def forward_kinematics(
     q_or_data: ConfigTensor | Data,
     *,
     compute_frames: bool = False,
+    check_quaternion_norm: bool = False,
 ) -> Data:
     """Compute the placements of every joint, batched.
 
@@ -190,6 +192,9 @@ def forward_kinematics(
         Configuration. Passing a ``Data`` reuses its allocated buffers.
     compute_frames : bool, default False
         If True, also fill ``data.frame_pose_world``.
+    check_quaternion_norm : bool, default False
+        Opt-in free-flyer norm diagnostic. It synchronizes accelerator tensors;
+        the default hot path assumes pre-normalized quaternions.
 
     Returns
     -------
@@ -202,7 +207,8 @@ def forward_kinematics(
     Raises
     ------
     QuaternionNormError
-        If a free-flyer base quaternion has norm outside ``[0.9, 1.1]``.
+        If ``check_quaternion_norm=True`` and a free-flyer base quaternion has
+        norm outside ``[0.9, 1.1]``.
 
     Notes
     -----
@@ -216,7 +222,8 @@ def forward_kinematics(
 
     Examples
     --------
-    >>> model = better_robot.load("panda.urdf")
+    >>> from robot_descriptions import panda_description
+    >>> model = better_robot.load(panda_description.URDF_PATH)
     >>> q = model.q_neutral.unsqueeze(0)
     >>> data = better_robot.forward_kinematics(model, q, compute_frames=True)
     """
