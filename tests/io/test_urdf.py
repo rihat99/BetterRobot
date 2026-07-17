@@ -12,33 +12,35 @@ from __future__ import annotations
 import pytest
 import torch
 
-import better_robot as br_v2
 from better_robot.io import load
 from better_robot.io.parsers.urdf import parse_urdf
-from better_robot.io.build_model import build_model
-from better_robot.data_model.joint_models import JointFreeFlyer
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
+
 
 def _get_panda_urdf():
     """Load the panda URDF path via robot_descriptions."""
     pytest.importorskip("robot_descriptions")
     from robot_descriptions import panda_description
+
     return panda_description.URDF_PATH
 
 
 def _get_g1_urdf():
     pytest.importorskip("robot_descriptions")
     from robot_descriptions import g1_description
+
     return getattr(g1_description, "URDF_PATH", None) or pytest.skip("g1 URDF not available")
 
 
 # ── parse_urdf unit tests ────────────────────────────────────────────────────
 
+
 def test_parse_urdf_returns_irmodel():
     path = _get_panda_urdf()
     from better_robot.io.ir import IRModel
+
     ir = parse_urdf(path)
     assert isinstance(ir, IRModel)
 
@@ -61,6 +63,7 @@ def test_parse_urdf_root_body_has_no_incoming_joint():
 def test_parse_urdf_accepts_yourdfpy_object():
     pytest.importorskip("yourdfpy")
     import yourdfpy
+
     path = _get_panda_urdf()
     urdf = yourdfpy.URDF.load(path)
     ir = parse_urdf(urdf)
@@ -68,6 +71,7 @@ def test_parse_urdf_accepts_yourdfpy_object():
 
 
 # ── build_model integration tests ────────────────────────────────────────────
+
 
 @pytest.fixture(scope="module")
 def panda_model():
@@ -83,18 +87,19 @@ def panda_ir():
 
 def test_panda_model_is_frozen(panda_model):
     import dataclasses
+
     with pytest.raises((dataclasses.FrozenInstanceError, AttributeError)):
         panda_model.nq = 99  # type: ignore[misc]
 
 
 def test_panda_nq(panda_model):
-    """Panda has 7 revolute + 2 prismatic finger joints → nq=9."""
-    assert panda_model.nq == 9
+    """Panda exposes 7 arm + 1 source finger coordinate."""
+    assert panda_model.nq == 8
+    assert panda_model.nq_full == 9
 
 
 def test_panda_identity_mimic_is_accepted_with_metadata(panda_model, panda_ir):
-    mimic_joints = [joint for joint in panda_ir.joints
-                    if joint.mimic_source is not None]
+    mimic_joints = [joint for joint in panda_ir.joints if joint.mimic_source is not None]
     assert mimic_joints
 
     for joint in mimic_joints:
@@ -105,8 +110,10 @@ def test_panda_identity_mimic_is_accepted_with_metadata(panda_model, panda_ir):
         assert panda_model.mimic_source[joint_id] == source_id
         assert panda_model.mimic_multiplier[joint_id].item() == pytest.approx(1.0)
         assert panda_model.mimic_offset[joint_id].item() == pytest.approx(0.0)
-        assert panda_model.nqs[joint_id] == 1
-        assert panda_model.nvs[joint_id] == 1
+        assert panda_model.nqs[joint_id] == 0
+        assert panda_model.nvs[joint_id] == 0
+        assert panda_model.nqs_full[joint_id] == 1
+        assert panda_model.nvs_full[joint_id] == 1
 
 
 def test_panda_njoints(panda_model, panda_ir):
@@ -140,9 +147,9 @@ def test_panda_joint_kinds(panda_model):
     """Panda joints should only be revolute, prismatic, or fixed."""
     for j in range(2, panda_model.njoints):
         kind = panda_model.joint_models[j].kind
-        assert (kind.startswith("revolute") or kind.startswith("prismatic")
-                or kind == "fixed"), \
+        assert kind.startswith("revolute") or kind.startswith("prismatic") or kind == "fixed", (
             f"Unexpected joint kind {kind!r} at index {j}"
+        )
 
 
 def test_panda_name_to_id_has_all_joints(panda_model, panda_ir):
@@ -170,13 +177,16 @@ def test_panda_body_frame_names(panda_model, panda_ir):
 def test_load_accepts_yourdfpy_object():
     pytest.importorskip("yourdfpy")
     import yourdfpy
+
     path = _get_panda_urdf()
     urdf = yourdfpy.URDF.load(path)
     model = load(urdf)
-    assert model.nq == 9
+    assert model.nq == 8
+    assert model.nq_full == 9
 
 
 # ── G1 floating-base tests ───────────────────────────────────────────────────
+
 
 @pytest.fixture(scope="module")
 def g1_model():

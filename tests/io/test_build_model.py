@@ -5,6 +5,7 @@ See ``docs/concepts/parsers_and_ir.md §3``.
 
 from __future__ import annotations
 
+import dataclasses
 import math
 
 import pytest
@@ -15,30 +16,27 @@ from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.io.ir import IRError
 from better_robot.data_model.model import Model
-from better_robot.data_model.joint_models import (
-    JointFixed,
-    JointFreeFlyer,
-    JointRX,
-    JointRZ,
-    JointPX,
-    JointSpherical,
-    JointRevoluteUnaligned,
-    JointRevoluteUnbounded,
-)
+from better_robot.data_model.joint_models import JointFreeFlyer
 
 
 def _id7() -> torch.Tensor:
-    return torch.tensor([0., 0., 0., 0., 0., 0., 1.])
+    return torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
 
 
 def _simple_arm_ir():
     b = ModelBuilder("arm")
     b.add_body("base", mass=0.5)
     b.add_body("link1", mass=1.0)
-    b.add_revolute_z("j1", parent="base", child="link1",
-                     origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]),
-                     lower=-math.pi, upper=math.pi,
-                     velocity_limit=2.0, effort_limit=100.)
+    b.add_revolute_z(
+        "j1",
+        parent="base",
+        child="link1",
+        origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]),
+        lower=-math.pi,
+        upper=math.pi,
+        velocity_limit=2.0,
+        effort_limit=100.0,
+    )
     return b.finalize()
 
 
@@ -57,9 +55,6 @@ def test_frozen():
     model = build_model(_simple_arm_ir())
     with pytest.raises((dataclasses.FrozenInstanceError, AttributeError)):
         model.nq = 99  # type: ignore[misc]
-
-
-import dataclasses
 
 
 def test_joint_count():
@@ -177,14 +172,10 @@ def _branching_tree_ir():
     b.add_body("left_link2")
     b.add_body("right_link1")
     b.add_body("right_link2")
-    b.add_revolute_z("left_j1", parent="root", child="left_link1",
-                     origin=_id7(), lower=-1., upper=1.)
-    b.add_revolute_z("left_j2", parent="left_link1", child="left_link2",
-                     origin=_id7(), lower=-1., upper=1.)
-    b.add_revolute_z("right_j1", parent="root", child="right_link1",
-                     origin=_id7(), lower=-1., upper=1.)
-    b.add_revolute_z("right_j2", parent="right_link1", child="right_link2",
-                     origin=_id7(), lower=-1., upper=1.)
+    b.add_revolute_z("left_j1", parent="root", child="left_link1", origin=_id7(), lower=-1.0, upper=1.0)
+    b.add_revolute_z("left_j2", parent="left_link1", child="left_link2", origin=_id7(), lower=-1.0, upper=1.0)
+    b.add_revolute_z("right_j1", parent="root", child="right_link1", origin=_id7(), lower=-1.0, upper=1.0)
+    b.add_revolute_z("right_j2", parent="right_link1", child="right_link2", origin=_id7(), lower=-1.0, upper=1.0)
     return b.finalize()
 
 
@@ -198,8 +189,12 @@ def test_idx_qs_dfs_order_on_branching_tree():
     """
     model = build_model(_branching_tree_ir())
     assert model.joint_names == (
-        "universe", "root_joint",
-        "left_j1", "left_j2", "right_j1", "right_j2",
+        "universe",
+        "root_joint",
+        "left_j1",
+        "left_j2",
+        "right_j1",
+        "right_j2",
     )
     # Four revolute joints → idx_qs increments 1 per joint after the fixed root
     assert model.idx_qs == (0, 0, 0, 1, 2, 3)
@@ -221,9 +216,7 @@ def test_free_flyer_root_joint():
 
 
 def test_free_flyer_shortcut_via_load():
-    from better_robot.io import load
-    ir_fn = _simple_arm_ir
-    model = load(lambda: _simple_arm_ir(), free_flyer=True)
+    model = br_io.load(_simple_arm_ir, free_flyer=True)
     assert model.joint_models[1].kind == "free_flyer"
 
 
@@ -231,9 +224,9 @@ def test_revolute_unaligned():
     b = ModelBuilder("ua")
     b.add_body("base")
     b.add_body("child")
-    b.add_revolute("j1", parent="base", child="child",
-                   axis=torch.tensor([0.707, 0.707, 0.0]),
-                   origin=_id7(), lower=-1., upper=1.)
+    b.add_revolute(
+        "j1", parent="base", child="child", axis=torch.tensor([0.707, 0.707, 0.0]), origin=_id7(), lower=-1.0, upper=1.0
+    )
     ir = b.finalize()
     model = build_model(ir)
     assert model.joint_models[2].kind == "revolute_unaligned"
@@ -244,8 +237,11 @@ def test_continuous_joint():
     b.add_body("base")
     b.add_body("wheel")
     b.add_revolute(
-        "wheel_spin", parent="base", child="wheel",
-        axis=torch.tensor([0., 0., 1.]), origin=_id7(),
+        "wheel_spin",
+        parent="base",
+        child="wheel",
+        axis=torch.tensor([0.0, 0.0, 1.0]),
+        origin=_id7(),
         unbounded=True,
     )
     ir = b.finalize()
@@ -273,12 +269,9 @@ def test_multi_joint_chain():
     b.add_body("l1")
     b.add_body("l2")
     b.add_body("l3")
-    b.add_revolute_z("j1", parent="root", child="l1",
-                     origin=_id7(), lower=-1., upper=1.)
-    b.add_revolute_y("j2", parent="l1", child="l2",
-                     origin=_id7(), lower=-1., upper=1.)
-    b.add_prismatic_x("j3", parent="l2", child="l3",
-                      origin=_id7(), lower=0., upper=0.5)
+    b.add_revolute_z("j1", parent="root", child="l1", origin=_id7(), lower=-1.0, upper=1.0)
+    b.add_revolute_y("j2", parent="l1", child="l2", origin=_id7(), lower=-1.0, upper=1.0)
+    b.add_prismatic_x("j3", parent="l2", child="l3", origin=_id7(), lower=0.0, upper=0.5)
     ir = b.finalize()
     model = build_model(ir)
     assert model.nq == 3
@@ -291,30 +284,34 @@ def _mimic_ir(*, multiplier: float = 1.0, offset: float = 0.0):
     b.add_body("root")
     b.add_body("finger1")
     b.add_body("finger2")
-    b.add_revolute_z("main_j", parent="root", child="finger1",
-                     origin=_id7(), lower=-1., upper=1.)
-    b.add_revolute_z("mimic_j", parent="root", child="finger2",
-                     origin=_id7(), lower=-1., upper=1.,
-                     mimic_source="main_j", mimic_multiplier=multiplier,
-                     mimic_offset=offset)
+    b.add_revolute_z("main_j", parent="root", child="finger1", origin=_id7(), lower=-1.0, upper=1.0)
+    b.add_revolute_z(
+        "mimic_j",
+        parent="root",
+        child="finger2",
+        origin=_id7(),
+        lower=-1.0,
+        upper=1.0,
+        mimic_source="main_j",
+        mimic_multiplier=multiplier,
+        mimic_offset=offset,
+    )
     return b.finalize()
 
 
-@pytest.mark.parametrize(
-    ("multiplier", "offset"),
-    [(0.5, 0.0), (1.0, 0.1)],
-    ids=["multiplier", "offset"],
-)
-def test_non_identity_mimic_joint_raises(multiplier, offset):
-    with pytest.raises(NotImplementedError) as exc_info:
-        build_model(_mimic_ir(multiplier=multiplier, offset=offset))
-    message = str(exc_info.value)
-    assert "mimic" in message.lower()
-    assert "milestone M3" in message
-    assert "plan/04_roadmap.md" in message
+@pytest.mark.parametrize(("multiplier", "offset"), [(0.5, 0.0), (1.0, 0.1)])
+def test_non_identity_mimic_joint_builds_reduced_map(multiplier, offset):
+    model = build_model(_mimic_ir(multiplier=multiplier, offset=offset))
+    target = model.joint_id("mimic_j")
+    full_row = model.idx_qs_full[target]
+
+    assert model.nq == model.nv == 1
+    assert model.nq_full == model.nv_full == 2
+    assert model.q_expansion[full_row, 0].item() == pytest.approx(multiplier)
+    assert model.q_offset[full_row].item() == pytest.approx(offset)
 
 
-def test_identity_mimic_joint_preserves_metadata_and_independent_dofs():
+def test_identity_mimic_joint_preserves_metadata_and_reduces_dofs():
     model = build_model(_mimic_ir())
     main_j_midx = model.joint_id("main_j")
     mimic_j_midx = model.joint_id("mimic_j")
@@ -322,18 +319,19 @@ def test_identity_mimic_joint_preserves_metadata_and_independent_dofs():
     assert model.mimic_source[mimic_j_midx] == main_j_midx
     assert model.mimic_multiplier[mimic_j_midx].item() == pytest.approx(1.0)
     assert model.mimic_offset[mimic_j_midx].item() == pytest.approx(0.0)
-    assert model.nqs[main_j_midx] == model.nqs[mimic_j_midx] == 1
-    assert model.nvs[main_j_midx] == model.nvs[mimic_j_midx] == 1
-    assert model.idx_qs[main_j_midx] != model.idx_qs[mimic_j_midx]
+    assert model.nqs[main_j_midx] == model.nvs[main_j_midx] == 1
+    assert model.nqs[mimic_j_midx] == model.nvs[mimic_j_midx] == 0
+    assert model.nqs_full[main_j_midx] == model.nqs_full[mimic_j_midx] == 1
+    assert model.nvs_full[main_j_midx] == model.nvs_full[mimic_j_midx] == 1
 
 
 def test_mimic_bad_source_raises():
     b = ModelBuilder("m")
     b.add_body("root")
     b.add_body("child")
-    b.add_revolute_z("j1", parent="root", child="child",
-                     origin=_id7(), lower=-1., upper=1.,
-                     mimic_source="nonexistent_joint")
+    b.add_revolute_z(
+        "j1", parent="root", child="child", origin=_id7(), lower=-1.0, upper=1.0, mimic_source="nonexistent_joint"
+    )
     ir = b.finalize()
     with pytest.raises(IRError, match="Mimic source"):
         build_model(ir)
@@ -343,8 +341,7 @@ def test_q_neutral():
     b = ModelBuilder("n")
     b.add_body("root")
     b.add_body("child")
-    b.add_revolute_z("j1", parent="root", child="child",
-                     origin=_id7(), lower=-1., upper=1.)
+    b.add_revolute_z("j1", parent="root", child="child", origin=_id7(), lower=-1.0, upper=1.0)
     ir = b.finalize()
     model = build_model(ir)
     assert model.q_neutral.shape == (model.nq,)
@@ -352,13 +349,11 @@ def test_q_neutral():
 
 
 def test_ir_frame_added():
-    from better_robot.io.ir import IRFrame
     b = ModelBuilder("f")
     b.add_body("root")
     b.add_body("child")
     b.add_fixed("j1", parent="root", child="child", origin=_id7())
-    b.add_frame("tip", parent_body="child",
-                placement=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]))
+    b.add_frame("tip", parent_body="child", placement=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]))
     ir = b.finalize()
     model = build_model(ir)
     assert "tip" in model.frame_name_to_id

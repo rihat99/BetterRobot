@@ -51,7 +51,12 @@ from those public slices. It handles arbitrary leading batch dimensions via
 
 ## Mimic Joints
 
-Non-identity mimic joints are rejected at build (`NotImplementedError`); reduced-coordinate enforcement is scheduled for M3. Exact identity tags are temporarily accepted for Panda compatibility, but they are **not coupled**: both joints retain independent coordinates until M3. The zero-DOF `JointMimic` placeholder cannot be selected directly because that would bypass this policy.
+Mimic targets use zero-width public `nqs`/`nvs` slices and concrete full-space
+slices. `q_expansion`/`q_offset`/`v_expansion` are the single source of truth
+for FK, Jacobian, RNEA, CRBA, ABA, centroidal, and limit coupling. The current
+honest subset is scalar bounded revolute/prismatic/helical chains; unsupported
+manifold/custom endpoints and cycles fail at build. `JointMimic` itself is a
+legacy zero-DOF placeholder and cannot be selected by the loader.
 
 ## Adding a New Joint Type
 

@@ -144,13 +144,14 @@ typed `Inertia` happens on demand. Storing 10 floats per body in a
 contiguous tensor is what lets `crba`'s composite-rigid-body
 recursion gather inertias without per-body Python work.
 
-**Mimic joints use the PyRoki gather trick.** Instead of a runtime
-if-statement on every FK iteration, `Model` carries three tensors —
-`mimic_multiplier`, `mimic_offset`, `mimic_source` — and the full-q
-expansion `q_full[i] = mult[i] * q_active[src[i]] + off[i]` becomes a
-vectorised gather + multiply. Non-mimic joints have multiplier 1,
-offset 0, and source equal to their own index, so the same expression
-covers everything.
+**Mimic joints use an explicit reduced↔full map.** Public `nq`, `nv`,
+`nqs`/`nvs`, and `idx_qs`/`idx_vs` omit mimic targets. Whole-body recursions
+retain `nq_full`, `nv_full` and matching full slice tables. Static
+`q_expansion`, `q_offset`, and `v_expansion` tensors define
+`q_full = q @ q_expansion.T + q_offset` and
+`v_full = v @ v_expansion.T`; the same tangent map projects Jacobians,
+forces, mass matrices, and centroidal maps. Non-mimic models take an identity
+fast path.
 
 **`reference_configurations` and `q_neutral`.** A dict of named
 configurations (e.g. `"half_sitting"`) plus a single canonical
@@ -159,26 +160,31 @@ point.
 
 ### Universal `integrate` and `difference`
 
-```python
-def integrate(model: Model, q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
-    """Manifold retraction: q ⊕ v. Per-joint dispatch."""
-    q_new = torch.empty_like(q)
-    for j in range(model.njoints):
-        jm = model.joint_models[j]
-        iq, iv = model.idx_qs[j], model.idx_vs[j]
-        qj = q[..., iq : iq + jm.nq]
-        vj = v[..., iv : iv + jm.nv]
-        q_new[..., iq : iq + jm.nq] = jm.integrate(qj, vj)
-    return q_new
-```
+`ModelStructure` precomputes public q/v gather tables for five semantic
+families: Euclidean joints, spherical joints, free-flyers, continuous
+revolute joints, and planar joints. `Model.integrate` and
+`Model.difference` gather every joint in one family, evaluate one batched
+manifold operation, then scatter into the public trailing dimension. A
+24-joint spherical body therefore performs one SO(3) call, not 23 Python
+calls. Composite and custom `JointModel` objects retain their exact per-joint
+dispatch as a compatibility fallback.
 
-The for-loop runs at *model compile time*: after `build_model()`, the
-topology is fixed, the loop unrolls cleanly under `torch.compile`,
-and per-joint dispatch is a tuple lookup, not a tensor operation.
-This is how a floating base works without any special case in the
-solver — `JointFreeFlyer.integrate` knows it has to retract over
-SE(3); `JointRX.integrate` is plain addition; the solver does not
-need to be told the difference.
+The formulas keep right/local perturbation semantics: spherical retraction is
+`normalize(q · exp(v))` and free-flyer retraction is `T · exp(ξ)`. Solvers
+still call one universal API and do not need to know which coordinates are
+Euclidean or manifold-valued.
+
+Leading dimensions use torch's right-aligned broadcasting. For example,
+`q.shape == (B, 1, nq)` and `v.shape == (T, nv)` produce
+`(B, T, nq)`. Trailing dimensions and devices are validated explicitly;
+mixed floating dtypes follow torch promotion. Reduced mimic targets own zero
+public width, so only their independent source enters a manifold group.
+
+The grouped implementation is tested against the former per-joint loop with
+tight dtype-aware tolerances. Contiguous grouped reductions can differ from
+strided calls by a few ULPs; see
+`plan/design_notes/m3_integrate_difference_vectorization.md` for parity and
+CPU benchmark evidence.
 
 ## `Data` — per-query workspace
 

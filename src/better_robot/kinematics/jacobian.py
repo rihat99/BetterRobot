@@ -16,6 +16,10 @@ from ..data_model import KinematicsLevel
 from ..data_model.data import Data
 from ..data_model.execution_batch import broadcast_to_execution_batch
 from ..data_model.model import Model
+from ..data_model.reduced_coordinates import (
+    expand_configuration,
+    reduce_jacobian,
+)
 from ..lie import se3, so3
 from ..lie.tangents import hat_so3
 from .jacobian_strategy import JacobianStrategy
@@ -42,17 +46,25 @@ def _compute_joint_jacobians_raw(model: Model, data: Data) -> torch.Tensor:
         (model.nq,),
         name="data.q",
     )
+    q_full = expand_configuration(model.structure, q)
     device, dtype = q.device, q.dtype
 
-    J = torch.zeros(*batch, model.njoints, 6, model.nv, device=device, dtype=dtype)
+    J = torch.zeros(
+        *batch,
+        model.njoints,
+        6,
+        model.nv_full,
+        device=device,
+        dtype=dtype,
+    )
 
     for j in model.topo_order:
         parent = model.parents[j]
         if parent >= 0:
             J[..., j, :, :] = J[..., parent, :, :]
 
-        nv_j = model.nvs[j]
-        v_j = model.idx_vs[j]
+        nv_j = model.nvs_full[j]
+        v_j = model.idx_vs_full[j]
 
         if nv_j == 0:
             continue
@@ -62,8 +74,8 @@ def _compute_joint_jacobians_raw(model: Model, data: Data) -> torch.Tensor:
         R_j = so3.to_matrix(T_j[..., 3:])  # (B..., 3, 3)
         hat_p = hat_so3(p_j)  # (B..., 3, 3)
 
-        nq_j = model.nqs[j]
-        q_j = q[..., model.idx_qs[j] : model.idx_qs[j] + nq_j]
+        nq_j = model.nqs_full[j]
+        q_j = q_full[..., model.idx_qs_full[j] : model.idx_qs_full[j] + nq_j]
         S_local = model.joint_models[j].joint_motion_subspace(q_j)
         S_local = S_local.to(device=device, dtype=dtype)  # (B..., 6, nv_j)
 
@@ -78,7 +90,7 @@ def _compute_joint_jacobians_raw(model: Model, data: Data) -> torch.Tensor:
         J[..., j, :3, v_j : v_j + nv_j] = R_S_lin + hat_p_R_S_ang
         J[..., j, 3:, v_j : v_j + nv_j] = R_S_ang
 
-    return J
+    return reduce_jacobian(model.structure, J)
 
 
 def compute_joint_jacobians(model: Model, data: Data) -> Data:
@@ -171,11 +183,12 @@ def get_frame_jacobian(
     if data.joint_jacobians is not None:
         J_parent = data.joint_jacobians[..., parent_joint, :, :]  # (B..., 6, nv)
     else:
-        J_parent = torch.zeros(*batch, 6, model.nv, device=device, dtype=dtype)
+        q_full = expand_configuration(model.structure, q)
+        J_parent_full = torch.zeros(*batch, 6, model.nv_full, device=device, dtype=dtype)
         support = model.get_support(parent_joint)
         for j in support:
-            nv_j = model.nvs[j]
-            v_j = model.idx_vs[j]
+            nv_j = model.nvs_full[j]
+            v_j = model.idx_vs_full[j]
             if nv_j == 0:
                 continue
             T_j = joint_pose_world[..., j, :]
@@ -183,8 +196,8 @@ def get_frame_jacobian(
             R_j = so3.to_matrix(T_j[..., 3:])
             hat_p = hat_so3(p_j)
 
-            nq_j = model.nqs[j]
-            q_j = q[..., model.idx_qs[j] : model.idx_qs[j] + nq_j]
+            nq_j = model.nqs_full[j]
+            q_j = q_full[..., model.idx_qs_full[j] : model.idx_qs_full[j] + nq_j]
             S_local = model.joint_models[j].joint_motion_subspace(q_j)
             S_local = S_local.to(device=device, dtype=dtype)
 
@@ -195,8 +208,9 @@ def get_frame_jacobian(
             R_S_lin = torch.matmul(R_j, S_lin)
             hat_p_R_S_ang = torch.matmul(hat_p, R_S_ang)
 
-            J_parent[..., :3, v_j : v_j + nv_j] = R_S_lin + hat_p_R_S_ang
-            J_parent[..., 3:, v_j : v_j + nv_j] = R_S_ang
+            J_parent_full[..., :3, v_j : v_j + nv_j] = R_S_lin + hat_p_R_S_ang
+            J_parent_full[..., 3:, v_j : v_j + nv_j] = R_S_ang
+        J_parent = reduce_jacobian(model.structure, J_parent_full)
 
     # -- Compute the frame's world pose (needed for LWA and LOCAL adjustments) --
     T_local = broadcast_to_execution_batch(

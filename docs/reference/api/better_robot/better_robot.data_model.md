@@ -25,6 +25,7 @@ better_robot.data_model.joint_models
 better_robot.data_model.execution_batch
 better_robot.data_model.body
 better_robot.data_model.model_values
+better_robot.data_model.reduced_coordinates
 better_robot.data_model.joint
 better_robot.data_model.frame
 better_robot.data_model.topology

@@ -1,8 +1,8 @@
 # Benchmarks
 
-Micro-benches for SE3/SO3 ops, forward kinematics, Jacobians, and
-`solve_ik`. They are advisory — the bench-cpu-advisory CI job records
-numbers but does not gate merges.
+Micro-benches for SE3/SO3 ops, forward kinematics, Jacobians, manifold
+integration/difference, and `solve_ik`. They are advisory — the
+bench-cpu-advisory CI job records numbers but does not gate merges.
 
 ## Running
 
@@ -32,6 +32,7 @@ self-hosted GPU runner.
 | `bench_lie.py` | SE3/SO3 compose/exp/log throughput |
 | `bench_forward_kinematics.py` | FK on Panda, batched and unbatched |
 | `bench_jacobian.py` | `compute_joint_jacobians` on Panda |
+| `bench_integrate_difference.py` | Grouped vs loop manifold operations on a length-200 SMPL-like trajectory |
 | `bench_solve_ik.py` | One-shot Panda IK |
 | `test_mem_watermark.py` | Nightly only: peak memory tracking |
 | `baseline_cpu.json` | CI-runner baseline (currently a `_status: PLACEHOLDER`; populate from one CI run before relying on the comparison gate) |

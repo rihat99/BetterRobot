@@ -389,6 +389,11 @@ def try_warp_forward_kinematics(  # noqa: PLR0911
     """Run the opt-in prototype, or return ``None`` for torch fallback."""
 
     values.validate(structure)
+    if structure.has_mimic:
+        # The frozen prototype ABI consumes one public q slice per concrete
+        # joint. Reduced mimic coordinates deliberately stay on the torch lane
+        # until a dedicated full-space expansion kernel is validated.
+        return None
     if q.dtype not in (torch.float32, torch.float64):
         return None
     if any(code < 0 or code == JOINT_KIND_CODES["composite"] for code in structure.joint_kind_codes):

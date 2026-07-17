@@ -20,6 +20,7 @@ from ..data_model.joint_models import JointFreeFlyer
 from ..data_model.model import Model
 from ..data_model.model_structure import ModelStructure
 from ..data_model.model_values import ModelValues
+from ..data_model.reduced_coordinates import expand_configuration
 from ..exceptions import (
     DeviceMismatchError,
     DtypeMismatchError,
@@ -126,6 +127,7 @@ def forward_kinematics_raw(
         (structure.nq,),
         name="q",
     )
+    q_full = expand_configuration(structure, q)
     placements = broadcast_to_execution_batch(
         values.joint_placements,
         batch_shape,
@@ -139,8 +141,11 @@ def forward_kinematics_raw(
     local_list: list[torch.Tensor] = [None] * structure.njoints  # type: ignore[list-item]
 
     for j in structure.topo_order:
-        nq_j = structure.nqs[j]
-        q_j = q[..., structure.idx_qs[j] : structure.idx_qs[j] + nq_j]
+        nq_j = structure.nqs_full[j]
+        q_j = q_full[
+            ...,
+            structure.idx_qs_full[j] : structure.idx_qs_full[j] + nq_j,
+        ]
         T_j = joint_transform(
             structure.joint_models[j],
             structure.joint_kind_codes[j],

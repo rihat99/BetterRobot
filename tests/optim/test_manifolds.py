@@ -106,7 +106,7 @@ def _assert_robot_config_wrapper(model, batch_shape: tuple[int, ...]) -> None:
 
 @pytest.mark.parametrize("batch_shape", _BATCH_SHAPES)
 def test_panda_robot_config_wrapper_parity(panda_model, batch_shape) -> None:
-    assert panda_model.nq == panda_model.nv == 9
+    assert panda_model.nq == panda_model.nv == 8
     _assert_robot_config_wrapper(panda_model, batch_shape)
 
 

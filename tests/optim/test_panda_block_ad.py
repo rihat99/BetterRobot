@@ -64,8 +64,21 @@ def panda_pose_case():
     model = load(panda_description.URDF_PATH, dtype=torch.float32)
 
     q = model.q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit).clone()
-    offset_q = torch.tensor([0.10, -0.12, 0.08, -0.05, 0.07, -0.09, 0.06, 0.005, 0.004])
-    assert offset_q.shape == q.shape
+    offset_q = torch.zeros_like(q)
+    offsets_by_joint = {
+        "panda_joint1": 0.10,
+        "panda_joint2": -0.12,
+        "panda_joint3": 0.08,
+        "panda_joint4": -0.05,
+        "panda_joint5": 0.07,
+        "panda_joint6": -0.09,
+        "panda_joint7": 0.06,
+        "panda_finger_joint1": 0.005,
+    }
+    for joint_name, offset in offsets_by_joint.items():
+        joint_id = model.joint_id(joint_name)
+        assert model.nqs[joint_id] == 1
+        offset_q[model.idx_qs[joint_id]] = offset
     q = (q + offset_q).clamp(model.lower_pos_limit, model.upper_pos_limit)
 
     frame_id = model.frame_id("body_panda_hand")
@@ -131,8 +144,18 @@ def test_panda_pose_forced_ad_matches_analytic(panda_pose_case, strategy: str) -
 @pytest.mark.parametrize("strategy", ("jacrev", "jacfwd"))
 def test_panda_pose_masked_ad_uses_reduced_columns(panda_pose_case, strategy: str) -> None:
     model, q, residual = panda_pose_case
-    assert model.nv == 9
-    mask = torch.tensor([True, False, True, True, False, True, True, False, True])
+    assert model.nv == 8
+    mask = torch.zeros(model.nv, dtype=torch.bool)
+    for joint_name in (
+        "panda_joint1",
+        "panda_joint3",
+        "panda_joint4",
+        "panda_joint6",
+        "panda_joint7",
+    ):
+        joint_id = model.joint_id(joint_name)
+        assert model.nvs[joint_id] == 1
+        mask[model.idx_vs[joint_id]] = True
     full_problem = _problem(model, residual)
     masked_problem = _problem(model, residual, mask=mask)
 

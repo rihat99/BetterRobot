@@ -42,6 +42,17 @@ _WORLD_SENTINEL = "world"
 
 _EPS = 1e-6
 _IDENTITY_SE3_VALS = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+_SUPPORTED_MIMIC_JOINTS = (
+    JointRX,
+    JointRY,
+    JointRZ,
+    JointRevoluteUnaligned,
+    JointPX,
+    JointPY,
+    JointPZ,
+    JointPrismaticUnaligned,
+    JointHelical,
+)
 
 
 def _check_topology_invariants(
@@ -95,6 +106,212 @@ def _axis_near(a: torch.Tensor | None, ref: tuple[float, float, float]) -> bool:
     return bool((a - r).norm() < _EPS)
 
 
+def _cumulative_layout(widths: tuple[int, ...]) -> tuple[tuple[int, ...], int]:
+    indices: list[int] = []
+    offset = 0
+    for width in widths:
+        indices.append(offset)
+        offset += width
+    return tuple(indices), offset
+
+
+def _build_mimic_reduction(  # noqa: PLR0912, PLR0913, PLR0915 - one build-time policy boundary
+    *,
+    joint_models: tuple[JointModel, ...],
+    joint_names: tuple[str, ...],
+    mimic_source: tuple[int, ...],
+    mimic_multiplier: torch.Tensor,
+    mimic_offset: torch.Tensor,
+    mimic_targets: set[int],
+    nqs_full: tuple[int, ...],
+    nvs_full: tuple[int, ...],
+    idx_qs_full: tuple[int, ...],
+    idx_vs_full: tuple[int, ...],
+    lower_full: torch.Tensor,
+    upper_full: torch.Tensor,
+    velocity_full: torch.Tensor,
+    effort_full: torch.Tensor,
+    rotor_full: torch.Tensor,
+    armature_full: torch.Tensor,
+    friction_full: torch.Tensor,
+    damping_full: torch.Tensor,
+) -> tuple[
+    tuple[int, ...],
+    tuple[int, ...],
+    tuple[int, ...],
+    tuple[int, ...],
+    int,
+    int,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+]:
+    """Build public layouts, affine maps, and reduced scalar limits."""
+
+    for target in mimic_targets:
+        source = mimic_source[target]
+        if source == target:
+            raise IRError(f"Mimic cycle detected: joint {joint_names[target]!r} references itself")
+        for role, joint_id in (("target", target), ("source", source)):
+            joint = joint_models[joint_id]
+            if not isinstance(joint, _SUPPORTED_MIMIC_JOINTS):
+                raise IRError(
+                    f"Mimic {role} joint {joint_names[joint_id]!r} has unsupported "
+                    f"kind {joint.kind!r}; reduced mimic coordinates currently "
+                    "require concrete scalar Euclidean revolute, prismatic, or "
+                    "helical joints (nq=nv=1)"
+                )
+
+    public_nqs = tuple(0 if joint_id in mimic_targets else width for joint_id, width in enumerate(nqs_full))
+    public_nvs = tuple(0 if joint_id in mimic_targets else width for joint_id, width in enumerate(nvs_full))
+    public_idx_qs, nq = _cumulative_layout(public_nqs)
+    public_idx_vs, nv = _cumulative_layout(public_nvs)
+    nq_full = sum(nqs_full)
+    nv_full = sum(nvs_full)
+
+    q_expansion = lower_full.new_zeros((nq_full, nq))
+    q_offset_full = lower_full.new_zeros((nq_full,))
+    v_expansion = velocity_full.new_zeros((nv_full, nv))
+
+    state = [0] * len(joint_models)
+    resolved: list[tuple[int, float, float] | None] = [None] * len(joint_models)
+
+    def resolve(joint_id: int, path: tuple[int, ...] = ()) -> tuple[int, float, float]:
+        if joint_id not in mimic_targets:
+            return joint_id, 1.0, 0.0
+        if state[joint_id] == 1:
+            cycle = (*path, joint_id)
+            names = " -> ".join(joint_names[index] for index in cycle)
+            raise IRError(f"Mimic cycle detected: {names}")
+        if state[joint_id] == 2:
+            result = resolved[joint_id]
+            assert result is not None
+            return result
+        state[joint_id] = 1
+        source = mimic_source[joint_id]
+        root, source_scale, source_offset = resolve(source, (*path, joint_id))
+        multiplier = float(mimic_multiplier[joint_id])
+        offset = float(mimic_offset[joint_id])
+        result = (
+            root,
+            multiplier * source_scale,
+            multiplier * source_offset + offset,
+        )
+        resolved[joint_id] = result
+        state[joint_id] = 2
+        return result
+
+    for joint_id, (nq_joint, nv_joint) in enumerate(zip(nqs_full, nvs_full)):
+        full_iq = idx_qs_full[joint_id]
+        full_iv = idx_vs_full[joint_id]
+        if joint_id in mimic_targets:
+            root, scale, offset = resolve(joint_id)
+            reduced_iq = public_idx_qs[root]
+            reduced_iv = public_idx_vs[root]
+            q_expansion[full_iq, reduced_iq] = scale
+            q_offset_full[full_iq] = offset
+            v_expansion[full_iv, reduced_iv] = scale
+            continue
+        reduced_iq = public_idx_qs[joint_id]
+        reduced_iv = public_idx_vs[joint_id]
+        if nq_joint:
+            q_expansion[
+                full_iq : full_iq + nq_joint,
+                reduced_iq : reduced_iq + nq_joint,
+            ] = torch.eye(nq_joint, dtype=lower_full.dtype, device=lower_full.device)
+        if nv_joint:
+            v_expansion[
+                full_iv : full_iv + nv_joint,
+                reduced_iv : reduced_iv + nv_joint,
+            ] = torch.eye(nv_joint, dtype=velocity_full.dtype, device=velocity_full.device)
+
+    lower = lower_full.new_empty((nq,))
+    upper = upper_full.new_empty((nq,))
+    velocity = velocity_full.new_empty((nv,))
+    effort = effort_full.new_empty((nv,))
+    rotor = rotor_full.new_empty((nv,))
+    armature = armature_full.new_empty((nv,))
+    friction = friction_full.new_empty((nv,))
+    damping = damping_full.new_empty((nv,))
+    for joint_id, (nq_joint, nv_joint) in enumerate(zip(nqs_full, nvs_full)):
+        if joint_id in mimic_targets:
+            continue
+        full_iq = idx_qs_full[joint_id]
+        full_iv = idx_vs_full[joint_id]
+        reduced_iq = public_idx_qs[joint_id]
+        reduced_iv = public_idx_vs[joint_id]
+        lower[reduced_iq : reduced_iq + nq_joint] = lower_full[full_iq : full_iq + nq_joint]
+        upper[reduced_iq : reduced_iq + nq_joint] = upper_full[full_iq : full_iq + nq_joint]
+        velocity[reduced_iv : reduced_iv + nv_joint] = velocity_full[full_iv : full_iv + nv_joint]
+        effort[reduced_iv : reduced_iv + nv_joint] = effort_full[full_iv : full_iv + nv_joint]
+        rotor[reduced_iv : reduced_iv + nv_joint] = rotor_full[full_iv : full_iv + nv_joint]
+        armature[reduced_iv : reduced_iv + nv_joint] = armature_full[full_iv : full_iv + nv_joint]
+        friction[reduced_iv : reduced_iv + nv_joint] = friction_full[full_iv : full_iv + nv_joint]
+        damping[reduced_iv : reduced_iv + nv_joint] = damping_full[full_iv : full_iv + nv_joint]
+
+    for target in mimic_targets:
+        root, scale, offset = resolve(target)
+        full_iq = idx_qs_full[target]
+        full_iv = idx_vs_full[target]
+        reduced_iq = public_idx_qs[root]
+        reduced_iv = public_idx_vs[root]
+        lo = float(lower_full[full_iq])
+        hi = float(upper_full[full_iq])
+        if scale == 0.0:
+            if offset < lo or offset > hi:
+                raise IRError(
+                    f"Constant mimic joint {joint_names[target]!r} has offset "
+                    f"{offset}, outside its position limits [{lo}, {hi}]"
+                )
+            continue
+        mapped_a = (lo - offset) / scale
+        mapped_b = (hi - offset) / scale
+        mapped_lo = min(mapped_a, mapped_b)
+        mapped_hi = max(mapped_a, mapped_b)
+        lower[reduced_iq] = torch.maximum(lower[reduced_iq], lower.new_tensor(mapped_lo))
+        upper[reduced_iq] = torch.minimum(upper[reduced_iq], upper.new_tensor(mapped_hi))
+        if float(lower[reduced_iq]) > float(upper[reduced_iq]):
+            raise IRError(
+                f"Mimic limits for source joint {joint_names[root]!r} are empty "
+                f"after applying target {joint_names[target]!r}"
+            )
+        absolute_scale = abs(scale)
+        velocity[reduced_iv] = torch.minimum(velocity[reduced_iv], velocity_full[full_iv] / absolute_scale)
+        effort[reduced_iv] = effort[reduced_iv] + absolute_scale * effort_full[full_iv]
+        rotor[reduced_iv] = rotor[reduced_iv] + scale**2 * rotor_full[full_iv]
+        armature[reduced_iv] = armature[reduced_iv] + scale**2 * armature_full[full_iv]
+        friction[reduced_iv] = friction[reduced_iv] + absolute_scale * friction_full[full_iv]
+        damping[reduced_iv] = damping[reduced_iv] + scale**2 * damping_full[full_iv]
+
+    return (
+        public_nqs,
+        public_nvs,
+        public_idx_qs,
+        public_idx_vs,
+        nq,
+        nv,
+        q_expansion,
+        q_offset_full,
+        v_expansion,
+        lower,
+        upper,
+        velocity,
+        effort,
+        rotor,
+        armature,
+        friction,
+        damping,
+    )
+
+
 def _kind_to_joint_model(ir_joint: IRJoint) -> JointModel:
     """Select a concrete ``JointModel`` from an ``IRJoint``."""
     kind = ir_joint.kind
@@ -112,21 +329,18 @@ def _kind_to_joint_model(ir_joint: IRJoint) -> JointModel:
         if isinstance(joint_model, JointMimic):
             raise NotImplementedError(
                 f"Joint {ir_joint.name!r} directly selects JointMimic. "
-                f"That zero-DOF placeholder is not coupled by FK or dynamics "
-                f"and cannot represent the M0 identity-mimic exemption. Use "
-                f"the concrete joint model with an exact identity mimic tag "
-                f"(multiplier=1.0, offset=0.0), or track reduced-coordinate "
-                f"enforcement in milestone M3 (see plan/04_roadmap.md, M3 "
-                f"item 3)."
+                "The zero-DOF placeholder cannot describe the target motion. "
+                "Use a concrete supported scalar revolute, prismatic, or "
+                "helical joint model together with mimic_source, "
+                "mimic_multiplier, and mimic_offset."
             )
         return joint_model
 
     if kind == "mimic":
         raise NotImplementedError(
             f"Joint {ir_joint.name!r} uses the zero-DOF mimic kind, which is "
-            f"not coupled by FK or dynamics. Use a concrete joint kind with "
-            f"an exact identity mimic tag, or track reduced-coordinate "
-            f"enforcement in milestone M3 (see plan/04_roadmap.md, M3 item 3)."
+            "missing the target's concrete motion semantics. Use a supported "
+            "scalar revolute, prismatic, or helical kind with mimic_source."
         )
 
     if kind == "universe":
@@ -422,25 +636,10 @@ def build_model(
     joint_models = tuple(joint_models_list)
 
     # ── 8. idx_q / idx_v ─────────────────────────────────────────────────────
-    nqs_list = [jm.nq for jm in joint_models_list]
-    nvs_list = [jm.nv for jm in joint_models_list]
-
-    idx_qs_list: list[int] = []
-    idx_vs_list: list[int] = []
-    q_off = 0
-    v_off = 0
-    for nq_j, nv_j in zip(nqs_list, nvs_list):
-        idx_qs_list.append(q_off)
-        idx_vs_list.append(v_off)
-        q_off += nq_j
-        v_off += nv_j
-
-    nq_total = q_off
-    nv_total = v_off
-    nqs = tuple(nqs_list)
-    nvs = tuple(nvs_list)
-    idx_qs = tuple(idx_qs_list)
-    idx_vs = tuple(idx_vs_list)
+    nqs_full = tuple(jm.nq for jm in joint_models_list)
+    nvs_full = tuple(jm.nv for jm in joint_models_list)
+    idx_qs_full, nq_full = _cumulative_layout(nqs_full)
+    idx_vs_full, nv_full = _cumulative_layout(nvs_full)
 
     # ── 9. joint_placements ───────────────────────────────────────────────────
     placements: list[torch.Tensor] = [identity_se3.clone(), _root_placement]
@@ -524,10 +723,10 @@ def build_model(
     upper_pos_limit = torch.tensor(upper_pos, dtype=dtype)
     velocity_limit = torch.tensor(vel_lim, dtype=dtype)
     effort_limit = torch.tensor(eff_lim, dtype=dtype)
-    rotor_inertia = torch.zeros(nv_total, dtype=dtype)
-    armature = torch.zeros(nv_total, dtype=dtype)
-    friction = torch.zeros(nv_total, dtype=dtype)
-    damping = torch.zeros(nv_total, dtype=dtype)
+    rotor_inertia = torch.zeros(nv_full, dtype=dtype)
+    armature = torch.zeros(nv_full, dtype=dtype)
+    friction = torch.zeros(nv_full, dtype=dtype)
+    damping = torch.zeros(nv_full, dtype=dtype)
 
     # ── 11. Body inertias ─────────────────────────────────────────────────────
     ir_body_map: dict[str, IRBody] = {b.name: b for b in ir.bodies}
@@ -589,6 +788,7 @@ def build_model(
     mimic_mult = torch.ones(n_model_joints, dtype=dtype)
     mimic_off = torch.zeros(n_model_joints, dtype=dtype)
     mimic_src_list: list[int] = list(range(n_model_joints))
+    mimic_targets: set[int] = set()
 
     mimic_ir_joints: list[tuple[IRJoint, int]] = []
     if world_ir_idxs:
@@ -600,29 +800,56 @@ def build_model(
             src = ir_joint_name_to_mjidx.get(ir_j.mimic_source)
             if src is None:
                 raise IRError(f"Mimic source {ir_j.mimic_source!r} not found (referenced by joint {ir_j.name!r})")
-            if ir_j.mimic_multiplier != 1.0 or ir_j.mimic_offset != 0.0:
-                raise NotImplementedError(
-                    f"Joint {ir_j.name!r} is a non-identity mimic joint "
-                    f"(mimics {ir_j.mimic_source!r}, "
-                    f"multiplier={ir_j.mimic_multiplier}, "
-                    f"offset={ir_j.mimic_offset}). BetterRobot does not "
-                    f"enforce mimic constraints yet. Exact identity mimic "
-                    f"tags (multiplier=1.0, offset=0.0) are temporarily "
-                    f"accepted for Panda compatibility, but remain "
-                    f"independent coordinates. Remove the <mimic> tag, or "
-                    f"track reduced-coordinate enforcement in milestone M3 "
-                    f"(see plan/04_roadmap.md, M3 item 3)."
-                )
+            mimic_targets.add(mjidx)
             mimic_src_list[mjidx] = src
             mimic_mult[mjidx] = ir_j.mimic_multiplier
             mimic_off[mjidx] = ir_j.mimic_offset
 
     mimic_source = tuple(mimic_src_list)
 
+    (
+        nqs,
+        nvs,
+        idx_qs,
+        idx_vs,
+        nq_total,
+        nv_total,
+        q_expansion,
+        q_offset,
+        v_expansion,
+        lower_pos_limit,
+        upper_pos_limit,
+        velocity_limit,
+        effort_limit,
+        rotor_inertia,
+        armature,
+        friction,
+        damping,
+    ) = _build_mimic_reduction(
+        joint_models=joint_models,
+        joint_names=joint_names,
+        mimic_source=mimic_source,
+        mimic_multiplier=mimic_mult,
+        mimic_offset=mimic_off,
+        mimic_targets=mimic_targets,
+        nqs_full=nqs_full,
+        nvs_full=nvs_full,
+        idx_qs_full=idx_qs_full,
+        idx_vs_full=idx_vs_full,
+        lower_full=lower_pos_limit,
+        upper_full=upper_pos_limit,
+        velocity_full=velocity_limit,
+        effort_full=effort_limit,
+        rotor_full=rotor_inertia,
+        armature_full=armature,
+        friction_full=friction,
+        damping_full=damping,
+    )
+
     # ── 15. q_neutral ─────────────────────────────────────────────────────────
     neutral_parts: list[torch.Tensor] = []
-    for jm in joint_models_list:
-        if jm.nq > 0:
+    for joint_id, jm in enumerate(joint_models_list):
+        if nqs[joint_id] > 0:
             neutral_parts.append(jm.neutral())
     q_neutral = (
         torch.cat(neutral_parts, dim=-1).to(dtype=dtype) if neutral_parts else torch.zeros(nq_total, dtype=dtype)
@@ -649,6 +876,9 @@ def build_model(
         damping = _dev(damping)
         mimic_mult = _dev(mimic_mult)
         mimic_off = _dev(mimic_off)
+        q_expansion = _dev(q_expansion)
+        q_offset = _dev(q_offset)
+        v_expansion = _dev(v_expansion)
         q_neutral = _dev(q_neutral)
         gravity = _dev(gravity)
 
@@ -662,6 +892,15 @@ def build_model(
         nq_total=nq_total,
         nv_total=nv_total,
     )
+    _check_topology_invariants(
+        parents=parents,
+        nqs=nqs_full,
+        nvs=nvs_full,
+        idx_qs=idx_qs_full,
+        idx_vs=idx_vs_full,
+        nq_total=nq_full,
+        nv_total=nv_full,
+    )
 
     # ── 19. Return frozen Model ───────────────────────────────────────────────
     return Model(
@@ -670,6 +909,8 @@ def build_model(
         nframes=nframes,
         nq=nq_total,
         nv=nv_total,
+        nq_full=nq_full,
+        nv_full=nv_full,
         name=ir.name,
         joint_names=joint_names,
         body_names=body_names,
@@ -687,6 +928,10 @@ def build_model(
         nvs=nvs,
         idx_qs=idx_qs,
         idx_vs=idx_vs,
+        nqs_full=nqs_full,
+        nvs_full=nvs_full,
+        idx_qs_full=idx_qs_full,
+        idx_vs_full=idx_vs_full,
         joint_placements=joint_placements,
         body_inertias=body_inertias,
         lower_pos_limit=lower_pos_limit,
@@ -701,6 +946,10 @@ def build_model(
         mimic_multiplier=mimic_mult,
         mimic_offset=mimic_off,
         mimic_source=mimic_source,
+        q_expansion=q_expansion,
+        q_offset=q_offset,
+        v_expansion=v_expansion,
+        has_mimic=bool(mimic_targets),
         frames=frames,
         q_neutral=q_neutral,
         meta={"ir": ir, **dict(getattr(ir, "meta", {}) or {})},

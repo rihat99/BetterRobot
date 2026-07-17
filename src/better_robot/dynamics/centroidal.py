@@ -27,6 +27,7 @@ from ..data_model.data import Data
 from ..data_model.model import Model
 from ..data_model.model_structure import ModelStructure
 from ..data_model.model_values import ModelValues
+from ..data_model.reduced_coordinates import reduce_jacobian
 from ..kinematics.forward import forward_kinematics_raw
 from ..lie import se3
 from ._execution import prepare_dynamics_inputs
@@ -81,7 +82,7 @@ def ccrba_raw(
     v = prepared.get("v")
     device, dtype = q.device, q.dtype
     njoints = structure.njoints
-    nv = structure.nv
+    nv_full = structure.nv_full
     oMi, liMi = forward_kinematics_raw(structure, values, q)
     total_mass, com_world = _world_com(structure, values, oMi)
     spatial_inertias = values.spatial_inertias()
@@ -101,20 +102,21 @@ def ccrba_raw(
         transform = adjoint_inverse[index]
         composite[parent] = composite[parent] + transform.transpose(-1, -2) @ composite[index] @ transform
 
-    centroidal_map = torch.zeros(*batch, 6, nv, device=device, dtype=dtype)
+    centroidal_map_full = torch.zeros(*batch, 6, nv_full, device=device, dtype=dtype)
     for index in structure.topo_order:
         if index == 0:
             continue
-        nv_i = structure.nvs[index]
+        nv_i = structure.nvs_full[index]
         if nv_i == 0:
             continue
-        iv = structure.idx_vs[index]
+        iv = structure.idx_vs_full[index]
         subspace = motion_subspaces[index, :, :nv_i].expand(*batch, 6, nv_i)
         momentum_columns = composite[index] @ subspace
         shifted = torch.cat((oMi[..., index, :3] - com_world, oMi[..., index, 3:7]), dim=-1)
         to_centroidal = se3.adjoint_inv(shifted).transpose(-1, -2)
-        centroidal_map[..., :, iv : iv + nv_i] = to_centroidal @ momentum_columns
+        centroidal_map_full[..., :, iv : iv + nv_i] = to_centroidal @ momentum_columns
 
+    centroidal_map = reduce_jacobian(structure, centroidal_map_full)
     momentum = None if v is None else (centroidal_map @ v.unsqueeze(-1)).squeeze(-1)
     return CentroidalResult(
         centroidal_map,

@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 import torch
 
 from ..exceptions import DeviceMismatchError, DtypeMismatchError, ShapeError
-from ..lie import se3
+from ..lie import se3, so3
 from .frame import Frame
 from .joint_models.base import JointModel
 
@@ -43,6 +43,8 @@ class Model:
     nframes: int
     nq: int
     nv: int
+    nq_full: int
+    nv_full: int
 
     # ──────────── names & indexing ────────────
     name: str
@@ -67,6 +69,10 @@ class Model:
     nvs: tuple[int, ...]
     idx_qs: tuple[int, ...]
     idx_vs: tuple[int, ...]
+    nqs_full: tuple[int, ...]
+    nvs_full: tuple[int, ...]
+    idx_qs_full: tuple[int, ...]
+    idx_vs_full: tuple[int, ...]
 
     # ──────────── device-resident tensors ────────────
     joint_placements: torch.Tensor  # (njoints, 7)
@@ -85,6 +91,10 @@ class Model:
     mimic_multiplier: torch.Tensor  # (njoints,)
     mimic_offset: torch.Tensor  # (njoints,)
     mimic_source: tuple[int, ...]  # (njoints,) — src index, self-idx otherwise
+    q_expansion: torch.Tensor  # (nq_full, nq)
+    q_offset: torch.Tensor  # (nq_full,)
+    v_expansion: torch.Tensor  # (nv_full, nv)
+    has_mimic: bool
 
     # ──────────── frames ────────────
     frames: tuple[Frame, ...]
@@ -105,8 +115,8 @@ class Model:
     # ────────────────────────── methods ──────────────────────────
 
     def __post_init__(self) -> None:
-        from .model_structure import ModelStructure
-        from .model_values import ModelValues
+        from .model_structure import ModelStructure  # noqa: PLC0415 - import cycle
+        from .model_values import ModelValues  # noqa: PLC0415 - import cycle
 
         object.__setattr__(self, "structure", ModelStructure.from_model(self))
         object.__setattr__(self, "values", ModelValues.from_model(self))
@@ -250,6 +260,13 @@ class Model:
                 "q_neutral",
             )
         }
+        field_updates.update(
+            {
+                "q_expansion": structure.q_expansion,
+                "q_offset": structure.q_offset,
+                "v_expansion": structure.v_expansion,
+            }
+        )
         field_updates["frames"] = tuple(
             dataclasses.replace(frame, joint_placement=_t(frame.joint_placement)) for frame in self.frames
         )
@@ -270,7 +287,7 @@ class Model:
         dtype: torch.dtype | None = None,
     ):  # -> "Data"
         """Allocate an empty ``Data`` workspace shaped for this model."""
-        from .data import Data
+        from .data import Data  # noqa: PLC0415 - keep Data out of the model import cycle
 
         _device = device or self.joint_placements.device
         _dtype = dtype or self.joint_placements.dtype
@@ -358,7 +375,7 @@ class Model:
 
     def body_inertia(self, body_id: int):
         """Typed accessor returning a single body's :class:`~better_robot.spatial.Inertia`."""
-        from ..spatial.inertia import Inertia
+        from ..spatial.inertia import Inertia  # noqa: PLC0415 - typed lazy accessor
 
         return Inertia(self.values.body_inertias[..., body_id, :])
 
@@ -370,47 +387,194 @@ class Model:
         """Return the joint chain from joint 0 to ``joint_id``."""
         return self.supports[joint_id]
 
-    def integrate(self, q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
-        """Universal manifold retraction ``q ⊕ v``. Dispatches per joint."""
-        parts: list[torch.Tensor] = []
-        for j in range(self.njoints):
-            jm = self.joint_models[j]
-            if jm.nq == 0:
-                continue
-            iq = self.idx_qs[j]
-            iv = self.idx_vs[j]
-            qj = q[..., iq : iq + jm.nq]
-            vj = v[..., iv : iv + jm.nv]
-            parts.append(jm.integrate(qj, vj))
-        if not parts:
-            return q.clone()
-        return torch.cat(parts, dim=-1)
+    def _validate_manifold_tensor(
+        self,
+        name: str,
+        value: torch.Tensor,
+        trailing_width: int,
+    ) -> None:
+        if value.ndim < 1 or value.shape[-1] != trailing_width:
+            raise ShapeError(f"{name} has shape {tuple(value.shape)}; expected trailing dimension {trailing_width}")
+        model_device = self.structure.idx_qs_tensor.device
+        if value.device != model_device:
+            raise DeviceMismatchError(
+                f"{name}.device={value.device} != model.device={model_device}; "
+                "move the tensor or call model.to(...) first"
+            )
 
-    def difference(self, q0: torch.Tensor, q1: torch.Tensor) -> torch.Tensor:
-        """Universal tangent ``q1 ⊖ q0``. Dispatches per joint."""
-        parts: list[torch.Tensor] = []
-        for j in range(self.njoints):
-            jm = self.joint_models[j]
-            if jm.nq == 0:
-                continue
-            iq = self.idx_qs[j]
-            q0j = q0[..., iq : iq + jm.nq]
-            q1j = q1[..., iq : iq + jm.nq]
-            parts.append(jm.difference(q0j, q1j))
-        if not parts:
-            return torch.zeros(*q0.shape[:-1], self.nv, device=q0.device, dtype=q0.dtype)
-        return torch.cat(parts, dim=-1)
+    def integrate(self, q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
+        """Universal manifold retraction ``q ⊕ v`` grouped by joint kind.
+
+        Leading dimensions use torch's right-aligned broadcast rules. Built-in
+        manifolds execute once per semantic kind; custom and composite joints
+        retain exact per-joint dispatch through the precomputed fallback group.
+        """
+        self._validate_manifold_tensor("q", q, self.nq)
+        self._validate_manifold_tensor("v", v, self.nv)
+        batch_shape = torch.broadcast_shapes(q.shape[:-1], v.shape[:-1])
+        result_dtype = torch.promote_types(q.dtype, v.dtype)
+        q_broadcast = q.to(dtype=result_dtype).expand(*batch_shape, self.nq)
+        v_broadcast = v.to(dtype=result_dtype).expand(*batch_shape, self.nv)
+        if self.nq == 0:
+            return q_broadcast.clone()
+
+        result = q_broadcast.clone()
+        structure = self.structure
+
+        q_indices = structure.manifold_euclidean_q_indices
+        if q_indices.numel():
+            values = q_broadcast[..., q_indices] + v_broadcast[..., structure.manifold_euclidean_v_indices]
+            result = result.index_copy(-1, q_indices, values)
+
+        q_indices = structure.manifold_spherical_q_indices
+        if q_indices.numel():
+            q_group = q_broadcast[..., q_indices]
+            v_group = v_broadcast[..., structure.manifold_spherical_v_indices]
+            values = so3.normalize(so3.compose(q_group, so3.exp(v_group)))
+            result = result.index_copy(-1, q_indices.reshape(-1), values.flatten(start_dim=-2))
+
+        q_indices = structure.manifold_free_flyer_q_indices
+        if q_indices.numel():
+            q_group = q_broadcast[..., q_indices]
+            v_group = v_broadcast[..., structure.manifold_free_flyer_v_indices]
+            values = se3.normalize(se3.compose(q_group, se3.exp(v_group)))
+            result = result.index_copy(-1, q_indices.reshape(-1), values.flatten(start_dim=-2))
+
+        q_indices = structure.manifold_unbounded_q_indices
+        if q_indices.numel():
+            q_group = q_broadcast[..., q_indices]
+            v_group = v_broadcast[..., structure.manifold_unbounded_v_indices]
+            theta = torch.atan2(q_group[..., 1], q_group[..., 0]) + v_group[..., 0]
+            values = torch.stack((torch.cos(theta), torch.sin(theta)), dim=-1)
+            result = result.index_copy(-1, q_indices.reshape(-1), values.flatten(start_dim=-2))
+
+        q_indices = structure.manifold_planar_q_indices
+        if q_indices.numel():
+            q_group = q_broadcast[..., q_indices]
+            v_group = v_broadcast[..., structure.manifold_planar_v_indices]
+            theta = torch.atan2(q_group[..., 3], q_group[..., 2]) + v_group[..., 2]
+            values = torch.stack(
+                (
+                    q_group[..., 0] + v_group[..., 0],
+                    q_group[..., 1] + v_group[..., 1],
+                    torch.cos(theta),
+                    torch.sin(theta),
+                ),
+                dim=-1,
+            )
+            result = result.index_copy(-1, q_indices.reshape(-1), values.flatten(start_dim=-2))
+
+        for fallback_index, joint_id in enumerate(structure.manifold_fallback_joint_ids):
+            q_start = structure.manifold_fallback_q_offsets[fallback_index]
+            q_stop = structure.manifold_fallback_q_offsets[fallback_index + 1]
+            v_start = structure.manifold_fallback_v_offsets[fallback_index]
+            v_stop = structure.manifold_fallback_v_offsets[fallback_index + 1]
+            q_indices = structure.manifold_fallback_q_indices[q_start:q_stop]
+            v_indices = structure.manifold_fallback_v_indices[v_start:v_stop]
+            values = self.joint_models[joint_id].integrate(
+                q_broadcast[..., q_indices],
+                v_broadcast[..., v_indices],
+            )
+            result = result.index_copy(-1, q_indices, values)
+
+        return result
+
+    def difference(  # noqa: PLR0915 - explicit manifold formulas stay auditable
+        self,
+        q0: torch.Tensor,
+        q1: torch.Tensor,
+    ) -> torch.Tensor:
+        """Universal tangent ``q1 ⊖ q0`` grouped by joint kind."""
+        self._validate_manifold_tensor("q0", q0, self.nq)
+        self._validate_manifold_tensor("q1", q1, self.nq)
+        batch_shape = torch.broadcast_shapes(q0.shape[:-1], q1.shape[:-1])
+        result_dtype = torch.promote_types(q0.dtype, q1.dtype)
+        q0_broadcast = q0.to(dtype=result_dtype).expand(*batch_shape, self.nq)
+        q1_broadcast = q1.to(dtype=result_dtype).expand(*batch_shape, self.nq)
+        if self.nv == 0:
+            return q0_broadcast.new_zeros(*batch_shape, self.nv)
+
+        result = q0_broadcast.new_zeros(*batch_shape, self.nv)
+        structure = self.structure
+
+        v_indices = structure.manifold_euclidean_v_indices
+        if v_indices.numel():
+            values = (
+                q1_broadcast[..., structure.manifold_euclidean_q_indices]
+                - q0_broadcast[..., structure.manifold_euclidean_q_indices]
+            )
+            result = result.index_copy(-1, v_indices, values)
+
+        q_indices = structure.manifold_spherical_q_indices
+        if q_indices.numel():
+            q0_group = q0_broadcast[..., q_indices]
+            q1_group = q1_broadcast[..., q_indices]
+            delta = so3.compose(so3.inverse(q0_group), q1_group)
+            values = so3.log(so3.normalize(delta))
+            v_indices = structure.manifold_spherical_v_indices
+            result = result.index_copy(-1, v_indices.reshape(-1), values.flatten(start_dim=-2))
+
+        q_indices = structure.manifold_free_flyer_q_indices
+        if q_indices.numel():
+            q0_group = q0_broadcast[..., q_indices]
+            q1_group = q1_broadcast[..., q_indices]
+            values = se3.log(se3.compose(se3.inverse(q0_group), q1_group))
+            v_indices = structure.manifold_free_flyer_v_indices
+            result = result.index_copy(-1, v_indices.reshape(-1), values.flatten(start_dim=-2))
+
+        q_indices = structure.manifold_unbounded_q_indices
+        if q_indices.numel():
+            q0_group = q0_broadcast[..., q_indices]
+            q1_group = q1_broadcast[..., q_indices]
+            theta0 = torch.atan2(q0_group[..., 1], q0_group[..., 0])
+            theta1 = torch.atan2(q1_group[..., 1], q1_group[..., 0])
+            values = (theta1 - theta0).unsqueeze(-1)
+            v_indices = structure.manifold_unbounded_v_indices
+            result = result.index_copy(-1, v_indices.reshape(-1), values.flatten(start_dim=-2))
+
+        q_indices = structure.manifold_planar_q_indices
+        if q_indices.numel():
+            q0_group = q0_broadcast[..., q_indices]
+            q1_group = q1_broadcast[..., q_indices]
+            theta0 = torch.atan2(q0_group[..., 3], q0_group[..., 2])
+            theta1 = torch.atan2(q1_group[..., 3], q1_group[..., 2])
+            values = torch.stack(
+                (
+                    q1_group[..., 0] - q0_group[..., 0],
+                    q1_group[..., 1] - q0_group[..., 1],
+                    theta1 - theta0,
+                ),
+                dim=-1,
+            )
+            v_indices = structure.manifold_planar_v_indices
+            result = result.index_copy(-1, v_indices.reshape(-1), values.flatten(start_dim=-2))
+
+        for fallback_index, joint_id in enumerate(structure.manifold_fallback_joint_ids):
+            q_start = structure.manifold_fallback_q_offsets[fallback_index]
+            q_stop = structure.manifold_fallback_q_offsets[fallback_index + 1]
+            v_start = structure.manifold_fallback_v_offsets[fallback_index]
+            v_stop = structure.manifold_fallback_v_offsets[fallback_index + 1]
+            q_indices = structure.manifold_fallback_q_indices[q_start:q_stop]
+            v_indices = structure.manifold_fallback_v_indices[v_start:v_stop]
+            values = self.joint_models[joint_id].difference(
+                q0_broadcast[..., q_indices],
+                q1_broadcast[..., q_indices],
+            )
+            result = result.index_copy(-1, v_indices, values)
+
+        return result
 
     def random_configuration(self, generator: torch.Generator | None = None) -> torch.Tensor:
         """Return a random valid configuration ``q`` of shape ``(nq,)``."""
         parts: list[torch.Tensor] = []
         for j in range(self.njoints):
             jm = self.joint_models[j]
-            if jm.nq == 0:
+            nq_j = self.nqs[j]
+            if nq_j == 0:
                 continue
             iq = self.idx_qs[j]
-            lower = self.lower_pos_limit[iq : iq + jm.nq]
-            upper = self.upper_pos_limit[iq : iq + jm.nq]
+            lower = self.lower_pos_limit[iq : iq + nq_j]
+            upper = self.upper_pos_limit[iq : iq + nq_j]
             parts.append(jm.random_configuration(generator, lower, upper))
         if not parts:
             return torch.zeros(self.nq)

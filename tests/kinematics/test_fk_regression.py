@@ -13,6 +13,7 @@ See ``docs/conventions/testing.md §4.5``.
 
 from __future__ import annotations
 
+import dataclasses
 from pathlib import Path
 
 import numpy as np
@@ -27,12 +28,28 @@ REF_PATH = Path(__file__).parent / "fk_reference.npz"
 def _load_panda():
     pytest.importorskip("robot_descriptions")
     from robot_descriptions import panda_description
-    return br.load(panda_description.URDF_PATH, dtype=torch.float64)
+    from better_robot.io import build_model, parse_urdf
+
+    # The frozen oracle predates reduced mimic coordinates and contains two
+    # independent finger entries. Keep it as an explicit full-space algorithm
+    # regression; constrained behavior has dedicated reduced-map tests.
+    ir = parse_urdf(panda_description.URDF_PATH)
+    ir.joints = [
+        dataclasses.replace(
+            joint,
+            mimic_source=None,
+            mimic_multiplier=1.0,
+            mimic_offset=0.0,
+        )
+        for joint in ir.joints
+    ]
+    return build_model(ir, dtype=torch.float64)
 
 
 def _load_g1():
     pytest.importorskip("robot_descriptions")
     from robot_descriptions import g1_description
+
     return br.load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
 
 

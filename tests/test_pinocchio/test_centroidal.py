@@ -20,7 +20,6 @@ the per-body twists, then compares to ``ccrba``.
 
 from __future__ import annotations
 
-import numpy as np
 import pytest
 import torch
 
@@ -28,19 +27,23 @@ import better_robot as br
 from better_robot.dynamics import ccrba, center_of_mass
 from better_robot.dynamics import compute_centroidal_map, compute_centroidal_momentum
 
-from .conftest import sample_panda_q
-
 
 def _panda(dtype=torch.float64):
     pytest.importorskip("robot_descriptions")
     from robot_descriptions import panda_description
+
     return br.load(panda_description.URDF_PATH, dtype=dtype)
+
+
+def _sample_q(model, count: int, seed: int) -> torch.Tensor:
+    generator = torch.Generator().manual_seed(seed)
+    return torch.rand(count, model.nq, generator=generator, dtype=torch.float64) * 2.0 - 1.0
 
 
 def test_hg_linear_equals_mass_times_vcom():
     """``h_g[:3] = m_total · v_com`` for any (q, v)."""
     model = _panda()
-    qs = sample_panda_q(4, seed=0)
+    qs = _sample_q(model, 4, seed=0)
     rng = torch.Generator().manual_seed(1)
     total_mass = torch.tensor(
         sum(model.body_inertias[i, 0].item() for i in range(model.njoints)),
@@ -48,9 +51,9 @@ def test_hg_linear_equals_mass_times_vcom():
     )
     for i in range(qs.shape[0]):
         q = qs[i]
-        v = (torch.rand(model.nv, generator=rng, dtype=torch.float64) - 0.5)
+        v = torch.rand(model.nv, generator=rng, dtype=torch.float64) - 0.5
         data = model.create_data()
-        com = center_of_mass(model, data, q, v=v)
+        center_of_mass(model, data, q, v=v)
         assert data.com_velocity is not None
         v_com = data.com_velocity
         _, h_g = ccrba(model, model.create_data(), q, v)
@@ -60,11 +63,11 @@ def test_hg_linear_equals_mass_times_vcom():
 def test_ag_times_v_equals_hg():
     """``h_g = A_g(q) · v``."""
     model = _panda()
-    qs = sample_panda_q(4, seed=2)
+    qs = _sample_q(model, 4, seed=2)
     rng = torch.Generator().manual_seed(3)
     for i in range(qs.shape[0]):
         q = qs[i]
-        v = (torch.rand(model.nv, generator=rng, dtype=torch.float64) - 0.5)
+        v = torch.rand(model.nv, generator=rng, dtype=torch.float64) - 0.5
         data = model.create_data()
         A_g = compute_centroidal_map(model, data, q)
         h_g_expected = (A_g @ v.unsqueeze(-1)).squeeze(-1)
@@ -75,7 +78,7 @@ def test_ag_times_v_equals_hg():
 def test_zero_velocity_gives_zero_momentum():
     """``v = 0 ⇒ h_g = 0`` for any ``q``."""
     model = _panda()
-    qs = sample_panda_q(2, seed=4)
+    qs = _sample_q(model, 2, seed=4)
     for i in range(qs.shape[0]):
         q = qs[i]
         zero_v = torch.zeros(model.nv, dtype=torch.float64)
@@ -83,7 +86,8 @@ def test_zero_velocity_gives_zero_momentum():
         torch.testing.assert_close(
             h_g,
             torch.zeros(6, dtype=torch.float64),
-            rtol=1e-12, atol=1e-12,
+            rtol=1e-12,
+            atol=1e-12,
         )
 
 
@@ -103,12 +107,14 @@ def test_centroidal_g1_free_flyer():
     torch.testing.assert_close(
         h_g[0],
         torch.tensor(total_mass, dtype=torch.float64),
-        rtol=1e-10, atol=1e-10,
+        rtol=1e-10,
+        atol=1e-10,
     )
     # No rotation ⇒ angular momentum stays zero (body is rigid as a whole).
     # ~1e-8 fp noise from cross-product accumulation across 30+ joints.
     torch.testing.assert_close(
         h_g[3:],
         torch.zeros(3, dtype=torch.float64),
-        rtol=1e-7, atol=1e-7,
+        rtol=1e-7,
+        atol=1e-7,
     )

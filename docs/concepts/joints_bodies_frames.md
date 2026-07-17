@@ -97,9 +97,10 @@ Source: `src/better_robot/data_model/joint_models/base.py`.
 
 `joint_transform` is the function the FK loop calls. `joint_motion_subspace`
 is what `compute_joint_jacobians` calls. `integrate` and `difference`
-are what `Model.integrate` and `Model.difference` dispatch through —
-that is how a manifold-aware retraction works without the solver
-knowing manifolds exist.
+define the fallback/custom semantics behind `Model.integrate` and
+`Model.difference`; exact built-in classes use equivalent precomputed
+per-kind tensor groups. That is how a manifold-aware retraction works without
+the solver knowing manifolds exist.
 
 The dynamics hooks (`joint_bias_acceleration`,
 `joint_motion_subspace_derivative`) are required for RNEA. For
@@ -183,24 +184,13 @@ calls `solve_ik` for four whole-body targets, and verifies that the
 result frame poses match within tolerance — using the same code path
 as the Panda test.
 
-## Mimic joints — temporary identity exemption
+## Mimic joints — reduced coordinates
 
-URDF supports `<mimic>` joints whose configuration is a linear
-function of another joint's. BetterRobot parses that metadata, but it
-does not yet apply the required reduced-coordinate map in FK,
-Jacobians, limits, or dynamics. Consequently, model loading rejects a
-mimic tag with any non-identity parameters (`multiplier != 1.0` or
-`offset != 0.0`) with a `NotImplementedError` pointing to milestone
-M3.
-
-Exact identity tags (`multiplier=1.0`, `offset=0.0`) are temporarily
-accepted so the stock Panda remains loadable. This is a compatibility
-exemption, **not mimic enforcement**: the declared source and target
-joints still have independent entries in `q` and `v`, and changing the
-source does not change the target. Code that assumes those joints are
-coupled will get incorrect kinematics until M3.
-
-`Model` retains the parsed relationship metadata for identity tags:
+URDF `<mimic>` targets do not contribute public configuration or tangent
+coordinates. BetterRobot expands the affine source relationship into the full
+concrete-joint layout before FK or dynamics, then projects tangent-space
+outputs back to the reduced public layout. The parsed immediate relationship
+remains available as metadata:
 
 ```python
 mimic_multiplier: torch.Tensor   # (njoints,)  1.0 for non-mimic joints
@@ -208,10 +198,20 @@ mimic_offset:     torch.Tensor   # (njoints,)  0.0 for non-mimic joints
 mimic_source:     tuple[int, ...]  # source-joint index, or self-index
 ```
 
-For ordinary joints, the values are identity defaults. No kinematics or
-dynamics implementation consumes these fields today. M3 will replace
-this temporary policy with consistent reduced-coordinate enforcement
-across every computational pass.
+The resolved maps are `q_expansion (nq_full, nq)`,
+`q_offset (nq_full,)`, and `v_expansion (nv_full, nv)`. FK expands `q`;
+Jacobians and centroidal maps right-multiply by `v_expansion`; RNEA
+accumulates full torque through it; CRBA projects on both sides. Mimic ABA
+solves the projected mass/bias system because reducing a full-space ABA result
+would not enforce the constraint.
+
+The supported subset is explicit: source/target chains must use concrete
+scalar bounded revolute, prismatic, or helical joint models (`nq=nv=1`).
+Continuous/unit-circle, spherical, free-flyer, planar, translation,
+composite, fixed, and custom endpoints fail at build time, as do cycles. A
+zero multiplier is a constant target only when the offset satisfies its
+limits. The prototype Warp FK lane falls back to torch for reduced mimic
+models.
 
 ## `Frame` — the indirection layer
 

@@ -30,13 +30,11 @@ class JointComposite:
         """Derive dimensions from the immutable sub-joint sequence."""
         for joint in self.sub_joints:
             if not isinstance(joint, JointModel):
-                raise TypeError(
-                    f"Composite child {joint!r} does not implement JointModel"
-                )
+                raise TypeError(f"Composite child {joint!r} does not implement JointModel")
             if joint.kind == "mimic":
                 raise ValueError(
-                    "JointMimic cannot be nested in JointComposite; real mimic "
-                    "coupling is scheduled for M3"
+                    "JointMimic cannot be nested in JointComposite; attach "
+                    "mimic metadata to a concrete scalar joint instead"
                 )
         object.__setattr__(self, "nq", sum(joint.nq for joint in self.sub_joints))
         object.__setattr__(self, "nv", sum(joint.nv for joint in self.sub_joints))

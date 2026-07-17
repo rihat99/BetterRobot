@@ -38,6 +38,10 @@ from ..data_model.data import Data
 from ..data_model.model import Model
 from ..data_model.model_structure import ModelStructure
 from ..data_model.model_values import ModelValues
+from ..data_model.reduced_coordinates import (
+    expand_tangent,
+    reduce_generalized_force,
+)
 from ..kinematics.forward import forward_kinematics_raw
 from ..lie import se3
 from ._execution import prepare_dynamics_inputs
@@ -130,6 +134,8 @@ def rnea_raw(  # noqa: PLR0912, PLR0915 - recursive Newton-Euler passes are expl
     v = prepared["v"]
     a = prepared["a"]
     fext = prepared.get("fext")
+    v_full = expand_tangent(structure, v)
+    a_full = expand_tangent(structure, a)
     device, dtype = q.device, q.dtype
 
     # ── Pass 0: forward kinematics (liMi needed for adjoints) ────────────
@@ -161,11 +167,11 @@ def rnea_raw(  # noqa: PLR0912, PLR0915 - recursive Newton-Euler passes are expl
             continue
         p = structure.parents[i]
 
-        iv, nv_i = structure.idx_vs[i], structure.nvs[i]
+        iv, nv_i = structure.idx_vs_full[i], structure.nvs_full[i]
 
         if nv_i > 0:
-            v_i_slice = v[..., iv : iv + nv_i]
-            a_i_slice = a[..., iv : iv + nv_i]
+            v_i_slice = v_full[..., iv : iv + nv_i]
+            a_i_slice = a_full[..., iv : iv + nv_i]
             S_i = motion_subspaces[i, :, :nv_i].expand(*batch, 6, nv_i)
             vJ = (S_i @ v_i_slice.unsqueeze(-1)).squeeze(-1)
             aJ = (S_i @ a_i_slice.unsqueeze(-1)).squeeze(-1)  # (B..., 6)
@@ -202,12 +208,12 @@ def rnea_raw(  # noqa: PLR0912, PLR0915 - recursive Newton-Euler passes are expl
 
     # ── Backward pass ────────────────────────────────────────────────────
     # Per-coordinate tau slots, filled in reverse topo order.
-    tau_slots: list[torch.Tensor | None] = [None] * structure.nv
+    tau_slots: list[torch.Tensor | None] = [None] * structure.nv_full
 
     for i in reversed(structure.topo_order):
         if i == 0:
             continue
-        iv, nv_i = structure.idx_vs[i], structure.nvs[i]
+        iv, nv_i = structure.idx_vs_full[i], structure.nvs_full[i]
         if nv_i > 0:
             S_i = S_cache[i]  # (B..., 6, nv_i)
             tau_i = (S_i.transpose(-1, -2) @ f_body[i].unsqueeze(-1)).squeeze(-1)
@@ -221,10 +227,11 @@ def rnea_raw(  # noqa: PLR0912, PLR0915 - recursive Newton-Euler passes are expl
             f_transported = (Ad_inv_T @ f_body[i].unsqueeze(-1)).squeeze(-1)
             f_body[p] = f_body[p] + f_transported
 
-    if structure.nv > 0:
-        tau = torch.stack(tau_slots, dim=-1)  # type: ignore[arg-type]
+    if structure.nv_full > 0:
+        tau_full = torch.stack(tau_slots, dim=-1)  # type: ignore[arg-type]
     else:
-        tau = torch.zeros((*batch, 0), device=device, dtype=dtype)
+        tau_full = torch.zeros((*batch, 0), device=device, dtype=dtype)
+    tau = reduce_generalized_force(structure, tau_full)
 
     return RNEAResult(
         tau=tau,

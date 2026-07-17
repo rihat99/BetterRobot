@@ -53,12 +53,13 @@ class JointPositionLimit:
         # jacobian() method moves it to the caller's device/dtype lazily.
         dq_dv = torch.zeros(model.nq, model.nv, dtype=torch.float32)
         for j in range(model.njoints):
-            jm = model.joint_models[j]
-            if jm.nq == 0 or jm.nq != jm.nv:
+            nq_j = model.nqs[j]
+            nv_j = model.nvs[j]
+            if nq_j == 0 or nq_j != nv_j:
                 continue
             iq = model.idx_qs[j]
             iv = model.idx_vs[j]
-            for k in range(jm.nq):
+            for k in range(nq_j):
                 dq_dv[iq + k, iv + k] = 1.0
         self._dq_dv = dq_dv  # (nq, nv)
 

@@ -269,12 +269,16 @@ def _static_layout(  # noqa: PLR0912 - dispatches the finite supported manifold 
             model = spec.manifold.model
             q_for_v = [-1] * model.nv
             unsafe_q: list[int] = []
-            for joint, iq, iv in zip(
+            for joint, nq_joint, nv_joint, iq, iv in zip(
                 model.joint_models,
+                model.nqs,
+                model.nvs,
                 model.idx_qs,
                 model.idx_vs,
                 strict=True,
             ):
+                if nq_joint == 0 and nv_joint == 0:
+                    continue
                 local_mapping, local_unsafe = _joint_q_for_v(joint)
                 for local_v, local_q in enumerate(local_mapping):
                     if local_q >= 0:

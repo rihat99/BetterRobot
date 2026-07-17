@@ -1,8 +1,8 @@
-"""``JointMimic`` — zero-DOF joint whose value is derived from another joint.
+"""``JointMimic`` — legacy zero-DOF placeholder.
 
-The mimic relationship is evaluated via a vectorised gather on the ``Model``
-side (``mimic_multiplier``/``mimic_offset``/``mimic_source``), not as a
-per-joint branch in the hot path.
+Real mimic relationships retain the target's concrete scalar joint model and
+use the model-level reduced coordinate map. The loader rejects this placeholder
+because it does not encode the target motion semantics.
 
 See ``docs/concepts/joints_bodies_frames.md §5``.
 """
@@ -16,13 +16,7 @@ import torch
 
 @dataclass(frozen=True)
 class JointMimic:
-    """Zero-DOF mimic joint; value = ``mult * q[src] + off``.
-
-    The actual joint expansion is done at the Model level via the vectorised
-    gather (``mimic_multiplier``, ``mimic_offset``, ``mimic_source``). The
-    JointMimic object itself is a stateless placeholder that the FK loop
-    handles specially.
-    """
+    """Zero-DOF placeholder retained for import compatibility only."""
 
     kind: str = "mimic"
     nq: int = 0
@@ -31,7 +25,7 @@ class JointMimic:
 
     def joint_transform(self, q_slice: torch.Tensor) -> torch.Tensor:
         """Identity — the mimic offset is encoded in model.joint_placements."""
-        return torch.tensor([0., 0., 0., 0., 0., 0., 1.], dtype=torch.float32)
+        return torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], dtype=torch.float32)
 
     def joint_motion_subspace(self, q_slice: torch.Tensor) -> torch.Tensor:
         return torch.zeros(6, 0)

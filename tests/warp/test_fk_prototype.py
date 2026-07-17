@@ -195,6 +195,30 @@ def test_unsupported_layout_falls_back_without_copying() -> None:
     assert try_warp_forward_kinematics(model.structure, values, q_batch) is None
 
 
+def test_reduced_mimic_coordinates_explicitly_fall_back_to_torch() -> None:
+    builder = ModelBuilder("warp_mimic_fallback")
+    root = builder.add_body("root")
+    source = builder.add_body("source")
+    target = builder.add_body("target")
+    builder.add_revolute_z("source_joint", parent=root, child=source)
+    builder.add_revolute_z(
+        "target_joint",
+        parent=source,
+        child=target,
+        mimic_source="source_joint",
+        mimic_multiplier=-0.5,
+        mimic_offset=0.1,
+    )
+    model = build_model(builder.finalize())
+    q = torch.zeros(model.nq)
+
+    assert model.has_mimic
+    assert try_warp_forward_kinematics(model.structure, model.values, q) is None
+    actual = forward_kinematics(model, q, use_warp=True)
+    expected = forward_kinematics(model, q, use_warp=False)
+    torch.testing.assert_close(actual.joint_pose_world, expected.joint_pose_world)
+
+
 def _broadcast_inputs(model):
     q = torch.tensor(
         [[[0.2, 0.1, -0.3]], [[-0.15, -0.05, 0.25]]],

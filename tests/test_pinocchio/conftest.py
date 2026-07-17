@@ -5,6 +5,7 @@ All tests in this folder are skipped if pinocchio is not installed.
 
 from __future__ import annotations
 
+import dataclasses
 import numpy as np
 import pytest
 import torch
@@ -27,6 +28,7 @@ def se3_to_pose(se3: "pin.SE3") -> torch.Tensor:
     t = np.asarray(se3.translation)
     R = np.asarray(se3.rotation)
     from scipy.spatial.transform import Rotation as Rot
+
     quat_xyzw = Rot.from_matrix(R).as_quat()
     out = np.concatenate([t, quat_xyzw])
     return torch.from_numpy(out).double()
@@ -35,6 +37,7 @@ def se3_to_pose(se3: "pin.SE3") -> torch.Tensor:
 def rot_matrix_from_pose(pose: torch.Tensor) -> np.ndarray:
     """Extract rotation matrix (3,3) from BetterRobot pose."""
     from scipy.spatial.transform import Rotation as Rot
+
     q_xyzw = pose[3:].detach().cpu().double().numpy()
     return Rot.from_quat(q_xyzw).as_matrix()
 
@@ -49,16 +52,30 @@ def panda_both():
     """
     pytest.importorskip("robot_descriptions")
     from robot_descriptions import panda_description
-    import better_robot as br
+    from better_robot.io import build_model, parse_urdf
 
-    br_model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
+    # Pinocchio's default URDF loader leaves mimic coordinates independent.
+    # Make the BR side explicitly unconstrained too, preserving this suite as
+    # a full-space recursion oracle. Dedicated mimic tests assert G-projected
+    # kinematics and dynamics instead of claiming default-loader parity.
+    ir = parse_urdf(panda_description.URDF_PATH)
+    ir.joints = [
+        dataclasses.replace(
+            joint,
+            mimic_source=None,
+            mimic_multiplier=1.0,
+            mimic_offset=0.0,
+        )
+        for joint in ir.joints
+    ]
+    br_model = build_model(ir, dtype=torch.float64)
     pin_model = pin.buildModelFromUrdf(panda_description.URDF_PATH)
     pin_data = pin_model.createData()
 
     # BetterRobot frames are prefixed with "body_". Strip prefix to get URDF link name.
     frame_map = {}
     for br_name in br_model.frame_names:
-        pin_name = br_name[len("body_"):] if br_name.startswith("body_") else br_name
+        pin_name = br_name[len("body_") :] if br_name.startswith("body_") else br_name
         if pin_model.existFrame(pin_name):
             frame_map[br_name] = pin_model.getFrameId(pin_name)
 

@@ -1,5 +1,10 @@
 # M3 — Parametric Model Breadth: Agent Execution Instructions
 
+> **Implementation log (2026-07-17, `dev`):** Complete inside BetterRobot:
+> batched differentiable model values, reduced mimic coordinates, stable order
+> preservation, human support, and grouped manifold kernels are green. The CPU
+> gate is 1,370 passed; external consumers were not accessed. See `m3_results.md`.
+
 > Read `plan/for_agents/README.md` first. It carries the standing rules
 > (deletion ordering, honesty rules, kernel requirements, test commands).
 > All paths below are relative to `/data3/rikhat.akizhanov/better/BetterRobot`

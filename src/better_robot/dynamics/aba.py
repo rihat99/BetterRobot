@@ -33,7 +33,8 @@ from ..data_model.model_values import ModelValues
 from ..kinematics.forward import forward_kinematics_raw
 from ..lie import se3
 from ._execution import prepare_dynamics_inputs
-from .rnea import _cross_motion, _cross_motion_force
+from .crba import crba_raw
+from .rnea import _cross_motion, _cross_motion_force, rnea_raw
 
 
 @dataclass(frozen=True)
@@ -88,9 +89,45 @@ def aba_raw(  # noqa: PLR0912, PLR0915 - articulated-body passes are intentional
     v = prepared["v"]
     tau = prepared["tau"]
     fext = prepared.get("fext")
+
+    if structure.has_mimic:
+        # Eliminating a full-space ABA acceleration after the solve does not
+        # enforce the mimic constraint. Solve the projected equations instead:
+        # Gvᵀ M Gv ddq = tau - Gvᵀ b. The final RNEA pass supplies the
+        # same local motion caches as the articulated-body path.
+        zero_acceleration = torch.zeros_like(v)
+        bias = rnea_raw(
+            structure,
+            values,
+            q,
+            v,
+            zero_acceleration,
+            fext=fext,
+        )
+        mass = crba_raw(structure, values, q).mass_matrix
+        ddq = torch.linalg.solve(
+            mass,
+            (tau - bias.tau).unsqueeze(-1),
+        ).squeeze(-1)
+        realized = rnea_raw(
+            structure,
+            values,
+            q,
+            v,
+            ddq,
+            fext=fext,
+        )
+        return ABAResult(
+            ddq=ddq,
+            joint_pose_world=realized.joint_pose_world,
+            joint_pose_local=realized.joint_pose_local,
+            joint_velocity_local=realized.joint_velocity_local,
+            joint_acceleration_local=realized.joint_acceleration_local,
+        )
+
     device, dtype = q.device, q.dtype
     njoints = structure.njoints
-    nv = structure.nv
+    nv = structure.nv_full
 
     # ── FK pass (drives the adjoint matrices) ────────────────────────────
     oMi, liMi = forward_kinematics_raw(structure, values, q)
@@ -122,7 +159,7 @@ def aba_raw(  # noqa: PLR0912, PLR0915 - articulated-body passes are intentional
         if i == 0:
             continue
         p = structure.parents[i]
-        iv, nv_i = structure.idx_vs[i], structure.nvs[i]
+        iv, nv_i = structure.idx_vs_full[i], structure.nvs_full[i]
 
         if nv_i > 0:
             v_i_slice = v[..., iv : iv + nv_i]
@@ -155,8 +192,8 @@ def aba_raw(  # noqa: PLR0912, PLR0915 - articulated-body passes are intentional
     for i in reversed(structure.topo_order):
         if i == 0:
             continue
-        nv_i = structure.nvs[i]
-        iv = structure.idx_vs[i]
+        nv_i = structure.nvs_full[i]
+        iv = structure.idx_vs_full[i]
         S_i = S_cache[i]  # (..., 6, nv_i)
         IA_i = IA[i]
         pA_i = pA[i]
@@ -198,8 +235,8 @@ def aba_raw(  # noqa: PLR0912, PLR0915 - articulated-body passes are intentional
         if i == 0:
             continue
         p = structure.parents[i]
-        nv_i = structure.nvs[i]
-        iv = structure.idx_vs[i]
+        nv_i = structure.nvs_full[i]
+        iv = structure.idx_vs_full[i]
 
         a_parent_local = (Ad_inv[i] @ a_body[p].unsqueeze(-1)).squeeze(-1)
         a_pre = a_parent_local + c_body[i]

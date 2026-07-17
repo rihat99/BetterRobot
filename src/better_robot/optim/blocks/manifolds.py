@@ -229,17 +229,28 @@ class RobotConfig:
     @property
     def box_mask(self) -> torch.Tensor:
         mask = torch.zeros(self.model.nq, dtype=torch.bool)
-        for joint, iq in zip(self.model.joint_models, self.model.idx_qs):
-            if joint.nq:
-                mask[iq : iq + joint.nq] = _joint_box_mask(joint)
+        for joint, nq_joint, iq in zip(
+            self.model.joint_models,
+            self.model.nqs,
+            self.model.idx_qs,
+            strict=True,
+        ):
+            if nq_joint:
+                mask[iq : iq + nq_joint] = _joint_box_mask(joint)
         return mask
 
     @property
     def unit_coordinate_slices(self) -> tuple[slice, ...]:
         """Configuration slices representing quaternions or unit circles."""
         ranges: list[tuple[int, int]] = []
-        for joint, iq in zip(self.model.joint_models, self.model.idx_qs):
-            ranges.extend(_joint_unit_ranges(joint, iq))
+        for joint, nq_joint, iq in zip(
+            self.model.joint_models,
+            self.model.nqs,
+            self.model.idx_qs,
+            strict=True,
+        ):
+            if nq_joint:
+                ranges.extend(_joint_unit_ranges(joint, iq))
         return tuple(slice(start, stop) for start, stop in ranges)
 
     def validate_bounds(self, bounds: Bounds | None, *, name: str) -> None:

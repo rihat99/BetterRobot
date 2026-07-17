@@ -107,6 +107,28 @@
 
 ````
 
+````{py:attribute} nq_full
+:canonical: better_robot.data_model.model_structure.ModelStructure.nq_full
+:type: int
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.nq_full
+```
+
+````
+
+````{py:attribute} nv_full
+:canonical: better_robot.data_model.model_structure.ModelStructure.nv_full
+:type: int
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.nv_full
+```
+
+````
+
 ````{py:attribute} name
 :canonical: better_robot.data_model.model_structure.ModelStructure.name
 :type: str
@@ -250,6 +272,50 @@
 
 ````
 
+````{py:attribute} nqs_full
+:canonical: better_robot.data_model.model_structure.ModelStructure.nqs_full
+:type: tuple[int, ...]
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.nqs_full
+```
+
+````
+
+````{py:attribute} nvs_full
+:canonical: better_robot.data_model.model_structure.ModelStructure.nvs_full
+:type: tuple[int, ...]
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.nvs_full
+```
+
+````
+
+````{py:attribute} idx_qs_full
+:canonical: better_robot.data_model.model_structure.ModelStructure.idx_qs_full
+:type: tuple[int, ...]
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.idx_qs_full
+```
+
+````
+
+````{py:attribute} idx_vs_full
+:canonical: better_robot.data_model.model_structure.ModelStructure.idx_vs_full
+:type: tuple[int, ...]
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.idx_vs_full
+```
+
+````
+
 ````{py:attribute} joint_models
 :canonical: better_robot.data_model.model_structure.ModelStructure.joint_models
 :type: tuple[better_robot.data_model.joint_models.base.JointModel, ...]
@@ -279,6 +345,105 @@
    None
 
 ```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.mimic_source
+```
+
+````
+
+````{py:attribute} has_mimic
+:canonical: better_robot.data_model.model_structure.ModelStructure.has_mimic
+:type: bool
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.has_mimic
+```
+
+````
+
+````{py:attribute} manifold_euclidean_joint_ids
+:canonical: better_robot.data_model.model_structure.ModelStructure.manifold_euclidean_joint_ids
+:type: tuple[int, ...]
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.manifold_euclidean_joint_ids
+```
+
+````
+
+````{py:attribute} manifold_spherical_joint_ids
+:canonical: better_robot.data_model.model_structure.ModelStructure.manifold_spherical_joint_ids
+:type: tuple[int, ...]
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.manifold_spherical_joint_ids
+```
+
+````
+
+````{py:attribute} manifold_free_flyer_joint_ids
+:canonical: better_robot.data_model.model_structure.ModelStructure.manifold_free_flyer_joint_ids
+:type: tuple[int, ...]
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.manifold_free_flyer_joint_ids
+```
+
+````
+
+````{py:attribute} manifold_unbounded_joint_ids
+:canonical: better_robot.data_model.model_structure.ModelStructure.manifold_unbounded_joint_ids
+:type: tuple[int, ...]
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.manifold_unbounded_joint_ids
+```
+
+````
+
+````{py:attribute} manifold_planar_joint_ids
+:canonical: better_robot.data_model.model_structure.ModelStructure.manifold_planar_joint_ids
+:type: tuple[int, ...]
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.manifold_planar_joint_ids
+```
+
+````
+
+````{py:attribute} manifold_fallback_joint_ids
+:canonical: better_robot.data_model.model_structure.ModelStructure.manifold_fallback_joint_ids
+:type: tuple[int, ...]
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.manifold_fallback_joint_ids
+```
+
+````
+
+````{py:attribute} manifold_fallback_q_offsets
+:canonical: better_robot.data_model.model_structure.ModelStructure.manifold_fallback_q_offsets
+:type: tuple[int, ...]
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.manifold_fallback_q_offsets
+```
+
+````
+
+````{py:attribute} manifold_fallback_v_offsets
+:canonical: better_robot.data_model.model_structure.ModelStructure.manifold_fallback_v_offsets
+:type: tuple[int, ...]
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.manifold_fallback_v_offsets
 ```
 
 ````
@@ -356,6 +521,50 @@
    None
 
 ```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.idx_vs_tensor
+```
+
+````
+
+````{py:attribute} nqs_full_tensor
+:canonical: better_robot.data_model.model_structure.ModelStructure.nqs_full_tensor
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.nqs_full_tensor
+```
+
+````
+
+````{py:attribute} nvs_full_tensor
+:canonical: better_robot.data_model.model_structure.ModelStructure.nvs_full_tensor
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.nvs_full_tensor
+```
+
+````
+
+````{py:attribute} idx_qs_full_tensor
+:canonical: better_robot.data_model.model_structure.ModelStructure.idx_qs_full_tensor
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.idx_qs_full_tensor
+```
+
+````
+
+````{py:attribute} idx_vs_full_tensor
+:canonical: better_robot.data_model.model_structure.ModelStructure.idx_vs_full_tensor
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.idx_vs_full_tensor
 ```
 
 ````
@@ -444,6 +653,171 @@
    None
 
 ```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.mimic_source_tensor
+```
+
+````
+
+````{py:attribute} q_expansion
+:canonical: better_robot.data_model.model_structure.ModelStructure.q_expansion
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.q_expansion
+```
+
+````
+
+````{py:attribute} q_offset
+:canonical: better_robot.data_model.model_structure.ModelStructure.q_offset
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.q_offset
+```
+
+````
+
+````{py:attribute} v_expansion
+:canonical: better_robot.data_model.model_structure.ModelStructure.v_expansion
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.v_expansion
+```
+
+````
+
+````{py:attribute} manifold_euclidean_q_indices
+:canonical: better_robot.data_model.model_structure.ModelStructure.manifold_euclidean_q_indices
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.manifold_euclidean_q_indices
+```
+
+````
+
+````{py:attribute} manifold_euclidean_v_indices
+:canonical: better_robot.data_model.model_structure.ModelStructure.manifold_euclidean_v_indices
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.manifold_euclidean_v_indices
+```
+
+````
+
+````{py:attribute} manifold_spherical_q_indices
+:canonical: better_robot.data_model.model_structure.ModelStructure.manifold_spherical_q_indices
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.manifold_spherical_q_indices
+```
+
+````
+
+````{py:attribute} manifold_spherical_v_indices
+:canonical: better_robot.data_model.model_structure.ModelStructure.manifold_spherical_v_indices
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.manifold_spherical_v_indices
+```
+
+````
+
+````{py:attribute} manifold_free_flyer_q_indices
+:canonical: better_robot.data_model.model_structure.ModelStructure.manifold_free_flyer_q_indices
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.manifold_free_flyer_q_indices
+```
+
+````
+
+````{py:attribute} manifold_free_flyer_v_indices
+:canonical: better_robot.data_model.model_structure.ModelStructure.manifold_free_flyer_v_indices
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.manifold_free_flyer_v_indices
+```
+
+````
+
+````{py:attribute} manifold_unbounded_q_indices
+:canonical: better_robot.data_model.model_structure.ModelStructure.manifold_unbounded_q_indices
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.manifold_unbounded_q_indices
+```
+
+````
+
+````{py:attribute} manifold_unbounded_v_indices
+:canonical: better_robot.data_model.model_structure.ModelStructure.manifold_unbounded_v_indices
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.manifold_unbounded_v_indices
+```
+
+````
+
+````{py:attribute} manifold_planar_q_indices
+:canonical: better_robot.data_model.model_structure.ModelStructure.manifold_planar_q_indices
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.manifold_planar_q_indices
+```
+
+````
+
+````{py:attribute} manifold_planar_v_indices
+:canonical: better_robot.data_model.model_structure.ModelStructure.manifold_planar_v_indices
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.manifold_planar_v_indices
+```
+
+````
+
+````{py:attribute} manifold_fallback_q_indices
+:canonical: better_robot.data_model.model_structure.ModelStructure.manifold_fallback_q_indices
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.manifold_fallback_q_indices
+```
+
+````
+
+````{py:attribute} manifold_fallback_v_indices
+:canonical: better_robot.data_model.model_structure.ModelStructure.manifold_fallback_v_indices
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.manifold_fallback_v_indices
 ```
 
 ````

@@ -25,6 +25,7 @@ from ..data_model.data import Data
 from ..data_model.model import Model
 from ..data_model.model_structure import ModelStructure
 from ..data_model.model_values import ModelValues
+from ..data_model.reduced_coordinates import reduce_mass_matrix
 from ..kinematics.forward import forward_kinematics_raw
 from ..lie import se3
 from ._execution import prepare_dynamics_inputs
@@ -82,22 +83,22 @@ def crba_raw(  # noqa: PLR0912, PLR0915 - composite-body passes are intentionall
     for i in structure.topo_order:
         if i == 0:
             continue
-        nv_i = structure.nvs[i]
+        nv_i = structure.nvs_full[i]
         if nv_i == 0:
             continue
         S_cache[i] = motion_subspaces[i, :, :nv_i].expand(*batch, 6, nv_i)
 
     # ── Forward pass: assemble M ─────────────────────────────────────────
-    nv = structure.nv
+    nv = structure.nv_full
     M = torch.zeros((*batch, nv, nv), device=device, dtype=dtype)
 
     for i in structure.topo_order:
         if i == 0:
             continue
-        nv_i = structure.nvs[i]
+        nv_i = structure.nvs_full[i]
         if nv_i == 0:
             continue
-        iv_i = structure.idx_vs[i]
+        iv_i = structure.idx_vs_full[i]
         S_i = S_cache[i]  # (..., 6, nv_i)
         F = Y_c[i] @ S_i  # (..., 6, nv_i)
         M_ii = S_i.transpose(-1, -2) @ F  # (..., nv_i, nv_i)
@@ -110,16 +111,16 @@ def crba_raw(  # noqa: PLR0912, PLR0915 - composite-body passes are intentionall
             if p <= 0:
                 break
             F = Ad_inv[j].transpose(-1, -2) @ F  # (..., 6, nv_i)
-            nv_p = structure.nvs[p]
+            nv_p = structure.nvs_full[p]
             if nv_p > 0:
-                iv_p = structure.idx_vs[p]
+                iv_p = structure.idx_vs_full[p]
                 S_p = S_cache[p]
                 M_pi = S_p.transpose(-1, -2) @ F  # (..., nv_p, nv_i)
                 M[..., iv_p : iv_p + nv_p, iv_i : iv_i + nv_i] = M_pi
                 M[..., iv_i : iv_i + nv_i, iv_p : iv_p + nv_p] = M_pi.transpose(-1, -2)
             j = p
 
-    return CRBAResult(M, oMi, liMi)
+    return CRBAResult(reduce_mass_matrix(structure, M), oMi, liMi)
 
 
 def crba(model: Model, data: Data, q: torch.Tensor) -> torch.Tensor:

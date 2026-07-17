@@ -223,7 +223,7 @@ def test_composite_derives_dimensions_and_runs_fk():
     assert torch.isfinite(data.joint_pose_world).all()
 
 
-def test_direct_joint_mimic_cannot_bypass_identity_tag_policy():
+def test_direct_joint_mimic_requires_a_concrete_target_kind():
     builder = ModelBuilder("mimic_placeholder")
     base = builder.add_body("base")
     source = builder.add_body("source")
@@ -237,5 +237,5 @@ def test_direct_joint_mimic_cannot_bypass_identity_tag_policy():
         mimic_source="source_joint",
     )
 
-    with pytest.raises(NotImplementedError, match="M3"):
+    with pytest.raises(NotImplementedError, match="concrete"):
         build_model(builder.finalize())

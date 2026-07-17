@@ -36,9 +36,10 @@ IR is flat and order-unconstrained — no topo-sort or idx_q/idx_v yet. That hap
 `ModelBuilder.add_joint(kind=<JointModel instance>)` stores an opaque,
 programmatic-only payload on `IRJoint` so class-specific state survives the
 IR boundary; file parsers never populate it and it is not a serialization
-contract. Direct `JointMimic` payloads are rejected because the placeholder is
-not coupled. The M0 exemption applies only to exact identity mimic metadata on
-a concrete joint model, which retains an independent coordinate until M3.
+contract. Direct `JointMimic` payloads are rejected because the placeholder
+lacks target motion semantics. A mimic tag stays on its concrete scalar joint;
+`build_model` resolves chains, constructs reduced/full coordinate maps,
+intersects position/velocity limits, and accumulates generalized capacities.
 
 ## Public Entry Point
 
