@@ -51,6 +51,14 @@
   - ```{autodoc2-docstring} better_robot.lie.so3.to_matrix
     :summary:
     ```
+* - {py:obj}`from_euler <better_robot.lie.so3.from_euler>`
+  - ```{autodoc2-docstring} better_robot.lie.so3.from_euler
+    :summary:
+    ```
+* - {py:obj}`to_euler <better_robot.lie.so3.to_euler>`
+  - ```{autodoc2-docstring} better_robot.lie.so3.to_euler
+    :summary:
+    ```
 * - {py:obj}`from_axis_angle <better_robot.lie.so3.from_axis_angle>`
   - ```{autodoc2-docstring} better_robot.lie.so3.from_axis_angle
     :summary:
@@ -127,6 +135,20 @@
 :canonical: better_robot.lie.so3.to_matrix
 
 ```{autodoc2-docstring} better_robot.lie.so3.to_matrix
+```
+````
+
+````{py:function} from_euler(euler: torch.Tensor) -> torch.Tensor
+:canonical: better_robot.lie.so3.from_euler
+
+```{autodoc2-docstring} better_robot.lie.so3.from_euler
+```
+````
+
+````{py:function} to_euler(q: torch.Tensor) -> torch.Tensor
+:canonical: better_robot.lie.so3.to_euler
+
+```{autodoc2-docstring} better_robot.lie.so3.to_euler
 ```
 ````
 

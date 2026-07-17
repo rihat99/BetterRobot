@@ -15,7 +15,6 @@
 
 better_robot.viewer.renderers.testing
 better_robot.viewer.renderers.base
-better_robot.viewer.renderers.offscreen_backend
 better_robot.viewer.renderers.viser_backend
 ```
 

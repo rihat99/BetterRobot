@@ -90,4 +90,12 @@
 
 ````
 
+````{py:method} joint_primitive(joint_id: int) -> better_robot.viewer.primitive.PrimitiveHandle
+:canonical: better_robot.viewer.render_modes.skeleton.SkeletonMode.joint_primitive
+
+```{autodoc2-docstring} better_robot.viewer.render_modes.skeleton.SkeletonMode.joint_primitive
+```
+
+````
+
 `````

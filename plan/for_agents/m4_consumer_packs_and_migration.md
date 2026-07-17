@@ -1,5 +1,11 @@
 # M4 — Consumer Feature Packs & Full Migration: Agent Execution Instructions
 
+> **Implementation log (2026-07-17):** T4.1–T4.4's in-repo surfaces are
+> implemented and verified on `dev`; fixed-size padded point sets plus boolean
+> masks are the accepted convention. T4.5 and T4.6 are deliberately deferred:
+> collision needs owner/external evidence, and BHF/BVR access or modification is
+> prohibited. CI remains manual-only. See `m4_results.md` for exact deviations.
+
 > Read `plan/for_agents/README.md` first. It carries the standing rules
 > (deletion ordering, honesty rules, kernel requirements, committed
 > benchmark definitions, test commands). Standing rules **1** (deletions

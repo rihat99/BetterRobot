@@ -139,20 +139,18 @@
 
 ````
 
-````{py:method} set_camera(camera: typing.Any) -> None
-:canonical: better_robot.viewer.renderers.viser_backend.ViserBackend.set_camera
-:abstractmethod:
+````{py:method} set_color(name: str, rgba: tuple[float, float, float, float]) -> None
+:canonical: better_robot.viewer.renderers.viser_backend.ViserBackend.set_color
 
-```{autodoc2-docstring} better_robot.viewer.renderers.viser_backend.ViserBackend.set_camera
+```{autodoc2-docstring} better_robot.viewer.renderers.viser_backend.ViserBackend.set_color
 ```
 
 ````
 
-````{py:method} capture_frame() -> np.ndarray
-:canonical: better_robot.viewer.renderers.viser_backend.ViserBackend.capture_frame
-:abstractmethod:
+````{py:method} set_scale(name: str, scale: float) -> None
+:canonical: better_robot.viewer.renderers.viser_backend.ViserBackend.set_scale
 
-```{autodoc2-docstring} better_robot.viewer.renderers.viser_backend.ViserBackend.capture_frame
+```{autodoc2-docstring} better_robot.viewer.renderers.viser_backend.ViserBackend.set_scale
 ```
 
 ````

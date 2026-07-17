@@ -200,18 +200,18 @@
 
 ````
 
-````{py:method} set_camera(camera: typing.Any) -> None
-:canonical: better_robot.viewer.renderers.testing.MockBackend.set_camera
+````{py:method} set_color(name: str, rgba: tuple[float, float, float, float]) -> None
+:canonical: better_robot.viewer.renderers.testing.MockBackend.set_color
 
-```{autodoc2-docstring} better_robot.viewer.renderers.testing.MockBackend.set_camera
+```{autodoc2-docstring} better_robot.viewer.renderers.testing.MockBackend.set_color
 ```
 
 ````
 
-````{py:method} capture_frame() -> typing.Any
-:canonical: better_robot.viewer.renderers.testing.MockBackend.capture_frame
+````{py:method} set_scale(name: str, scale: float) -> None
+:canonical: better_robot.viewer.renderers.testing.MockBackend.set_scale
 
-```{autodoc2-docstring} better_robot.viewer.renderers.testing.MockBackend.capture_frame
+```{autodoc2-docstring} better_robot.viewer.renderers.testing.MockBackend.set_scale
 ```
 
 ````

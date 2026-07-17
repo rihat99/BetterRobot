@@ -54,82 +54,10 @@
 
 ````
 
-````{py:method} seek(t: float) -> None
-:canonical: better_robot.viewer.trajectory_player.TrajectoryPlayer.seek
-:abstractmethod:
-
-```{autodoc2-docstring} better_robot.viewer.trajectory_player.TrajectoryPlayer.seek
-```
-
-````
-
 ````{py:method} seek_frame(k: int) -> None
 :canonical: better_robot.viewer.trajectory_player.TrajectoryPlayer.seek_frame
 
 ```{autodoc2-docstring} better_robot.viewer.trajectory_player.TrajectoryPlayer.seek_frame
-```
-
-````
-
-````{py:method} step(dt: float) -> None
-:canonical: better_robot.viewer.trajectory_player.TrajectoryPlayer.step
-:abstractmethod:
-
-```{autodoc2-docstring} better_robot.viewer.trajectory_player.TrajectoryPlayer.step
-```
-
-````
-
-````{py:method} pause() -> None
-:canonical: better_robot.viewer.trajectory_player.TrajectoryPlayer.pause
-:abstractmethod:
-
-```{autodoc2-docstring} better_robot.viewer.trajectory_player.TrajectoryPlayer.pause
-```
-
-````
-
-````{py:method} set_speed(speed: float) -> None
-:canonical: better_robot.viewer.trajectory_player.TrajectoryPlayer.set_speed
-:abstractmethod:
-
-```{autodoc2-docstring} better_robot.viewer.trajectory_player.TrajectoryPlayer.set_speed
-```
-
-````
-
-````{py:method} set_loop(loop: bool) -> None
-:canonical: better_robot.viewer.trajectory_player.TrajectoryPlayer.set_loop
-:abstractmethod:
-
-```{autodoc2-docstring} better_robot.viewer.trajectory_player.TrajectoryPlayer.set_loop
-```
-
-````
-
-````{py:method} set_ghost(every: int | None) -> None
-:canonical: better_robot.viewer.trajectory_player.TrajectoryPlayer.set_ghost
-:abstractmethod:
-
-```{autodoc2-docstring} better_robot.viewer.trajectory_player.TrajectoryPlayer.set_ghost
-```
-
-````
-
-````{py:method} set_trace(frame_name: str | None) -> None
-:canonical: better_robot.viewer.trajectory_player.TrajectoryPlayer.set_trace
-:abstractmethod:
-
-```{autodoc2-docstring} better_robot.viewer.trajectory_player.TrajectoryPlayer.set_trace
-```
-
-````
-
-````{py:method} set_batch_index(idx: int) -> None
-:canonical: better_robot.viewer.trajectory_player.TrajectoryPlayer.set_batch_index
-:abstractmethod:
-
-```{autodoc2-docstring} better_robot.viewer.trajectory_player.TrajectoryPlayer.set_batch_index
 ```
 
 ````

@@ -78,6 +78,22 @@
 
 ````
 
+````{py:method} show_frame(k: int) -> None
+:canonical: better_robot.viewer.visualizer.Visualizer.show_frame
+
+```{autodoc2-docstring} better_robot.viewer.visualizer.Visualizer.show_frame
+```
+
+````
+
+````{py:method} joint_primitive(joint_id: int) -> better_robot.viewer.primitive.PrimitiveHandle
+:canonical: better_robot.viewer.visualizer.Visualizer.joint_primitive
+
+```{autodoc2-docstring} better_robot.viewer.visualizer.Visualizer.joint_primitive
+```
+
+````
+
 ````{py:method} add_ik_result(result: better_robot.tasks.ik.IKResult) -> None
 :canonical: better_robot.viewer.visualizer.Visualizer.add_ik_result
 
@@ -94,37 +110,10 @@
 
 ````
 
-````{py:method} record(*args: object, **kwargs: object) -> None
-:canonical: better_robot.viewer.visualizer.Visualizer.record
-:abstractmethod:
-
-```{autodoc2-docstring} better_robot.viewer.visualizer.Visualizer.record
-```
-
-````
-
-````{py:method} add_robot(*args: object, **kwargs: object) -> None
-:canonical: better_robot.viewer.visualizer.Visualizer.add_robot
-:abstractmethod:
-
-```{autodoc2-docstring} better_robot.viewer.visualizer.Visualizer.add_robot
-```
-
-````
-
 ````{py:method} scene(name: str | None = None) -> better_robot.viewer.scene.Scene
 :canonical: better_robot.viewer.visualizer.Visualizer.scene
 
 ```{autodoc2-docstring} better_robot.viewer.visualizer.Visualizer.scene
-```
-
-````
-
-````{py:method} set_batch_index(idx: int) -> None
-:canonical: better_robot.viewer.visualizer.Visualizer.set_batch_index
-:abstractmethod:
-
-```{autodoc2-docstring} better_robot.viewer.visualizer.Visualizer.set_batch_index
 ```
 
 ````

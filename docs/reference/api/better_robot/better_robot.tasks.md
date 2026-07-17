@@ -17,4 +17,6 @@ better_robot.tasks.ik
 better_robot.tasks.parameterization
 better_robot.tasks.trajectory
 better_robot.tasks.trajopt
+better_robot.tasks.smoothing
+better_robot.tasks.contact_forces
 ```

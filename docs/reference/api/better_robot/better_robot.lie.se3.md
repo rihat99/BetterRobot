@@ -47,6 +47,14 @@
   - ```{autodoc2-docstring} better_robot.lie.se3.adjoint_inv
     :summary:
     ```
+* - {py:obj}`from_matrix <better_robot.lie.se3.from_matrix>`
+  - ```{autodoc2-docstring} better_robot.lie.se3.from_matrix
+    :summary:
+    ```
+* - {py:obj}`to_matrix <better_robot.lie.se3.to_matrix>`
+  - ```{autodoc2-docstring} better_robot.lie.se3.to_matrix
+    :summary:
+    ```
 * - {py:obj}`from_axis_angle <better_robot.lie.se3.from_axis_angle>`
   - ```{autodoc2-docstring} better_robot.lie.se3.from_axis_angle
     :summary:
@@ -124,6 +132,20 @@
 :canonical: better_robot.lie.se3.adjoint_inv
 
 ```{autodoc2-docstring} better_robot.lie.se3.adjoint_inv
+```
+````
+
+````{py:function} from_matrix(matrix: torch.Tensor) -> torch.Tensor
+:canonical: better_robot.lie.se3.from_matrix
+
+```{autodoc2-docstring} better_robot.lie.se3.from_matrix
+```
+````
+
+````{py:function} to_matrix(t: torch.Tensor) -> torch.Tensor
+:canonical: better_robot.lie.se3.to_matrix
+
+```{autodoc2-docstring} better_robot.lie.se3.to_matrix
 ```
 ````
 
