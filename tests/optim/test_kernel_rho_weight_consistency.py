@@ -9,6 +9,7 @@ import torch
 
 from better_robot.optim.kernels.base import RobustKernel
 from better_robot.optim.kernels.cauchy import Cauchy
+from better_robot.optim.kernels.geman_mcclure import GemanMcClure
 from better_robot.optim.kernels.huber import Huber
 from better_robot.optim.kernels.l2 import L2
 from better_robot.optim.kernels.tukey import Tukey
@@ -27,6 +28,11 @@ from better_robot.optim.kernels.tukey import Tukey
             Cauchy(c=1.3),
             (1.0e-6, 0.04, 0.64, 1.3**2, 4.0, 9.0),
             id="cauchy-including-c-squared",
+        ),
+        pytest.param(
+            GemanMcClure(c=1.3),
+            (1.0e-6, 0.04, 0.64, 1.3**2, 4.0, 9.0),
+            id="geman-mcclure-including-c-squared",
         ),
         pytest.param(
             Tukey(c=1.5),
