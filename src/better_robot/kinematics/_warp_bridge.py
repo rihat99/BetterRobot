@@ -1,12 +1,11 @@
 """Functional torch↔Warp bridge for the opt-in fused FK prototype.
 
 The custom op owns fresh torch outputs and launches Warp on torch's current
-CUDA stream.  Its registered autograd formula recomputes the VJP through the
-torch oracle; a paired backward-op schema is reserved for a future explicit
-VJP but is not the active path.  This is intentionally conservative: Warp's
-generated adjoint is not correct for a dynamic topological loop, while the
-torch recompute path is first- and second-order differentiable and reduces
-shared model-value gradients through the execution-batch index maps.
+CUDA stream. Its registered autograd formula recomputes the VJP through the
+torch oracle. This is intentionally conservative: Warp's generated adjoint is
+not correct for a dynamic topological loop, while the torch recompute path is
+first- and second-order differentiable and reduces shared model-value gradients
+through the execution-batch index maps.
 """
 
 from __future__ import annotations
@@ -27,12 +26,6 @@ wp.config.kernel_cache_dir = os.environ.get("WARP_CACHE_PATH", "/tmp/betterrobot
 wp.init()
 
 from ._warp_kernels import fk_frames_f32, fk_frames_f64  # noqa: E402
-
-
-def require_warp() -> None:
-    """Initialize the optional Warp lane or propagate its import/runtime error."""
-
-    wp.init()
 
 
 def _torch_joint_transform(  # noqa: PLR0911
@@ -184,69 +177,6 @@ def _vjp(
     )  # type: ignore[return-value]
 
 
-@torch.library.custom_op("better_robot::warp_fk_backward", mutates_args=())
-def _warp_fk_backward(
-    q: torch.Tensor,
-    joint_placements: torch.Tensor,
-    frame_placements: torch.Tensor,
-    q_map: torch.Tensor,
-    value_map: torch.Tensor,
-    parents: torch.Tensor,
-    topo_order: torch.Tensor,
-    kinds: torch.Tensor,
-    nqs: torch.Tensor,
-    idx_qs: torch.Tensor,
-    axes: torch.Tensor,
-    pitches: torch.Tensor,
-    frame_parents: torch.Tensor,
-    grad_world: torch.Tensor,
-    grad_local: torch.Tensor,
-    grad_frames: torch.Tensor,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    return _vjp(
-        q,
-        joint_placements,
-        frame_placements,
-        q_map,
-        value_map,
-        parents,
-        topo_order,
-        kinds,
-        nqs,
-        idx_qs,
-        axes,
-        pitches,
-        frame_parents,
-        grad_world,
-        grad_local,
-        grad_frames,
-        create_graph=False,
-        detach_inputs=True,
-    )
-
-
-@_warp_fk_backward.register_fake
-def _warp_fk_backward_fake(
-    q,
-    joint_placements,
-    frame_placements,
-    q_map,
-    value_map,
-    parents,
-    topo_order,
-    kinds,
-    nqs,
-    idx_qs,
-    axes,
-    pitches,
-    frame_parents,
-    grad_world,
-    grad_local,
-    grad_frames,
-):
-    return torch.empty_like(q), torch.empty_like(joint_placements), torch.empty_like(frame_placements)
-
-
 @torch.library.custom_op("better_robot::warp_fk_forward", mutates_args=())
 def _warp_fk_forward(
     q: torch.Tensor,
@@ -356,10 +286,9 @@ def _fk_backward(ctx, grad_world, grad_local, grad_frames):
             detach_inputs=False,
         )
     else:
-        # A torch custom-op implementation runs below the Autograd dispatch
-        # key, so a recompute VJP cannot be evaluated inside the paired op.
-        # Keep recomputation in the registered formula; the paired op remains
-        # the shape/schema prototype for a future hand-written Warp VJP.
+        # Keep first-order recomputation in the registered formula: a custom-op
+        # implementation runs below the Autograd dispatch key and cannot record
+        # the Torch oracle needed to build this VJP.
         gradients = _vjp(
             *saved,
             grad_world,
@@ -445,4 +374,4 @@ def try_warp_forward_kinematics(  # noqa: PLR0911
     )
 
 
-__all__ = ["WarpFKResult", "require_warp", "try_warp_forward_kinematics"]
+__all__ = ["WarpFKResult", "try_warp_forward_kinematics"]

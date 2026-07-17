@@ -26,13 +26,11 @@ autograd formula for a non-functional custom operator.
 | Second order | Grad-enabled backward recomputes with ``create_graph=True`` | Public bridge gradgradcheck, including zero joint angle |
 | Capture | Direct functional forward op is CUDA-graph replayable | CUDA replay parity test; solver forward+backward capture remains future work |
 
-The module also defines the schema and fake implementation for a paired
-functional backward op. It is not the active recompute path: a custom-op
-implementation executes below Torch's Autograd dispatch key, so it cannot
-record the Torch oracle needed to build this VJP. The registered forward
-formula therefore performs recomputation directly. A future hand-written Warp
-VJP can occupy the paired op without changing the forward schema. This is a
-prototype limitation, not a license to hide an untested gradient path.
+The registered forward formula performs its Torch-lane recomputation directly.
+A custom-op implementation executes below Torch's Autograd dispatch key, so it
+cannot record the Torch oracle needed to build this VJP. No separate backward
+custom-op is registered until a hand-written Warp VJP has an in-tree caller and
+its own parity evidence.
 
 ## Execution-batch and layout rules
 
