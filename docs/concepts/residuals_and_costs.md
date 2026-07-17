@@ -2,9 +2,10 @@
 
 BetterRobot currently has two explicit optimisation lanes. Legacy flat-vector
 callers compose `Residual` objects in a `CostStack` and pass the stack to a
-`LeastSquaresProblem`. Current named-block tasks, including IK, compose
-`ResidualItem` objects in a `Problem`. The lanes share residual concepts, but
-they do not share a composer or problem type.
+`LeastSquaresProblem`. Current named-block tasks compose `ResidualItem` objects
+in a `Problem`; `solve_trajopt` is a compatibility bridge that adapts active
+soft `CostStack` items into those named residual items. The lanes share
+residual concepts, but they do not otherwise share a problem type.
 
 This chapter documents the legacy residual protocol and the canonical
 optimizer-owned `CostStack`: named, weighted concatenation of active
@@ -101,6 +102,37 @@ A residual with no analytic `.jacobian()` simply returns `None`; the
 legacy stack dispatches to unbatched central finite differences at a cost of
 `2 * nv + 1` residual evaluations. Named-block `Problem` instead differentiates
 through `RobotConfig.retract` with `torch.func.jacrev` or `jacfwd`.
+
+### Temporal structure declarations
+
+`reads` answers which named blocks a residual depends on. For a variable
+declared with `VarSpec(..., time_axis=0)`, an optional
+`temporal_structure(variable_name)` hook can refine that dependency with an
+optimizer-independent value:
+
+```python
+TemporalPattern(
+    rows=T - 2,
+    row_width=model.nv,
+    row_origin=1,
+    offsets=(-1, 0, 1),
+)
+```
+
+For row group `r`, offset `o` names knot `r + row_origin + o`. Rows and widths
+are positive, offsets are sorted/unique/non-empty, every knot is in range, and
+`rows * row_width == dim`. The optional numeric hook
+`temporal_jacobian_blocks(ctx, variable_name)` returns one tensor per offset
+with shape `(B..., rows, row_width, reduced_width_per_knot)`. Those tensors do
+not include `ResidualItem.weight` or robust IRLS row scaling; `Problem`
+applies both once.
+
+Velocity declares offsets `(-1, +1)`, acceleration `(-1, 0, +1)`,
+time-indexed and reference-trajectory terms `(0,)`, and contact consistency
+`(0, +1)`. Missing declarations keep automatic LM dense. A declaration
+without numeric blocks is eligible only for the explicit normal-operator
+fallback. Structure is static: a zero weight never makes an undeclared item
+eligible, and numerical zeros are never inspected.
 
 ### Human spherical-joint limits and priors
 
@@ -274,10 +306,11 @@ stack uses that hook; otherwise it materialises that residual's Jacobian and
 multiplies. The item weight is squared, matching the gradient of
 `0.5 * ||stack.residual(state)||²`.
 
-The legacy residual protocol carries no symbolic sparsity metadata.
-`CostStack.jacobian()` always returns a dense, concatenated tensor; it does not
-assemble block-sparse `JᵀJ`. The temporal and sparse declaration consumed by a
-structured backend is M5 work.
+The legacy `CostStack` composer carries no symbolic sparsity metadata and
+`CostStack.jacobian()` always returns a dense concatenated tensor. Temporal
+metadata lives on the residual objects and is consumed only after a named
+`Problem` has validated the block/time layout; `Problem.structured_normal()`
+assembles the lower block bands and JVP/VJP operations.
 
 ## Stable `dim` for collision residuals
 
@@ -326,9 +359,11 @@ r = stack.residual(state)            # (B..., total_dim)
 J = stack.jacobian(state)            # (B..., total_dim, nx)
 ```
 
-This is the legacy flat composition still used by current trajopt and direct
-callers. `solve_ik` now constructs the built-ins directly as named-block
-`ResidualItem`s. The example remains to document the compatibility path.
+This is the legacy flat evaluation path for direct callers. `solve_ik`
+constructs named-block `ResidualItem`s directly. `solve_trajopt` accepts the
+same `CostStack` composition surface but adapts only its active soft items into
+a named temporal `Problem`; constraint-kind items and legacy optimizer objects
+are rejected rather than silently reinterpreted.
 
 ## Sharp edges
 
@@ -338,8 +373,9 @@ callers. `solve_ik` now constructs the built-ins directly as named-block
 - **`apply_jac_transpose` is optional.** Without that method,
   `CostStack.gradient()` materialises the per-residual Jacobian and computes
   `J.mT @ r`.
-- **No symbolic sparsity declaration is shipped.** `CostStack.jacobian()`
-  returns a dense concatenation; structured declarations are M5 work.
+- **`CostStack.jacobian()` stays dense.** Temporal structure is a residual
+  declaration consumed by named `Problem`, not a different legacy stack
+  return type. Undeclared items make automatic temporal LM fall back to dense.
 - **Duplicate names are rejected.** Calling `add()` with an existing name
   raises `ValueError`; remove or update the existing item explicitly.
 

@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## Unreleased
+
+- **Structured trajectory optimization.** Named-block variables may declare
+  `time_axis=0`; temporal residuals expose `TemporalPattern` plus exact local
+  Jacobian blocks. LM routes between dense Cholesky, block-banded
+  `BandedCholesky`, and explicit `NormalOperator`/`NormalCG`, with stable
+  requested/used/reason/detail diagnostics and dense automatic fallback.
+- **Named-block `solve_trajopt`.** Active soft `CostStack` items are adapted to
+  one temporal `RobotConfig` block with arbitrary leading batches, sanitized
+  optional bounds, per-element state diagnostics, and route fields in
+  `TrajOptResult`. Legacy optimizers and constraint-kind items fail
+  actionably.
+- **Explicit deferrals.** The component-space `BSplineTrajectory` remains a
+  numerical utility rather than a robot-manifold parameterization. Schur
+  elimination for temporal plus shared variables also remains deferred; M5
+  does not claim either feature.
+
 ## v0.2.0 — 2026-04-11
 
 The first stable release of the PyTorch-native BetterRobot stack.
@@ -25,13 +42,14 @@ The first stable release of the PyTorch-native BetterRobot stack.
   Pluggable optimisers (LM / GN / Adam / L-BFGS / multi-stage), linear
   selectable solvers (Cholesky / LSTSQ), robust kernels
   (L2 / Huber / Cauchy / Tukey), and damping strategies (Constant /
-  Adaptive). CG, sparse Cholesky, and TrustRegion remain explicit stubs.
+  Adaptive). Structured and iterative linear solves were not part of v0.2.0.
 - **Featherstone dynamics.** RNEA, ABA, CRBA, CCRBA, centroidal momentum,
   centre of mass, autograd-derived `compute_*_derivatives`. Three-layer
   Crocoddyl-style action models for future optimal-control work.
 - **Trajectory optimisation.** `solve_trajopt` with knot parameterisation;
   manifold-aware `Trajectory.resample`. The Euclidean B-spline basis remains a
-  numerical utility and is gated from robot trajopt until M5.
+  numerical utility and is gated from robot trajopt pending a separately
+  reviewed manifold mapping.
 - **URDF + MJCF parsers.** `br.load(path)` dispatches by suffix;
   `free_flyer=True` adds a free-flyer root. Programmatic `ModelBuilder`
   for robots not described by a file.

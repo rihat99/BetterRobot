@@ -2,8 +2,9 @@
 
 `tasks/` is the thin user-facing translation from a robot request to the
 optimization substrate. There is no Jacobian code or fixed-vs-floating branch
-here. `solve_ik` is a named-block `Problem` preset; `solve_trajopt` remains on
-the legacy flat stack until M5 supplies structured trajectory assembly.
+here. `solve_ik` and knot-based `solve_trajopt` are named-block `Problem`
+presets; `solve_trajopt` automatically uses banded temporal assembly when all
+active residuals declare the required structure.
 
 ## Inverse kinematics
 
@@ -74,8 +75,9 @@ Pose targets and the enabled rest target are declared `Problem.parameters` and
 are read by name from the residual context. This keeps their differentiation
 role explicit for M6; no tensor-identity inference is used. `RestResidual`
 reads the latter through `target_name="target_rest"`. Built-in pose, limit, and
-rest residuals retain their legacy `ResidualState` call shape for flat trajopt
-while directly implementing the named-block protocol used here.
+rest residuals retain their legacy `ResidualState` call shape for direct
+compatibility callers while implementing the named-block protocol used by the
+task facades.
 
 ### `IKResult`
 
@@ -226,7 +228,7 @@ def solve_trajopt(
     dt: float,
     initial_q_traj: torch.Tensor,
     cost_stack: CostStack,
-    optimizer: Optimizer,
+    optimizer: LevenbergMarquardt | None = None,
     max_iter: int = 50,
     lower: torch.Tensor | None = None,
     upper: torch.Tensor | None = None,
@@ -234,12 +236,23 @@ def solve_trajopt(
 ) -> TrajOptResult:
     """Kinematic trajectory optimisation.
 
-    KnotTrajectory is the only supported robot parameterisation. The caller
-    supplies residuals through CostStack and chooses the legacy Optimizer.
+    KnotTrajectory is the only supported robot parameterisation. Active soft
+    CostStack items are adapted to a named temporal q block. None constructs
+    route-aware LM; pass named-block LM with linearization="dense" for the
+    dense oracle.
     """
 ```
 
 Source: `src/better_robot/tasks/trajopt.py`.
+
+`initial_q_traj` may have arbitrary leading batch axes. Unbatched calls retain
+the historical `(1, T, nq)` returned trajectory shape; batched calls preserve
+their leading axes. `TrajOptResult` returns per-element `iters`, `converged`,
+and `status`, plus `linearization_requested`, `linearization_used`,
+`linearization_reason`, and `linearization_detail`. Automatic mode reports
+`"banded"` only after every potentially active temporal residual supplies a
+valid declaration and direct numeric blocks; otherwise it reports the dense
+fallback and its stable reason.
 
 ### B-spline numerical utility
 
@@ -249,7 +262,8 @@ useful for numerical compression experiments. It is **not** accepted by robot
 preserve quaternion manifolds; the former path also discarded bounds and was
 not compatible with multi-stage problem replacement. A correct
 spline-on-manifold trajectory path—including matching retraction/Jacobian and
-feasible bounds—is roadmap milestone M5. Use `KnotTrajectory` today.
+feasible bounds—requires a separate reviewed design. Use `KnotTrajectory`
+today.
 
 ### `TrajectoryParameterization` Protocol
 
@@ -275,21 +289,25 @@ class BSplineTrajectory(TrajectoryParameterization):
 Source: `src/better_robot/tasks/parameterization.py`.
 
 The structural Protocol describes the numerical mapping only; it does not
-promise manifold or bound semantics. Until M5 defines that richer contract,
-the robot task facade accepts only `KnotTrajectory`.
+promise manifold or bound semantics. M5 deliberately did not reinterpret that
+Euclidean utility as a robot-manifold map, so the robot task facade accepts
+only `KnotTrajectory` pending a separate reviewed design.
 
-### Sparsity and matrix-free
+### Dense, banded, and matrix-free routes
 
-- Trajectory is a single variable with a leading time axis, not a
-  list of per-knot `Data` objects.
-- Smoothness residuals use 5-point finite differences vectorised
-  along `T`.
-- Per-knot limits broadcast across `T`; the solver sees a single flat knot
-  variable `(T * nv)`.
-- Each collision residual touches only the knots and chains it observes, but
-  the current residual API carries no symbolic sparsity declaration.
-- The current legacy task path can materialise a dense Jacobian. Sparse and
-  banded long-horizon structure, including manifold splines, is M5 work.
+- The trajectory is one `VarSpec("q", (T, nq), time_axis=0)`, not one Python
+  variable per knot. Solver vectors remain flat knot-major tangents.
+- Central velocity and acceleration, reference-trajectory, time-indexed, and
+  contact-consistency residuals declare exact `TemporalPattern` support and
+  provide reduced per-knot numeric blocks.
+- `linearization="auto"` uses `BandedCholesky` when the whole active problem is
+  directly eligible and otherwise uses the dense correctness path. Forced
+  `"structured"` rejects an ineligible problem rather than falling back.
+- Explicit `"matrix_free"` uses a `NormalOperator` with `NormalCG`. Automatic
+  mode does not choose the autograd operator fallback.
+- Mixed temporal/shared optimized variables remain dense because Schur
+  elimination has no second production caller. Collision residuals without a
+  temporal declaration likewise keep the complete problem dense.
 
 ## Examples
 
@@ -317,7 +335,7 @@ The public surface of `tasks/` is stable from v1:
 - **Submodule-public** (reachable from `from better_robot.tasks.ik
   import …`): `IKResult`, `IKCostConfig`, `OptimizerConfig`.
 - **Submodule-public** (`from better_robot.tasks.trajopt import …`):
-  `TrajOptResult`, `TrajOptCostConfig`.
+  `TrajOptResult`.
 
 `solve_trajopt` is marked **experimental** in
 {doc}`/conventions/contracts` §7.3 — the signatures will not wander
@@ -336,15 +354,20 @@ without a release note, but the internals may iterate.
   block. Slice if you need only the actuated subspace.
 - **Non-knot robot trajopt is rejected.** `BSplineTrajectory` is a Euclidean
   numerical basis, not a manifold-aware robot parameterisation. Use
-  `KnotTrajectory` until M5 supplies the required spline semantics.
+  `KnotTrajectory` until a reviewed spline-on-manifold mapping supplies the
+  required retraction, Jacobian, and bound semantics.
+- **Trajectory constraints are not silently softened.** `solve_trajopt`
+  accepts active `CostStack` items of kind `"soft"`; constraint-kind items
+  and legacy flat optimizer objects fail with migration guidance. Results
+  report requested/used linearization, reason/detail, and per-batch LM status.
 - **`Trajectory.resample` uses sclerp for SO(3).** Raw quaternion
   lerp would produce non-unit quaternions and is intentionally not
   exposed.
 
 ## Where to look next
 
-- {doc}`solver_stack` — named-block Adam/LM/GN/phases used by `solve_ik`, plus
-  the remaining legacy flat stack.
+- {doc}`solver_stack` — named-block Adam/LM/GN and automatic temporal routing,
+  plus the retained legacy direct-use stack.
 - {doc}`residuals_and_costs` — the residual library that
   `solve_ik` and `solve_trajopt` compose.
 - {doc}`viewer` — interactive IK with a draggable target gizmo

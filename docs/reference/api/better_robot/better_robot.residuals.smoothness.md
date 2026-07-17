@@ -31,7 +31,7 @@
 
 ### API
 
-`````{py:class} VelocityResidual(model: better_robot.data_model.model.Model, *, dt: float, weight: float = 1.0)
+`````{py:class} VelocityResidual(model: better_robot.data_model.model.Model, *, dt: float, weight: float = 1.0, horizon: int | None = None, name: str = 'velocity')
 :canonical: better_robot.residuals.smoothness.VelocityResidual
 
 ```{autodoc2-docstring} better_robot.residuals.smoothness.VelocityResidual
@@ -48,7 +48,41 @@
 
 ````
 
-````{py:method} jacobian(state: better_robot.residuals.base.ResidualState) -> torch.Tensor | None
+````{py:attribute} reads
+:canonical: better_robot.residuals.smoothness.VelocityResidual.reads
+:value: >
+   ('q',)
+
+```{autodoc2-docstring} better_robot.residuals.smoothness.VelocityResidual.reads
+```
+
+````
+
+````{py:method} temporal_structure(variable_name: str) -> better_robot.residuals.structure.TemporalPattern | None
+:canonical: better_robot.residuals.smoothness.VelocityResidual.temporal_structure
+
+```{autodoc2-docstring} better_robot.residuals.smoothness.VelocityResidual.temporal_structure
+```
+
+````
+
+````{py:method} temporal_jacobian_blocks(ctx: collections.abc.Mapping[str, typing.Any], variable_name: str) -> collections.abc.Mapping[int, torch.Tensor]
+:canonical: better_robot.residuals.smoothness.VelocityResidual.temporal_jacobian_blocks
+
+```{autodoc2-docstring} better_robot.residuals.smoothness.VelocityResidual.temporal_jacobian_blocks
+```
+
+````
+
+````{py:method} jacobian_blocks(ctx: collections.abc.Mapping[str, typing.Any]) -> dict[str, torch.Tensor]
+:canonical: better_robot.residuals.smoothness.VelocityResidual.jacobian_blocks
+
+```{autodoc2-docstring} better_robot.residuals.smoothness.VelocityResidual.jacobian_blocks
+```
+
+````
+
+````{py:method} jacobian(value: better_robot.residuals.base.ResidualState | collections.abc.Mapping[str, typing.Any]) -> torch.Tensor | None
 :canonical: better_robot.residuals.smoothness.VelocityResidual.jacobian
 
 ```{autodoc2-docstring} better_robot.residuals.smoothness.VelocityResidual.jacobian
@@ -66,7 +100,7 @@
 
 `````
 
-`````{py:class} AccelerationResidual(model: better_robot.data_model.model.Model, *, dt: float, weight: float = 1.0)
+`````{py:class} AccelerationResidual(model: better_robot.data_model.model.Model, *, dt: float, weight: float = 1.0, horizon: int | None = None, name: str = 'acceleration')
 :canonical: better_robot.residuals.smoothness.AccelerationResidual
 
 ```{autodoc2-docstring} better_robot.residuals.smoothness.AccelerationResidual
@@ -83,7 +117,41 @@
 
 ````
 
-````{py:method} jacobian(state: better_robot.residuals.base.ResidualState) -> torch.Tensor | None
+````{py:attribute} reads
+:canonical: better_robot.residuals.smoothness.AccelerationResidual.reads
+:value: >
+   ('q',)
+
+```{autodoc2-docstring} better_robot.residuals.smoothness.AccelerationResidual.reads
+```
+
+````
+
+````{py:method} temporal_structure(variable_name: str) -> better_robot.residuals.structure.TemporalPattern | None
+:canonical: better_robot.residuals.smoothness.AccelerationResidual.temporal_structure
+
+```{autodoc2-docstring} better_robot.residuals.smoothness.AccelerationResidual.temporal_structure
+```
+
+````
+
+````{py:method} temporal_jacobian_blocks(ctx: collections.abc.Mapping[str, typing.Any], variable_name: str) -> collections.abc.Mapping[int, torch.Tensor]
+:canonical: better_robot.residuals.smoothness.AccelerationResidual.temporal_jacobian_blocks
+
+```{autodoc2-docstring} better_robot.residuals.smoothness.AccelerationResidual.temporal_jacobian_blocks
+```
+
+````
+
+````{py:method} jacobian_blocks(ctx: collections.abc.Mapping[str, typing.Any]) -> dict[str, torch.Tensor]
+:canonical: better_robot.residuals.smoothness.AccelerationResidual.jacobian_blocks
+
+```{autodoc2-docstring} better_robot.residuals.smoothness.AccelerationResidual.jacobian_blocks
+```
+
+````
+
+````{py:method} jacobian(value: better_robot.residuals.base.ResidualState | collections.abc.Mapping[str, typing.Any]) -> torch.Tensor | None
 :canonical: better_robot.residuals.smoothness.AccelerationResidual.jacobian
 
 ```{autodoc2-docstring} better_robot.residuals.smoothness.AccelerationResidual.jacobian

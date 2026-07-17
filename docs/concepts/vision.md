@@ -88,12 +88,13 @@ unbatched central finite-difference fallback; the
 residual library (pose / position / orientation, joint position
 limits, rest, contact consistency, reference trajectories, velocity
 and acceleration smoothness, time-indexed residuals); `CostStack`;
-LM, GN, Adam, L-BFGS, and multi-stage optimisers; pluggable linear
-solvers (Cholesky, LSTSQ); pluggable robust
+LM, GN, Adam, L-BFGS, and multi-stage optimisers; dense, block-banded, and
+normal-operator linear solvers (Cholesky, LSTSQ, BandedCholesky, NormalCG); pluggable robust
 kernels (L2, Huber, Cauchy, Tukey) and damping strategies (Constant,
 Adaptive); batched IK on fixed and floating-base robots;
-trajectory optimisation with knot parameterisation (the Euclidean B-spline
-basis is gated from robot trajopt until M5);
+trajectory optimisation with knot parameterisation and automatic banded/dense
+routing (the Euclidean B-spline basis remains a numerical utility, not a
+robot-manifold map);
 Featherstone dynamics (RNEA, ABA, CRBA, CCRBA), centroidal momentum,
 and autograd-derived `compute_*_derivatives`; URDF and MJCF parsers; a programmatic
 `ModelBuilder`; a viewer with skeleton / URDF-mesh / collision render

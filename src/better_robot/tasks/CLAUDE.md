@@ -2,14 +2,14 @@
 
 ## Design Rule
 
-Tasks are thin facades. No Jacobian code, no solver loops, no branching for fixed vs floating base. IK assembles a named-block `Problem`; trajopt temporarily retains the legacy flat stack until M5.
+Tasks are thin facades. No Jacobian code, no solver loops, no branching for fixed vs floating base. IK and knot trajopt assemble named-block `Problem` instances.
 
 ## Implementation Status
 
 | Task | Status |
 |------|--------|
 | `solve_ik` | Implemented |
-| `solve_trajopt` | Implemented with `KnotTrajectory`; non-knot robot parameterisations are gated until M5 |
+| `solve_trajopt` | Named-block `RobotConfig` trajectory with automatic dense/banded routing; non-knot robot parameterisations remain gated |
 | `solve_contact_forces` | Implemented for batched floating-base clips through one named force block and shared RNEA provider |
 | `Trajectory` | Implemented (`with_batch_dims`, `slice`, `resample(linear|sclerp)`, `downsample`, `to_data`) |
 | `smooth_trajectory` | Implemented for batched quaternion and SE3 pose trajectories with explicit kernels |
@@ -22,7 +22,7 @@ Assembles one bounded `RobotConfig` block, `PoseResidual` items, optional limit/
 
 ## solve_trajopt
 
-Flattens a `(T, nq)` knot trajectory into a `LeastSquaresProblem` vector and installs a per-knot `Model.integrate` retraction. The user supplies the `CostStack`; targets/keyframes are expressed via `TimeIndexedResidual(...)`. `BSplineTrajectory` remains a Euclidean numerical basis utility, but `solve_trajopt` rejects it: manifold-safe interpolation/retraction, bounds, and multi-stage replacement are deferred to M5.
+Adapts active soft `CostStack` items into one `VarSpec("q", (T, nq), RobotConfig(model), time_axis=0)` with a lazy `RobotStateProvider`. Route-aware named-block LM chooses the banded path when every residual declares temporal blocks; forced dense remains the parity oracle and explicit `matrix_free` uses the normal-operator route. `TrajOptResult` exposes `linearization_requested`, `linearization_used`, `linearization_reason`, and `linearization_detail`. Arbitrary leading batch axes return per-element iterations, convergence, and status. Legacy optimizer objects and constraint-kind items fail actionably. `BSplineTrajectory` remains a Euclidean numerical basis utility and is rejected until a separately reviewed manifold-safe mapping exists; M5 does not promise to enable it.
 
 ## solve_contact_forces
 

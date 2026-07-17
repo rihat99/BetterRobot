@@ -259,11 +259,13 @@ class Schur(LinearSolver):
         ...
 ```
 
-Contract: one method,
-`solve(A: (B...,n,n), b: (B...,n), ridge: (B...,) | scalar | None)` returning
-`(B...,n)`. The two core implementations are dense. A future matrix-free
-implementation may accept a matvec in place of `A`, but it must keep the same
-`b`/`ridge` semantics and is M5 work.
+Contract: one method, `solve(A, b: (B...,n), ridge: (B...,) | scalar | None)`
+returning `(B...,n)`, plus a static `supported_systems` set when the solver is
+not dense-only. `A` is a dense tensor, `BlockBandedMatrix`, or
+`NormalOperator`. The shipped implementations are dense `Cholesky`/`LSTSQ`,
+`BandedCholesky`, and `NormalCG`. Custom solvers keep the same `b`/`ridge`
+semantics and should implement `solve_with_info` only when they can provide
+per-element health diagnostics.
 
 ## 6 · Add a robust kernel
 
@@ -398,9 +400,10 @@ registry.
 ## 12 · Trajectory parameterisations
 
 **Use when:** you are implementing a numerical mapping between sampled values
-and a lower-dimensional basis (for example a cosine basis). Custom robot
-trajopt integration is gated until M5 defines its manifold and bound contract.
-The current Protocol owns the numerical mapping `z ↔ q_traj`:
+and a lower-dimensional basis (for example a cosine basis). The current
+Protocol owns only the numerical mapping `z ↔ q_traj`; custom robot task
+integration additionally needs a separately reviewed manifold retraction,
+local Jacobian, and feasible-bound contract:
 
 ```python
 # my_package/parameterizations/log_basis.py
@@ -416,8 +419,8 @@ class LogBasisTrajectory(TrajectoryParameterization):
 The shipped numerical implementations are `KnotTrajectory` (identity) and
 `BSplineTrajectory` (Euclidean cubic basis). Robot `solve_trajopt` currently
 accepts only `KnotTrajectory`: the richer custom-parameterisation contract for
-manifold-safe interpolation/retraction and bounds is deferred to M5. See
-{doc}`/concepts/tasks`.
+manifold-safe interpolation/retraction and bounds is not implied by this
+Protocol and remains deferred. See {doc}`/concepts/tasks`.
 
 ## 13 · Asset resolvers
 

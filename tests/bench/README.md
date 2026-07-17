@@ -7,8 +7,20 @@ bench-cpu-advisory CI job records numbers but does not gate merges.
 ## Running
 
 ```bash
-uv run pytest tests/bench/ -m bench --benchmark-only
+uv run pytest tests/bench/bench_*.py -m bench --benchmark-only
 ```
+
+The M5 trajectory scaling benchmark is a separate fresh-process harness, not
+a pytest-benchmark micro-benchmark. Its canonical CPU run writes the committed
+schema at `baselines/trajopt_sparse_cpu.json`:
+
+```bash
+uv run python tests/bench/bench_trajopt_sparse.py
+```
+
+Use `--quick --allow-unpinned` for a single structured T=50 harness check; a
+quick or partial run never overwrites the canonical baseline unless an
+explicit `--output` path is supplied.
 
 ## Bumping the baseline
 
@@ -34,9 +46,12 @@ self-hosted GPU runner.
 | `bench_jacobian.py` | `compute_joint_jacobians` on Panda |
 | `bench_integrate_difference.py` | Grouped vs loop manifold operations on a length-200 SMPL-like trajectory |
 | `bench_solve_ik.py` | One-shot Panda IK |
+| `bench_trajopt_sparse.py` | M5 dense-vs-banded CPU scaling harness with isolated subprocess RSS |
+| `test_trajopt_sparse_smoke.py` | Normal-suite T=50, one-update structured smoke |
 | `test_mem_watermark.py` | Nightly only: peak memory tracking |
 | `baseline_cpu.json` | CI-runner baseline (currently a `_status: PLACEHOLDER`; populate from one CI run before relying on the comparison gate) |
 | `baseline_cuda_l40.json` | Self-hosted L40 baseline (currently a `_status: PLACEHOLDER`; same caveat) |
+| `baselines/trajopt_sparse_cpu.json` | M5 Phase-C schema/results; pending the canonical full CPU run |
 
 > ### Status: placeholder baselines
 >

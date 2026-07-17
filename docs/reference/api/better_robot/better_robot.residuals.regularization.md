@@ -106,7 +106,7 @@
 
 `````
 
-`````{py:class} ReferenceTrajectoryResidual(model: better_robot.data_model.model.Model, q_ref: torch.Tensor, *, weight: float = 1.0, weight_per_frame: torch.Tensor | None = None)
+`````{py:class} ReferenceTrajectoryResidual(model: better_robot.data_model.model.Model, q_ref: torch.Tensor, *, weight: float = 1.0, weight_per_frame: torch.Tensor | None = None, name: str = 'reference_trajectory')
 :canonical: better_robot.residuals.regularization.ReferenceTrajectoryResidual
 
 ```{autodoc2-docstring} better_robot.residuals.regularization.ReferenceTrajectoryResidual
@@ -123,7 +123,41 @@
 
 ````
 
-````{py:method} jacobian(state: better_robot.residuals.base.ResidualState) -> torch.Tensor | None
+````{py:attribute} reads
+:canonical: better_robot.residuals.regularization.ReferenceTrajectoryResidual.reads
+:value: >
+   ('q',)
+
+```{autodoc2-docstring} better_robot.residuals.regularization.ReferenceTrajectoryResidual.reads
+```
+
+````
+
+````{py:method} temporal_structure(variable_name: str) -> better_robot.residuals.structure.TemporalPattern | None
+:canonical: better_robot.residuals.regularization.ReferenceTrajectoryResidual.temporal_structure
+
+```{autodoc2-docstring} better_robot.residuals.regularization.ReferenceTrajectoryResidual.temporal_structure
+```
+
+````
+
+````{py:method} temporal_jacobian_blocks(ctx: collections.abc.Mapping[str, typing.Any], variable_name: str) -> collections.abc.Mapping[int, torch.Tensor]
+:canonical: better_robot.residuals.regularization.ReferenceTrajectoryResidual.temporal_jacobian_blocks
+
+```{autodoc2-docstring} better_robot.residuals.regularization.ReferenceTrajectoryResidual.temporal_jacobian_blocks
+```
+
+````
+
+````{py:method} jacobian_blocks(ctx: collections.abc.Mapping[str, typing.Any]) -> dict[str, torch.Tensor]
+:canonical: better_robot.residuals.regularization.ReferenceTrajectoryResidual.jacobian_blocks
+
+```{autodoc2-docstring} better_robot.residuals.regularization.ReferenceTrajectoryResidual.jacobian_blocks
+```
+
+````
+
+````{py:method} jacobian(value: better_robot.residuals.base.ResidualState | collections.abc.Mapping[str, typing.Any]) -> torch.Tensor | None
 :canonical: better_robot.residuals.regularization.ReferenceTrajectoryResidual.jacobian
 
 ```{autodoc2-docstring} better_robot.residuals.regularization.ReferenceTrajectoryResidual.jacobian

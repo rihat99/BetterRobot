@@ -71,10 +71,15 @@ The full residual library is live except:
 
 ## Tasks
 
-`solve_ik` and knot-based `solve_trajopt` are live. `BSplineTrajectory` is a
-Euclidean numerical basis utility; robot use is rejected until M5 supplies
-manifold-safe interpolation/retraction, bounds, and sparse trajectory
-structure. The former retargeting placeholder was removed; see
+`solve_ik` and knot-based `solve_trajopt` are live on named blocks. Temporal
+residuals declare `TemporalPattern` support; automatic LM uses block-banded
+assembly when directly eligible and otherwise records a dense fallback.
+Explicit matrix-free routing uses `NormalOperator`/`NormalCG`.
+`BSplineTrajectory` remains a Euclidean numerical basis utility: M5 did not
+make it a robot-manifold map, and robot use stays rejected pending a separate
+reviewed interpolation/retraction and bound contract. Schur elimination for a
+temporal block plus shared variables is likewise deferred until a second
+production caller exists. The former retargeting placeholder was removed; see
 {doc}`m1_removed_symbols`.
 
 ## Viewer

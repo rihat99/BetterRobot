@@ -4,17 +4,20 @@
 
 PyTorch-native, GPU-ready library for robot kinematics and optimization. Pinocchio-style Model/Data architecture, PyTorch autograd throughout. Single code path for fixed-base and floating-base (free-flyer) robots.
 
-**Implemented:** forward kinematics, Jacobians (analytic + central finite-difference fallback), pose/position/orientation/limits/rest/smoothness/contact-consistency/reference-trajectory residuals, CostStack, legacy LM/GN/Adam/LBFGS/MultiStage plus named-block LM/GN/Adam/phases, batched IK (fixed + floating base), knot-based trajectory optimisation (`solve_trajopt`; the Euclidean B-spline basis is gated until manifold-safe M5 work), dynamics (RNEA/ABA/CRBA/CCRBA, centroidal map + momentum, autograd-derived `compute_*_derivatives`), viewer V1 (Skeleton, URDFMesh, Grid, FrameAxes, Targets, ForceVectors, ViserBackend, build_joint_panel, minimal TrajectoryPlayer).
+**Implemented:** forward kinematics, Jacobians (analytic + central finite-difference fallback), pose/position/orientation/limits/rest/smoothness/contact-consistency/reference-trajectory residuals, CostStack, legacy LM/GN/Adam/LBFGS/MultiStage plus named-block LM/GN/Adam/phases, batched IK (fixed + floating base), knot-based trajectory optimisation with dense/banded/operator routing (`solve_trajopt`; the Euclidean B-spline basis remains a numerical utility only), dynamics (RNEA/ABA/CRBA/CCRBA, centroidal map + momentum, autograd-derived `compute_*_derivatives`), viewer V1 (Skeleton, URDFMesh, Grid, FrameAxes, Targets, ForceVectors, ViserBackend, build_joint_panel, minimal TrajectoryPlayer).
 **Stubs:** dynamic integrators (`semi_implicit_euler` / `symplectic_euler` / `rk4`), `compute_minverse`, `compute_coriolis_matrix`, analytic Carpentier–Mansard derivatives, jerk / Yoshikawa / collision / nullspace residuals, viewer COM/PathTrace/ResidualPlot overlays, `VideoRecorder`, and opt-in Warp whole-pass kernels. See `docs/reference/roadmap.md`.
 
 The named-block optimization layer is also implemented: `VarSpec`/`Values`/
 `Problem`, `Euclidean`/`SO3Manifold`/`SE3Manifold`/`RobotConfig` manifolds,
 state-space feasible retraction, eliminated tangent masks, evaluation-local
-provider DAGs, tangent gradients, and dense analytic/`jacrev`/`jacfwd`
-Jacobian blocks, plus matrix-free batched Adam, functional phase orchestration,
-and batched LM/GN with tensor-only per-element state, robust groups, per-block
-step caps, and projected active-set bounds. `solve_ik` uses this stack; legacy
-flat routing remains only where a BetterRobot-local caller still needs it.
+provider DAGs, tangent gradients, and analytic/`jacrev`/`jacfwd` Jacobian
+blocks. A `time_axis=0` block plus residual `TemporalPattern` declarations can
+assemble block-banded normals or an explicit normal operator. Named-block LM
+routes between dense `Cholesky`, `BandedCholesky`, and `NormalCG`; matrix-free
+batched Adam and functional phases share the same problem surface. Solver
+state is tensor-only per element with robust groups, per-block step caps, and
+projected active-set bounds. `solve_ik` and knot `solve_trajopt` use this
+stack; the flat optimizer contract remains for direct compatibility callers.
 
 ## Commands
 
@@ -38,8 +41,8 @@ src/better_robot/
                       ReferenceTrajectory; analytic `.jacobian()` plus legacy
                       `apply_jac_transpose` overrides retained for test coverage)
   costs/            — forwarding compatibility imports for optim.cost_stack
-  optim/            — legacy CostStack/LeastSquaresProblem + LM/GN/Adam/LBFGS/MultiStage task backend;
-                      named-block Problem + batched Adam/LM/GN/phases in optim/blocks
+  optim/            — legacy CostStack/LeastSquaresProblem + direct-use LM/GN/Adam/LBFGS/MultiStage;
+                      named-block Problem + dense/banded/operator batched Adam/LM/GN/phases
   tasks/            — solve_ik(), solve_trajopt(), Trajectory, KnotTrajectory, BSplineTrajectory
   collision/        — geometry, pairs, RobotCollision (port of old capsule mode)
   io/               — load(), internal IRModel, parsers (URDF/MJCF), ModelBuilder, AssetResolver + concrete resolvers
@@ -177,15 +180,18 @@ call it capture-certified.
 
 Tensor math such as FK, residuals, and analytic Jacobians accepts arbitrary
 leading batch dimensions. Named-block `Problem` also supports leading-batch
-residual/objective evaluation, tangent gradients, Jacobian blocks, and dense
-assembly. Named-block LM/GN preserves those axes in per-element damping,
-accept/reject, factorization, status, and convergence tensors.
+residual/objective evaluation, tangent gradients, Jacobian blocks, dense
+assembly, temporal bands, and normal operators. Named-block LM/GN preserves
+those axes in per-element damping, accept/reject, factorization, linear-solve
+status, and convergence tensors.
 
 The legacy optimizer stack remains a single-problem path invoked through an
 optimizer's `minimize` method, while named-block consumers use `run`.
-`solve_ik` uses named blocks and accepts arbitrary common leading
-batch axes with per-element diagnostics. Other named-block consumers call
-`optim.LevenbergMarquardt().run(values, problem)` directly.
+`solve_ik` and `solve_trajopt` use named blocks and accept arbitrary common
+leading batch axes with per-element diagnostics. `solve_trajopt` also reports
+the requested/used linearization plus its stable reason/detail. Other
+named-block consumers call `optim.LevenbergMarquardt().run(values, problem)`
+directly.
 `ResidualItem.kernel`/`group_size` are active in that solver, scalar objectives
 are for consumer-owned first-order/manual loops and are rejected at GN/LM
 boundaries, state-space `Bounds` are not tangent-space step bounds, and provider

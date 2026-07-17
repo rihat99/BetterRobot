@@ -13,7 +13,9 @@
 :titlesonly:
 :maxdepth: 1
 
+better_robot.optim.solvers.normal_cg
 better_robot.optim.solvers.base
+better_robot.optim.solvers.banded_cholesky
 better_robot.optim.solvers.cholesky
 better_robot.optim.solvers.lstsq
 ```

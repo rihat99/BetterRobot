@@ -13,6 +13,27 @@ Providers own shared computation. Declare their static `inputs` and `outputs`;
 `Problem` evaluates each provider at most once per evaluation context. Residuals
 must not cache graph-carrying tensors across evaluations.
 
+## Temporal structure
+
+`TemporalPattern` is the optimizer-independent declaration for a residual over
+one `VarSpec(..., time_axis=0)`. For row group `r`, an offset `o` identifies
+knot `r + row_origin + o`; `rows * row_width` must equal the residual's static
+`dim`. Offsets are sorted, unique, non-empty integers and every referenced
+knot must lie inside the declared horizon.
+
+A structured residual implements both optional hooks:
+
+- `temporal_structure(variable_name) -> TemporalPattern | None` declares
+  support without inspecting tensor values;
+- `temporal_jacobian_blocks(ctx, variable_name)` returns `offset -> Tensor`
+  with shape `(B..., rows, row_width, reduced_width_per_knot)`.
+
+Numeric blocks contain only the residual derivative. `ResidualItem.weight`
+and robust row scaling are applied once by `Problem`. A declaration without
+numeric blocks is operator-eligible but not direct-banded eligible. Missing
+declarations cause automatic LM to use dense assembly; forced structured
+routing fails actionably. A zero item weight never grants eligibility.
+
 ## Vision and point-cloud pack
 
 - `projection.py`: camera-thin `ProjectionResidual` over model frame-table
@@ -56,3 +77,6 @@ Robust kernels live on `optim.ResidualItem`, not inside residual math. Use
 6. Record detached choices such as nearest-neighbour indices in the docstring
    and test that gradients reach only the selected continuous values.
 7. Put shared FK, dynamics, or NN work in a provider and add a counting test.
+8. For time-local support, declare `TemporalPattern` and test dense blocks,
+   JVP, VJP, normal bands, arbitrary leading batches, and short-horizon
+   constructor failures. Never infer support from numerical zeros.

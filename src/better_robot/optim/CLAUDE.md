@@ -6,8 +6,8 @@ Two optimization surfaces coexist. Keep their types and capabilities separate.
 
 | Surface | Problem type | What is implemented |
 |---|---|---|
-| Legacy solver stack | `optim.problem.LeastSquaresProblem` | Flat-variable `CostStack`; LM/GN/Adam/LBFGS/MultiStage; direct `Optimizer.minimize`; trajopt integration |
-| Named-block layer | `optim.blocks.problem.Problem` | Manifold blocks/providers/evaluation, matrix-free batched Adam, batched LM/GN, robust groups, and projected active-set bounds |
+| Legacy solver stack | `optim.problem.LeastSquaresProblem` | Flat-variable `CostStack`; LM/GN/Adam/LBFGS/MultiStage; direct compatibility use through `Optimizer.minimize` |
+| Named-block layer | `optim.blocks.problem.Problem` | Manifold blocks/providers/evaluation, matrix-free batched Adam, dense/banded/operator LM/GN, robust groups, and projected active-set bounds |
 
 Named-block residual-vector problems use
 `better_robot.optim.LevenbergMarquardt` or `GaussNewton`. Scalar
@@ -29,6 +29,9 @@ strictly rejected by the second-order entry points.
 - `scale` is positive finite tangent-coordinate metadata, gathered through the
   same mask and consumed by named-block LM/GN when forming scaled normal
   systems.
+- `time_axis=0` marks the first event axis as time without changing values,
+  retraction, or dense column order. Structured routing requires an absent or
+  time-separable tangent mask so every knot has one constant reduced width.
 
 There are two different kinds of bounds:
 
@@ -44,7 +47,7 @@ There are two different kinds of bounds:
 The legacy `LeastSquaresProblem.lower/upper` pair is separate, older
 projection-only solver behavior; it is not the named-block `Bounds` contract.
 
-## Residuals, Scalar Objectives, and Dense Assembly
+## Residuals, Scalar Objectives, and Linearization
 
 A block residual declares `name`, positive static `dim`, `reads`, and
 `__call__(ctx) -> Tensor` with shape `(B..., dim)`. `ResidualItem.weight` is
@@ -64,17 +67,39 @@ converted into least-squares residuals. `Problem.require_least_squares(...)`
 rejects a problem containing scalar objectives with an exact error for
 Gauss-Newton/Levenberg-Marquardt entry points.
 
-Assembly is intentionally dense:
+The dense correctness route remains available:
 
 - variable order defines column offsets;
 - residual-item order defines row offsets;
 - an absent `(residual_name, variable_name)` block is structurally zero;
 - `dense_jacobian` preallocates and fills the full reduced tangent matrix;
-- a trajectory stored as one block remains one large dense block.
+- a trajectory stored as one block has knot-major dense columns.
 
-Symbolic temporal sparsity, banded storage/solvers, and Schur elimination are
-M5 scope. The current residual API carries no symbolic sparsity declaration;
-the design semantics for M5 live in `plan/design_notes/residual_sparsity.md`.
+Temporal residuals may additionally return a static
+`TemporalPattern(rows, row_width, row_origin, offsets)` from
+`temporal_structure(variable_name)` and exact mask-reduced numeric blocks from
+`temporal_jacobian_blocks(ctx, variable_name)`. `Problem` caches symbolic
+eligibility once and `structured_normal()` assembles lower block bands plus
+JVP/VJP operations. Zero weight does not erase an item's declared structure;
+omit the item to remove it from the symbolic problem.
+
+Named-block LM selects one representation through `linearization`:
+
+- `"dense"` forces dense normal assembly and a dense solver;
+- `"structured"` requires complete temporal declarations and numeric blocks,
+  then uses `BlockBandedMatrix` with `BandedCholesky` by default;
+- `"matrix_free"` requires operator eligibility and uses `NormalOperator`
+  with `NormalCG` by default; declarations without direct numeric blocks use
+  the explicit autograd operator fallback;
+- `"auto"` chooses banded only when direct eligibility passes, otherwise it
+  falls back to dense with a stable `LinearizationReason` and detail.
+
+Explicit solvers must advertise a compatible system kind. Undeclared
+temporal residuals, non-separable masks, and multiple optimized variables are
+dense fallbacks under `"auto"` and errors under forced structured modes.
+There is no numerical-zero sparsity inference. Schur elimination for a
+temporal block plus shared/nuisance blocks is deliberately deferred until a
+second production caller justifies it.
 
 ## AD Strategies
 
@@ -119,9 +144,9 @@ is forbidden. `run` is detached and warm starts retain moments/step counts only
 across an exactly compatible named reduced layout. Batched named-block LBFGS is
 deferred; do not port the scalar dense-J legacy history.
 
-The legacy optimizers and legacy trajopt remain single-problem solvers.
-`solve_ik` uses the named-block stack. Do not pass a block `Problem` to a
-legacy optimizer merely because its evaluation methods are batched.
+The legacy optimizers remain single-problem direct-use solvers. `solve_ik` and
+knot `solve_trajopt` use the named-block stack. Do not pass a block `Problem`
+to a legacy optimizer merely because its evaluation methods are batched.
 
 ## Named-Block Solver Lifecycle
 
@@ -172,9 +197,10 @@ LeastSquaresProblem  ->  Optimizer  ->  LinearSolver
 
 - Optimizers: `LevenbergMarquardt`, `GaussNewton`, `Adam`, `LBFGS`,
   `MultiStageOptimizer`, and `LMThenLBFGS`.
-- Linear solvers: dense batched `Cholesky` and `LSTSQ`, both with the
-  `solve(A, b, ridge=None)` contract. Iterative and structured solvers wait
-  for M5.
+- Legacy optimizers use dense batched `Cholesky` or `LSTSQ`. The shared solver
+  package also exposes `BandedCholesky` for `BlockBandedMatrix` and fixed-work
+  preconditioned `NormalCG` for `NormalOperator`; those two are selected by
+  named-block LM routing, not by legacy optimizer loops.
 - Legacy damping: `Constant` and `Adaptive`; no placeholder strategies are
   exported.
 - Kernels: `L2`, `Huber`, `Cauchy`, and `Tukey` with the legacy row-wise IRLS

@@ -180,11 +180,11 @@ class SelfCollisionResidual(Residual):
         r_p = -colldist_from_sdf(d_p, margin) * weight   if d_p < margin
         r_p = 0                                           otherwise
 
-    Analytic Jacobian:
-        Available as a sparse block with nonzero entries only in the
-        kinematic chains of the two involved capsules. The current residual
-        API does not carry a symbolic sparsity declaration; that structured
-        declaration is M5 work.
+        Analytic Jacobian:
+        A future implementation must provide fixed rows plus explicit
+        TemporalPattern/numeric blocks for any time-local support. The M5
+        declaration API exists, but this stub does not claim or infer sparse
+        structure from zero-valued rows.
     """
 ```
 

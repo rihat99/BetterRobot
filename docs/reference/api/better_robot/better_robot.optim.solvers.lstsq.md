@@ -29,6 +29,16 @@
 ```{autodoc2-docstring} better_robot.optim.solvers.lstsq.LSTSQ
 ```
 
+````{py:attribute} supported_systems
+:canonical: better_robot.optim.solvers.lstsq.LSTSQ.supported_systems
+:value: >
+   'frozenset(...)'
+
+```{autodoc2-docstring} better_robot.optim.solvers.lstsq.LSTSQ.supported_systems
+```
+
+````
+
 ````{py:method} solve(A: torch.Tensor, b: torch.Tensor, ridge: torch.Tensor | float | None = None) -> torch.Tensor
 :canonical: better_robot.optim.solvers.lstsq.LSTSQ.solve
 

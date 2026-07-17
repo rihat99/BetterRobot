@@ -28,4 +28,5 @@ better_robot.optim.solvers
 better_robot.optim.cost_stack
 better_robot.optim.state
 better_robot.optim.problem
+better_robot.optim.structure
 ```

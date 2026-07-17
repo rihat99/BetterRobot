@@ -1,5 +1,10 @@
 # M5 — Sparse Trajectory Structure: Agent Execution Instructions
 
+> **Implementation log (2026-07-17):** The structured CPU lane and named-block
+> trajopt rebase are complete on `dev`. Focused correctness gates and an isolated
+> T=50 dense/structured benchmark pass; the canonical T=50/125/250/500 scaling
+> sweep remains explicitly unmeasured. See `m5_results.md`.
+
 > Read `plan/for_agents/README.md` first. It carries the standing rules
 > (deletion ordering, honesty rules, benchmark requirements, test commands).
 

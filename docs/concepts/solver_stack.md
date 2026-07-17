@@ -1,7 +1,7 @@
 # Named-Block Evaluation and the Legacy Solver Stack
 
-BetterRobot temporarily exposes two optimization contracts while the remaining
-flat trajectory path migrates to named variable blocks:
+BetterRobot exposes the named-block construction API while retaining a legacy
+flat contract for direct compatibility callers:
 
 - **Named-block optimization** is the new public construction and batched
   first-/second-order API. A `Problem` owns named `VarSpec` blocks, structural
@@ -10,10 +10,9 @@ flat trajectory path migrates to named variable blocks:
   matrix-free `Adam` consumes its tangent gradient, while
   `LevenbergMarquardt` and `GaussNewton` solve residual-vector problems with
   independent tensor state for every batch element.
-- **The legacy solver stack** still powers `solve_trajopt` and the optimizers
-  under `better_robot.optim.optimizers`. It composes `CostStack`,
-  `LeastSquaresProblem`, and `Optimizer`. `solve_ik` is already named-block.
-  Legacy callers instantiate the selected optimizer and call `minimize`
+- **The legacy solver stack** under `better_robot.optim.optimizers` composes
+  `CostStack`, `LeastSquaresProblem`, and `Optimizer`. No shipped task depends
+  on it; compatibility callers instantiate an optimizer and call `minimize`
   directly.
 
 ## Named-block evaluation
@@ -26,12 +25,16 @@ from better_robot.optim import (
     Adam,
     AdamState,
     AdamStatus,
+    BlockBandedMatrix,
     Bounds,
     Euclidean,
     GaussNewton,
     LevenbergMarquardt,
     LMState,
     LMStatus,
+    LinearizationDecision,
+    LinearizationReason,
+    NormalOperator,
     ObjectiveItem,
     Phase,
     Problem,
@@ -40,6 +43,7 @@ from better_robot.optim import (
     RobotStateProvider,
     SE3Manifold,
     SO3Manifold,
+    TemporalPattern,
     Values,
     VarSpec,
     detach_values,
@@ -71,6 +75,7 @@ The public evaluation operations are:
 - `residual(values)` and `objective(values)`;
 - `gradient(values)`, in reduced tangent coordinates per variable;
 - `jacobian_blocks(values)` and `dense_jacobian(values)`;
+- `structured_normal(values)`, for a directly eligible temporal problem;
 - `retract(values, steps)`, which applies manifold-aware feasible steps.
 
 Callers that need a dense normal matrix form it explicitly as
@@ -83,6 +88,39 @@ Callers that need a dense normal matrix form it explicitly as
 objective weights and participate in `objective()`/`gradient()` and Adam, but
 LM/GN reject them via `Problem.require_least_squares()` instead of silently
 changing their mathematical meaning.
+
+### Temporal structure and route selection
+
+`VarSpec(..., time_axis=0)` marks the first event axis as time while preserving
+the existing value, retraction, and knot-major dense-column contracts. A
+residual can refine its block-level `reads` declaration with
+`TemporalPattern(rows, row_width, row_origin, offsets)`. For row group `r`,
+offset `o` refers to knot `r + row_origin + o`. Numeric
+`temporal_jacobian_blocks` use the same offsets and return exact reduced
+per-knot blocks; item weights and robust row scales are applied centrally.
+
+`Problem` caches a static `TemporalAnalysis`. Direct eligibility requires one
+free time variable, a time-separable mask, complete patterns, and complete
+numeric temporal blocks. Operator eligibility permits a declaration without
+numeric blocks and supplies an explicit autograd JVP/VJP fallback. Multiple
+optimized variables, mixed temporal/shared dependencies, undeclared temporal
+residuals, or a non-separable mask are ineligible in v1. A zero weight does
+not erase structure.
+
+`LevenbergMarquardt(linearization=...)` uses the following policy:
+
+| Request | Representation and default solver | Ineligible behavior |
+|---|---|---|
+| `"dense"` | dense normal / `Cholesky` | always available |
+| `"structured"` | `BlockBandedMatrix` / `BandedCholesky` | raises with cached reason/detail |
+| `"matrix_free"` | `NormalOperator` / `NormalCG` | raises when operator-ineligible |
+| `"auto"` | banded when directly eligible, otherwise dense | records the stable fallback reason/detail |
+
+An explicit solver must advertise a compatible system kind. Automatic mode
+does not select the more expensive autograd operator fallback. There is no
+numerical-zero inference or mixed band-plus-dense container. Schur elimination
+for temporal plus shared/nuisance variables remains deferred until a second
+production caller supplies evidence.
 
 ## Named-block LM/GN
 
@@ -189,7 +227,7 @@ base mask and therefore cannot unfreeze a permanently fixed coordinate. A
 Python-zero weight removes the item from evaluation, including providers read
 only by that item. `on_start` runs once even when the phase has zero iterations.
 
-## Legacy solver stack (remaining flat trajectory backend)
+## Legacy solver stack (direct compatibility backend)
 
 A `CostStack` knows how to compute residuals; it does not know how to minimise
 them. In the legacy contract, that job belongs to `LeastSquaresProblem` (which
@@ -211,7 +249,7 @@ legacy optimizer contract with different components.
 The rest of this chapter documents `LeastSquaresProblem` and its four
 pluggable axes (Optimizer, LinearSolver, RobustKernel, DampingStrategy), then
 ends with its loop sketch. These details remain current for legacy direct
-callers and `solve_trajopt`; they do not describe `solve_ik`.
+callers; shipped tasks use the named-block surface above.
 
 ## `LeastSquaresProblem`
 
@@ -268,8 +306,9 @@ The two extras worth highlighting:
   `jacobian(x)` directly and therefore assemble dense J. Named-block
   `better_robot.optim.Adam` is the separate, shipped matrix-free path.
 - **`jacobian_blocks(x)` returns weighted per-item dense Jacobians.** Current
-  legacy solvers ignore this dictionary. A symbolic declaration consumed by a
-  structured/banded trajectory backend is M5 work.
+  legacy solvers ignore this dictionary. Temporal declarations belong to the
+  separate named-block `Problem` protocol and are not inferred from these
+  legacy tensors.
 
 ## The `Optimizer` Protocol
 
@@ -350,19 +389,22 @@ class LinearSolver(Protocol):
     ) -> Tensor: ...
 
 class Cholesky(LinearSolver): ...        # dense, SPD
-class LSTSQ(LinearSolver): ...           # rank-deficient safe
+class LSTSQ(LinearSolver): ...           # dense, rank-deficient safe
+class BandedCholesky(LinearSolver): ...  # BlockBandedMatrix
+class NormalCG(LinearSolver): ...        # NormalOperator, warm-start capable
 ```
 
 Source: `src/better_robot/optim/solvers/`.
 
-Both solvers accept `A` with shape `(B..., n, n)` and `b` with shape
-`(B..., n)`. A tensor `ridge` is scalar or broadcastable to `B...`; the solver
-forms `A + ridge[..., None, None] * I` without modifying `A`. Omitting
-`ridge` preserves the legacy two-argument call. `Cholesky` is the default for
-dense SPD systems and retains the standalone least-squares fallback;
-capture-ready LM owns its stricter `cholesky_ex` info-mask/zero-step policy.
-`LSTSQ` handles rank-deficient dense systems. Iterative and structured linear
-solvers are intentionally deferred to M5 instead of shipping placeholders.
+Every solver accepts `b` with shape `(B..., n)` and the stable
+`solve(A, b, ridge=None)` seam. A tensor ridge is scalar or broadcastable to
+`B...` and does not modify the caller's system. `Cholesky` and `LSTSQ` accept
+dense `(B..., n, n)` tensors. `BandedCholesky` consumes padded lower
+`BlockBandedMatrix` storage and returns independent per-batch SPD/finite
+status. `NormalCG` consumes a sized `NormalOperator`, may use its
+preconditioner and a compatible warm start, and reports fixed-work convergence
+and residual diagnostics. Each implementation advertises `supported_systems`;
+LM rejects an explicitly incompatible solver instead of densifying silently.
 
 ## Robust kernels
 
@@ -537,9 +579,12 @@ class OptimizationResult:
     history: list[dict]              # per-iter {step, loss, lam} — optional
 ```
 
-`solve_trajopt` wraps this legacy result in `TrajOptResult`. `solve_ik`
-instead converts named-block tensor state to an `IKResult` with scalar
-diagnostics for unbatched calls and per-element tensors for batches.
+`solve_ik` and `solve_trajopt` convert named-block tensor state to task result
+objects with scalar diagnostics for unbatched calls and per-element tensors
+for batches. `TrajOptResult` additionally records
+`linearization_requested`, `linearization_used`, `linearization_reason`, and
+`linearization_detail`; `linearization_used` is `"dense"`, `"banded"`, or
+`"matrix_free"`.
 
 ## What this lets users do
 
@@ -586,18 +631,19 @@ result = LevenbergMarquardt().minimize(
 
 No fixed-vs-floating special case. No `solver_params` dict. No
 `jacobian_fn` argument. This remains the single legacy path from a
-`CostStack` to `result.x`; it remains for legacy direct use and current
-`solve_trajopt` only.
+`CostStack` to `result.x`; it remains for legacy direct use only.
 
 The example exists to show that the four legacy pluggable axes compose
 cleanly. New IK and multi-block code should use the named-block API above.
 
 ## Sharp edges
 
-- **Only named-block Adam is matrix-free.**
-  `better_robot.optim.Adam` uses the tangent objective VJP. The legacy flat
-  classes under `optim.optimizers` still assemble dense J; do not use them as
-  a long-horizon matrix-free path. Batched named-block LBFGS is deferred.
+- **Matrix-free is explicit.** `better_robot.optim.Adam` uses the tangent
+  objective VJP, while named-block LM uses `NormalOperator`/`NormalCG` only
+  when `linearization="matrix_free"` or an explicit compatible solver selects
+  that route. Automatic LM prefers direct bands and otherwise falls back to
+  dense. Legacy flat optimizers still assemble dense J. Batched named-block
+  LBFGS is deferred.
 - **Legacy LM bounds are projection-only.** Every trial point is projected onto
   `[lower, upper]` *before* its residual is evaluated, and acceptance is a
   bare objective comparison. There is no active set, projected-gradient
@@ -616,12 +662,11 @@ cleanly. New IK and multi-block code should use the named-block API above.
 
 ## Where to look next
 
-- {doc}`tasks` — named-block `solve_ik` and the remaining legacy
-  `solve_trajopt` path.
+- {doc}`tasks` — named-block `solve_ik` and temporal `solve_trajopt` presets.
 - {doc}`/conventions/extension` §3, §4, §5, §6 — recipes for adding
   a custom optimiser, damping strategy, linear solver, or robust
   kernel.
 - {doc}`/guides/custom_residuals` — author a residual for the named-block
   evaluation contract.
-- {doc}`/conventions/performance` §2.7 — current matrix-free and allocation
-  boundaries, plus the M5 trajectory roadmap.
+- {doc}`/conventions/performance` §2.7 — current dense, banded, matrix-free,
+  and allocation boundaries.

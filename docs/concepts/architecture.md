@@ -50,13 +50,15 @@ is a forwarding compatibility package, not a dependency layer. The named-block
 path lives in `optim/blocks/`: a `Problem` owns `VarSpec`s, structural residual
 items, scalar objective items, and a provider DAG. Providers may reach directly
 to lower layers such as kinematics, while user residuals consume only the
-read-only context names they declare.
+read-only context names they declare. Residual-owned `TemporalPattern` values
+remain below `optim`; the optimizer consumes them to build block-banded or
+operator representations without creating a reverse dependency.
 
 `tasks/` is the topmost user-facing facade. `solve_ik` builds a named-block
 `Problem` with a `RobotConfig` variable and provider-backed built-in
-residuals. `solve_trajopt` still builds an optimizer-owned `CostStack`, wraps
-it in a `LeastSquaresProblem`, and dispatches to the legacy optimizer stack
-until M5. Legacy callers invoke an optimizer's `minimize` method directly;
+residuals. `solve_trajopt` adapts active soft `CostStack` items into one
+time-annotated `RobotConfig` block and uses route-aware named-block LM. Legacy
+callers may still invoke an optimizer's `minimize` method directly;
 named-block problems use the named-block solvers' `run` methods.
 
 `io/` and `viewer/` sit alongside the main spine, not above it. `io/`
@@ -150,7 +152,8 @@ src/better_robot/
 ├── residuals/                     # residual classes composed explicitly
 │   ├── pose.py                    # PoseResidual / PositionResidual / OrientationResidual
 │   ├── limits.py
-│   ├── smoothness.py              # 5-point FD velocity / accel
+│   ├── smoothness.py              # temporal velocity / acceleration
+│   ├── structure.py               # optimizer-independent TemporalPattern
 │   ├── manipulability.py
 │   ├── collision.py
 │   ├── regularization.py
@@ -160,10 +163,11 @@ src/better_robot/
 ├── optim/
 │   ├── cost_stack.py              # legacy flat-residual CostStack
 │   ├── problem.py                 # LeastSquaresProblem
-│   ├── blocks/                    # named Problem / VarSpec / manifolds / providers
+│   ├── blocks/                    # named Problem / VarSpec / manifolds / temporal assembly
+│   ├── structure.py               # bands, normal operators, route decisions
 │   ├── state.py                   # SolverState
 │   ├── optimizers/                # LM / GN / Adam / LBFGS / MultiStage
-│   ├── solvers/                   # dense batched Cholesky / LSTSQ
+│   ├── solvers/                   # Cholesky / LSTSQ / BandedCholesky / NormalCG
 │   ├── kernels/                   # L2 / Huber / Cauchy / Tukey
 │   └── strategies/                # legacy Constant / Adaptive
 │
@@ -244,7 +248,8 @@ from better_robot.tasks.ik    import IKResult, IKCostConfig, OptimizerConfig
 
 from better_robot.optim import (
     Bounds, Euclidean, SO3Manifold, SE3Manifold, RobotConfig,
-    Values, VarSpec, Problem, ResidualItem, ObjectiveItem,
+    Values, VarSpec, Problem, ResidualItem, ObjectiveItem, TemporalPattern,
+    BlockBandedMatrix, NormalOperator, LinearizationDecision,
     RobotStateProvider, detach_values,
 )
 ```

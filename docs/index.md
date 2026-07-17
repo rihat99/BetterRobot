@@ -14,16 +14,16 @@ The five commitments that shape every other decision:
   extension that breaks the gradient graph.
 - **Batched tensor math.** FK, residuals, and analytic Jacobians accept
   `(B..., feature)`. The named-block `Problem` also evaluates independent
-  batches; named-block Adam/LM/GN and `solve_ik` preserve those axes with
-  per-element solver state.
+  batches; named-block Adam/LM/GN, `solve_ik`, and `solve_trajopt` preserve
+  those axes with per-element solver state.
 - **One code path for fixed and floating base.** A floating-base
   robot is one whose root joint is `JointFreeFlyer`. The IK solver
   does not know the difference.
 - **An explicit optimization migration.** New multi-block code uses named
   `VarSpec`s, a `Problem`, structural residuals, and evaluation-local
-  providers. IK uses that named-block stack; trajectory optimization retains
-  the legacy `Residual` / `CostStack` / `LeastSquaresProblem` / `Optimizer`
-  contract until M5.
+  providers. IK and knot trajectory optimization use that named-block stack;
+  declared temporal problems can route through block-banded or explicit
+  normal-operator solves, with dense fallback for undeclared structure.
 - **A whole-pass compute seam that does not leak.** Torch raw passes consume
   `ModelStructure` plus `ModelValues` by default. An eligible opt-in kernel
   may replace an entire pass without changing the public `torch.Tensor`
@@ -69,12 +69,14 @@ tangent coordinates, structural residuals, scalar objective terms, and lazy
 provider DAGs; the legacy residual library (pose / position / orientation,
 joint position limits, rest, contact consistency, reference trajectories,
 velocity and acceleration smoothness, time-indexed residuals); `CostStack`;
-LM, GN, Adam, L-BFGS, and multi-stage optimizers; pluggable linear
-solvers (Cholesky, LSTSQ); pluggable robust
+LM, GN, Adam, L-BFGS, and multi-stage optimizers; dense, block-banded,
+and normal-operator linear solvers (Cholesky, LSTSQ, BandedCholesky,
+NormalCG); pluggable robust
 kernels (L2, Huber, Cauchy, Tukey) and damping strategies (Constant,
 Adaptive); batched IK on fixed and floating-base robots;
-trajectory optimisation with knot parameterisation (the Euclidean B-spline
-basis is numerical-only until manifold-safe M5 work);
+trajectory optimisation with knot parameterisation and automatic banded/dense
+routing (the Euclidean B-spline basis is numerical-only pending a separate
+robot-manifold design);
 Featherstone dynamics (RNEA / ABA / CRBA / CCRBA), centroidal
 momentum, and autograd-derived `compute_*_derivatives`; URDF and MJCF parsers; a programmatic
 `ModelBuilder`; a viewer with skeleton / URDF-mesh render modes,

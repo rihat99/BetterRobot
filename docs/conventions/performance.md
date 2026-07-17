@@ -18,11 +18,12 @@ becomes a passing or failing benchmark. The second is a small set of
 **techniques** that earn the budget back: leading-batch shapes that
 avoid Python loops, frozen `Model` topology that lets `torch.compile`
 unroll cleanly, analytic Jacobians for the routines that dominate the
-hot path, and matrix-free first-order building blocks that avoid dense
-Jacobians where that contract is implemented. Today, named-block Adam is the
-shipped matrix-free solver; the legacy trajectory backend still materialises
-Jacobians, and structured
-long-horizon trajectory solves remain M5 work. The third is a
+hot path, and representations that avoid dense Jacobians where that contract
+is implemented. Today, named-block Adam is matrix-free, temporal LM can use
+block-banded normal storage, and explicit operator LM uses `NormalCG`.
+Undeclared problems retain the dense correctness path; these capabilities are
+not by themselves a benchmark-certified long-horizon performance claim. The
+third is a
 **gate-promotion ladder** — benchmarks land
 advisory, collect signal, and only flip to blocking once their variance
 is low enough that flipping does not produce flaky CI.
@@ -82,9 +83,9 @@ We do **not** set targets for:
 
 Tensor kernels such as FK, residual evaluation, and analytic Jacobians
 accept `(B..., feature)` tensors and walk the robot topology **once** per
-call, regardless of `B`. Named-block Adam/LM/GN and `solve_ik` preserve the
-same leading axes with per-element state; legacy flat optimizers remain
-single-problem. See
+call, regardless of `B`. Named-block Adam/LM/GN, `solve_ik`, and
+`solve_trajopt` preserve the same leading axes with per-element state; legacy
+flat optimizers remain single-problem. See
 {doc}`/concepts/batching_and_backends`.
 
 ### 2.2 Static topology, dynamic values
@@ -164,25 +165,27 @@ There is currently no public capture decorator or context manager.
 - Named-block `Adam` differentiates `Problem.objective` through tangent
   retractions and does not assemble a Jacobian. This is the shipped
   matrix-free first-order path.
-- Named-block LM/GN assemble a dense Jacobian and dense normal system on each
-  update. Their fixed-shape tensor state does not imply preallocated
-  `JᵀJ`/`Jᵀr` workspaces.
+- Named-block LM/GN retain dense assembly as the correctness route. A problem
+  with one declared temporal block can instead assemble block-banded normal
+  storage or use the explicit `NormalOperator`/`NormalCG` route.
 - `optim/cost_stack.py` assembles legacy residuals and Jacobians with
   `torch.cat`; it does not own a persistent flat buffer.
-- `solve_trajopt` still uses the legacy flat backend. Legacy Adam and L-BFGS
-  call `LeastSquaresProblem.jacobian(x)` directly, so long-horizon trajectory
-  solves have no shipped matrix-free memory guarantee. Structured/banded
-  assembly and manifold-safe spline integration are M5 work.
+- Knot-based `solve_trajopt` uses route-aware named-block LM and reports the
+  chosen dense or banded path. Undeclared residuals fall back to dense;
+  structured routing is never inferred from numerical zeros. The legacy Adam
+  and L-BFGS classes remain direct-use compatibility APIs. Manifold-safe spline
+  integration is still deferred.
 
 The memory values in §1.3 are tracked targets, not evidence that a 200-knot
 trajectory solve currently meets them.
 
 ### 2.8 Sparse collision roadmap
 
-The shipped residual API has no symbolic sparse/banded declaration, and
-self-collision optimisation is not a measured sparse-solver path today.
-Collision residual integration and a structured solver that exploits chain
-sparsity are roadmap work; no collision speed-up claim is certified here.
+Temporal residuals can declare symbolic banded support, but the collision
+residuals do not currently provide such declarations and self-collision
+optimisation is not a measured structured-solver path. Collision integration
+must supply fixed rows and explicit temporal blocks before it can become
+eligible; no collision speed-up claim is certified here.
 
 ### 2.9 Opt-in Warp whole-pass lane
 
@@ -302,13 +305,13 @@ path to avoid re-compiling across jobs.
 | `kinematics/forward.py` | FK topo walk and lane boundary | Torch raw pass unrolls on static topology; whole-pass kernels stay local |
 | `kinematics/jacobian.py` | Spatial Jacobian | Analytic; automatic compilation is roadmap work |
 | `dynamics/*.py` | RNEA / ABA / CRBA | Analytic derivatives; compile-friendly recursion |
-| `residuals/*.py` | Residual evaluation | Analytic Jacobians where implemented; no symbolic sparse declaration |
+| `residuals/*.py` | Residual evaluation | Analytic blocks where implemented; temporal residuals declare exact knot offsets |
 | `optim/cost_stack.py` | Legacy concatenation | Fresh `torch.cat` assembly; no persistent flat buffer |
 | `optim/blocks/solver_adam.py` | Named-block first-order solve | Tangent objective VJP; no Jacobian assembly; CUDA replay certification deferred to M6 |
-| `optim/blocks/solver_lm.py` | Named-block LM/GN | Dense Jacobian/normal system with fixed-shape tensor state; CUDA replay certification deferred to M6 |
+| `optim/blocks/solver_lm.py` | Named-block LM/GN | Dense/banded/operator routing with fixed-shape tensor state; CUDA replay certification deferred to M6 |
 | `optim/optimizers/*.py` | Legacy flat solver loops | Dense Jacobian path, including legacy Adam/L-BFGS; eager and single-problem |
-| `optim/linear_solvers/*.py` | Linear solves | Dense Cholesky or `lstsq`; structured trajectory solves are M5 work |
-| `tasks/parameterization.py` | Numerical trajectory bases | B-spline compression utility; robot integration deferred to M5 |
+| `optim/solvers/*.py` | Linear solves | Dense Cholesky/LSTSQ, block-banded Cholesky, and preconditioned normal CG |
+| `tasks/parameterization.py` | Numerical trajectory bases | B-spline compression utility; robot-manifold integration requires a separate reviewed design |
 | `collision/*.py` | Geometry primitives and roadmap residuals | Stable-shape/sparsity contracts; solver integration is not yet shipped |
 | `io/*.py` | One-shot parse | Not hot; readability > speed; `AssetResolver` Protocol |
 | `viewer/*.py` | Scene updates | 60 fps budget |

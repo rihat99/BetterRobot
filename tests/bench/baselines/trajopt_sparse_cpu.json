@@ -1,0 +1,44 @@
+{
+  "_schema_version": 1,
+  "_status": "PENDING_MEASUREMENT",
+  "benchmark": "m5_sparse_trajectory_cpu",
+  "definition": {
+    "design_reference": "plan/design/m5_sparse_trajectory_structure_design.md §11",
+    "device": "cpu",
+    "dtype": "torch.float32",
+    "host": "robotics2-ESC8000-E11",
+    "horizons": [
+      50,
+      125,
+      250,
+      500
+    ],
+    "paths": [
+      "dense",
+      "structured"
+    ],
+    "measurement": {
+      "address_space_limit_bytes": 17179869184,
+      "case_timeout_seconds": 600,
+      "cold_solves": 1,
+      "measured_solves": 7,
+      "updates_per_solve": 5,
+      "warmup_solves": 2
+    }
+  },
+  "run": null,
+  "cases": [],
+  "slopes": {
+    "dense": null,
+    "structured": null
+  },
+  "acceptance": {
+    "status": "PENDING_MEASUREMENT"
+  },
+  "gpu": {
+    "cases": null,
+    "device": null,
+    "peak_memory_bytes": null,
+    "status": "pending_m6"
+  }
+}
