@@ -31,6 +31,14 @@ Bases: {py:obj}`typing.Protocol`
 ```{autodoc2-docstring} better_robot.optim.kernels.base.RobustKernel
 ```
 
+````{py:method} rho(squared_norm: torch.Tensor) -> torch.Tensor
+:canonical: better_robot.optim.kernels.base.RobustKernel.rho
+
+```{autodoc2-docstring} better_robot.optim.kernels.base.RobustKernel.rho
+```
+
+````
+
 ````{py:method} weight(squared_norm: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.optim.kernels.base.RobustKernel.weight
 

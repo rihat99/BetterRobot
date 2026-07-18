@@ -1,7 +1,8 @@
 # Naming
 
-> **Status:** normative. Every symbol in `src/better_robot/` follows the
-> conventions on this page.
+> **Status:** normative for public storage names and vocabulary. The contract
+> test checks deprecated `data.<old_name>` attribute accesses in
+> `src/better_robot/`; short mathematical locals remain valid.
 
 Names are the smallest decisions a library makes and the ones users
 interact with most. A field called `oMi` saves three keystrokes and
@@ -22,10 +23,10 @@ becomes `bias_forces`. `Ag` becomes `centroidal_momentum_matrix`. None
 of those expansions cost speed; all of them make the call site
 self-documenting.
 
-The discipline is enforced by `tests/contract/test_naming.py`, which
-greps `src/` for the cryptic names and fails the suite if a new caller
-slips one in. The rest of this document is the canonical table the
-test points at.
+The storage-name migration is enforced by `tests/contract/test_naming.py`,
+which scans `src/better_robot/` for accesses to deprecated
+`data.<old_name>` attributes. The rest of this document records the public
+vocabulary; it is broader than the deliberately narrow mechanical test.
 
 ## 1 · Convention
 
@@ -58,7 +59,7 @@ joint, expressed in the world frame." No glossary required.
 | Compute verb | `compute_<noun>` returns a new tensor and may fill `Data` | `compute_joint_jacobians`, `compute_centroidal_map` |
 | Get verb | `get_<noun>` reads from `Data`, cheap, no allocation | `get_joint_jacobian`, `get_frame_jacobian` |
 | Update verb | `update_<noun>` writes one field of `Data` in place | `update_frame_placements` |
-| Top-level façade | English imperative, no prefix | `forward_kinematics`, `solve_ik`, `solve_trajopt`, `retarget` |
+| Top-level façade | English imperative, no prefix | `forward_kinematics`, `solve_ik`, `solve_trajopt` |
 
 ### 1.3 Math notation that stays
 
@@ -74,7 +75,7 @@ that renaming costs more than it adds. These keep their symbols:
 | `nq` | config-space dim | Same |
 | `nv` | tangent-space dim | Same |
 | `SE3` / `SO3` | Lie groups | Universal |
-| `Jr`, `Jl`, `Jr_inv`, `Jl_inv` | right/left Jacobians of `exp` | Chirikjian, Barfoot |
+| `Jr`, `Jl`, `Jr_inv`, `Jl_inv` | equation notation for right/left Jacobians of `exp` | Chirikjian, Barfoot |
 | `hat`, `vee` | isomorphisms 𝔰𝔬(3)↔ℝ³, 𝔰𝔢(3)↔ℝ⁶ | Standard |
 | `ad`, `Ad` | adjoint (algebra / group) | Distinguish in docstrings |
 | `exp`, `log` | group exp and log | Universal |
@@ -123,8 +124,6 @@ Planning and Control*, keep it. Otherwise, expand it.
 | `com` | `com_position` | `(B..., 3)` |
 | `vcom` | `com_velocity` | `(B..., 3)` |
 | `acom` | `com_acceleration` | `(B..., 3)` |
-| `Ycrb` | `composite_inertia` | `(B..., njoints, 10)` |
-| `Jcom` | `com_jacobian` | `(B..., 3, nv)` |
 
 ### 2.5 Model topology (`Model`)
 
@@ -141,22 +140,27 @@ Everything else on `Model` (`joint_placements`, `body_inertias`,
 
 ### 2.6 Lie / spatial layer
 
-Lie-algebra symbols (`Jr`, `hat`, `vee`, `ad`, `Ad`, `exp`, `log`) are
-kept as-is but become **functions**, never bare identifiers on a
-tensor:
+Lie-algebra symbols such as `Jr`, `hat`, `vee`, `ad`, `Ad`, `exp`, and
+`log` remain useful in equations. Public functions use descriptive,
+group-qualified names:
 
 ```python
-from better_robot import lie
-J = lie.right_jacobian_se3(xi)
+from better_robot.lie.tangents import right_jacobian_se3
+
+J = right_jacobian_se3(xi)
 ```
 
-Internal implementations may still use the short form in tight
-algebraic blocks; the public API uses the English form so IDE
-autocomplete and help text are readable. The short form is also
-available as an alias:
+Internal implementations and equations may still use the short form in tight
+algebraic blocks; the public API exposes descriptive names from
+`better_robot.lie.tangents`:
 
 ```python
-from better_robot.lie import Jr, Jr_inv
+from better_robot.lie.tangents import (
+    right_jacobian_inv_se3,
+    right_jacobian_inv_so3,
+    right_jacobian_se3,
+    right_jacobian_so3,
+)
 ```
 
 ### 2.7 Optim / Tasks
@@ -170,7 +174,6 @@ The user-facing names already follow the conventions above:
 | `IKCostConfig` | User-facing knobs for the IK cost stack |
 | `OptimizerConfig` | User-facing knobs for the optimiser |
 | `SolverState` | Per-iteration state shared between `Optimizer`, `DampingStrategy`, `LinearSolver` |
-| `ResidualSpec` | Structural metadata returned from `Residual.spec(state)` |
 | `OptimizerStage` / `MultiStageOptimizer` | Composite of stages |
 | `TrajectoryParameterization` | Protocol; concrete `KnotTrajectory`, `BSplineTrajectory` |
 
@@ -180,7 +183,7 @@ The user-facing names already follow the conventions above:
 |------|---------|---------|
 | `ReferenceFrame` (in `kinematics`) | Replaces `reference="..."` strings on `get_*_jacobian` | `WORLD`, `LOCAL`, `LOCAL_WORLD_ALIGNED` |
 | `KinematicsLevel` (in `data_model`) | Tracks how far FK has been computed on a `Data` | `NONE` (0), `PLACEMENTS` (1), `VELOCITIES` (2), `ACCELERATIONS` (3) |
-| `JacobianStrategy` (in `kinematics`) | Selects analytic / autodiff / FD | `ANALYTIC`, `AUTODIFF`, `FUNCTIONAL`, `FINITE_DIFF`, `AUTO` |
+| `JacobianStrategy` (in `kinematics`) | Selects analytic / central FD | `ANALYTIC`, `FINITE_DIFF`, `AUTO` |
 
 All three subclass `str` (`int` for `KinematicsLevel`) so user code that
 still compares to a string literal continues to work.
@@ -211,25 +214,27 @@ JointJacobian      = Float[Tensor, "*B 6 nv"]
 JointJacobianStack = Float[Tensor, "*B njoints 6 nv"]
 ```
 
-Coverage is enforced by `tests/contract/test_shape_annotations.py`
-(advisory until the typing migration completes; blocking thereafter).
+These aliases remain the required authoring convention. M3.5 removed the old
+coverage-ratio probe because it made no assertion; shape annotations currently
+have no pytest percentage gate.
 
 ## 3 · Glossary
 
 | Term | Meaning |
 |------|---------|
-| **Model** | Immutable kinematic tree: joints, bodies, frames, inertias, limits. One per robot, shared across queries, moved with `.to(device, dtype)`. |
+| **Model** | Shallowly frozen kinematic tree: field reassignment is blocked, but contained tensors and metadata are not deeply immutable. Treat it as read-only across queries and use `.to(device, dtype)` to create a moved copy. |
 | **Data** | Mutable per-query workspace. Holds `q`, lazy kinematic/dynamic caches. One per batch × time evaluation. |
 | **Frame** | Any named coordinate frame on the robot — joint frames, body frames, user-declared operational frames. |
 | **Joint** | A single degree of articulation. "Joint 0" is always the universe (world). |
-| **Body** | A rigid link. Bodies are 1:1 with joints except joint 0; inertia is attached via `joint_placements`. |
+| **Body** | A rigid link entry. Bodies are 1:1 with joints, including the zero-inertia universe placeholder at index 0; inertial properties live in `body_inertias`, while `joint_placements` stores parent-to-joint transforms. |
 | **joint_pose_local** | SE(3) transform from a joint's parent joint to itself. |
 | **joint_pose_world** | SE(3) transform from world origin to a joint. |
 | **frame_pose_world** | SE(3) transform from world origin to a frame. |
 | **joint_velocity_world** | 6D twist of each joint, linear first, in world axes. |
 | **spatial Jacobian** | 6 × nv Jacobian relating `v` to twist; `linear rows | angular rows`. |
 | **body-frame Jacobian** | Spatial Jacobian with the origin's twist re-expressed in the body's axes. |
-| **LOCAL_WORLD_ALIGNED** | Jacobian of a point on the body, *translated* to the world origin but *rotated* with world axes. Default for `get_frame_jacobian`. |
+| **LOCAL_WORLD_ALIGNED** | Twist at the frame origin with both linear and angular components expressed in world axes. Default for `get_frame_jacobian`. |
+| **WORLD** | Spatial twist expressed in world axes and translated to the world origin. |
 | **Residual** | A differentiable function `r(model, data, …) -> (B..., dim)` — the quantity the optimiser drives toward zero. |
 | **CostStack** | Weighted concatenation of residuals; returns a single flat residual vector. |
 | **LeastSquaresProblem** | `(cost_stack, x0, bounds, jacobian_strategy)` — a fully specified optimisation problem. |
@@ -239,7 +244,7 @@ Coverage is enforced by `tests/contract/test_shape_annotations.py`
 | **mass matrix** | Joint-space inertia `M(q)`. |
 | **coriolis matrix** | `C(q, q̇)` such that `C(q, q̇) q̇` is the Coriolis/centrifugal torque. |
 | **gravity torque** | `g(q)` — joint-space generalised gravity. |
-| **Capsule** | Sphere-swept line segment; the default collision primitive for the robot surface. |
+| **Capsule** | Sphere-swept-line data container reserved for the collision API; collision queries are not yet implemented. |
 | **Gizmo** | Draggable SE(3) widget in the viewer used to set IK targets. |
 
 ## 4 · Renames at a glance
@@ -263,19 +268,16 @@ hg                  ->  centroidal_momentum
 com                 ->  com_position
 vcom                ->  com_velocity
 acom                ->  com_acceleration
-Ycrb                ->  composite_inertia
-Jcom                ->  com_jacobian
 J                   ->  joint_jacobians
 dJ                  ->  joint_jacobians_dot
 ```
 
 ## 5 · Enforcement
 
-`tests/contract/test_naming.py` greps `src/` for any forbidden cryptic
-identifier and fails the suite if one slips in. The check is
-deliberately mechanical: a regex sweep is faster than a code review and
-never gets tired. Every residual, solver, and task docstring uses the
-new vocabulary; every contributor sees the discipline before they ship.
+`tests/contract/test_naming.py` scans `src/better_robot/` for deprecated
+`data.<old_name>` attribute accesses and fails if one slips in. The check is
+deliberately scoped: universal mathematical locals, prose, and unrelated
+attributes are not rejected by this contract.
 
 ## 6 · For contributors
 

@@ -57,7 +57,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Apr 26, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 18, 2026"/>
   </head>
   
   
@@ -149,18 +149,6 @@
           <a href="https://github.com/rihat99/BetterRobot" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
             <span class="sr-only">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/better-robot/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-python fa-lg" aria-hidden="true"></i>
-            <span class="sr-only">PyPI</span></a>
-        </li>
 </ul></div>
         <div class="sidebar-primary-item">
 
@@ -193,11 +181,19 @@
 <li class="toctree-l2"><a class="reference internal" href="../concepts/kinematics.html">Kinematics</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/dynamics.html">Dynamics</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/residuals_and_costs.html">Residuals and Costs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/solver_stack.html">The Solver Stack</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/tasks.html">Tasks — IK, Trajectory Optimisation, Retargeting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/solver_stack.html">Named-Block Evaluation and the Legacy Solver Stack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/tasks.html">Tasks — IK and Trajectory Optimisation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/collision_and_geometry.html">Collision and Geometry</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/batching_and_backends.html">Batching and Backends</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/batching_and_backends.html">Batching and Compute Lanes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/warp_bridge.html">Torch–Warp bridge and opt-in FK lane</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/viewer.html">Viewer</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../guides/custom_residuals.html">Write a custom block residual</a></li>
 </ul>
 </details></li>
 </ul>
@@ -209,6 +205,8 @@
 <li class="toctree-l2"><a class="reference internal" href="extension.html">Extension Points</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">Testing</a></li>
 <li class="toctree-l2"><a class="reference internal" href="contracts.html">Contracts &amp; Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="engineering.html">Engineering Contract</a></li>
+<li class="toctree-l2"><a class="reference internal" href="source_and_license.html">Source and License Decision Memo</a></li>
 <li class="toctree-l2"><a class="reference internal" href="style.html">Coding Style</a></li>
 <li class="toctree-l2"><a class="reference internal" href="packaging.html">Packaging</a></li>
 </ul>
@@ -231,11 +229,9 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.render_modes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.render_modes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.overlays.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.overlays</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.trajectory_player.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.trajectory_player</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.interaction.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.interaction</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.visualizer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.visualizer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.panels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.panels</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.camera.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.camera</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.recorder.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.recorder</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.primitive.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.primitive</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.scene.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.scene</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.helpers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.helpers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.themes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.themes</span></code></a></li>
@@ -243,13 +239,17 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.temporal</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.registry.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.registry</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.base.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.base</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.human.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.human</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.manipulability.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.manipulability</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.collision</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.scene_sdf.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.scene_sdf</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.pose.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.pose</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.smoothness.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.smoothness</span></code></a></li>
 </ul>
@@ -270,7 +270,6 @@
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.action.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.action</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.integrators.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.integrators</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.crba.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.crba</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.rnea.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.rnea</span></code></a></li>
@@ -285,29 +284,23 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.cost_stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.cost_stack</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.state.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.state</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.jacobian_spec.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.jacobian_spec</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.structure</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.stack</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.factory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.factory</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.testing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.testing</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.batching.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.batching</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.logging.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.logging</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.broadcasting.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.broadcasting</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.ik.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.ik</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.parameterization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.parameterization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.trajectory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajectory</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.retarget.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.retarget</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.trajopt.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajopt</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.smoothing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.smoothing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.contact_forces.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.contact_forces</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -315,37 +308,38 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.se3.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.se3</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.types.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.types</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.tangents.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.tangents</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.alignment.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.alignment</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian_strategy.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian_strategy</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.chain.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.chain</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.forward.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.forward</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.joint_models.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint_models</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.execution_batch.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.execution_batch</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.body.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.body</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.model_values.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model_values</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.reduced_coordinates.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.reduced_coordinates</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.joint.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.frame.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.frame</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.topology.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.topology</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.indexing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.indexing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.model_structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model_structure</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.data.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.data</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.torch_native.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.torch_native</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.warp.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.warp</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.protocol.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.protocol</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.joint_dispatch.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint_dispatch</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3"><a class="reference internal" href="../reference/api/better_robot/better_robot.exceptions.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.exceptions</span></code></a></li>
 </ul>
 </details></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/named_block_solvers.html">Named-block solver API</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../reference/changelog.html">Changelog</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../reference/roadmap.html">Roadmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/m1_removed_symbols.html">M1 removed surfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/m3_removed_symbols.html">M3.5 removed surfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 </ul>
 </details></li>
@@ -353,7 +347,6 @@
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Project Links</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/rihat99/BetterRobot">GitHub</a></li>
-<li class="toctree-l1"><a class="reference external" href="https://pypi.org/project/better-robot/">PyPI</a></li>
 </ul>
 
     </div>
@@ -430,7 +423,7 @@
       
       
       
-      <li><a href="https://github.com/rihat99/BetterRobot/edit/main/docs/conventions/testing.md" target="_blank"
+      <li><a href="https://github.com/rihat99/BetterRobot/edit/dev/docs/conventions/testing.md" target="_blank"
    class="btn btn-sm btn-source-edit-button dropdown-item"
    title="Suggest edit"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -563,42 +556,22 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-we-test-and-why">1 · What we test, and why</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#directory-layout">2 · Directory layout</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#coverage-budgets-per-layer">3 · Coverage budgets per layer</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#test-style">4 · Test style</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#no-mocks-for-numerical-code">4.1 No mocks for numerical code</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parametrise-over-shapes">4.2 Parametrise over shapes</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#manifold-aware-assertions">4.3 Manifold-aware assertions</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#analytic-vs-autodiff-equivalence">4.4 Analytic vs. autodiff equivalence</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#regression-oracles">4.5 Regression oracles</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#gate-promotion-ladder">4.6 Gate-promotion ladder</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#test-categories">1 · Test categories</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#current-automation">2 · Current automation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#running-locally">3 · Running locally</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#coverage">4 · Coverage</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#numerical-and-differentiation-style">5 · Numerical and differentiation style</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#shapes-batches-devices-and-dtypes">5.1 Shapes, batches, devices, and dtypes</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#manifold-aware-comparisons">5.2 Manifold-aware comparisons</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#derivative-checks">5.3 Derivative checks</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#frozen-fk-regression-oracle">5.4 Frozen FK regression oracle</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#contract-tests-dag-api-naming-lint">5 · Contract tests (DAG, API, naming, lint)</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#layer-dag">5.1 Layer DAG</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#public-api">5.2 Public API</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#naming">5.3 Naming</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#hot-path-lint">5.4 Hot-path lint</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#docstring-coverage">5.5 Docstring coverage</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#benchmarking">6 · Benchmarking</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#running">6.1 Running</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#baseline-management">6.2 Baseline management</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#budgets">6.3 Budgets</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#example-as-test">7 · Example-as-test</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ci-matrix">8 · CI matrix</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-green-means">9 · What “green” means</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#debugging-failures">10 · Debugging failures</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#numerical-drift-in-regression">10.1 Numerical drift in regression</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#flaky-benchmark">10.2 Flaky benchmark</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#hot-path-lint-false-positive">10.3 Hot-path lint false positive</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#writing-a-new-test-style-guide">11 · Writing a new test — style guide</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#contract-tests">6 · Contract tests</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#benchmarks-and-evidence">7 · Benchmarks and evidence</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#documentation-and-examples">8 · Documentation and examples</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-a-verified-change-means">9 · What a verified change means</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#debugging-failures">10 · Debugging failures</a></li>
 </ul>
             </nav>
         </div>
@@ -613,470 +586,299 @@
   <section id="testing">
 <h1>Testing<a class="headerlink" href="#testing" title="Link to this heading">#</a></h1>
 <blockquote>
-<div><p><strong>Status:</strong> normative. Every PR is expected to satisfy this document.</p>
+<div><p><strong>Status:</strong> normative test expectations plus a description of current
+automation. The workflow is manual-only; this page does not imply an
+automatic pull-request, scheduled, coverage, benchmark, or GPU gate.</p>
 </div></blockquote>
-<p>The tests are not “supplementary materials” for the library — they are
-the library’s product. A user picks BetterRobot over a hand-rolled
-Pinocchio binding because BetterRobot proves, on every PR, that
-<code class="docutils literal notranslate"><span class="pre">forward_kinematics</span></code> agrees with Pinocchio to fp64 ulp, that
-<code class="docutils literal notranslate"><span class="pre">solve_ik</span></code> converges within the published budget, that the public API
-has not silently grown a 27th symbol, that <code class="docutils literal notranslate"><span class="pre">get_frame_jacobian</span></code> returns
-the convention CLAUDE.md says it does, and that no module above the
-backend layer suddenly imports a CUDA kernel.</p>
-<p>The test suite enforces all of the above through six categories
-working together. <strong>Unit</strong> tests pin the smallest provable behaviours
-— <code class="docutils literal notranslate"><span class="pre">se3.exp</span> <span class="pre">∘</span> <span class="pre">log</span> <span class="pre">==</span> <span class="pre">identity</span></code>, residual analytic Jacobian equals
-autodiff, joint integrator round-trips. <strong>Integration</strong> tests run the
-real public API on the real Panda and G1 URDFs, no mocks, because mock
-URDF parses become a way to lie to ourselves about what works. <strong>Contract</strong>
-tests enforce the <em>rules</em> in the rest of the docs: the layer DAG, the
-26-symbol public API, the naming table, the hot-path lint, the
-deprecation schedule. <strong>Regression</strong> tests pin numerical outputs against
-a frozen reference. <strong>Benchmark</strong> tests defend the latency / memory
-budgets via the gate-promotion ladder. <strong>Example</strong> tests import every
-runnable script under <code class="docutils literal notranslate"><span class="pre">examples/</span></code> so the docs stop bit-rotting.</p>
-<p>No category is “optional.” CI runs all six on every PR. The contract
-tier in particular blocks anything from merging that contradicts what
-the docs say.</p>
-<section id="what-we-test-and-why">
-<h2>1 · What we test, and why<a class="headerlink" href="#what-we-test-and-why" title="Link to this heading">#</a></h2>
+<p>Tests are part of BetterRobot’s compatibility surface. Numerical tests pin
+robotics conventions and gradients, contract tests pin architecture and API
+rules, and benchmark definitions keep performance claims reproducible. The
+test files and <code class="docutils literal notranslate"><span class="pre">.github/workflows/ci.yml</span></code> are the source of truth for what is
+executed; this guide explains how those pieces fit together.</p>
+<section id="test-categories">
+<h2>1 · Test categories<a class="headerlink" href="#test-categories" title="Link to this heading">#</a></h2>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Category</p></th>
-<th class="head"><p>Purpose</p></th>
-<th class="head"><p>Tolerance for breakage</p></th>
+<th class="head"><p>Current role</p></th>
 </tr>
 </thead>
 <tbody>
 <tr class="row-even"><td><p><strong>Unit</strong></p></td>
-<td><p>Smallest provable behaviours (e.g. <code class="docutils literal notranslate"><span class="pre">se3.exp</span> <span class="pre">∘</span> <span class="pre">log</span> <span class="pre">==</span> <span class="pre">identity</span></code>)</p></td>
-<td><p>Zero — a unit failure is a bug</p></td>
+<td><p>Small tensor, manifold, model, residual, solver, and viewer behaviours.</p></td>
 </tr>
 <tr class="row-odd"><td><p><strong>Integration</strong></p></td>
-<td><p>Cross-module correctness (e.g. <code class="docutils literal notranslate"><span class="pre">solve_ik</span></code> + Panda URDF)</p></td>
-<td><p>Zero</p></td>
+<td><p>Public operations on programmatic and real robot descriptions, including task facades and Pinocchio comparisons.</p></td>
 </tr>
 <tr class="row-even"><td><p><strong>Contract</strong></p></td>
-<td><p>DAG, public-API ceiling, registry sanity</p></td>
-<td><p>Zero</p></td>
+<td><p>Layer DAG, public imports, naming, optional imports, cache invariants, protocols, roadmap inventory, and hot-path rules.</p></td>
 </tr>
 <tr class="row-odd"><td><p><strong>Regression</strong></p></td>
-<td><p>Numerical equivalence against a frozen reference output</p></td>
-<td><p>1e-5 (fp32), 1e-10 (fp64)</p></td>
+<td><p>Frozen numerical output such as the committed FK oracle.</p></td>
 </tr>
 <tr class="row-even"><td><p><strong>Benchmark</strong></p></td>
-<td><p>Wall-clock budgets from <a class="reference internal" href="performance.html"><span class="doc">Performance</span></a></p></td>
-<td><p>20% regression window</p></td>
+<td><p>Advisory definitions and evidence artifacts; not a merge gate.</p></td>
 </tr>
-<tr class="row-odd"><td><p><strong>Example</strong></p></td>
-<td><p>Every runnable <code class="docutils literal notranslate"><span class="pre">examples/*.py</span></code> imports and runs headless</p></td>
-<td><p>Zero</p></td>
+<tr class="row-odd"><td><p><strong>Documentation</strong></p></td>
+<td><p>The published front-page example plus strict Sphinx builds.</p></td>
 </tr>
 </tbody>
 </table>
 </div>
-</section>
-<section id="directory-layout">
-<h2>2 · Directory layout<a class="headerlink" href="#directory-layout" title="Link to this heading">#</a></h2>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>tests/
-├── lie/                                # unit (SE3/SO3, tangents, Jr/Jl)
-├── spatial/                            # unit (Motion/Force/Inertia ops)
-├── data_model/                         # unit (joint models, Model/Data roundtrip)
-├── kinematics/                         # unit + regression
-├── dynamics/                           # unit + regression
-├── residuals/                          # unit (analytic vs FD jacobian per residual)
-├── costs/                              # unit (CostStack shape/weight/active)
-├── optim/                              # unit (solvers on synthetic problems)
-├── tasks/                              # integration (Panda, G1 IK; trajopt)
-├── io/                                 # integration (URDF / MJCF roundtrip)
-├── collision/                          # unit (SDF pairs)
-├── viewer/                             # unit with MockBackend, smoke test with ViserBackend
-├── bench/                              # benchmarks (see §6)
-├── contract/
-│   ├── test_layer_dependencies.py      # DAG enforcement (AST walk)
-│   ├── test_backend_boundary.py        # only lie/kinematics/dynamics cross the backend Protocol
-│   ├── test_public_api.py              # __all__ matches frozen EXPECTED set (26 symbols)
-│   ├── test_submodule_public_imports.py # symbols not in __all__ stay reachable from documented submodule paths
-│   ├── test_skeleton_signatures.py     # every public symbol is importable
-│   ├── test_hot_path_lint.py           # perf anti-patterns (see performance.md §3)
-│   ├── test_naming.py                  # no pinocchio cryptic names in new code (see naming.md)
-│   ├── test_docstrings.py              # every public symbol has a docstring + example
-│   ├── test_protocols.py               # documented Protocols carry the documented members
-│   ├── test_solver_state.py            # SolverState carries the spec&#39;d fields
-│   ├── test_shape_annotations.py       # jaxtyping coverage on public surface (advisory)
-│   ├── test_no_legacy_strings.py       # no reference=&quot;...&quot; literals in src/
-│   ├── test_cache_invariants.py        # Data._kinematics_level enforced
-│   ├── test_optional_imports.py        # `import better_robot` does not pull yourdfpy/mujoco/viser/warp/...
-│   └── test_deprecations.py            # deprecation shims removed on schedule
-└── examples/
-    └── test_examples.py                # imports and runs each examples/*.py headless
+<p>The repository currently has these top-level test areas:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>tests/
+├── bench/             # advisory microbenchmarks and measurement contracts
+├── contract/          # source/API/architecture contracts
+├── data_model/
+├── docs/              # executable published examples
+├── dynamics/
+├── io/
+├── kinematics/        # includes fk_reference.npz
+├── lie/
+├── optim/
+├── residuals/
+├── spatial/
+├── tasks/
+├── test_pinocchio/    # optional Pinocchio oracles
+├── viewer/
+└── warp/              # optional Warp CPU and CUDA coverage
 </pre></div>
 </div>
+<p>Small programmatic models are appropriate for isolating topology and shape
+contracts. Tests that claim compatibility with a real robot or Pinocchio use
+the corresponding real description/reference rather than a mock substitute.</p>
 </section>
-<section id="coverage-budgets-per-layer">
-<h2>3 · Coverage budgets per layer<a class="headerlink" href="#coverage-budgets-per-layer" title="Link to this heading">#</a></h2>
-<p>Enforced by <code class="docutils literal notranslate"><span class="pre">pytest-cov</span> <span class="pre">--cov-fail-under</span></code>:</p>
+<section id="current-automation">
+<h2>2 · Current automation<a class="headerlink" href="#current-automation" title="Link to this heading">#</a></h2>
+<p>GitHub Actions is intentionally stopped for automatic events. The <code class="docutils literal notranslate"><span class="pre">CI</span></code>
+workflow has only a <code class="docutils literal notranslate"><span class="pre">workflow_dispatch</span></code> trigger and must be started by a
+maintainer. It currently defines five Ubuntu/Python 3.12 jobs:</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
-<tr class="row-odd"><th class="head"><p>Layer</p></th>
-<th class="head"><p>Minimum line coverage</p></th>
+<tr class="row-odd"><th class="head"><p>Manual job</p></th>
+<th class="head"><p>What it runs</p></th>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">lie/</span></code></p></td>
-<td><p>95%</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">full-non-warp</span></code></p></td>
+<td><p>Full non-Warp, non-benchmark, non-CUDA suite with development/integration extras.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">spatial/</span></code></p></td>
-<td><p>95%</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">core-only</span></code></p></td>
+<td><p>Fresh core install, public import, and dependency-boundary assertions.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">data_model/</span></code></p></td>
-<td><p>90%</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">docs</span></code></p></td>
+<td><p>Published front-page test and Sphinx HTML build.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kinematics/</span></code></p></td>
-<td><p>90%</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">benchmarks</span></code></p></td>
+<td><p>Advisory pytest benchmarks plus the M1 eager-CPU harness; uploads evidence without comparing a blocking baseline.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">residuals/</span></code></p></td>
-<td><p>90%</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">costs/</span></code>, <code class="docutils literal notranslate"><span class="pre">optim/</span></code></p></td>
-<td><p>85%</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">tasks/</span></code></p></td>
-<td><p>80%</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">io/</span></code></p></td>
-<td><p>80%</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">collision/</span></code></p></td>
-<td><p>85%</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">viewer/</span></code></p></td>
-<td><p>60% (hard to test headlessly)</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">dynamics/</span></code></p></td>
-<td><p>80%</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">warp-cpu</span></code></p></td>
+<td><p>Bounded Warp-CPU contracts and the Warp-FK/compiled-Torch definition; this is correctness evidence, not CUDA evidence.</p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>“Below budget” fails CI. We never lower a budget to pass; we add
-tests.</p>
+<p>There is no automatic PR or nightly matrix, hosted CUDA job, coverage
+threshold, static-type job, or blocking benchmark comparison at present. CUDA
+validation recorded for M6 was run on the documented local host; see
+<code class="docutils literal notranslate"><span class="pre">tests/bench/definitions.md</span></code>. Re-enabling or promoting a remote gate is a
+separate owner decision.</p>
 </section>
-<section id="test-style">
-<h2>4 · Test style<a class="headerlink" href="#test-style" title="Link to this heading">#</a></h2>
-<section id="no-mocks-for-numerical-code">
-<h3>4.1 No mocks for numerical code<a class="headerlink" href="#no-mocks-for-numerical-code" title="Link to this heading">#</a></h3>
-<p>Real Panda URDF (<code class="docutils literal notranslate"><span class="pre">robot_descriptions.panda_description.URDF_PATH</span></code>),
-real floating-base G1, real MJCF where applicable. Mocking breaks the
-reference numerics.</p>
-</section>
-<section id="parametrise-over-shapes">
-<h3>4.2 Parametrise over shapes<a class="headerlink" href="#parametrise-over-shapes" title="Link to this heading">#</a></h3>
-<p>Every hot-path test runs at <strong>(CPU, fp32), (CPU, fp64), (CUDA, fp32)</strong>
-and at <strong>batch sizes 1, 8, 1024</strong> where memory permits:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">parametrize</span><span class="p">(</span><span class="s2">&quot;device&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;cpu&quot;</span><span class="p">,</span> <span class="n">pytest</span><span class="o">.</span><span class="n">param</span><span class="p">(</span><span class="s2">&quot;cuda&quot;</span><span class="p">,</span> <span class="n">marks</span><span class="o">=</span><span class="n">gpu</span><span class="p">)])</span>
-<span class="nd">@pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">parametrize</span><span class="p">(</span><span class="s2">&quot;dtype&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">])</span>
-<span class="nd">@pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">parametrize</span><span class="p">(</span><span class="s2">&quot;batch&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">1024</span><span class="p">])</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">test_fk_shape</span><span class="p">(</span><span class="n">panda</span><span class="p">,</span> <span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="p">,</span> <span class="n">batch</span><span class="p">):</span>
-    <span class="o">...</span>
+<section id="running-locally">
+<h2>3 · Running locally<a class="headerlink" href="#running-locally" title="Link to this heading">#</a></h2>
+<p>Install the extras needed by the surface under test. A close equivalent of
+the manual non-Warp job is:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>dev<span class="w"> </span>--extra<span class="w"> </span>viewer<span class="w"> </span>--extra<span class="w"> </span>io-mjcf<span class="w"> </span>--extra<span class="w"> </span>meshes<span class="w"> </span>--extra<span class="w"> </span>demos
+uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w"> </span>tests<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--ignore<span class="o">=</span>tests/warp<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--ignore<span class="o">=</span>tests/data_model/test_layout_aliasing.py<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-m<span class="w"> </span><span class="s2">&quot;not bench and not cuda&quot;</span>
 </pre></div>
 </div>
-<p>A helper <code class="docutils literal notranslate"><span class="pre">tests/conftest.py::gpu</span></code> auto-skips CUDA-marked tests on CI
-runners without a GPU.</p>
-</section>
-<section id="manifold-aware-assertions">
-<h3>4.3 Manifold-aware assertions<a class="headerlink" href="#manifold-aware-assertions" title="Link to this heading">#</a></h3>
-<p>For tensors that live on SE(3) / SO(3), comparison uses a dedicated
-helper:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.utils.testing</span><span class="w"> </span><span class="kn">import</span> <span class="n">assert_close_manifold</span>
-<span class="n">assert_close_manifold</span><span class="p">(</span><span class="n">T_got</span><span class="p">,</span> <span class="n">T_ref</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">)</span>
+<p>The ignored layout test imports Warp. With the optional runtime installed, run
+the bounded Warp-CPU contracts separately:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>dev<span class="w"> </span>--extra<span class="w"> </span>warp
+uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w"> </span>tests/data_model/test_layout_aliasing.py<span class="w"> </span>tests/warp<span class="w"> </span>-q<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--ignore<span class="o">=</span>tests/warp/test_fk_cuda.py
 </pre></div>
 </div>
-<p>Why not <code class="docutils literal notranslate"><span class="pre">torch.testing.assert_close</span></code>? Two unit quaternions <code class="docutils literal notranslate"><span class="pre">±q</span></code>
-represent the same rotation; a raw element-wise compare would falsely
-fail. The helper normalises both and compares via geodesic distance.</p>
-</section>
-<section id="analytic-vs-autodiff-equivalence">
-<h3>4.4 Analytic vs. autodiff equivalence<a class="headerlink" href="#analytic-vs-autodiff-equivalence" title="Link to this heading">#</a></h3>
-<p>Every residual with a hand-coded <code class="docutils literal notranslate"><span class="pre">.jacobian()</span></code> ships a test that
-compares the analytic Jacobian to <code class="docutils literal notranslate"><span class="pre">torch.func.jacrev</span></code> of the residual:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_pose_residual_jacobian_matches_autodiff</span><span class="p">(</span><span class="n">panda_fk_data</span><span class="p">):</span>
-    <span class="n">res</span> <span class="o">=</span> <span class="n">PoseResidual</span><span class="p">(</span><span class="n">target_pose</span><span class="p">,</span> <span class="n">frame_id</span><span class="p">)</span>
-    <span class="n">J_analytic</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">jacobian</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
-    <span class="n">J_auto</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">jacrev</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">res</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">with_x</span><span class="p">(</span><span class="n">x</span><span class="p">)))(</span><span class="n">state</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
-    <span class="n">assert_close</span><span class="p">(</span><span class="n">J_analytic</span><span class="p">,</span> <span class="n">J_auto</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">)</span>
+<p>CUDA-marked tests require a visible CUDA device and their declared optional
+dependencies. They skip when CUDA is unavailable; a skip is not GPU evidence.
+On the M6 measurement host, the focused suite is:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w"> </span>tests/optim/test_graph_capture.py<span class="w"> </span>tests/warp/test_fk_cuda.py<span class="w"> </span>-q
 </pre></div>
 </div>
-<p>This is the contract the library relies on for performance; it must
-never silently drift.</p>
-</section>
-<section id="regression-oracles">
-<h3>4.5 Regression oracles<a class="headerlink" href="#regression-oracles" title="Link to this heading">#</a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">tests/kinematics/fk_reference.npz</span></code> holds FK outputs for Panda and G1
-at a pinned set of 50 random <code class="docutils literal notranslate"><span class="pre">q</span></code>s — fp64 throughout. A regression
-test fails if the current FK diverges from the stored reference beyond
-<code class="docutils literal notranslate"><span class="pre">atol=1e-10</span></code>, unless the developer <em>intentionally</em> regenerates the
-file via <code class="docutils literal notranslate"><span class="pre">tests/kinematics/_generate_fk_reference.py</span></code>.</p>
-<p>Metadata captured in the npz:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">oracle_version</span> <span class="p">:</span> <span class="s2">&quot;1.0&quot;</span>
-<span class="n">generation_seed</span><span class="p">:</span> <span class="mi">0</span>
-<span class="n">generated_with</span> <span class="p">:</span> <span class="s2">&quot;torch=2.5.0, …&quot;</span>
-<span class="n">fk_dtype</span>       <span class="p">:</span> <span class="s2">&quot;float64&quot;</span>
-<span class="n">generated_at</span>   <span class="p">:</span> <span class="s2">&quot;2026-04-25T12:34:56Z&quot;</span>
+<p>The default agent sandbox on that host hides NVIDIA device nodes. A CUDA result
+is valid only from the approved host context described in
+<code class="docutils literal notranslate"><span class="pre">tests/bench/definitions.md</span></code>.</p>
+<p>For documentation and benchmarks:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w"> </span>tests/docs/test_front_page.py<span class="w"> </span>-q
+uv<span class="w"> </span>run<span class="w"> </span>make<span class="w"> </span>-C<span class="w"> </span>docs<span class="w"> </span>strict
+uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w"> </span>tests/bench/bench_*.py<span class="w"> </span>-m<span class="w"> </span>bench<span class="w"> </span>--benchmark-only
 </pre></div>
 </div>
-<p><strong>No git SHA</strong> — reproducibility hinges on
-<code class="docutils literal notranslate"><span class="pre">oracle_version</span> <span class="pre">+</span> <span class="pre">generation_seed</span> <span class="pre">+</span> <span class="pre">dep</span> <span class="pre">versions</span></code>, not on a SHA that
-becomes useless after a rebase. When the FK convention itself changes,
-<code class="docutils literal notranslate"><span class="pre">oracle_version</span></code> bumps and the new file is committed.</p>
-<p>A sibling <code class="docutils literal notranslate"><span class="pre">_pinocchio_oracle.npz</span></code> is generated <em>from</em> Pinocchio with
-the same <code class="docutils literal notranslate"><span class="pre">q</span></code> samples (Pinocchio is in the <code class="docutils literal notranslate"><span class="pre">[dev]</span></code> extra; tests
-<code class="docutils literal notranslate"><span class="pre">skipif</span></code> otherwise). The cross-check test compares both oracles to
-within <code class="docutils literal notranslate"><span class="pre">1e-8</span></code> (fp64), which makes the FK convention provably identical
-to Pinocchio’s.</p>
+<p><code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">lock</span> <span class="pre">--check</span></code> verifies that the committed lock still matches project
+metadata. Run <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">diff</span> <span class="pre">--check</span></code> before committing documentation or code.</p>
 </section>
-<section id="gate-promotion-ladder">
-<h3>4.6 Gate-promotion ladder<a class="headerlink" href="#gate-promotion-ladder" title="Link to this heading">#</a></h3>
-<p>Several gates land <strong>advisory</strong> and only flip to blocking once they
-have collected enough signal:</p>
-<div class="pst-scrollable-table-container"><table class="table">
-<thead>
-<tr class="row-odd"><th class="head"><p>Gate</p></th>
-<th class="head"><p>Initial mode</p></th>
-<th class="head"><p>Promotion criterion</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>Contract bundle (correctness, DAG, hot-path lint, mypy strict, cache invariants, optional imports)</p></td>
-<td><p>Blocking from day 1</p></td>
-<td><p>—</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">test_shape_annotations.py</span></code> (jaxtyping coverage)</p></td>
-<td><p>Advisory (coverage report)</p></td>
-<td><p>All public symbols annotated</p></td>
-</tr>
-<tr class="row-even"><td><p>CPU bench</p></td>
-<td><p>Advisory (PR comment)</p></td>
-<td><p>Two release cycles of stable runner variance &lt; 5%</p></td>
-</tr>
-<tr class="row-odd"><td><p>CUDA bench</p></td>
-<td><p>Nightly only</p></td>
-<td><p>One cycle of stable self-hosted-runner data</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">mem_watermark</span></code></p></td>
-<td><p>Nightly only</p></td>
-<td><p>Promoted at v1 release</p></td>
-</tr>
-<tr class="row-odd"><td><p>Pinocchio cross-check</p></td>
-<td><p>Opt-in (skip if missing)</p></td>
-<td><p>Always opt-in until we ship a hosted Pinocchio runner</p></td>
-</tr>
-</tbody>
-</table>
+<section id="coverage">
+<h2>4 · Coverage<a class="headerlink" href="#coverage" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> configures branch-aware coverage for
+<code class="docutils literal notranslate"><span class="pre">better_robot</span></code> when <code class="docutils literal notranslate"><span class="pre">pytest-cov</span></code> is requested:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w"> </span>tests<span class="w"> </span>--cov<span class="o">=</span>better_robot<span class="w"> </span>--cov-report<span class="o">=</span>term-missing
+</pre></div>
 </div>
-<p>Promotion is a separate PR per gate that flips the workflow from
-<code class="docutils literal notranslate"><span class="pre">continue-on-error:</span> <span class="pre">true</span></code> to a real fail. The flip-PR’s description
-records the variance data that justifies it.</p>
-<p>Hard CUDA gates <em>before</em> runner stability is measured produce flaky CI
-that gets muted, defeating the gate’s purpose. The ladder is the
-discipline that prevents that.</p>
+<p>No <code class="docutils literal notranslate"><span class="pre">fail_under</span></code> value or per-layer budget is configured, and the manual CI
+workflow does not currently collect coverage. Coverage is therefore a review
+signal, not an enforced gate. Add tests for changed behaviour rather than
+treating a percentage as the only adequacy criterion.</p>
 </section>
+<section id="numerical-and-differentiation-style">
+<h2>5 · Numerical and differentiation style<a class="headerlink" href="#numerical-and-differentiation-style" title="Link to this heading">#</a></h2>
+<section id="shapes-batches-devices-and-dtypes">
+<h3>5.1 Shapes, batches, devices, and dtypes<a class="headerlink" href="#shapes-batches-devices-and-dtypes" title="Link to this heading">#</a></h3>
+<p>Test the combinations promised by the boundary being changed. Public tensor
+paths normally need unbatched and representative leading-batch cases, fp32
+and fp64 where supported, and dtype/device preservation. Value-batched work
+uses <code class="docutils literal notranslate"><span class="pre">tests/conftest.py::assert_value_batched_matches_loop</span></code> to compare one
+batched call with scalar calls over the resolved execution batch.</p>
+<p>CUDA-specific behaviour is marked <code class="docutils literal notranslate"><span class="pre">&#64;pytest.mark.cuda</span></code> and guarded by an
+explicit availability skip. Do not report a CPU or skipped run as CUDA
+validation.</p>
 </section>
-<section id="contract-tests-dag-api-naming-lint">
-<h2>5 · Contract tests (DAG, API, naming, lint)<a class="headerlink" href="#contract-tests-dag-api-naming-lint" title="Link to this heading">#</a></h2>
-<p>These tests do not exercise numerical code; they enforce the rules
-elsewhere in the docs. They live in <code class="docutils literal notranslate"><span class="pre">tests/contract/</span></code> so they are the
-first thing CI reports.</p>
-<section id="layer-dag">
-<h3>5.1 Layer DAG<a class="headerlink" href="#layer-dag" title="Link to this heading">#</a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">test_layer_dependencies.py</span></code> AST-parses every
-<code class="docutils literal notranslate"><span class="pre">src/better_robot/**/*.py</span></code> and walks the import graph. Any edge that
-violates the DAG (see <a class="reference internal" href="../concepts/architecture.html"><span class="doc">Architecture</span></a>) fails. Reported
-with the offending file and import line number.</p>
+<section id="manifold-aware-comparisons">
+<h3>5.2 Manifold-aware comparisons<a class="headerlink" href="#manifold-aware-comparisons" title="Link to this heading">#</a></h3>
+<p>Quaternions have a double cover, so <code class="docutils literal notranslate"><span class="pre">q</span></code> and <code class="docutils literal notranslate"><span class="pre">-q</span></code> represent the same
+rotation. Tests of rotational meaning should compare a relative rotation or
+geodesic error. Raw component comparisons are appropriate only when the
+component representation itself is the contract, as in a frozen algorithm
+regression oracle.</p>
 </section>
-<section id="public-api">
-<h3>5.2 Public API<a class="headerlink" href="#public-api" title="Link to this heading">#</a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">test_public_api.py</span></code>:</p>
+<section id="derivative-checks">
+<h3>5.3 Derivative checks<a class="headerlink" href="#derivative-checks" title="Link to this heading">#</a></h3>
+<p>Use the oracle that matches the claimed derivative:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">better_robot.__all__</span></code> matches the frozen <code class="docutils literal notranslate"><span class="pre">EXPECTED</span></code> set (26
-symbols). Adding or removing public symbols requires updating
-<code class="docutils literal notranslate"><span class="pre">EXPECTED</span></code> in the same PR — the audit is the diff, not a magic
-number.</p></li>
-<li><p>Each is importable.</p></li>
-<li><p>Each has a non-empty docstring with at least one example block.</p></li>
+<li><p>compare declared analytic named-block Jacobian blocks with <code class="docutils literal notranslate"><span class="pre">jacrev</span></code> and/or
+<code class="docutils literal notranslate"><span class="pre">jacfwd</span></code>;</p></li>
+<li><p>use <code class="docutils literal notranslate"><span class="pre">torch.autograd.gradcheck</span></code> in fp64 for differentiable boundaries and
+singular seams;</p></li>
+<li><p>use finite differences when they are the independent reference, with a
+documented step and tolerance;</p></li>
+<li><p>include broadcast/shared-value reductions when a compute lane owns a custom
+VJP.</p></li>
 </ul>
-<p><code class="docutils literal notranslate"><span class="pre">test_submodule_public_imports.py</span></code> checks that documented
-submodule-only public symbols stay reachable:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.lie</span><span class="w">         </span><span class="kn">import</span> <span class="n">SO3</span><span class="p">,</span> <span class="n">Pose</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.spatial</span><span class="w">     </span><span class="kn">import</span> <span class="n">Motion</span><span class="p">,</span> <span class="n">Force</span><span class="p">,</span> <span class="n">Inertia</span><span class="p">,</span> <span class="n">Symmetric3</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.kinematics</span><span class="w">  </span><span class="kn">import</span> <span class="n">ReferenceFrame</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim.state</span><span class="w"> </span><span class="kn">import</span> <span class="n">SolverState</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.tasks.ik</span><span class="w">    </span><span class="kn">import</span> <span class="n">IKResult</span><span class="p">,</span> <span class="n">IKCostConfig</span><span class="p">,</span> <span class="n">OptimizerConfig</span>
+<p>Not every legacy residual has an analytic Jacobian. The legacy
+<code class="docutils literal notranslate"><span class="pre">JacobianStrategy.AUTO</span></code> prefers an analytic method and otherwise uses its
+documented unbatched central-finite-difference fallback. The named-block
+<code class="docutils literal notranslate"><span class="pre">Problem</span></code> surface separately supports analytic, <code class="docutils literal notranslate"><span class="pre">jacrev</span></code>, <code class="docutils literal notranslate"><span class="pre">jacfwd</span></code>, and
+finite-difference strategies.</p>
+</section>
+<section id="frozen-fk-regression-oracle">
+<h3>5.4 Frozen FK regression oracle<a class="headerlink" href="#frozen-fk-regression-oracle" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">tests/kinematics/fk_reference.npz</span></code> stores fp64 Panda and G1 FK outputs for
+a pinned set of configurations. The Panda fixture intentionally preserves the
+historical full-coordinate gripper representation rather than public reduced
+mimic coordinates; the generator and regression test strip the mimic metadata
+the same way. <code class="docutils literal notranslate"><span class="pre">test_fk_regression.py</span></code> compares current joint and frame
+placements at <code class="docutils literal notranslate"><span class="pre">atol=rtol=1e-10</span></code>. Regenerate it only after an intentional
+algorithm/convention change:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>tests/kinematics/_generate_fk_reference.py
 </pre></div>
 </div>
-<p>If a refactor accidentally moves one, the test fails — silent moves
-are caught.</p>
-</section>
-<section id="naming">
-<h3>5.3 Naming<a class="headerlink" href="#naming" title="Link to this heading">#</a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">test_naming.py</span></code> greps <code class="docutils literal notranslate"><span class="pre">src/better_robot/</span></code> for any identifier matching
-the deprecated-name patterns from <a class="reference internal" href="naming.html"><span class="doc">Naming</span></a> outside the migration
-shim allowlist.</p>
-</section>
-<section id="hot-path-lint">
-<h3>5.4 Hot-path lint<a class="headerlink" href="#hot-path-lint" title="Link to this heading">#</a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">test_hot_path_lint.py</span></code> AST-walks the designated hot-path files and
-fails on the patterns listed in <a class="reference internal" href="performance.html"><span class="doc">Performance</span></a>: <code class="docutils literal notranslate"><span class="pre">.item()</span></code>,
-<code class="docutils literal notranslate"><span class="pre">.cpu()</span></code>, per-iteration <code class="docutils literal notranslate"><span class="pre">torch.zeros</span></code>, branching on <code class="docutils literal notranslate"><span class="pre">tensor.dim()</span></code>,
-etc.</p>
-</section>
-<section id="docstring-coverage">
-<h3>5.5 Docstring coverage<a class="headerlink" href="#docstring-coverage" title="Link to this heading">#</a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">test_docstrings.py</span></code> asserts every symbol in <code class="docutils literal notranslate"><span class="pre">__all__</span></code>, every
-<code class="docutils literal notranslate"><span class="pre">Protocol</span></code>, and every <code class="docutils literal notranslate"><span class="pre">&#64;register_*</span></code> decorator has a docstring.</p>
+<p>Review the resulting binary diff together with the generator metadata. There
+is no sibling committed <code class="docutils literal notranslate"><span class="pre">_pinocchio_oracle.npz</span></code>. Live Pinocchio comparisons
+are under <code class="docutils literal notranslate"><span class="pre">tests/test_pinocchio/</span></code> and skip if their optional dependency is
+unavailable.</p>
 </section>
 </section>
-<section id="benchmarking">
-<h2>6 · Benchmarking<a class="headerlink" href="#benchmarking" title="Link to this heading">#</a></h2>
-<p>Benchmarks live under <code class="docutils literal notranslate"><span class="pre">tests/bench/</span></code> and use <code class="docutils literal notranslate"><span class="pre">pytest-benchmark</span></code>.</p>
-<section id="running">
-<h3>6.1 Running<a class="headerlink" href="#running" title="Link to this heading">#</a></h3>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w"> </span>tests/bench/<span class="w"> </span>-v<span class="w"> </span>--benchmark-only
-uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w"> </span>tests/bench/<span class="w"> </span>--benchmark-compare<span class="w"> </span>--benchmark-fail<span class="o">=</span>mean:20%
+<section id="contract-tests">
+<h2>6 · Contract tests<a class="headerlink" href="#contract-tests" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">tests/contract/</span></code> contains the current executable rules:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>test_boundary_validation_count.py
+test_cache_invariants.py
+test_cost_stack_location.py
+test_docstrings.py
+test_hot_path_lint.py
+test_layer_dependencies.py
+test_naming.py
+test_no_legacy_strings.py
+test_optional_imports.py
+test_pluggable_protocols.py
+test_protocols.py
+test_public_api.py
+test_roadmap_stub_inventory.py
+test_solver_state.py
+test_submodule_public_imports.py
 </pre></div>
 </div>
+<p>Run them directly while changing architecture, exports, optional imports, or
+documentation tied to the roadmap:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w"> </span>tests/contract<span class="w"> </span>-q
+</pre></div>
+</div>
+<p>The hot-path lint AST-walks the paths declared in
+<code class="docutils literal notranslate"><span class="pre">test_hot_path_lint.py</span></code>. A legitimate eager/static boundary may use
+<code class="docutils literal notranslate"><span class="pre">#</span> <span class="pre">bench-ok:</span> <span class="pre">&lt;reason&gt;</span></code>; the exemption is reviewed as ordinary source code.
+There is no rule that fails merely because more than a fixed number of such
+comments were added.</p>
 </section>
-<section id="baseline-management">
-<h3>6.2 Baseline management<a class="headerlink" href="#baseline-management" title="Link to this heading">#</a></h3>
+<section id="benchmarks-and-evidence">
+<h2>7 · Benchmarks and evidence<a class="headerlink" href="#benchmarks-and-evidence" title="Link to this heading">#</a></h2>
+<p>Benchmarks are advisory. The canonical definitions and artifact status live
+in <code class="docutils literal notranslate"><span class="pre">tests/bench/README.md</span></code> and <code class="docutils literal notranslate"><span class="pre">tests/bench/definitions.md</span></code>. In
+particular:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">tests/bench/baseline_cpu.json</span></code> — committed, auto-bumped on perf PRs.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">tests/bench/baseline_cuda.json</span></code> — committed per hardware generation.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">baseline_cpu.json</span></code> is placeholder pytest-benchmark scaffolding and is not
+a regression gate;</p></li>
+<li><p>hardware-named CUDA JSON files are evidence only for the exact host, commit,
+workload, dtype, and batch they record;</p></li>
+<li><p>the M6 144-selector matrix is defined but only a filtered subset has been
+measured;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">test_mem_watermark.py</span></code> is available for explicit local/manual runs and is
+not scheduled nightly.</p></li>
 </ul>
-<p>A perf PR pipeline:</p>
-<ol class="arabic simple">
-<li><p>Run baseline: <code class="docutils literal notranslate"><span class="pre">pytest</span> <span class="pre">--benchmark-save=new</span></code>.</p></li>
-<li><p>Compare against committed: <code class="docutils literal notranslate"><span class="pre">pytest</span> <span class="pre">--benchmark-compare=baseline_cpu</span></code>.</p></li>
-<li><p>If win &gt; 5%, commit <code class="docutils literal notranslate"><span class="pre">baseline_cpu.json</span></code> bump in the same PR.</p></li>
-<li><p>If loss &gt; 20%, PR fails; investigate or justify.</p></li>
-</ol>
+<p>Never replace an unsupported workload with an easier one under the same
+label. Record raw samples, cold-start policy, synchronization, versions,
+hardware identity, and source commit before quoting a ratio.</p>
 </section>
-<section id="budgets">
-<h3>6.3 Budgets<a class="headerlink" href="#budgets" title="Link to this heading">#</a></h3>
-<p>Each benchmark asserts its own budget:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_bench_panda_fk_cuda_b1</span><span class="p">(</span><span class="n">benchmark</span><span class="p">,</span> <span class="n">panda</span><span class="p">):</span>
-    <span class="n">q</span> <span class="o">=</span> <span class="n">panda</span><span class="o">.</span><span class="n">q_neutral</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span>
-    <span class="n">r</span> <span class="o">=</span> <span class="n">benchmark</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">br</span><span class="o">.</span><span class="n">forward_kinematics</span><span class="p">(</span><span class="n">panda</span><span class="p">,</span> <span class="n">q</span><span class="p">))</span>
-    <span class="k">assert</span> <span class="n">benchmark</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">mean</span> <span class="o">&lt;</span> <span class="mf">150e-6</span>
-</pre></div>
-</div>
+<section id="documentation-and-examples">
+<h2>8 · Documentation and examples<a class="headerlink" href="#documentation-and-examples" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">tests/docs/test_front_page.py</span></code> executes the fenced example published from
+<code class="docutils literal notranslate"><span class="pre">docs/index.md</span></code>. Sphinx’s strict target catches internal references and
+warnings. The repository does not currently import and execute every file in
+<code class="docutils literal notranslate"><span class="pre">examples/</span></code> automatically, so examples changed outside the front page need
+an explicit smoke run or a focused test.</p>
 </section>
-</section>
-<section id="example-as-test">
-<h2>7 · Example-as-test<a class="headerlink" href="#example-as-test" title="Link to this heading">#</a></h2>
-<p>Every file in <code class="docutils literal notranslate"><span class="pre">examples/</span></code> must be importable from
-<code class="docutils literal notranslate"><span class="pre">tests/examples/test_examples.py</span></code>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">parametrize</span><span class="p">(</span><span class="s2">&quot;example&quot;</span><span class="p">,</span> <span class="p">[</span>
-    <span class="s2">&quot;01_basic_ik&quot;</span><span class="p">,</span> <span class="s2">&quot;02_g1_ik&quot;</span><span class="p">,</span>
-<span class="p">])</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">test_example_imports</span><span class="p">(</span><span class="n">example</span><span class="p">):</span>
-    <span class="n">mod</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;examples.</span><span class="si">{</span><span class="n">example</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="k">assert</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="s2">&quot;main&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>Rationale: docs that bit-rot take users down; tests that import every
-example prevent this for free.</p>
-</section>
-<section id="ci-matrix">
-<h2>8 · CI matrix<a class="headerlink" href="#ci-matrix" title="Link to this heading">#</a></h2>
-<div class="pst-scrollable-table-container"><table class="table">
-<thead>
-<tr class="row-odd"><th class="head"><p>Axis</p></th>
-<th class="head"><p>Values</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>OS</p></td>
-<td><p>Ubuntu 22.04, macOS 14</p></td>
-</tr>
-<tr class="row-odd"><td><p>Python</p></td>
-<td><p>3.10, 3.11, 3.12</p></td>
-</tr>
-<tr class="row-even"><td><p>PyTorch</p></td>
-<td><p>stable, nightly</p></td>
-</tr>
-<tr class="row-odd"><td><p>Device</p></td>
-<td><p>CPU (all matrices), CUDA (Ubuntu + Python 3.11 + stable)</p></td>
-</tr>
-<tr class="row-even"><td><p>dtype</p></td>
-<td><p>fp32 in most tests; fp64 in <code class="docutils literal notranslate"><span class="pre">tests/lie/</span></code>, <code class="docutils literal notranslate"><span class="pre">tests/kinematics/</span></code></p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>A full matrix is ~30 jobs; we run the reduced matrix (one OS × one
-Python × both devices) on every PR and the full matrix nightly. PR
-failures in the reduced matrix block merge; nightly failures open
-issues.</p>
-</section>
-<section id="what-green-means">
-<h2>9 · What “green” means<a class="headerlink" href="#what-green-means" title="Link to this heading">#</a></h2>
-<p>A PR is “ready to merge” when:</p>
+<section id="what-a-verified-change-means">
+<h2>9 · What a verified change means<a class="headerlink" href="#what-a-verified-change-means" title="Link to this heading">#</a></h2>
+<p>A change is ready for review when the tests relevant to its claimed surface
+pass in a suitable environment and the result is reported precisely. Examples:</p>
 <ul class="simple">
-<li><p>All tests in all six categories pass in the reduced CI matrix.</p></li>
-<li><p>No coverage budget dropped (§3).</p></li>
-<li><p>No benchmark regressed beyond the window (§6.2).</p></li>
-<li><p>All contract tests green (§5).</p></li>
-<li><p>For a docs-only PR: contract tests + example imports still green.</p></li>
+<li><p>a docs-only change: front-page test when touched, strict Sphinx, contract
+tests affected by documented inventories, and <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">diff</span> <span class="pre">--check</span></code>;</p></li>
+<li><p>a Torch numerical change: focused unit/regression/gradient tests plus the
+non-CUDA suite in the supported environment;</p></li>
+<li><p>a Warp change: shared Torch-oracle parity and Warp-CPU contracts, plus real
+CUDA tests before making any CUDA or performance claim;</p></li>
+<li><p>a performance change: functional tests plus a fresh artifact following the
+relevant committed measurement definition.</p></li>
 </ul>
-<p>No green, no merge — including documentation-only PRs (the contract
-tests guard against copy-pasted cryptic names in new docs).</p>
+<p>Because CI is manual-only, “verified locally” and “passed a manually
+dispatched workflow” are distinct statements. Neither should be described as
+an automatic merge gate.</p>
 </section>
 <section id="debugging-failures">
 <h2>10 · Debugging failures<a class="headerlink" href="#debugging-failures" title="Link to this heading">#</a></h2>
-<section id="numerical-drift-in-regression">
-<h3>10.1 Numerical drift in regression<a class="headerlink" href="#numerical-drift-in-regression" title="Link to this heading">#</a></h3>
-<ol class="arabic simple">
-<li><p>Check whether <code class="docutils literal notranslate"><span class="pre">model.gravity</span></code>, <code class="docutils literal notranslate"><span class="pre">joint_placements</span></code>, <code class="docutils literal notranslate"><span class="pre">body_inertias</span></code>
-were regenerated (URDF hash changed).</p></li>
-<li><p>Diff the analytic and autodiff Jacobians on the offending frame.</p></li>
-<li><p>Re-run with <code class="docutils literal notranslate"><span class="pre">dtype=torch.float64</span></code> — if the drift disappears, the
-root cause is fp32 quantisation and the tolerance may be raised
-with a justifying note in the test.</p></li>
-</ol>
-</section>
-<section id="flaky-benchmark">
-<h3>10.2 Flaky benchmark<a class="headerlink" href="#flaky-benchmark" title="Link to this heading">#</a></h3>
-<p>Benchmarks use <code class="docutils literal notranslate"><span class="pre">&#64;pytest.mark.benchmark(warmup=True,</span> <span class="pre">min_rounds=10)</span></code>.
-If variance is high:</p>
-<ol class="arabic simple">
-<li><p>Check GPU is at fixed clocks (<code class="docutils literal notranslate"><span class="pre">nvidia-smi</span> <span class="pre">-q</span> <span class="pre">-d</span> <span class="pre">PERFORMANCE</span></code>).</p></li>
-<li><p>Pin the process to a single NUMA node (<code class="docutils literal notranslate"><span class="pre">numactl</span> <span class="pre">--cpunodebind=0</span></code>).</p></li>
-<li><p>Re-run with <code class="docutils literal notranslate"><span class="pre">--benchmark-autosave</span></code> and inspect the histogram.</p></li>
-</ol>
-</section>
-<section id="hot-path-lint-false-positive">
-<h3>10.3 Hot-path lint false positive<a class="headerlink" href="#hot-path-lint-false-positive" title="Link to this heading">#</a></h3>
-<p>If a legitimate <code class="docutils literal notranslate"><span class="pre">.item()</span></code> is needed (e.g. one-time shape extraction in
-construction), add a <code class="docutils literal notranslate"><span class="pre">#</span> <span class="pre">bench-ok:</span> <span class="pre">&lt;reason&gt;</span></code> comment on that line. The
-lint pass respects it but records the count; a PR adding more than
-<strong>three</strong> new <code class="docutils literal notranslate"><span class="pre">bench-ok</span></code> comments fails.</p>
-</section>
-</section>
-<section id="writing-a-new-test-style-guide">
-<h2>11 · Writing a new test — style guide<a class="headerlink" href="#writing-a-new-test-style-guide" title="Link to this heading">#</a></h2>
-<ul class="simple">
-<li><p><strong>One concept per file.</strong> Not <code class="docutils literal notranslate"><span class="pre">test_kinematics.py</span></code>; instead
-<code class="docutils literal notranslate"><span class="pre">test_forward_kinematics_shape.py</span></code>, <code class="docutils literal notranslate"><span class="pre">test_jacobian_equivalence.py</span></code>.</p></li>
-<li><p><strong>Fixtures in <code class="docutils literal notranslate"><span class="pre">conftest.py</span></code>.</strong> Robot loaders, <code class="docutils literal notranslate"><span class="pre">q_neutral</span></code>,
-pre-computed <code class="docutils literal notranslate"><span class="pre">Data</span></code> — share via fixtures, not copy-paste.</p></li>
-<li><p><strong>No <code class="docutils literal notranslate"><span class="pre">&#64;pytest.mark.skip</span></code> without a linked issue.</strong> A skipped test is
-a bug with a mask on. If it is not, remove it.</p></li>
-<li><p><strong>Assert on meaning, not numbers.</strong> <code class="docutils literal notranslate"><span class="pre">assert_close_manifold</span></code>, not
-element-wise <code class="docutils literal notranslate"><span class="pre">torch.testing.assert_close</span></code> for SE(3)-valued outputs.</p></li>
-<li><p><strong>Tight tolerances.</strong> fp32: 1e-5 atol, 1e-5 rtol; fp64: 1e-10.
-Looser bounds are flags, not conveniences — explain them in a
-comment.</p></li>
-</ul>
+<p>For numerical drift, first separate dtype tolerance from a convention change,
+then compare the analytic/autodiff blocks or current/frozen oracle at the
+smallest failing model and batch. Do not regenerate a frozen oracle merely to
+make an unexplained failure disappear.</p>
+<p>For noisy benchmarks, preserve the committed workload and inspect affinity,
+warmup, synchronization, compiler/kernel caches, GPU clocks, and raw-sample
+distribution. A quick or filtered harness run is a smoke test unless the
+definition explicitly promotes it to canonical evidence.</p>
+<p>For an optional-dependency failure, reproduce in the matching core-only,
+integration, Warp-CPU, or CUDA environment. Importing <code class="docutils literal notranslate"><span class="pre">better_robot</span></code> must
+remain independent of viewer, MJCF, demo, and Warp extras.</p>
 </section>
 </section>
 
@@ -1127,42 +929,22 @@ comment.</p></li>
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-we-test-and-why">1 · What we test, and why</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#directory-layout">2 · Directory layout</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#coverage-budgets-per-layer">3 · Coverage budgets per layer</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#test-style">4 · Test style</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#no-mocks-for-numerical-code">4.1 No mocks for numerical code</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parametrise-over-shapes">4.2 Parametrise over shapes</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#manifold-aware-assertions">4.3 Manifold-aware assertions</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#analytic-vs-autodiff-equivalence">4.4 Analytic vs. autodiff equivalence</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#regression-oracles">4.5 Regression oracles</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#gate-promotion-ladder">4.6 Gate-promotion ladder</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#test-categories">1 · Test categories</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#current-automation">2 · Current automation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#running-locally">3 · Running locally</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#coverage">4 · Coverage</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#numerical-and-differentiation-style">5 · Numerical and differentiation style</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#shapes-batches-devices-and-dtypes">5.1 Shapes, batches, devices, and dtypes</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#manifold-aware-comparisons">5.2 Manifold-aware comparisons</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#derivative-checks">5.3 Derivative checks</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#frozen-fk-regression-oracle">5.4 Frozen FK regression oracle</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#contract-tests-dag-api-naming-lint">5 · Contract tests (DAG, API, naming, lint)</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#layer-dag">5.1 Layer DAG</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#public-api">5.2 Public API</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#naming">5.3 Naming</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#hot-path-lint">5.4 Hot-path lint</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#docstring-coverage">5.5 Docstring coverage</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#benchmarking">6 · Benchmarking</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#running">6.1 Running</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#baseline-management">6.2 Baseline management</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#budgets">6.3 Budgets</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#example-as-test">7 · Example-as-test</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ci-matrix">8 · CI matrix</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-green-means">9 · What “green” means</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#debugging-failures">10 · Debugging failures</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#numerical-drift-in-regression">10.1 Numerical drift in regression</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#flaky-benchmark">10.2 Flaky benchmark</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#hot-path-lint-false-positive">10.3 Hot-path lint false positive</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#writing-a-new-test-style-guide">11 · Writing a new test — style guide</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#contract-tests">6 · Contract tests</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#benchmarks-and-evidence">7 · Benchmarks and evidence</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#documentation-and-examples">8 · Documentation and examples</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-a-verified-change-means">9 · What a verified change means</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#debugging-failures">10 · Debugging failures</a></li>
 </ul>
   </nav></div>
 
@@ -1196,7 +978,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Apr 26, 2026.
+  Last updated on Jul 18, 2026.
   <br/>
 </p>
   </div>

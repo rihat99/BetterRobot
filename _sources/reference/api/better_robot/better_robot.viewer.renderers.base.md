@@ -117,18 +117,18 @@ Bases: {py:obj}`typing.Protocol`
 
 ````
 
-````{py:method} set_camera(camera: typing.Any) -> None
-:canonical: better_robot.viewer.renderers.base.RendererBackend.set_camera
+````{py:method} set_color(name: str, rgba: tuple[float, float, float, float]) -> None
+:canonical: better_robot.viewer.renderers.base.RendererBackend.set_color
 
-```{autodoc2-docstring} better_robot.viewer.renderers.base.RendererBackend.set_camera
+```{autodoc2-docstring} better_robot.viewer.renderers.base.RendererBackend.set_color
 ```
 
 ````
 
-````{py:method} capture_frame() -> np.ndarray
-:canonical: better_robot.viewer.renderers.base.RendererBackend.capture_frame
+````{py:method} set_scale(name: str, scale: float) -> None
+:canonical: better_robot.viewer.renderers.base.RendererBackend.set_scale
 
-```{autodoc2-docstring} better_robot.viewer.renderers.base.RendererBackend.capture_frame
+```{autodoc2-docstring} better_robot.viewer.renderers.base.RendererBackend.set_scale
 ```
 
 ````

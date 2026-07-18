@@ -7,15 +7,6 @@
 :allowtitles:
 ```
 
-## Subpackages
-
-```{toctree}
-:titlesonly:
-:maxdepth: 3
-
-better_robot.dynamics.action
-```
-
 ## Submodules
 
 ```{toctree}

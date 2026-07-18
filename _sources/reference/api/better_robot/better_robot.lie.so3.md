@@ -51,6 +51,14 @@
   - ```{autodoc2-docstring} better_robot.lie.so3.to_matrix
     :summary:
     ```
+* - {py:obj}`from_euler <better_robot.lie.so3.from_euler>`
+  - ```{autodoc2-docstring} better_robot.lie.so3.from_euler
+    :summary:
+    ```
+* - {py:obj}`to_euler <better_robot.lie.so3.to_euler>`
+  - ```{autodoc2-docstring} better_robot.lie.so3.to_euler
+    :summary:
+    ```
 * - {py:obj}`from_axis_angle <better_robot.lie.so3.from_axis_angle>`
   - ```{autodoc2-docstring} better_robot.lie.so3.from_axis_angle
     :summary:
@@ -74,59 +82,73 @@
 ```
 ````
 
-````{py:function} compose(a: torch.Tensor, b: torch.Tensor, *, backend: Backend | None = None) -> torch.Tensor
+````{py:function} compose(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.lie.so3.compose
 
 ```{autodoc2-docstring} better_robot.lie.so3.compose
 ```
 ````
 
-````{py:function} inverse(q: torch.Tensor, *, backend: Backend | None = None) -> torch.Tensor
+````{py:function} inverse(q: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.lie.so3.inverse
 
 ```{autodoc2-docstring} better_robot.lie.so3.inverse
 ```
 ````
 
-````{py:function} log(q: torch.Tensor, *, backend: Backend | None = None) -> torch.Tensor
+````{py:function} log(q: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.lie.so3.log
 
 ```{autodoc2-docstring} better_robot.lie.so3.log
 ```
 ````
 
-````{py:function} exp(w: torch.Tensor, *, backend: Backend | None = None) -> torch.Tensor
+````{py:function} exp(w: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.lie.so3.exp
 
 ```{autodoc2-docstring} better_robot.lie.so3.exp
 ```
 ````
 
-````{py:function} act(q: torch.Tensor, p: torch.Tensor, *, backend: Backend | None = None) -> torch.Tensor
+````{py:function} act(q: torch.Tensor, p: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.lie.so3.act
 
 ```{autodoc2-docstring} better_robot.lie.so3.act
 ```
 ````
 
-````{py:function} adjoint(q: torch.Tensor, *, backend: Backend | None = None) -> torch.Tensor
+````{py:function} adjoint(q: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.lie.so3.adjoint
 
 ```{autodoc2-docstring} better_robot.lie.so3.adjoint
 ```
 ````
 
-````{py:function} from_matrix(R: torch.Tensor, *, backend: Backend | None = None) -> torch.Tensor
+````{py:function} from_matrix(R: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.lie.so3.from_matrix
 
 ```{autodoc2-docstring} better_robot.lie.so3.from_matrix
 ```
 ````
 
-````{py:function} to_matrix(q: torch.Tensor, *, backend: Backend | None = None) -> torch.Tensor
+````{py:function} to_matrix(q: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.lie.so3.to_matrix
 
 ```{autodoc2-docstring} better_robot.lie.so3.to_matrix
+```
+````
+
+````{py:function} from_euler(euler: torch.Tensor) -> torch.Tensor
+:canonical: better_robot.lie.so3.from_euler
+
+```{autodoc2-docstring} better_robot.lie.so3.from_euler
+```
+````
+
+````{py:function} to_euler(q: torch.Tensor) -> torch.Tensor
+:canonical: better_robot.lie.so3.to_euler
+
+```{autodoc2-docstring} better_robot.lie.so3.to_euler
 ```
 ````
 
@@ -137,7 +159,7 @@
 ```
 ````
 
-````{py:function} normalize(q: torch.Tensor, *, backend: Backend | None = None) -> torch.Tensor
+````{py:function} normalize(q: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.lie.so3.normalize
 
 ```{autodoc2-docstring} better_robot.lie.so3.normalize

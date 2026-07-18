@@ -22,11 +22,15 @@ better_robot.data_model.joint_models
 :titlesonly:
 :maxdepth: 1
 
+better_robot.data_model.execution_batch
 better_robot.data_model.body
+better_robot.data_model.model_values
+better_robot.data_model.reduced_coordinates
 better_robot.data_model.joint
 better_robot.data_model.frame
 better_robot.data_model.topology
-better_robot.data_model.indexing
+better_robot.data_model.model_structure
 better_robot.data_model.model
 better_robot.data_model.data
+better_robot.data_model.joint_dispatch
 ```

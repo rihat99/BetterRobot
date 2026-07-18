@@ -54,7 +54,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Apr 26, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 18, 2026"/>
   </head>
   
   
@@ -148,18 +148,6 @@
           <a href="https://github.com/rihat99/BetterRobot" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
             <span class="sr-only">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/better-robot/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-python fa-lg" aria-hidden="true"></i>
-            <span class="sr-only">PyPI</span></a>
-        </li>
 </ul></div>
         <div class="sidebar-primary-item">
 
@@ -192,11 +180,19 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../concepts/kinematics.html">Kinematics</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../concepts/dynamics.html">Dynamics</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../concepts/residuals_and_costs.html">Residuals and Costs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../../concepts/solver_stack.html">The Solver Stack</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../../concepts/tasks.html">Tasks — IK, Trajectory Optimisation, Retargeting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../concepts/solver_stack.html">Named-Block Evaluation and the Legacy Solver Stack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../concepts/tasks.html">Tasks — IK and Trajectory Optimisation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../concepts/collision_and_geometry.html">Collision and Geometry</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../../concepts/batching_and_backends.html">Batching and Backends</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../concepts/batching_and_backends.html">Batching and Compute Lanes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../concepts/warp_bridge.html">Torch–Warp bridge and opt-in FK lane</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../concepts/viewer.html">Viewer</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../guides/custom_residuals.html">Write a custom block residual</a></li>
 </ul>
 </details></li>
 </ul>
@@ -208,6 +204,8 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../conventions/extension.html">Extension Points</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../conventions/testing.html">Testing</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../conventions/contracts.html">Contracts &amp; Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../conventions/engineering.html">Engineering Contract</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../conventions/source_and_license.html">Source and License Decision Memo</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../conventions/style.html">Coding Style</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../conventions/packaging.html">Packaging</a></li>
 </ul>
@@ -230,11 +228,9 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.viewer.render_modes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.render_modes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.viewer.overlays.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.overlays</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.viewer.trajectory_player.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.trajectory_player</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.viewer.interaction.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.interaction</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.viewer.visualizer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.visualizer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.viewer.panels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.panels</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.viewer.camera.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.camera</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.viewer.recorder.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.recorder</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.viewer.primitive.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.primitive</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.viewer.scene.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.scene</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.viewer.helpers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.helpers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.viewer.themes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.themes</span></code></a></li>
@@ -242,13 +238,17 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.temporal</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.registry.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.registry</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.base.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.base</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.human.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.human</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.manipulability.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.manipulability</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.collision</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.scene_sdf.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.scene_sdf</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.pose.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.pose</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.smoothness.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.smoothness</span></code></a></li>
 </ul>
@@ -269,7 +269,6 @@
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.dynamics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.dynamics.action.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.action</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.dynamics.integrators.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.integrators</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.dynamics.crba.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.crba</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.dynamics.rnea.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.rnea</span></code></a></li>
@@ -284,29 +283,23 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.optim.cost_stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.cost_stack</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.optim.state.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.state</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.optim.jacobian_spec.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.jacobian_spec</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.optim.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.structure</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.costs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.costs.stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.stack</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.costs.factory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.factory</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.utils.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.utils.testing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.testing</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.utils.batching.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.batching</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.utils.logging.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.logging</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.utils.broadcasting.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.broadcasting</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.tasks.ik.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.ik</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.tasks.parameterization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.parameterization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.tasks.trajectory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajectory</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.tasks.retarget.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.retarget</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.tasks.trajopt.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajopt</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.tasks.smoothing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.smoothing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.tasks.contact_forces.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.contact_forces</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.lie.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -314,37 +307,38 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.lie.se3.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.se3</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.lie.types.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.types</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.lie.tangents.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.tangents</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.lie.alignment.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.alignment</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.kinematics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.kinematics.jacobian.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.kinematics.jacobian_strategy.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian_strategy</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.kinematics.chain.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.chain</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.kinematics.forward.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.forward</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.data_model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint_models</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.data_model.execution_batch.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.execution_batch</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.data_model.body.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.body</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.data_model.model_values.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model_values</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.data_model.reduced_coordinates.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.reduced_coordinates</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.data_model.joint.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.data_model.frame.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.frame</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.data_model.topology.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.topology</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.data_model.indexing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.indexing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.data_model.model_structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model_structure</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.data_model.model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.data_model.data.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.data</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.backends.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.backends.torch_native.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.torch_native</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.backends.warp.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.warp</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.backends.protocol.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.protocol</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.data_model.joint_dispatch.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint_dispatch</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.exceptions.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.exceptions</span></code></a></li>
 </ul>
 </details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../reference/named_block_solvers.html">Named-block solver API</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../reference/changelog.html">Changelog</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../reference/roadmap.html">Roadmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../reference/m1_removed_symbols.html">M1 removed surfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../reference/m3_removed_symbols.html">M3.5 removed surfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../reference/glossary.html">Glossary</a></li>
 </ul>
 </details></li>
@@ -352,7 +346,6 @@
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Project Links</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/rihat99/BetterRobot">GitHub</a></li>
-<li class="toctree-l1"><a class="reference external" href="https://pypi.org/project/better-robot/">PyPI</a></li>
 </ul>
 
     </div>
@@ -540,9 +533,7 @@
         <span class="k">return</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">mass_per_body</span><span class="p">)]</span> <span class="o">*</span> <span class="n">n</span>
     <span class="n">masses</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">m</span><span class="p">)</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">mass_per_body</span><span class="p">]</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">masses</span><span class="p">)</span> <span class="o">!=</span> <span class="n">n</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;mass_per_body length </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">masses</span><span class="p">)</span><span class="si">}</span><span class="s2"> does not match number of bodies </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mass_per_body length </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">masses</span><span class="p">)</span><span class="si">}</span><span class="s2"> does not match number of bodies </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">masses</span>
 
 
@@ -560,15 +551,11 @@
         <span class="k">return</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">n</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">com_per_body</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
         <span class="k">if</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">com_per_body</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;com_per_body shape </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">com_per_body</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2"> must be (</span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">, 3)&quot;</span>
-            <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;com_per_body shape </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">com_per_body</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2"> must be (</span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">, 3)&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">com_per_body</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)]</span>
     <span class="n">coms</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">com_per_body</span><span class="p">)</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">coms</span><span class="p">)</span> <span class="o">!=</span> <span class="n">n</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;com_per_body length </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">coms</span><span class="p">)</span><span class="si">}</span><span class="s2"> does not match number of bodies </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;com_per_body length </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">coms</span><span class="p">)</span><span class="si">}</span><span class="s2"> does not match number of bodies </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="n">out</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">coms</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,):</span>
@@ -587,15 +574,11 @@
         <span class="k">return</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">n</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">inertia_per_body</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
         <span class="k">if</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">inertia_per_body</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;inertia_per_body shape </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">inertia_per_body</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2"> must be (</span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">, 3, 3)&quot;</span>
-            <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;inertia_per_body shape </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">inertia_per_body</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2"> must be (</span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">, 3, 3)&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">inertia_per_body</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)]</span>
     <span class="n">inertias</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">inertia_per_body</span><span class="p">)</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">inertias</span><span class="p">)</span> <span class="o">!=</span> <span class="n">n</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;inertia_per_body length </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">inertias</span><span class="p">)</span><span class="si">}</span><span class="s2"> does not match number of bodies </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;inertia_per_body length </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">inertias</span><span class="p">)</span><span class="si">}</span><span class="s2"> does not match number of bodies </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="n">out</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">I</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">inertias</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">I</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">I</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
@@ -652,15 +635,11 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">joint_names</span><span class="p">)</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parents</span><span class="p">)</span> <span class="o">!=</span> <span class="n">n</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;parents length </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">parents</span><span class="p">)</span><span class="si">}</span><span class="s2"> does not match joint_names length </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;parents length </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">parents</span><span class="p">)</span><span class="si">}</span><span class="s2"> does not match joint_names length </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">parents</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;parents[0] must be -1 (root), got </span><span class="si">{</span><span class="n">parents</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">translations</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;translations shape </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">translations</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2"> must be (</span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">, 3)&quot;</span>
-        <span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;translations shape </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">translations</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2"> must be (</span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">, 3)&quot;</span><span class="p">)</span>
     <span class="n">masses</span> <span class="o">=</span> <span class="n">_normalize_mass</span><span class="p">(</span><span class="n">mass_per_body</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
     <span class="n">dtype</span> <span class="o">=</span> <span class="n">translations</span><span class="o">.</span><span class="n">dtype</span>
     <span class="n">coms</span> <span class="o">=</span> <span class="n">_normalize_com</span><span class="p">(</span><span class="n">com_per_body</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
@@ -679,17 +658,19 @@
         <span class="n">child</span><span class="o">=</span><span class="n">joint_names</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
         <span class="n">origin</span><span class="o">=</span><span class="n">_origin_from_translation</span><span class="p">(</span><span class="n">translations</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="p">),</span>
         <span class="n">axis</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">lower</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">upper</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">velocity_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">effort_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">mimic_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mimic_multiplier</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">mimic_offset</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">lower</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">upper</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">velocity_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">effort_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">mimic_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">mimic_multiplier</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">mimic_offset</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
         <span class="n">pidx</span> <span class="o">=</span> <span class="n">parents</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
         <span class="k">if</span> <span class="n">pidx</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">pidx</span> <span class="o">&gt;=</span> <span class="n">idx</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;parents[</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">] = </span><span class="si">{</span><span class="n">pidx</span><span class="si">}</span><span class="s2"> must reference an earlier index in [0, </span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">)&quot;</span>
-            <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;parents[</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">] = </span><span class="si">{</span><span class="n">pidx</span><span class="si">}</span><span class="s2"> must reference an earlier index in [0, </span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
         <span class="n">b</span><span class="o">.</span><span class="n">_push_joint</span><span class="p">(</span>
             <span class="n">joint_names</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span>
             <span class="n">kind</span><span class="o">=</span><span class="n">child_kind</span><span class="p">,</span>
@@ -697,9 +678,13 @@
             <span class="n">child</span><span class="o">=</span><span class="n">joint_names</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span>
             <span class="n">origin</span><span class="o">=</span><span class="n">_origin_from_translation</span><span class="p">(</span><span class="n">translations</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">dtype</span><span class="p">),</span>
             <span class="n">axis</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">lower</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">upper</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">velocity_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">effort_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">mimic_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mimic_multiplier</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">mimic_offset</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+            <span class="n">lower</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">upper</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">velocity_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">effort_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">mimic_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">mimic_multiplier</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+            <span class="n">mimic_offset</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
         <span class="p">)</span>
 
     <span class="k">return</span> <span class="n">b</span><span class="o">.</span><span class="n">finalize</span><span class="p">()</span></div>
@@ -719,10 +704,15 @@
     <span class="n">mass_per_body</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
     <span class="n">com_per_body</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">inertia_per_body</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">preserve_joint_order</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">device</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">dtype</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Model</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a frozen ``Model`` for a kinematic tree. See ``build_kinematic_tree_body``.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a frozen ``Model`` for a kinematic tree.</span>
+
+<span class="sd">    See :func:`build_kinematic_tree_body`. Set ``preserve_joint_order=True``</span>
+<span class="sd">    to retain the supplied, already-topological ``joint_names`` layout.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">ir</span> <span class="o">=</span> <span class="n">build_kinematic_tree_body</span><span class="p">(</span>
         <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
         <span class="n">joint_names</span><span class="o">=</span><span class="n">joint_names</span><span class="p">,</span>
@@ -734,7 +724,12 @@
         <span class="n">com_per_body</span><span class="o">=</span><span class="n">com_per_body</span><span class="p">,</span>
         <span class="n">inertia_per_body</span><span class="o">=</span><span class="n">inertia_per_body</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="k">return</span> <span class="n">build_model</span><span class="p">(</span><span class="n">ir</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">build_model</span><span class="p">(</span>
+        <span class="n">ir</span><span class="p">,</span>
+        <span class="n">preserve_joint_order</span><span class="o">=</span><span class="n">preserve_joint_order</span><span class="p">,</span>
+        <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
+        <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">,</span>
+    <span class="p">)</span></div>
 
 </pre></div>
 
@@ -783,7 +778,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Apr 26, 2026.
+  Last updated on Jul 18, 2026.
   <br/>
 </p>
   </div>

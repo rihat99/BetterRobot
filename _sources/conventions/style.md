@@ -59,11 +59,13 @@ uv run mypy src/better_robot/
 uv run pytest
 ```
 
-A `pre-commit` hook runs `ruff format`, `ruff check`, and the fast
-contract subset on every commit. Install once:
+A commit-stage hook runs ``ruff format`` and ``ruff check``. The fast contract
+subset is configured separately for ``pre-push``; neither hook runs until it is
+installed:
 
 ```bash
 uv run pre-commit install
+uv run pre-commit install --hook-type pre-push
 ```
 
 ## 3 · Naming
@@ -130,9 +132,11 @@ needs degrees; never internally.
 
 ## 6 · Type annotations
 
-Public surface: full type annotations including `jaxtyping`-style
-shape annotations (see {doc}`naming` §2.9). Internal helpers:
-annotations encouraged, not enforced.
+Public signatures should carry ordinary Python type annotations, with tensor
+shapes stated in docstrings (see {doc}`naming` §2.9). Internal-helper
+annotations are encouraged. Current tooling is transitional: ``mypy`` runs
+with ``strict = false`` in ``pyproject.toml``, and no automatic mypy/pyright
+workflow job is configured.
 
 - Use modern syntax: `list[int]`, `dict[str, float]`, `X | None`.
   Min Python is 3.10.
@@ -142,9 +146,10 @@ annotations encouraged, not enforced.
 - Use `typing.Self` for fluent methods returning the same type.
 - Use `TypeAlias` (or `type` statement on 3.12+) for non-trivial type
   names that appear in many places — see `_typing.py`.
-- `mypy --strict` (or `pyright` in strict mode) must pass on
-  `src/better_robot/`. New `# type: ignore` comments require a
-  comment explaining why and ideally a linked issue.
+- Run the configured ``mypy`` and ``pyright`` checks on changed typed surfaces.
+  Do not describe them as strict or CI-blocking until configuration and the
+  workflow actually enforce that. New ``# type: ignore`` comments require a
+  reason.
 
 ```python
 from typing import Protocol
@@ -152,13 +157,23 @@ from torch import Tensor
 from jaxtyping import Float
 
 class Optimizer(Protocol):
-    def minimize(self, problem: "LeastSquaresProblem") -> "SolverState": ...
+    def minimize(
+        self,
+        problem: "LeastSquaresProblem",
+        *,
+        max_iter: int,
+        linear_solver,
+        kernel,
+        strategy,
+        scheduler=None,
+    ) -> "SolverState": ...
 
 def forward_kinematics(
     model: "Model",
     q_or_data: Float[Tensor, "*B nq"] | "Data",
     *,
     compute_frames: bool = False,
+    check_quaternion_norm: bool = False,
 ) -> "Data": ...
 ```
 
@@ -179,6 +194,7 @@ def forward_kinematics(
     q_or_data: ConfigTensor | Data,
     *,
     compute_frames: bool = False,
+    check_quaternion_norm: bool = False,
 ) -> Data:
     """Compute the placements of every joint, batched.
 
@@ -190,6 +206,9 @@ def forward_kinematics(
         Configuration. Passing a ``Data`` reuses its allocated buffers.
     compute_frames : bool, default False
         If True, also fill ``data.frame_pose_world``.
+    check_quaternion_norm : bool, default False
+        Opt-in free-flyer norm diagnostic. It synchronizes accelerator tensors;
+        the default hot path assumes pre-normalized quaternions.
 
     Returns
     -------
@@ -202,7 +221,8 @@ def forward_kinematics(
     Raises
     ------
     QuaternionNormError
-        If a free-flyer base quaternion has norm outside ``[0.9, 1.1]``.
+        If ``check_quaternion_norm=True`` and a free-flyer base quaternion has
+        norm outside ``[0.9, 1.1]``.
 
     Notes
     -----
@@ -216,7 +236,8 @@ def forward_kinematics(
 
     Examples
     --------
-    >>> model = better_robot.load("panda.urdf")
+    >>> from robot_descriptions import panda_description
+    >>> model = better_robot.load(panda_description.URDF_PATH)
     >>> q = model.q_neutral.unsqueeze(0)
     >>> data = better_robot.forward_kinematics(model, q, compute_frames=True)
     """
@@ -234,12 +255,15 @@ Conventions inside docstrings:
 
 ## 8 · Configs and dataclasses
 
-- `@dataclass(frozen=True)` for all configs (`IKCostConfig`,
-  `OptimizerConfig`, `OptimizerStage`, …).
-- Validation in `__post_init__`. Raise `BetterRobotError` subclasses,
-  not bare `ValueError`.
-- **No Pydantic; no custom metaclass.** Plain `@dataclass` +
-  `__post_init__` is the discipline.
+- Match mutability to the current API. ``Model`` and structural specs use
+  frozen dataclasses; task configs such as ``IKCostConfig`` and
+  ``OptimizerConfig`` are currently plain mutable dataclasses.
+- Validate at construction or the owning public boundary. Existing code uses
+  typed BetterRobot exceptions where wired and direct ``TypeError`` /
+  ``ValueError`` elsewhere; new code should use the most specific established
+  exception.
+- **No Pydantic; no custom metaclass.** Plain dataclasses and explicit
+  validation keep configuration inspectable.
 
 ## 9 · Errors
 
@@ -249,16 +273,17 @@ Conventions inside docstrings:
 - Error messages name the offending input and the expected shape /
   type / value. Example: `"q has trailing size 6, expected 7
   (Panda)"`.
-- Bare `except:` and `except Exception:` are forbidden in `src/`.
+- Bare ``except:`` is forbidden. A narrow ``except Exception`` is permitted at
+  an optional-runtime/parser or cleanup boundary only when it immediately
+  converts, annotates, or safely cleans up the failure; it must not hide an
+  algorithm error.
 
 ## 10 · Logging
 
-- `logger = logging.getLogger(__name__)` per module.
-- `print()` is forbidden in `src/`. Allowed in `examples/` and CLI
-  tools.
-- The library configures `logging.NullHandler` on `better_robot`
-  (already done in `utils/logging.py`).
-- Format strings use `%` placeholders for deferred formatting:
+BetterRobot currently has no package logging surface. Library code should not
+print unsolicited diagnostics. If a module adds logging, use
+``logging.getLogger(__name__)`` without configuring application handlers, and
+use ``%`` placeholders for deferred formatting:
 
   ```python
   logger.debug("iter %d residual %.3e", i, r)
@@ -273,43 +298,47 @@ Conventions inside docstrings:
 
 ## 12 · Mutability
 
-- `Model`: immutable (`@dataclass(frozen=True)`).
-- `Data`: mutable but per-thread; `__setattr__` invalidates caches.
-- `IKResult`, `Trajectory`: frozen dataclasses; modifications return
-  new instances (`slice`, `resample`, `with_batch_dims`).
-- `CostStack`: controlled mutation via `.add`, `.set_weight`,
-  `.set_active`. No direct field assignment.
+- `Model`: shallowly frozen (`@dataclass(frozen=True)`); contained tensors and
+  mappings still require read-only discipline.
+- `Data`: mutable and evaluation-local; cache levels are advanced/invalidated
+  by the owning operations.
+- `IKResult`, `Trajectory`: plain mutable dataclasses. ``Trajectory.slice``,
+  ``resample``, and ``with_batch_dims`` return new instances, but that does not
+  freeze existing fields or tensors.
+- `CostStack`: mutable through `.add`, `.remove`, `.set_weight`, and
+  `.set_active`; its public `items` mapping also exposes mutable `CostItem`
+  values, so keep each stack problem-local.
 
 ## 13 · Numerics
 
 - **Vectorise** with `torch` ops. Read the published numerical
   formula, write the readable batched version, profile, optimise.
 - **Numerical tolerances are explicit**: never compare floats with
-  `==`. Use `torch.allclose(..., atol=..., rtol=...)` or
-  `assert_close_manifold(...)` for SE(3) values.
-- **Allocating vs. in-place**: by default, functions allocate and
-  return new tensors. The hot-path `Data.reset()` and `SolverState`
-  reset are the in-place exceptions; they live in pre-allocated
-  buffers.
+  `==`. Use `torch.testing.assert_close(..., atol=..., rtol=...)` for Euclidean
+  values. For SE(3), compare translation normally and rotation through
+  `so3.to_matrix`, or compare a relative-log tangent norm; quaternion component
+  equality is not sign-invariant.
+- **Allocating vs. in-place**: direct math functions normally return new
+  tensors. ``Data`` cache mutation and the private ``GraphExecutor.reset``
+  lifecycle are explicit exceptions; legacy ``SolverState`` has no reset
+  method.
 - **Avoid mutable default arguments** — use `None` and construct
   inside.
-- **Pure functions in math** (`lie/`, `spatial/`, `kinematics/`,
-  `dynamics/`); side effects belong at the I/O and viewer layers.
+- **Pure raw math, explicit workspace mutation**: ``lie/`` and raw
+  kinematics/dynamics passes are functional; public wrappers may populate a
+  caller-provided mutable ``Data`` workspace.
 
 ## 14 · Hot-path discipline
 
-The lint rules in `tests/contract/test_hot_path_lint.py` (see
-{doc}`performance`) forbid:
+The executable rule list and exact watched paths live in
+``tests/contract/test_hot_path_lint.py`` and are summarized in
+{doc}`performance`. Today they cover ``.item()``/``.cpu()``, proven tensor
+scalar conversions, ``.new_tensor()``, selected allocations inside Python
+loops, and ``if x.dim()`` rank branches. The test does not implement a general
+ban on every tensor conditional, ``.numpy()``, or all allocations.
 
-- Branching on `tensor.dim()` — rely on the leading-batch convention.
-- `.item()` / `.cpu()` / `.numpy()` in compiled regions.
-- `torch.zeros` / `torch.empty` / `torch.ones` inside a `for` loop
-  body.
-- Python `if` on tensor values (use `torch.where` or assert as
-  contract).
-
-Suppress with `# bench-ok: <reason>`. A PR adding more than three new
-`bench-ok` comments fails CI.
+A legitimate eager/static boundary may use ``# bench-ok: <reason>``. There is
+no numeric exemption-count gate or automatic pull-request workflow.
 
 ## 15 · Language features
 
@@ -334,9 +363,7 @@ Suppress with `# bench-ok: <reason>`. A PR adding more than three new
 - Bare `except:` clauses.
 - Module-level side effects (besides defining names).
 - Global mutable state. Registries are acceptable; configuration
-  singletons are not — except for `default_backend()`, which is
-  documented as one-time configuration in
-  {doc}`/concepts/batching_and_backends`.
+  singletons and process-wide compute selectors are not.
 - `eval`, `exec` — never.
 
 ## 16 · Pull requests and reviews
@@ -344,8 +371,9 @@ Suppress with `# bench-ok: <reason>`. A PR adding more than three new
 - **One logical change per PR.** Many small PRs over one large.
 - PR description states what changed and why, links related issues,
   and notes any breaking changes.
-- All checks green before review: format, lint, type-check, tests,
-  docs build.
+- Relevant local or manually dispatched checks are green before review:
+  format, lint, type-check, tests, and docs build. The repository currently
+  has no automatic pull-request workflow.
 - New public API requires: tests, NumPy-style docstring with at least
   one example, changelog entry, and (if non-trivial) a doc page or
   notebook.
@@ -365,9 +393,8 @@ Before merging:
       `BetterRobotError`.
 - [ ] Has tests, including at least one property-based test if a
       mathematical invariant exists.
-- [ ] Listed in the relevant `__all__`; if top-level, the `EXPECTED`
-      set in `tests/contract/test_public_api.py` was updated in the
-      same PR.
+- [ ] Listed in the relevant `__all__`; if top-level, the required-core
+      contract was updated when applicable.
 - [ ] Mentioned in `CHANGELOG.md` under "Added".
 
 ---
@@ -376,6 +403,6 @@ Before merging:
 
 - {doc}`naming` — naming policy and rename table.
 - {doc}`performance` — perf budgets and lint rules.
-- {doc}`testing` — test strategy and coverage budgets.
+- {doc}`testing` — test strategy, local commands, and current automation.
 - {doc}`contracts` — input contracts and exception taxonomy.
 - {doc}`packaging` — extras, releases, deprecation.

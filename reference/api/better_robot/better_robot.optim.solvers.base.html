@@ -52,12 +52,12 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'reference/api/better_robot/better_robot.optim.solvers.base';</script>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
-    <link rel="next" title="better_robot.optim.solvers.cg" href="better_robot.optim.solvers.cg.html" />
-    <link rel="prev" title="better_robot.optim.solvers" href="better_robot.optim.solvers.html" />
+    <link rel="next" title="better_robot.optim.solvers.banded_cholesky" href="better_robot.optim.solvers.banded_cholesky.html" />
+    <link rel="prev" title="better_robot.optim.solvers.normal_cg" href="better_robot.optim.solvers.normal_cg.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Apr 26, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 18, 2026"/>
   </head>
   
   
@@ -149,18 +149,6 @@
           <a href="https://github.com/rihat99/BetterRobot" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
             <span class="sr-only">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/better-robot/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-python fa-lg" aria-hidden="true"></i>
-            <span class="sr-only">PyPI</span></a>
-        </li>
 </ul></div>
         <div class="sidebar-primary-item">
 
@@ -193,11 +181,19 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics.html">Kinematics</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_and_costs.html">Residuals and Costs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/solver_stack.html">The Solver Stack</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/tasks.html">Tasks — IK, Trajectory Optimisation, Retargeting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/solver_stack.html">Named-Block Evaluation and the Legacy Solver Stack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/tasks.html">Tasks — IK and Trajectory Optimisation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/collision_and_geometry.html">Collision and Geometry</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/batching_and_backends.html">Batching and Backends</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/batching_and_backends.html">Batching and Compute Lanes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/warp_bridge.html">Torch–Warp bridge and opt-in FK lane</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/custom_residuals.html">Write a custom block residual</a></li>
 </ul>
 </details></li>
 </ul>
@@ -209,6 +205,8 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/extension.html">Extension Points</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/testing.html">Testing</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/contracts.html">Contracts &amp; Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/engineering.html">Engineering Contract</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/source_and_license.html">Source and License Decision Memo</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/style.html">Coding Style</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/packaging.html">Packaging</a></li>
 </ul>
@@ -231,11 +229,9 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.viewer.render_modes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.render_modes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.viewer.overlays.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.overlays</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.viewer.trajectory_player.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.trajectory_player</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.viewer.interaction.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.interaction</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.viewer.visualizer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.visualizer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.viewer.panels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.panels</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.viewer.camera.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.camera</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.viewer.recorder.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.recorder</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.viewer.primitive.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.primitive</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.viewer.scene.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.scene</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.viewer.helpers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.helpers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.viewer.themes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.themes</span></code></a></li>
@@ -243,13 +239,17 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="better_robot.residuals.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.temporal</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.registry.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.registry</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.base.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.base</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.human.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.human</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.manipulability.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.manipulability</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.collision</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.scene_sdf.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.scene_sdf</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.pose.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.pose</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.smoothness.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.smoothness</span></code></a></li>
 </ul>
@@ -270,7 +270,6 @@
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="better_robot.dynamics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.dynamics.action.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.action</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.dynamics.integrators.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.integrators</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.dynamics.crba.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.crba</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.dynamics.rnea.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.rnea</span></code></a></li>
@@ -285,29 +284,23 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4 current active"><a class="reference internal" href="better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.cost_stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.cost_stack</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.state.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.state</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.jacobian_spec.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.jacobian_spec</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.structure</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="better_robot.costs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.costs.stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.stack</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.costs.factory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.factory</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="better_robot.utils.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.utils.testing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.testing</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.utils.batching.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.batching</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.utils.logging.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.logging</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.utils.broadcasting.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.broadcasting</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.tasks.ik.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.ik</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.tasks.parameterization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.parameterization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.tasks.trajectory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajectory</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.tasks.retarget.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.retarget</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.tasks.trajopt.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajopt</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.tasks.smoothing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.smoothing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.tasks.contact_forces.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.contact_forces</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="better_robot.lie.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -315,37 +308,38 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.lie.se3.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.se3</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.lie.types.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.types</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.lie.tangents.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.tangents</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.lie.alignment.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.alignment</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="better_robot.kinematics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.kinematics.jacobian.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.kinematics.jacobian_strategy.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian_strategy</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.kinematics.chain.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.chain</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.kinematics.forward.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.forward</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="better_robot.data_model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.data_model.joint_models.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint_models</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.data_model.execution_batch.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.execution_batch</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.data_model.body.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.body</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.data_model.model_values.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model_values</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.data_model.reduced_coordinates.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.reduced_coordinates</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.data_model.joint.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.data_model.frame.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.frame</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.data_model.topology.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.topology</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.data_model.indexing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.indexing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.data_model.model_structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model_structure</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.data_model.model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.data_model.data.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.data</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="better_robot.backends.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.backends.torch_native.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.torch_native</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.backends.warp.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.warp</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.backends.protocol.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.protocol</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.data_model.joint_dispatch.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint_dispatch</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3"><a class="reference internal" href="better_robot.exceptions.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.exceptions</span></code></a></li>
 </ul>
 </details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../named_block_solvers.html">Named-block solver API</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../changelog.html">Changelog</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../roadmap.html">Roadmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../m1_removed_symbols.html">M1 removed surfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../m3_removed_symbols.html">M3.5 removed surfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../glossary.html">Glossary</a></li>
 </ul>
 </details></li>
@@ -353,7 +347,6 @@
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Project Links</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/rihat99/BetterRobot">GitHub</a></li>
-<li class="toctree-l1"><a class="reference external" href="https://pypi.org/project/better-robot/">PyPI</a></li>
 </ul>
 
     </div>
@@ -430,7 +423,7 @@
       
       
       
-      <li><a href="https://github.com/rihat99/BetterRobot/edit/main/docs/reference/api/better_robot/better_robot.optim.solvers.base.md" target="_blank"
+      <li><a href="https://github.com/rihat99/BetterRobot/edit/dev/docs/reference/api/better_robot/better_robot.optim.solvers.base.md" target="_blank"
    class="btn btn-sm btn-source-edit-button dropdown-item"
    title="Suggest edit"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -565,9 +558,34 @@
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#module-contents">Module Contents</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#classes">Classes</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#data">Data</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#api">API</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSystem"><code class="docutils literal notranslate"><span class="pre">LinearSystem</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveStatus"><code class="docutils literal notranslate"><span class="pre">LinearSolveStatus</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveStatus.SUCCESS"><code class="docutils literal notranslate"><span class="pre">LinearSolveStatus.SUCCESS</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveStatus.MAX_ITER"><code class="docutils literal notranslate"><span class="pre">LinearSolveStatus.MAX_ITER</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveStatus.NONFINITE"><code class="docutils literal notranslate"><span class="pre">LinearSolveStatus.NONFINITE</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveStatus.BREAKDOWN"><code class="docutils literal notranslate"><span class="pre">LinearSolveStatus.BREAKDOWN</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveStatus.NOT_SPD"><code class="docutils literal notranslate"><span class="pre">LinearSolveStatus.NOT_SPD</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveResult"><code class="docutils literal notranslate"><span class="pre">LinearSolveResult</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveResult.solution"><code class="docutils literal notranslate"><span class="pre">LinearSolveResult.solution</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveResult.converged"><code class="docutils literal notranslate"><span class="pre">LinearSolveResult.converged</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveResult.finite"><code class="docutils literal notranslate"><span class="pre">LinearSolveResult.finite</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveResult.ok"><code class="docutils literal notranslate"><span class="pre">LinearSolveResult.ok</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveResult.iterations"><code class="docutils literal notranslate"><span class="pre">LinearSolveResult.iterations</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveResult.residual_norm"><code class="docutils literal notranslate"><span class="pre">LinearSolveResult.residual_norm</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveResult.relative_residual"><code class="docutils literal notranslate"><span class="pre">LinearSolveResult.relative_residual</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveResult.status"><code class="docutils literal notranslate"><span class="pre">LinearSolveResult.status</span></code></a></li>
+</ul>
+</li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolver"><code class="docutils literal notranslate"><span class="pre">LinearSolver</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolver.solve"><code class="docutils literal notranslate"><span class="pre">LinearSolver.solve()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.InformativeLinearSolver"><code class="docutils literal notranslate"><span class="pre">InformativeLinearSolver</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.InformativeLinearSolver.solve_with_info"><code class="docutils literal notranslate"><span class="pre">InformativeLinearSolver.solve_with_info()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -587,20 +605,41 @@
                   
   <section id="module-better_robot.optim.solvers.base">
 <span id="better-robot-optim-solvers-base"></span><h1><a class="reference internal" href="#module-better_robot.optim.solvers.base" title="better_robot.optim.solvers.base"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers.base</span></code></a><a class="headerlink" href="#module-better_robot.optim.solvers.base" title="Link to this heading">#</a></h1>
-<p><code class="docutils literal notranslate"><span class="pre">LinearSolver</span></code> protocol — solves <code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">b</span></code> inside an optimiser.</p>
-<p>Implementations live beside this file under <code class="docutils literal notranslate"><span class="pre">optim/solvers/</span></code> (<code class="docutils literal notranslate"><span class="pre">Cholesky</span></code>,
-<code class="docutils literal notranslate"><span class="pre">LSTSQ</span></code>, <code class="docutils literal notranslate"><span class="pre">CG</span></code>, <code class="docutils literal notranslate"><span class="pre">SparseCholesky</span></code>). A concrete class is a <code class="docutils literal notranslate"><span class="pre">LinearSolver</span></code>
-if it provides a <code class="docutils literal notranslate"><span class="pre">solve(A,</span> <span class="pre">b)</span> <span class="pre">-&gt;</span> <span class="pre">Tensor</span></code> method with the right signature;
-<code class="docutils literal notranslate"><span class="pre">&#64;runtime_checkable</span></code> lets callers verify that with <code class="docutils literal notranslate"><span class="pre">isinstance</span></code>.</p>
-<p>See <code class="docutils literal notranslate"><span class="pre">docs/concepts/solver_stack.md</span> <span class="pre">§5</span></code> and <code class="docutils literal notranslate"><span class="pre">docs/conventions/extension.md</span> <span class="pre">§5</span></code>.</p>
+<p>Linear-system representations and the pluggable solver protocols.</p>
+<p>The stable public seam remains <code class="docutils literal notranslate"><span class="pre">solve(A,</span> <span class="pre">b,</span> <span class="pre">ridge=None)</span> <span class="pre">-&gt;</span> <span class="pre">Tensor</span></code>.
+Structured and matrix-free system representations do not make diagnostics
+or warm starts mandatory for existing third-party solvers. Implementations
+that can report per-element health may additionally satisfy
+<code class="docutils literal notranslate"><span class="pre">InformativeLinearSolver</span></code>.</p>
+<p>See <code class="docutils literal notranslate"><span class="pre">docs/concepts/solver_stack.md</span></code> and <code class="docutils literal notranslate"><span class="pre">docs/conventions/extension.md</span></code>.</p>
 <section id="module-contents">
 <h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading">#</a></h2>
 <section id="classes">
 <h3>Classes<a class="headerlink" href="#classes" title="Link to this heading">#</a></h3>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table table-left">
 <tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.optim.solvers.base.LinearSolveStatus" title="better_robot.optim.solvers.base.LinearSolveStatus"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LinearSolveStatus</span></code></a></p></td>
+<td><p>Per-element status emitted by an informative linear solver.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#better_robot.optim.solvers.base.LinearSolveResult" title="better_robot.optim.solvers.base.LinearSolveResult"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LinearSolveResult</span></code></a></p></td>
+<td><p>Fixed-structure tensor diagnostics for one batched linear solve.</p></td>
+</tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.optim.solvers.base.LinearSolver" title="better_robot.optim.solvers.base.LinearSolver"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LinearSolver</span></code></a></p></td>
-<td><p>Linear solver for the normal-equation step <code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">b</span></code>.</p></td>
+<td><p>Linear solver for <code class="docutils literal notranslate"><span class="pre">(A</span> <span class="pre">+</span> <span class="pre">ridge</span> <span class="pre">I)</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">b</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#better_robot.optim.solvers.base.InformativeLinearSolver" title="better_robot.optim.solvers.base.InformativeLinearSolver"><code class="xref py py-obj docutils literal notranslate"><span class="pre">InformativeLinearSolver</span></code></a></p></td>
+<td><p>Optional diagnostic and warm-start capability for a linear solver.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="data">
+<h3>Data<a class="headerlink" href="#data" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table table-left">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.optim.solvers.base.LinearSystem" title="better_robot.optim.solvers.base.LinearSystem"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LinearSystem</span></code></a></p></td>
+<td></td>
 </tr>
 </tbody>
 </table>
@@ -608,17 +647,130 @@ if it provides a <code class="docutils literal notranslate"><span class="pre">so
 </section>
 <section id="api">
 <h3>API<a class="headerlink" href="#api" title="Link to this heading">#</a></h3>
+<dl class="py data">
+<dt class="sig sig-object py" id="better_robot.optim.solvers.base.LinearSystem">
+<span class="sig-name descname"><span class="pre">LinearSystem</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.TypeAlias" title="(in Python v3.14)"><span class="pre">TypeAlias</span></a></em><a class="headerlink" href="#better_robot.optim.solvers.base.LinearSystem" title="Link to this definition">#</a></dt>
+<dd><p>None</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="better_robot.optim.solvers.base.LinearSolveStatus">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">LinearSolveStatus</span></span><a class="reference internal" href="../../../_modules/better_robot/optim/solvers/base.html#LinearSolveStatus"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.solvers.base.LinearSolveStatus" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/enum.html#enum.IntEnum" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">enum.IntEnum</span></code></a></p>
+<p>Per-element status emitted by an informative linear solver.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_robot.optim.solvers.base.LinearSolveStatus.SUCCESS">
+<span class="sig-name descname"><span class="pre">SUCCESS</span></span><a class="headerlink" href="#better_robot.optim.solvers.base.LinearSolveStatus.SUCCESS" title="Link to this definition">#</a></dt>
+<dd><p>0</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_robot.optim.solvers.base.LinearSolveStatus.MAX_ITER">
+<span class="sig-name descname"><span class="pre">MAX_ITER</span></span><a class="headerlink" href="#better_robot.optim.solvers.base.LinearSolveStatus.MAX_ITER" title="Link to this definition">#</a></dt>
+<dd><p>1</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_robot.optim.solvers.base.LinearSolveStatus.NONFINITE">
+<span class="sig-name descname"><span class="pre">NONFINITE</span></span><a class="headerlink" href="#better_robot.optim.solvers.base.LinearSolveStatus.NONFINITE" title="Link to this definition">#</a></dt>
+<dd><p>2</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_robot.optim.solvers.base.LinearSolveStatus.BREAKDOWN">
+<span class="sig-name descname"><span class="pre">BREAKDOWN</span></span><a class="headerlink" href="#better_robot.optim.solvers.base.LinearSolveStatus.BREAKDOWN" title="Link to this definition">#</a></dt>
+<dd><p>3</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_robot.optim.solvers.base.LinearSolveStatus.NOT_SPD">
+<span class="sig-name descname"><span class="pre">NOT_SPD</span></span><a class="headerlink" href="#better_robot.optim.solvers.base.LinearSolveStatus.NOT_SPD" title="Link to this definition">#</a></dt>
+<dd><p>4</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="better_robot.optim.solvers.base.LinearSolveResult">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">LinearSolveResult</span></span><a class="reference internal" href="../../../_modules/better_robot/optim/solvers/base.html#LinearSolveResult"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.solvers.base.LinearSolveResult" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.NamedTuple" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">typing.NamedTuple</span></code></a></p>
+<p>Fixed-structure tensor diagnostics for one batched linear solve.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_robot.optim.solvers.base.LinearSolveResult.solution">
+<span class="sig-name descname"><span class="pre">solution</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.solvers.base.LinearSolveResult.solution" title="Link to this definition">#</a></dt>
+<dd><p>None</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_robot.optim.solvers.base.LinearSolveResult.converged">
+<span class="sig-name descname"><span class="pre">converged</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.solvers.base.LinearSolveResult.converged" title="Link to this definition">#</a></dt>
+<dd><p>None</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_robot.optim.solvers.base.LinearSolveResult.finite">
+<span class="sig-name descname"><span class="pre">finite</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.solvers.base.LinearSolveResult.finite" title="Link to this definition">#</a></dt>
+<dd><p>None</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_robot.optim.solvers.base.LinearSolveResult.ok">
+<span class="sig-name descname"><span class="pre">ok</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.solvers.base.LinearSolveResult.ok" title="Link to this definition">#</a></dt>
+<dd><p>None</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_robot.optim.solvers.base.LinearSolveResult.iterations">
+<span class="sig-name descname"><span class="pre">iterations</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.solvers.base.LinearSolveResult.iterations" title="Link to this definition">#</a></dt>
+<dd><p>None</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_robot.optim.solvers.base.LinearSolveResult.residual_norm">
+<span class="sig-name descname"><span class="pre">residual_norm</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.solvers.base.LinearSolveResult.residual_norm" title="Link to this definition">#</a></dt>
+<dd><p>None</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_robot.optim.solvers.base.LinearSolveResult.relative_residual">
+<span class="sig-name descname"><span class="pre">relative_residual</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.solvers.base.LinearSolveResult.relative_residual" title="Link to this definition">#</a></dt>
+<dd><p>None</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="better_robot.optim.solvers.base.LinearSolveResult.status">
+<span class="sig-name descname"><span class="pre">status</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.solvers.base.LinearSolveResult.status" title="Link to this definition">#</a></dt>
+<dd><p>None</p>
+</dd></dl>
+
+</dd></dl>
+
 <dl class="py class">
 <dt class="sig sig-object py" id="better_robot.optim.solvers.base.LinearSolver">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">LinearSolver</span></span><a class="reference internal" href="../../../_modules/better_robot/optim/solvers/base.html#LinearSolver"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.solvers.base.LinearSolver" title="Link to this definition">#</a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Protocol" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">typing.Protocol</span></code></a></p>
-<p>Linear solver for the normal-equation step <code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">b</span></code>.</p>
-<p><code class="docutils literal notranslate"><span class="pre">A</span></code> is the damped Gauss-Newton matrix <code class="docutils literal notranslate"><span class="pre">JᵀJ</span> <span class="pre">+</span> <span class="pre">λI</span></code>; <code class="docutils literal notranslate"><span class="pre">b</span></code> is <code class="docutils literal notranslate"><span class="pre">-Jᵀr</span></code>.
-Implementations may fall back to pseudo-inverse on singular <code class="docutils literal notranslate"><span class="pre">A</span></code>.</p>
+<p>Linear solver for <code class="docutils literal notranslate"><span class="pre">(A</span> <span class="pre">+</span> <span class="pre">ridge</span> <span class="pre">I)</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">b</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">b</span></code> has shape <code class="docutils literal notranslate"><span class="pre">(B...,</span> <span class="pre">n)</span></code> and a tensor <code class="docutils literal notranslate"><span class="pre">ridge</span></code> is scalar or
+broadcastable to <code class="docutils literal notranslate"><span class="pre">B...</span></code>. Individual implementations advertise which
+system representations they accept; the two original implementations
+intentionally remain dense-only.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="better_robot.optim.solvers.base.LinearSolver.solve">
-<span class="sig-name descname"><span class="pre">solve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">A</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><span class="pre">torch.Tensor</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">b</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/solvers/base.html#LinearSolver.solve"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.solvers.base.LinearSolver.solve" title="Link to this definition">#</a></dt>
-<dd><p>Return <code class="docutils literal notranslate"><span class="pre">x</span></code> such that <code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">x</span> <span class="pre">≈</span> <span class="pre">b</span></code>. Shape: <code class="docutils literal notranslate"><span class="pre">(B...,</span> <span class="pre">n)</span></code>.</p>
+<span class="sig-name descname"><span class="pre">solve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">A</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.optim.solvers.base.LinearSystem</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">b</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ridge</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/solvers/base.html#LinearSolver.solve"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.solvers.base.LinearSolver.solve" title="Link to this definition">#</a></dt>
+<dd><p>Return <code class="docutils literal notranslate"><span class="pre">x</span></code> such that <code class="docutils literal notranslate"><span class="pre">(A</span> <span class="pre">+</span> <span class="pre">ridge</span> <span class="pre">I)</span> <span class="pre">x</span> <span class="pre">≈</span> <span class="pre">b</span></code>.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="better_robot.optim.solvers.base.InformativeLinearSolver">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">InformativeLinearSolver</span></span><a class="reference internal" href="../../../_modules/better_robot/optim/solvers/base.html#InformativeLinearSolver"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.solvers.base.InformativeLinearSolver" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Protocol" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">typing.Protocol</span></code></a></p>
+<p>Optional diagnostic and warm-start capability for a linear solver.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="better_robot.optim.solvers.base.InformativeLinearSolver.solve_with_info">
+<span class="sig-name descname"><span class="pre">solve_with_info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">A</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.optim.solvers.base.LinearSystem</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">b</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ridge</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#better_robot.optim.solvers.base.LinearSolveResult" title="better_robot.optim.solvers.base.LinearSolveResult"><span class="pre">better_robot.optim.solvers.base.LinearSolveResult</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/solvers/base.html#InformativeLinearSolver.solve_with_info"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.solvers.base.InformativeLinearSolver.solve_with_info" title="Link to this definition">#</a></dt>
+<dd><p>Solve a system and return fixed-shape per-element diagnostics.</p>
 </dd></dl>
 
 </dd></dl>
@@ -639,20 +791,20 @@ Implementations may fall back to pseudo-inverse on singular <code class="docutil
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="better_robot.optim.solvers.html"
+       href="better_robot.optim.solvers.normal_cg.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></p>
+        <p class="prev-next-title"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers.normal_cg</span></code></p>
       </div>
     </a>
     <a class="right-next"
-       href="better_robot.optim.solvers.cg.html"
+       href="better_robot.optim.solvers.banded_cholesky.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers.cg</span></code></p>
+        <p class="prev-next-title"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers.banded_cholesky</span></code></p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -676,9 +828,34 @@ Implementations may fall back to pseudo-inverse on singular <code class="docutil
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#module-contents">Module Contents</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#classes">Classes</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#data">Data</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#api">API</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSystem"><code class="docutils literal notranslate"><span class="pre">LinearSystem</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveStatus"><code class="docutils literal notranslate"><span class="pre">LinearSolveStatus</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveStatus.SUCCESS"><code class="docutils literal notranslate"><span class="pre">LinearSolveStatus.SUCCESS</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveStatus.MAX_ITER"><code class="docutils literal notranslate"><span class="pre">LinearSolveStatus.MAX_ITER</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveStatus.NONFINITE"><code class="docutils literal notranslate"><span class="pre">LinearSolveStatus.NONFINITE</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveStatus.BREAKDOWN"><code class="docutils literal notranslate"><span class="pre">LinearSolveStatus.BREAKDOWN</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveStatus.NOT_SPD"><code class="docutils literal notranslate"><span class="pre">LinearSolveStatus.NOT_SPD</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveResult"><code class="docutils literal notranslate"><span class="pre">LinearSolveResult</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveResult.solution"><code class="docutils literal notranslate"><span class="pre">LinearSolveResult.solution</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveResult.converged"><code class="docutils literal notranslate"><span class="pre">LinearSolveResult.converged</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveResult.finite"><code class="docutils literal notranslate"><span class="pre">LinearSolveResult.finite</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveResult.ok"><code class="docutils literal notranslate"><span class="pre">LinearSolveResult.ok</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveResult.iterations"><code class="docutils literal notranslate"><span class="pre">LinearSolveResult.iterations</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveResult.residual_norm"><code class="docutils literal notranslate"><span class="pre">LinearSolveResult.residual_norm</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveResult.relative_residual"><code class="docutils literal notranslate"><span class="pre">LinearSolveResult.relative_residual</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolveResult.status"><code class="docutils literal notranslate"><span class="pre">LinearSolveResult.status</span></code></a></li>
+</ul>
+</li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolver"><code class="docutils literal notranslate"><span class="pre">LinearSolver</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.LinearSolver.solve"><code class="docutils literal notranslate"><span class="pre">LinearSolver.solve()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.InformativeLinearSolver"><code class="docutils literal notranslate"><span class="pre">InformativeLinearSolver</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.solvers.base.InformativeLinearSolver.solve_with_info"><code class="docutils literal notranslate"><span class="pre">InformativeLinearSolver.solve_with_info()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -718,7 +895,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Apr 26, 2026.
+  Last updated on Jul 18, 2026.
   <br/>
 </p>
   </div>

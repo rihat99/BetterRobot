@@ -10,11 +10,11 @@ job that makes both sustainable: have only one path through.
 
 The library has exactly one FK function (`forward_kinematics`),
 exactly one Jacobian assembly function
-(`compute_joint_jacobians`), and exactly one residual-Jacobian
-dispatcher (`residual_jacobian`). The dispatcher picks analytic,
-autodiff, functional, or finite-diff at call time via a
-`JacobianStrategy` flag — but the call site, the residual, and the
-solver never see the difference. This is the discipline that prevents
+(`compute_joint_jacobians`), and exactly one legacy residual-Jacobian
+dispatcher (`residual_jacobian`). That dispatcher picks an analytic Jacobian or
+the central finite-difference fallback via a `JacobianStrategy` flag. The
+named-block `Problem` is a separate, shipped path with explicit `jacrev` and
+`jacfwd` strategies. This discipline prevents
 "fixed base" and "floating base" Jacobian variants from accreting
 back into the codebase.
 
@@ -39,6 +39,8 @@ def forward_kinematics(
     q_or_data: torch.Tensor | Data,
     *,
     compute_frames: bool = False,
+    check_quaternion_norm: bool = False,
+    use_warp: bool = False,
 ) -> Data:
     """Compute the placements of every joint, batched.
 
@@ -56,44 +58,57 @@ Source: `src/better_robot/kinematics/forward.py`.
 The algorithm is one topological pass:
 
 ```python
-def forward_kinematics_raw(model: Model, q: torch.Tensor) -> tuple[Tensor, Tensor]:
-    B = q.shape[:-1]
-    joint_pose_world = q.new_empty((*B, model.njoints, 7))
-    joint_pose_local = q.new_empty((*B, model.njoints, 7))
+def forward_kinematics_raw(
+    structure: ModelStructure,
+    values: ModelValues,
+    q: torch.Tensor,
+) -> tuple[Tensor, Tensor]:
+    q_full = expand_configuration(structure, q)
+    world = [None] * structure.njoints
+    local = [None] * structure.njoints
 
-    # joint 0 is the universe; identity.
-    joint_pose_world[..., 0, :] = lie.se3.identity(...)
-    joint_pose_local[..., 0, :] = lie.se3.identity(...)
-
-    for j in model.topo_order[1:]:
-        jm     = model.joint_models[j]
-        iq     = model.idx_qs[j]
-        parent = model.parents[j]
-
-        qj     = q[..., iq : iq + jm.nq]
-        T_j    = jm.joint_transform(qj)
-        Tfixed = model.joint_placements[j]
-        joint_pose_local[..., j, :] = lie.se3.compose(Tfixed, T_j)
-        joint_pose_world[..., j, :] = lie.se3.compose(
-            joint_pose_world[..., parent, :], joint_pose_local[..., j, :]
+    for j in structure.topo_order:
+        qj = q_full[
+            ...,
+            structure.idx_qs_full[j] : structure.idx_qs_full[j] + structure.nqs_full[j],
+        ]
+        Tj = joint_transform(
+            structure.joint_models[j],
+            structure.joint_kind_codes[j],
+            structure.joint_axes[j],
+            structure.joint_pitches[j],
+            qj,
         )
+        local[j] = lie.se3.compose(values.joint_placements[..., j, :], Tj)
+        parent = structure.parents[j]
+        world[j] = local[j] if parent < 0 else lie.se3.compose(world[parent], local[j])
 
-    return joint_pose_world, joint_pose_local
+    return torch.stack(world, dim=-2), torch.stack(local, dim=-2)
 ```
 
 Properties of this FK:
 
-- **No Python branching on joint kind.** All per-kind logic is
-  encapsulated in `JointModel.joint_transform`. The FK loop does not
-  contain `if jtype in ('revolute', 'continuous')`.
+- **Shared joint dispatch.** The raw pass uses stable kind codes and the
+  shared `joint_transform` helper; the pass itself does not contain parser
+  string cases.
 - **No `base_pose` argument.** A free-flyer root is just
   `joint_models[1] = JointFreeFlyer`; the first 7 entries of `q`
   become its configuration.
 - **Batched from day one.** The loop is over joints (compile-time
   constant) not over batch entries.
-- **Compile-friendly.** `model.topo_order` is a Python tuple;
-  `joint_models` is a tuple; the loop unrolls cleanly under
+- **Compile-friendly.** `ModelStructure.topo_order` and its static mirrors
+  are Python tuples; the loop unrolls cleanly under
   `torch.compile`.
+- **No default host sync.** Free-flyer quaternions are assumed normalized.
+  The public wrapper can opt into a diagnostic norm check with
+  `check_quaternion_norm=True`; that check synchronizes and is excluded from
+`forward_kinematics_raw`.
+
+The public wrapper takes `use_warp=True` as an explicit whole-pass opt-in.
+The CUDA-validated opt-in lane first checks eligibility and falls back to the
+Torch raw pass
+when the optional runtime or input layout is unsupported. There is no
+per-Lie-operation dispatch or process-wide selector.
 
 `update_frame_placements(model, data)` is the second-step companion:
 
@@ -167,36 +182,33 @@ referenced at the world origin) to a body Jacobian; it is wrong for
 LWA, where the angular and linear parts are already decoupled at the
 frame origin. Getting this wrong produces correlation between linear
 and angular errors that no IK solver will ever resolve. The unit test
-`tests/kinematics/test_jacobian_reference_frames.py` pins the
+`tests/test_pinocchio/test_frame_jacobian_matches_pinocchio.py` pins the
 convention.
 
-## `JacobianStrategy` — one entry point, four strategies
+## `JacobianStrategy` — one entry point, two implementations
 
 ```python
 class JacobianStrategy(str, Enum):
     ANALYTIC    = "analytic"     # call residual.jacobian(state); error if None
-    AUTODIFF    = "autodiff"     # torch.func.jacrev(residual)(state)
-    FUNCTIONAL  = "functional"   # torch.func.jacfwd (useful when outputs << inputs)
-    FINITE_DIFF = "finite_diff"  # opt-in central FD; useful for hand-validating analytic
-    AUTO        = "auto"         # prefer ANALYTIC, fall back to AUTODIFF
+    FINITE_DIFF = "finite_diff"  # unbatched central finite differences
+    AUTO        = "auto"         # prefer ANALYTIC, fall back to FINITE_DIFF
 ```
 
 Source: `src/better_robot/kinematics/jacobian_strategy.py`.
 
-`AUTO` is the default everywhere. The library's analytic-vs-autodiff
-discipline reads:
+`AUTO` is the default everywhere:
 
 - Residuals that have a hand-written `.jacobian()` use it
   (`AUTO → ANALYTIC`).
 - Residuals that return `None` from `.jacobian()` fall through to
-  autodiff (`AUTO → AUTODIFF`). Their slot in the cost-stack
-  Jacobian is filled by `torch.func.jacrev` over that one residual,
-  not over the whole stack — so a single residual without analytic
-  support does not force the whole problem onto autodiff.
-- `FINITE_DIFF` is opt-in for hand-validating analytic Jacobians
-  during development. eps: `1e-3` (fp32), `1e-7` (fp64). It is not
-  used as a fallback in production code; the torch-native Lie backend
-  has clean autograd, so `AUTO → AUTODIFF` is the production path.
+  central finite differences (`AUTO → FINITE_DIFF`). The fallback is
+  unbatched and costs exactly `2·nv + 1` complete residual/FK evaluations:
+  one at the base point and two per tangent coordinate. Its epsilon is
+  `1e-3` (fp32) or `1e-7` (fp64).
+- `FINITE_DIFF` selects that same fallback explicitly, which is useful for
+  validating analytic Jacobians. The removed `AUTODIFF` and `FUNCTIONAL`
+  values do not return to this legacy enum; named-block callers select the
+  shipped `jacrev` or `jacfwd` strategies on `Problem`/LM instead.
 
 ```python
 def residual_jacobian(
@@ -207,17 +219,15 @@ def residual_jacobian(
 ) -> torch.Tensor:
     """Unified residual Jacobian. Shape: (B..., dim, state_dim).
 
-    AUTO        — call residual.jacobian(state); fall back to AUTODIFF if None.
+    AUTO        — call residual.jacobian(state); fall back to FINITE_DIFF if None.
     ANALYTIC    — require residual.jacobian(state) to return a tensor.
-    AUTODIFF    — torch.func.jacrev over residual.__call__.
-    FUNCTIONAL  — torch.func.jacfwd over residual.__call__.
-    FINITE_DIFF — central FD, opt-in.
+    FINITE_DIFF — unbatched central FD (2*nv + 1 evaluations).
     """
 ```
 
-The solver in `optim/` never writes Jacobian code — it asks this
-function. That is how the four-way Jacobian path (fixed analytic,
-fixed autodiff, floating analytic, floating autodiff) becomes one.
+This helper belongs to the legacy flat residual lane. Direct compatibility
+optimizers ask it for Jacobians; named-block `Problem` evaluation instead uses
+its own analytic, `jacrev`, or `jacfwd` block strategy.
 
 ## Pose residual analytic Jacobian — the elegant version
 
@@ -258,7 +268,8 @@ prevent oscillation. The right-Jacobian fix removed that workaround.
 
 ```python
 def forward_kinematics_raw(
-    model: Model,
+    structure: ModelStructure,
+    values: ModelValues,
     q: torch.Tensor,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Return (joint_pose_world, joint_pose_local) without touching any Data.
@@ -268,16 +279,17 @@ def forward_kinematics_raw(
     """
 ```
 
-`forward_kinematics(model, q, ...)` is a thin wrapper that calls the
-raw implementation and writes into `Data`. For research code that
+`forward_kinematics(model, q, ...)` selects one complete pass, then writes
+the returned tensors into `Data`. For research code that
 needs `jacrev` over FK without `Data` in the graph, the raw form is
 the right entry point.
 
 ## Cache invariants
 
-Every kinematics entry point calls `data.require(level)` and raises
-`StaleCacheError` if the cache is below the required level. See
-{doc}`model_and_data` for the invariant.
+Kinematics cache consumers call `data.require(level)` and raise
+`StaleCacheError` if the cache is below the required level. Producer passes,
+including `forward_kinematics`, recompute their outputs and advance the level.
+See {doc}`model_and_data` for the invariant.
 
 ```python
 data = forward_kinematics(model, q)            # _kinematics_level = PLACEMENTS
@@ -290,12 +302,13 @@ J = compute_joint_jacobians(model, data)       # raises StaleCacheError — must
 
 ## Device and dtype
 
-`forward_kinematics_raw` produces output on the same device and dtype
-as `q`. `Data` inherits both. `model.joint_placements`, `axes`, etc.
-are coerced to `q`'s device and dtype inside the hot path via
-`.to(dtype=q.dtype, device=q.device)` — but only when it is free
-(dtype / device match). Mixed precision is rejected at the boundary
-because analytic Jacobians are sensitive to it.
+`forward_kinematics_raw` produces output on the same device and dtype as the
+validated inputs. At the public boundary, `q` must be `float32` or `float64`
+and must exactly match the model values' device and dtype; mismatches raise
+`DeviceMismatchError` or `DtypeMismatchError` rather than being cast
+implicitly. `Data` created by the pass inherits that device and dtype. Mixed
+precision is outside the supported numerical contract because analytic
+Jacobians are sensitive to it.
 
 ## What gets shipped
 
@@ -306,7 +319,7 @@ because analytic Jacobians are sensitive to it.
 | `compute_joint_jacobians` | Live (analytic, world frame) |
 | `get_joint_jacobian` | Live |
 | `get_frame_jacobian` | Live (LWA, LOCAL, WORLD reference frames) |
-| `residual_jacobian` | Live (ANALYTIC / AUTODIFF / FUNCTIONAL / FINITE_DIFF / AUTO) |
+| `residual_jacobian` | Live (ANALYTIC / FINITE_DIFF / AUTO; FD is unbatched) |
 
 ## Sharp edges
 

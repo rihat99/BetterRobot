@@ -54,7 +54,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Apr 26, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 18, 2026"/>
   </head>
   
   
@@ -148,18 +148,6 @@
           <a href="https://github.com/rihat99/BetterRobot" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
             <span class="sr-only">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/better-robot/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-python fa-lg" aria-hidden="true"></i>
-            <span class="sr-only">PyPI</span></a>
-        </li>
 </ul></div>
         <div class="sidebar-primary-item">
 
@@ -192,11 +180,19 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics.html">Kinematics</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_and_costs.html">Residuals and Costs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/solver_stack.html">The Solver Stack</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/tasks.html">Tasks — IK, Trajectory Optimisation, Retargeting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/solver_stack.html">Named-Block Evaluation and the Legacy Solver Stack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/tasks.html">Tasks — IK and Trajectory Optimisation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/collision_and_geometry.html">Collision and Geometry</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/batching_and_backends.html">Batching and Backends</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/batching_and_backends.html">Batching and Compute Lanes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/warp_bridge.html">Torch–Warp bridge and opt-in FK lane</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/custom_residuals.html">Write a custom block residual</a></li>
 </ul>
 </details></li>
 </ul>
@@ -208,6 +204,8 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/extension.html">Extension Points</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/testing.html">Testing</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/contracts.html">Contracts &amp; Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/engineering.html">Engineering Contract</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/source_and_license.html">Source and License Decision Memo</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/style.html">Coding Style</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/packaging.html">Packaging</a></li>
 </ul>
@@ -230,11 +228,9 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.render_modes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.render_modes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.overlays.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.overlays</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.trajectory_player.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.trajectory_player</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.interaction.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.interaction</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.visualizer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.visualizer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.panels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.panels</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.camera.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.camera</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.recorder.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.recorder</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.primitive.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.primitive</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.scene.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.scene</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.helpers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.helpers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.themes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.themes</span></code></a></li>
@@ -242,13 +238,17 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.temporal</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.registry.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.registry</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.base.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.base</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.human.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.human</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.manipulability.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.manipulability</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.collision</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.scene_sdf.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.scene_sdf</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.pose.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.pose</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.smoothness.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.smoothness</span></code></a></li>
 </ul>
@@ -269,7 +269,6 @@
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.action.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.action</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.integrators.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.integrators</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.crba.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.crba</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.rnea.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.rnea</span></code></a></li>
@@ -284,29 +283,23 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.cost_stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.cost_stack</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.state.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.state</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.jacobian_spec.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.jacobian_spec</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.structure</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.costs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.costs.stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.stack</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.costs.factory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.factory</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.utils.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.utils.testing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.testing</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.utils.batching.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.batching</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.utils.logging.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.logging</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.utils.broadcasting.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.broadcasting</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.ik.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.ik</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.parameterization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.parameterization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.trajectory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajectory</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.retarget.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.retarget</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.trajopt.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajopt</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.smoothing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.smoothing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.contact_forces.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.contact_forces</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.lie.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -314,37 +307,38 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.lie.se3.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.se3</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.lie.types.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.types</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.lie.tangents.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.tangents</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.lie.alignment.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.alignment</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.kinematics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.kinematics.jacobian.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.kinematics.jacobian_strategy.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian_strategy</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.kinematics.chain.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.chain</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.kinematics.forward.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.forward</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.joint_models.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint_models</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.execution_batch.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.execution_batch</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.body.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.body</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.model_values.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model_values</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.reduced_coordinates.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.reduced_coordinates</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.joint.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.frame.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.frame</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.topology.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.topology</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.indexing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.indexing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.model_structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model_structure</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.data.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.data</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.backends.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.backends.torch_native.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.torch_native</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.backends.warp.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.warp</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.backends.protocol.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.protocol</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.joint_dispatch.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint_dispatch</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.exceptions.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.exceptions</span></code></a></li>
 </ul>
 </details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/named_block_solvers.html">Named-block solver API</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../reference/changelog.html">Changelog</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../reference/roadmap.html">Roadmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/m1_removed_symbols.html">M1 removed surfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/m3_removed_symbols.html">M3.5 removed surfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../reference/glossary.html">Glossary</a></li>
 </ul>
 </details></li>
@@ -352,7 +346,6 @@
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Project Links</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/rihat99/BetterRobot">GitHub</a></li>
-<li class="toctree-l1"><a class="reference external" href="https://pypi.org/project/better-robot/">PyPI</a></li>
 </ul>
 
     </div>
@@ -512,30 +505,36 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span>
-
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">..backends</span><span class="w"> </span><span class="kn">import</span> <span class="n">default_backend</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..data_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">KinematicsLevel</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Data</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.execution_batch</span><span class="w"> </span><span class="kn">import</span> <span class="n">broadcast_to_execution_batch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.joint_dispatch</span><span class="w"> </span><span class="kn">import</span> <span class="n">joint_transform</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.joint_models</span><span class="w"> </span><span class="kn">import</span> <span class="n">JointFreeFlyer</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Model</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">..exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">DeviceMismatchError</span><span class="p">,</span> <span class="n">QuaternionNormError</span><span class="p">,</span> <span class="n">ShapeError</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.model_structure</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModelStructure</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.model_values</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModelValues</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.reduced_coordinates</span><span class="w"> </span><span class="kn">import</span> <span class="n">expand_configuration</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">DeviceMismatchError</span><span class="p">,</span>
+    <span class="n">DtypeMismatchError</span><span class="p">,</span>
+    <span class="n">QuaternionNormError</span><span class="p">,</span>
+    <span class="n">ShapeError</span><span class="p">,</span>
+<span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..lie</span><span class="w"> </span><span class="kn">import</span> <span class="n">se3</span>
 
-<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">..backends.protocol</span><span class="w"> </span><span class="kn">import</span> <span class="n">Backend</span>
 
-
-<span class="c1">#: Tolerance on quaternion norm at a public entry point.</span>
-<span class="c1">#: Anything within this band of 1.0 is re-normalised silently by downstream</span>
-<span class="c1">#: code; anything outside is rejected (see docs/conventions/contracts.md §1.3).</span>
+<span class="c1">#: Tolerance used by the opt-in free-flyer quaternion debug check.</span>
 <span class="n">_QUAT_NORM_TOL</span> <span class="o">=</span> <span class="mf">0.1</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_validate_q</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span> <span class="n">q</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sanity-check a configuration tensor at a public entry point.</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_validate_q</span><span class="p">(</span>
+    <span class="n">structure</span><span class="p">:</span> <span class="n">ModelStructure</span><span class="p">,</span>
+    <span class="n">values</span><span class="p">:</span> <span class="n">ModelValues</span><span class="p">,</span>
+    <span class="n">q</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check the shape and device of a configuration tensor.</span>
 
 <span class="sd">    Raises</span>
 <span class="sd">    ------</span>
@@ -543,28 +542,39 @@
 <span class="sd">        If ``q.shape[-1] != model.nq``.</span>
 <span class="sd">    DeviceMismatchError</span>
 <span class="sd">        If ``q.device`` differs from the model&#39;s tensor device.</span>
-<span class="sd">    QuaternionNormError</span>
-<span class="sd">        If the model has a free-flyer root and ``q[..., 3:7]`` is outside</span>
-<span class="sd">        ``[1 - TOL, 1 + TOL]``.</span>
 
 <span class="sd">    See ``docs/conventions/contracts.md §1``.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">q</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">model</span><span class="o">.</span><span class="n">nq</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">ShapeError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;q has trailing size </span><span class="si">{</span><span class="n">q</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">, expected model.nq=</span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="n">nq</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="k">if</span> <span class="n">q</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">q</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">structure</span><span class="o">.</span><span class="n">nq</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">ShapeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;q has shape </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2">; expected trailing size model.nq=</span><span class="si">{</span><span class="n">structure</span><span class="o">.</span><span class="n">nq</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">values</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">q</span><span class="o">.</span><span class="n">dtype</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">DtypeMismatchError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;q.dtype=</span><span class="si">{</span><span class="n">q</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2"> is unsupported; use torch.float32 or torch.float64&quot;</span><span class="p">)</span>
+    <span class="n">model_dtype</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">joint_placements</span><span class="o">.</span><span class="n">dtype</span>
+    <span class="k">if</span> <span class="n">q</span><span class="o">.</span><span class="n">dtype</span> <span class="o">!=</span> <span class="n">model_dtype</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">DtypeMismatchError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;q.dtype=</span><span class="si">{</span><span class="n">q</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2"> != model.dtype=</span><span class="si">{</span><span class="n">model_dtype</span><span class="si">}</span><span class="s2">. Cast q or call model.to(dtype=q.dtype) before evaluation.&quot;</span>
         <span class="p">)</span>
-    <span class="n">model_device</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">joint_placements</span><span class="o">.</span><span class="n">device</span>
+    <span class="n">model_device</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">joint_placements</span><span class="o">.</span><span class="n">device</span>
     <span class="k">if</span> <span class="n">q</span><span class="o">.</span><span class="n">device</span> <span class="o">!=</span> <span class="n">model_device</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">DeviceMismatchError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;q.device=</span><span class="si">{</span><span class="n">q</span><span class="o">.</span><span class="n">device</span><span class="si">}</span><span class="s2"> != model.device=</span><span class="si">{</span><span class="n">model_device</span><span class="si">}</span><span class="s2">. &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;Call model.to(q.device) or q.to(model.device) first.&quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;q.device=</span><span class="si">{</span><span class="n">q</span><span class="o">.</span><span class="n">device</span><span class="si">}</span><span class="s2"> != model.device=</span><span class="si">{</span><span class="n">model_device</span><span class="si">}</span><span class="s2">. Call model.to(q.device) or q.to(model.device) first.&quot;</span>
         <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_validate_free_flyer_quaternion_norm</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span> <span class="n">q</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Debug-check the free-flyer quaternion norm.</span>
+
+<span class="sd">    This check converts a tensor predicate to a Python ``bool`` and therefore</span>
+<span class="sd">    synchronizes accelerators.  It must only be called from an explicitly</span>
+<span class="sd">    requested public-boundary check, never from tensor-only primitives.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">model</span><span class="o">.</span><span class="n">njoints</span> <span class="o">&gt;=</span> <span class="mi">2</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">joint_models</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">JointFreeFlyer</span><span class="p">):</span>
         <span class="c1"># Free-flyer q layout: [tx, ty, tz, qx, qy, qz, qw]</span>
         <span class="n">quat</span> <span class="o">=</span> <span class="n">q</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">3</span><span class="p">:</span><span class="mi">7</span><span class="p">]</span>
         <span class="n">norm</span> <span class="o">=</span> <span class="n">quat</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">bool</span><span class="p">(((</span><span class="n">norm</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">_QUAT_NORM_TOL</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">()):</span>
-            <span class="n">bad</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">norm</span><span class="o">.</span><span class="n">min</span><span class="p">()),</span> <span class="nb">float</span><span class="p">(</span><span class="n">norm</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+        <span class="k">if</span> <span class="nb">bool</span><span class="p">(((</span><span class="n">norm</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">_QUAT_NORM_TOL</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">()):</span>  <span class="c1"># bench-ok: opt-in public-boundary debug validation</span>
+            <span class="n">bad</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">norm</span><span class="o">.</span><span class="n">min</span><span class="p">()),</span> <span class="nb">float</span><span class="p">(</span><span class="n">norm</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>  <span class="c1"># bench-ok: opt-in public-boundary debug validation</span>
             <span class="k">raise</span> <span class="n">QuaternionNormError</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;free-flyer quaternion norm outside [</span><span class="si">{</span><span class="mi">1</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">_QUAT_NORM_TOL</span><span class="si">}</span><span class="s2">, &quot;</span>
                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="mi">1</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">_QUAT_NORM_TOL</span><span class="si">}</span><span class="s2">] (observed range </span><span class="si">{</span><span class="n">bad</span><span class="si">}</span><span class="s2">). &quot;</span>
@@ -575,7 +585,8 @@
 <div class="viewcode-block" id="forward_kinematics_raw">
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.kinematics.forward.html#better_robot.kinematics.forward.forward_kinematics_raw">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">forward_kinematics_raw</span><span class="p">(</span>
-    <span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span>
+    <span class="n">structure</span><span class="p">:</span> <span class="n">ModelStructure</span><span class="p">,</span>
+    <span class="n">values</span><span class="p">:</span> <span class="n">ModelValues</span><span class="p">,</span>
     <span class="n">q</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Tensor-only FK primitive — returns world/local joint placements.</span>
@@ -586,7 +597,8 @@
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    model : Model</span>
+<span class="sd">    structure : ModelStructure</span>
+<span class="sd">    values : ModelValues</span>
 <span class="sd">    q : (B..., nq)</span>
 
 <span class="sd">    Returns</span>
@@ -596,44 +608,61 @@
 <span class="sd">    joint_pose_local : (B..., njoints, 7)</span>
 <span class="sd">        Parent-frame joint placements (``liMi``).</span>
 
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    ``structure``, ``values``, and ``q`` must already satisfy the public FK</span>
+<span class="sd">    boundary contracts; this internal primitive does not revalidate them.</span>
+<span class="sd">    Free-flyer quaternions are assumed to be pre-normalized.  Use</span>
+<span class="sd">    :func:`forward_kinematics` with ``check_quaternion_norm=True`` to run the</span>
+<span class="sd">    opt-in debug check before calling this hot-path primitive.</span>
+
 <span class="sd">    See docs/concepts/kinematics.md §6 and docs/conventions/naming.md for the rename.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">_validate_q</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
-    <span class="o">*</span><span class="n">batch</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">q</span><span class="o">.</span><span class="n">shape</span>
-    <span class="n">device</span><span class="p">,</span> <span class="n">dtype</span> <span class="o">=</span> <span class="n">q</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">q</span><span class="o">.</span><span class="n">dtype</span>
+    <span class="n">batch_shape</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">_execution_batch_shape</span><span class="p">(</span><span class="n">q</span><span class="p">)</span>
+    <span class="n">q</span> <span class="o">=</span> <span class="n">broadcast_to_execution_batch</span><span class="p">(</span>
+        <span class="n">q</span><span class="p">,</span>
+        <span class="n">batch_shape</span><span class="p">,</span>
+        <span class="p">(</span><span class="n">structure</span><span class="o">.</span><span class="n">nq</span><span class="p">,),</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;q&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">q_full</span> <span class="o">=</span> <span class="n">expand_configuration</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
+    <span class="n">placements</span> <span class="o">=</span> <span class="n">broadcast_to_execution_batch</span><span class="p">(</span>
+        <span class="n">values</span><span class="o">.</span><span class="n">joint_placements</span><span class="p">,</span>
+        <span class="n">batch_shape</span><span class="p">,</span>
+        <span class="p">(</span><span class="n">structure</span><span class="o">.</span><span class="n">njoints</span><span class="p">,</span> <span class="mi">7</span><span class="p">),</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;joint_placements&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">axes</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">joint_axes</span>
+    <span class="n">pitches</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">joint_pitches</span>
 
-    <span class="c1"># Identity SE3 (no in-place writes to keep autograd happy)</span>
-    <span class="n">_id7</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span>
-        <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">),</span>
-        <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">),</span>
-    <span class="p">])</span>
+    <span class="n">world_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">structure</span><span class="o">.</span><span class="n">njoints</span>  <span class="c1"># type: ignore[list-item]</span>
+    <span class="n">local_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">structure</span><span class="o">.</span><span class="n">njoints</span>  <span class="c1"># type: ignore[list-item]</span>
 
-    <span class="n">world_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">model</span><span class="o">.</span><span class="n">njoints</span>  <span class="c1"># type: ignore[list-item]</span>
-    <span class="n">local_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">model</span><span class="o">.</span><span class="n">njoints</span>  <span class="c1"># type: ignore[list-item]</span>
-
-    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">model</span><span class="o">.</span><span class="n">topo_order</span><span class="p">:</span>
-        <span class="n">nq_j</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">nqs</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
-        <span class="n">T_placement</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">joint_placements</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>  <span class="c1"># (7,)</span>
-
-        <span class="k">if</span> <span class="n">nq_j</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">q_j</span> <span class="o">=</span> <span class="n">q</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">idx_qs</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="p">:</span> <span class="n">model</span><span class="o">.</span><span class="n">idx_qs</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">+</span> <span class="n">nq_j</span><span class="p">]</span>
-            <span class="n">T_j</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">joint_models</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">joint_transform</span><span class="p">(</span><span class="n">q_j</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>  <span class="c1"># (B..., 7)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># nq=0 joints (fixed, universe) contribute identity transform</span>
-            <span class="n">T_j</span> <span class="o">=</span> <span class="n">_id7</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="o">*</span><span class="n">batch</span><span class="p">,</span> <span class="mi">7</span><span class="p">)</span> <span class="k">if</span> <span class="n">batch</span> <span class="k">else</span> <span class="n">_id7</span>
+    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">structure</span><span class="o">.</span><span class="n">topo_order</span><span class="p">:</span>
+        <span class="n">nq_j</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">nqs_full</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+        <span class="n">q_j</span> <span class="o">=</span> <span class="n">q_full</span><span class="p">[</span>
+            <span class="o">...</span><span class="p">,</span>
+            <span class="n">structure</span><span class="o">.</span><span class="n">idx_qs_full</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="p">:</span> <span class="n">structure</span><span class="o">.</span><span class="n">idx_qs_full</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">+</span> <span class="n">nq_j</span><span class="p">,</span>
+        <span class="p">]</span>
+        <span class="n">T_j</span> <span class="o">=</span> <span class="n">joint_transform</span><span class="p">(</span>
+            <span class="n">structure</span><span class="o">.</span><span class="n">joint_models</span><span class="p">[</span><span class="n">j</span><span class="p">],</span>
+            <span class="n">structure</span><span class="o">.</span><span class="n">joint_kind_codes</span><span class="p">[</span><span class="n">j</span><span class="p">],</span>
+            <span class="n">axes</span><span class="p">[</span><span class="n">j</span><span class="p">],</span>
+            <span class="n">pitches</span><span class="p">[</span><span class="n">j</span><span class="p">],</span>
+            <span class="n">q_j</span><span class="p">,</span>
+        <span class="p">)</span>
 
         <span class="c1"># joint_pose_local[j] = T_placement ∘ T_j  (parent-frame placement)</span>
-        <span class="n">local_j</span> <span class="o">=</span> <span class="n">se3</span><span class="o">.</span><span class="n">compose</span><span class="p">(</span><span class="n">T_placement</span><span class="p">,</span> <span class="n">T_j</span><span class="p">)</span>  <span class="c1"># (B..., 7)</span>
+        <span class="n">local_j</span> <span class="o">=</span> <span class="n">se3</span><span class="o">.</span><span class="n">compose</span><span class="p">(</span><span class="n">placements</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="p">:],</span> <span class="n">T_j</span><span class="p">)</span>
         <span class="n">local_list</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">local_j</span>
 
-        <span class="n">parent</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+        <span class="n">parent</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
         <span class="k">if</span> <span class="n">parent</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">world_list</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">local_j</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">world_list</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">se3</span><span class="o">.</span><span class="n">compose</span><span class="p">(</span><span class="n">world_list</span><span class="p">[</span><span class="n">parent</span><span class="p">],</span> <span class="n">local_j</span><span class="p">)</span>  <span class="c1"># (B..., 7)</span>
 
-    <span class="c1"># Stack along the joints dimension (len(batch) = q.ndim - 1)</span>
-    <span class="n">stack_dim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
+    <span class="n">stack_dim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">batch_shape</span><span class="p">)</span>
     <span class="n">joint_pose_world</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">world_list</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="n">stack_dim</span><span class="p">)</span>  <span class="c1"># (B..., njoints, 7)</span>
     <span class="n">joint_pose_local</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">local_list</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="n">stack_dim</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">joint_pose_world</span><span class="p">,</span> <span class="n">joint_pose_local</span></div>
@@ -647,7 +676,8 @@
     <span class="n">q_or_data</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="n">Data</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">compute_frames</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="n">backend</span><span class="p">:</span> <span class="s2">&quot;Backend | None&quot;</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">check_quaternion_norm</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">use_warp</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Data</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute joint (and optionally frame) placements.</span>
 
@@ -660,10 +690,15 @@
 <span class="sd">        pre-allocated ``Data`` whose ``q`` field is populated.</span>
 <span class="sd">    compute_frames : bool</span>
 <span class="sd">        If true, also populate ``data.frame_pose_world``.</span>
-<span class="sd">    backend : Backend, optional</span>
-<span class="sd">        Backend instance to dispatch through. ``None`` uses the active</span>
-<span class="sd">        default (see :func:`better_robot.backends.default_backend`).</span>
-
+<span class="sd">    check_quaternion_norm : bool</span>
+<span class="sd">        If true, verify that a free-flyer quaternion has norm within 0.1 of</span>
+<span class="sd">        one and raise :class:`~better_robot.exceptions.QuaternionNormError`</span>
+<span class="sd">        otherwise.  This opt-in debug check synchronizes accelerator tensors;</span>
+<span class="sd">        the default hot path assumes free-flyer quaternions are pre-normalized.</span>
+<span class="sd">    use_warp : bool</span>
+<span class="sd">        Opt into the CUDA-validated fused Warp FK lane when the optional ``warp``</span>
+<span class="sd">        extra, joint kinds, dtype, and layout are supported. Unsupported</span>
+<span class="sd">        inputs transparently use the torch lane.</span>
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    Data</span>
@@ -677,23 +712,52 @@
         <span class="n">q</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">q</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">q</span> <span class="o">=</span> <span class="n">q_or_data</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="c1"># Validate exactly once at the public boundary. The raw torch, Warp, and</span>
+    <span class="c1"># frame passes below trust these inputs. Keep the tensor-to-Python norm</span>
+    <span class="c1"># check opt-in so the default path is sync-free.</span>
+    <span class="n">_validate_q</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
+    <span class="n">batch_shape</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">_execution_batch_shape</span><span class="p">(</span><span class="n">q</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">create_data</span><span class="p">(</span>
-            <span class="n">batch_shape</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span>
+            <span class="n">batch_shape</span><span class="o">=</span><span class="n">batch_shape</span><span class="p">,</span>
             <span class="n">device</span><span class="o">=</span><span class="n">q</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
             <span class="n">dtype</span><span class="o">=</span><span class="n">q</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">data</span><span class="o">.</span><span class="n">q</span> <span class="o">=</span> <span class="n">q</span>
+    <span class="n">q</span> <span class="o">=</span> <span class="n">broadcast_to_execution_batch</span><span class="p">(</span>
+        <span class="n">q</span><span class="p">,</span>
+        <span class="n">batch_shape</span><span class="p">,</span>
+        <span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">nq</span><span class="p">,),</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;q&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">data</span><span class="o">.</span><span class="n">q</span> <span class="o">=</span> <span class="n">q</span>
+    <span class="k">if</span> <span class="n">check_quaternion_norm</span><span class="p">:</span>
+        <span class="n">_validate_free_flyer_quaternion_norm</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
+    <span class="n">warp_result</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">use_warp</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">._warp_bridge</span><span class="w"> </span><span class="kn">import</span> <span class="n">try_warp_forward_kinematics</span>  <span class="c1"># noqa: PLC0415</span>
 
-    <span class="c1"># Validate at the public boundary; the backend impl trusts inputs.</span>
-    <span class="n">_validate_q</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
-    <span class="n">backend</span> <span class="o">=</span> <span class="n">backend</span> <span class="ow">or</span> <span class="n">default_backend</span><span class="p">()</span>
-    <span class="n">joint_pose_world</span><span class="p">,</span> <span class="n">joint_pose_local</span> <span class="o">=</span> <span class="n">backend</span><span class="o">.</span><span class="n">kinematics</span><span class="o">.</span><span class="n">forward_kinematics</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
+            <span class="n">warp_result</span> <span class="o">=</span> <span class="n">try_warp_forward_kinematics</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+            <span class="n">warp_result</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">warp_result</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">joint_pose_world</span><span class="p">,</span> <span class="n">joint_pose_local</span> <span class="o">=</span> <span class="n">forward_kinematics_raw</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">joint_pose_world</span><span class="p">,</span> <span class="n">joint_pose_local</span> <span class="o">=</span> <span class="n">warp_result</span><span class="o">.</span><span class="n">world</span><span class="p">,</span> <span class="n">warp_result</span><span class="o">.</span><span class="n">local</span>
     <span class="n">data</span><span class="o">.</span><span class="n">joint_pose_world</span> <span class="o">=</span> <span class="n">joint_pose_world</span>
     <span class="n">data</span><span class="o">.</span><span class="n">joint_pose_local</span> <span class="o">=</span> <span class="n">joint_pose_local</span>
     <span class="nb">object</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">&quot;_kinematics_level&quot;</span><span class="p">,</span> <span class="n">KinematicsLevel</span><span class="o">.</span><span class="n">PLACEMENTS</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="n">compute_frames</span><span class="p">:</span>
-        <span class="n">update_frame_placements</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">compute_frames</span> <span class="ow">and</span> <span class="n">warp_result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">frame_pose_world</span> <span class="o">=</span> <span class="n">warp_result</span><span class="o">.</span><span class="n">frames</span>
+    <span class="k">elif</span> <span class="n">compute_frames</span><span class="p">:</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">frame_pose_world</span> <span class="o">=</span> <span class="n">frame_placements_raw</span><span class="p">(</span>
+            <span class="n">model</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span>
+            <span class="n">model</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">joint_pose_world</span><span class="p">,</span>
+        <span class="p">)</span>
 
     <span class="k">return</span> <span class="n">data</span></div>
 
@@ -711,22 +775,33 @@
 <span class="sd">    See docs/concepts/kinematics.md §2.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">joint_pose_world</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">joint_pose_world</span>
-    <span class="k">assert</span> <span class="n">joint_pose_world</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="p">(</span>
-        <span class="s2">&quot;call forward_kinematics before update_frame_placements&quot;</span>
-    <span class="p">)</span>
+    <span class="k">assert</span> <span class="n">joint_pose_world</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;call forward_kinematics before update_frame_placements&quot;</span>
 
-    <span class="o">*</span><span class="n">batch</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">q</span><span class="o">.</span><span class="n">shape</span>
-    <span class="n">device</span><span class="p">,</span> <span class="n">dtype</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">q</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">q</span><span class="o">.</span><span class="n">dtype</span>
-
-    <span class="n">frame_pose_world</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="o">*</span><span class="n">batch</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">nframes</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
-
-    <span class="k">for</span> <span class="n">f_id</span><span class="p">,</span> <span class="n">frame</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">frames</span><span class="p">):</span>
-        <span class="n">T_parent</span> <span class="o">=</span> <span class="n">joint_pose_world</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">frame</span><span class="o">.</span><span class="n">parent_joint</span><span class="p">,</span> <span class="p">:]</span>         <span class="c1"># (B..., 7)</span>
-        <span class="n">T_local</span> <span class="o">=</span> <span class="n">frame</span><span class="o">.</span><span class="n">joint_placement</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>  <span class="c1"># (7,)</span>
-        <span class="n">frame_pose_world</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">f_id</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">se3</span><span class="o">.</span><span class="n">compose</span><span class="p">(</span><span class="n">T_parent</span><span class="p">,</span> <span class="n">T_local</span><span class="p">)</span> <span class="c1"># (B..., 7)</span>
-
-    <span class="n">data</span><span class="o">.</span><span class="n">frame_pose_world</span> <span class="o">=</span> <span class="n">frame_pose_world</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">structure</span><span class="p">)</span>
+    <span class="n">data</span><span class="o">.</span><span class="n">frame_pose_world</span> <span class="o">=</span> <span class="n">frame_placements_raw</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">joint_pose_world</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">data</span></div>
+
+
+
+<div class="viewcode-block" id="frame_placements_raw">
+<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.kinematics.forward.html#better_robot.kinematics.forward.frame_placements_raw">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">frame_placements_raw</span><span class="p">(</span>
+    <span class="n">structure</span><span class="p">:</span> <span class="n">ModelStructure</span><span class="p">,</span>
+    <span class="n">values</span><span class="p">:</span> <span class="n">ModelValues</span><span class="p">,</span>
+    <span class="n">joint_pose_world</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Place frames from prevalidated structure/value tensors.&quot;&quot;&quot;</span>
+
+    <span class="n">batch_shape</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">joint_pose_world</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
+    <span class="n">parents</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">frame_parent_joints</span>
+    <span class="n">parent_poses</span> <span class="o">=</span> <span class="n">joint_pose_world</span><span class="o">.</span><span class="n">index_select</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="n">parents</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">int64</span><span class="p">))</span>
+    <span class="n">local</span> <span class="o">=</span> <span class="n">broadcast_to_execution_batch</span><span class="p">(</span>
+        <span class="n">values</span><span class="o">.</span><span class="n">frame_placements</span><span class="p">,</span>
+        <span class="n">batch_shape</span><span class="p">,</span>
+        <span class="p">(</span><span class="n">structure</span><span class="o">.</span><span class="n">nframes</span><span class="p">,</span> <span class="mi">7</span><span class="p">),</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;frame_placements&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">se3</span><span class="o">.</span><span class="n">compose</span><span class="p">(</span><span class="n">parent_poses</span><span class="p">,</span> <span class="n">local</span><span class="p">)</span></div>
 
 </pre></div>
 
@@ -775,7 +850,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Apr 26, 2026.
+  Last updated on Jul 18, 2026.
   <br/>
 </p>
   </div>

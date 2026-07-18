@@ -15,7 +15,6 @@
 
 better_robot.viewer.render_modes.base
 better_robot.viewer.render_modes.urdf_mesh
-better_robot.viewer.render_modes.collision
 better_robot.viewer.render_modes.skeleton
 ```
 

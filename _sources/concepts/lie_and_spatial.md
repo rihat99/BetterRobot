@@ -55,9 +55,8 @@ PyPose calls through the functional facade meant we were already
 re-wrapping every operation. Second, PyPose's `Log` had an autograd
 issue that forced our residual Jacobian path to use central finite
 differences as the default — slow, and a tax on every iteration. The
-torch-native backend (`lie/_torch_native_backend.py`) replaced
-PyPose; it is gradcheck-clean by construction, has no external
-dependencies, and has been the default ever since.
+direct Torch implementation (`lie/_impl.py`) replaced PyPose; it is
+gradcheck-clean by construction and has no external dependencies.
 
 ## Storage convention
 
@@ -90,13 +89,18 @@ def exp(v)               -> torch.Tensor:   # (..., 6) → (..., 7)
 def act(t, p)            -> torch.Tensor:   # (..., 7), (..., 3) → (..., 3)
 def adjoint(t)           -> torch.Tensor:   # (..., 7) → (..., 6, 6)
 def adjoint_inv(t)       -> torch.Tensor:   # faster than inv(adjoint(...))
+def from_matrix(m)       -> torch.Tensor:   # (..., 4, 4) → (..., 7)
+def to_matrix(t)         -> torch.Tensor:   # (..., 7) → (..., 4, 4)
 def from_axis_angle(axis, angle): ...
-def from_translation(disp): ...
+def from_translation(axis, disp): ...  # translation by scalar/vector disp along axis
 def normalize(t)         -> torch.Tensor:   # re-project onto SE(3)
 
 # src/better_robot/lie/so3.py
 identity, compose, inverse, log, exp, act, adjoint,
-from_matrix, to_matrix, from_axis_angle, normalize
+from_euler, to_euler, from_matrix, to_matrix, from_axis_angle, normalize
+
+# src/better_robot/lie/alignment.py
+def umeyama(source, target, weights=None, *, estimate_scale=True): ...
 
 # src/better_robot/lie/tangents.py — right / left Jacobians of exp
 def right_jacobian_so3(omega) -> torch.Tensor:    # Jr(ω), (..., 3) → (..., 3, 3)
@@ -113,12 +117,25 @@ def hat_so3(w):  ...   # (..., 3) → (..., 3, 3)
 def vee_so3(W):  ...   # (..., 3, 3) → (..., 3)
 ```
 
-Every function routes through the active `Backend` Protocol from
-{doc}`batching_and_backends`. The default backend
-(`torch_native`) is implemented in `lie/_torch_native_backend.py`
-and uses Barfoot's closed forms. A future Warp backend will provide
-the same surface with `wp.kernel`-backed implementations; call sites
-do not change.
+Every function calls the direct Torch implementation in `lie/_impl.py`,
+which uses Barfoot's closed forms. There is no runtime dispatch in this
+layer. An optional kernel optimisation belongs at a complete FK/RNEA-style
+pass described in {doc}`batching_and_backends`; it does not replace an
+individual Lie primitive.
+
+## Interchange and point-set alignment
+
+Euler interchange uses one fixed active convention: inputs are
+`[roll, pitch, yaw]`, applied extrinsically about XYZ, so
+`R = Rz(yaw) @ Ry(pitch) @ Rx(roll)`. `so3.from_euler` returns the frozen
+scalar-last quaternion layout and `so3.to_euler` returns its principal branch;
+roll and yaw are necessarily ambiguous at pitch `+/- pi/2`.
+
+`se3.from_matrix` and `se3.to_matrix` bridge homogeneous `(..., 4, 4)`
+matrices and `[tx, ty, tz, qx, qy, qz, qw]` tensors without changing that
+layout. For point clouds, `lie.umeyama(source, target, weights)` fits batched
+3D similarity transforms and returns `(scale, rotation, translation)`. Its SVD
+correction always returns a proper rotation with determinant `+1`.
 
 ## Singularity handling
 
@@ -129,47 +146,54 @@ SE(3) left-Jacobian has a similar singularity. Both are handled with
 `torch.where` against a `θ²` cutoff:
 
 ```python
-# Sketch — see src/better_robot/lie/_torch_native_backend.py
-b = torch.where(theta2 < EPS,
-                0.5 - theta2 / 24.0,                # Taylor lead at θ → 0
-                (1.0 - cos_theta) / theta2)
-c = torch.where(theta2 < EPS,
+# Sketch — see src/better_robot/lie/_impl.py
+use_taylor = theta2 < EPS
+theta2_safe = torch.where(use_taylor, torch.ones_like(theta2), theta2)
+theta = theta2_safe.sqrt()
+b = torch.where(use_taylor,
+                0.5 - theta2 / 24.0,
+                (1.0 - torch.cos(theta)) / theta2_safe)
+c = torch.where(use_taylor,
                 1.0/6.0 - theta2 / 120.0,
-                (theta - sin_theta) / theta3)
+                (theta - torch.sin(theta)) / (theta * theta2_safe))
 ```
 
 The Taylor leads are checked explicitly by
-`tests/lie/test_singularities.py` at `θ ∈ {0, π/2, π − 1e-6}`.
-Autograd flows smoothly through the `torch.where` because both
-branches return finite, differentiable values.
+`tests/lie/test_torch_backend_singularities.py` at
+`θ ∈ {0, π/2, π − 1e-6}` and with first-/second-order checks at zero and
+`1e-9`. The full-formula branch receives a safe dummy denominator in the Taylor
+region because `torch.where` evaluates both branches during backward.
 
 ## Quaternion double cover
 
 A unit quaternion `q` and `-q` represent the same rotation. The naive
 implementation of `so3.log(q)` returns different tangents for the two
 representations, which breaks gradient flow at the seam. The
-torch-native backend folds the two halves of the cover by flipping
+direct implementation folds the two halves of the cover by flipping
 the sign whenever `qw < 0`:
 
 ```python
 q = torch.where((q[..., 3:4] < 0), -q, q)
 ```
 
-The `log ∘ exp` round-trip is the identity modulo numerical noise,
-and `assert_close_manifold` (see {doc}`/conventions/testing`) compares
-on the manifold rather than element-wise.
+The `log ∘ exp` round-trip is the identity modulo numerical noise. Quaternion
+storage must be compared modulo sign: compare rotation matrices, or compare the
+norm of a relative SO(3) logarithm. BetterRobot does not expose an
+`assert_close_manifold` helper.
 
-## Numerical guarantees
+## Numerical evidence
 
-| Routine | Guaranteed accuracy |
-|---------|---------------------|
-| `se3.exp(log(T))` | `‖Δ‖ < 1e-6` (fp32), `< 1e-12` (fp64) |
-| Analytic FK Jacobian vs. `jacrev` | `‖ΔJ‖_F < 1e-4` (fp32), `< 1e-10` (fp64) |
-| Long-chain FK (30 joints) | 1 ulp of a well-conditioned product of SE(3)s |
+Typed SO(3)/SE(3) round-trip tests use ``1e-6`` in fp32 and ``1e-12``
+in fp64 on their committed random fixtures. The focused fp64 gradcheck module
+covers SO(3) exp/log and SE(3) exp/log/inverse/compose/act with
+``atol=1e-6, rtol=1e-5``; singularity tests separately cover zero, ``1e-9``,
+and the principal-log boundary. See
+``tests/lie/test_torch_backend_gradcheck.py`` and
+``tests/lie/test_torch_backend_singularities.py``.
 
-The torch-native backend passes `torch.autograd.gradcheck` at fp64
-with `atol=1e-8, rtol=1e-6` on randomised unit-quaternion inputs for
-every public op. See `tests/lie/test_torch_backend_gradcheck.py`.
+Those are test-specific observations, not a universal guarantee for every
+public wrapper or an arbitrary long FK chain. Kinematics/Pinocchio tolerances
+are documented with their own tests.
 
 ## Typed value classes — `lie/types.py`
 
@@ -238,12 +262,13 @@ p_world    = T_world_ee @ p_local       # SE3 @ tensor[..., 3] → tensor[..., 3
 xi         = T_world_ee.log()           # SE3 → tangent
 ```
 
-Hot paths still call the functional `lie.se3.*` API directly on raw
-tensors — boxing every entry of a `(B..., njoints, 7)` tensor into an
-`SE3` instance would defeat batching. The convention is: storage on
-`Model` and `Data` is the raw tensor; user-facing accessors
-(`Data.frame_pose("name")`, `IKResult.frame_pose("name")`) return the
-typed wrapper; functions accept either.
+Hot paths still call the functional `lie.se3.*` API directly on raw tensors —
+boxing every entry of a `(B..., njoints, 7)` tensor into an `SE3` instance
+would defeat batching. Storage on `Model` and `Data` is raw. The typed
+`Data.frame_pose(frame_id)` accessor returns `SE3`, while
+`IKResult.frame_pose(name)` returns the raw `(..., 7)` tensor used by task
+callers. Functional `lie.se3.*` operations accept raw tensors; use the typed
+wrapper's methods when working with `SE3` objects.
 
 The deliberately-omitted operators are worth naming:
 
@@ -311,7 +336,10 @@ NotImplementedError:
 `(..., 10)` tensor with layout
 `[mass, cx, cy, cz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]`. Factories
 (`from_sphere`, `from_box`, `from_capsule`, `from_ellipsoid`,
-`from_mass_com_matrix`) exist for the common cases. Methods accept
+`from_mass_com_matrix`) exist for the common cases. `from_mesh` performs
+batched, differentiable signed-tetrahedron integration over a closed,
+consistently wound triangle surface; it accepts either global winding and
+keeps gradients to vertices and uniform density entirely in Torch. Methods accept
 the typed wrapper or the raw tensor; methods that return an inertia
 return the typed wrapper.
 
@@ -326,8 +354,8 @@ footguns in Python:
 - `__torch_function__` subclass drift on tensor subclasses (the
   PyPose lesson).
 
-So `lie/` stays functional over plain tensors — backend-swappable,
-autograd-clean, trivially `torch.compile`-friendly. `spatial/`
+So `lie/` stays functional over plain tensors — direct, autograd-clean, and
+`torch.compile`-friendly. `spatial/`
 provides shallow value-type wrappers with explicit named methods for
 code that reads cleaner with them (notably `dynamics/`). Kinematics
 works directly on tensors; dynamics uses `Motion` / `Force` / `Inertia`
@@ -352,8 +380,7 @@ for readability.
 
 - {doc}`kinematics` — how the FK loop calls `lie.se3.compose` for
   every joint in `topo_order`.
-- {doc}`batching_and_backends` — the `Backend` Protocol that routes
-  the `lie.*` calls to `torch_native` (today) or `warp` (in
-  progress).
+- {doc}`batching_and_backends` — the structure/value seam and explicit
+  whole-pass compute lanes.
 - {doc}`/conventions/contracts` §1.3 — the quaternion-norm input
   contract.

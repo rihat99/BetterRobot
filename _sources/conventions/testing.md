@@ -1,379 +1,282 @@
 # Testing
 
-> **Status:** normative. Every PR is expected to satisfy this document.
+> **Status:** normative test expectations plus a description of current
+> automation. The workflow is manual-only; this page does not imply an
+> automatic pull-request, scheduled, coverage, benchmark, or GPU gate.
 
-The tests are not "supplementary materials" for the library — they are
-the library's product. A user picks BetterRobot over a hand-rolled
-Pinocchio binding because BetterRobot proves, on every PR, that
-`forward_kinematics` agrees with Pinocchio to fp64 ulp, that
-`solve_ik` converges within the published budget, that the public API
-has not silently grown a 27th symbol, that `get_frame_jacobian` returns
-the convention CLAUDE.md says it does, and that no module above the
-backend layer suddenly imports a CUDA kernel.
+Tests are part of BetterRobot's compatibility surface. Numerical tests pin
+robotics conventions and gradients, contract tests pin architecture and API
+rules, and benchmark definitions keep performance claims reproducible. The
+test files and ``.github/workflows/ci.yml`` are the source of truth for what is
+executed; this guide explains how those pieces fit together.
 
-The test suite enforces all of the above through six categories
-working together. **Unit** tests pin the smallest provable behaviours
-— `se3.exp ∘ log == identity`, residual analytic Jacobian equals
-autodiff, joint integrator round-trips. **Integration** tests run the
-real public API on the real Panda and G1 URDFs, no mocks, because mock
-URDF parses become a way to lie to ourselves about what works. **Contract**
-tests enforce the *rules* in the rest of the docs: the layer DAG, the
-26-symbol public API, the naming table, the hot-path lint, the
-deprecation schedule. **Regression** tests pin numerical outputs against
-a frozen reference. **Benchmark** tests defend the latency / memory
-budgets via the gate-promotion ladder. **Example** tests import every
-runnable script under `examples/` so the docs stop bit-rotting.
+## 1 · Test categories
 
-No category is "optional." CI runs all six on every PR. The contract
-tier in particular blocks anything from merging that contradicts what
-the docs say.
+| Category | Current role |
+|---|---|
+| **Unit** | Small tensor, manifold, model, residual, solver, and viewer behaviours. |
+| **Integration** | Public operations on programmatic and real robot descriptions, including task facades and Pinocchio comparisons. |
+| **Contract** | Layer DAG, public imports, naming, optional imports, cache invariants, protocols, roadmap inventory, and hot-path rules. |
+| **Regression** | Frozen numerical output such as the committed FK oracle. |
+| **Benchmark** | Advisory definitions and evidence artifacts; not a merge gate. |
+| **Documentation** | The published front-page example plus strict Sphinx builds. |
 
-## 1 · What we test, and why
+The repository currently has these top-level test areas:
 
-| Category | Purpose | Tolerance for breakage |
-|----------|---------|------------------------|
-| **Unit** | Smallest provable behaviours (e.g. `se3.exp ∘ log == identity`) | Zero — a unit failure is a bug |
-| **Integration** | Cross-module correctness (e.g. `solve_ik` + Panda URDF) | Zero |
-| **Contract** | DAG, public-API ceiling, registry sanity | Zero |
-| **Regression** | Numerical equivalence against a frozen reference output | 1e-5 (fp32), 1e-10 (fp64) |
-| **Benchmark** | Wall-clock budgets from {doc}`performance` | 20% regression window |
-| **Example** | Every runnable `examples/*.py` imports and runs headless | Zero |
-
-## 2 · Directory layout
-
-```
+```text
 tests/
-├── lie/                                # unit (SE3/SO3, tangents, Jr/Jl)
-├── spatial/                            # unit (Motion/Force/Inertia ops)
-├── data_model/                         # unit (joint models, Model/Data roundtrip)
-├── kinematics/                         # unit + regression
-├── dynamics/                           # unit + regression
-├── residuals/                          # unit (analytic vs FD jacobian per residual)
-├── costs/                              # unit (CostStack shape/weight/active)
-├── optim/                              # unit (solvers on synthetic problems)
-├── tasks/                              # integration (Panda, G1 IK; trajopt)
-├── io/                                 # integration (URDF / MJCF roundtrip)
-├── collision/                          # unit (SDF pairs)
-├── viewer/                             # unit with MockBackend, smoke test with ViserBackend
-├── bench/                              # benchmarks (see §6)
-├── contract/
-│   ├── test_layer_dependencies.py      # DAG enforcement (AST walk)
-│   ├── test_backend_boundary.py        # only lie/kinematics/dynamics cross the backend Protocol
-│   ├── test_public_api.py              # __all__ matches frozen EXPECTED set (26 symbols)
-│   ├── test_submodule_public_imports.py # symbols not in __all__ stay reachable from documented submodule paths
-│   ├── test_skeleton_signatures.py     # every public symbol is importable
-│   ├── test_hot_path_lint.py           # perf anti-patterns (see performance.md §3)
-│   ├── test_naming.py                  # no pinocchio cryptic names in new code (see naming.md)
-│   ├── test_docstrings.py              # every public symbol has a docstring + example
-│   ├── test_protocols.py               # documented Protocols carry the documented members
-│   ├── test_solver_state.py            # SolverState carries the spec'd fields
-│   ├── test_shape_annotations.py       # jaxtyping coverage on public surface (advisory)
-│   ├── test_no_legacy_strings.py       # no reference="..." literals in src/
-│   ├── test_cache_invariants.py        # Data._kinematics_level enforced
-│   ├── test_optional_imports.py        # `import better_robot` does not pull yourdfpy/mujoco/viser/warp/...
-│   └── test_deprecations.py            # deprecation shims removed on schedule
-└── examples/
-    └── test_examples.py                # imports and runs each examples/*.py headless
+├── bench/             # advisory microbenchmarks and measurement contracts
+├── contract/          # source/API/architecture contracts
+├── data_model/
+├── docs/              # executable published examples
+├── dynamics/
+├── io/
+├── kinematics/        # includes fk_reference.npz
+├── lie/
+├── optim/
+├── residuals/
+├── spatial/
+├── tasks/
+├── test_pinocchio/    # optional Pinocchio oracles
+├── viewer/
+└── warp/              # optional Warp CPU and CUDA coverage
 ```
 
-## 3 · Coverage budgets per layer
+Small programmatic models are appropriate for isolating topology and shape
+contracts. Tests that claim compatibility with a real robot or Pinocchio use
+the corresponding real description/reference rather than a mock substitute.
 
-Enforced by `pytest-cov --cov-fail-under`:
+## 2 · Current automation
 
-| Layer | Minimum line coverage |
-|-------|-----------------------|
-| `lie/` | 95% |
-| `spatial/` | 95% |
-| `data_model/` | 90% |
-| `kinematics/` | 90% |
-| `residuals/` | 90% |
-| `costs/`, `optim/` | 85% |
-| `tasks/` | 80% |
-| `io/` | 80% |
-| `collision/` | 85% |
-| `viewer/` | 60% (hard to test headlessly) |
-| `dynamics/` | 80% |
+GitHub Actions is intentionally stopped for automatic events. The ``CI``
+workflow has only a ``workflow_dispatch`` trigger and must be started by a
+maintainer. It currently defines five Ubuntu/Python 3.12 jobs:
 
-"Below budget" fails CI. We never lower a budget to pass; we add
-tests.
+| Manual job | What it runs |
+|---|---|
+| ``full-non-warp`` | Full non-Warp, non-benchmark, non-CUDA suite with development/integration extras. |
+| ``core-only`` | Fresh core install, public import, and dependency-boundary assertions. |
+| ``docs`` | Published front-page test and Sphinx HTML build. |
+| ``benchmarks`` | Advisory pytest benchmarks plus the M1 eager-CPU harness; uploads evidence without comparing a blocking baseline. |
+| ``warp-cpu`` | Bounded Warp-CPU contracts and the Warp-FK/compiled-Torch definition; this is correctness evidence, not CUDA evidence. |
 
-## 4 · Test style
+There is no automatic PR or nightly matrix, hosted CUDA job, coverage
+threshold, static-type job, or blocking benchmark comparison at present. CUDA
+validation recorded for M6 was run on the documented local host; see
+``tests/bench/definitions.md``. Re-enabling or promoting a remote gate is a
+separate owner decision.
 
-### 4.1 No mocks for numerical code
+## 3 · Running locally
 
-Real Panda URDF (`robot_descriptions.panda_description.URDF_PATH`),
-real floating-base G1, real MJCF where applicable. Mocking breaks the
-reference numerics.
-
-### 4.2 Parametrise over shapes
-
-Every hot-path test runs at **(CPU, fp32), (CPU, fp64), (CUDA, fp32)**
-and at **batch sizes 1, 8, 1024** where memory permits:
-
-```python
-@pytest.mark.parametrize("device", ["cpu", pytest.param("cuda", marks=gpu)])
-@pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
-@pytest.mark.parametrize("batch", [1, 8, 1024])
-def test_fk_shape(panda, device, dtype, batch):
-    ...
-```
-
-A helper `tests/conftest.py::gpu` auto-skips CUDA-marked tests on CI
-runners without a GPU.
-
-### 4.3 Manifold-aware assertions
-
-For tensors that live on SE(3) / SO(3), comparison uses a dedicated
-helper:
-
-```python
-from better_robot.utils.testing import assert_close_manifold
-assert_close_manifold(T_got, T_ref, atol=1e-5, rtol=1e-5)
-```
-
-Why not `torch.testing.assert_close`? Two unit quaternions `±q`
-represent the same rotation; a raw element-wise compare would falsely
-fail. The helper normalises both and compares via geodesic distance.
-
-### 4.4 Analytic vs. autodiff equivalence
-
-Every residual with a hand-coded `.jacobian()` ships a test that
-compares the analytic Jacobian to `torch.func.jacrev` of the residual:
-
-```python
-def test_pose_residual_jacobian_matches_autodiff(panda_fk_data):
-    res = PoseResidual(target_pose, frame_id)
-    J_analytic = res.jacobian(state)
-    J_auto = torch.func.jacrev(lambda x: res(state.with_x(x)))(state.x)
-    assert_close(J_analytic, J_auto, atol=1e-4)
-```
-
-This is the contract the library relies on for performance; it must
-never silently drift.
-
-### 4.5 Regression oracles
-
-`tests/kinematics/fk_reference.npz` holds FK outputs for Panda and G1
-at a pinned set of 50 random `q`s — fp64 throughout. A regression
-test fails if the current FK diverges from the stored reference beyond
-`atol=1e-10`, unless the developer *intentionally* regenerates the
-file via `tests/kinematics/_generate_fk_reference.py`.
-
-Metadata captured in the npz:
-
-```
-oracle_version : "1.0"
-generation_seed: 0
-generated_with : "torch=2.5.0, …"
-fk_dtype       : "float64"
-generated_at   : "2026-04-25T12:34:56Z"
-```
-
-**No git SHA** — reproducibility hinges on
-`oracle_version + generation_seed + dep versions`, not on a SHA that
-becomes useless after a rebase. When the FK convention itself changes,
-`oracle_version` bumps and the new file is committed.
-
-A sibling `_pinocchio_oracle.npz` is generated *from* Pinocchio with
-the same `q` samples (Pinocchio is in the `[dev]` extra; tests
-`skipif` otherwise). The cross-check test compares both oracles to
-within `1e-8` (fp64), which makes the FK convention provably identical
-to Pinocchio's.
-
-### 4.6 Gate-promotion ladder
-
-Several gates land **advisory** and only flip to blocking once they
-have collected enough signal:
-
-| Gate | Initial mode | Promotion criterion |
-|------|--------------|---------------------|
-| Contract bundle (correctness, DAG, hot-path lint, mypy strict, cache invariants, optional imports) | Blocking from day 1 | — |
-| `test_shape_annotations.py` (jaxtyping coverage) | Advisory (coverage report) | All public symbols annotated |
-| CPU bench | Advisory (PR comment) | Two release cycles of stable runner variance < 5% |
-| CUDA bench | Nightly only | One cycle of stable self-hosted-runner data |
-| `mem_watermark` | Nightly only | Promoted at v1 release |
-| Pinocchio cross-check | Opt-in (skip if missing) | Always opt-in until we ship a hosted Pinocchio runner |
-
-Promotion is a separate PR per gate that flips the workflow from
-`continue-on-error: true` to a real fail. The flip-PR's description
-records the variance data that justifies it.
-
-Hard CUDA gates *before* runner stability is measured produce flaky CI
-that gets muted, defeating the gate's purpose. The ladder is the
-discipline that prevents that.
-
-## 5 · Contract tests (DAG, API, naming, lint)
-
-These tests do not exercise numerical code; they enforce the rules
-elsewhere in the docs. They live in `tests/contract/` so they are the
-first thing CI reports.
-
-### 5.1 Layer DAG
-
-`test_layer_dependencies.py` AST-parses every
-`src/better_robot/**/*.py` and walks the import graph. Any edge that
-violates the DAG (see {doc}`/concepts/architecture`) fails. Reported
-with the offending file and import line number.
-
-### 5.2 Public API
-
-`test_public_api.py`:
-
-- `better_robot.__all__` matches the frozen `EXPECTED` set (26
-  symbols). Adding or removing public symbols requires updating
-  `EXPECTED` in the same PR — the audit is the diff, not a magic
-  number.
-- Each is importable.
-- Each has a non-empty docstring with at least one example block.
-
-`test_submodule_public_imports.py` checks that documented
-submodule-only public symbols stay reachable:
-
-```python
-from better_robot.lie         import SO3, Pose
-from better_robot.spatial     import Motion, Force, Inertia, Symmetric3
-from better_robot.kinematics  import ReferenceFrame
-from better_robot.optim.state import SolverState
-from better_robot.tasks.ik    import IKResult, IKCostConfig, OptimizerConfig
-```
-
-If a refactor accidentally moves one, the test fails — silent moves
-are caught.
-
-### 5.3 Naming
-
-`test_naming.py` greps `src/better_robot/` for any identifier matching
-the deprecated-name patterns from {doc}`naming` outside the migration
-shim allowlist.
-
-### 5.4 Hot-path lint
-
-`test_hot_path_lint.py` AST-walks the designated hot-path files and
-fails on the patterns listed in {doc}`performance`: `.item()`,
-`.cpu()`, per-iteration `torch.zeros`, branching on `tensor.dim()`,
-etc.
-
-### 5.5 Docstring coverage
-
-`test_docstrings.py` asserts every symbol in `__all__`, every
-`Protocol`, and every `@register_*` decorator has a docstring.
-
-## 6 · Benchmarking
-
-Benchmarks live under `tests/bench/` and use `pytest-benchmark`.
-
-### 6.1 Running
+Install the extras needed by the surface under test. A close equivalent of
+the manual non-Warp job is:
 
 ```bash
-uv run pytest tests/bench/ -v --benchmark-only
-uv run pytest tests/bench/ --benchmark-compare --benchmark-fail=mean:20%
+uv sync --extra dev --extra viewer --extra io-mjcf --extra meshes --extra demos
+uv run pytest tests \
+  --ignore=tests/warp \
+  --ignore=tests/data_model/test_layout_aliasing.py \
+  -m "not bench and not cuda"
 ```
 
-### 6.2 Baseline management
+The ignored layout test imports Warp. With the optional runtime installed, run
+the bounded Warp-CPU contracts separately:
 
-- `tests/bench/baseline_cpu.json` — committed, auto-bumped on perf PRs.
-- `tests/bench/baseline_cuda.json` — committed per hardware generation.
-
-A perf PR pipeline:
-
-1. Run baseline: `pytest --benchmark-save=new`.
-2. Compare against committed: `pytest --benchmark-compare=baseline_cpu`.
-3. If win > 5%, commit `baseline_cpu.json` bump in the same PR.
-4. If loss > 20%, PR fails; investigate or justify.
-
-### 6.3 Budgets
-
-Each benchmark asserts its own budget:
-
-```python
-def test_bench_panda_fk_cuda_b1(benchmark, panda):
-    q = panda.q_neutral.cuda()
-    r = benchmark(lambda: br.forward_kinematics(panda, q))
-    assert benchmark.stats.mean < 150e-6
+```bash
+uv sync --extra dev --extra warp
+uv run pytest tests/data_model/test_layout_aliasing.py tests/warp -q \
+  --ignore=tests/warp/test_fk_cuda.py
 ```
 
-## 7 · Example-as-test
+CUDA-marked tests require a visible CUDA device and their declared optional
+dependencies. They skip when CUDA is unavailable; a skip is not GPU evidence.
+On the M6 measurement host, the focused suite is:
 
-Every file in `examples/` must be importable from
-`tests/examples/test_examples.py`:
-
-```python
-@pytest.mark.parametrize("example", [
-    "01_basic_ik", "02_g1_ik",
-])
-def test_example_imports(example):
-    mod = importlib.import_module(f"examples.{example}")
-    assert hasattr(mod, "main")
+```bash
+uv run pytest tests/optim/test_graph_capture.py tests/warp/test_fk_cuda.py -q
 ```
 
-Rationale: docs that bit-rot take users down; tests that import every
-example prevent this for free.
+The default agent sandbox on that host hides NVIDIA device nodes. A CUDA result
+is valid only from the approved host context described in
+``tests/bench/definitions.md``.
 
-## 8 · CI matrix
+For documentation and benchmarks:
 
-| Axis | Values |
-|------|--------|
-| OS | Ubuntu 22.04, macOS 14 |
-| Python | 3.10, 3.11, 3.12 |
-| PyTorch | stable, nightly |
-| Device | CPU (all matrices), CUDA (Ubuntu + Python 3.11 + stable) |
-| dtype | fp32 in most tests; fp64 in `tests/lie/`, `tests/kinematics/` |
+```bash
+uv run pytest tests/docs/test_front_page.py -q
+uv run make -C docs strict
+uv run pytest tests/bench/bench_*.py -m bench --benchmark-only
+```
 
-A full matrix is ~30 jobs; we run the reduced matrix (one OS × one
-Python × both devices) on every PR and the full matrix nightly. PR
-failures in the reduced matrix block merge; nightly failures open
-issues.
+``uv lock --check`` verifies that the committed lock still matches project
+metadata. Run ``git diff --check`` before committing documentation or code.
 
-## 9 · What "green" means
+## 4 · Coverage
 
-A PR is "ready to merge" when:
+``pyproject.toml`` configures branch-aware coverage for
+``better_robot`` when ``pytest-cov`` is requested:
 
-- All tests in all six categories pass in the reduced CI matrix.
-- No coverage budget dropped (§3).
-- No benchmark regressed beyond the window (§6.2).
-- All contract tests green (§5).
-- For a docs-only PR: contract tests + example imports still green.
+```bash
+uv run pytest tests --cov=better_robot --cov-report=term-missing
+```
 
-No green, no merge — including documentation-only PRs (the contract
-tests guard against copy-pasted cryptic names in new docs).
+No ``fail_under`` value or per-layer budget is configured, and the manual CI
+workflow does not currently collect coverage. Coverage is therefore a review
+signal, not an enforced gate. Add tests for changed behaviour rather than
+treating a percentage as the only adequacy criterion.
+
+## 5 · Numerical and differentiation style
+
+### 5.1 Shapes, batches, devices, and dtypes
+
+Test the combinations promised by the boundary being changed. Public tensor
+paths normally need unbatched and representative leading-batch cases, fp32
+and fp64 where supported, and dtype/device preservation. Value-batched work
+uses ``tests/conftest.py::assert_value_batched_matches_loop`` to compare one
+batched call with scalar calls over the resolved execution batch.
+
+CUDA-specific behaviour is marked ``@pytest.mark.cuda`` and guarded by an
+explicit availability skip. Do not report a CPU or skipped run as CUDA
+validation.
+
+### 5.2 Manifold-aware comparisons
+
+Quaternions have a double cover, so ``q`` and ``-q`` represent the same
+rotation. Tests of rotational meaning should compare a relative rotation or
+geodesic error. Raw component comparisons are appropriate only when the
+component representation itself is the contract, as in a frozen algorithm
+regression oracle.
+
+### 5.3 Derivative checks
+
+Use the oracle that matches the claimed derivative:
+
+- compare declared analytic named-block Jacobian blocks with ``jacrev`` and/or
+  ``jacfwd``;
+- use ``torch.autograd.gradcheck`` in fp64 for differentiable boundaries and
+  singular seams;
+- use finite differences when they are the independent reference, with a
+  documented step and tolerance;
+- include broadcast/shared-value reductions when a compute lane owns a custom
+  VJP.
+
+Not every legacy residual has an analytic Jacobian. The legacy
+``JacobianStrategy.AUTO`` prefers an analytic method and otherwise uses its
+documented unbatched central-finite-difference fallback. The named-block
+``Problem`` surface separately supports analytic, ``jacrev``, ``jacfwd``, and
+finite-difference strategies.
+
+### 5.4 Frozen FK regression oracle
+
+``tests/kinematics/fk_reference.npz`` stores fp64 Panda and G1 FK outputs for
+a pinned set of configurations. The Panda fixture intentionally preserves the
+historical full-coordinate gripper representation rather than public reduced
+mimic coordinates; the generator and regression test strip the mimic metadata
+the same way. ``test_fk_regression.py`` compares current joint and frame
+placements at ``atol=rtol=1e-10``. Regenerate it only after an intentional
+algorithm/convention change:
+
+```bash
+uv run python tests/kinematics/_generate_fk_reference.py
+```
+
+Review the resulting binary diff together with the generator metadata. There
+is no sibling committed ``_pinocchio_oracle.npz``. Live Pinocchio comparisons
+are under ``tests/test_pinocchio/`` and skip if their optional dependency is
+unavailable.
+
+## 6 · Contract tests
+
+``tests/contract/`` contains the current executable rules:
+
+```text
+test_boundary_validation_count.py
+test_cache_invariants.py
+test_cost_stack_location.py
+test_docstrings.py
+test_hot_path_lint.py
+test_layer_dependencies.py
+test_naming.py
+test_no_legacy_strings.py
+test_optional_imports.py
+test_pluggable_protocols.py
+test_protocols.py
+test_public_api.py
+test_roadmap_stub_inventory.py
+test_solver_state.py
+test_submodule_public_imports.py
+```
+
+Run them directly while changing architecture, exports, optional imports, or
+documentation tied to the roadmap:
+
+```bash
+uv run pytest tests/contract -q
+```
+
+The hot-path lint AST-walks the paths declared in
+``test_hot_path_lint.py``. A legitimate eager/static boundary may use
+``# bench-ok: <reason>``; the exemption is reviewed as ordinary source code.
+There is no rule that fails merely because more than a fixed number of such
+comments were added.
+
+## 7 · Benchmarks and evidence
+
+Benchmarks are advisory. The canonical definitions and artifact status live
+in ``tests/bench/README.md`` and ``tests/bench/definitions.md``. In
+particular:
+
+- ``baseline_cpu.json`` is placeholder pytest-benchmark scaffolding and is not
+  a regression gate;
+- hardware-named CUDA JSON files are evidence only for the exact host, commit,
+  workload, dtype, and batch they record;
+- the M6 144-selector matrix is defined but only a filtered subset has been
+  measured;
+- ``test_mem_watermark.py`` is available for explicit local/manual runs and is
+  not scheduled nightly.
+
+Never replace an unsupported workload with an easier one under the same
+label. Record raw samples, cold-start policy, synchronization, versions,
+hardware identity, and source commit before quoting a ratio.
+
+## 8 · Documentation and examples
+
+``tests/docs/test_front_page.py`` executes the fenced example published from
+``docs/index.md``. Sphinx's strict target catches internal references and
+warnings. The repository does not currently import and execute every file in
+``examples/`` automatically, so examples changed outside the front page need
+an explicit smoke run or a focused test.
+
+## 9 · What a verified change means
+
+A change is ready for review when the tests relevant to its claimed surface
+pass in a suitable environment and the result is reported precisely. Examples:
+
+- a docs-only change: front-page test when touched, strict Sphinx, contract
+  tests affected by documented inventories, and ``git diff --check``;
+- a Torch numerical change: focused unit/regression/gradient tests plus the
+  non-CUDA suite in the supported environment;
+- a Warp change: shared Torch-oracle parity and Warp-CPU contracts, plus real
+  CUDA tests before making any CUDA or performance claim;
+- a performance change: functional tests plus a fresh artifact following the
+  relevant committed measurement definition.
+
+Because CI is manual-only, “verified locally” and “passed a manually
+dispatched workflow” are distinct statements. Neither should be described as
+an automatic merge gate.
 
 ## 10 · Debugging failures
 
-### 10.1 Numerical drift in regression
+For numerical drift, first separate dtype tolerance from a convention change,
+then compare the analytic/autodiff blocks or current/frozen oracle at the
+smallest failing model and batch. Do not regenerate a frozen oracle merely to
+make an unexplained failure disappear.
 
-1. Check whether `model.gravity`, `joint_placements`, `body_inertias`
-   were regenerated (URDF hash changed).
-2. Diff the analytic and autodiff Jacobians on the offending frame.
-3. Re-run with `dtype=torch.float64` — if the drift disappears, the
-   root cause is fp32 quantisation and the tolerance may be raised
-   with a justifying note in the test.
+For noisy benchmarks, preserve the committed workload and inspect affinity,
+warmup, synchronization, compiler/kernel caches, GPU clocks, and raw-sample
+distribution. A quick or filtered harness run is a smoke test unless the
+definition explicitly promotes it to canonical evidence.
 
-### 10.2 Flaky benchmark
-
-Benchmarks use `@pytest.mark.benchmark(warmup=True, min_rounds=10)`.
-If variance is high:
-
-1. Check GPU is at fixed clocks (`nvidia-smi -q -d PERFORMANCE`).
-2. Pin the process to a single NUMA node (`numactl --cpunodebind=0`).
-3. Re-run with `--benchmark-autosave` and inspect the histogram.
-
-### 10.3 Hot-path lint false positive
-
-If a legitimate `.item()` is needed (e.g. one-time shape extraction in
-construction), add a `# bench-ok: <reason>` comment on that line. The
-lint pass respects it but records the count; a PR adding more than
-**three** new `bench-ok` comments fails.
-
-## 11 · Writing a new test — style guide
-
-- **One concept per file.** Not `test_kinematics.py`; instead
-  `test_forward_kinematics_shape.py`, `test_jacobian_equivalence.py`.
-- **Fixtures in `conftest.py`.** Robot loaders, `q_neutral`,
-  pre-computed `Data` — share via fixtures, not copy-paste.
-- **No `@pytest.mark.skip` without a linked issue.** A skipped test is
-  a bug with a mask on. If it is not, remove it.
-- **Assert on meaning, not numbers.** `assert_close_manifold`, not
-  element-wise `torch.testing.assert_close` for SE(3)-valued outputs.
-- **Tight tolerances.** fp32: 1e-5 atol, 1e-5 rtol; fp64: 1e-10.
-  Looser bounds are flags, not conveniences — explain them in a
-  comment.
+For an optional-dependency failure, reproduce in the matching core-only,
+integration, Warp-CPU, or CUDA environment. Importing ``better_robot`` must
+remain independent of viewer, MJCF, demo, and Warp extras.

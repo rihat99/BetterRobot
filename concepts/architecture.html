@@ -57,7 +57,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Apr 26, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 18, 2026"/>
   </head>
   
   
@@ -149,18 +149,6 @@
           <a href="https://github.com/rihat99/BetterRobot" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
             <span class="sr-only">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/better-robot/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-python fa-lg" aria-hidden="true"></i>
-            <span class="sr-only">PyPI</span></a>
-        </li>
 </ul></div>
         <div class="sidebar-primary-item">
 
@@ -193,11 +181,19 @@
 <li class="toctree-l2"><a class="reference internal" href="kinematics.html">Kinematics</a></li>
 <li class="toctree-l2"><a class="reference internal" href="dynamics.html">Dynamics</a></li>
 <li class="toctree-l2"><a class="reference internal" href="residuals_and_costs.html">Residuals and Costs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="solver_stack.html">The Solver Stack</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tasks.html">Tasks — IK, Trajectory Optimisation, Retargeting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="solver_stack.html">Named-Block Evaluation and the Legacy Solver Stack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tasks.html">Tasks — IK and Trajectory Optimisation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="collision_and_geometry.html">Collision and Geometry</a></li>
-<li class="toctree-l2"><a class="reference internal" href="batching_and_backends.html">Batching and Backends</a></li>
+<li class="toctree-l2"><a class="reference internal" href="batching_and_backends.html">Batching and Compute Lanes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="warp_bridge.html">Torch–Warp bridge and opt-in FK lane</a></li>
 <li class="toctree-l2"><a class="reference internal" href="viewer.html">Viewer</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../guides/custom_residuals.html">Write a custom block residual</a></li>
 </ul>
 </details></li>
 </ul>
@@ -209,6 +205,8 @@
 <li class="toctree-l2"><a class="reference internal" href="../conventions/extension.html">Extension Points</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../conventions/testing.html">Testing</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../conventions/contracts.html">Contracts &amp; Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/engineering.html">Engineering Contract</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/source_and_license.html">Source and License Decision Memo</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../conventions/style.html">Coding Style</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../conventions/packaging.html">Packaging</a></li>
 </ul>
@@ -231,11 +229,9 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.render_modes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.render_modes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.overlays.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.overlays</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.trajectory_player.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.trajectory_player</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.interaction.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.interaction</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.visualizer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.visualizer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.panels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.panels</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.camera.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.camera</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.recorder.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.recorder</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.primitive.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.primitive</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.scene.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.scene</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.helpers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.helpers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.themes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.themes</span></code></a></li>
@@ -243,13 +239,17 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.temporal</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.registry.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.registry</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.base.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.base</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.human.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.human</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.manipulability.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.manipulability</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.collision</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.scene_sdf.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.scene_sdf</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.pose.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.pose</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.smoothness.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.smoothness</span></code></a></li>
 </ul>
@@ -270,7 +270,6 @@
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.action.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.action</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.integrators.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.integrators</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.crba.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.crba</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.rnea.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.rnea</span></code></a></li>
@@ -285,29 +284,23 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.cost_stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.cost_stack</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.state.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.state</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.jacobian_spec.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.jacobian_spec</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.structure</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.stack</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.factory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.factory</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.testing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.testing</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.batching.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.batching</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.logging.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.logging</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.broadcasting.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.broadcasting</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.ik.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.ik</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.parameterization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.parameterization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.trajectory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajectory</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.retarget.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.retarget</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.trajopt.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajopt</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.smoothing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.smoothing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.contact_forces.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.contact_forces</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -315,37 +308,38 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.se3.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.se3</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.types.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.types</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.tangents.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.tangents</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.alignment.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.alignment</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian_strategy.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian_strategy</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.chain.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.chain</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.forward.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.forward</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.joint_models.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint_models</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.execution_batch.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.execution_batch</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.body.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.body</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.model_values.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model_values</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.reduced_coordinates.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.reduced_coordinates</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.joint.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.frame.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.frame</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.topology.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.topology</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.indexing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.indexing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.model_structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model_structure</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.data.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.data</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.torch_native.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.torch_native</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.warp.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.warp</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.protocol.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.protocol</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.joint_dispatch.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint_dispatch</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3"><a class="reference internal" href="../reference/api/better_robot/better_robot.exceptions.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.exceptions</span></code></a></li>
 </ul>
 </details></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/named_block_solvers.html">Named-block solver API</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../reference/changelog.html">Changelog</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../reference/roadmap.html">Roadmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/m1_removed_symbols.html">M1 removed surfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/m3_removed_symbols.html">M3.5 removed surfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 </ul>
 </details></li>
@@ -353,7 +347,6 @@
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Project Links</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/rihat99/BetterRobot">GitHub</a></li>
-<li class="toctree-l1"><a class="reference external" href="https://pypi.org/project/better-robot/">PyPI</a></li>
 </ul>
 
     </div>
@@ -430,7 +423,7 @@
       
       
       
-      <li><a href="https://github.com/rihat99/BetterRobot/edit/main/docs/concepts/architecture.md" target="_blank"
+      <li><a href="https://github.com/rihat99/BetterRobot/edit/dev/docs/concepts/architecture.md" target="_blank"
    class="btn btn-sm btn-source-edit-button dropdown-item"
    title="Suggest edit"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -567,7 +560,7 @@
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-dependency-rule-in-code">The dependency rule, in code</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-each-layer-owns">What each layer owns</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-package-layout">The package layout</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-public-api-contract-26-symbols">The public API contract — 26 symbols</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-public-api-contract">The public API contract</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#extension-seams">Extension seams</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#why-this-shape-works">Why this shape works</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#where-to-look-next">Where to look next</a></li>
@@ -589,67 +582,75 @@ dependent layer to the one it depends on; nothing ever points
 backwards. The DAG is enforced by
 <code class="docutils literal notranslate"><span class="pre">tests/contract/test_layer_dependencies.py</span></code>, which AST-walks every
 file in <code class="docutils literal notranslate"><span class="pre">src/</span></code> and fails on any import that violates the order.</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>io ─────────────┐
-                ▼
-tasks → optim → residuals → kinematics ↴
-                              │         dynamics ↴
-                              ▼                   ▼
-                             data_model ──── spatial ──── lie ──── backends
-                                                                    │
-                                                                    ▼
-                                                               (torch_native | warp)
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>tasks → optim → residuals ─┬→ dynamics → kinematics ─┐
+                           └───────────→ kinematics  │
+io ───────────────────────────────────→ data_model ←┘
+                                              ↓
+                                           spatial → lie
+
+ModelStructure + ModelValues feed whole-pass Torch or opt-in kernels.
 </pre></div>
 </div>
 <section id="why-the-layers-fall-out-this-way">
 <h2>Why the layers fall out this way<a class="headerlink" href="#why-the-layers-fall-out-this-way" title="Link to this heading">#</a></h2>
 <p>The starting point is the math: everything above the <code class="docutils literal notranslate"><span class="pre">lie/</span></code> layer
 needs to manipulate SE(3) and SO(3) elements. So <code class="docutils literal notranslate"><span class="pre">lie/</span></code> sits at the
-bottom, with <code class="docutils literal notranslate"><span class="pre">backends/</span></code> below it providing the actual tensor
-kernels. <code class="docutils literal notranslate"><span class="pre">spatial/</span></code> builds on <code class="docutils literal notranslate"><span class="pre">lie/</span></code> to add the 6D value types
+bottom and provides direct Torch tensor operations. <code class="docutils literal notranslate"><span class="pre">spatial/</span></code> builds on
+<code class="docutils literal notranslate"><span class="pre">lie/</span></code> to add the 6D value types
 (<code class="docutils literal notranslate"><span class="pre">Motion</span></code>, <code class="docutils literal notranslate"><span class="pre">Force</span></code>, <code class="docutils literal notranslate"><span class="pre">Inertia</span></code>) that dynamics needs.</p>
 <p>Above the math, the <code class="docutils literal notranslate"><span class="pre">data_model/</span></code> layer holds the Pinocchio-style
 <code class="docutils literal notranslate"><span class="pre">Model</span></code> (frozen topology) and <code class="docutils literal notranslate"><span class="pre">Data</span></code> (mutable workspace). It depends
 on <code class="docutils literal notranslate"><span class="pre">spatial/</span></code> because body inertias live there, and on <code class="docutils literal notranslate"><span class="pre">lie/</span></code> because
-joint placements are SE(3) elements. It depends on nothing higher.</p>
-<p><code class="docutils literal notranslate"><span class="pre">kinematics/</span></code> and <code class="docutils literal notranslate"><span class="pre">dynamics/</span></code> are siblings: both work on <code class="docutils literal notranslate"><span class="pre">Model</span></code> plus
-<code class="docutils literal notranslate"><span class="pre">Data</span></code>, neither imports the other. Forward kinematics and Jacobians
-do not need to know about RNEA; RNEA does not need to know about
-Jacobian assembly. Splitting them apart is what lets a user build
-purely kinematic IK without dragging dynamics code through compile.</p>
-<p>The optimisation stack stacks above. <code class="docutils literal notranslate"><span class="pre">residuals/</span></code> are pure functions
-of <code class="docutils literal notranslate"><span class="pre">(model,</span> <span class="pre">data,</span> <span class="pre">variables)</span></code> returning a residual vector; they
-depend on <code class="docutils literal notranslate"><span class="pre">kinematics/</span></code> (to compose pose-error Jacobians, to read
-<code class="docutils literal notranslate"><span class="pre">frame_pose_world</span></code>), and optionally on <code class="docutils literal notranslate"><span class="pre">dynamics/</span></code> (residuals like
-<code class="docutils literal notranslate"><span class="pre">min_torque</span></code> reach down to <code class="docutils literal notranslate"><span class="pre">rnea</span></code>). <code class="docutils literal notranslate"><span class="pre">costs/</span></code> is one layer up — it
-composes residuals into a weighted concatenation. <code class="docutils literal notranslate"><span class="pre">optim/</span></code> depends on
-<code class="docutils literal notranslate"><span class="pre">costs/</span></code> (the residual / Jacobian interface) but knows nothing about
-specific residuals; that is what makes the LM solver work for IK and
-for trajopt with the same code.</p>
-<p><code class="docutils literal notranslate"><span class="pre">tasks/</span></code> is the topmost user-facing facade. <code class="docutils literal notranslate"><span class="pre">solve_ik</span></code> and
-<code class="docutils literal notranslate"><span class="pre">solve_trajopt</span></code> build a <code class="docutils literal notranslate"><span class="pre">CostStack</span></code>, wrap it in a
-<code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code>, hand it to an <code class="docutils literal notranslate"><span class="pre">Optimizer</span></code>, and return a clean
-result type.</p>
+joint placements are SE(3) elements. It depends on nothing higher.
+The same layer owns the whole-pass seam: <code class="docutils literal notranslate"><span class="pre">ModelStructure</span></code> mirrors static
+topology as Python tuples and device tables, while <code class="docutils literal notranslate"><span class="pre">ModelValues</span></code> carries the
+differentiable tensor pytree. Torch raw passes and eligible opt-in kernels
+consume that shared contract.</p>
+<p><code class="docutils literal notranslate"><span class="pre">kinematics/</span></code> and <code class="docutils literal notranslate"><span class="pre">dynamics/</span></code> have the same contract rank and both work on
+<code class="docutils literal notranslate"><span class="pre">Model</span></code> plus <code class="docutils literal notranslate"><span class="pre">Data</span></code>. The current dependency is one-way: dynamics reuses raw FK
+and validation helpers from kinematics, while kinematics does not import
+dynamics. A whole-pass kernel lives beside its Torch counterpart in the owning
+package; it is not a new dependency layer. Purely kinematic IK therefore does
+not pull dynamics into its import or compile path.</p>
+<p>The optimization layer retains two contracts. The direct-compatibility path
+keeps <code class="docutils literal notranslate"><span class="pre">residuals/</span></code> as functions of <code class="docutils literal notranslate"><span class="pre">(model,</span> <span class="pre">data,</span> <span class="pre">variables)</span></code>, composes them in
+<code class="docutils literal notranslate"><span class="pre">optim/CostStack</span></code>, and hands a
+<code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code> to an optimizer. The old <code class="docutils literal notranslate"><span class="pre">better_robot.costs</span></code> import path
+is a forwarding compatibility package, not a dependency layer. The named-block
+path lives in <code class="docutils literal notranslate"><span class="pre">optim/blocks/</span></code>: a <code class="docutils literal notranslate"><span class="pre">Problem</span></code> owns <code class="docutils literal notranslate"><span class="pre">VarSpec</span></code>s, structural residual
+items, scalar objective items, and a provider DAG. Providers may reach directly
+to lower layers such as kinematics, while user residuals consume only the
+read-only context names they declare. Residual-owned <code class="docutils literal notranslate"><span class="pre">TemporalPattern</span></code> values
+remain below <code class="docutils literal notranslate"><span class="pre">optim</span></code>; the optimizer consumes them to build block-banded or
+operator representations without creating a reverse dependency.</p>
+<p><code class="docutils literal notranslate"><span class="pre">tasks/</span></code> is the topmost user-facing facade. <code class="docutils literal notranslate"><span class="pre">solve_ik</span></code> builds a named-block
+<code class="docutils literal notranslate"><span class="pre">Problem</span></code> with a <code class="docutils literal notranslate"><span class="pre">RobotConfig</span></code> variable and provider-backed built-in
+residuals. <code class="docutils literal notranslate"><span class="pre">solve_trajopt</span></code> adapts active soft <code class="docutils literal notranslate"><span class="pre">CostStack</span></code> items into one
+time-annotated <code class="docutils literal notranslate"><span class="pre">RobotConfig</span></code> block and uses route-aware named-block LM. Legacy
+callers may still invoke an optimizer’s <code class="docutils literal notranslate"><span class="pre">minimize</span></code> method directly;
+named-block problems use the named-block solvers’ <code class="docutils literal notranslate"><span class="pre">run</span></code> methods.</p>
 <p><code class="docutils literal notranslate"><span class="pre">io/</span></code> and <code class="docutils literal notranslate"><span class="pre">viewer/</span></code> sit alongside the main spine, not above it. <code class="docutils literal notranslate"><span class="pre">io/</span></code>
 reads from <code class="docutils literal notranslate"><span class="pre">data_model/</span></code> only — the URDF parser does not invoke
 kinematics. <code class="docutils literal notranslate"><span class="pre">viewer/</span></code> is at the very top: nothing imports from it.
-That sequencing is what allows <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">better_robot</span></code> to skip viser,
-trimesh, mujoco, and yourdfpy (the viewer + parsers are the only
-paths that pull them, and they are gated by extras).</p>
+That sequencing is what allows <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">better_robot</span></code> to skip importing viser,
+trimesh, mujoco, and yourdfpy. Viewer, direct mesh, and MJCF support are gated
+by extras; the core URDF dependency is still imported lazily at the parser
+boundary.</p>
 </section>
 <section id="the-dependency-rule-in-code">
 <h2>The dependency rule, in code<a class="headerlink" href="#the-dependency-rule-in-code" title="Link to this heading">#</a></h2>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>backends → lie → spatial → data_model → (kinematics, dynamics) → residuals → costs → optim → tasks
-                                                       ↑                                  │
-                                                       └── collision ─────────────────────┘
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>tasks → optim → residuals → dynamics → kinematics → data_model → spatial → lie
+                  ├────────────────→ kinematics
+                  └→ collision ────────────────────→ data_model
 io → data_model          (io reads nothing from optim or tasks)
 viewer → tasks           (topmost; no-one imports from viewer)
 </pre></div>
 </div>
-<p>Stated differently: when you sit in any module under <code class="docutils literal notranslate"><span class="pre">src/</span></code>, you may
-look down and across at modules in lower or earlier layers; you may
-never look up. The contract test parses each file’s imports and
-fails the build with the offending file and line number if the rule
-breaks.</p>
+<p>Stated differently: when you sit in any module under <code class="docutils literal notranslate"><span class="pre">src/</span></code>, you may look down
+to a lower-ranked layer. Equal-rank cross-package imports are also allowed;
+that is how dynamics reuses kinematics today. You may never import a
+higher-ranked layer. The contract test parses each file’s imports and fails
+with the offending file and line number if that rule breaks.</p>
 </section>
 <section id="what-each-layer-owns">
 <h2>What each layer owns<a class="headerlink" href="#what-each-layer-owns" title="Link to this heading">#</a></h2>
@@ -661,44 +662,36 @@ breaks.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">backends</span></code></p></td>
-<td><p>Backend Protocol; per-backend kernel implementations</p></td>
-<td><p>anything above</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">lie</span></code></p></td>
+<td><p>Direct Torch SE3 / SO3 ops, typed <code class="docutils literal notranslate"><span class="pre">SE3</span></code> / <code class="docutils literal notranslate"><span class="pre">SO3</span></code> / <code class="docutils literal notranslate"><span class="pre">Pose</span></code> wrappers</p></td>
+<td><p>anything above itself</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">lie</span></code></p></td>
-<td><p>SE3 / SO3 group ops, typed <code class="docutils literal notranslate"><span class="pre">SE3</span></code> / <code class="docutils literal notranslate"><span class="pre">SO3</span></code> / <code class="docutils literal notranslate"><span class="pre">Pose</span></code> wrappers</p></td>
-<td><p>anything above <code class="docutils literal notranslate"><span class="pre">backends</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">spatial</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">spatial</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Motion</span></code>, <code class="docutils literal notranslate"><span class="pre">Force</span></code>, <code class="docutils literal notranslate"><span class="pre">Inertia</span></code> value types</p></td>
 <td><p>anything above <code class="docutils literal notranslate"><span class="pre">lie</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">data_model</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Model</span></code>, <code class="docutils literal notranslate"><span class="pre">Data</span></code>, <code class="docutils literal notranslate"><span class="pre">JointModel</span></code>s</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">data_model</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Model</span></code>, <code class="docutils literal notranslate"><span class="pre">Data</span></code>, <code class="docutils literal notranslate"><span class="pre">JointModel</span></code>s, structure/value/execution seam</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">kinematics</span></code> / <code class="docutils literal notranslate"><span class="pre">dynamics</span></code> / above</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kinematics</span></code></p></td>
-<td><p>FK, frame updates, Jacobians</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kinematics</span></code></p></td>
+<td><p>FK, frame updates, Jacobians, local whole-pass kernels</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">dynamics</span></code> / <code class="docutils literal notranslate"><span class="pre">residuals</span></code> / above</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">dynamics</span></code></p></td>
-<td><p>RNEA / ABA / CRBA / centroidal / action models</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">dynamics</span></code></p></td>
+<td><p>RNEA / ABA / CRBA / centroidal algorithms and local whole-pass kernels</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">residuals</span></code> / above</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">residuals</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">residuals</span></code></p></td>
 <td><p>Pure residual functions</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">costs</span></code> / <code class="docutils literal notranslate"><span class="pre">optim</span></code> / <code class="docutils literal notranslate"><span class="pre">tasks</span></code> / <code class="docutils literal notranslate"><span class="pre">io</span></code> / <code class="docutils literal notranslate"><span class="pre">viewer</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">costs</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">CostStack</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">optim</span></code> / <code class="docutils literal notranslate"><span class="pre">tasks</span></code> / <code class="docutils literal notranslate"><span class="pre">io</span></code> / <code class="docutils literal notranslate"><span class="pre">viewer</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">optim</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code>, optimisers, linear solvers, kernels, damping</p></td>
+<td><p>Named-block <code class="docutils literal notranslate"><span class="pre">Problem</span></code> evaluation plus legacy <code class="docutils literal notranslate"><span class="pre">CostStack</span></code> / <code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code>, optimizers, linear solvers, kernels, and damping</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">tasks</span></code> / <code class="docutils literal notranslate"><span class="pre">io</span></code> / <code class="docutils literal notranslate"><span class="pre">viewer</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">collision</span></code></p></td>
-<td><p>Geometry, SDF pairs</p></td>
+<td><p>Reserved primitive, pair-dispatch, and robot-decomposition surfaces (computation is stubbed)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">tasks</span></code> / <code class="docutils literal notranslate"><span class="pre">io</span></code> / <code class="docutils literal notranslate"><span class="pre">viewer</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">io</span></code></p></td>
@@ -706,7 +699,7 @@ breaks.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">tasks</span></code> / <code class="docutils literal notranslate"><span class="pre">viewer</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">tasks</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">solve_ik</span></code>, <code class="docutils literal notranslate"><span class="pre">solve_trajopt</span></code>, <code class="docutils literal notranslate"><span class="pre">retarget</span></code> facades</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">solve_ik</span></code>, <code class="docutils literal notranslate"><span class="pre">solve_trajopt</span></code>, <code class="docutils literal notranslate"><span class="pre">solve_contact_forces</span></code>, and trajectory types</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">viewer</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">viewer</span></code></p></td>
@@ -720,21 +713,16 @@ breaks.</p>
 <section id="the-package-layout">
 <h2>The package layout<a class="headerlink" href="#the-package-layout" title="Link to this heading">#</a></h2>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>src/better_robot/
-├── __init__.py                    # 26 public symbols (frozen)
+├── __init__.py                    # small top-level convenience API
 ├── _typing.py                     # jaxtyping-style shape annotations
 │
-├── backends/
-│   ├── __init__.py                # default_backend(), set_backend(), get_backend()
-│   ├── protocol.py                # Backend / LieOps / KinematicsOps / DynamicsOps
-│   ├── torch_native/              # default backend
-│   └── warp/                      # experimental
-│
 ├── lie/                           # SE3 / SO3 functional + typed wrappers
+│   ├── alignment.py                 # weighted batched Umeyama fit
 │   ├── se3.py
 │   ├── so3.py
 │   ├── tangents.py                # Jr / Jl, hat / vee, BCH helpers
 │   ├── types.py                   # SE3 / SO3 / Pose dataclasses (around tensors)
-│   └── _torch_native_backend.py   # the kernels routed by backends/
+│   └── _impl.py                   # direct pure-Torch implementation
 │
 ├── spatial/                       # 6D value types
 │   ├── motion.py
@@ -746,18 +734,20 @@ breaks.</p>
 ├── data_model/                    # Model / Data / Joints / Bodies / Frames
 │   ├── model.py
 │   ├── data.py
+│   ├── model_structure.py         # immutable Python + device topology mirrors
+│   ├── model_values.py            # differentiable tensor pytree
+│   ├── execution_batch.py         # flat-E broadcast ABI for whole-pass kernels
+│   ├── joint_dispatch.py          # shared built-in joint-kind dispatch
 │   ├── joint.py
 │   ├── joint_models/              # one file per joint family
 │   ├── frame.py
 │   ├── body.py
-│   ├── topology.py
-│   └── indexing.py
+│   └── topology.py
 │
 ├── kinematics/
 │   ├── forward.py                 # forward_kinematics, update_frame_placements
 │   ├── jacobian.py                # compute_joint_jacobians, get_joint/frame_jacobian
-│   ├── jacobian_strategy.py       # JacobianStrategy enum
-│   └── chain.py                   # subtree / chain helpers
+│   └── jacobian_strategy.py       # JacobianStrategy enum
 │
 ├── dynamics/
 │   ├── rnea.py
@@ -765,38 +755,38 @@ breaks.</p>
 │   ├── crba.py
 │   ├── centroidal.py
 │   ├── derivatives.py
-│   ├── action/                    # Crocoddyl-style 3-layer
 │   ├── state_manifold.py
 │   └── integrators.py
 │
-├── residuals/                     # registry + 17 residual classes
+├── residuals/                     # residual classes composed explicitly
 │   ├── pose.py                    # PoseResidual / PositionResidual / OrientationResidual
 │   ├── limits.py
-│   ├── smoothness.py              # 5-point FD velocity / accel
+│   ├── smoothness.py              # temporal velocity / acceleration
+│   ├── structure.py               # optimizer-independent TemporalPattern
 │   ├── manipulability.py
 │   ├── collision.py
 │   ├── regularization.py
-│   ├── reference_trajectory.py
-│   ├── contact.py
-│   └── registry.py                # @register_residual
-│
-├── costs/
-│   ├── stack.py                   # CostStack
-│   └── factory.py
+│   └── contact.py
 │
 ├── optim/
+│   ├── cost_stack.py              # legacy flat-residual CostStack
 │   ├── problem.py                 # LeastSquaresProblem
+│   ├── blocks/                    # named Problem / VarSpec / manifolds / temporal assembly
+│   ├── structure.py               # bands, normal operators, route decisions
 │   ├── state.py                   # SolverState
 │   ├── optimizers/                # LM / GN / Adam / LBFGS / MultiStage
-│   ├── linear_solvers/            # Cholesky / LSTSQ / CG / SparseCholesky
-│   ├── kernels/                   # L2 / Huber / Cauchy / Tukey
-│   ├── damping/                   # Constant / Adaptive / TrustRegion
-│   └── jacobian_spec.py           # ResidualSpec
+│   ├── solvers/                   # Cholesky / LSTSQ / BandedCholesky / NormalCG
+│   ├── kernels/                   # L2 / Huber / Cauchy / Tukey / GemanMcClure
+│   └── strategies/                # legacy Constant / Adaptive
+│
+├── costs/                         # forwarding compatibility package
+│   └── stack.py                   # re-exports optim.cost_stack identities
 │
 ├── tasks/
 │   ├── ik.py                      # solve_ik
 │   ├── trajopt.py                 # solve_trajopt
-│   ├── retarget.py
+│   ├── contact_forces.py          # solve_contact_forces
+│   ├── smoothing.py               # quaternion / SE3 kernel smoothing
 │   ├── trajectory.py              # Trajectory dataclass
 │   └── parameterization.py        # Knot / BSpline
 │
@@ -807,7 +797,7 @@ breaks.</p>
 │   └── closest_pts.py
 │
 ├── io/
-│   ├── ir.py                      # IRModel + schema_version
+│   ├── ir.py                      # internal IRModel dataclasses
 │   ├── build_model.py             # IR → Model factory
 │   ├── parsers/                   # urdf, mjcf, programmatic
 │   ├── builders/                  # smpl_like example
@@ -820,18 +810,13 @@ breaks.</p>
 │   ├── render_modes/
 │   ├── overlays/
 │   └── renderers/
-│
-└── utils/
-    ├── batching.py
-    ├── broadcasting.py
-    ├── logging.py
-    └── testing.py
 </pre></div>
 </div>
 </section>
-<section id="the-public-api-contract-26-symbols">
-<h2>The public API contract — 26 symbols<a class="headerlink" href="#the-public-api-contract-26-symbols" title="Link to this heading">#</a></h2>
-<p>The top-level <code class="docutils literal notranslate"><span class="pre">better_robot.__init__</span></code> exports exactly <strong>26 symbols</strong>:</p>
+<section id="the-public-api-contract">
+<h2>The public API contract<a class="headerlink" href="#the-public-api-contract" title="Link to this heading">#</a></h2>
+<p>The top-level <code class="docutils literal notranslate"><span class="pre">better_robot.__init__</span></code> exports a deliberately small set of
+common entry points:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
     <span class="c1"># data_model (5)</span>
     <span class="s2">&quot;Model&quot;</span><span class="p">,</span> <span class="s2">&quot;Data&quot;</span><span class="p">,</span> <span class="s2">&quot;Frame&quot;</span><span class="p">,</span> <span class="s2">&quot;Joint&quot;</span><span class="p">,</span> <span class="s2">&quot;Body&quot;</span><span class="p">,</span>
@@ -845,23 +830,18 @@ breaks.</p>
     <span class="s2">&quot;JacobianStrategy&quot;</span><span class="p">,</span>
     <span class="c1"># dynamics (5)</span>
     <span class="s2">&quot;rnea&quot;</span><span class="p">,</span> <span class="s2">&quot;aba&quot;</span><span class="p">,</span> <span class="s2">&quot;crba&quot;</span><span class="p">,</span> <span class="s2">&quot;center_of_mass&quot;</span><span class="p">,</span> <span class="s2">&quot;compute_centroidal_map&quot;</span><span class="p">,</span>
-    <span class="c1"># residuals (1)</span>
-    <span class="s2">&quot;register_residual&quot;</span><span class="p">,</span>
-    <span class="c1"># costs (1)</span>
-    <span class="s2">&quot;CostStack&quot;</span><span class="p">,</span>
-    <span class="c1"># optim (1)</span>
-    <span class="s2">&quot;LeastSquaresProblem&quot;</span><span class="p">,</span>
+    <span class="c1"># optim (2)</span>
+    <span class="s2">&quot;CostStack&quot;</span><span class="p">,</span> <span class="s2">&quot;LeastSquaresProblem&quot;</span><span class="p">,</span>
     <span class="c1"># tasks (4)</span>
-    <span class="s2">&quot;solve_ik&quot;</span><span class="p">,</span> <span class="s2">&quot;solve_trajopt&quot;</span><span class="p">,</span> <span class="s2">&quot;retarget&quot;</span><span class="p">,</span> <span class="s2">&quot;Trajectory&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;solve_ik&quot;</span><span class="p">,</span> <span class="s2">&quot;solve_trajopt&quot;</span><span class="p">,</span> <span class="s2">&quot;solve_contact_forces&quot;</span><span class="p">,</span> <span class="s2">&quot;Trajectory&quot;</span><span class="p">,</span>
 <span class="p">]</span>
 </pre></div>
 </div>
-<p>The set is <strong>frozen</strong> under
-<code class="docutils literal notranslate"><span class="pre">tests/contract/test_public_api.py::EXPECTED</span></code>. Adding or removing a
-symbol requires updating <code class="docutils literal notranslate"><span class="pre">EXPECTED</span></code> in the same PR — the audit is the
-diff, not a magic number. Promotion is evidence-driven: a symbol
-earns top-level status when example code or tutorials show that the
-qualified path is friction.</p>
+<p>The set is not frozen before 1.0. The contract test pins a required core,
+checks every listed symbol resolves, and rejects duplicate entries without
+turning the current symbol count into an API promise. Promotion remains
+evidence-driven: a symbol earns top-level status when examples show that the
+qualified path is unnecessary friction.</p>
 <p>Submodule-only public symbols are reachable from their qualified
 import path and covered by the same contract suite, even though they
 are not in the top-level <code class="docutils literal notranslate"><span class="pre">__all__</span></code>:</p>
@@ -870,22 +850,34 @@ are not in the top-level <code class="docutils literal notranslate"><span class=
 <span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.kinematics</span><span class="w">  </span><span class="kn">import</span> <span class="n">ReferenceFrame</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim.state</span><span class="w"> </span><span class="kn">import</span> <span class="n">SolverState</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.tasks.ik</span><span class="w">    </span><span class="kn">import</span> <span class="n">IKResult</span><span class="p">,</span> <span class="n">IKCostConfig</span><span class="p">,</span> <span class="n">OptimizerConfig</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Bounds</span><span class="p">,</span> <span class="n">Euclidean</span><span class="p">,</span> <span class="n">SO3Manifold</span><span class="p">,</span> <span class="n">SE3Manifold</span><span class="p">,</span> <span class="n">RobotConfig</span><span class="p">,</span>
+    <span class="n">Values</span><span class="p">,</span> <span class="n">VarSpec</span><span class="p">,</span> <span class="n">Problem</span><span class="p">,</span> <span class="n">ResidualItem</span><span class="p">,</span> <span class="n">ObjectiveItem</span><span class="p">,</span> <span class="n">TemporalPattern</span><span class="p">,</span>
+    <span class="n">BlockBandedMatrix</span><span class="p">,</span> <span class="n">NormalOperator</span><span class="p">,</span> <span class="n">LinearizationDecision</span><span class="p">,</span>
+    <span class="n">RobotStateProvider</span><span class="p">,</span> <span class="n">detach_values</span><span class="p">,</span>
+<span class="p">)</span>
 </pre></div>
 </div>
+<p>The manifold suffixes are part of the contract: <code class="docutils literal notranslate"><span class="pre">better_robot.SE3</span></code> and
+<code class="docutils literal notranslate"><span class="pre">better_robot.lie.SE3</span></code> are typed Lie-group pose wrappers, whereas
+<code class="docutils literal notranslate"><span class="pre">better_robot.optim.SE3Manifold</span></code> is a retraction/difference policy for a
+variable block. The block construction names stay qualified under
+<code class="docutils literal notranslate"><span class="pre">better_robot.optim</span></code>; they are not added to the root <code class="docutils literal notranslate"><span class="pre">better_robot.__all__</span></code>.</p>
 <p><code class="docutils literal notranslate"><span class="pre">tests/contract/test_submodule_public_imports.py</span></code> enforces those
 paths so a refactor cannot silently move them.</p>
 </section>
 <section id="extension-seams">
 <h2>Extension seams<a class="headerlink" href="#extension-seams" title="Link to this heading">#</a></h2>
-<p>Growth happens at <code class="docutils literal notranslate"><span class="pre">Protocol</span></code>-shaped seams — every place a user might
-want to plug in their own implementation is documented as a
-structural type. The complete catalogue (residuals, joints,
-optimisers, robust kernels, damping strategies, linear solvers,
-collision primitives, render modes, parsers, backends, trajectory
-parameterisations, asset resolvers, actuators) lives in
-<a class="reference internal" href="../conventions/extension.html"><span class="doc">Extension Points</span></a>. Core layers import only the Protocol,
-not concrete classes; this keeps the DAG stable as the extension set
-grows.</p>
+<p>Growth uses several explicit seams. Residuals, joints, optimizers, linear
+solvers, render modes, trajectory parameterizations, and asset resolvers have
+structural or class contracts; parser discovery is a suffix registry plus
+loader function. Collision and actuator surfaces are reserved sketches rather
+than usable third-party seams. The exact live and deferred catalogue lives in
+<a class="reference internal" href="../conventions/extension.html"><span class="doc">Extension Points</span></a>.</p>
+<p>Whole-pass compute lanes are the deliberate exception: they are internal
+performance integrations selected by an explicit branch in the owning pass,
+not a public plugin Protocol or process-wide registry.</p>
 </section>
 <section id="why-this-shape-works">
 <h2>Why this shape works<a class="headerlink" href="#why-this-shape-works" title="Link to this heading">#</a></h2>
@@ -897,15 +889,19 @@ Mirrors Pinocchio’s separation of <code class="docutils literal notranslate"><
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">data_model/joint_models/</span></code> one-file-per-joint.</strong> Adding a new
 joint kind is an isolated change. See
 <a class="reference internal" href="joints_bodies_frames.html"><span class="doc">Joints, Bodies, and Frames</span></a>.</p></li>
-<li><p><strong>One Jacobian entry point.</strong> <code class="docutils literal notranslate"><span class="pre">kinematics/jacobian_strategy.py</span></code> is
-a tiny dispatch module that picks analytic, autodiff, or
-functional. There is <strong>one</strong> Jacobian function the solver calls;
-see <a class="reference internal" href="kinematics.html"><span class="doc">Kinematics</span></a>.</p></li>
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">residuals</span></code> above <code class="docutils literal notranslate"><span class="pre">kinematics</span></code>.</strong> Every residual reaches down
-through FK; none reaches into solvers. <code class="docutils literal notranslate"><span class="pre">costs/</span></code> is a pure
-composition layer above residuals. <code class="docutils literal notranslate"><span class="pre">optim/</span></code> knows about
-<code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code> and solvers but not about specific
-residuals. <code class="docutils literal notranslate"><span class="pre">tasks/</span></code> is the top user-facing facade.</p></li>
+<li><p><strong>Two Jacobian boundaries with different jobs.</strong> Direct flat compatibility
+callers use the unified residual Jacobian dispatch, which selects an
+analytic Jacobian or the unbatched central-finite-difference fallback.
+Named-block <code class="docutils literal notranslate"><span class="pre">Problem</span></code>
+evaluation instead assembles per-residual, per-variable tangent blocks and
+uses <code class="docutils literal notranslate"><span class="pre">torch.func</span></code> forward/reverse AD when an analytic block is absent. See
+<a class="reference internal" href="kinematics.html"><span class="doc">Kinematics</span></a> and <a class="reference internal" href="solver_stack.html"><span class="doc">Named-Block Evaluation and the Legacy Solver Stack</span></a>.</p></li>
+<li><p><strong>Residuals never reach into solvers.</strong> Legacy built-ins live above
+kinematics and compose through optimizer-owned <code class="docutils literal notranslate"><span class="pre">CostStack</span></code>. Named-block
+residuals are structural consumers of declared context names;
+evaluation-local providers own shared FK or other expensive lower-layer
+work. Both routes preserve the downward dependency rule while they coexist.
+<code class="docutils literal notranslate"><span class="pre">tasks/</span></code> remains the top user-facing facade.</p></li>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">io</span></code> and <code class="docutils literal notranslate"><span class="pre">viewer</span></code> siblings of <code class="docutils literal notranslate"><span class="pre">tasks</span></code>, not ancestors.</strong> <code class="docutils literal notranslate"><span class="pre">load()</span></code>
 never constructs a <code class="docutils literal notranslate"><span class="pre">Task</span></code>; it returns a <code class="docutils literal notranslate"><span class="pre">Model</span></code>. The viewer is
 outside the spine because nothing should depend on it.</p></li>
@@ -915,7 +911,7 @@ outside the spine because nothing should depend on it.</p></li>
 <h2>Where to look next<a class="headerlink" href="#where-to-look-next" title="Link to this heading">#</a></h2>
 <p>The remaining chapters walk down the spine starting from the user
 side: <a class="reference internal" href="model_and_data.html"><span class="doc">Model and Data</span></a> is what <code class="docutils literal notranslate"><span class="pre">load</span></code> returns, <a class="reference internal" href="kinematics.html"><span class="doc">Kinematics</span></a>
-is the first thing most users call, and <a class="reference internal" href="tasks.html"><span class="doc">Tasks — IK, Trajectory Optimisation, Retargeting</span></a> is what most
+is the first thing most users call, and <a class="reference internal" href="tasks.html"><span class="doc">Tasks — IK and Trajectory Optimisation</span></a> is what most
 production code actually uses.</p>
 </section>
 </section>
@@ -971,7 +967,7 @@ production code actually uses.</p>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-dependency-rule-in-code">The dependency rule, in code</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-each-layer-owns">What each layer owns</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-package-layout">The package layout</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-public-api-contract-26-symbols">The public API contract — 26 symbols</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-public-api-contract">The public API contract</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#extension-seams">Extension seams</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#why-this-shape-works">Why this shape works</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#where-to-look-next">Where to look next</a></li>
@@ -1008,7 +1004,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Apr 26, 2026.
+  Last updated on Jul 18, 2026.
   <br/>
 </p>
   </div>

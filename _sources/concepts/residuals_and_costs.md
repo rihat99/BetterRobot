@@ -1,28 +1,15 @@
 # Residuals and Costs
 
-Every optimisation problem in BetterRobot — IK, trajectory
-optimisation, retargeting, and the future filtering and optimal-control
-problems — boils down to the same shape: a vector-valued residual
-function `r(x)` whose squared norm is the loss the solver
-minimises. The library has one primitive (`Residual`), one composer
-(`CostStack`), and one problem type (`LeastSquaresProblem`). Every
-high-level task builds them; every solver consumes them.
+BetterRobot currently has two explicit optimisation lanes. Legacy flat-vector
+callers compose `Residual` objects in a `CostStack` and pass the stack to a
+`LeastSquaresProblem`. Current named-block tasks compose `ResidualItem` objects
+in a `Problem`; `solve_trajopt` is a compatibility bridge that adapts active
+soft `CostStack` items into those named residual items. The lanes share
+residual concepts, but they do not otherwise share a problem type.
 
-The reason for the discipline is that the alternative — a separate
-"IK problem" class, a separate "trajopt problem" class, a separate
-loss-function abstraction for each — dies under its own weight as
-soon as the third task arrives. Each new task wants its own residual
-mix; each gets its own ad-hoc Jacobian assembly; each has its own
-weight semantics. By the time you ship the fourth task you have four
-near-duplicates of the same code, drifting independently. Pinning
-the substrate to *one* residual / cost / problem stack means
-swapping LM for L-BFGS, swapping a Cauchy kernel for a Huber, or
-plugging in a custom robust-IRLS reweighting scheme is one Protocol
-swap that affects every task at once.
-
-This chapter covers residuals (pure functions, optionally with
-analytic Jacobians) and `CostStack` (named, weighted concatenation
-with snapshot / restore). The next chapter ({doc}`solver_stack`)
+This chapter documents the legacy residual protocol and the canonical
+optimizer-owned `CostStack`: named, weighted concatenation of active
+residuals. The next chapter ({doc}`solver_stack`)
 covers `LeastSquaresProblem` and the four pluggable axes
 (`Optimizer`, `LinearSolver`, `RobustKernel`, `DampingStrategy`).
 
@@ -50,57 +37,29 @@ class Residual(Protocol):
     def jacobian(self, state: ResidualState) -> torch.Tensor | None:
         """(B..., dim, nx) or None if analytic is not available."""
 
-    def spec(self, state: ResidualState) -> "ResidualSpec":
-        """Structural metadata. Default impl returns dense, output_dim=dim.
-        Override to advertise sparse / banded / matrix-free structure."""
-
-    def apply_jac_transpose(
-        self,
-        state: ResidualState,
-        vec: torch.Tensor,
-    ) -> torch.Tensor:
-        """Compute J(x)^T @ vec without materialising J.
-
-        Default: J = self.jacobian(state); return J.mT @ vec.
-        Override on temporal residuals where J is banded over T —
-        long-horizon trajopt depends on this for memory.
-        """
+# Optional extension, not a requirement of the Residual protocol:
+def apply_jac_transpose(
+    self,
+    state: ResidualState,
+    vec: torch.Tensor,
+) -> torch.Tensor: ...
 ```
 
 Source: `src/better_robot/residuals/base.py`.
 
 A residual is a callable object, not a plain function — that is what
-lets it carry an optional `.jacobian()` and `.spec()` next to its
+lets it carry `.jacobian()` and optional structural helpers next to its
 forward pass. The state object passed in carries `(model, data,
 variables)`; residuals reach back through `data` (FK has already
 been computed) or directly into `variables` for things like joint
 limits.
 
-### The decorator
+### Explicit composition
 
-```python
-_REGISTRY: dict[str, type[Residual]] = {}
-
-def register_residual(name: str):
-    def _inner(cls):
-        if name in _REGISTRY:
-            warnings.warn(f"residual '{name}' already registered; replacing",
-                          RuntimeWarning)
-        _REGISTRY[name] = cls
-        cls.name = name
-        return cls
-    return _inner
-
-def get_residual(name: str) -> type[Residual]:
-    return _REGISTRY[name]
-```
-
-Source: `src/better_robot/residuals/registry.py`. Third-party users
-add their own residuals by decorating a class. The solver has no idea
-the registry exists — residuals are composed into a `CostStack`, and
-the stack is passed to the solver. Re-registering the same name logs
-a warning and replaces (intentional, for experimentation in
-notebooks).
+Residual instances are constructed directly and added to a `CostStack`.
+There is no global name-to-class registry or import-time registration side
+effect. Custom residuals implement the `Residual` protocol, including a stable
+`name`, and use the same explicit composition path as built-ins.
 
 ## The shipped residual library
 
@@ -111,57 +70,152 @@ Live, with analytic `.jacobian()`:
 | `pose.py` | `PoseResidual` | 6 | Frame-target SE(3) error via `Jr_inv(log_err)` |
 | `pose.py` | `PositionResidual` | 3 | Top three rows of the frame Jacobian |
 | `pose.py` | `OrientationResidual` | 3 | Bottom three rows + `Jr_inv_so3` |
-| `limits.py` | `JointPositionLimit` | 2 * nv | Diagonal ±1 / 0 |
-| `regularization.py` | `RestResidual` | nv | Identity |
-| `reference_trajectory.py` | `ReferenceTrajectoryResidual` | varies | Time-indexed knot tracking |
-| `contact.py` | `ContactConsistencyResidual` | 6 * n_contacts | Holonomic contact constraint |
-| `time_indexed.py` | `TimeIndexedResidual` | varies | Generic time-axis wrapper |
-| `smoothness.py` | `Velocity5pt` / `Accel5pt` | nv * (T - k) | Tridiagonal over time axis |
-| `velocity.py` | `VelocityResidual` | nv | Joint-space velocity tracking |
-| `acceleration.py` | `AccelerationResidual` | nv | Joint-space acceleration tracking |
+| `limits.py` | `JointPositionLimit` | 2 * nq | Diagonal ±1 / 0 |
+| `regularization.py` | `RestResidual` | nv | Manifold difference; approximate identity Jacobian |
+| `regularization.py` | `ReferenceTrajectoryResidual` | T * nv | Per-knot manifold reference tracking |
+| `contact.py` | `ContactConsistencyResidual` | 3 * K * (T - 1) | Linear velocity of K contact frames |
+| `temporal.py` | `TimeIndexedResidual` | inner dim | Generic single-knot wrapper |
+| `smoothness.py` | `VelocityResidual` | nv * (T - 2) | Central tangent velocity over time |
+| `smoothness.py` | `AccelerationResidual` | nv * (T - 2) | Three-knot tangent acceleration |
 
-Live but autodiff-only (their `.jacobian()` returns `None`):
+Live without an analytic Jacobian (their `.jacobian()` returns `None` and
+named-block `Problem` uses tangent-space `torch.func` AD; the legacy
+`CostStack` lane uses unbatched central finite differences):
 
 | File | Class | dim | Notes |
 |------|-------|-----|-------|
-| (none currently — every shipped residual has analytic support, see roadmap below) | | | |
+| `human.py` | `SwingTwistLimitResidual` | 3 * selected joints | Piecewise swing/twist limits; decomposition is singular at pure-pi swing |
+| `regularization.py` | `JointRotationPrior` | nv | Exact per-joint weighted manifold difference; no small-angle identity Jacobian claim |
 
 Stubs (raise `NotImplementedError`; signatures pinned):
 
 | File | Class | Notes |
 |------|-------|-------|
 | `smoothness.py` | `JerkResidual` | Third-derivative smoothness |
-| `manipulability.py` | `YoshikawaResidual` | det(J Jᵀ)^½ — autodiff-only |
+| `manipulability.py` | `YoshikawaResidual` | det(J Jᵀ)^½ |
 | `regularization.py` | `NullspaceResidual` | Project gradient onto null space |
-| `collision.py` | `SelfCollisionResidual`, `WorldCollisionResidual` | Live geometry; residual side stubbed |
+| `collision.py` | `SelfCollisionResidual`, `WorldCollisionResidual` | Collision primitives and residual evaluation are currently stubbed |
 | `limits.py` | `JointVelocityLimit.jacobian`, `JointAccelLimit` | `__call__` works; analytic Jacobian or full body pending |
 
 A residual with no analytic `.jacobian()` simply returns `None`; the
-solver dispatches transparently to autodiff.
+legacy stack dispatches to unbatched central finite differences at a cost of
+`2 * nv + 1` residual evaluations. Named-block `Problem` instead differentiates
+through `RobotConfig.retract` with `torch.func.jacrev` or `jacfwd`.
+
+### Temporal structure declarations
+
+`reads` answers which named blocks a residual depends on. For a variable
+declared with `VarSpec(..., time_axis=0)`, an optional
+`temporal_structure(variable_name)` hook can refine that dependency with an
+optimizer-independent value:
+
+```python
+TemporalPattern(
+    rows=T - 2,
+    row_width=model.nv,
+    row_origin=1,
+    offsets=(-1, 0, 1),
+)
+```
+
+For row group `r`, offset `o` names knot `r + row_origin + o`. Rows and widths
+are positive, offsets are sorted/unique/non-empty, every knot is in range, and
+`rows * row_width == dim`. The optional numeric hook
+`temporal_jacobian_blocks(ctx, variable_name)` returns one tensor per offset
+with shape `(B..., rows, row_width, reduced_width_per_knot)`. Those tensors do
+not include `ResidualItem.weight` or robust IRLS row scaling; `Problem`
+applies both once.
+
+Velocity declares offsets `(-1, +1)`, acceleration `(-1, 0, +1)`,
+time-indexed and reference-trajectory terms `(0,)`, and contact consistency
+`(0, +1)`. Missing declarations keep automatic LM dense. A declaration
+without numeric blocks is eligible only for the explicit normal-operator
+fallback. Structure is static: a zero weight never makes an undeclared item
+eligible, and numerical zeros are never inspected.
+
+### Human spherical-joint limits and priors
+
+`SwingTwistLimitResidual` selects spherical joints and returns three one-sided
+rows per joint: swing above its cone limit, twist below its lower limit, and
+twist above its upper limit. The twist axis is joint-local, quaternion sign is
+folded across the double cover, and limits are non-wrapping intervals inside
+`(-pi, pi)`. Swing/twist decomposition cannot assign a unique twist to a pure
+180-degree swing; the implementation chooses zero twist in a tiny numerical
+neighbourhood and deliberately does not advertise a globally analytic
+Jacobian.
+
+`JointRotationPrior` evaluates `model.difference(q_mean, q)` and scales either
+each joint tangent slice or each individual tangent coordinate. It differs
+from `RestResidual` by declining the latter's small-step identity-Jacobian
+approximation: current named-block tasks receive the exact tangent AD block.
+
+### Vision and padded point-cloud residuals
+
+The M4 vision pack is named-block-native. It uses fixed event shapes and
+arbitrary leading execution batches:
+
+- `ProjectionResidual(model, point_ids, K, extrinsics, target_px, ...)`
+  projects body, marker, or site frame-table rows through a camera-thin
+  world-to-camera transform. Confidence and validity are per point. Its
+  complete analytic `q` block composes the pinhole derivative, camera rotation,
+  and frame Jacobian. Put `GemanMcClure` on the surrounding `ResidualItem` with
+  `group_size=2`; robust weighting is not embedded in the residual.
+- `MaskedChamferResidual` consumes padded source/target point tensors and bool
+  validity masks. It emits source-to-target and, by default,
+  target-to-source nearest distances. Correspondence indices are detached;
+  gradients flow through the selected distances only.
+- `SceneSDFProvider` performs one chunked detached nearest-neighbour pass for a
+  padded query cloud and oriented scene cloud. Its `SceneSDFResult` feeds
+  `ScenePenetrationResidual`, `SceneAttractionResidual`, and
+  `SceneClearanceResidual`, so a `Problem` containing all three does not repeat
+  the nearest-neighbour work.
+
+The ragged-data convention is deliberately small: pad to a fixed count and
+carry a same-prefix boolean validity mask. Empty frames yield finite zero rows.
+There is no camera class, visibility policy, keypoint mapping, contact-label
+heuristic, or rendering abstraction in this pack.
 
 ### Example — `RestResidual`
 
 ```python
-@register_residual("rest")
-class RestResidual(Residual):
-    dim: int
+class RestResidual:
+    name = "rest"
+    reads = ("q",)
 
-    def __init__(self, q_rest: torch.Tensor, *, weight: float = 1.0) -> None:
+    def __init__(self, model, q_rest, *, weight=1.0, name="rest",
+                 target_name=None):
+        self.model = model
         self.q_rest = q_rest
+        self.target_name = target_name
+        self.reads = ("q", target_name) if target_name is not None else ("q",)
         self.weight = weight
-        self.dim = q_rest.shape[-1]
+        self.dim = model.nv
 
-    def __call__(self, state: ResidualState) -> torch.Tensor:
-        q = state.variables                         # (B..., nv) for this problem
-        return (q - self.q_rest) * self.weight
+    def __call__(self, value: ResidualState | Mapping[str, Any]) -> torch.Tensor:
+        model, q = _residual_model_q(value, model=self.model)
+        q_rest = self.q_rest
+        if self.target_name is not None and not isinstance(value, ResidualState):
+            q_rest = value[self.target_name]
+        q_rest = q_rest.to(device=q.device, dtype=q.dtype)
+        if q.ndim > 1 and q_rest.ndim == 1:
+            q_rest = q_rest.expand_as(q)
+        return model.difference(q_rest, q) * self.weight
 
-    def jacobian(self, state: ResidualState) -> torch.Tensor:
-        I = torch.eye(self.dim, device=state.variables.device,
-                      dtype=state.variables.dtype)
-        return I.expand(*state.variables.shape[:-1], self.dim, self.dim) * self.weight
+    def jacobian(self, value: ResidualState | Mapping[str, Any]) -> torch.Tensor:
+        _, q = _residual_model_q(value, model=self.model)
+        I = torch.eye(self.dim, device=q.device, dtype=q.dtype)
+        return I.expand(*q.shape[:-1], self.dim, self.dim) * self.weight
 ```
 
 Source: `src/better_robot/residuals/regularization.py`.
+
+The residual is `model.difference(q_rest, q)`, not raw configuration-space
+subtraction: free-flyer and spherical coordinates therefore produce the
+correct `nv`-dimensional tangent displacement. The identity Jacobian is the
+documented small-step approximation. With `target_name=None`, both legacy and
+named-block calls use the captured `q_rest`. With a `target_name`, named-block
+evaluation declares that name in `reads` and obtains the live target from the
+context; `solve_ik` uses this form with an explicit `Problem` parameter.
 
 ### Example — `PoseResidual`
 
@@ -186,11 +240,10 @@ class CostItem:
 class CostStack:
     """Named, weighted, individually activatable stack of residuals.
 
-    Mirrors Crocoddyl's CostModelSum — a dict keyed by name, with
-    scalar weights and per-item on/off flags. The stack concatenates
-    the weighted residuals of all active items into a single vector
-    and provides slice-maps so solvers can compute per-item Jacobians
-    in place.
+    A dict keyed by name, with scalar weights and per-item on/off flags.
+    The stack concatenates the weighted residuals of all active items
+    into a single vector. ``slice_map()`` reports their current slices
+    in insertion order.
 
     Usage:
         stack = CostStack()
@@ -213,85 +266,50 @@ class CostStack:
     def slice_map(self) -> dict[str, slice]: ...
     def residual(self, state: ResidualState) -> torch.Tensor: ...
     def jacobian(self, state: ResidualState, *, strategy=JacobianStrategy.AUTO) -> torch.Tensor: ...
-    def snapshot(self) -> dict: ...        # for MultiStageOptimizer
-    def restore(self, snap: dict) -> None: ...
+    def gradient(self, state: ResidualState) -> torch.Tensor: ...
 ```
 
-Source: `src/better_robot/costs/stack.py`.
+Source: `src/better_robot/optim/cost_stack.py`.
 
-`stack.residual()` evaluates every active residual and concatenates
-the results along the last dim. `stack.jacobian()` does the same for
-Jacobians, dispatching analytic / autodiff per residual via the
-strategy flag.
+The canonical definitions and qualified imports are
+`better_robot.optim.CostStack`, `better_robot.optim.CostItem`, and
+`better_robot.optim.CostKind`. The root `better_robot.CostStack` export and
+`better_robot.costs.stack` forward to the same class object for compatibility;
+they are not separate implementations.
 
-The memory layout follows Crocoddyl's discipline:
+`stack.residual()` evaluates every active residual, applies its scalar weight,
+and uses `torch.cat(..., dim=-1)` to build the result. `stack.jacobian()`
+dispatches analytic or central-finite-difference evaluation per residual,
+applies the same weights, and concatenates along the residual-row dimension.
+Both outputs are assembled anew on each call. `slice_map()` likewise computes
+the active layout on demand; the stack does not own a persistent flat buffer.
 
-- One flat residual buffer of shape `(B..., total_dim)` is allocated
-  inside `CostStack`.
-- Each residual writes into its pre-computed slice
-  `items[name].slice`.
-- No Python-level `torch.cat` in the hot path — only a pre-allocated
-  tensor plus `index_put_`-style writes.
+`CostStack` has no snapshot/restore API. Named-block staged solves use
+`better_robot.optim.Phase` and `run_phases()`, which build phase-specific
+`Problem` values rather than mutating and restoring this legacy stack.
 
 ### Three concepts that look similar but are not
 
 `active` (a structural inclusion flag), `weight` (a scalar
-multiplier), and `kernel` (a per-iteration reweighting in the normal
-equations) are independent. `weight = 0` is **not** equivalent to
-`active = False`: a zero-weight item still occupies a slot in the
-preallocated residual / Jacobian; only the active flag structurally
-removes it. Sparse trajopt depends on this distinction so the
-stage-wise multi-stage optimiser can toggle a residual on and off
-without reallocating.
+multiplier), and a solver's robust `kernel` are independent. `weight = 0` is
+**not** equivalent to `active = False`: a zero-weight item still contributes
+rows to the concatenated residual and Jacobian, while an inactive item is
+omitted and changes `total_dim()` and `slice_map()`. The `kind` field is
+currently metadata; `CostStack` evaluation does not enforce constraints.
 
-### Sparsity-aware assembly
+### Gradient path
 
-For residuals whose Jacobian is structurally sparse — self-collision,
-joint limits, 5-point finite-difference smoothness across a
-trajectory — the residual exposes a `.spec: ResidualSpec` describing
-which columns of `x` it touches. `CostStack.jacobian(...)` propagates
-the sparsity into a block layout, and the linear solver assembles
-only the non-zero blocks of `JᵀJ`. Measured speed-up on G1 collision
-costs: ~6×.
+`CostStack.gradient()` sums each active item's contribution to
+`Jᵀ r`. If a residual implements `apply_jac_transpose(state, vec)`, the
+stack uses that hook; otherwise it materialises that residual's Jacobian and
+multiplies. The item weight is squared, matching the gradient of
+`0.5 * ||stack.residual(state)||²`.
 
-```python
-@dataclass(frozen=True)
-class ResidualSpec:
-    """Structural metadata about a residual.
-
-    Returned by Residual.spec(state). Used by solvers to plan
-    Jacobian assembly, sparse-block storage, and active-set updates.
-    """
-    output_dim: int
-    tangent_dim: int
-
-    structure: Literal[
-        "dense",          # full (output_dim, tangent_dim) Jacobian.
-        "block",          # one or more (out, in) blocks at named indices.
-        "banded",         # banded along a temporal axis.
-        "matrix_free",    # only J^T r is available; J is never built.
-    ] = "dense"
-
-    # Time coupling for trajopt residuals.
-    time_coupling: Literal["single", "5-point", "custom"] | None = None
-    affected_knots: tuple[int, ...] | None = None
-
-    # Spatial / kinematic locality.
-    affected_joints: tuple[int, ...] | None = None
-    affected_frames: tuple[int, ...] | None = None
-
-    # Whether output_dim depends on the input (e.g. active-pair collision).
-    dynamic_dim: bool = False
-```
-
-Source: `src/better_robot/optim/jacobian_spec.py`.
-
-Default `Residual.spec()` returns a dense spec with `output_dim =
-self.dim` — every existing residual works without modification.
-Trajopt residuals override to advertise their banded / 5-point time
-coupling so the linear solver builds a block-Cholesky factorisation;
-collision residuals override to set `dynamic_dim=True` so LM
-preallocates correctly.
+The legacy `CostStack` composer carries no symbolic sparsity metadata and
+`CostStack.jacobian()` always returns a dense concatenated tensor. Temporal
+metadata lives on the residual objects and is consumed only after a named
+`Problem` has validated the block/time layout; `Problem.structured_normal()`
+assembles the lower block bands and JVP/VJP operations.
 
 ## Stable `dim` for collision residuals
 
@@ -302,32 +320,33 @@ and damping stable, the contract is:
 - `dim = number_of_candidate_pairs` — stable across iterations.
 - Pairs outside the safety margin contribute zero — but the slot
   exists, so the Jacobian has a corresponding row of zeros.
-- Active-pair compaction is a kernel-internal optimisation; the
-  matrix-free `J^T r` path skips inactive rows without changing the
-  public residual `dim`.
-- `ResidualSpec.dynamic_dim = True` declares the slot reservation so
-  LM preallocates once.
+- A future residual may compact work internally, but when used with the
+  current stack it must still return the declared public shape.
+- The active subset may vary internally, but the output dimension remains
+  stable and legacy LM assembly remains dense.
 
-This is what makes `solve_ik` with `SelfCollisionResidual` work
-without re-allocating per iteration.
+This is the reserved shape contract for a future
+`SelfCollisionResidual`. That residual still raises `NotImplementedError`;
+collision-aware `solve_ik` integration is roadmap work.
 
 ## Mapping to current code
 
 ```python
 # Construction
 import better_robot as br
+from robot_descriptions import panda_description
 from better_robot.residuals.pose          import PoseResidual
 from better_robot.residuals.limits        import JointPositionLimit
 from better_robot.residuals.regularization import RestResidual
-from better_robot.costs                    import CostStack
+from better_robot.optim                    import CostStack
 
-model = br.load("panda.urdf")
-hand_id = model.frame_id("panda_hand")
+model = br.load(panda_description.URDF_PATH)
+hand_id = model.frame_id("body_panda_hand")
 
 stack = CostStack()
 stack.add("pose",   PoseResidual(frame_id=hand_id, target=target_pose))
 stack.add("limits", JointPositionLimit(model), weight=0.1)
-stack.add("rest",   RestResidual(model.q_neutral), weight=0.01)
+stack.add("rest",   RestResidual(model, model.q_neutral), weight=0.01)
 
 # Evaluate (manually, for diagnostics)
 state = br.residuals.ResidualState(
@@ -339,25 +358,25 @@ r = stack.residual(state)            # (B..., total_dim)
 J = stack.jacobian(state)            # (B..., total_dim, nx)
 ```
 
-In normal use you would never write that loop; `solve_ik` does it
-internally. The example exists to show that the interfaces are
-tractable.
+This is the legacy flat evaluation path for direct callers. `solve_ik`
+constructs named-block `ResidualItem`s directly. `solve_trajopt` accepts the
+same `CostStack` composition surface but adapts only its active soft items into
+a named temporal `Problem`; constraint-kind items and legacy optimizer objects
+are rejected rather than silently reinterpreted.
 
 ## Sharp edges
 
 - **Active vs weight.** Setting `weight=0` does not remove the
   residual from the Jacobian shape; setting `active=False` does.
-  Snapshot / restore preserves both.
-- **`apply_jac_transpose` defaults to `J.mT @ vec`.** Time-coupled
-  trajopt residuals must override this to avoid materialising the
-  dense Jacobian for long horizons.
-- **Sparsity hints are advisory.** A residual that does not advertise
-  sparsity is treated as dense; the solver does not lose
-  correctness, only speed.
-- **Re-registering a name logs a warning and replaces.** This is
-  intentional but it can mask a bug if you import two extensions that
-  both register `"pose"`. The warning text names the file the
-  redefinition came from.
+  Mutations remain until callers explicitly reset them.
+- **`apply_jac_transpose` is optional.** Without that method,
+  `CostStack.gradient()` materialises the per-residual Jacobian and computes
+  `J.mT @ r`.
+- **`CostStack.jacobian()` stays dense.** Temporal structure is a residual
+  declaration consumed by named `Problem`, not a different legacy stack
+  return type. Undeclared items make automatic temporal LM fall back to dense.
+- **Duplicate names are rejected.** Calling `add()` with an existing name
+  raises `ValueError`; remove or update the existing item explicitly.
 
 ## Where to look next
 

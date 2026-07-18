@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>The Solver Stack &#8212; BetterRobot</title>
+    <title>Named-Block Evaluation and the Legacy Solver Stack &#8212; BetterRobot</title>
   
   
   
@@ -52,12 +52,12 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'concepts/solver_stack';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Tasks — IK, Trajectory Optimisation, Retargeting" href="tasks.html" />
+    <link rel="next" title="Tasks — IK and Trajectory Optimisation" href="tasks.html" />
     <link rel="prev" title="Residuals and Costs" href="residuals_and_costs.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Apr 26, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 18, 2026"/>
   </head>
   
   
@@ -149,18 +149,6 @@
           <a href="https://github.com/rihat99/BetterRobot" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
             <span class="sr-only">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/better-robot/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-python fa-lg" aria-hidden="true"></i>
-            <span class="sr-only">PyPI</span></a>
-        </li>
 </ul></div>
         <div class="sidebar-primary-item">
 
@@ -193,11 +181,19 @@
 <li class="toctree-l2"><a class="reference internal" href="kinematics.html">Kinematics</a></li>
 <li class="toctree-l2"><a class="reference internal" href="dynamics.html">Dynamics</a></li>
 <li class="toctree-l2"><a class="reference internal" href="residuals_and_costs.html">Residuals and Costs</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">The Solver Stack</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tasks.html">Tasks — IK, Trajectory Optimisation, Retargeting</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">Named-Block Evaluation and the Legacy Solver Stack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tasks.html">Tasks — IK and Trajectory Optimisation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="collision_and_geometry.html">Collision and Geometry</a></li>
-<li class="toctree-l2"><a class="reference internal" href="batching_and_backends.html">Batching and Backends</a></li>
+<li class="toctree-l2"><a class="reference internal" href="batching_and_backends.html">Batching and Compute Lanes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="warp_bridge.html">Torch–Warp bridge and opt-in FK lane</a></li>
 <li class="toctree-l2"><a class="reference internal" href="viewer.html">Viewer</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../guides/custom_residuals.html">Write a custom block residual</a></li>
 </ul>
 </details></li>
 </ul>
@@ -209,6 +205,8 @@
 <li class="toctree-l2"><a class="reference internal" href="../conventions/extension.html">Extension Points</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../conventions/testing.html">Testing</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../conventions/contracts.html">Contracts &amp; Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/engineering.html">Engineering Contract</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/source_and_license.html">Source and License Decision Memo</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../conventions/style.html">Coding Style</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../conventions/packaging.html">Packaging</a></li>
 </ul>
@@ -231,11 +229,9 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.render_modes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.render_modes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.overlays.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.overlays</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.trajectory_player.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.trajectory_player</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.interaction.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.interaction</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.visualizer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.visualizer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.panels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.panels</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.camera.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.camera</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.recorder.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.recorder</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.primitive.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.primitive</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.scene.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.scene</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.helpers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.helpers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.themes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.themes</span></code></a></li>
@@ -243,13 +239,17 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.temporal</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.registry.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.registry</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.base.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.base</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.human.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.human</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.manipulability.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.manipulability</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.collision</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.scene_sdf.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.scene_sdf</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.pose.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.pose</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.smoothness.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.smoothness</span></code></a></li>
 </ul>
@@ -270,7 +270,6 @@
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.action.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.action</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.integrators.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.integrators</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.crba.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.crba</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.rnea.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.rnea</span></code></a></li>
@@ -285,29 +284,23 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.cost_stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.cost_stack</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.state.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.state</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.jacobian_spec.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.jacobian_spec</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.structure</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.stack</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.factory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.factory</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.testing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.testing</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.batching.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.batching</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.logging.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.logging</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.utils.broadcasting.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.broadcasting</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.ik.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.ik</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.parameterization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.parameterization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.trajectory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajectory</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.retarget.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.retarget</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.trajopt.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajopt</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.smoothing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.smoothing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.contact_forces.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.contact_forces</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -315,37 +308,38 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.se3.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.se3</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.types.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.types</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.tangents.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.tangents</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.alignment.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.alignment</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian_strategy.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian_strategy</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.chain.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.chain</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.forward.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.forward</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.joint_models.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint_models</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.execution_batch.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.execution_batch</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.body.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.body</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.model_values.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model_values</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.reduced_coordinates.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.reduced_coordinates</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.joint.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.frame.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.frame</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.topology.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.topology</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.indexing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.indexing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.model_structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model_structure</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.data.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.data</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.torch_native.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.torch_native</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.warp.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.warp</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.backends.protocol.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.protocol</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.joint_dispatch.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint_dispatch</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3"><a class="reference internal" href="../reference/api/better_robot/better_robot.exceptions.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.exceptions</span></code></a></li>
 </ul>
 </details></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/named_block_solvers.html">Named-block solver API</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../reference/changelog.html">Changelog</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../reference/roadmap.html">Roadmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/m1_removed_symbols.html">M1 removed surfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/m3_removed_symbols.html">M3.5 removed surfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 </ul>
 </details></li>
@@ -353,7 +347,6 @@
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Project Links</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/rihat99/BetterRobot">GitHub</a></li>
-<li class="toctree-l1"><a class="reference external" href="https://pypi.org/project/better-robot/">PyPI</a></li>
 </ul>
 
     </div>
@@ -430,7 +423,7 @@
       
       
       
-      <li><a href="https://github.com/rihat99/BetterRobot/edit/main/docs/concepts/solver_stack.md" target="_blank"
+      <li><a href="https://github.com/rihat99/BetterRobot/edit/dev/docs/concepts/solver_stack.md" target="_blank"
    class="btn btn-sm btn-source-edit-button dropdown-item"
    title="Suggest edit"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -553,7 +546,7 @@
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>The Solver Stack</h1>
+    <h1>Named-Block Evaluation and the Legacy Solver Stack</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -563,16 +556,24 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#named-block-evaluation">Named-block evaluation</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#temporal-structure-and-route-selection">Temporal structure and route selection</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#named-block-lm-gn">Named-block LM/GN</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#named-block-matrix-free-adam">Named-block matrix-free Adam</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#functional-phases">Functional phases</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#legacy-solver-stack-direct-compatibility-backend">Legacy solver stack (direct compatibility backend)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#leastsquaresproblem"><code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-optimizer-protocol">The <code class="docutils literal notranslate"><span class="pre">Optimizer</span></code> Protocol</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#solverstate"><code class="docutils literal notranslate"><span class="pre">SolverState</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#linear-solvers">Linear solvers</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#robust-kernels">Robust kernels</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#damping-strategies">Damping strategies</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optimizerconfig-every-knob-is-wired"><code class="docutils literal notranslate"><span class="pre">OptimizerConfig</span></code> — every knob is wired</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multistageoptimizer"><code class="docutils literal notranslate"><span class="pre">MultiStageOptimizer</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ik-optimizerconfig">IK <code class="docutils literal notranslate"><span class="pre">OptimizerConfig</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#legacy-multi-stage-and-named-block-phases">Legacy multi-stage and named-block phases</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-levenbergmarquardt-minimize-sketch">The <code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.minimize</span></code> sketch</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#stop-schedulers">Stop schedulers</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#stopping-behavior">Stopping behavior</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#results">Results</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-this-lets-users-do">What this lets users do</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sharp-edges">Sharp edges</a></li>
@@ -588,29 +589,291 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="the-solver-stack">
-<h1>The Solver Stack<a class="headerlink" href="#the-solver-stack" title="Link to this heading">#</a></h1>
-<p>A <code class="docutils literal notranslate"><span class="pre">CostStack</span></code> knows how to compute residuals; it does not know how to
-minimise them. That job belongs to <code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code> (which packs
-the cost stack, the initial guess, and the manifold retraction into
-a single self-describing problem) and to an <code class="docutils literal notranslate"><span class="pre">Optimizer</span></code> (which
-iterates on it). The optimiser does <em>not</em> fuse the linear-solver
-choice, the robust kernel, the damping schedule, or the
-stop-condition into its own loop; those are independently pluggable
-axes that compose at construction.</p>
-<p>That separation is the whole reason “swap LM for Adam” or “switch
-the linear solver to CG for a sparse trajopt” is one Protocol swap
-instead of a rewrite. Every optimiser implements the same
-<code class="docutils literal notranslate"><span class="pre">Optimizer</span></code> Protocol; every linear solver implements the same
-<code class="docutils literal notranslate"><span class="pre">LinearSolver</span></code> Protocol; every robust kernel and damping strategy
-likewise. The solver loop sketch at the bottom of this chapter is
-deliberately short — it is the <em>only</em> solver loop in the library.
-The four stages of the LM-then-LBFGS multi-stage solver, the
-collision-aware refinement pass, and the trajopt block-Cholesky path
-all reduce to the same shape with different components.</p>
-<p>This chapter walks through <code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code> and the four
-pluggable axes (Optimizer, LinearSolver, RobustKernel,
-DampingStrategy) and ends with the loop sketch.</p>
+  <section id="named-block-evaluation-and-the-legacy-solver-stack">
+<h1>Named-Block Evaluation and the Legacy Solver Stack<a class="headerlink" href="#named-block-evaluation-and-the-legacy-solver-stack" title="Link to this heading">#</a></h1>
+<p>BetterRobot exposes the named-block construction API while retaining a legacy
+flat contract for direct compatibility callers:</p>
+<ul class="simple">
+<li><p><strong>Named-block optimization</strong> is the new public construction and batched
+first-/second-order API. A <code class="docutils literal notranslate"><span class="pre">Problem</span></code> owns named <code class="docutils literal notranslate"><span class="pre">VarSpec</span></code> blocks, structural
+residuals and scalar objective terms, and a lazy provider DAG. It evaluates
+residuals, objectives, tangent gradients, and Jacobian blocks;
+matrix-free <code class="docutils literal notranslate"><span class="pre">Adam</span></code> consumes its tangent gradient, while
+<code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt</span></code> and <code class="docutils literal notranslate"><span class="pre">GaussNewton</span></code> solve residual-vector problems with
+independent tensor state for every batch element.</p></li>
+<li><p><strong>The legacy solver stack</strong> under <code class="docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code> composes
+<code class="docutils literal notranslate"><span class="pre">CostStack</span></code>, <code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code>, and <code class="docutils literal notranslate"><span class="pre">Optimizer</span></code>. No shipped task depends
+on it; compatibility callers instantiate an optimizer and call <code class="docutils literal notranslate"><span class="pre">minimize</span></code>
+directly.</p></li>
+</ul>
+<section id="named-block-evaluation">
+<h2>Named-block evaluation<a class="headerlink" href="#named-block-evaluation" title="Link to this heading">#</a></h2>
+<p>The canonical imports live under <code class="docutils literal notranslate"><span class="pre">better_robot.optim</span></code>; the top-level
+<code class="docutils literal notranslate"><span class="pre">better_robot</span></code> namespace remains compact:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Adam</span><span class="p">,</span>
+    <span class="n">AdamState</span><span class="p">,</span>
+    <span class="n">AdamStatus</span><span class="p">,</span>
+    <span class="n">BlockBandedMatrix</span><span class="p">,</span>
+    <span class="n">Bounds</span><span class="p">,</span>
+    <span class="n">Euclidean</span><span class="p">,</span>
+    <span class="n">GaussNewton</span><span class="p">,</span>
+    <span class="n">LevenbergMarquardt</span><span class="p">,</span>
+    <span class="n">LMState</span><span class="p">,</span>
+    <span class="n">LMStatus</span><span class="p">,</span>
+    <span class="n">LinearizationDecision</span><span class="p">,</span>
+    <span class="n">LinearizationReason</span><span class="p">,</span>
+    <span class="n">NormalOperator</span><span class="p">,</span>
+    <span class="n">ObjectiveItem</span><span class="p">,</span>
+    <span class="n">Phase</span><span class="p">,</span>
+    <span class="n">Problem</span><span class="p">,</span>
+    <span class="n">ResidualItem</span><span class="p">,</span>
+    <span class="n">RobotConfig</span><span class="p">,</span>
+    <span class="n">RobotStateProvider</span><span class="p">,</span>
+    <span class="n">SE3Manifold</span><span class="p">,</span>
+    <span class="n">SO3Manifold</span><span class="p">,</span>
+    <span class="n">TemporalPattern</span><span class="p">,</span>
+    <span class="n">Values</span><span class="p">,</span>
+    <span class="n">VarSpec</span><span class="p">,</span>
+    <span class="n">detach_values</span><span class="p">,</span>
+    <span class="n">run_phases</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">SO3Manifold</span></code> and <code class="docutils literal notranslate"><span class="pre">SE3Manifold</span></code> are intentionally explicit names.
+<code class="docutils literal notranslate"><span class="pre">better_robot.SE3</span></code> and <code class="docutils literal notranslate"><span class="pre">better_robot.lie.SE3</span></code> remain the typed Lie-group pose
+wrapper, not optimization manifolds.</p>
+<p>A <code class="docutils literal notranslate"><span class="pre">VarSpec</span></code> separates full state coordinates from reduced tangent coordinates.
+Its <code class="docutils literal notranslate"><span class="pre">shape</span></code> is an event shape; arbitrary leading axes on each value are
+independent batch axes. <code class="docutils literal notranslate"><span class="pre">bounds</span></code> constrain state space, while <code class="docutils literal notranslate"><span class="pre">mask</span></code> eliminates
+fixed tangent coordinates and <code class="docutils literal notranslate"><span class="pre">scale</span></code> describes the retained tangent
+coordinates. <code class="docutils literal notranslate"><span class="pre">RobotConfig(model)</span></code> is the boundary that handles <code class="docutils literal notranslate"><span class="pre">nq</span> <span class="pre">!=</span> <span class="pre">nv</span></code>.</p>
+<p>Residual and provider implementations are structural: authors declare names,
+dependencies, and output dimensions without inheriting from a BetterRobot base
+class. <code class="docutils literal notranslate"><span class="pre">Problem</span></code> validates that static graph once. Residual, objective,
+gradient, and analytic-Jacobian paths use a fresh read-only context and run
+each requested provider at most once in that context. An AD-generated
+Jacobian uses a fresh transform-local context for each missing
+<code class="docutils literal notranslate"><span class="pre">(residual,</span> <span class="pre">variable)</span></code> block, so a provider may run once per transformed
+block. See <a class="reference internal" href="../guides/custom_residuals.html"><span class="doc">Write a custom block residual</span></a> for the author contract.</p>
+<p>The public evaluation operations are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">residual(values)</span></code> and <code class="docutils literal notranslate"><span class="pre">objective(values)</span></code>;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">gradient(values)</span></code>, in reduced tangent coordinates per variable;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">jacobian_blocks(values)</span></code> and <code class="docutils literal notranslate"><span class="pre">dense_jacobian(values)</span></code>;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">structured_normal(values)</span></code>, for a directly eligible temporal problem;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">retract(values,</span> <span class="pre">steps)</span></code>, which applies manifold-aware feasible steps.</p></li>
+</ul>
+<p>Callers that need a dense normal matrix form it explicitly as
+<code class="docutils literal notranslate"><span class="pre">J.mT</span> <span class="pre">&#64;</span> <span class="pre">J</span></code> from <code class="docutils literal notranslate"><span class="pre">dense_jacobian(values)</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">ResidualItem.kernel</span></code> and <code class="docutils literal notranslate"><span class="pre">group_size</span></code> define robust-loss groups. Direct
+<code class="docutils literal notranslate"><span class="pre">residual()</span></code> remains the weighted raw vector; <code class="docutils literal notranslate"><span class="pre">objective()</span></code> sums each group’s
+<code class="docutils literal notranslate"><span class="pre">rho</span></code>, and <code class="docutils literal notranslate"><span class="pre">gradient()</span></code> differentiates that same objective using the normalized
+<code class="docutils literal notranslate"><span class="pre">weight(s)</span> <span class="pre">=</span> <span class="pre">2*rho'(s)</span></code> convention. Scalar <code class="docutils literal notranslate"><span class="pre">ObjectiveItem</span></code>s keep their linear
+objective weights and participate in <code class="docutils literal notranslate"><span class="pre">objective()</span></code>/<code class="docutils literal notranslate"><span class="pre">gradient()</span></code> and Adam, but
+LM/GN reject them via <code class="docutils literal notranslate"><span class="pre">Problem.require_least_squares()</span></code> instead of silently
+changing their mathematical meaning.</p>
+<section id="temporal-structure-and-route-selection">
+<h3>Temporal structure and route selection<a class="headerlink" href="#temporal-structure-and-route-selection" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">VarSpec(...,</span> <span class="pre">time_axis=0)</span></code> marks the first event axis as time while preserving
+the existing value, retraction, and knot-major dense-column contracts. A
+residual can refine its block-level <code class="docutils literal notranslate"><span class="pre">reads</span></code> declaration with
+<code class="docutils literal notranslate"><span class="pre">TemporalPattern(rows,</span> <span class="pre">row_width,</span> <span class="pre">row_origin,</span> <span class="pre">offsets)</span></code>. For row group <code class="docutils literal notranslate"><span class="pre">r</span></code>,
+offset <code class="docutils literal notranslate"><span class="pre">o</span></code> refers to knot <code class="docutils literal notranslate"><span class="pre">r</span> <span class="pre">+</span> <span class="pre">row_origin</span> <span class="pre">+</span> <span class="pre">o</span></code>. Numeric
+<code class="docutils literal notranslate"><span class="pre">temporal_jacobian_blocks</span></code> use the same offsets and return exact reduced
+per-knot blocks; item weights and robust row scales are applied centrally.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Problem</span></code> caches a static <code class="docutils literal notranslate"><span class="pre">TemporalAnalysis</span></code>. Direct eligibility requires one
+free time variable, a time-separable mask, complete patterns, and complete
+numeric temporal blocks. Operator eligibility permits a declaration without
+numeric blocks and supplies an explicit autograd JVP/VJP fallback. Multiple
+optimized variables, mixed temporal/shared dependencies, undeclared temporal
+residuals, or a non-separable mask are ineligible in v1. A zero weight does
+not erase structure.</p>
+<p><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt(linearization=...)</span></code> uses the following policy:</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Request</p></th>
+<th class="head"><p>Representation and default solver</p></th>
+<th class="head"><p>Ineligible behavior</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&quot;dense&quot;</span></code></p></td>
+<td><p>dense normal / <code class="docutils literal notranslate"><span class="pre">Cholesky</span></code></p></td>
+<td><p>always available</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">&quot;structured&quot;</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BlockBandedMatrix</span></code> / <code class="docutils literal notranslate"><span class="pre">BandedCholesky</span></code></p></td>
+<td><p>raises with cached reason/detail</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&quot;matrix_free&quot;</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">NormalOperator</span></code> / <code class="docutils literal notranslate"><span class="pre">NormalCG</span></code></p></td>
+<td><p>raises when operator-ineligible</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">&quot;auto&quot;</span></code></p></td>
+<td><p>banded when directly eligible, otherwise dense</p></td>
+<td><p>records the stable fallback reason/detail</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>An explicit solver must advertise a compatible system kind. Automatic mode
+does not select the more expensive autograd operator fallback. There is no
+numerical-zero inference or mixed band-plus-dense container. Schur elimination
+for temporal plus shared/nuisance variables remains deferred until a second
+production caller supplies evidence.</p>
+</section>
+</section>
+<section id="named-block-lm-gn">
+<h2>Named-block LM/GN<a class="headerlink" href="#named-block-lm-gn" title="Link to this heading">#</a></h2>
+<p>The named-block solvers expose a jaxopt-style lifecycle:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim</span><span class="w"> </span><span class="kn">import</span> <span class="n">LevenbergMarquardt</span>
+
+<span class="n">solver</span> <span class="o">=</span> <span class="n">LevenbergMarquardt</span><span class="p">(</span><span class="n">max_iter</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">gtol</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">)</span>
+<span class="n">state</span> <span class="o">=</span> <span class="n">solver</span><span class="o">.</span><span class="n">init_state</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
+<span class="n">values</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="n">solver</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>  <span class="c1"># one pure tensor step</span>
+<span class="n">values</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="n">solver</span><span class="o">.</span><span class="n">finalize</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
+
+<span class="c1"># Or use the detached eager driver:</span>
+<span class="n">values</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="n">solver</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>For a small explicit unrolled-differentiation oracle, pass
+<code class="docutils literal notranslate"><span class="pre">create_graph=True</span></code> to <code class="docutils literal notranslate"><span class="pre">init_state</span></code>, every <code class="docutils literal notranslate"><span class="pre">update</span></code>, and <code class="docutils literal notranslate"><span class="pre">finalize</span></code>. The
+default path does not retain the Jacobian graph, and <code class="docutils literal notranslate"><span class="pre">run</span></code> is intentionally
+always detached. For an implicit gradient of a converged optimum with respect
+to explicitly declared external parameters, opt in separately:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">values</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="n">solver</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span>
+    <span class="n">values</span><span class="p">,</span>
+    <span class="n">problem</span><span class="p">,</span>
+    <span class="n">differentiate</span><span class="o">=</span><span class="s2">&quot;implicit&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">loss</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="s2">&quot;q&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">square</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+<span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The forward iterations remain detached; there is no gradient to the initial
+guess, warm-start state, bounds/masks, or solver hyperparameters. Backward
+recomputes the exact robust tangent optimality system, maps ambient output
+cotangents through each manifold retraction, eliminates stable active-bound
+coordinates, and uses undamped Cholesky or a verified full-rank least-squares
+solve. Any invalid element, unstable active set, Huber kink, nonfinite system,
+terminal-manifold quaternion representative at the absolute-pi principal-log
+cut, or singular system raises <code class="docutils literal notranslate"><span class="pre">ImplicitDifferentiationError</span></code> for the whole batch. The same tensor object
+cannot be both an optimized input and an external parameter. The custom
+backward is first-order only.</p>
+<p>This initial implementation has an explicit dense-size cap (512 tangent
+coordinates by default). Matrix-free backward is rejected. A small banded
+forward may opt into the same capped dense correctness oracle with
+<code class="docutils literal notranslate"><span class="pre">ImplicitDiffConfig(allow_banded_dense_backward=True)</span></code>; this is not a true
+structured backward and long trajectories are never silently densified.
+Declared context parameters are the stable supported input path. Direct
+ModelValues reconstruction, named item-weight/kernel-scale binding, generic
+custom-kernel kink declarations, and returned per-element gradient-quality
+metadata remain follow-up work. Item/kernel object identity is not a binding;
+a declared differentiable parameter disconnected from terminal optimality is
+rejected instead of receiving a silent zero gradient.</p>
+<p>The terminal-representative check cannot inspect arbitrary residual/provider
+code. A relative-rotation <code class="docutils literal notranslate"><span class="pre">log</span></code> can therefore have its own principal branch
+point even when the optimized quaternion is near identity; custom residual
+authors must reject or avoid such points until residual-level smoothness
+declarations exist.</p>
+<p><code class="docutils literal notranslate"><span class="pre">LMState</span></code> is a fixed-structure pytree containing tensors only. Cost, damping,
+gain ratio, accept/reject effects, factorization health, KKT measures, status,
+and iteration counts retain every leading batch axis; a rejected or failed
+element does not move a valid neighbor. <code class="docutils literal notranslate"><span class="pre">GaussNewton</span></code> is a fixed-damping preset
+of the same guarded update rather than a second implementation.</p>
+<p>The solver scales residual/Jacobian rows by the configured group-wise robust
+weights, solves reduced tangent systems, and applies state-space feasibility
+through each <code class="docutils literal notranslate"><span class="pre">VarSpec</span></code> manifold. Finite Euclidean/configuration bounds use a
+projected active set and projected-gradient KKT termination. World-axis boxes
+on a free-flyer translation are rejected because they are not axis-aligned in
+the right-local <code class="docutils literal notranslate"><span class="pre">SE(3)</span></code> tangent; express those constraints as residuals until
+constraint-normal support lands.</p>
+<p><code class="docutils literal notranslate"><span class="pre">block_step_limits=((&quot;translation&quot;,</span> <span class="pre">0.2),</span> <span class="pre">...)</span></code> optionally caps the physical
+reduced-tangent L2 norm of individual free blocks before both the LM and
+projected-gradient retractions. Gain prediction uses the actual post-
+retraction tangent step. This is a solver trust-region knob, not a state bound.</p>
+<p><code class="docutils literal notranslate"><span class="pre">update</span></code> is a pure, fixed-shape, sync-free tensor program. Public validation
+and static layout construction happen in <code class="docutils literal notranslate"><span class="pre">init_state</span></code>; <code class="docutils literal notranslate"><span class="pre">run</span></code> is an eager
+convenience loop and may perform one host-side all-terminal check per
+iteration. M6’s internal experimental <code class="docutils literal notranslate"><span class="pre">GraphExecutor</span></code> CUDA harness certifies
+replay of fixed groups of these updates, including nonlinear jacrev work; the
+public <code class="docutils literal notranslate"><span class="pre">run</span></code> loop remains eager and has no end-to-end IK graph benchmark.
+Custom residuals and providers must also satisfy the fixed-shape, sync-free
+eligibility rules in
+<a class="reference internal" href="../guides/custom_residuals.html"><span class="doc">Write a custom block residual</span></a>; non-eligible residuals remain usable eagerly.</p>
+<p>The terminal <code class="docutils literal notranslate"><span class="pre">LMStatus</span></code> values are <code class="docutils literal notranslate"><span class="pre">RUNNING</span></code>, <code class="docutils literal notranslate"><span class="pre">CONVERGED</span></code>,
+<code class="docutils literal notranslate"><span class="pre">STALLED_AT_BOUNDS</span></code>, <code class="docutils literal notranslate"><span class="pre">MAXITER</span></code>, and <code class="docutils literal notranslate"><span class="pre">FAILED</span></code>. Call <code class="docutils literal notranslate"><span class="pre">finalize</span></code> after a manual
+update loop so residuals, robust weights, active masks, and KKT diagnostics all
+describe the returned terminal point. <code class="docutils literal notranslate"><span class="pre">run</span></code> does this automatically and
+detaches returned artifacts. A supplied prior state is a warm start for
+damping, not permission to reuse stale target-dependent linearizations; its
+batch shape, dtype, and device must match exactly.</p>
+<p>Accepted-step <code class="docutils literal notranslate"><span class="pre">xtol</span></code>/<code class="docutils literal notranslate"><span class="pre">ftol</span></code> termination applies only to unbounded problems.
+Bounded problems require projected-gradient KKT for every success status, and
+a tolerance-only unbounded <code class="docutils literal notranslate"><span class="pre">CONVERGED</span></code> state is not <code class="docutils literal notranslate"><span class="pre">implicit_valid</span></code> unless
+final evaluation also satisfies KKT. Damping has a strictly positive floor;
+after escalation reaches <code class="docutils literal notranslate"><span class="pre">mu_max</span></code>, a failing factorization receives one solve
+attempt at the cap before the element becomes <code class="docutils literal notranslate"><span class="pre">FAILED</span></code>.</p>
+<p>The legacy optimizer classes have the same human-readable LM/GN names but live
+under <code class="docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code>; they consume <code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code> and
+offer <code class="docutils literal notranslate"><span class="pre">minimize</span></code>, not this step API.</p>
+</section>
+<section id="named-block-matrix-free-adam">
+<h2>Named-block matrix-free Adam<a class="headerlink" href="#named-block-matrix-free-adam" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">Adam</span></code> uses the same <code class="docutils literal notranslate"><span class="pre">init_state(values,</span> <span class="pre">problem)</span></code>, pure
+<code class="docutils literal notranslate"><span class="pre">update(values,</span> <span class="pre">state,</span> <span class="pre">problem)</span></code>, and detached <code class="docutils literal notranslate"><span class="pre">run(values,</span> <span class="pre">problem,</span> <span class="pre">state=None)</span></code> lifecycle. Its moments end in each block’s mask-reduced tangent
+dimension, and every step goes through the block manifold’s feasible
+retraction. Arbitrary common leading batch axes produce independent step,
+cost, gradient-norm, convergence, and status tensors.</p>
+<p>The update calls a prevalidated tangent VJP of the robust <code class="docutils literal notranslate"><span class="pre">Problem.objective</span></code>.
+It does not call <code class="docutils literal notranslate"><span class="pre">jacobian_blocks</span></code> or <code class="docutils literal notranslate"><span class="pre">dense_jacobian</span></code>.
+Warm-start moments and bias-correction counts are retained only when variable
+names/order, reduced shapes, batch shape, dtype, and device match; current
+target-dependent diagnostics/status are always recomputed. <code class="docutils literal notranslate"><span class="pre">run</span></code> detaches all
+returned leaves and may synchronize only for its all-terminal loop check.</p>
+<p>Named-block LBFGS is deferred rather than half-ported: correct batching needs
+per-element histories and line searches plus curvature-validity/history-reset
+rules. Use matrix-free <code class="docutils literal notranslate"><span class="pre">Adam</span></code> or named-block LM/GN until that dedicated
+milestone lands.</p>
+</section>
+<section id="functional-phases">
+<h2>Functional phases<a class="headerlink" href="#functional-phases" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">Phase</span></code> combines a solver instance and iteration budget with absolute item
+weight overrides, static per-block tangent masks, and an optional <code class="docutils literal notranslate"><span class="pre">on_start</span></code>
+hook. <code class="docutils literal notranslate"><span class="pre">run_phases(problem,</span> <span class="pre">values,</span> <span class="pre">phases)</span></code> carries accepted values forward but
+creates fresh solver state for every phase, so Adam momentum cannot leak across
+a DOF transition.</p>
+<p>Problems and variable specs are immutable, so phase application is a cheap
+functional rebuild rather than in-place snapshot/restore. The caller’s
+<code class="docutils literal notranslate"><span class="pre">Problem</span></code> is unchanged even when a phase raises. A phase mask intersects the
+base mask and therefore cannot unfreeze a permanently fixed coordinate. A
+Python-zero weight removes the item from evaluation, including providers read
+only by that item. <code class="docutils literal notranslate"><span class="pre">on_start</span></code> runs once even when the phase has zero iterations.</p>
+</section>
+<section id="legacy-solver-stack-direct-compatibility-backend">
+<h2>Legacy solver stack (direct compatibility backend)<a class="headerlink" href="#legacy-solver-stack-direct-compatibility-backend" title="Link to this heading">#</a></h2>
+<p>A <code class="docutils literal notranslate"><span class="pre">CostStack</span></code> knows how to compute residuals; it does not know how to minimise
+them. In the legacy contract, that job belongs to <code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code> (which
+packs the cost stack, the initial guess, and the manifold retraction into a
+single self-describing problem) and to an <code class="docutils literal notranslate"><span class="pre">Optimizer</span></code> (which iterates on it).
+The canonical stack definitions live in <code class="docutils literal notranslate"><span class="pre">src/better_robot/optim/cost_stack.py</span></code>;
+<code class="docutils literal notranslate"><span class="pre">better_robot.costs.stack</span></code> is an identity-preserving compatibility shim.
+The optimizer does <em>not</em> fuse the linear-solver choice, robust kernel, damping
+schedule, or stop condition into its loop; those remain independently
+pluggable axes.</p>
+<p>That separation is why “swap LM for Adam” or “switch Cholesky to LSTSQ for a
+rank-deficient problem” is one Protocol swap within the legacy stack. Every
+legacy optimizer implements the same <code class="docutils literal notranslate"><span class="pre">Optimizer</span></code> Protocol; every linear solver
+implements <code class="docutils literal notranslate"><span class="pre">LinearSolver</span></code>; every robust kernel and damping strategy likewise.
+The LM-then-LBFGS multi-stage solver and its individual stages use that same
+legacy optimizer contract with different components.</p>
+<p>The rest of this chapter documents <code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code> and its four
+pluggable axes (Optimizer, LinearSolver, RobustKernel, DampingStrategy), then
+ends with its loop sketch. These details remain current for legacy direct
+callers; shipped tasks use the named-block surface above.</p>
+</section>
 <section id="leastsquaresproblem">
 <h2><code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code><a class="headerlink" href="#leastsquaresproblem" title="Link to this heading">#</a></h2>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@dataclass</span>
@@ -620,7 +883,8 @@ DampingStrategy) and ends with the loop sketch.</p>
 <span class="sd">    - The cost stack supplies residuals r(x) and (optionally) J(x).</span>
 <span class="sd">    - Equality / inequality constraints are exposed as cost items with</span>
 <span class="sd">      kind=&quot;constraint_leq_zero&quot; (Crocoddyl-like).</span>
-<span class="sd">    - Variable bounds are hard — enforced by projection at every step.</span>
+<span class="sd">    - Variable bounds preserve feasibility by projecting every trial point</span>
+<span class="sd">      before evaluation; this is not an active-set bounded solver.</span>
 
 <span class="sd">    The problem is intentionally minimal; the solvers in</span>
 <span class="sd">    optim/optimizers/ own the iteration strategy.</span>
@@ -636,19 +900,16 @@ DampingStrategy) and ends with the loop sketch.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">jacobian</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">gradient</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;J(x)^T @ r(x), matrix-free.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the per-item J(x)^T @ r(x) helper.</span>
 
 <span class="sd">        Iterates the active CostStack items and accumulates each item&#39;s</span>
-<span class="sd">        ``apply_jac_transpose(state, r_item)`` contribution. Used by</span>
-<span class="sd">        Adam, L-BFGS, and any optimiser that does not need the dense</span>
-<span class="sd">        Jacobian.</span>
+<span class="sd">        ``apply_jac_transpose(state, r_item)`` contribution when available;</span>
+<span class="sd">        otherwise that item materialises its Jacobian. The shipped legacy</span>
+<span class="sd">        optimisers do not call this helper.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">jacobian_blocks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="s2">&quot;BlockKey&quot;</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Block-sparse Jacobian per ResidualSpec.</span>
-
-<span class="sd">        Used by the block-Cholesky linear solver for trajopt.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return weighted per-item Jacobian blocks.&quot;&quot;&quot;</span>
 </pre></div>
 </div>
 <p>Source: <code class="docutils literal notranslate"><span class="pre">src/better_robot/optim/problem.py</span></code>.</p>
@@ -659,19 +920,15 @@ via <code class="docutils literal notranslate"><span class="pre">model.create_da
 solving IK, trajopt, or pose-graph SLAM.</p>
 <p>The two extras worth highlighting:</p>
 <ul class="simple">
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">gradient(x)</span></code> is matrix-free.</strong> Adam, L-BFGS, and any optimiser
-that does not need the dense Jacobian read this instead of
-<code class="docutils literal notranslate"><span class="pre">jacobian(x)</span></code>. For dense residuals the default
-<code class="docutils literal notranslate"><span class="pre">apply_jac_transpose</span></code> falls back to <code class="docutils literal notranslate"><span class="pre">J.T</span> <span class="pre">&#64;</span> <span class="pre">r</span></code>; for banded /
-temporal residuals a per-knot kernel keeps the per-iteration
-memory at <code class="docutils literal notranslate"><span class="pre">O(T·nv)</span></code>. This is what makes a 200-knot G1 trajopt fit
-inside the 200 MiB CUDA peak watermark from <a class="reference internal" href="../conventions/performance.html"><span class="doc">Performance</span></a> §1.3.</p></li>
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">jacobian_blocks(x)</span></code> exposes structure.</strong> The block-Cholesky
-linear solver reads it to skip zero blocks. Residuals whose
-<code class="docutils literal notranslate"><span class="pre">spec.structure</span></code> is <code class="docutils literal notranslate"><span class="pre">&quot;dense&quot;</span></code> contribute one block;
-<code class="docutils literal notranslate"><span class="pre">&quot;block&quot;</span></code> / <code class="docutils literal notranslate"><span class="pre">&quot;banded&quot;</span></code> items contribute their declared blocks;
-<code class="docutils literal notranslate"><span class="pre">&quot;matrix_free&quot;</span></code> items raise — those should be solved with a
-gradient-based optimiser, not assembly-based LM.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">gradient(x)</span></code> is only conditionally matrix-free per item.</strong> A residual
+with <code class="docutils literal notranslate"><span class="pre">apply_jac_transpose</span></code> can avoid its dense Jacobian; every other item
+falls back to <code class="docutils literal notranslate"><span class="pre">J.T</span> <span class="pre">&#64;</span> <span class="pre">r</span></code>. The legacy Adam and L-BFGS implementations call
+<code class="docutils literal notranslate"><span class="pre">jacobian(x)</span></code> directly and therefore assemble dense J. Named-block
+<code class="docutils literal notranslate"><span class="pre">better_robot.optim.Adam</span></code> is the separate, shipped matrix-free path.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">jacobian_blocks(x)</span></code> returns weighted per-item dense Jacobians.</strong> Current
+legacy solvers ignore this dictionary. Temporal declarations belong to the
+separate named-block <code class="docutils literal notranslate"><span class="pre">Problem</span></code> protocol and are not inferred from these
+legacy tensors.</p></li>
 </ul>
 </section>
 <section id="the-optimizer-protocol">
@@ -686,8 +943,8 @@ gradient-based optimiser, not assembly-based LM.</p></li>
         <span class="n">linear_solver</span><span class="p">:</span> <span class="s2">&quot;LinearSolver&quot;</span><span class="p">,</span>
         <span class="n">kernel</span><span class="p">:</span> <span class="s2">&quot;RobustKernel&quot;</span><span class="p">,</span>
         <span class="n">strategy</span><span class="p">:</span> <span class="s2">&quot;DampingStrategy&quot;</span><span class="p">,</span>
-        <span class="n">scheduler</span><span class="p">:</span> <span class="s2">&quot;StopScheduler&quot;</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;OptimizationResult&quot;</span><span class="p">:</span>
+        <span class="n">scheduler</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SolverState&quot;</span><span class="p">:</span>
         <span class="o">...</span>
 </pre></div>
 </div>
@@ -696,6 +953,11 @@ gradient-based optimiser, not assembly-based LM.</p></li>
 an <code class="docutils literal notranslate"><span class="pre">Optimizer</span></code> — no inheritance required. User-provided optimisers
 (DDP, iLQR, ADMM, IPOPT) plug in without touching the library; see
 <a class="reference internal" href="../conventions/extension.html"><span class="doc">Extension Points</span></a> §3.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">scheduler</span></code> keyword is retained by the legacy call shape for compatibility,
+but no stop-scheduler protocol or implementation is shipped and the built-in
+legacy optimizers currently ignore its value. Stopping is controlled by
+<code class="docutils literal notranslate"><span class="pre">max_iter</span></code> plus each optimizer’s own tolerance and, for L-BFGS, line-search
+status.</p>
 <p>Built-in optimisers:</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
@@ -715,11 +977,11 @@ an <code class="docutils literal notranslate"><span class="pre">Optimizer</span>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">adam.py</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Adam</span></code></p></td>
-<td><p>Reads <code class="docutils literal notranslate"><span class="pre">problem.gradient(x)</span></code>; never materialises J</p></td>
+<td><p>Legacy flat solver; currently assembles dense J</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">lbfgs.py</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">LBFGS</span></code></p></td>
-<td><p>Same</p></td>
+<td><p>Legacy flat solver; currently assembles dense J</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">multi_stage.py</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">MultiStageOptimizer</span></code></p></td>
@@ -740,44 +1002,59 @@ the optimiser, the damping strategy, the linear solver, and any
 custom diagnostics:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">SolverState</span><span class="p">:</span>
-    <span class="n">x</span><span class="p">:</span>             <span class="n">Tensor</span>              <span class="c1"># (B..., nx) current iterate</span>
-    <span class="n">residual</span><span class="p">:</span>      <span class="n">Tensor</span>              <span class="c1"># (B..., total_dim) r(x)</span>
-    <span class="n">residual_norm</span><span class="p">:</span> <span class="n">Tensor</span>              <span class="c1"># (B...,) ||r(x)||</span>
+    <span class="n">x</span><span class="p">:</span>             <span class="n">Tensor</span>              <span class="c1"># (nx,) current iterate</span>
+    <span class="n">residual</span><span class="p">:</span>      <span class="n">Tensor</span>              <span class="c1"># (total_dim,) r(x)</span>
+    <span class="n">residual_norm</span><span class="p">:</span> <span class="n">Tensor</span>              <span class="c1"># scalar raw 0.5·||r(x)||²</span>
     <span class="n">iters</span><span class="p">:</span>         <span class="nb">int</span>
-    <span class="n">damping</span><span class="p">:</span>       <span class="nb">float</span>               <span class="c1"># λ for LM / trust-region radius for TR</span>
+    <span class="n">damping</span><span class="p">:</span>       <span class="nb">float</span>               <span class="c1"># λ for LM; 0.0 for other solvers</span>
     <span class="n">gain_ratio</span><span class="p">:</span>    <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">status</span><span class="p">:</span>        <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;running&quot;</span><span class="p">,</span> <span class="s2">&quot;converged&quot;</span><span class="p">,</span> <span class="s2">&quot;stalled&quot;</span><span class="p">,</span> <span class="s2">&quot;maxiter&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;running&quot;</span>
+    <span class="n">history</span><span class="p">:</span>       <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">from_problem</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">problem</span><span class="p">:</span> <span class="n">LeastSquaresProblem</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SolverState&quot;</span><span class="p">:</span> <span class="o">...</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">converged</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tol</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span> <span class="o">...</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">converged</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span> <span class="o">...</span>
 </pre></div>
 </div>
 <p>Source: <code class="docutils literal notranslate"><span class="pre">src/better_robot/optim/state.py</span></code>. The “one struct passes
 through every component” pattern (cuRobo) replaces the ad-hoc tuple
 returns the early prototype carried.</p>
+<p><code class="docutils literal notranslate"><span class="pre">stalled</span></code> is currently emitted only by LBFGS. LM and Gauss–Newton emit
+<code class="docutils literal notranslate"><span class="pre">converged</span></code> or <code class="docutils literal notranslate"><span class="pre">maxiter</span></code>; in particular, bounds-limited LM progress is not
+misreported as convergence and normally exhausts the budget as <code class="docutils literal notranslate"><span class="pre">maxiter</span></code>.</p>
 </section>
 <section id="linear-solvers">
 <h2>Linear solvers<a class="headerlink" href="#linear-solvers" title="Link to this heading">#</a></h2>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">LinearSolver</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">solve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">A</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">solve</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">A</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">b</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">ridge</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">Cholesky</span><span class="p">(</span><span class="n">LinearSolver</span><span class="p">):</span> <span class="o">...</span>        <span class="c1"># dense, SPD</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">LSTSQ</span><span class="p">(</span><span class="n">LinearSolver</span><span class="p">):</span> <span class="o">...</span>           <span class="c1"># rank-deficient safe</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">CG</span><span class="p">(</span><span class="n">LinearSolver</span><span class="p">):</span> <span class="o">...</span>              <span class="c1"># conjugate gradients for large sparse</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">SparseCholesky</span><span class="p">(</span><span class="n">LinearSolver</span><span class="p">):</span> <span class="o">...</span>  <span class="c1"># block-sparse for trajopt</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">LSTSQ</span><span class="p">(</span><span class="n">LinearSolver</span><span class="p">):</span> <span class="o">...</span>           <span class="c1"># dense, rank-deficient safe</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BandedCholesky</span><span class="p">(</span><span class="n">LinearSolver</span><span class="p">):</span> <span class="o">...</span>  <span class="c1"># BlockBandedMatrix</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">NormalCG</span><span class="p">(</span><span class="n">LinearSolver</span><span class="p">):</span> <span class="o">...</span>        <span class="c1"># NormalOperator, warm-start capable</span>
 </pre></div>
 </div>
-<p>Source: <code class="docutils literal notranslate"><span class="pre">src/better_robot/optim/linear_solvers/</span></code>.</p>
-<p><code class="docutils literal notranslate"><span class="pre">Cholesky</span></code> is the default for dense IK problems. <code class="docutils literal notranslate"><span class="pre">SparseCholesky</span></code> is
-the default for trajopt problems where the Jacobian has banded /
-block structure (driven by <code class="docutils literal notranslate"><span class="pre">ResidualSpec</span></code>). <code class="docutils literal notranslate"><span class="pre">CG</span></code> is the choice for
-very large problems where assembly-based methods exhaust memory;
-<code class="docutils literal notranslate"><span class="pre">LSTSQ</span></code> is for cases where <code class="docutils literal notranslate"><span class="pre">JᵀJ</span></code> may be rank-deficient.</p>
+<p>Source: <code class="docutils literal notranslate"><span class="pre">src/better_robot/optim/solvers/</span></code>.</p>
+<p>Every solver accepts <code class="docutils literal notranslate"><span class="pre">b</span></code> with shape <code class="docutils literal notranslate"><span class="pre">(B...,</span> <span class="pre">n)</span></code> and the stable
+<code class="docutils literal notranslate"><span class="pre">solve(A,</span> <span class="pre">b,</span> <span class="pre">ridge=None)</span></code> seam. A tensor ridge is scalar or broadcastable to
+<code class="docutils literal notranslate"><span class="pre">B...</span></code> and does not modify the caller’s system. <code class="docutils literal notranslate"><span class="pre">Cholesky</span></code> and <code class="docutils literal notranslate"><span class="pre">LSTSQ</span></code> accept
+dense <code class="docutils literal notranslate"><span class="pre">(B...,</span> <span class="pre">n,</span> <span class="pre">n)</span></code> tensors. <code class="docutils literal notranslate"><span class="pre">BandedCholesky</span></code> consumes padded lower
+<code class="docutils literal notranslate"><span class="pre">BlockBandedMatrix</span></code> storage and returns independent per-batch SPD/finite
+status. <code class="docutils literal notranslate"><span class="pre">NormalCG</span></code> consumes a sized <code class="docutils literal notranslate"><span class="pre">NormalOperator</span></code>, may use its
+preconditioner and a compatible warm start, and reports fixed-work convergence
+and residual diagnostics. Each implementation advertises <code class="docutils literal notranslate"><span class="pre">supported_systems</span></code>;
+LM rejects an explicitly incompatible solver instead of densifying silently.</p>
 </section>
 <section id="robust-kernels">
 <h2>Robust kernels<a class="headerlink" href="#robust-kernels" title="Link to this heading">#</a></h2>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">RobustKernel</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">rho</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">squared_norm</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">weight</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">squared_norm</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">L2</span><span class="p">(</span><span class="n">RobustKernel</span><span class="p">):</span>    <span class="o">...</span>   <span class="c1"># trivial identity</span>
@@ -787,10 +1064,14 @@ very large problems where assembly-based methods exhaust memory;
 </pre></div>
 </div>
 <p>Source: <code class="docutils literal notranslate"><span class="pre">src/better_robot/optim/kernels/</span></code>.</p>
-<p>Robust kernels reweight <code class="docutils literal notranslate"><span class="pre">r</span> <span class="pre">→</span> <span class="pre">ρ(r)</span></code> per residual, not per cost stack
-— different terms can use different kernels. The IRLS-style
-reweighting happens once per outer iteration before the linear
-solve.</p>
+<p>The selected kernel is applied to each residual row after
+<code class="docutils literal notranslate"><span class="pre">CostItem.weight</span></code> scaling, so thresholds such as Huber’s <code class="docutils literal notranslate"><span class="pre">delta</span></code> are in
+weighted residual units. Built-ins use the normalized IRLS convention
+<code class="docutils literal notranslate"><span class="pre">weight(s)</span> <span class="pre">=</span> <span class="pre">2·ρ'(s)</span></code>: residual and Jacobian rows are multiplied by
+<code class="docutils literal notranslate"><span class="pre">sqrt(weight(r²))</span></code> before the linear solve. LM accepts trials using the
+matching robust objective <code class="docutils literal notranslate"><span class="pre">Σ</span> <span class="pre">ρ(r_i²)</span></code>; without a kernel, it uses
+<code class="docutils literal notranslate"><span class="pre">0.5·‖r‖²</span></code>. <code class="docutils literal notranslate"><span class="pre">SolverState.residual_norm</span></code> remains raw <code class="docutils literal notranslate"><span class="pre">0.5·‖r‖²</span></code> in both
+cases.</p>
 </section>
 <section id="damping-strategies">
 <h2>Damping strategies<a class="headerlink" href="#damping-strategies" title="Link to this heading">#</a></h2>
@@ -801,169 +1082,159 @@ solve.</p>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">Constant</span><span class="p">(</span><span class="n">DampingStrategy</span><span class="p">):</span>    <span class="o">...</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">Adaptive</span><span class="p">(</span><span class="n">DampingStrategy</span><span class="p">):</span>    <span class="o">...</span>   <span class="c1"># double on reject, halve on accept</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">TrustRegion</span><span class="p">(</span><span class="n">DampingStrategy</span><span class="p">):</span> <span class="o">...</span>
 </pre></div>
 </div>
-<p>Source: <code class="docutils literal notranslate"><span class="pre">src/better_robot/optim/damping/</span></code>.</p>
+<p>Source: <code class="docutils literal notranslate"><span class="pre">src/better_robot/optim/strategies/</span></code>.</p>
 <p><code class="docutils literal notranslate"><span class="pre">Adaptive</span></code> is the default for LM. It starts at <code class="docutils literal notranslate"><span class="pre">1e-4</span></code>, doubles on
-reject, halves on accept. <code class="docutils literal notranslate"><span class="pre">TrustRegion</span></code> is the right choice when the
-problem has known step-size constraints.</p>
+reject, and halves on accept. <code class="docutils literal notranslate"><span class="pre">Constant</span></code> keeps lambda fixed. The former
+unimplemented trust-region placeholder was removed; the bounded second-order
+algorithm is implemented as part of the named-block solver rather than a legacy
+damping strategy.</p>
 </section>
-<section id="optimizerconfig-every-knob-is-wired">
-<h2><code class="docutils literal notranslate"><span class="pre">OptimizerConfig</span></code> — every knob is wired<a class="headerlink" href="#optimizerconfig-every-knob-is-wired" title="Link to this heading">#</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">OptimizerConfig</span></code> is the user-facing dial. Every declared knob is
-honoured — there are no decorative fields.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<section id="ik-optimizerconfig">
+<h2>IK <code class="docutils literal notranslate"><span class="pre">OptimizerConfig</span></code><a class="headerlink" href="#ik-optimizerconfig" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">OptimizerConfig</span></code> is the user-facing dial. Solver-selection fields are
+validated at the facade boundary, and a non-default method-specific setting
+is either applied by the selected method or rejected; it is not silently
+ignored.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">OptimizerConfig</span><span class="p">:</span>
     <span class="n">optimizer</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;lm&quot;</span><span class="p">,</span> <span class="s2">&quot;gn&quot;</span><span class="p">,</span> <span class="s2">&quot;adam&quot;</span><span class="p">,</span> <span class="s2">&quot;lbfgs&quot;</span><span class="p">,</span>
-                       <span class="s2">&quot;lm_then_lbfgs&quot;</span><span class="p">,</span> <span class="s2">&quot;multi_stage&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;lm&quot;</span>
+                       <span class="s2">&quot;lm_then_adam&quot;</span><span class="p">,</span> <span class="s2">&quot;lm_then_lbfgs&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;lm&quot;</span>
     <span class="n">max_iter</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span>
     <span class="n">jacobian_strategy</span><span class="p">:</span> <span class="n">JacobianStrategy</span> <span class="o">=</span> <span class="n">JacobianStrategy</span><span class="o">.</span><span class="n">AUTO</span>
 
-    <span class="n">linear_solver</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;cholesky&quot;</span><span class="p">,</span> <span class="s2">&quot;lstsq&quot;</span><span class="p">,</span> <span class="s2">&quot;cg&quot;</span><span class="p">,</span> <span class="s2">&quot;sparse_cholesky&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;cholesky&quot;</span>
+    <span class="n">linear_solver</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;cholesky&quot;</span><span class="p">,</span> <span class="s2">&quot;lstsq&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;cholesky&quot;</span>
     <span class="n">kernel</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;l2&quot;</span><span class="p">,</span> <span class="s2">&quot;huber&quot;</span><span class="p">,</span> <span class="s2">&quot;cauchy&quot;</span><span class="p">,</span> <span class="s2">&quot;tukey&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;l2&quot;</span>
-    <span class="n">huber_delta</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">tukey_c</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">damping</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span> <span class="s2">&quot;adaptive&quot;</span><span class="p">,</span> <span class="s2">&quot;trust_region&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;adaptive&quot;</span>
-    <span class="n">tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-7</span>
-
-    <span class="c1"># Two-stage refinement (cuRobo pattern).</span>
-    <span class="n">refine_max_iter</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span>
-    <span class="n">refine_cost_mask</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="s2">&quot;pose_*&quot;</span><span class="p">,</span> <span class="s2">&quot;limits&quot;</span><span class="p">,</span> <span class="s2">&quot;rest&quot;</span><span class="p">,</span> <span class="s2">&quot;self_collision&quot;</span><span class="p">,</span> <span class="s2">&quot;world_collision&quot;</span><span class="p">,</span>
-    <span class="p">)</span>
-
-    <span class="c1"># Multi-stage (generalises lm_then_lbfgs).</span>
-    <span class="n">stages</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="s2">&quot;OptimizerStage&quot;</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">damping</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span> <span class="s2">&quot;adaptive&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;adaptive&quot;</span>
+    <span class="n">tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-6</span>
+    <span class="n">refine_disabled_items</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">solve_ik</span></code> builds the optimiser, linear solver, robust kernel, and
-damping strategy explicitly:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">optimizer</span> <span class="o">=</span> <span class="n">_make_optimizer</span>     <span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
-<span class="n">linear</span>    <span class="o">=</span> <span class="n">_make_linear_solver</span> <span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
-<span class="n">kernel</span>    <span class="o">=</span> <span class="n">_make_robust_kernel</span> <span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
-<span class="n">damping</span>   <span class="o">=</span> <span class="n">_make_damping</span>       <span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
-<span class="n">state</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">minimize</span><span class="p">(</span><span class="n">problem</span><span class="p">,</span>
-                           <span class="n">linear_solver</span><span class="o">=</span><span class="n">linear</span><span class="p">,</span>
-                           <span class="n">kernel</span><span class="o">=</span><span class="n">kernel</span><span class="p">,</span>
-                           <span class="n">strategy</span><span class="o">=</span><span class="n">damping</span><span class="p">,</span>
-                           <span class="n">max_iter</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">max_iter</span><span class="p">)</span>
+<p><code class="docutils literal notranslate"><span class="pre">solve_ik</span></code> maps these fields to the named-block solvers explicitly:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">solver</span> <span class="o">=</span> <span class="n">LevenbergMarquardt</span><span class="p">(</span>
+    <span class="n">max_iter</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">max_iter</span><span class="p">,</span>
+    <span class="n">gtol</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">tol</span><span class="p">,</span>
+    <span class="n">linear_solver</span><span class="o">=</span><span class="n">_make_linear_solver</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">linear_solver</span><span class="p">),</span>
+    <span class="n">kernel</span><span class="o">=</span><span class="n">_make_robust_kernel</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">kernel</span><span class="p">),</span>
+    <span class="n">jacobian_strategy</span><span class="o">=</span><span class="n">map_strategy</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">jacobian_strategy</span><span class="p">),</span>
+    <span class="n">fixed_damping</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">damping</span> <span class="o">==</span> <span class="s2">&quot;constant&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">values</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="n">solver</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>If a knob is set but ignored by the chosen optimiser (Adam does not
-take a linear solver), the build step warns rather than silently
-swallowing it. A contract test asserts
-<code class="docutils literal notranslate"><span class="pre">OptimizerConfig(linear_solver=&quot;lstsq&quot;)</span></code> produces a <em>different</em>
-numerical trajectory than the default — declared knobs are wired,
-never decorative.</p>
+<p>Adam intentionally has no linear-solver, Jacobian-strategy, or damping
+arguments. Non-default values for those fields are rejected when
+<code class="docutils literal notranslate"><span class="pre">optimizer=&quot;adam&quot;</span></code>; Gauss–Newton likewise rejects a non-default damping
+selector. <code class="docutils literal notranslate"><span class="pre">refine_disabled_items</span></code> is accepted only by <code class="docutils literal notranslate"><span class="pre">lm_then_adam</span></code>.
+Named-block L-BFGS is not half-ported: <code class="docutils literal notranslate"><span class="pre">&quot;lbfgs&quot;</span></code> and <code class="docutils literal notranslate"><span class="pre">&quot;lm_then_lbfgs&quot;</span></code> raise an
+actionable error, while <code class="docutils literal notranslate"><span class="pre">&quot;lm_then_adam&quot;</span></code> uses the functional phase engine.</p>
 </section>
-<section id="multistageoptimizer">
-<h2><code class="docutils literal notranslate"><span class="pre">MultiStageOptimizer</span></code><a class="headerlink" href="#multistageoptimizer" title="Link to this heading">#</a></h2>
-<p>The historical <code class="docutils literal notranslate"><span class="pre">LMThenLBFGS</span></code> is the special case of a more general
-construct:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">OptimizerStage</span><span class="p">:</span>
-    <span class="n">optimizer</span><span class="p">:</span> <span class="n">Optimizer</span>
-    <span class="n">max_iter</span><span class="p">:</span> <span class="nb">int</span>
-    <span class="n">active_items</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">disabled_items</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>
-    <span class="n">weight_overrides</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-
-<span class="k">class</span><span class="w"> </span><span class="nc">MultiStageOptimizer</span><span class="p">(</span><span class="n">Optimizer</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run a fixed sequence of solver stages. Each stage may toggle</span>
-<span class="sd">    cost-stack active flags or override item weights. ``LMThenLBFGS``</span>
-<span class="sd">    is implemented as ``MultiStageOptimizer(stages=(LM, LBFGS))``.</span>
-
-<span class="sd">    The multi-stage optimiser **must restore active-flag and</span>
-<span class="sd">    weight-override state** even if a stage raises. A try/finally</span>
-<span class="sd">    around ``cost_stack.snapshot()`` / ``.restore()`` keeps the</span>
-<span class="sd">    user&#39;s CostStack intact regardless of outcome.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-</pre></div>
-</div>
-<p>Tested explicitly: stage-wise weight overrides correctly restore the
-original <code class="docutils literal notranslate"><span class="pre">CostStack</span></code> weights after the run, including in error paths.</p>
+<section id="legacy-multi-stage-and-named-block-phases">
+<h2>Legacy multi-stage and named-block phases<a class="headerlink" href="#legacy-multi-stage-and-named-block-phases" title="Link to this heading">#</a></h2>
+<p>The historical <code class="docutils literal notranslate"><span class="pre">LMThenLBFGS</span></code> remains a wrapper around the legacy
+<code class="docutils literal notranslate"><span class="pre">MultiStageOptimizer</span></code> for <code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code>. That implementation uses its
+private <code class="docutils literal notranslate"><span class="pre">_cost_stack_snapshot</span></code> context manager to save the affected item
+weights/active flags and restore them in <code class="docutils literal notranslate"><span class="pre">__exit__</span></code>, including when a stage
+raises. <code class="docutils literal notranslate"><span class="pre">CostStack</span></code> itself has no <code class="docutils literal notranslate"><span class="pre">snapshot()</span></code> or <code class="docutils literal notranslate"><span class="pre">restore()</span></code> methods.</p>
+<p>New named-block code uses <code class="docutils literal notranslate"><span class="pre">Phase</span></code> and <code class="docutils literal notranslate"><span class="pre">run_phases()</span></code> instead. A phase creates a
+functional <code class="docutils literal notranslate"><span class="pre">Problem</span></code> view with weight and variable-mask overrides, runs a fresh
+solver state, and discards the view. Because the caller’s <code class="docutils literal notranslate"><span class="pre">Problem</span></code> is
+immutable and never mutated, normal return and raise paths both leave it
+unchanged without a mutable snapshot protocol.</p>
 </section>
 <section id="the-levenbergmarquardt-minimize-sketch">
 <h2>The <code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.minimize</span></code> sketch<a class="headerlink" href="#the-levenbergmarquardt-minimize-sketch" title="Link to this heading">#</a></h2>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">minimize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">problem</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">max_iter</span><span class="p">,</span> <span class="n">linear_solver</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">strategy</span><span class="p">,</span> <span class="n">scheduler</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-    <span class="n">x</span>   <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">x0</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
-    <span class="n">lam</span> <span class="o">=</span> <span class="n">strategy</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="n">problem</span><span class="p">)</span>
+    <span class="c1"># ``scheduler`` is a retained compatibility keyword; this solver ignores it.</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="n">SolverState</span><span class="o">.</span><span class="n">from_problem</span><span class="p">(</span><span class="n">problem</span><span class="p">)</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">damping</span> <span class="o">=</span> <span class="n">strategy</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="n">problem</span><span class="p">)</span>
+    <span class="n">cost</span> <span class="o">=</span> <span class="n">_robust_cost</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">residual</span><span class="p">,</span> <span class="n">kernel</span><span class="p">)</span>
+
     <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_iter</span><span class="p">):</span>
-        <span class="n">r</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">residual</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="n">J</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">jacobian</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="n">r</span> <span class="o">=</span> <span class="n">kernel</span><span class="o">.</span><span class="n">weight</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span><span class="o">.</span><span class="n">sqrt</span><span class="p">()</span> <span class="o">*</span> <span class="n">r</span>
-        <span class="n">JtJ</span> <span class="o">=</span> <span class="n">J</span><span class="o">.</span><span class="n">mT</span> <span class="o">@</span> <span class="n">J</span>
-        <span class="n">Jtr</span> <span class="o">=</span> <span class="n">J</span><span class="o">.</span><span class="n">mT</span> <span class="o">@</span> <span class="n">r</span>
+        <span class="n">J</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">jacobian</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">r_weighted</span><span class="p">,</span> <span class="n">J_weighted</span> <span class="o">=</span> <span class="n">_apply_kernel</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">residual</span><span class="p">,</span> <span class="n">J</span><span class="p">,</span> <span class="n">kernel</span><span class="p">)</span>
+        <span class="n">JtJ</span> <span class="o">=</span> <span class="n">J_weighted</span><span class="o">.</span><span class="n">mT</span> <span class="o">@</span> <span class="n">J_weighted</span>
+        <span class="n">Jtr</span> <span class="o">=</span> <span class="n">J_weighted</span><span class="o">.</span><span class="n">mT</span> <span class="o">@</span> <span class="n">r_weighted</span>
 
-        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-            <span class="n">A</span> <span class="o">=</span> <span class="n">JtJ</span> <span class="o">+</span> <span class="n">lam</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-            <span class="n">delta</span> <span class="o">=</span> <span class="n">linear_solver</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="o">-</span><span class="n">Jtr</span><span class="p">)</span>
-            <span class="n">x_new</span> <span class="o">=</span> <span class="n">_project</span><span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">delta</span><span class="p">,</span> <span class="n">problem</span><span class="o">.</span><span class="n">lower</span><span class="p">,</span> <span class="n">problem</span><span class="o">.</span><span class="n">upper</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">problem</span><span class="o">.</span><span class="n">residual</span><span class="p">(</span><span class="n">x_new</span><span class="p">)</span><span class="o">.</span><span class="n">norm</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="n">r</span><span class="o">.</span><span class="n">norm</span><span class="p">():</span>
-                <span class="n">x</span><span class="p">,</span> <span class="n">lam</span> <span class="o">=</span> <span class="n">x_new</span><span class="p">,</span> <span class="n">strategy</span><span class="o">.</span><span class="n">accept</span><span class="p">(</span><span class="n">lam</span><span class="p">)</span>
-                <span class="k">break</span>
-            <span class="n">lam</span> <span class="o">=</span> <span class="n">strategy</span><span class="o">.</span><span class="n">reject</span><span class="p">(</span><span class="n">lam</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">lam</span> <span class="o">&gt;</span> <span class="n">MAX_LAM</span><span class="p">:</span> <span class="k">break</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="n">JtJ</span> <span class="o">+</span> <span class="n">state</span><span class="o">.</span><span class="n">damping</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">problem</span><span class="o">.</span><span class="n">_nv</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">J</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">J</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="n">delta</span> <span class="o">=</span> <span class="n">linear_solver</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="o">-</span><span class="n">Jtr</span><span class="p">)</span>
+        <span class="n">x_new</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">delta</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">problem</span><span class="o">.</span><span class="n">lower</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">x_new</span> <span class="o">=</span> <span class="n">x_new</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="n">problem</span><span class="o">.</span><span class="n">lower</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="n">problem</span><span class="o">.</span><span class="n">upper</span><span class="p">)</span>
+        <span class="n">r_new</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">residual</span><span class="p">(</span><span class="n">x_new</span><span class="p">)</span>
+        <span class="n">cost_new</span> <span class="o">=</span> <span class="n">_robust_cost</span><span class="p">(</span><span class="n">r_new</span><span class="p">,</span> <span class="n">kernel</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">scheduler</span> <span class="ow">and</span> <span class="n">scheduler</span><span class="o">.</span><span class="n">should_stop</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
-            <span class="k">break</span>
-    <span class="k">return</span> <span class="n">OptimizationResult</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">residual</span><span class="o">=</span><span class="n">r</span><span class="p">,</span> <span class="n">iters</span><span class="o">=</span><span class="n">step</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">cost_new</span> <span class="o">&lt;</span> <span class="n">cost</span><span class="p">:</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">residual</span> <span class="o">=</span> <span class="n">x_new</span><span class="p">,</span> <span class="n">r_new</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">residual_norm</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">r_new</span><span class="o">.</span><span class="n">square</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>  <span class="c1"># always raw L2</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">damping</span> <span class="o">=</span> <span class="n">strategy</span><span class="o">.</span><span class="n">accept</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">damping</span><span class="p">)</span>
+            <span class="n">cost</span> <span class="o">=</span> <span class="n">cost_new</span>
+            <span class="k">if</span> <span class="n">Jtr</span><span class="o">.</span><span class="n">norm</span><span class="p">()</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">tol</span><span class="p">:</span>
+                <span class="n">state</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="s2">&quot;converged&quot;</span>
+                <span class="k">return</span> <span class="n">state</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">damping</span> <span class="o">=</span> <span class="n">strategy</span><span class="o">.</span><span class="n">reject</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">damping</span><span class="p">)</span>
+
+    <span class="n">state</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="s2">&quot;maxiter&quot;</span>
+    <span class="k">return</span> <span class="n">state</span>
 </pre></div>
 </div>
 <p>Source: <code class="docutils literal notranslate"><span class="pre">src/better_robot/optim/optimizers/levenberg_marquardt.py</span></code>.</p>
-<p>This is one loop. The four optimisers’ worth of code that the early
-prototype carried (our LM, PyPose LM, fixed-base autodiff LM,
-floating-base analytic LM) all collapse into this with different
-components plugged in.</p>
+<p>Within the legacy stack, this is one loop. The four optimizers’ worth of code
+that the early prototype carried (our LM, PyPose LM, fixed-base autodiff LM,
+floating-base analytic LM) all collapse into this with different components
+plugged in.</p>
+<p><code class="docutils literal notranslate"><span class="pre">_robust_cost(r,</span> <span class="pre">kernel)</span></code> is <code class="docutils literal notranslate"><span class="pre">Σ</span> <span class="pre">kernel.rho(r_i²)</span></code>, or <code class="docutils literal notranslate"><span class="pre">0.5·‖r‖²</span></code>
+when no kernel is selected. The actual implementation also records the
+gain ratio and returns <code class="docutils literal notranslate"><span class="pre">status=&quot;converged&quot;</span></code> when its gradient tolerance
+is met.</p>
 </section>
-<section id="stop-schedulers">
-<h2>Stop schedulers<a class="headerlink" href="#stop-schedulers" title="Link to this heading">#</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">StopScheduler</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">should_stop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">residual</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span> <span class="o">...</span>
-
-<span class="k">class</span><span class="w"> </span><span class="nc">MaxIterations</span><span class="p">(</span><span class="n">StopScheduler</span><span class="p">):</span>     <span class="o">...</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">StopOnPlateau</span><span class="p">(</span><span class="n">StopScheduler</span><span class="p">):</span>     <span class="o">...</span>   <span class="c1"># relative improvement</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">EarlyStopOnGradient</span><span class="p">(</span><span class="n">StopScheduler</span><span class="p">):</span> <span class="o">...</span>
-</pre></div>
-</div>
+<section id="stopping-behavior">
+<h2>Stopping behavior<a class="headerlink" href="#stopping-behavior" title="Link to this heading">#</a></h2>
+<p>The legacy optimizers do not ship a stop-scheduler abstraction. LM,
+Gauss–Newton, and Adam terminate on their internal gradient tolerance or
+<code class="docutils literal notranslate"><span class="pre">max_iter</span></code>; L-BFGS can additionally report <code class="docutils literal notranslate"><span class="pre">status=&quot;stalled&quot;</span></code> when its line
+search cannot find a descent step. The accepted <code class="docutils literal notranslate"><span class="pre">scheduler=</span></code> keyword is
+currently ignored and should not be used as an extension seam.</p>
 </section>
 <section id="results">
 <h2>Results<a class="headerlink" href="#results" title="Link to this heading">#</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@dataclass</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">OptimizationResult</span><span class="p">:</span>
-    <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span>
-    <span class="n">residual</span><span class="p">:</span> <span class="n">Tensor</span>
-    <span class="n">iters</span><span class="p">:</span> <span class="nb">int</span>
-    <span class="n">converged</span><span class="p">:</span> <span class="nb">bool</span>
-    <span class="n">history</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span>              <span class="c1"># per-iter {step, loss, lam} — optional</span>
+<p>Legacy optimizers return the <code class="docutils literal notranslate"><span class="pre">SolverState</span></code> described above. The deprecated
+name <code class="docutils literal notranslate"><span class="pre">OptimizationResult</span></code> is an alias to that exact class:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">OptimizationResult</span> <span class="o">=</span> <span class="n">SolverState</span>
 </pre></div>
 </div>
-<p>The task layer (<code class="docutils literal notranslate"><span class="pre">solve_ik</span></code>, <code class="docutils literal notranslate"><span class="pre">solve_trajopt</span></code>) wraps this in a
-task-specific result type (<code class="docutils literal notranslate"><span class="pre">IKResult</span></code>, <code class="docutils literal notranslate"><span class="pre">TrajOptResult</span></code>) that carries
-the model and a frame-pose accessor.</p>
+<p>It is not a second dataclass or a narrower result schema. In particular,
+<code class="docutils literal notranslate"><span class="pre">residual_norm</span></code>, <code class="docutils literal notranslate"><span class="pre">damping</span></code>, <code class="docutils literal notranslate"><span class="pre">gain_ratio</span></code>, <code class="docutils literal notranslate"><span class="pre">status</span></code>, and <code class="docutils literal notranslate"><span class="pre">history</span></code> remain
+available, and <code class="docutils literal notranslate"><span class="pre">converged</span></code> is a derived property of <code class="docutils literal notranslate"><span class="pre">status</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">solve_ik</span></code> and <code class="docutils literal notranslate"><span class="pre">solve_trajopt</span></code> convert named-block tensor state to task result
+objects with scalar diagnostics for unbatched calls and per-element tensors
+for batches. <code class="docutils literal notranslate"><span class="pre">TrajOptResult</span></code> additionally records
+<code class="docutils literal notranslate"><span class="pre">linearization_requested</span></code>, <code class="docutils literal notranslate"><span class="pre">linearization_used</span></code>, <code class="docutils literal notranslate"><span class="pre">linearization_reason</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">linearization_detail</span></code>; <code class="docutils literal notranslate"><span class="pre">linearization_used</span></code> is <code class="docutils literal notranslate"><span class="pre">&quot;dense&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;banded&quot;</span></code>, or
+<code class="docutils literal notranslate"><span class="pre">&quot;matrix_free&quot;</span></code>.</p>
 </section>
 <section id="what-this-lets-users-do">
 <h2>What this lets users do<a class="headerlink" href="#what-this-lets-users-do" title="Link to this heading">#</a></h2>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">better_robot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">br</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">robot_descriptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">panda_description</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.residuals.pose</span><span class="w">          </span><span class="kn">import</span> <span class="n">PoseResidual</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.residuals.limits</span><span class="w">        </span><span class="kn">import</span> <span class="n">JointPositionLimit</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.residuals.regularization</span><span class="w"> </span><span class="kn">import</span> <span class="n">RestResidual</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.costs</span><span class="w">                    </span><span class="kn">import</span> <span class="n">CostStack</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim</span><span class="w">                    </span><span class="kn">import</span> <span class="n">LeastSquaresProblem</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim</span><span class="w">                    </span><span class="kn">import</span> <span class="n">CostStack</span><span class="p">,</span> <span class="n">LeastSquaresProblem</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim.optimizers</span><span class="w">         </span><span class="kn">import</span> <span class="n">LevenbergMarquardt</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim.damping</span><span class="w">            </span><span class="kn">import</span> <span class="n">Adaptive</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim.linear_solvers</span><span class="w">     </span><span class="kn">import</span> <span class="n">Cholesky</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim.strategies</span><span class="w">         </span><span class="kn">import</span> <span class="n">Adaptive</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim.solvers</span><span class="w">            </span><span class="kn">import</span> <span class="n">Cholesky</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim.kernels</span><span class="w">            </span><span class="kn">import</span> <span class="n">Huber</span>
 
-<span class="n">model</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;panda.urdf&quot;</span><span class="p">)</span>
-<span class="n">hand_id</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">frame_id</span><span class="p">(</span><span class="s2">&quot;panda_hand&quot;</span><span class="p">)</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">panda_description</span><span class="o">.</span><span class="n">URDF_PATH</span><span class="p">)</span>
+<span class="n">hand_id</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">frame_id</span><span class="p">(</span><span class="s2">&quot;body_panda_hand&quot;</span><span class="p">)</span>
 
 <span class="n">stack</span> <span class="o">=</span> <span class="n">CostStack</span><span class="p">()</span>
 <span class="n">stack</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;pose&quot;</span><span class="p">,</span> <span class="n">PoseResidual</span><span class="p">(</span><span class="n">frame_id</span><span class="o">=</span><span class="n">hand_id</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target_pose</span><span class="p">))</span>
 <span class="n">stack</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;limits&quot;</span><span class="p">,</span> <span class="n">JointPositionLimit</span><span class="p">(</span><span class="n">model</span><span class="p">),</span> <span class="n">weight</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
-<span class="n">stack</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;rest&quot;</span><span class="p">,</span>   <span class="n">RestResidual</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">q_neutral</span><span class="p">),</span> <span class="n">weight</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
+<span class="n">stack</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;rest&quot;</span><span class="p">,</span>   <span class="n">RestResidual</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">q_neutral</span><span class="p">),</span> <span class="n">weight</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
 
 <span class="n">problem</span> <span class="o">=</span> <span class="n">LeastSquaresProblem</span><span class="p">(</span>
     <span class="n">cost_stack</span><span class="o">=</span><span class="n">stack</span><span class="p">,</span>
@@ -987,39 +1258,48 @@ the model and a frame-pose accessor.</p>
 </pre></div>
 </div>
 <p>No fixed-vs-floating special case. No <code class="docutils literal notranslate"><span class="pre">solver_params</span></code> dict. No
-<code class="docutils literal notranslate"><span class="pre">jacobian_fn</span></code> argument. A single path from residuals to <code class="docutils literal notranslate"><span class="pre">result.x</span></code>.</p>
-<p>In normal use you would never write that loop; <code class="docutils literal notranslate"><span class="pre">solve_ik</span></code> does it
-internally. The example exists to show that the four pluggable axes
-compose cleanly.</p>
+<code class="docutils literal notranslate"><span class="pre">jacobian_fn</span></code> argument. This remains the single legacy path from a
+<code class="docutils literal notranslate"><span class="pre">CostStack</span></code> to <code class="docutils literal notranslate"><span class="pre">result.x</span></code>; it remains for legacy direct use only.</p>
+<p>The example exists to show that the four legacy pluggable axes compose
+cleanly. New IK and multi-block code should use the named-block API above.</p>
 </section>
 <section id="sharp-edges">
 <h2>Sharp edges<a class="headerlink" href="#sharp-edges" title="Link to this heading">#</a></h2>
 <ul class="simple">
-<li><p><strong>Adam and L-BFGS read <code class="docutils literal notranslate"><span class="pre">problem.gradient(x)</span></code>, not
-<code class="docutils literal notranslate"><span class="pre">problem.jacobian(x)</span></code>.</strong> They never materialise the dense
-Jacobian. Long-horizon trajopt depends on this for memory.</p></li>
-<li><p><strong>The LM solver projects after each accepted step.</strong> Initial <code class="docutils literal notranslate"><span class="pre">x0</span></code>
-is <strong>not</strong> projected — caller must provide a feasible <code class="docutils literal notranslate"><span class="pre">x0</span></code> if
-bounds matter.</p></li>
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">MultiStageOptimizer</span></code> restores weights / active flags via
-try/finally.</strong> Stage-wise overrides do not leak even if a stage
-raises.</p></li>
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">OptimizerConfig</span></code> knobs are honoured.</strong> A contract test asserts
-setting <code class="docutils literal notranslate"><span class="pre">linear_solver=&quot;lstsq&quot;</span></code> produces a different numerical
-trajectory than the default. Decorative knobs would fail the test.</p></li>
+<li><p><strong>Matrix-free is explicit.</strong> <code class="docutils literal notranslate"><span class="pre">better_robot.optim.Adam</span></code> uses the tangent
+objective VJP, while named-block LM uses <code class="docutils literal notranslate"><span class="pre">NormalOperator</span></code>/<code class="docutils literal notranslate"><span class="pre">NormalCG</span></code> only
+when <code class="docutils literal notranslate"><span class="pre">linearization=&quot;matrix_free&quot;</span></code> or an explicit compatible solver selects
+that route. Automatic LM prefers direct bands and otherwise falls back to
+dense. Legacy flat optimizers still assemble dense J. Batched named-block
+LBFGS is deferred.</p></li>
+<li><p><strong>Legacy LM bounds are projection-only.</strong> Every trial point is projected onto
+<code class="docutils literal notranslate"><span class="pre">[lower,</span> <span class="pre">upper]</span></code> <em>before</em> its residual is evaluated, and acceptance is a
+bare objective comparison. There is no active set, projected-gradient
+test, or KKT termination, so a run pinned at active bounds can stall with
+residual error and exhaust its budget as <code class="docutils literal notranslate"><span class="pre">status=&quot;maxiter&quot;</span></code>. Initial
+<code class="docutils literal notranslate"><span class="pre">x0</span></code> is <strong>not</strong> projected. This describes only
+<code class="docutils literal notranslate"><span class="pre">optim.optimizers.LevenbergMarquardt</span></code>; the named-block solver above owns the
+projected active set and KKT statuses.</p></li>
+<li><p><strong>Legacy <code class="docutils literal notranslate"><span class="pre">MultiStageOptimizer</span></code> restores weights / active flags through its
+private context manager.</strong> Named-block <code class="docutils literal notranslate"><span class="pre">run_phases</span></code> instead uses immutable
+functional problem views; neither path calls <code class="docutils literal notranslate"><span class="pre">CostStack.snapshot()</span></code>.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">OptimizerConfig</span></code> exposes only supported choices.</strong> Dense Cholesky and
+LSTSQ are the only linear-solver choices; unimplemented iterative, sparse,
+and trust-region placeholders are not importable. Incompatible
+method-specific non-defaults fail at the <code class="docutils literal notranslate"><span class="pre">solve_ik</span></code> boundary.</p></li>
 </ul>
 </section>
 <section id="where-to-look-next">
 <h2>Where to look next<a class="headerlink" href="#where-to-look-next" title="Link to this heading">#</a></h2>
 <ul class="simple">
-<li><p><a class="reference internal" href="tasks.html"><span class="doc">Tasks — IK, Trajectory Optimisation, Retargeting</span></a> — <code class="docutils literal notranslate"><span class="pre">solve_ik</span></code> and <code class="docutils literal notranslate"><span class="pre">solve_trajopt</span></code>, which assemble a
-<code class="docutils literal notranslate"><span class="pre">CostStack</span></code>, build a <code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code>, and call an
-<code class="docutils literal notranslate"><span class="pre">Optimizer</span></code>.</p></li>
+<li><p><a class="reference internal" href="tasks.html"><span class="doc">Tasks — IK and Trajectory Optimisation</span></a> — named-block <code class="docutils literal notranslate"><span class="pre">solve_ik</span></code> and temporal <code class="docutils literal notranslate"><span class="pre">solve_trajopt</span></code> presets.</p></li>
 <li><p><a class="reference internal" href="../conventions/extension.html"><span class="doc">Extension Points</span></a> §3, §4, §5, §6 — recipes for adding
 a custom optimiser, damping strategy, linear solver, or robust
 kernel.</p></li>
-<li><p><a class="reference internal" href="../conventions/performance.html"><span class="doc">Performance</span></a> §2.7 — matrix-free trajopt and the
-memory wins it brings.</p></li>
+<li><p><a class="reference internal" href="../guides/custom_residuals.html"><span class="doc">Write a custom block residual</span></a> — author a residual for the named-block
+evaluation contract.</p></li>
+<li><p><a class="reference internal" href="../conventions/performance.html"><span class="doc">Performance</span></a> §2.7 — current dense, banded, matrix-free,
+and allocation boundaries.</p></li>
 </ul>
 </section>
 </section>
@@ -1049,7 +1329,7 @@ memory wins it brings.</p></li>
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Tasks — IK, Trajectory Optimisation, Retargeting</p>
+        <p class="prev-next-title">Tasks — IK and Trajectory Optimisation</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -1071,16 +1351,24 @@ memory wins it brings.</p></li>
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#named-block-evaluation">Named-block evaluation</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#temporal-structure-and-route-selection">Temporal structure and route selection</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#named-block-lm-gn">Named-block LM/GN</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#named-block-matrix-free-adam">Named-block matrix-free Adam</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#functional-phases">Functional phases</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#legacy-solver-stack-direct-compatibility-backend">Legacy solver stack (direct compatibility backend)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#leastsquaresproblem"><code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-optimizer-protocol">The <code class="docutils literal notranslate"><span class="pre">Optimizer</span></code> Protocol</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#solverstate"><code class="docutils literal notranslate"><span class="pre">SolverState</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#linear-solvers">Linear solvers</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#robust-kernels">Robust kernels</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#damping-strategies">Damping strategies</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optimizerconfig-every-knob-is-wired"><code class="docutils literal notranslate"><span class="pre">OptimizerConfig</span></code> — every knob is wired</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multistageoptimizer"><code class="docutils literal notranslate"><span class="pre">MultiStageOptimizer</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ik-optimizerconfig">IK <code class="docutils literal notranslate"><span class="pre">OptimizerConfig</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#legacy-multi-stage-and-named-block-phases">Legacy multi-stage and named-block phases</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-levenbergmarquardt-minimize-sketch">The <code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.minimize</span></code> sketch</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#stop-schedulers">Stop schedulers</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#stopping-behavior">Stopping behavior</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#results">Results</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-this-lets-users-do">What this lets users do</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sharp-edges">Sharp edges</a></li>
@@ -1118,7 +1406,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Apr 26, 2026.
+  Last updated on Jul 18, 2026.
   <br/>
 </p>
   </div>

@@ -1,7 +1,7 @@
 # Contracts & Validation
 
 > **Status:** normative. Describes the library's input contracts,
-> numerical guarantees, and error-handling policy.
+> numerical evidence boundaries, and error-handling policy.
 
 Other docs describe *what* the library does. This one describes the
 **rules every public function must honour** and **what the user must
@@ -13,14 +13,11 @@ sure who is responsible for which input shape — and the call site
 slowly accrues noise that exists to defend against scenarios that
 should not happen.
 
-We picked a small set of explicit rules instead. Inputs are validated
-**at the boundary** with named exceptions; internal callers are
-trusted. Quaternions arrive scalar-last and unit-norm with a 10%
-tolerance; tighter renormalisation is silent, looser is an error.
-Cache levels are tracked with `KinematicsLevel` and require an explicit
-`forward_kinematics` call before `compute_joint_jacobians`. SemVer is
-binding: the 26-symbol public API is frozen, the SE(3) layout is
-frozen, and renames go through a one-release deprecation shim.
+We picked a small set of explicit rules instead. The target policy validates
+inputs **at the boundary** with named exceptions and trusts internal callers.
+Where the current code does not yet enforce a rule, this document names the
+gap instead of claiming the exception already fires. Cache levels are tracked
+with `KinematicsLevel`; the SE(3) layout is a stable convention.
 
 The benefit shows up everywhere downstream. The hot-path lint can
 forbid `.item()` because contracts already pin shapes. The solver can
@@ -32,23 +29,29 @@ here, not scattered through every function.
 
 ### 1.1 Tensor shapes
 
-All public tensors are shaped `(B..., feature)` where `B...` is zero
-or more leading batch axes and `feature` is the semantic last-axis
-(e.g. `nq`, `(njoints, 7)`, etc.). See
+Supported batched tensor routines use `(B..., feature)`, where `B...` is zero
+or more leading batch axes and the trailing axes carry the documented event
+(for example ``nq`` or ``(njoints, 7)``). APIs with multiple tensor inputs
+state which leading batches participate in broadcasting. See
 {doc}`/concepts/batching_and_backends` for the full shape table.
 
 **What we promise:**
 
-- Every return tensor's leading batch shape **equals** the broadcast
-  of all input batch shapes.
+- A documented batched return preserves the resolved execution batch of the
+  inputs that participate in that operation.
 - We never drop a leading batch axis (`B=1` stays `(1, …)`).
-- We never add a leading batch axis the user did not provide.
+- We do not add a leading batch axis unless that surface explicitly documents
+  a normalized representation. The current unbatched `solve_trajopt` result
+  retains its historical `(1, T, nq)` `Trajectory` shape, and
+  `Trajectory.with_batch_dims` adds axes by explicit request.
 
 **What we expect:**
 
-- Inputs are contiguous (`.contiguous()` if not — cost is the caller's).
 - `q` has shape `(B..., nq)`; `v` / `a` / `tau` have `(B..., nv)`.
-- Broadcast follows PyTorch rules; ambiguous broadcasts raise.
+- Broadcast follows the boundary's documented right-aligned PyTorch rules;
+  incompatible shapes raise. Contiguity is not a universal public
+  requirement: direct Torch paths accept supported strided tensors, while an
+  opt-in kernel may reject eligibility and fall back.
 
 ### 1.2 Device & dtype
 
@@ -57,29 +60,33 @@ or more leading batch axes and `feature` is the semantic last-axis
 - `Data` inherits device / dtype from the input `q`. Calling
   `forward_kinematics(model, q)` with `q.device != model.device`
   raises `DeviceMismatchError`.
-- fp16 is **not supported** in kinematics or optim. Cast up before the
-  call; cast back after. We reject mixed precision at the boundary
-  because analytic Jacobians are numerically sensitive to it.
-- fp64 is supported everywhere and tested in `tests/lie/` and
-  `tests/kinematics/`.
+- fp32 is primary and fp64 is supported. Supported paths preserve the
+  working input dtype; see {doc}`engineering` for accumulation, TF32,
+  and tolerance policy.
+- fp16 and bf16 are outside the supported contract. Cast up before the
+  call. FK and dynamics passes reject them with `DtypeMismatchError`.
+- A model/query dtype mismatch raises `DtypeMismatchError` before FK or a
+  dynamics pass begins; cast the query or move the model explicitly.
 
 ### 1.3 Quaternion / SE(3) inputs
 
 - Quaternion format is **`[qx, qy, qz, qw]`** (scalar last). Every
   function accepting an SE(3) pose reads it as `[tx, ty, tz, qx, qy,
   qz, qw]`.
-- Quaternions are assumed unit-norm on input. The library normalises
-  once on entry to `forward_kinematics` and any top-level solver;
-  internal kernels do not re-normalise.
-- A non-unit quaternion with norm outside `[0.9, 1.1]` raises
-  `QuaternionNormError`. Norms inside `[0.9, 1.1]` are renormalised
-  silently (tolerance for float drift).
+- Quaternions are assumed unit-norm on input; FK does not normalize them.
+  `forward_kinematics(..., check_quaternion_norm=True)` enables an opt-in
+  boundary check for free-flyer configurations. The check synchronizes
+  accelerator tensors and is therefore disabled on the default hot path.
+- With that diagnostic enabled, a norm outside `[0.9, 1.1]` raises
+  `QuaternionNormError`. Normalize configurations before calling FK.
 
 ### 1.4 Joint limits
 
-- `model.lower_pos_limit <= q <= model.upper_pos_limit` is *not*
-  automatically enforced. FK accepts any `q`; the solver honours
-  limits only when told to (see `IKCostConfig.limit_weight`).
+- FK accepts configurations outside ``model.lower_pos_limit`` /
+  ``model.upper_pos_limit``. The ``solve_ik`` facade always supplies hard
+  position bounds to its named-block variable and projects within them;
+  ``IKCostConfig.limit_weight`` controls only the additional soft limit
+  residual. Direct solver/problem callers own whatever bounds they declare.
 - Continuous revolute joints (kind `revolute_unbounded`) have `±inf`
   limits — wrapping is the user's responsibility if they care.
 - Free-flyer: the four quaternion components live on the sphere; the
@@ -107,119 +114,125 @@ responsible layer and a documented remediation.
 | Exception | Raised in | Meaning | Remediation |
 |-----------|-----------|---------|-------------|
 | `ModelInconsistencyError` | `io.build_model` | Parsed IR violates topology invariants | Fix the URDF / MJCF or the programmatic builder |
-| `IRSchemaVersionError` | `io.build_model` | `IRModel.schema_version` does not match the build's expected version | Re-parse the source asset; regenerate cached `.npz` IR |
 | `DeviceMismatchError` | `kinematics`, `dynamics`, `optim` | `q.device != model.device` | Call `model.to(q.device)` or vice versa |
 | `DtypeMismatchError` | as above | `q.dtype` incompatible with `model.dtype` | Cast one side; see §1.2 |
-| `QuaternionNormError` | `lie`, `kinematics` entry | Input quaternion norm outside `[0.9, 1.1]` | Normalise before passing |
-| `ShapeError` | every public entry | Wrong trailing-axis size | Match the published shape |
-| `StaleCacheError` | `kinematics`, `dynamics` | `Data._kinematics_level` below required level | Call `forward_kinematics(model, data)` first; or `data.invalidate(NONE)` then re-run |
-| `ConvergenceError` | `optim.solve` (optional) | Solver did not converge within `max_iter` | Inspect the returned `SolverState` |
-| `BackendNotAvailableError` | `backends.set_backend`, parsers, viewer | Backend or parser dep not importable | Reinstall — `pip install better-robot` |
-| `UnsupportedJointError` | `io.build_model` | URDF / MJCF joint kind without a built-in `JointModel` | Add a custom joint via {doc}`extension` |
-| `SingularityWarning` *(warning, not error)* | `kinematics`, `optim` | Jacobian condition number > 1e12 | Change initial configuration or relax weights |
+| `QuaternionNormError` | `kinematics` opt-in debug check | Free-flyer quaternion norm outside `[0.9, 1.1]` | Normalise before passing or enable the check only while debugging |
+| `ShapeError` | Validated tensor/model boundaries | Wrong trailing event or incompatible batch shape | Match that API's published shape |
+| `StaleCacheError` | `kinematics`, `dynamics` | `Data._kinematics_level` below the requested cached result | Run `forward_kinematics(model, q, ...)`, retain the returned `Data`, and advance the required cache before reading it |
+| `ConvergenceError` | Defined for caller policy; not raised by current task solvers | A caller chooses to promote a non-converged returned status | Inspect the result/state before optionally raising |
+| `UnsupportedJointError` | Defined compatibility type; no current production raise site | Reserved for an unsupported joint boundary | Current parsers/builders normally raise their direct validation error |
+| `SingularityWarning` *(warning, not error)* | Defined warning type; not emitted automatically | Reserved for an explicitly diagnosed singularity | Inspect solver/factorization status instead of expecting a warning |
 
 **Rule of thumb:**
 
 - Library-internal invariants should never raise — they should
   `assert` and fail loudly. Use `assert` for those.
-- User-facing input violations raise one of the exceptions above, with
-  a message naming the offending tensor and what was expected.
+- Validated user-facing boundaries use the most specific BetterRobot exception
+  already defined for that condition, or a direct ``TypeError``/``ValueError``
+  where no typed exception is wired. The table does not claim every public
+  function validates every target-policy rule yet.
 
-## 3 · Numerical guarantees
+## 3 · Numerical behavior and evidence
 
 ### 3.1 Determinism
 
-- `forward_kinematics`, `compute_joint_jacobians`, `rnea`, `aba`,
-  `crba` are deterministic bit-for-bit on a pinned PyTorch / CUDA
-  version for a given `(device, dtype, input)` triple.
-- `solve_ik` is deterministic on a pinned seed and pinned solver
-  config, modulo floating-point non-associativity across CUDA
-  streams. Tests use `torch.use_deterministic_algorithms(True)` on
-  the reference path.
+- BetterRobot does not enable ``torch.use_deterministic_algorithms`` or change
+  process-global backend flags. Pure eager calls have no internal RNG, but
+  bitwise reproducibility across devices, CUDA streams, compiler choices, or
+  dependency versions is not promised.
+- Benchmark and regression evidence records the environment, inputs, and
+  tolerances it actually tested. A caller requiring PyTorch deterministic mode
+  must configure and validate it for that workload.
 
 ### 3.2 Accuracy
 
-| Routine | Guaranteed accuracy |
-|---------|---------------------|
-| `se3.exp(log(T))` | `‖Δ‖ < 1e-6` (fp32), `< 1e-12` (fp64) |
-| Analytic FK Jacobian vs. `jacrev` | `‖ΔJ‖_F < 1e-4` (fp32), `< 1e-10` (fp64) |
-| `solve_ik` pose residual at reported `converged=True` | `‖r‖ < tol` where `tol=1e-4` by default |
-| Long-chain FK (30 joints) | 1 ulp of a well-conditioned product of SE(3)s |
-
-Numerical accuracy tests live in `tests/kinematics/` and
-`tests/regression/`.
+There is no single library-wide accuracy budget. Lie round trips, analytic
+Jacobians, Pinocchio parity, frozen FK output, and solver convergence each use
+routine- and dtype-specific tolerances in their named tests. The committed
+fp64 FK oracle is checked at ``atol=rtol=1e-10``; that does not imply a
+universal ULP guarantee for arbitrary long chains. Numerical tests live under
+``tests/lie/``, ``tests/kinematics/``, ``tests/test_pinocchio/``, and the
+relevant residual/solver directories.
 
 ### 3.3 Singularities
 
-- Near SO(3) singularities (rotation angle ≥ `π - 1e-6`), `log` falls
-  back to a Taylor expansion for stable gradients.
-- Rank-deficient spatial Jacobians are a user concern; the analytic
-  inversion in LM handles them via Levenberg damping, not by
-  pseudo-inversion. If the user opts into Gauss-Newton and `JᵀJ` is
-  singular, the linear solver raises `torch._C._LinAlgError` and the
-  outer loop catches it into `ConvergenceError`.
+- SO(3)/SE(3) formulas use safe Taylor branches near zero. At the absolute-pi
+  principal-log cut, the rotation remains valid but the chosen tangent's sign
+  and derivative are not continuous.
+- Dense Cholesky uses ``torch.linalg.cholesky_ex`` rather than relying on a
+  thrown ``LinAlgError``. Direct ``Cholesky.solve`` has an LSTSQ fallback;
+  named-block ``solve_with_info`` returns a zero step and per-element failure
+  status when factorization is unhealthy. Solvers return diagnostics instead
+  of converting this path into ``ConvergenceError`` automatically.
 
 ### 3.4 Batched broadcasting
 
-Where two inputs have different leading batch shapes, broadcast rules
-are PyTorch's. A broadcast that would create an implicit copy larger
-than its input is allowed but logged under `BR_WARN_BROADCAST=1`.
-Silent in default runs.
+Where two inputs have different leading batch shapes, supported boundaries use
+documented right-aligned PyTorch broadcasting and raise on incompatible event
+or batch shapes. BetterRobot has no ``BR_WARN_BROADCAST`` hook and emits no
+automatic broadcast-size warning.
 
 ## 4 · Mutability rules
 
 | Object | Mutable? | Notes |
 |--------|----------|-------|
-| `Model` | **No** | `@dataclass(frozen=True)`. `model.to(device)` returns a new instance. |
+| `Model` | Shallowly frozen | `@dataclass(frozen=True)` prevents field reassignment, but contained tensors/dicts remain mutable. Treat them as read-only; deep immutability remains an engineering gap. |
 | `Data` | Yes | Mutated by kinematics / dynamics. Thread-local — do not share across threads without copying. |
-| `IKResult` | No | Dataclass; `.q` is a view into the solver's tensor but treated as read-only. |
-| `Trajectory` | Limited | `slice`, `resample` return new instances. Direct tensor access is read-only unless you know what you are doing. |
-| `CostStack` | Controlled | `.add(...)`, `.set_weight(...)`, `.set_active(...)` are the *only* mutation points. |
-| `LeastSquaresProblem` | No | Re-build if you want different bounds or initial guesses. |
+| `IKResult` | Yes | Plain dataclass containing tensors. Treat it as caller-owned result state; no immutability or view guarantee is promised. |
+| `Trajectory` | Yes | Plain dataclass; `slice` and `resample` return new instances, but fields and contained tensors are not frozen. |
+| `CostStack` | Yes | `.add(...)`, `.remove(...)`, `.set_weight(...)`, and `.set_active(...)` are the supported mutation methods; its `items` mapping contains mutable `CostItem` values. |
+| `LeastSquaresProblem` | Yes | Plain compatibility dataclass. Re-build or isolate it per solve instead of mutating shared state concurrently. |
 
-Rule: if it is shared across threads or workers, it is frozen. If it
-is per-query, it may be mutable.
+Do not infer deep immutability from a dataclass wrapper. Share model state only
+under the read-only discipline in {doc}`engineering`; keep mutable data,
+problems, stacks, results, and trajectories evaluation-local unless the caller
+provides its own synchronization.
 
 ## 5 · Autograd rules
 
-- Every public hot-path function participates in autograd: gradients
-  flow from `q` → FK output → residual → loss without special
-  handling.
-- `residual_jacobian(..., strategy=AUTODIFF)` uses
-  `torch.func.jacrev`. `strategy=ANALYTIC` uses the residual's
-  `.jacobian()` method. `strategy=AUTO` prefers analytic, falls back
-  to autodiff, falls back to central finite differences.
+- Autograd guarantees are path- and input-specific. Eager Torch Lie/FK and
+  named dynamics paths have gradient tests; that does not make every public
+  function differentiable. The complete matrix is in {doc}`engineering`.
+- The current `solve_ik` detaches its initial iterate and has no
+  differentiable-solve guarantee.
+- Legacy `residual_jacobian(..., strategy=ANALYTIC)` uses the residual's
+  `.jacobian()` method. `strategy=AUTO` prefers analytic and falls back to
+  unbatched central finite differences at a cost of `2·nv + 1` residual
+  evaluations. The named-block `Problem` API separately supports analytic,
+  `jacrev`, `jacfwd`, and finite-difference strategies.
 - **Forbidden**: in-place mutation of a tensor currently on the
   autograd tape. The library uses functional-style ops throughout;
   contributions must too.
 
 ## 6 · Threading & concurrency
 
-- `Model` is read-only ⇒ freely shareable across threads and
-  processes.
+- `Model` may be shared only while every contained tensor and dictionary
+  is treated as read-only. The current frozen dataclass is not deeply
+  immutable.
 - `Data` is mutable ⇒ one `Data` per thread. Use `data.clone()` for
   fork points.
 - `CostStack` is mutable; one per optimisation problem. Parallelising
   over problems requires a fresh stack per thread.
-- The library does not call `torch.set_num_threads` internally.
-  Inherit whatever the user set.
+- The library does not call `torch.set_num_threads` internally; it
+  inherits the user's setting.
+
+CUDA-stream and multiprocessing rules live in {doc}`engineering`.
 
 ## 7 · Backwards compatibility policy
 
 ### 7.1 SemVer scope
 
-BetterRobot follows SemVer. A **major bump** is required to change:
+Before 1.0, minor releases may change the public surface. Contract tests pin
+a required core and reject duplicate or unresolvable exports without freezing
+the current symbol count. Once 1.0 is released, a **major bump** is required
+to change:
 
-- The frozen `EXPECTED` public-API set (`better_robot.__all__`,
-  currently 26 symbols — see {doc}`/concepts/architecture`).
+- A stable public symbol named in this section.
 - The SE(3) quaternion layout (`[tx, ty, tz, qx, qy, qz, qw]`).
 - The `Model` / `Data` dataclass fields (additive is allowed in
   minor; rename is major unless part of a documented migration
   window).
 - The DAG (a new edge in {doc}`/concepts/architecture`).
-- `IRModel.schema_version` increments require an entry in
-  `CHANGELOG.md` and may force a major bump if the change is breaking
-  to user-cached `.npz` IRs.
 
 The complete release / deprecation discipline lives in {doc}`packaging`.
 This file pins the contract; that file pins the operational mechanism
@@ -247,16 +260,18 @@ warnings.warn(
 )
 ```
 
-Deprecation warnings are on by default under `pytest` and silent in
-production. `BR_STRICT=1` promotes them to errors (used in CI).
+Deprecation warnings follow Python/pytest's standard filter configuration.
+BetterRobot does not install a ``BR_STRICT`` warning promotion hook, and the
+manual CI workflow does not promote deprecations to errors. A change that adds
+a shim should add a focused warning test and removal version.
 
 ### 7.3 Stability tier per symbol
 
 | Tier | Meaning | Examples |
 |------|---------|----------|
 | Stable | SemVer-bound; major bump to remove or rename | `Model`, `Data`, `forward_kinematics`, `solve_ik`, `SE3`, `ModelBuilder`, `LeastSquaresProblem`, `Trajectory` |
-| Stable (Protocol) | Extending the protocol (adding methods) is a major bump; using existing methods is stable | `JointModel`, `Residual`, `Optimizer`, `LinearSolver`, `RobustKernel`, `DampingStrategy`, `TrajectoryParameterization`, `AssetResolver`, `Backend` |
-| Experimental | May change in minor releases with a deprecation warning | `solve_trajopt`, `retarget`, `compute_centroidal_map`, `BSplineTrajectory`, `MultiStageOptimizer` |
+| Stable (Protocol) | Extending the protocol (adding methods) is a major bump; using existing methods is stable | `JointModel`, `Residual`, `Optimizer`, `LinearSolver`, `RobustKernel`, `DampingStrategy`, `TrajectoryParameterization`, `AssetResolver` |
+| Experimental | May change in minor releases with a deprecation warning | `solve_trajopt`, `compute_centroidal_map`, `BSplineTrajectory`, `MultiStageOptimizer` |
 
 | Module | Stability |
 |--------|-----------|
@@ -264,39 +279,33 @@ production. `BR_STRICT=1` promotes them to errors (used in CI).
 | `data_model/` | Stable from v1. Field renames follow §7.1 deprecation. |
 | `kinematics/`, `dynamics/` | Stable from v1. |
 | `residuals/`, `costs/`, `optim/` | Stable from v1 — Protocol signatures are frozen. |
-| `tasks/` | Stable from v1 for IK; `solve_trajopt` and `retarget` are experimental. `TrajectoryParameterization` Protocol is stable. |
+| `tasks/` | Stable from v1 for IK; `solve_trajopt` is experimental. `TrajectoryParameterization` Protocol is stable. |
 | `collision/` | Experimental. |
-| `viewer/` | Experimental. The `RendererBackend` protocol is stable; concrete modes may iterate. |
-| `backends/torch_native/` | Stable from v1. |
-| `backends/warp/` | Experimental. |
-| `io/` (URDF / MJCF) | Stable. Parser edge cases may iterate in patch releases. `IRModel.schema_version` is the controlled change vector. `AssetResolver` Protocol stable. |
+| `viewer/` | Experimental. The `RendererBackend` protocol refers only to scene rendering and is stable; concrete modes may iterate. |
+| `io/` (URDF / MJCF) | Stable. Parser edge cases may iterate in patch releases. `AssetResolver` Protocol stable. |
 
 Experimental means: no SemVer guarantee, but the signatures will not
 wander without a release note.
 
 ## 8 · Logging
 
-`better_robot.logger` is a `logging.Logger` named `"better_robot"`.
-
-| Level | When |
-|-------|------|
-| DEBUG | First-call compile events, registry registrations |
-| INFO | One-time `Model` load summary (`nq`, `nv`, `njoints`) |
-| WARNING | `SingularityWarning`, `BroadcastWarning`, deprecated names |
-| ERROR | Recoverable failures (convergence, fallback paths engaged) |
-
-No `print` calls in the library. Ever.
+No package-level ``better_robot.logger`` or automatic model-load,
+compile-registry, or fallback logging surface ships today.
+``SingularityWarning`` is the current dedicated warning class; there is no
+``BroadcastWarning``. Library code should avoid unsolicited ``print`` calls.
+Any new diagnostics need a scoped standard-library logger or explicit return
+field plus tests and documentation before callers rely on them.
 
 ## 9 · Assumptions summary (the one-page contract)
 
-Obey **all** of these and the library obeys its numerical guarantees:
+These rules define the supported behavior described above:
 
 1. `q.shape == (B..., nq)`; `v / a / tau.shape == (B..., nv)`.
 2. Quaternions scalar-last, unit-norm on entry (tolerance 10%).
 3. `q.device == model.device`, `q.dtype in {fp32, fp64}`.
 4. `Model` is built once; do not mutate.
-5. Self-limits (`q ∈ [lo, hi]`) are the user's responsibility unless
-   `limit_weight > 0`.
+5. FK does not enforce position limits. ``solve_ik`` always supplies hard
+   bounds; ``limit_weight`` only adds/removes its soft limit residual.
 6. `Data` is per-thread.
 7. `CostStack`, `LeastSquaresProblem` are per-optimisation.
 

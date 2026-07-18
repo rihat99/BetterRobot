@@ -25,6 +25,7 @@ solver_stack
 tasks
 collision_and_geometry
 batching_and_backends
+warp_bridge
 viewer
 ```
 
@@ -38,16 +39,17 @@ to the chapters it depends on and the ones that depend on it.
 | Chapter | What it covers |
 |---------|----------------|
 | {doc}`vision` | Why the library exists; the commitments that decided every other choice. |
-| {doc}`architecture` | The layered DAG, the 26-symbol public API, the contract tests that enforce both. |
+| {doc}`architecture` | The layered DAG, the compact public API, and the contract tests that enforce both. |
 | {doc}`model_and_data` | Frozen `Model`, mutable `Data`, and the cache invariant that prevents stale Jacobians. |
 | {doc}`joints_bodies_frames` | The universal joint taxonomy and the free-flyer convention that unifies fixed and floating base. |
 | {doc}`lie_and_spatial` | SE(3) / SO(3) ops, the spatial-algebra value types, why we do not subclass `torch.Tensor`. |
 | {doc}`parsers_and_ir` | URDF / MJCF / programmatic builder all converging on a single intermediate representation. |
 | {doc}`kinematics` | Forward kinematics and the unified Jacobian dispatch. |
-| {doc}`dynamics` | RNEA, ABA, CRBA, the centroidal map, and the action-model framework. |
-| {doc}`residuals_and_costs` | The residual library plus `CostStack`. |
-| {doc}`solver_stack` | `LeastSquaresProblem` and the four pluggable axes (Optimizer, LinearSolver, RobustKernel, DampingStrategy). |
+| {doc}`dynamics` | RNEA, ABA, CRBA, the centroidal map, and rigid-body state manifolds. |
+| {doc}`residuals_and_costs` | The legacy residual library plus `CostStack`, retained for direct compatibility callers. |
+| {doc}`solver_stack` | Named-block `Problem` evaluation and the coexisting `LeastSquaresProblem` solver stack. |
 | {doc}`tasks` | `solve_ik`, `solve_trajopt`, `Trajectory`. |
-| {doc}`collision_and_geometry` | Geometry primitives, pair dispatch, `RobotCollision`. |
-| {doc}`batching_and_backends` | Tensor and device conventions; the `Backend` Protocol. |
+| {doc}`collision_and_geometry` | Reserved collision containers and the currently stubbed distance, decomposition, and residual surfaces. |
+| {doc}`batching_and_backends` | Tensor/device conventions, the structure/value seam, and whole-pass compute lanes. |
+| {doc}`warp_bridge` | The functional Torch–Warp boundary, gradient ownership, and CUDA-validated opt-in FK decision record. |
 | {doc}`viewer` | The viser-backed visualisation layer. |

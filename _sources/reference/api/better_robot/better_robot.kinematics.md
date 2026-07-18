@@ -15,7 +15,6 @@
 
 better_robot.kinematics.jacobian
 better_robot.kinematics.jacobian_strategy
-better_robot.kinematics.chain
 better_robot.kinematics.forward
 ```
 

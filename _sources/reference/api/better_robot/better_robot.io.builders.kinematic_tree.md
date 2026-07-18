@@ -34,7 +34,7 @@
 ```
 ````
 
-````{py:function} build_kinematic_tree_model(*, name: str, joint_names: collections.abc.Sequence[str], parents: collections.abc.Sequence[int], translations: torch.Tensor, root_kind: str = 'free_flyer', child_kind: str = 'spherical', mass_per_body: float | collections.abc.Sequence[float] = 0.0, com_per_body: torch.Tensor | collections.abc.Sequence[torch.Tensor] | None = None, inertia_per_body: torch.Tensor | collections.abc.Sequence[torch.Tensor] | None = None, device: torch.device | str | None = None, dtype: torch.dtype = torch.float32) -> better_robot.data_model.model.Model
+````{py:function} build_kinematic_tree_model(*, name: str, joint_names: collections.abc.Sequence[str], parents: collections.abc.Sequence[int], translations: torch.Tensor, root_kind: str = 'free_flyer', child_kind: str = 'spherical', mass_per_body: float | collections.abc.Sequence[float] = 0.0, com_per_body: torch.Tensor | collections.abc.Sequence[torch.Tensor] | None = None, inertia_per_body: torch.Tensor | collections.abc.Sequence[torch.Tensor] | None = None, preserve_joint_order: bool = False, device: torch.device | str | None = None, dtype: torch.dtype = torch.float32) -> better_robot.data_model.model.Model
 :canonical: better_robot.io.builders.kinematic_tree.build_kinematic_tree_model
 
 ```{autodoc2-docstring} better_robot.io.builders.kinematic_tree.build_kinematic_tree_model

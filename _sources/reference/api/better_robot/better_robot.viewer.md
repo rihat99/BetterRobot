@@ -25,11 +25,9 @@ better_robot.viewer.overlays
 :maxdepth: 1
 
 better_robot.viewer.trajectory_player
-better_robot.viewer.interaction
 better_robot.viewer.visualizer
 better_robot.viewer.panels
-better_robot.viewer.camera
-better_robot.viewer.recorder
+better_robot.viewer.primitive
 better_robot.viewer.scene
 better_robot.viewer.helpers
 better_robot.viewer.themes

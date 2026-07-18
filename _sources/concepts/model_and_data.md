@@ -20,11 +20,13 @@ that holds both — falls apart under three pressures: GPU sharing
 (autograd graphs leak when state mutates between the forward and
 backward pass).
 
-We took the same split. `Model` is `@dataclass(frozen=True)`,
-device-polymorphic via `.to()`, and shared freely across threads,
-streams, and processes. `Data` is mutable, per-query, carries the
-leading batch axis, and contains seventeen optional tensors that are
-filled lazily as kinematics and dynamics functions need them. The
+We took the same split. `Model` is `@dataclass(frozen=True)` and
+device-polymorphic via `.to()`. That freeze is shallow: field reassignment is
+blocked, but contained tensors, dictionaries, and metadata remain mutable.
+Treat a model's contents as read-only after construction, and use `.to()` to
+make a model for another device or dtype. `Data` is mutable, per-query, carries
+the leading batch axis, and contains optional tensors that are filled lazily as
+kinematics and dynamics functions need them. The
 chapter that follows describes both in detail, including the cache
 invariant that prevents stale Jacobians from sneaking through after
 `q` changes.
@@ -86,6 +88,7 @@ class Model:
     def to(self, device=None, dtype=None) -> "Model": ...
     def create_data(self, *, batch_shape=(), device=None, dtype=None) -> "Data": ...
     def joint_id(self, name: str) -> int: ...
+    def q_permutation(self, other_joint_order: Sequence[str]) -> tuple[torch.Tensor, torch.Tensor]: ...
     def frame_id(self, name: str) -> int: ...
     def body_id (self, name: str) -> int: ...
     def get_subtree(self, joint_id: int) -> tuple[int, ...]: ...
@@ -115,10 +118,26 @@ of integers, frozen at build time. They unroll cleanly under
 (`joint_placements`, `body_inertias`, the limits) are device tensors
 moved by `.to()`.
 
-**`@dataclass(frozen=True)`.** No custom immutability guard, no
-`_frozen` flag. Python's dataclass freeze is enough; the discipline
-is enforced by the language. Every algorithm above this layer can
-share a `Model` across workers without copying.
+**Joint-order remapping is a gather.** When an external tensor concatenates
+the same public per-joint slices in another name order, use
+`Model.q_permutation` once and gather on the trailing dimension:
+
+```python
+perm_q, perm_v = model.q_permutation(external_joint_names)
+q_model = q_external[..., perm_q]  # works for (nq,), (B, nq), (B, T, nq), ...
+v_model = v_external[..., perm_v]
+```
+
+The method expands whole joint slices, so free-flyer `7/6`, spherical `4/3`,
+and scalar joints are all handled without a per-frame Python loop. Names for
+zero-DOF joints may be omitted; unknown, duplicate, or missing active names
+raise `ValueError`. The external vector must use the model's public
+`nqs`/`nvs` dimensions.
+
+**`@dataclass(frozen=True)`.** No custom immutability guard and no `_frozen`
+flag. Python blocks field reassignment, but does not make contained tensors,
+dictionaries, or metadata deeply immutable. Algorithms rely on a read-only
+discipline for those contents; concurrent mutation is unsupported.
 
 **`body_inertias` is packed.** Each body's inertial properties are
 stored as a `(nbodies, 10)` tensor with layout
@@ -127,13 +146,14 @@ typed `Inertia` happens on demand. Storing 10 floats per body in a
 contiguous tensor is what lets `crba`'s composite-rigid-body
 recursion gather inertias without per-body Python work.
 
-**Mimic joints use the PyRoki gather trick.** Instead of a runtime
-if-statement on every FK iteration, `Model` carries three tensors —
-`mimic_multiplier`, `mimic_offset`, `mimic_source` — and the full-q
-expansion `q_full[i] = mult[i] * q_active[src[i]] + off[i]` becomes a
-vectorised gather + multiply. Non-mimic joints have multiplier 1,
-offset 0, and source equal to their own index, so the same expression
-covers everything.
+**Mimic joints use an explicit reduced↔full map.** Public `nq`, `nv`,
+`nqs`/`nvs`, and `idx_qs`/`idx_vs` omit mimic targets. Whole-body recursions
+retain `nq_full`, `nv_full` and matching full slice tables. Static
+`q_expansion`, `q_offset`, and `v_expansion` tensors define
+`q_full = q @ q_expansion.T + q_offset` and
+`v_full = v @ v_expansion.T`; the same tangent map projects Jacobians,
+forces, mass matrices, and centroidal maps. Non-mimic models take an identity
+fast path.
 
 **`reference_configurations` and `q_neutral`.** A dict of named
 configurations (e.g. `"half_sitting"`) plus a single canonical
@@ -142,34 +162,37 @@ point.
 
 ### Universal `integrate` and `difference`
 
-```python
-def integrate(model: Model, q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
-    """Manifold retraction: q ⊕ v. Per-joint dispatch."""
-    q_new = torch.empty_like(q)
-    for j in range(model.njoints):
-        jm = model.joint_models[j]
-        iq, iv = model.idx_qs[j], model.idx_vs[j]
-        qj = q[..., iq : iq + jm.nq]
-        vj = v[..., iv : iv + jm.nv]
-        q_new[..., iq : iq + jm.nq] = jm.integrate(qj, vj)
-    return q_new
-```
+`ModelStructure` precomputes public q/v gather tables for five semantic
+families: Euclidean joints, spherical joints, free-flyers, continuous
+revolute joints, and planar joints. `Model.integrate` and
+`Model.difference` gather every joint in one family, evaluate one batched
+manifold operation, then scatter into the public trailing dimension. A
+24-joint spherical body therefore performs one SO(3) call, not 23 Python
+calls. Composite and custom `JointModel` objects retain their exact per-joint
+dispatch as a compatibility fallback.
 
-The for-loop runs at *model compile time*: after `build_model()`, the
-topology is fixed, the loop unrolls cleanly under `torch.compile`,
-and per-joint dispatch is a tuple lookup, not a tensor operation.
-This is how a floating base works without any special case in the
-solver — `JointFreeFlyer.integrate` knows it has to retract over
-SE(3); `JointRX.integrate` is plain addition; the solver does not
-need to be told the difference.
+The formulas keep right/local perturbation semantics: spherical retraction is
+`normalize(q · exp(v))` and free-flyer retraction is `T · exp(ξ)`. Solvers
+still call one universal API and do not need to know which coordinates are
+Euclidean or manifold-valued.
+
+Leading dimensions use torch's right-aligned broadcasting. For example,
+`q.shape == (B, 1, nq)` and `v.shape == (T, nv)` produce
+`(B, T, nq)`. Trailing dimensions and devices are validated explicitly;
+mixed floating dtypes follow torch promotion. Reduced mimic targets own zero
+public width, so only their independent source enters a manifold group.
+
+The grouped implementation is tested against the former per-joint loop with
+tight dtype-aware tolerances. Contiguous grouped reductions can differ from
+strided calls by a few ULPs; see
+`plan/design_notes/m3_integrate_difference_vectorization.md` for parity and
+CPU benchmark evidence.
 
 ## `Data` — per-query workspace
 
 ```python
 @dataclass
 class Data:
-    _model_id: int
-
     # ──────────── configuration & derivatives ────────────
     q:    torch.Tensor                              # (B..., nq)
     v:    torch.Tensor | None = None                # (B..., nv)
@@ -213,10 +236,14 @@ class Data:
     def require(self, level: KinematicsLevel) -> None: ...
     def invalidate(self, level: KinematicsLevel = KinematicsLevel.NONE) -> None: ...
     def joint_pose(self, joint_id: int) -> "SE3": ...
-    def frame_pose(self, name_or_id: str | int) -> "SE3": ...
+    def frame_pose(self, frame_id: int) -> "SE3": ...
 ```
 
 Source: `src/better_robot/data_model/data.py`.
+
+``Data`` is not tied to a Python ``id(model)``. Rebinding differentiable
+values keeps the same ``ModelStructure``, and each public pass writes the
+fully broadcast execution view into ``data.q`` before populating caches.
 
 The design choices are:
 
@@ -240,8 +267,9 @@ and rationale.
 `KinematicsLevel` enum tracks how far the cache has been populated:
 `NONE` (just `q`), `PLACEMENTS` (FK done), `VELOCITIES` (FK + first
 derivatives), `ACCELERATIONS` (FK + first and second derivatives).
-Every kinematics / dynamics entry point calls `data.require(level)`
-and raises `StaleCacheError` if the cache is below.
+Cache consumers such as Jacobian assembly call `data.require(level)` and raise
+`StaleCacheError` if the cache is below their prerequisite. Producer passes
+such as FK and dynamics recompute their outputs and advance the level directly.
 
 ### The cache invariant — what is enforced and what is not
 
@@ -253,9 +281,9 @@ data.q = new_q                               # __setattr__ fires; downstream cac
 J = compute_joint_jacobians(model, data)     # raises StaleCacheError — must call FK first
 ```
 
-The `__setattr__` hook handles `q`, `v`, `a`, and any other declared
-input field by dropping caches above the appropriate level and
-resetting `_kinematics_level`. Functions advance the level
+The `__setattr__` hook handles reassignment of `q`, `v`, and `a` by dropping
+caches above the appropriate level and resetting `_kinematics_level`. Other
+fields, including `tau`, do not trigger this hook. Functions advance the level
 explicitly; nothing else writes to it.
 
 **Limitation: in-place tensor mutation is not detected.**
@@ -269,9 +297,9 @@ data.q.copy_(new_q)      # silently stale
 This is a Python limitation — tensor views and in-place ops bypass
 dataclass attribute machinery. The contract this layer pins is:
 
-> BetterRobot detects **reassignment** of `q`, `v`, `a`, and any
-> public input field on `Data`, and invalidates downstream caches on
-> reassignment. In-place tensor mutation of those fields is **not**
+> BetterRobot detects **reassignment** of `q`, `v`, and `a` on `Data`, and
+> invalidates downstream caches on reassignment. In-place tensor mutation of
+> those fields is **not**
 > detected; it is a documented misuse pattern.
 
 User-facing guidance, mirrored in `Data`'s docstring:
@@ -300,27 +328,29 @@ q  shape  (B..., nq)
 v  shape  (B..., nv)
 ```
 
-with per-joint slices determined by `model.idx_qs[j]` and
-`model.nqs[j]` (ditto `idx_vs`, `nvs`). The `forward_kinematics`
-implementation iterates the topo order and slices:
+with public per-joint slices determined by `model.idx_qs[j]` and
+`model.nqs[j]` (ditto `idx_vs`, `nvs`). Whole-body passes first expand reduced
+mimic coordinates, then iterate the topology using the full slice tables:
 
 ```python
-qj = q[..., idx_q : idx_q + nq_j]
-vj = v[..., idx_v : idx_v + nv_j]
-Tj = joint_models[j].joint_transform(qj)
+q_full = expand_configuration(model.structure, q)
+qj = q_full[..., model.idx_qs_full[j] : model.idx_qs_full[j] + model.nqs_full[j]]
+Tj = joint_transform(
+    model.joint_models[j], model.structure.joint_kind_codes[j],
+    model.structure.joint_axes[j], model.structure.joint_pitches[j], qj,
+)
 ```
 
-No string dispatch, no type-specific branches outside the joint
-modules themselves. A free-flyer base means the first 7 entries of
+Built-in kinds use precomputed kind codes and grouped tensor paths; custom and
+composite joints retain object dispatch fallbacks. A free-flyer base means the first 7 entries of
 `q` are the base pose `[tx, ty, tz, qx, qy, qz, qw]` and the first 6
 entries of `v` are the base twist `[vx, vy, vz, wx, wy, wz]`.
 Everything else slots in after that.
 
 ## Sharp edges
 
-- `Model.to(device, dtype)` returns a *new* Model — `Model` is
-  frozen. Sharing one `Model` across devices (CPU for diagnostics,
-  CUDA for solving) is a legitimate pattern.
+- `Model.to(device, dtype)` returns a *new* shallowly frozen Model. Keep
+  separate CPU and CUDA models rather than mutating tensor fields in place.
 - `Data` has no `.to()`. Device and dtype follow the input `q`.
 - `nq != nv` for any model with a free-flyer or spherical joint
   (free-flyer: `nq=7`, `nv=6`; spherical: `nq=4`, `nv=3`). Per-joint

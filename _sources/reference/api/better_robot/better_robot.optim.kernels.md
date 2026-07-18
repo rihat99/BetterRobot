@@ -15,6 +15,7 @@
 
 better_robot.optim.kernels.base
 better_robot.optim.kernels.huber
+better_robot.optim.kernels.geman_mcclure
 better_robot.optim.kernels.cauchy
 better_robot.optim.kernels.tukey
 better_robot.optim.kernels.l2

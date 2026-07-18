@@ -84,6 +84,28 @@
 
 ````
 
+````{py:attribute} nq_full
+:canonical: better_robot.data_model.model.Model.nq_full
+:type: int
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model.Model.nq_full
+```
+
+````
+
+````{py:attribute} nv_full
+:canonical: better_robot.data_model.model.Model.nv_full
+:type: int
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model.Model.nv_full
+```
+
+````
+
 ````{py:attribute} name
 :canonical: better_robot.data_model.model.Model.name
 :type: str
@@ -271,6 +293,50 @@
 
 ````
 
+````{py:attribute} nqs_full
+:canonical: better_robot.data_model.model.Model.nqs_full
+:type: tuple[int, ...]
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model.Model.nqs_full
+```
+
+````
+
+````{py:attribute} nvs_full
+:canonical: better_robot.data_model.model.Model.nvs_full
+:type: tuple[int, ...]
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model.Model.nvs_full
+```
+
+````
+
+````{py:attribute} idx_qs_full
+:canonical: better_robot.data_model.model.Model.idx_qs_full
+:type: tuple[int, ...]
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model.Model.idx_qs_full
+```
+
+````
+
+````{py:attribute} idx_vs_full
+:canonical: better_robot.data_model.model.Model.idx_vs_full
+:type: tuple[int, ...]
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model.Model.idx_vs_full
+```
+
+````
+
 ````{py:attribute} joint_placements
 :canonical: better_robot.data_model.model.Model.joint_placements
 :type: torch.Tensor
@@ -425,6 +491,50 @@
 
 ````
 
+````{py:attribute} q_expansion
+:canonical: better_robot.data_model.model.Model.q_expansion
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model.Model.q_expansion
+```
+
+````
+
+````{py:attribute} q_offset
+:canonical: better_robot.data_model.model.Model.q_offset
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model.Model.q_offset
+```
+
+````
+
+````{py:attribute} v_expansion
+:canonical: better_robot.data_model.model.Model.v_expansion
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model.Model.v_expansion
+```
+
+````
+
+````{py:attribute} has_mimic
+:canonical: better_robot.data_model.model.Model.has_mimic
+:type: bool
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model.Model.has_mimic
+```
+
+````
+
 ````{py:attribute} frames
 :canonical: better_robot.data_model.model.Model.frames
 :type: tuple[better_robot.data_model.frame.Frame, ...]
@@ -469,6 +579,36 @@
 
 ````
 
+````{py:attribute} structure
+:canonical: better_robot.data_model.model.Model.structure
+:type: better_robot.data_model.model_structure.ModelStructure
+:value: >
+   'field(...)'
+
+```{autodoc2-docstring} better_robot.data_model.model.Model.structure
+```
+
+````
+
+````{py:attribute} values
+:canonical: better_robot.data_model.model.Model.values
+:type: better_robot.data_model.model_values.ModelValues
+:value: >
+   'field(...)'
+
+```{autodoc2-docstring} better_robot.data_model.model.Model.values
+```
+
+````
+
+````{py:method} with_values(*, joint_placements: torch.Tensor | None = None, body_inertias: torch.Tensor | None = None, frame_placements: torch.Tensor | None = None) -> better_robot.data_model.model.Model
+:canonical: better_robot.data_model.model.Model.with_values
+
+```{autodoc2-docstring} better_robot.data_model.model.Model.with_values
+```
+
+````
+
 ````{py:method} to(device=None, dtype=None) -> better_robot.data_model.model.Model
 :canonical: better_robot.data_model.model.Model.to
 
@@ -489,6 +629,14 @@
 :canonical: better_robot.data_model.model.Model.joint_id
 
 ```{autodoc2-docstring} better_robot.data_model.model.Model.joint_id
+```
+
+````
+
+````{py:method} q_permutation(other_joint_order: collections.abc.Sequence[str]) -> tuple[torch.Tensor, torch.Tensor]
+:canonical: better_robot.data_model.model.Model.q_permutation
+
+```{autodoc2-docstring} better_robot.data_model.model.Model.q_permutation
 ```
 
 ````

@@ -130,6 +130,15 @@
 
 ````
 
+````{py:method} from_mesh(vertices: torch.Tensor, faces: torch.Tensor, density: numbers.Real | torch.Tensor = 1.0) -> better_robot.spatial.inertia.Inertia
+:canonical: better_robot.spatial.inertia.Inertia.from_mesh
+:classmethod:
+
+```{autodoc2-docstring} better_robot.spatial.inertia.Inertia.from_mesh
+```
+
+````
+
 ````{py:method} se3_action(T) -> better_robot.spatial.inertia.Inertia
 :canonical: better_robot.spatial.inertia.Inertia.se3_action
 

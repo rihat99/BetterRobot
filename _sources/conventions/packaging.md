@@ -4,13 +4,11 @@
 > Pins the install surface and the SemVer scope per-symbol once we
 > reach 1.0.
 
-The principle, pre-1.0: `pip install better-robot` should give you
-everything the library needs at runtime. We are still in active
-development; the cost of "your script crashed because you forgot to
-install a parser" is much higher than the cost of a slightly heavier
-install. Once the public surface stabilises and the use-cases
-differentiate, we can revisit slicing the install surface into
-lean-core + opt-in extras. For now: one install line, everything works.
+The core install is deliberately small. It provides tensor algorithms and URDF
+loading; integrations with heavyweight or specialised runtimes are explicit
+extras. The source of truth is `[project.dependencies]` and
+`[project.optional-dependencies]` in `pyproject.toml`. This page explains that
+surface but must not invent dependencies that are absent there.
 
 ## 1 · Dependencies
 
@@ -18,28 +16,39 @@ Core (always installed):
 
 | Package | Purpose |
 |---------|---------|
-| `torch` | tensors, autograd, the SE3/SO3 backend |
-| `numpy` | interop and reference math |
-| `rich` | error formatting |
-| `yourdfpy` | URDF parsing |
-| `mujoco` | MJCF parsing |
-| `trimesh` | mesh loading + collision geometry |
-| `viser` | browser-based viewer |
-| `robot_descriptions` | example URDFs (Panda, G1, …) |
+| `torch>=2.4` | tensors, autograd, and the eager Torch compute lane |
+| `numpy>=2.0` | interop and reference math |
+| `yourdfpy>=0.0.14` | URDF parsing |
+
+`yourdfpy` currently requires ``trimesh[easy]`` directly, so ``trimesh`` is
+present transitively in a core environment. That does not make BetterRobot's
+mesh-facing surface part of the core contract.
+
+Optional runtime extras:
+
+| Extra | Dependency | Purpose |
+|-------|------------|---------|
+| `[viewer]` | `viser` | Browser-based visualisation |
+| `[io-mjcf]` | `mujoco` | MJCF loading |
+| `[meshes]` | `trimesh` | Direct mesh APIs |
+| `[demos]` | `robot_descriptions` | Panda, G1, and other example assets |
+| `[warp]` | `warp-lang` | CUDA-validated opt-in fused FK lane |
 
 `[dev]`: `pytest`, `pytest-cov`, `pytest-xdist`, `pytest-benchmark`,
-`hypothesis`, `pin` (Pinocchio reference oracle), `pyperf`, the
+`scipy`, `hypothesis`, `pin` (Pinocchio reference oracle), `pyperf`, the
 Sphinx docs stack (`sphinx`, `myst-parser`, `myst-nb`,
 `sphinx-book-theme`, `sphinx-design`, `sphinx-autodoc2`,
-`sphinx-copybutton`, `sphinxcontrib-bibtex`, `sphinx-tabs`), plus
+`sphinx-copybutton`, `sphinxcontrib-bibtex`, `sphinx-tabs`, `ghp-import`), plus
 `ruff`, `pyright`, `mypy`, `pre-commit`, `jaxtyping`.
 
 ## 2 · Adding a dependency
 
-If you can implement the feature with what's already in the core list,
-do that. If you genuinely need a new dependency, add it to
-`pyproject.toml::project.dependencies` (or `[dev]` if it's only for
-contributors) and bump the version per §3.
+If you can implement the feature with what is already installed, do that. Add a
+dependency to the smallest surface that needs it: core only when ordinary
+runtime use cannot work without it, a named extra for an optional integration,
+or `[dev]` for contributor tooling. Regenerate `uv.lock`, verify a core-only
+installation, and test that importing `better_robot` does not eagerly import an
+optional runtime.
 
 ## 3 · SemVer pre / post 1.0
 
@@ -52,9 +61,11 @@ Until 1.0 every minor bump may break. Once 1.0 is cut:
   shim; tightening (never loosening) a numerical tolerance.
 - **Patch** — bug fixes; perf improvements within tolerance.
 
-The frozen `EXPECTED` set in `tests/contract/test_public_api.py`
-(currently 26 symbols) is the SemVer-bound contract. The per-symbol
-stability tier is in {doc}`contracts` §7.3.
+`tests/contract/test_public_api.py` pins the required core symbols, their
+resolution and docstrings, and the absence of duplicate exports; it does not
+freeze a symbol count while the project is pre-1.0. Once the 1.0 surface is
+frozen, removals follow the SemVer policy above. The per-symbol stability tier
+is in {doc}`contracts` §7.3.
 
 ## 4 · Deprecation mechanism
 
@@ -67,16 +78,18 @@ warnings.warn(
 )
 ```
 
-Each deprecation gets:
+Once a compatibility shim is intentionally introduced, it gets:
 
 - A `DeprecationWarning` with the replacement and the removal version.
 - An entry in `CHANGELOG.md` under the current release.
 - A test that the warning fires under `pytest.warns()`.
 
-The shim is removed in the named version; verified by
-`tests/contract/test_deprecations.py`.
-
-`BR_STRICT=1` promotes deprecation warnings to errors.
+The shim is removed in the named version. There is currently no generic
+`test_deprecations.py` harness and no package-wide environment flag that turns
+deprecation warnings into errors; a change that introduces either must add the
+implementation and tests before this document claims it. Pre-1.0 removals that
+land without a shim are recorded explicitly in the changelog and the removed-
+surface migration ledgers.
 
 ## 5 · `__version__`
 
@@ -92,6 +105,6 @@ in step with `pyproject.toml::project.version`.
 
 - {doc}`contracts` §7 — SemVer scope and deprecation policy.
 - {doc}`naming` §5 — the rename schedule this operationalises.
-- {doc}`testing` §4.5–§4.6 — regression oracles and gate-promotion
-  ladder.
-- {doc}`extension` §14 — the Muscle / joint extension seam.
+- {doc}`testing` §5.4 and §7 — regression oracles and benchmark evidence.
+- {doc}`extension` §2 — the joint extension seam; §14 is only a future
+  actuator-design sketch.

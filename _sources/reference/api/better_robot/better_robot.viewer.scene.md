@@ -70,6 +70,14 @@
 
 ````
 
+````{py:method} joint_primitive(joint_id: int) -> better_robot.viewer.primitive.PrimitiveHandle
+:canonical: better_robot.viewer.scene.Scene.joint_primitive
+
+```{autodoc2-docstring} better_robot.viewer.scene.Scene.joint_primitive
+```
+
+````
+
 ````{py:method} update(data: better_robot.data_model.data.Data) -> None
 :canonical: better_robot.viewer.scene.Scene.update
 

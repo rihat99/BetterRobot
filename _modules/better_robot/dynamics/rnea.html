@@ -54,7 +54,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Apr 26, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 18, 2026"/>
   </head>
   
   
@@ -148,18 +148,6 @@
           <a href="https://github.com/rihat99/BetterRobot" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
             <span class="sr-only">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/better-robot/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-python fa-lg" aria-hidden="true"></i>
-            <span class="sr-only">PyPI</span></a>
-        </li>
 </ul></div>
         <div class="sidebar-primary-item">
 
@@ -192,11 +180,19 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics.html">Kinematics</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_and_costs.html">Residuals and Costs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/solver_stack.html">The Solver Stack</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/tasks.html">Tasks — IK, Trajectory Optimisation, Retargeting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/solver_stack.html">Named-Block Evaluation and the Legacy Solver Stack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/tasks.html">Tasks — IK and Trajectory Optimisation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/collision_and_geometry.html">Collision and Geometry</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/batching_and_backends.html">Batching and Backends</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/batching_and_backends.html">Batching and Compute Lanes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/warp_bridge.html">Torch–Warp bridge and opt-in FK lane</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/custom_residuals.html">Write a custom block residual</a></li>
 </ul>
 </details></li>
 </ul>
@@ -208,6 +204,8 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/extension.html">Extension Points</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/testing.html">Testing</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/contracts.html">Contracts &amp; Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/engineering.html">Engineering Contract</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/source_and_license.html">Source and License Decision Memo</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/style.html">Coding Style</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/packaging.html">Packaging</a></li>
 </ul>
@@ -230,11 +228,9 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.render_modes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.render_modes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.overlays.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.overlays</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.trajectory_player.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.trajectory_player</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.interaction.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.interaction</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.visualizer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.visualizer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.panels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.panels</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.camera.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.camera</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.recorder.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.recorder</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.primitive.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.primitive</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.scene.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.scene</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.helpers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.helpers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.viewer.themes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.themes</span></code></a></li>
@@ -242,13 +238,17 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.temporal</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.registry.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.registry</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.base.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.base</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.human.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.human</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.manipulability.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.manipulability</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.collision</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.scene_sdf.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.scene_sdf</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.pose.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.pose</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.smoothness.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.smoothness</span></code></a></li>
 </ul>
@@ -269,7 +269,6 @@
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.action.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.action</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.integrators.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.integrators</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.crba.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.crba</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.rnea.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.rnea</span></code></a></li>
@@ -284,29 +283,23 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.cost_stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.cost_stack</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.state.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.state</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.jacobian_spec.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.jacobian_spec</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.structure</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.costs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.costs.stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.stack</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.costs.factory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.factory</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.utils.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.utils.testing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.testing</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.utils.batching.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.batching</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.utils.logging.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.logging</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.utils.broadcasting.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.utils.broadcasting</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.ik.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.ik</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.parameterization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.parameterization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.trajectory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajectory</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.retarget.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.retarget</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.trajopt.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajopt</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.smoothing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.smoothing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.contact_forces.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.contact_forces</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.lie.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -314,37 +307,38 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.lie.se3.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.se3</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.lie.types.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.types</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.lie.tangents.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.tangents</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.lie.alignment.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.alignment</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.kinematics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.kinematics.jacobian.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.kinematics.jacobian_strategy.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian_strategy</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.kinematics.chain.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.chain</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.kinematics.forward.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.forward</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.joint_models.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint_models</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.execution_batch.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.execution_batch</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.body.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.body</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.model_values.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model_values</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.reduced_coordinates.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.reduced_coordinates</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.joint.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.frame.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.frame</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.topology.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.topology</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.indexing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.indexing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.model_structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model_structure</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.data.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.data</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.backends.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.backends.torch_native.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.torch_native</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.backends.warp.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.warp</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.backends.protocol.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.backends.protocol</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.data_model.joint_dispatch.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint_dispatch</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.exceptions.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.exceptions</span></code></a></li>
 </ul>
 </details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/named_block_solvers.html">Named-block solver API</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../reference/changelog.html">Changelog</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../reference/roadmap.html">Roadmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/m1_removed_symbols.html">M1 removed surfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/m3_removed_symbols.html">M3.5 removed surfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../reference/glossary.html">Glossary</a></li>
 </ul>
 </details></li>
@@ -352,7 +346,6 @@
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Project Links</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/rihat99/BetterRobot">GitHub</a></li>
-<li class="toctree-l1"><a class="reference external" href="https://pypi.org/project/better-robot/">PyPI</a></li>
 </ul>
 
     </div>
@@ -519,25 +512,49 @@
 <span class="sd">Known limitations:</span>
 
 <span class="sd">* The per-joint bias acceleration ``c_J = Ṡ · v`` is dispatched through</span>
-<span class="sd">  ``JointModel.joint_bias_acceleration`` (added in P11-pre). It is zero</span>
+<span class="sd">  the optional ``JointModel.joint_bias_acceleration`` hook. It is zero</span>
 <span class="sd">  for every current joint type because their motion subspaces are body-</span>
 <span class="sd">  frame constant; joints with ``q``-dependent subspaces only need to</span>
 <span class="sd">  override the hook to plug in correctly.</span>
 <span class="sd">* :func:`compute_coriolis_matrix` remains a stub — it requires a separate</span>
 <span class="sd">  world-frame recursion (Pinocchio ``rnea.hxx`` §CoriolisMatrixForwardStep).</span>
 
-<span class="sd">See ``docs/concepts/dynamics.md §2``.</span>
+<span class="sd">See ``docs/concepts/dynamics.md``.</span>
 <span class="sd">&quot;&quot;&quot;</span>
+
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">..data_model._kinematics_level</span><span class="w"> </span><span class="kn">import</span> <span class="n">KinematicsLevel</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Data</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.joint_models.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">joint_bias_acceleration</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Model</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.model_structure</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModelStructure</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.model_values</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModelValues</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.reduced_coordinates</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">expand_tangent</span><span class="p">,</span>
+    <span class="n">reduce_generalized_force</span><span class="p">,</span>
+<span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..kinematics.forward</span><span class="w"> </span><span class="kn">import</span> <span class="n">forward_kinematics_raw</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..lie</span><span class="w"> </span><span class="kn">import</span> <span class="n">se3</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">..spatial.inertia</span><span class="w"> </span><span class="kn">import</span> <span class="n">Inertia</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._execution</span><span class="w"> </span><span class="kn">import</span> <span class="n">prepare_dynamics_inputs</span>
+
+
+<div class="viewcode-block" id="RNEAResult">
+<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.dynamics.rnea.html#better_robot.dynamics.rnea.RNEAResult">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">RNEAResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fresh tensor outputs from :func:`rnea_raw`.&quot;&quot;&quot;</span>
+
+    <span class="n">tau</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
+    <span class="n">joint_pose_world</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
+    <span class="n">joint_pose_local</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
+    <span class="n">joint_velocity_local</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
+    <span class="n">joint_acceleration_local</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
+    <span class="n">joint_forces</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span></div>
+
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_cross_motion</span><span class="p">(</span><span class="n">v</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">u</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
@@ -570,26 +587,23 @@
     <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">out_lin</span><span class="p">,</span> <span class="n">out_ang</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="rnea">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.dynamics.rnea.html#better_robot.dynamics.rnea.rnea">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">rnea</span><span class="p">(</span>
-    <span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span>
-    <span class="n">data</span><span class="p">:</span> <span class="n">Data</span><span class="p">,</span>
+<div class="viewcode-block" id="rnea_raw">
+<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.dynamics.rnea.html#better_robot.dynamics.rnea.rnea_raw">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">rnea_raw</span><span class="p">(</span>  <span class="c1"># noqa: PLR0912, PLR0915 - recursive Newton-Euler passes are explicit</span>
+    <span class="n">structure</span><span class="p">:</span> <span class="n">ModelStructure</span><span class="p">,</span>
+    <span class="n">values</span><span class="p">:</span> <span class="n">ModelValues</span><span class="p">,</span>
     <span class="n">q</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">v</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">a</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">fext</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RNEAResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Inverse dynamics: ``τ = M(q)·a + b(q, v) + g(q) − Jᵀ fext``.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    model : Model</span>
-<span class="sd">    data : Data</span>
-<span class="sd">        Mutable workspace. Populated fields on return:</span>
-<span class="sd">        ``tau``, ``joint_pose_local``, ``joint_pose_world``,</span>
-<span class="sd">        ``joint_velocity_local``, ``joint_acceleration_local``, ``joint_forces``.</span>
+<span class="sd">    structure, values</span>
+<span class="sd">        Pure compute-seam inputs.</span>
 <span class="sd">    q : Tensor</span>
 <span class="sd">        ``(B..., nq)`` configuration.</span>
 <span class="sd">    v : Tensor</span>
@@ -602,26 +616,43 @@
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
-<span class="sd">    tau : Tensor</span>
-<span class="sd">        ``(B..., nv)`` joint-space torques.</span>
+<span class="sd">    RNEAResult</span>
+<span class="sd">        Torques plus all fresh pass intermediates needed by the public wrapper.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="o">*</span><span class="n">batch</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">q</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">query_inputs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;v&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="p">(</span><span class="n">structure</span><span class="o">.</span><span class="n">nv</span><span class="p">,)),</span>
+        <span class="s2">&quot;a&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="p">(</span><span class="n">structure</span><span class="o">.</span><span class="n">nv</span><span class="p">,)),</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="n">fext</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">query_inputs</span><span class="p">[</span><span class="s2">&quot;fext&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">fext</span><span class="p">,</span> <span class="p">(</span><span class="n">structure</span><span class="o">.</span><span class="n">njoints</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+    <span class="n">q</span><span class="p">,</span> <span class="n">prepared</span><span class="p">,</span> <span class="n">batch</span> <span class="o">=</span> <span class="n">prepare_dynamics_inputs</span><span class="p">(</span>
+        <span class="n">structure</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">,</span>
+        <span class="n">q</span><span class="p">,</span>
+        <span class="n">query_inputs</span><span class="p">,</span>
+        <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">v</span> <span class="o">=</span> <span class="n">prepared</span><span class="p">[</span><span class="s2">&quot;v&quot;</span><span class="p">]</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">prepared</span><span class="p">[</span><span class="s2">&quot;a&quot;</span><span class="p">]</span>
+    <span class="n">fext</span> <span class="o">=</span> <span class="n">prepared</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;fext&quot;</span><span class="p">)</span>
+    <span class="n">v_full</span> <span class="o">=</span> <span class="n">expand_tangent</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+    <span class="n">a_full</span> <span class="o">=</span> <span class="n">expand_tangent</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">a</span><span class="p">)</span>
     <span class="n">device</span><span class="p">,</span> <span class="n">dtype</span> <span class="o">=</span> <span class="n">q</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">q</span><span class="o">.</span><span class="n">dtype</span>
 
     <span class="c1"># ── Pass 0: forward kinematics (liMi needed for adjoints) ────────────</span>
-    <span class="n">oMi</span><span class="p">,</span> <span class="n">liMi</span> <span class="o">=</span> <span class="n">forward_kinematics_raw</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
-    <span class="n">data</span><span class="o">.</span><span class="n">joint_pose_world</span> <span class="o">=</span> <span class="n">oMi</span>
-    <span class="n">data</span><span class="o">.</span><span class="n">joint_pose_local</span> <span class="o">=</span> <span class="n">liMi</span>
-    <span class="n">data</span><span class="o">.</span><span class="n">_kinematics_level</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">oMi</span><span class="p">,</span> <span class="n">liMi</span> <span class="o">=</span> <span class="n">forward_kinematics_raw</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
 
     <span class="c1"># ── Base spatial velocity / acceleration ─────────────────────────────</span>
     <span class="c1"># a_gf[0] = −gravity: folds gravity into the inertial bias so the</span>
     <span class="c1"># forward recursion produces per-body spatial forces that include weight.</span>
     <span class="n">zero6</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="o">*</span><span class="n">batch</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
-    <span class="n">grav</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">gravity</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="o">*</span><span class="n">batch</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span>
+    <span class="n">zero_motion_subspace</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="o">*</span><span class="n">batch</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">grav</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">gravity</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="o">*</span><span class="n">batch</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span>
+    <span class="n">spatial_inertias</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">spatial_inertias</span><span class="p">()</span>
+    <span class="n">motion_subspaces</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">joint_motion_subspaces</span>
 
     <span class="c1"># Per-joint storage (list-of-tensor + torch.stack for autograd safety).</span>
-    <span class="n">njoints</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">njoints</span>
+    <span class="n">njoints</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">njoints</span>
     <span class="n">v_body</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">njoints</span>
     <span class="n">a_body</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">njoints</span>
     <span class="n">f_body</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">njoints</span>
@@ -632,26 +663,23 @@
     <span class="n">f_body</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">zero6</span>
 
     <span class="c1"># ── Forward pass ─────────────────────────────────────────────────────</span>
-    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">model</span><span class="o">.</span><span class="n">topo_order</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">structure</span><span class="o">.</span><span class="n">topo_order</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">continue</span>
-        <span class="n">jm</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">joint_models</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-        <span class="n">p</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
 
-        <span class="n">iq</span><span class="p">,</span> <span class="n">nq_i</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">idx_qs</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">model</span><span class="o">.</span><span class="n">nqs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-        <span class="n">iv</span><span class="p">,</span> <span class="n">nv_i</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">idx_vs</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">model</span><span class="o">.</span><span class="n">nvs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">iv</span><span class="p">,</span> <span class="n">nv_i</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">idx_vs_full</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">structure</span><span class="o">.</span><span class="n">nvs_full</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
 
-        <span class="k">if</span> <span class="n">nq_i</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">q_i</span> <span class="o">=</span> <span class="n">q</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">iq</span> <span class="p">:</span> <span class="n">iq</span> <span class="o">+</span> <span class="n">nq_i</span><span class="p">]</span>
-            <span class="n">v_i_slice</span> <span class="o">=</span> <span class="n">v</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">iv</span> <span class="p">:</span> <span class="n">iv</span> <span class="o">+</span> <span class="n">nv_i</span><span class="p">]</span>
-            <span class="n">a_i_slice</span> <span class="o">=</span> <span class="n">a</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">iv</span> <span class="p">:</span> <span class="n">iv</span> <span class="o">+</span> <span class="n">nv_i</span><span class="p">]</span>
-            <span class="n">S_i</span> <span class="o">=</span> <span class="n">jm</span><span class="o">.</span><span class="n">joint_motion_subspace</span><span class="p">(</span><span class="n">q_i</span><span class="p">)</span>                     <span class="c1"># (B..., 6, nv_i)</span>
-            <span class="n">vJ</span> <span class="o">=</span> <span class="n">jm</span><span class="o">.</span><span class="n">joint_velocity</span><span class="p">(</span><span class="n">q_i</span><span class="p">,</span> <span class="n">v_i_slice</span><span class="p">)</span>                  <span class="c1"># (B..., 6)</span>
-            <span class="n">aJ</span> <span class="o">=</span> <span class="p">(</span><span class="n">S_i</span> <span class="o">@</span> <span class="n">a_i_slice</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>        <span class="c1"># (B..., 6)</span>
-            <span class="n">cJ</span> <span class="o">=</span> <span class="n">joint_bias_acceleration</span><span class="p">(</span><span class="n">jm</span><span class="p">,</span> <span class="n">q_i</span><span class="p">,</span> <span class="n">v_i_slice</span><span class="p">)</span>        <span class="c1"># (B..., 6)</span>
+        <span class="k">if</span> <span class="n">nv_i</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">v_i_slice</span> <span class="o">=</span> <span class="n">v_full</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">iv</span> <span class="p">:</span> <span class="n">iv</span> <span class="o">+</span> <span class="n">nv_i</span><span class="p">]</span>
+            <span class="n">a_i_slice</span> <span class="o">=</span> <span class="n">a_full</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">iv</span> <span class="p">:</span> <span class="n">iv</span> <span class="o">+</span> <span class="n">nv_i</span><span class="p">]</span>
+            <span class="n">S_i</span> <span class="o">=</span> <span class="n">motion_subspaces</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:</span><span class="n">nv_i</span><span class="p">]</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="o">*</span><span class="n">batch</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="n">nv_i</span><span class="p">)</span>
+            <span class="n">vJ</span> <span class="o">=</span> <span class="p">(</span><span class="n">S_i</span> <span class="o">@</span> <span class="n">v_i_slice</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">aJ</span> <span class="o">=</span> <span class="p">(</span><span class="n">S_i</span> <span class="o">@</span> <span class="n">a_i_slice</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># (B..., 6)</span>
+            <span class="n">cJ</span> <span class="o">=</span> <span class="n">zero6</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># Fixed / zero-DoF joint: no velocity contribution, no subspace.</span>
-            <span class="n">S_i</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="o">*</span><span class="n">batch</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>  <span class="c1"># bench-ok: zero-DoF placeholder, not allocated per-iter</span>
+            <span class="n">S_i</span> <span class="o">=</span> <span class="n">zero_motion_subspace</span>
             <span class="n">vJ</span> <span class="o">=</span> <span class="n">zero6</span>
             <span class="n">aJ</span> <span class="o">=</span> <span class="n">zero6</span>
             <span class="n">cJ</span> <span class="o">=</span> <span class="n">zero6</span>
@@ -659,7 +687,7 @@
 
         <span class="c1"># Parent motion transport: Ad(liMi⁻¹) expresses a parent-frame</span>
         <span class="c1"># motion 6-vector in the local joint frame.</span>
-        <span class="n">Ad_inv</span> <span class="o">=</span> <span class="n">se3</span><span class="o">.</span><span class="n">adjoint_inv</span><span class="p">(</span><span class="n">liMi</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="p">:])</span>                   <span class="c1"># (B..., 6, 6)</span>
+        <span class="n">Ad_inv</span> <span class="o">=</span> <span class="n">se3</span><span class="o">.</span><span class="n">adjoint_inv</span><span class="p">(</span><span class="n">liMi</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="p">:])</span>  <span class="c1"># (B..., 6, 6)</span>
         <span class="n">v_parent_local</span> <span class="o">=</span> <span class="p">(</span><span class="n">Ad_inv</span> <span class="o">@</span> <span class="n">v_body</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
         <span class="n">a_parent_local</span> <span class="o">=</span> <span class="p">(</span><span class="n">Ad_inv</span> <span class="o">@</span> <span class="n">a_body</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
@@ -668,7 +696,7 @@
         <span class="n">a_i</span> <span class="o">=</span> <span class="n">a_parent_local</span> <span class="o">+</span> <span class="n">_cross_motion</span><span class="p">(</span><span class="n">v_i</span><span class="p">,</span> <span class="n">vJ</span><span class="p">)</span> <span class="o">+</span> <span class="n">aJ</span> <span class="o">+</span> <span class="n">cJ</span>
 
         <span class="c1"># Inertial wrench in body frame: f_i = I_i·a_i + v_i ×* (I_i·v_i).</span>
-        <span class="n">M_i</span> <span class="o">=</span> <span class="n">Inertia</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">body_inertias</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">))</span><span class="o">.</span><span class="n">_to_6x6</span><span class="p">()</span>
+        <span class="n">M_i</span> <span class="o">=</span> <span class="n">spatial_inertias</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
         <span class="n">h_i</span> <span class="o">=</span> <span class="p">(</span><span class="n">M_i</span> <span class="o">@</span> <span class="n">v_i</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
         <span class="n">f_i</span> <span class="o">=</span> <span class="p">(</span><span class="n">M_i</span> <span class="o">@</span> <span class="n">a_i</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">_cross_motion_force</span><span class="p">(</span><span class="n">v_i</span><span class="p">,</span> <span class="n">h_i</span><span class="p">)</span>
 
@@ -681,36 +709,82 @@
 
     <span class="c1"># ── Backward pass ────────────────────────────────────────────────────</span>
     <span class="c1"># Per-coordinate tau slots, filled in reverse topo order.</span>
-    <span class="n">tau_slots</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">model</span><span class="o">.</span><span class="n">nv</span>
+    <span class="n">tau_slots</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">structure</span><span class="o">.</span><span class="n">nv_full</span>
 
-    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">topo_order</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">structure</span><span class="o">.</span><span class="n">topo_order</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">continue</span>
-        <span class="n">iv</span><span class="p">,</span> <span class="n">nv_i</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">idx_vs</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">model</span><span class="o">.</span><span class="n">nvs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">iv</span><span class="p">,</span> <span class="n">nv_i</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">idx_vs_full</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">structure</span><span class="o">.</span><span class="n">nvs_full</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
         <span class="k">if</span> <span class="n">nv_i</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">S_i</span> <span class="o">=</span> <span class="n">S_cache</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>  <span class="c1"># (B..., 6, nv_i)</span>
             <span class="n">tau_i</span> <span class="o">=</span> <span class="p">(</span><span class="n">S_i</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">)</span> <span class="o">@</span> <span class="n">f_body</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nv_i</span><span class="p">):</span>
                 <span class="n">tau_slots</span><span class="p">[</span><span class="n">iv</span> <span class="o">+</span> <span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">tau_i</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">k</span><span class="p">]</span>
 
-        <span class="n">p</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
         <span class="k">if</span> <span class="n">p</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
             <span class="c1"># Force transport from child to parent frame: Ad(liMi⁻¹)ᵀ · f.</span>
             <span class="n">Ad_inv_T</span> <span class="o">=</span> <span class="n">se3</span><span class="o">.</span><span class="n">adjoint_inv</span><span class="p">(</span><span class="n">liMi</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="p">:])</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">)</span>
             <span class="n">f_transported</span> <span class="o">=</span> <span class="p">(</span><span class="n">Ad_inv_T</span> <span class="o">@</span> <span class="n">f_body</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
             <span class="n">f_body</span><span class="p">[</span><span class="n">p</span><span class="p">]</span> <span class="o">=</span> <span class="n">f_body</span><span class="p">[</span><span class="n">p</span><span class="p">]</span> <span class="o">+</span> <span class="n">f_transported</span>
 
-    <span class="k">if</span> <span class="n">model</span><span class="o">.</span><span class="n">nv</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="n">tau</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">tau_slots</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># type: ignore[arg-type]</span>
+    <span class="k">if</span> <span class="n">structure</span><span class="o">.</span><span class="n">nv_full</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">tau_full</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">tau_slots</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># type: ignore[arg-type]</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">tau</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="o">*</span><span class="n">batch</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">tau_full</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="o">*</span><span class="n">batch</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">tau</span> <span class="o">=</span> <span class="n">reduce_generalized_force</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">tau_full</span><span class="p">)</span>
 
-    <span class="c1"># ── Populate Data ────────────────────────────────────────────────────</span>
-    <span class="n">data</span><span class="o">.</span><span class="n">tau</span> <span class="o">=</span> <span class="n">tau</span>
-    <span class="n">data</span><span class="o">.</span><span class="n">joint_velocity_local</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">v_body</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>       <span class="c1"># type: ignore[arg-type]</span>
-    <span class="n">data</span><span class="o">.</span><span class="n">joint_acceleration_local</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">a_body</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>   <span class="c1"># type: ignore[arg-type]</span>
-    <span class="n">data</span><span class="o">.</span><span class="n">joint_forces</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">f_body</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>               <span class="c1"># type: ignore[arg-type]</span>
-    <span class="k">return</span> <span class="n">tau</span></div>
+    <span class="k">return</span> <span class="n">RNEAResult</span><span class="p">(</span>
+        <span class="n">tau</span><span class="o">=</span><span class="n">tau</span><span class="p">,</span>
+        <span class="n">joint_pose_world</span><span class="o">=</span><span class="n">oMi</span><span class="p">,</span>
+        <span class="n">joint_pose_local</span><span class="o">=</span><span class="n">liMi</span><span class="p">,</span>
+        <span class="n">joint_velocity_local</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">v_body</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">),</span>  <span class="c1"># type: ignore[arg-type]</span>
+        <span class="n">joint_acceleration_local</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">a_body</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">),</span>  <span class="c1"># type: ignore[arg-type]</span>
+        <span class="n">joint_forces</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">f_body</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">),</span>  <span class="c1"># type: ignore[arg-type]</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="rnea">
+<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.dynamics.rnea.html#better_robot.dynamics.rnea.rnea">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">rnea</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span>
+    <span class="n">data</span><span class="p">:</span> <span class="n">Data</span><span class="p">,</span>
+    <span class="n">q</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">v</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">a</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">fext</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Public inverse-dynamics wrapper that populates a ``Data`` workspace.&quot;&quot;&quot;</span>
+
+    <span class="n">query_inputs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;v&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">nv</span><span class="p">,)),</span>
+        <span class="s2">&quot;a&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">nv</span><span class="p">,)),</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="n">fext</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">query_inputs</span><span class="p">[</span><span class="s2">&quot;fext&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">fext</span><span class="p">,</span> <span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">njoints</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+    <span class="n">q</span><span class="p">,</span> <span class="n">prepared</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">prepare_dynamics_inputs</span><span class="p">(</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+        <span class="n">q</span><span class="p">,</span>
+        <span class="n">query_inputs</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">v</span> <span class="o">=</span> <span class="n">prepared</span><span class="p">[</span><span class="s2">&quot;v&quot;</span><span class="p">]</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">prepared</span><span class="p">[</span><span class="s2">&quot;a&quot;</span><span class="p">]</span>
+    <span class="n">fext</span> <span class="o">=</span> <span class="n">prepared</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;fext&quot;</span><span class="p">)</span>
+    <span class="n">data</span><span class="o">.</span><span class="n">q</span> <span class="o">=</span> <span class="n">q</span>
+    <span class="n">data</span><span class="o">.</span><span class="n">v</span> <span class="o">=</span> <span class="n">v</span>
+    <span class="n">data</span><span class="o">.</span><span class="n">a</span> <span class="o">=</span> <span class="n">a</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">rnea_raw</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">fext</span><span class="o">=</span><span class="n">fext</span><span class="p">)</span>
+    <span class="n">data</span><span class="o">.</span><span class="n">tau</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">tau</span>
+    <span class="n">data</span><span class="o">.</span><span class="n">joint_pose_world</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">joint_pose_world</span>
+    <span class="n">data</span><span class="o">.</span><span class="n">joint_pose_local</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">joint_pose_local</span>
+    <span class="n">data</span><span class="o">.</span><span class="n">joint_velocity_local</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">joint_velocity_local</span>
+    <span class="n">data</span><span class="o">.</span><span class="n">joint_acceleration_local</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">joint_acceleration_local</span>
+    <span class="n">data</span><span class="o">.</span><span class="n">joint_forces</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">joint_forces</span>
+    <span class="nb">object</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">&quot;_kinematics_level&quot;</span><span class="p">,</span> <span class="n">KinematicsLevel</span><span class="o">.</span><span class="n">ACCELERATIONS</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span><span class="o">.</span><span class="n">tau</span></div>
 
 
 
@@ -770,8 +844,8 @@
 <span class="sd">    §CoriolisMatrixForwardStep). Not derivable as a slice of RNEA.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
-        <span class="s2">&quot;compute_coriolis_matrix is a separate recursion; deferred to a later &quot;</span>
-        <span class="s2">&quot;dynamics milestone — see docs/concepts/dynamics.md §2.&quot;</span>
+        <span class="s2">&quot;compute_coriolis_matrix is a separate recursion; see the deferred &quot;</span>
+        <span class="s2">&quot;dynamics work in docs/reference/roadmap.md.&quot;</span>
     <span class="p">)</span></div>
 
 </pre></div>
@@ -821,7 +895,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Apr 26, 2026.
+  Last updated on Jul 18, 2026.
   <br/>
 </p>
   </div>

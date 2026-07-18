@@ -8,27 +8,26 @@ A library that treats spherical (ball) joints as a separate concept
 from revolute joints ends up with two configuration layouts and a
 manifold-aware integrator hidden inside half the functions.
 
-We made joints universal. There is one `JointModel` Protocol; thirteen
-concrete implementations live under `data_model/joint_models/`; every
-algorithm dispatches through that Protocol and never branches on
-joint kind. A floating-base robot is a robot whose first joint is
-`JointFreeFlyer`. A robot with a ball shoulder is a robot with a
-`JointSpherical` somewhere in the tree. The IK solver does not know
-the difference; the FK loop does not know the difference. There is
-exactly one place in the library where the joint kind matters — the
-joint model itself.
+We made joints universal. There is one `JointModel` Protocol and a taxonomy of
+18 supported kind strings under `data_model/joint_models/`. Built-in hot paths
+dispatch through precomputed kind codes and grouped tensor tables; custom and
+composite joints retain object-dispatch fallbacks. A floating-base robot is a
+robot whose first joint is `JointFreeFlyer`. A robot with a ball shoulder is a
+robot with a `JointSpherical` somewhere in the tree. The task APIs do not need
+separate fixed- and floating-base solver families.
 
-Frames and bodies are the lighter-weight counterparts. A `Body` is a
-rigid link (1:1 with joints, except joint 0). A `Frame` is a named
-coordinate frame anywhere on the robot — the inertial origin of a
-link, a tool tip, a camera mount, an IMU pose. Frames are
+Frames and bodies are the lighter-weight counterparts. A `Body` is a rigid
+link; models keep one body entry per joint, including the zero-inertia universe
+placeholder at index 0. A `Frame` is a named coordinate frame anywhere on the
+robot — a link frame, tool tip, camera mount, or IMU pose. Frames are
 metadata-only; their actual placements live on `Data`.
 
 ## The `JointModel` Protocol
 
-Every concrete joint implements a single Protocol — no inheritance,
-no `nn.Module` overhead per joint. The instance is *stateless*; the
-per-joint numerical data (placements, axes, limits) lives on `Model`.
+Every concrete joint implements a single Protocol — no inheritance and no
+`nn.Module` overhead per joint. A dispatch object may carry static
+configuration such as an axis, helical pitch, or composite children. Runtime
+configuration and velocity slices live on `Model`/`Data` tensors.
 
 ```python
 class JointModel(Protocol):
@@ -78,34 +77,23 @@ class JointModel(Protocol):
     ) -> torch.Tensor: ...
 
     def neutral(self) -> torch.Tensor: ...   # (nq,)
-
-    # Dynamics hooks (default: zeros). Override for non-trivial joints.
-    def joint_bias_acceleration(
-        self,
-        q_slice: torch.Tensor,
-        v_slice: torch.Tensor,
-    ) -> torch.Tensor: ...                   # (B..., 6) c_J
-
-    def joint_motion_subspace_derivative(
-        self,
-        q_slice: torch.Tensor,
-        v_slice: torch.Tensor,
-    ) -> torch.Tensor: ...                   # (B..., 6, nv_j) Ṡ_J
 ```
 
 Source: `src/better_robot/data_model/joint_models/base.py`.
 
 `joint_transform` is the function the FK loop calls. `joint_motion_subspace`
 is what `compute_joint_jacobians` calls. `integrate` and `difference`
-are what `Model.integrate` and `Model.difference` dispatch through —
-that is how a manifold-aware retraction works without the solver
-knowing manifolds exist.
+define the fallback/custom semantics behind `Model.integrate` and
+`Model.difference`; exact built-in classes use equivalent precomputed
+per-kind tensor groups. That is how a manifold-aware retraction works without
+the solver knowing manifolds exist.
 
-The dynamics hooks (`joint_bias_acceleration`,
-`joint_motion_subspace_derivative`) are required for RNEA. For
-revolute, prismatic, and free-flyer joints they are identically zero;
-for spherical, anatomical, or coupled joints they are non-zero. The
-defaults return zero so simple kinds inherit them automatically.
+Optional duck-typed dynamics hooks (`joint_bias_acceleration` and
+`joint_motion_subspace_derivative`) deliberately live outside the
+runtime-checkable Protocol so they do not become mandatory for custom joints.
+Dispatch helpers fall back to correctly shaped zeros, and every currently
+shipped joint kind uses that zero fallback. A future joint with a
+configuration-dependent motion subspace can provide either hook explicitly.
 
 ## The joint taxonomy
 
@@ -124,13 +112,14 @@ defaults return zero so simple kinds inherit them automatically.
 | `JointPlanar` | `planar` | 4 | 3 | SE(2) — `(x, y, cosθ, sinθ)`. |
 | `JointHelical` | `helical` | 1 | 1 | Pitch-coupled rotation + translation. |
 | `JointComposite` | `composite` | Σ | Σ | Stack of sub-joints. |
-| `JointMimic` | `mimic` | 0 | 0 | Zero-DOF, value derived from another joint. |
+| `JointMimic` | `mimic` | 0 | 0 | Unused placeholder; model loading does not select it. |
 
 Source: `src/better_robot/data_model/joint_models/`.
 
-Each kind is a single file. Adding a new kind — a `JointCoupled` for
-a tendon-driven finger, say — is a single-file change plus a
-registration entry. See {doc}`/conventions/extension` §2.
+Built-in families are split across focused files. A custom `JointModel` is
+supplied explicitly to `ModelBuilder.add_joint(kind=instance, ...)`; there is
+no public import-time joint registry. See {doc}`/conventions/extension` for the
+full extension contract.
 
 ### Why `nq != nv` for some kinds
 
@@ -153,9 +142,10 @@ A floating-base robot is loaded with `free_flyer=True`:
 
 ```python
 import better_robot as br
+from robot_descriptions import g1_description, panda_description
 
-panda = br.load("panda.urdf")                     # fixed base; nq=7, nv=7
-g1    = br.load("g1.urdf", free_flyer=True)       # floating base; nq=43, nv=42
+panda = br.load(panda_description.URDF_PATH)                 # nq=8, nv=8
+g1 = br.load(g1_description.URDF_PATH, free_flyer=True)      # nq=36, nv=35
 ```
 
 For G1, `g1.joint_models[1]` is `JointFreeFlyer`. The first 7 entries
@@ -171,26 +161,24 @@ is no `setFloatingBase()` call, no `base_pose` argument, no
 both:
 
 ```python
-panda_result = br.solve_ik(panda, {"panda_hand": target})
-g1_result    = br.solve_ik(g1,    {"left_hand": lh_target,
-                                    "right_hand": rh_target})
+panda_result = br.solve_ik(panda, {"body_panda_hand": target})
+g1_result    = br.solve_ik(g1,    {"body_left_rubber_hand": lh_target,
+                                    "body_right_rubber_hand": rh_target})
 ```
 
 The test that proves this works is
-`tests/tasks/test_g1_floating_ik.py`: it loads G1 with `free_flyer=True`,
-calls `solve_ik` for four whole-body targets, and verifies that the
-result frame poses match within tolerance — using the same code path
-as the Panda test.
+`tests/tasks/test_ik_regression.py`: it loads G1 with `free_flyer=True`,
+calls `solve_ik` for a reachable end-effector target, and verifies that the
+result frame position matches within tolerance — using the same code path as
+the Panda test.
 
-## Mimic joints — the gather trick
+## Mimic joints — reduced coordinates
 
-URDF supports `<mimic>` joints whose configuration is a linear
-function of another joint's. A naive implementation runs an
-`if joint.kind == "mimic"` check inside the FK loop; that branches
-the hot path and breaks `torch.compile`.
-
-PyRoki's solution, which we adopted: store three tensors on `Model`,
-one entry per joint:
+URDF `<mimic>` targets do not contribute public configuration or tangent
+coordinates. BetterRobot expands the affine source relationship into the full
+concrete-joint layout before FK or dynamics, then projects tangent-space
+outputs back to the reduced public layout. The parsed immediate relationship
+remains available as metadata:
 
 ```python
 mimic_multiplier: torch.Tensor   # (njoints,)  1.0 for non-mimic joints
@@ -198,17 +186,20 @@ mimic_offset:     torch.Tensor   # (njoints,)  0.0 for non-mimic joints
 mimic_source:     tuple[int, ...]  # source-joint index, or self-index
 ```
 
-The full-q expansion is then a vectorised gather + multiply with no
-Python branching:
+The resolved maps are `q_expansion (nq_full, nq)`,
+`q_offset (nq_full,)`, and `v_expansion (nv_full, nv)`. FK expands `q`;
+Jacobians and centroidal maps right-multiply by `v_expansion`; RNEA
+accumulates full torque through it; CRBA projects on both sides. Mimic ABA
+solves the projected mass/bias system because reducing a full-space ABA result
+would not enforce the constraint.
 
-```python
-q_full[i] = mult[i] * q_active[src[i]] + off[i]
-```
-
-For non-mimic joints, `mult[i] = 1.0`, `off[i] = 0.0`, `src[i] = i`,
-so the formula is the identity. For mimic joints, the values come from
-the URDF `<mimic>` tag. The hot path is one tensor expression
-regardless of whether the robot has mimic joints.
+The supported subset is explicit: source/target chains must use concrete
+scalar bounded revolute, prismatic, or helical joint models (`nq=nv=1`).
+Continuous/unit-circle, spherical, free-flyer, planar, translation,
+composite, fixed, and custom endpoints fail at build time, as do cycles. A
+zero multiplier is a constant target only when the offset satisfies its
+limits. The opt-in Warp FK lane falls back to Torch for reduced mimic
+models.
 
 ## `Frame` — the indirection layer
 
@@ -231,24 +222,25 @@ is computed on demand by `update_frame_placements` and lives on
 
 Why this indirection is worth its weight:
 
-- IK targets address frames by name (`{"panda_hand": target}`),
+- IK targets address frames by name (`{"body_panda_hand": target}`),
   not joint indices. The user never has to compute "joint 7's
   position offset by the tool tip."
-- Visualisation code can query `data.frame_pose("camera_optical")`
-  without inflating the joint count.
+- Visualisation code can resolve a name through `model.frame_id(...)`, then
+  query `data.frame_pose(frame_id)` without inflating the joint count.
 - Sensor mounting points (IMU, force-torque, motion-capture markers)
   are frames, not bodies. Adding a frame is a metadata-only change.
 
 ```python
-frame_id    = model.frame_id("panda_hand_tcp")
+frame_id    = model.frame_id("body_panda_hand_tcp")
 target_pose = data.frame_pose_world[..., frame_id, :]
 # Or, typed:
-T_tool = data.frame_pose("panda_hand_tcp")           # SE3
+T_tool = data.frame_pose(frame_id)                         # SE3
 ```
 
-Every body gets a default frame named `"body_<bodyname>"`, located at
-the body's inertial origin. User-added frames live alongside in
-`model.frames`.
+Every body gets a default frame named `"body_<bodyname>"`, with identity
+placement at the attached joint/link coordinate frame. The body's centre of
+mass is stored separately in `model.body_inertias`; it is not the default
+frame origin. User-added frames live alongside in `model.frames`.
 
 ## `Body` — the rigid link
 
@@ -285,9 +277,10 @@ Joint 0's "body" is the universe (zero inertia, no visual geometry).
   revolute joints. It cannot be substituted by an XYZ Euler set —
   the Euler representation has gimbal-lock singularities that an SO(3)
   parameterisation does not.
-- `JointMimic` has `nq=0` / `nv=0`. The "shadow" configuration of a
-  mimic joint is computed from the source via the gather trick and
-  does not occupy any slot in `q`.
+- An accepted identity `<mimic>` tag does not select `JointMimic` or
+  remove a coordinate. Its target joint retains an independent slot in
+  `q` and `v` under the explicit identity exemption. Supported non-identity
+  mimic chains use the reduced-coordinate maps described above.
 
 ## Where to look next
 

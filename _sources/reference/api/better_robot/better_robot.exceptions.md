@@ -91,16 +91,6 @@ Bases: {py:obj}`better_robot.exceptions.BetterRobotError`, {py:obj}`ImportError`
 
 ````
 
-````{py:exception} IRSchemaVersionError()
-:canonical: better_robot.exceptions.IRSchemaVersionError
-
-Bases: {py:obj}`better_robot.exceptions.BetterRobotError`, {py:obj}`ValueError`
-
-```{autodoc2-docstring} better_robot.exceptions.IRSchemaVersionError
-```
-
-````
-
 ````{py:exception} StaleCacheError()
 :canonical: better_robot.exceptions.StaleCacheError
 

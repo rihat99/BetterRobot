@@ -14,5 +14,4 @@
 :maxdepth: 1
 
 better_robot.costs.stack
-better_robot.costs.factory
 ```
