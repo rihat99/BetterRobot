@@ -69,7 +69,6 @@ def _validate_q(
     """
     if q.ndim < 1 or q.shape[-1] != structure.nq:
         raise ShapeError(f"q has shape {tuple(q.shape)}; expected trailing size model.nq={structure.nq}")
-    values.validate(structure)
     if q.dtype not in (torch.float32, torch.float64):
         raise DtypeMismatchError(f"q.dtype={q.dtype} is unsupported; use torch.float32 or torch.float64")
     model_dtype = values.joint_placements.dtype
@@ -297,7 +296,6 @@ def update_frame_placements(model: Model, data: Data) -> Data:
     joint_pose_world = data.joint_pose_world
     assert joint_pose_world is not None, "call forward_kinematics before update_frame_placements"
 
-    model.values.validate(model.structure)
     data.frame_pose_world = frame_placements_raw(
         model.structure,
         model.values,

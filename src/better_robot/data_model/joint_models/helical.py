@@ -9,6 +9,16 @@ from dataclasses import dataclass, field
 
 import torch
 
+from ...lie import se3 as _se3
+
+
+def _helical_transform(axis, pitch, q_slice) -> torch.Tensor:
+    """Coupled translation and rotation for a helical joint."""
+    axis, angle = axis.to(q_slice.device, q_slice.dtype), q_slice[..., 0]
+    rotation = _se3.from_axis_angle(axis, angle)
+    translation = _se3.from_translation(axis, pitch * angle)
+    return _se3.compose(translation, rotation)
+
 
 @dataclass(frozen=True)
 class JointHelical:
@@ -25,17 +35,7 @@ class JointHelical:
 
     def joint_transform(self, q_slice: torch.Tensor) -> torch.Tensor:
         """Combined rotation + translation. q_slice: (B..., 1) → (B..., 7)."""
-        from ...lie import se3 as _se3
-        angle = q_slice[..., 0]
-        axis = self.axis.to(q_slice.device, q_slice.dtype)
-        # rotation part
-        T_rot = _se3.from_axis_angle(axis, angle)
-        # translation part: disp = pitch * angle along axis
-        if self.pitch != 0.0:
-            disp = angle * float(self.pitch)
-            T_trans = _se3.from_translation(axis, disp)
-            return _se3.compose(T_trans, T_rot)
-        return T_rot
+        return _helical_transform(self.axis, self.pitch, q_slice)
 
     def joint_motion_subspace(self, q_slice: torch.Tensor) -> torch.Tensor:
         """S = [pitch*axis, axis]^T. (B..., 6, 1)."""

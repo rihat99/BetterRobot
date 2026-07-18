@@ -12,13 +12,17 @@ from dataclasses import dataclass, field
 import torch
 
 from ...lie import se3 as _se3
-from ...lie import so3 as _so3
 
 
 def _revolute_transform(axis: torch.Tensor, q_slice: torch.Tensor) -> torch.Tensor:
     """Pure-rotation SE3 for any revolute axis. q_slice: (B..., 1) → (B..., 7)."""
-    angle = q_slice[..., 0]   # (B...)
+    angle = q_slice[..., 0]
     return _se3.from_axis_angle(axis.to(q_slice.device, q_slice.dtype), angle)
+
+
+def _revolute_unbounded_transform(axis, q_slice) -> torch.Tensor:
+    """Pure rotation from a ``(cos(theta), sin(theta))`` pair."""
+    return _revolute_transform(axis, torch.atan2(q_slice[..., 1], q_slice[..., 0]).unsqueeze(-1))
 
 
 def _revolute_subspace(axis: torch.Tensor, q_slice: torch.Tensor) -> torch.Tensor:
@@ -203,11 +207,7 @@ class JointRevoluteUnbounded:
 
     def joint_transform(self, q_slice: torch.Tensor) -> torch.Tensor:
         """q_slice = (B..., 2) = [cos θ, sin θ] → SE3 rotation by θ."""
-        cos_t = q_slice[..., 0]
-        sin_t = q_slice[..., 1]
-        # angle = atan2(sin_t, cos_t)
-        angle = torch.atan2(sin_t, cos_t)
-        return _revolute_transform(self.axis, angle.unsqueeze(-1))
+        return _revolute_unbounded_transform(self.axis, q_slice)
 
     def joint_motion_subspace(self, q_slice):
         # Same 6×1 angular subspace
@@ -235,7 +235,7 @@ class JointRevoluteUnbounded:
 
     def random_configuration(self, generator, lower, upper) -> torch.Tensor:
         """Uniform angle on the full circle [−π, π]."""
-        theta = (torch.rand(1, generator=generator) * 2 * 3.14159265358979 - 3.14159265358979)
+        theta = torch.rand(1, generator=generator) * 2 * 3.14159265358979 - 3.14159265358979
         return torch.cat([torch.cos(theta), torch.sin(theta)], dim=-1)
 
     def neutral(self) -> torch.Tensor:

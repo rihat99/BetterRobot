@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 import torch
 
 from better_robot.residuals.chamfer import MaskedChamferResidual
@@ -85,6 +86,27 @@ def test_chamfer_batched_values_match_sequential_with_shared_padded_target() -> 
             }
         )
         torch.testing.assert_close(batched[index], sequential)
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("target_points", torch.zeros(1, 3)),
+        ("target_validity", torch.ones(1, dtype=torch.bool)),
+    ],
+)
+def test_chamfer_rejects_missing_configured_frame_axis(key: str, value: torch.Tensor) -> None:
+    residual = MaskedChamferResidual(2, 1, 1, bidirectional=False)
+    context = {
+        "points": torch.zeros(2, 1, 3),
+        "target_points": torch.zeros(2, 1, 3),
+        "point_validity": torch.ones(2, 1, dtype=torch.bool),
+        "target_validity": torch.ones(2, 1, dtype=torch.bool),
+    }
+    context[key] = value
+
+    with pytest.raises(ValueError, match=key):
+        residual(context)
 
 
 def test_chamfer_gradient_uses_selected_valid_correspondence_only() -> None:

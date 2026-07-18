@@ -6,6 +6,9 @@ import torch
 
 from ..lie import se3
 from .joint_models.base import JointModel
+from .joint_models.helical import _helical_transform
+from .joint_models.prismatic import _prismatic_transform
+from .joint_models.revolute import _revolute_transform, _revolute_unbounded_transform
 from .model_structure import JOINT_KIND_CODES
 
 
@@ -48,17 +51,13 @@ def joint_transform(
             dtype=q_slice.dtype,
         )
     if kind_code in _REVOLUTE_CODES:
-        return se3.from_axis_angle(axis, q_slice[..., 0])
+        return _revolute_transform(axis, q_slice)
     if kind_code == JOINT_KIND_CODES["revolute_unbounded"]:
-        angle = torch.atan2(q_slice[..., 1], q_slice[..., 0])
-        return se3.from_axis_angle(axis, angle)
+        return _revolute_unbounded_transform(axis, q_slice)
     if kind_code in _PRISMATIC_CODES:
-        return se3.from_translation(axis, q_slice[..., 0])
+        return _prismatic_transform(axis, q_slice)
     if kind_code == JOINT_KIND_CODES["helical"]:
-        angle = q_slice[..., 0]
-        rotation = se3.from_axis_angle(axis, angle)
-        translation = se3.from_translation(axis, pitch * angle)
-        return se3.compose(translation, rotation)
+        return _helical_transform(axis, pitch, q_slice)
     return joint.joint_transform(q_slice)
 
 

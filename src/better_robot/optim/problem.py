@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from numbers import Real
 from types import MappingProxyType
 from typing import Any, Literal, Protocol, TypeAlias, runtime_checkable
 
 import torch
 
+from . import kernels as _kernels
 from .autograd import _tangent_value_and_grad
-from .kernels import L2, RobustKernel, _group_rows
+from .kernels import L2, RobustKernel, _broadcast_weight, _group_rows
 from .manifolds import Bounds, Euclidean, Manifold, RobotConfig, SE3Manifold, SO3Manifold
 from .providers import EvaluationContext, Provider, RobotStateProvider
 from .temporal import StructuredNormal, analyze_temporal_problem, assemble_structured_normal
@@ -44,13 +44,13 @@ class ResidualItem:
         residual_name = getattr(self.residual, "name", None)
         dim = getattr(self.residual, "dim", None)
         if not isinstance(self.name, str) or not self.name:
-            raise ValueError("ResidualItem name must be non-empty")
+            raise ValueError(f"ResidualItem name must be a non-empty string, got {self.name!r}")
         if not isinstance(residual_name, str) or not residual_name:
             raise TypeError("A residual must declare a non-empty string name")
         if residual_name != self.name:
             raise ValueError(f"ResidualItem name {self.name!r} does not match residual name {residual_name!r}")
         if not isinstance(dim, int) or dim <= 0:
-            raise ValueError(f"Residual {self.name!r} must declare a positive static dim")
+            raise ValueError(f"Residual {self.name!r} must declare a positive static dim, got {dim!r}")
         if not isinstance(self.group_size, int) or self.group_size <= 0 or dim % self.group_size:
             raise ValueError(
                 f"ResidualItem {self.name!r} group_size must be a positive divisor of dim={dim}, got {self.group_size!r}"
@@ -59,7 +59,7 @@ class ResidualItem:
             raise TypeError(
                 f"ResidualItem {self.name!r} kernel must implement rho(squared_norm) and weight(squared_norm)"
             )
-        _validate_weight_type(self.name, self.weight)
+        _kernels._validate_weight_type(self.name, self.weight)
 
 
 @dataclass(frozen=True)
@@ -74,37 +74,6 @@ class _CallableResidual:
 
     def __getattr__(self, attribute: str) -> Any:
         return getattr(self.fn, attribute)
-
-
-def _validate_weight_type(name: str, weight: Weight) -> None:
-    if not isinstance(weight, (Real, torch.Tensor)):
-        raise TypeError(f"Weight for item {name!r} must be a real number or torch.Tensor")
-    if isinstance(weight, torch.Tensor) and not weight.is_floating_point():
-        raise TypeError(f"Tensor weight for item {name!r} must use a floating dtype")
-
-
-def _is_inactive(weight: Weight) -> bool:
-    return isinstance(weight, Real) and float(weight) == 0.0
-
-
-def _broadcast_weight(weight: Weight, output: torch.Tensor) -> torch.Tensor:
-    result = weight.to(output) if isinstance(weight, torch.Tensor) else output.new_full((), float(weight))
-    return result.reshape(*result.shape, *((1,) * (output.ndim - result.ndim)))
-
-
-def _validate_runtime_weight(name: str, weight: Weight, batch_shape: tuple[int, ...], exemplar: torch.Tensor) -> None:
-    if not isinstance(weight, torch.Tensor):
-        return
-    if tuple(weight.shape) not in ((), batch_shape):
-        raise ValueError(
-            f"Tensor weight for item {name!r} must be scalar or have exact batch shape {batch_shape}, "
-            f"got {tuple(weight.shape)}"
-        )
-    if weight.dtype != exemplar.dtype or weight.device != exemplar.device:
-        raise ValueError(
-            f"Tensor weight for item {name!r} must preserve working dtype/device "
-            f"{exemplar.dtype}/{exemplar.device}, got {weight.dtype}/{weight.device}"
-        )
 
 
 def _named(items: Sequence[Any], label: str) -> dict[str, Any]:
@@ -296,10 +265,6 @@ class Problem:
     ) -> ResidualItem:
         item_name = name or getattr(residual, "name", None) or getattr(residual, "__name__", None)
         residual_dim = dim if dim is not None else getattr(residual, "dim", None)
-        if not isinstance(item_name, str) or not item_name:
-            raise ValueError("residual name must be provided or available as name/__name__")
-        if not isinstance(residual_dim, int) or residual_dim <= 0:
-            raise ValueError(f"Residual {item_name!r} needs a positive static dim")
         reads = getattr(residual, "reads", None)
         if reads is None and len(self.vars) == 1:
             reads = (self.vars[0].name,)
@@ -361,15 +326,11 @@ class Problem:
         if unknown := set(weights) - set(self._residuals_by_name):
             raise ValueError(f"weight overrides contain unknown item names {sorted(unknown)}")
         for name, weight in weights.items():
-            _validate_weight_type(name, weight)
+            _kernels._validate_weight_type(name, weight)
 
     def _prepare(self, values: Mapping[str, torch.Tensor], weights: Mapping[str, Weight] | None) -> tuple[int, ...]:
         self._validate_weights(weights)
-        batch_shape = self._validate_values(values)
-        exemplar = values[self.vars[0].name]
-        for item in self.residuals:
-            _validate_runtime_weight(item.name, self._weights_for(item, weights), batch_shape, exemplar)
-        return batch_shape
+        return self._validate_values(values)
 
     @staticmethod
     def _validate_residual_output(
@@ -399,8 +360,8 @@ class Problem:
         for item in self.residuals:
             weight = self._weights_for(item, weights)
             if validate_runtime:
-                _validate_runtime_weight(item.name, weight, batch_shape, exemplar)
-            if _is_inactive(weight):
+                _kernels._validate_runtime_weight(item.name, weight, batch_shape, exemplar)
+            if _kernels._is_inactive(weight):
                 continue
             output = item.residual(ctx)
             if validate_runtime:
@@ -426,7 +387,7 @@ class Problem:
         residual = self._residual_with_context(values, batch_shape, ctx, weights, validate_runtime=validate_runtime)
         cost = values[self.vars[0].name].new_zeros(batch_shape)
         for item in self.residuals:
-            if _is_inactive(self._weights_for(item, weights)):
+            if _kernels._is_inactive(self._weights_for(item, weights)):
                 continue
             groups = _group_rows(residual[..., self.row_offsets[item.name]], item.group_size)
             kernel = item.kernel if item.kernel is not None else _L2_KERNEL
@@ -458,9 +419,7 @@ class Problem:
         create_graph: bool = False,
     ) -> tuple[torch.Tensor, Values]:
         def closure(perturbed: Values) -> torch.Tensor:
-            return self._objective_with_context(
-                perturbed, batch_shape, self._make_context(perturbed), weights, validate_runtime=False
-            )
+            return self._objective_with_context(perturbed, batch_shape, self._make_context(perturbed), weights)
 
         return _tangent_value_and_grad(
             closure,
@@ -585,7 +544,8 @@ class Problem:
         result: dict[tuple[str, str], torch.Tensor] = {}
         for item in self.residuals:
             weight = self._weights_for(item, weights)
-            if _is_inactive(weight):
+            _kernels._validate_runtime_weight(item.name, weight, batch_shape, values[self.vars[0].name])
+            if _kernels._is_inactive(weight):
                 continue
             analytic: Mapping[str, torch.Tensor] = {}
             analytic_fn = getattr(item.residual, "jacobian_blocks", None)
@@ -642,12 +602,11 @@ class Problem:
         strategy: JacobianStrategy = "auto",
         create_graph: bool = False,
     ) -> torch.Tensor:
-        _check_strategy(strategy, create_graph)
-        batch_shape = self._validate_values(values)
-        dense = values[self.vars[0].name].new_zeros(*batch_shape, self.dim_total, self.tangent_dim_total)
-        for (residual_name, variable_name), block in self.jacobian_blocks(
-            values, weights=weights, strategy=strategy, create_graph=create_graph
-        ).items():
+        blocks = self.jacobian_blocks(values, weights=weights, strategy=strategy, create_graph=create_graph)
+        exemplar = values[self.vars[0].name]
+        batch_shape = tuple(exemplar.shape[: exemplar.ndim - len(self.vars[0].shape)])
+        dense = exemplar.new_zeros(*batch_shape, self.dim_total, self.tangent_dim_total)
+        for (residual_name, variable_name), block in blocks.items():
             dense[..., self.row_offsets[residual_name], self.column_offsets[variable_name]] = block
         return dense
 

@@ -1,7 +1,7 @@
 """``better_robot.residuals`` — residual classes.
 
-Every residual is a callable over a named-block context. Optional analytic
-Jacobians are exposed as named ``jacobian_blocks``.
+Every residual is a callable over an evaluation context. Optional analytic
+Jacobians are exposed through ``jacobian_blocks``.
 
 See ``docs/concepts/residuals_and_costs.md``.
 """

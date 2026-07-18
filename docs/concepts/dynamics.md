@@ -137,8 +137,8 @@ def compute_centroidal_map(model, q, *, data=None) -> Tensor:
 def compute_centroidal_momentum(model, q, v, *, data=None) -> Tensor:
     """h_g = A_g(q) v ∈ (B..., 6). Populates ``data.centroidal_momentum``."""
 
-def ccrba(model, q, v, *, data=None) -> tuple[Tensor, Tensor]:
-    """Centroidal CRBA — returns (A_g, h_g)."""
+def ccrba(model, q, v, *, data=None) -> CCRBAResult:
+    """Centroidal CRBA — named fields ``centroidal_map`` and ``momentum``."""
 ```
 
 ## Derivatives

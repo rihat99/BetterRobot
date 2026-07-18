@@ -19,14 +19,8 @@ import torch
 
 from ..data_model.model import Model
 from ._temporal_jacobian import dense_temporal_jacobian, temporal_free_indices
+from .base import _configuration
 from .structure import TemporalPattern
-
-
-def _configuration(ctx: Mapping[str, Any]) -> torch.Tensor:
-    q = ctx["q"]
-    if not isinstance(q, torch.Tensor):
-        raise TypeError("named context entry 'q' must be a torch.Tensor")
-    return q
 
 
 def _require_traj(q: torch.Tensor, name: str) -> int:
@@ -97,7 +91,7 @@ class VelocityResidual:
         if self.horizon is not None and T != self.horizon:
             raise ValueError(f"VelocityResidual: trajectory horizon {T} != declared horizon {self.horizon}")
         if self.horizon is None:
-            raise ValueError("VelocityResidual requires horizon=... for named-block use")
+            raise ValueError("VelocityResidual requires horizon=... for problem use")
         self.dim = (T - 2) * self.model.nv
         return q, T
 
@@ -152,7 +146,7 @@ class VelocityResidual:
     def jacobian_blocks(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
         pattern = self.temporal_structure("q")
         if pattern is None:
-            raise ValueError("VelocityResidual requires horizon=... for named-block use")
+            raise ValueError("VelocityResidual requires horizon=... for problem use")
         blocks = self.temporal_jacobian_blocks(ctx, "q")
         return {"q": dense_temporal_jacobian(pattern, blocks, horizon=self.horizon)}
 
@@ -197,7 +191,7 @@ class AccelerationResidual:
         if self.horizon is not None and T != self.horizon:
             raise ValueError(f"AccelerationResidual: trajectory horizon {T} != declared horizon {self.horizon}")
         if self.horizon is None:
-            raise ValueError("AccelerationResidual requires horizon=... for named-block use")
+            raise ValueError("AccelerationResidual requires horizon=... for problem use")
         self.dim = (T - 2) * self.model.nv
         return q, T
 
@@ -253,7 +247,7 @@ class AccelerationResidual:
     def jacobian_blocks(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
         pattern = self.temporal_structure("q")
         if pattern is None:
-            raise ValueError("AccelerationResidual requires horizon=... for named-block use")
+            raise ValueError("AccelerationResidual requires horizon=... for problem use")
         blocks = self.temporal_jacobian_blocks(ctx, "q")
         return {"q": dense_temporal_jacobian(pattern, blocks, horizon=self.horizon)}
 

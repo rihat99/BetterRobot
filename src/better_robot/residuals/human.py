@@ -3,7 +3,7 @@
 Swing/twist decomposition is expressed in each joint's local coordinates.
 The decomposition has an unavoidable singularity at a pure 180-degree swing;
 this module uses the conventional zero-twist representative there and leaves
-Jacobian construction to the named-block tangent-AD path.
+Jacobian construction to the problem's tangent-space AD path.
 """
 
 from __future__ import annotations
@@ -15,15 +15,10 @@ from typing import Any
 
 import torch
 
+from .._validation import check_tensor
 from ..data_model.model import Model
 from ..lie import so3
-
-
-def _configuration(ctx: Mapping[str, Any]) -> torch.Tensor:
-    q = ctx["q"]
-    if not isinstance(q, torch.Tensor):
-        raise TypeError("named context entry 'q' must be a torch.Tensor")
-    return q
+from .base import _configuration
 
 
 def _per_joint_values(
@@ -39,19 +34,14 @@ def _per_joint_values(
             float(value),  # bench-ok: constructor-only Python scalar, never a tensor
             dtype=torch.float32,
         )
-    elif isinstance(value, torch.Tensor):
-        if not value.is_floating_point():
-            raise TypeError(f"{label} must use a floating dtype")
+    else:
+        value = check_tensor(label, value, floating=True)
         if value.ndim == 0:
             result = value.expand(count)
-        elif tuple(value.shape) == (count,):
-            result = value
-        else:
+        elif tuple(value.shape) != (count,):
             raise ValueError(f"{label} must be scalar or have shape ({count},), got {tuple(value.shape)}")
-    else:
-        raise TypeError(f"{label} must be a real number or torch.Tensor")
-    if not bool(torch.isfinite(result).all()):
-        raise ValueError(f"{label} must contain only finite values")
+        else:
+            result = value
     return result
 
 
@@ -72,7 +62,7 @@ class SwingTwistLimitResidual:
     Quaternion sign is folded by wrapping twist through ``atan2(sin, cos)``.
     A pure pi swing has no unique twist; the residual assigns zero twist in a
     tiny neighbourhood of that singularity. Consequently there is no truthful
-    globally analytic Jacobian. Named-block problems use tangent-space AD;
+    globally analytic Jacobian. Problems use tangent-space AD;
     callers may select the explicit finite-difference debug strategy.
     """
 
@@ -108,16 +98,13 @@ class SwingTwistLimitResidual:
                 )
 
         count = len(ids)
-        if not isinstance(twist_axis, torch.Tensor) or not twist_axis.is_floating_point():
-            raise TypeError("twist_axis must be a floating torch.Tensor")
+        twist_axis = check_tensor("twist_axis", twist_axis, floating=True)
         if tuple(twist_axis.shape) == (3,):
             axes = twist_axis.expand(count, 3)
         elif tuple(twist_axis.shape) == (count, 3):
             axes = twist_axis
         else:
             raise ValueError(f"twist_axis must have shape (3,) or ({count}, 3), got {tuple(twist_axis.shape)}")
-        if not bool(torch.isfinite(axes).all()):
-            raise ValueError("twist_axis must contain only finite values")
         axis_norm = torch.linalg.vector_norm(axes, dim=-1)
         if not torch.allclose(axis_norm, torch.ones_like(axis_norm), atol=2e-6, rtol=2e-5):
             raise ValueError("every twist_axis row must have unit norm")
@@ -127,9 +114,7 @@ class SwingTwistLimitResidual:
             raise ValueError("swing_max must lie strictly inside (0, pi)")
 
         if isinstance(twist_range, torch.Tensor):
-            if not twist_range.is_floating_point():
-                raise TypeError("twist_range must use a floating dtype")
-            ranges = twist_range
+            ranges = check_tensor("twist_range", twist_range, floating=True)
         else:
             try:
                 ranges = torch.tensor(tuple(twist_range), dtype=torch.float32)
@@ -139,8 +124,6 @@ class SwingTwistLimitResidual:
             ranges = ranges.expand(count, 2)
         elif tuple(ranges.shape) != (count, 2):
             raise ValueError(f"twist_range must have shape (2,) or ({count}, 2), got {tuple(ranges.shape)}")
-        if not bool(torch.isfinite(ranges).all()):
-            raise ValueError("twist_range must contain only finite values")
         lower, upper = ranges.unbind(dim=-1)
         if bool(torch.any((lower <= -math.pi) | (upper >= math.pi) | (lower > upper))):
             raise ValueError("twist_range rows must be non-wrapping intervals strictly inside (-pi, pi)")

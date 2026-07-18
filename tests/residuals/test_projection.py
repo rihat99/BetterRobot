@@ -7,6 +7,7 @@ import math
 import pytest
 import torch
 
+from better_robot.exceptions import DtypeMismatchError
 from better_robot.io import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.optim import Problem, ResidualItem, RobotConfig, RobotStateProvider, VarSpec
@@ -303,7 +304,7 @@ def test_projection_named_observations_validate_runtime_dtype() -> None:
         parameters={"observed_px": torch.zeros(2, 2, dtype=torch.float64)},
     )
 
-    with pytest.raises(TypeError, match="target_px must have dtype"):
+    with pytest.raises(DtypeMismatchError, match=r"target_px\.dtype"):
         problem.residual({"q": torch.tensor([0.2])})
 
 

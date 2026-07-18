@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 import torch
 
-from better_robot.dynamics import aba, ccrba, crba, rnea
+from better_robot.dynamics import CCRBAResult, aba, ccrba, crba, rnea
 from better_robot.exceptions import ShapeError
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
@@ -48,6 +48,16 @@ def _inertia_batch(model, batch_shape: tuple[int, ...]) -> torch.Tensor:
     inertias[..., 2, 0] *= scales
     inertias[..., 2, 4:10] *= scales[..., None]
     return inertias
+
+
+def test_ccrba_returns_named_tuple_compatible_fields() -> None:
+    model = _model()
+    result = ccrba(model, model.q_neutral, torch.zeros(model.nv, dtype=model.q_neutral.dtype))
+    centroidal_map, momentum = result
+
+    assert isinstance(result, CCRBAResult)
+    assert result.centroidal_map is centroidal_map
+    assert result.momentum is momentum
 
 
 @pytest.mark.parametrize("batch_shape", ((3,), (2, 2)))

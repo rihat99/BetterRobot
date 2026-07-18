@@ -14,13 +14,7 @@ from typing import Any
 import torch
 
 from ..data_model.model import Model
-
-
-def _configuration(ctx: Mapping[str, Any]) -> torch.Tensor:
-    q = ctx["q"]
-    if not isinstance(q, torch.Tensor):
-        raise TypeError("named context entry 'q' must be a torch.Tensor")
-    return q
+from .base import _configuration
 
 
 class JointPositionLimit:

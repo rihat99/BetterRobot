@@ -131,21 +131,11 @@ def _flatten_input(
     event_ndims: int,
     execution_shape: tuple[int, ...],
 ) -> ExecutionInput:
-    if event_ndims < 0 or event_ndims > tensor.ndim:
-        raise ShapeError(f"event_ndims={event_ndims} is invalid for tensor shape {tuple(tensor.shape)}")
     batch_shape = tuple(tensor.shape[: tensor.ndim - event_ndims])
     event_shape = tuple(tensor.shape[tensor.ndim - event_ndims :]) if event_ndims else ()
     unique_rows = prod(batch_shape) if batch_shape else 1
     flat = tensor.reshape(unique_rows, *event_shape)
-
-    pad = len(execution_shape) - len(batch_shape)
-    if pad < 0:
-        raise ShapeError(f"input batch {batch_shape} has more axes than execution batch {execution_shape}")
-    padded = (1,) * pad + batch_shape
-    for source, target in zip(padded, execution_shape):
-        if source not in (1, target):
-            raise ShapeError(f"input batch shape {batch_shape} cannot broadcast to {execution_shape}")
-
+    padded = (1,) * (len(execution_shape) - len(batch_shape)) + batch_shape
     ids = torch.arange(unique_rows, dtype=torch.int64, device=tensor.device)
     ids = ids.reshape(padded or ())
     batch_indices = ids.expand(execution_shape or ()).reshape(-1)

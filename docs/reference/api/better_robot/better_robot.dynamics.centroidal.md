@@ -19,6 +19,10 @@
   - ```{autodoc2-docstring} better_robot.dynamics.centroidal.CentroidalResult
     :summary:
     ```
+* - {py:obj}`CCRBAResult <better_robot.dynamics.centroidal.CCRBAResult>`
+  - ```{autodoc2-docstring} better_robot.dynamics.centroidal.CCRBAResult
+    :summary:
+    ```
 ````
 
 ### Functions
@@ -125,6 +129,38 @@
 
 `````
 
+`````{py:class} CCRBAResult
+:canonical: better_robot.dynamics.centroidal.CCRBAResult
+
+Bases: {py:obj}`typing.NamedTuple`
+
+```{autodoc2-docstring} better_robot.dynamics.centroidal.CCRBAResult
+```
+
+````{py:attribute} centroidal_map
+:canonical: better_robot.dynamics.centroidal.CCRBAResult.centroidal_map
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.dynamics.centroidal.CCRBAResult.centroidal_map
+```
+
+````
+
+````{py:attribute} momentum
+:canonical: better_robot.dynamics.centroidal.CCRBAResult.momentum
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.dynamics.centroidal.CCRBAResult.momentum
+```
+
+````
+
+`````
+
 ````{py:function} ccrba_raw(structure: better_robot.data_model.model_structure.ModelStructure, values: better_robot.data_model.model_values.ModelValues, q: torch.Tensor, v: torch.Tensor | None = None) -> better_robot.dynamics.centroidal.CentroidalResult
 :canonical: better_robot.dynamics.centroidal.ccrba_raw
 
@@ -153,7 +189,7 @@
 ```
 ````
 
-````{py:function} ccrba(model: better_robot.data_model.model.Model, q: torch.Tensor, v: torch.Tensor, *, data: better_robot.data_model.data.Data | None = None) -> tuple[torch.Tensor, torch.Tensor]
+````{py:function} ccrba(model: better_robot.data_model.model.Model, q: torch.Tensor, v: torch.Tensor, *, data: better_robot.data_model.data.Data | None = None) -> better_robot.dynamics.centroidal.CCRBAResult
 :canonical: better_robot.dynamics.centroidal.ccrba
 
 ```{autodoc2-docstring} better_robot.dynamics.centroidal.ccrba

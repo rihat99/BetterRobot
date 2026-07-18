@@ -20,6 +20,7 @@ from ..data_model.model import Model
 from ..kinematics.jacobian import get_frame_jacobian
 from ..lie import se3, so3
 from ..lie.tangents import right_jacobian_inv_se3, right_jacobian_inv_so3
+from .base import _configuration
 
 
 def _context_state(
@@ -27,13 +28,11 @@ def _context_state(
     model: Model | None,
 ) -> tuple[Model, torch.Tensor, Data]:
     if model is None:
-        raise TypeError("kinematic residuals require model=... for named-context evaluation")
-    q = ctx["q"]
+        raise TypeError("kinematic residuals require model=... for evaluation")
+    q = _configuration(ctx)
     data = ctx["data"]
-    if not isinstance(q, torch.Tensor):
-        raise TypeError("named context entry 'q' must be a torch.Tensor")
     if not isinstance(data, Data):
-        raise TypeError("named context entry 'data' must be Data")
+        raise TypeError(f"data must be Data, got {type(data).__name__}")
     return model, q, data
 
 
@@ -58,7 +57,7 @@ def _target_from_input(
         return fallback
     target = ctx[target_name]
     if not isinstance(target, torch.Tensor):
-        raise TypeError(f"named-block context entry {target_name!r} must be a tensor")
+        raise TypeError(f"{target_name!r} must be a tensor, got {type(target).__name__}")
     return target
 
 

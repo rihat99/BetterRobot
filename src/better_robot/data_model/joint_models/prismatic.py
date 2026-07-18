@@ -7,6 +7,7 @@ See ``docs/concepts/joints_bodies_frames.md §5``.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import ClassVar
 
 import torch
 
@@ -46,95 +47,63 @@ _AXIS_Y = torch.tensor([0.0, 1.0, 0.0])
 _AXIS_Z = torch.tensor([0.0, 0.0, 1.0])
 
 
+class _Prismatic:
+    _joint_axis: ClassVar[torch.Tensor]
+
+    def _axis_for_ops(self):
+        return self._joint_axis
+
+    def joint_transform(self, q_slice):
+        return _prismatic_transform(self._axis_for_ops(), q_slice)
+
+    def joint_motion_subspace(self, q_slice):
+        return _prismatic_subspace(self._axis_for_ops(), q_slice)
+
+    def joint_velocity(self, q_slice, v_slice):
+        return _prismatic_velocity(self._axis_for_ops(), q_slice, v_slice)
+
+    def integrate(self, q_slice, v_slice):
+        return q_slice + v_slice
+
+    def difference(self, q0_slice, q1_slice):
+        return q1_slice - q0_slice
+
+    def random_configuration(self, generator, lower, upper):
+        return lower + (upper - lower) * torch.rand(1, generator=generator)
+
+    def neutral(self):
+        return torch.zeros(1)
+
+
 @dataclass(frozen=True)
-class JointPX:
+class JointPX(_Prismatic):
     kind: str = "prismatic_px"
     nq: int = 1
     nv: int = 1
     axis: torch.Tensor | None = None
-
-    def joint_transform(self, q_slice):
-        return _prismatic_transform(_AXIS_X, q_slice)
-
-    def joint_motion_subspace(self, q_slice):
-        return _prismatic_subspace(_AXIS_X, q_slice)
-
-    def joint_velocity(self, q_slice, v_slice):
-        return _prismatic_velocity(_AXIS_X, q_slice, v_slice)
-
-    def integrate(self, q_slice, v_slice):
-        return q_slice + v_slice
-
-    def difference(self, q0_slice, q1_slice):
-        return q1_slice - q0_slice
-
-    def random_configuration(self, generator, lower, upper):
-        return lower + (upper - lower) * torch.rand(1, generator=generator)
-
-    def neutral(self):
-        return torch.zeros(1)
+    _joint_axis: ClassVar[torch.Tensor] = _AXIS_X
 
 
 @dataclass(frozen=True)
-class JointPY:
+class JointPY(_Prismatic):
     kind: str = "prismatic_py"
     nq: int = 1
     nv: int = 1
     axis: torch.Tensor | None = None
-
-    def joint_transform(self, q_slice):
-        return _prismatic_transform(_AXIS_Y, q_slice)
-
-    def joint_motion_subspace(self, q_slice):
-        return _prismatic_subspace(_AXIS_Y, q_slice)
-
-    def joint_velocity(self, q_slice, v_slice):
-        return _prismatic_velocity(_AXIS_Y, q_slice, v_slice)
-
-    def integrate(self, q_slice, v_slice):
-        return q_slice + v_slice
-
-    def difference(self, q0_slice, q1_slice):
-        return q1_slice - q0_slice
-
-    def random_configuration(self, generator, lower, upper):
-        return lower + (upper - lower) * torch.rand(1, generator=generator)
-
-    def neutral(self):
-        return torch.zeros(1)
+    _joint_axis: ClassVar[torch.Tensor] = _AXIS_Y
 
 
 @dataclass(frozen=True)
-class JointPZ:
+class JointPZ(_Prismatic):
     kind: str = "prismatic_pz"
     nq: int = 1
     nv: int = 1
     axis: torch.Tensor | None = None
-
-    def joint_transform(self, q_slice):
-        return _prismatic_transform(_AXIS_Z, q_slice)
-
-    def joint_motion_subspace(self, q_slice):
-        return _prismatic_subspace(_AXIS_Z, q_slice)
-
-    def joint_velocity(self, q_slice, v_slice):
-        return _prismatic_velocity(_AXIS_Z, q_slice, v_slice)
-
-    def integrate(self, q_slice, v_slice):
-        return q_slice + v_slice
-
-    def difference(self, q0_slice, q1_slice):
-        return q1_slice - q0_slice
-
-    def random_configuration(self, generator, lower, upper):
-        return lower + (upper - lower) * torch.rand(1, generator=generator)
-
-    def neutral(self):
-        return torch.zeros(1)
+    _joint_axis: ClassVar[torch.Tensor] = _AXIS_Z
 
 
 @dataclass(frozen=True)
-class JointPrismaticUnaligned:
+class JointPrismaticUnaligned(_Prismatic):
     """Prismatic joint with an arbitrary 3-vector axis."""
 
     axis: torch.Tensor = field(default_factory=lambda: torch.tensor([1.0, 0.0, 0.0]))
@@ -142,23 +111,5 @@ class JointPrismaticUnaligned:
     nq: int = 1
     nv: int = 1
 
-    def joint_transform(self, q_slice):
-        return _prismatic_transform(self.axis, q_slice)
-
-    def joint_motion_subspace(self, q_slice):
-        return _prismatic_subspace(self.axis, q_slice)
-
-    def joint_velocity(self, q_slice, v_slice):
-        return _prismatic_velocity(self.axis, q_slice, v_slice)
-
-    def integrate(self, q_slice, v_slice):
-        return q_slice + v_slice
-
-    def difference(self, q0_slice, q1_slice):
-        return q1_slice - q0_slice
-
-    def random_configuration(self, generator, lower, upper):
-        return lower + (upper - lower) * torch.rand(1, generator=generator)
-
-    def neutral(self):
-        return torch.zeros(1)
+    def _axis_for_ops(self):
+        return self.axis

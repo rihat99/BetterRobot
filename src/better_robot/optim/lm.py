@@ -21,7 +21,7 @@ from .solvers import (
 from ._solver_common import _blend_values, _state_coordinates
 from .implicit import ImplicitDiffConfig
 from .manifolds import Euclidean, RobotConfig, _joint_coordinate_layout
-from .problem import JacobianStrategy, Problem
+from .problem import JacobianStrategy, Problem, _check_strategy
 from .temporal import BlockBandedMatrix, LinearizationReason
 from .variables import Values, detach_values
 
@@ -486,14 +486,7 @@ class LevenbergMarquardt:
             raise ValueError("require 0 < mu_min <= mu_max")
         if self.increase_factor_max < 2.0:
             raise ValueError("increase_factor_max must be >= 2")
-        if self.jacobian_strategy not in {
-            "auto",
-            "analytic",
-            "jacrev",
-            "jacfwd",
-            "finite_difference",
-        }:
-            raise ValueError("solver jacobian_strategy must be auto/analytic/jacrev/jacfwd/finite_difference")
+        _check_strategy(self.jacobian_strategy, False)
         if self.linearization not in {"auto", "dense", "structured"}:
             raise ValueError("linearization must be auto/dense/structured")
         if self.linear_solver is not None and not isinstance(self.linear_solver, LinearSolver):
@@ -806,7 +799,6 @@ class LevenbergMarquardt:
         create_graph: bool = False,
     ) -> tuple[Values, LMState]:
         """Canonical final-point evaluation for consistent terminal artifacts."""
-        problem._validate_values(values)
         decision = self.resolve_linearization(problem)
         bounds = (state.bound_state_index, state.bound_lower, state.bound_upper, state.bounded_mask)
         model = _linearize_model(values, problem, self, decision, bounds, create_graph)

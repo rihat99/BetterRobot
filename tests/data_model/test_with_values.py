@@ -60,7 +60,7 @@ def test_with_values_reuses_structure_and_normalizes_placements() -> None:
 )
 def test_with_values_rejects_wrong_event_shapes(name: str, shape: tuple[int, ...]) -> None:
     model = _model()
-    with pytest.raises(ShapeError, match=rf"{name} has shape .* expected trailing"):
+    with pytest.raises(ShapeError, match=rf"{name}\.shape must end in .* got"):
         model.with_values(**{name: torch.zeros(shape)})
 
 

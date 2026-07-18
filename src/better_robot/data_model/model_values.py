@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 import torch
 from torch.utils import _pytree
 
-from ..exceptions import DeviceMismatchError, DtypeMismatchError, ShapeError
+from .._validation import check_tensor
 from ..lie.tangents import hat_so3
 from .execution_batch import broadcast_execution_batch_shape
 
@@ -75,15 +75,14 @@ class ModelValues:
         }
         exemplar = self.joint_placements
         for name, event_shape in expected.items():
-            tensor = getattr(self, name)
-            if tensor.ndim < 2 or tuple(tensor.shape[-2:]) != event_shape:
-                raise ShapeError(f"{name} has shape {tuple(tensor.shape)}; expected trailing event shape {event_shape}")
-            if not tensor.is_floating_point():
-                raise DtypeMismatchError(f"{name}.dtype={tensor.dtype} is unsupported; use a floating dtype")
-            if tensor.device != exemplar.device:
-                raise DeviceMismatchError(f"{name}.device={tensor.device} != joint_placements.device={exemplar.device}")
-            if tensor.dtype != exemplar.dtype:
-                raise DtypeMismatchError(f"{name}.dtype={tensor.dtype} != joint_placements.dtype={exemplar.dtype}")
+            check_tensor(
+                name,
+                getattr(self, name),
+                shape=event_shape,
+                floating=True,
+                dtype=exemplar.dtype,
+                device=exemplar.device,
+            )
 
     def execution_batch_shape(
         self,

@@ -13,6 +13,8 @@ from dataclasses import dataclass
 
 import torch
 
+from .._validation import check_tensor
+
 
 @dataclass(frozen=True)
 class _NearestCorrespondence:
@@ -30,33 +32,30 @@ def _validate_clouds(
     query_validity: torch.Tensor,
     reference_validity: torch.Tensor,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    if not isinstance(query, torch.Tensor) or not query.is_floating_point() or query.ndim < 2:
-        raise TypeError("query points must be a floating tensor with shape (..., count, coordinates)")
-    if not isinstance(reference, torch.Tensor) or not reference.is_floating_point() or reference.ndim < 2:
-        raise TypeError("reference points must be a floating tensor with shape (..., count, coordinates)")
+    query = check_tensor("query", query, floating=True)
+    reference = check_tensor("reference", reference, floating=True, dtype=query.dtype, device=query.device)
+    if query.ndim < 2 or reference.ndim < 2:
+        raise ValueError(
+            "query and reference must have shape (..., count, coordinates), "
+            f"got {tuple(query.shape)} and {tuple(reference.shape)}"
+        )
     if query.shape[-1] != reference.shape[-1]:
         raise ValueError(
             "query and reference points must have the same coordinate dimension, "
             f"got {query.shape[-1]} and {reference.shape[-1]}"
         )
-    if query.dtype != reference.dtype or query.device != reference.device:
-        raise ValueError(
-            "query and reference points must share dtype/device, "
-            f"got {query.dtype}/{query.device} and {reference.dtype}/{reference.device}"
-        )
     if reference.shape[-2] == 0:
         raise ValueError("the padded reference point axis must contain at least one slot")
-    for label, mask, count, device in (
-        ("query_validity", query_validity, query.shape[-2], query.device),
-        ("reference_validity", reference_validity, reference.shape[-2], reference.device),
-    ):
-        if not isinstance(mask, torch.Tensor) or mask.dtype != torch.bool or mask.ndim < 1:
-            raise TypeError(f"{label} must be a bool tensor with shape (..., {count})")
-        if mask.shape[-1] != count:
-            raise ValueError(f"{label} must end in ({count},), got {tuple(mask.shape)}")
-        if mask.device != device:
-            raise ValueError(f"{label} must be on device {device}, got {mask.device}")
-
+    query_validity = check_tensor(
+        "query_validity", query_validity, shape=(query.shape[-2],), dtype=torch.bool, device=query.device
+    )
+    reference_validity = check_tensor(
+        "reference_validity",
+        reference_validity,
+        shape=(reference.shape[-2],),
+        dtype=torch.bool,
+        device=query.device,
+    )
     try:
         prefix = torch.broadcast_shapes(
             tuple(query.shape[:-2]),
@@ -77,10 +76,6 @@ def _validate_clouds(
 
 def _gather_rows(table: torch.Tensor, index: torch.Tensor) -> torch.Tensor:
     """Gather ``table[..., index, :]`` with broadcasted leading axes."""
-    if table.ndim < 2 or index.ndim < 1:
-        raise ValueError("table/index must have shapes (..., rows, width) and (..., queries)")
-    if table.device != index.device:
-        raise ValueError("table and index must be on the same device")
     try:
         prefix = torch.broadcast_shapes(tuple(table.shape[:-2]), tuple(index.shape[:-1]))
     except RuntimeError as exc:
@@ -100,14 +95,6 @@ def _detached_nearest(
     chunk_size: int,
 ) -> _NearestCorrespondence:
     """Match padded query rows while keeping the correspondence non-differentiable."""
-    if isinstance(chunk_size, bool) or not isinstance(chunk_size, int) or chunk_size <= 0:
-        raise ValueError(f"chunk_size must be a positive integer, got {chunk_size!r}")
-    query, reference, query_validity, reference_validity = _validate_clouds(
-        query,
-        reference,
-        query_validity,
-        reference_validity,
-    )
     count = query.shape[-2]
     has_reference = reference_validity.any(dim=-1, keepdim=True)
     deltas: list[torch.Tensor] = []

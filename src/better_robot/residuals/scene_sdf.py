@@ -8,7 +8,8 @@ from typing import Any
 
 import torch
 
-from ._point_cloud import _detached_nearest, _gather_rows
+from .._validation import check_tensor
+from ._point_cloud import _detached_nearest, _gather_rows, _validate_clouds
 
 
 @dataclass(frozen=True)
@@ -91,10 +92,12 @@ class SceneSDFProvider:
         return (self.output,)
 
     def __call__(self, ctx: Mapping[str, Any]) -> dict[str, SceneSDFResult]:
-        query = ctx[self.query_points]
-        scene = ctx[self.scene_points]
-        query_validity = ctx[self.query_validity]
-        scene_validity = ctx[self.scene_validity]
+        query, scene, query_validity, scene_validity = _validate_clouds(
+            ctx[self.query_points],
+            ctx[self.scene_points],
+            ctx[self.query_validity],
+            ctx[self.scene_validity],
+        )
         correspondence = _detached_nearest(
             query,
             scene,
@@ -103,16 +106,14 @@ class SceneSDFProvider:
             chunk_size=self.chunk_size,
         )
 
-        normals = ctx[self.scene_normals]
-        if not isinstance(normals, torch.Tensor) or not normals.is_floating_point():
-            raise TypeError("scene_normals must be a floating tensor")
-        if tuple(normals.shape[-2:]) != tuple(scene.shape[-2:]):
-            raise ValueError(
-                "scene_normals must match the scene point/count suffix, "
-                f"got {tuple(normals.shape)} for scene {tuple(scene.shape)}"
-            )
-        if normals.dtype != query.dtype or normals.device != query.device:
-            raise ValueError("scene_normals must share query point dtype/device")
+        normals = check_tensor(
+            self.scene_normals,
+            ctx[self.scene_normals],
+            shape=tuple(scene.shape[-2:]),
+            floating=True,
+            dtype=query.dtype,
+            device=query.device,
+        )
         nearest_normal = _gather_rows(normals, correspondence.index)
         nearest_normal = torch.where(
             correspondence.valid.unsqueeze(-1),
@@ -136,15 +137,14 @@ class SceneSDFProvider:
         confidence = confidence.clamp(min=0.0, max=1.0)
 
         if self.scene_confidence is not None:
-            scene_confidence = ctx[self.scene_confidence]
-            if not isinstance(scene_confidence, torch.Tensor) or not scene_confidence.is_floating_point():
-                raise TypeError("scene_confidence must be a floating tensor")
-            if scene_confidence.shape[-1] != scene.shape[-2]:
-                raise ValueError(
-                    f"scene_confidence must end in ({scene.shape[-2]},), got {tuple(scene_confidence.shape)}"
-                )
-            if scene_confidence.dtype != query.dtype or scene_confidence.device != query.device:
-                raise ValueError("scene_confidence must share query point dtype/device")
+            scene_confidence = check_tensor(
+                self.scene_confidence,
+                ctx[self.scene_confidence],
+                shape=(scene.shape[-2],),
+                floating=True,
+                dtype=query.dtype,
+                device=query.device,
+            )
             gathered_confidence = _gather_rows(
                 scene_confidence.unsqueeze(-1),
                 correspondence.index,
@@ -202,10 +202,8 @@ class _ScenePenaltyResidual:
             ("confidence", result.confidence),
             ("has_point", result.has_point),
         ):
-            if value.ndim < 2 or tuple(value.shape[-2:]) != suffix:
-                raise ValueError(f"SceneSDFResult.{label} must end in {suffix}, got {tuple(value.shape)}")
-        if result.has_point.dtype != torch.bool:
-            raise TypeError("SceneSDFResult.has_point must use bool dtype")
+            check_tensor(f"SceneSDFResult.{label}", value, shape=suffix)
+        check_tensor("SceneSDFResult.has_point", result.has_point, dtype=torch.bool)
         return result
 
     def _finish(self, result: SceneSDFResult, penalty: torch.Tensor) -> torch.Tensor:

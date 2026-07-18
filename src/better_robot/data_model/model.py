@@ -18,7 +18,8 @@ from typing import TYPE_CHECKING
 
 import torch
 
-from ..exceptions import DeviceMismatchError, DtypeMismatchError, ShapeError
+from .._validation import check_tensor
+from ..exceptions import DeviceMismatchError, ShapeError
 from ..lie import se3, so3
 from .frame import Frame
 from .joint_models.base import JointModel
@@ -120,8 +121,11 @@ class Model:
         from .model_structure import ModelStructure  # noqa: PLC0415 - import cycle
         from .model_values import ModelValues  # noqa: PLC0415 - import cycle
 
-        object.__setattr__(self, "structure", ModelStructure.from_model(self))
-        object.__setattr__(self, "values", ModelValues.from_model(self))
+        structure = ModelStructure.from_model(self)
+        values = ModelValues.from_model(self)
+        values.validate(structure)
+        object.__setattr__(self, "structure", structure)
+        object.__setattr__(self, "values", values)
 
     def _shallow_rebind(
         self,
@@ -136,6 +140,7 @@ class Model:
         therefore unsuitable for the public value-rebind hot path.
         """
 
+        values.validate(structure)
         updates = field_updates or {}
         result = object.__new__(type(self))
         for model_field in dataclasses.fields(self):
@@ -163,57 +168,26 @@ class Model:
         ``(B, 1, njoints, 7)``.
         """
 
-        def checked(
-            name: str,
-            value: torch.Tensor | None,
-            current: torch.Tensor,
-            event_shape: tuple[int, int],
-            *,
-            normalize_pose: bool = False,
-        ) -> torch.Tensor:
+        values = self.values
+        exemplar = values.joint_placements
+        dtype, device = exemplar.dtype, exemplar.device
+
+        def checked(name, value, current, event_shape, *, normalize_pose=False):
             if value is None:
                 return current
-            if not isinstance(value, torch.Tensor):
-                raise TypeError(f"{name} must be a torch.Tensor or None")
-            if value.ndim < 2 or tuple(value.shape[-2:]) != event_shape:
-                raise ShapeError(f"{name} has shape {tuple(value.shape)}; expected trailing event shape {event_shape}")
-            if not value.is_floating_point():
-                raise DtypeMismatchError(f"{name}.dtype={value.dtype} is unsupported; use a floating dtype")
-            if value.device != self.values.joint_placements.device:
-                raise DeviceMismatchError(
-                    f"{name}.device={value.device} != model.device="
-                    f"{self.values.joint_placements.device}; move the value or "
-                    "call model.to(...) first"
-                )
-            if value.dtype != self.values.joint_placements.dtype:
-                raise DtypeMismatchError(
-                    f"{name}.dtype={value.dtype} != model.dtype={self.values.joint_placements.dtype}"
-                )
-            return se3.normalize(value) if normalize_pose else value
+            tensor = check_tensor(name, value, shape=event_shape, floating=True, dtype=dtype, device=device)
+            return se3.normalize(tensor) if normalize_pose else tensor
 
         placements = checked(
-            "joint_placements",
-            joint_placements,
-            self.values.joint_placements,
-            (self.njoints, 7),
-            normalize_pose=True,
+            "joint_placements", joint_placements, values.joint_placements, (self.njoints, 7), normalize_pose=True
         )
-        inertias = checked(
-            "body_inertias",
-            body_inertias,
-            self.values.body_inertias,
-            (self.nbodies, 10),
-        )
+        inertias = checked("body_inertias", body_inertias, values.body_inertias, (self.nbodies, 10))
         frame_values = checked(
-            "frame_placements",
-            frame_placements,
-            self.values.frame_placements,
-            (self.nframes, 7),
-            normalize_pose=True,
+            "frame_placements", frame_placements, values.frame_placements, (self.nframes, 7), normalize_pose=True
         )
-        inertia_cache = self.values.body_inertias_6x6 if inertias is self.values.body_inertias else None
+        inertia_cache = values.body_inertias_6x6 if inertias is values.body_inertias else None
         rebound = dataclasses.replace(
-            self.values,
+            values,
             joint_placements=placements,
             body_inertias=inertias,
             frame_placements=frame_values,
@@ -221,7 +195,7 @@ class Model:
         )
         # Validate value-to-value broadcasting now; the query batch is added
         # at evaluation time.
-        rebound.execution_batch_shape(self.structure, self.values.q_neutral)
+        rebound._execution_batch_shape(values.q_neutral)
         return self._shallow_rebind(
             structure=self.structure,
             values=rebound,

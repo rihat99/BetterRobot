@@ -3,7 +3,7 @@
 Covers:
 * Linearly-interpolated trajectory in config space → acceleration ≈ 0.
 * Perturbed trajectory → acceleration ≠ 0.
-* Analytic named blocks match central finite differences through
+* Analytic Jacobians match central finite differences through
   ``model.integrate`` (the identity-right-Jacobian approximation is
   valid in the small-step regime these residuals operate in).
 """

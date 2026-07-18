@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import torch
 
+from .._validation import check_tensor
 from ..data_model.model import Model
 from ..kinematics.forward import forward_kinematics
 from ..optim import (
@@ -34,19 +35,22 @@ if TYPE_CHECKING:
     from ..data_model.data import Data
 
 
-_OptimizerName = Literal[
-    "lm",
-    "gn",
-    "adam",
-    "lbfgs",
-    "lm_then_adam",
-    "lm_then_lbfgs",
-]
+_OptimizerName = Literal["lm", "gn", "adam", "lbfgs", "lm_then_adam", "lm_then_lbfgs"]
 
 _OPTIMIZER_NAMES = frozenset({"lm", "gn", "adam", "lbfgs", "lm_then_adam", "lm_then_lbfgs"})
-_LINEAR_SOLVER_NAMES = frozenset({"cholesky"})
-_KERNEL_NAMES = frozenset({"l2", "huber", "cauchy", "tukey"})
+_LINEAR_SOLVERS = {"cholesky": Cholesky}
+_KERNELS = {"l2": L2, "huber": Huber, "cauchy": Cauchy, "tukey": Tukey}
+_LINEAR_SOLVER_NAMES = frozenset(_LINEAR_SOLVERS)
+_KERNEL_NAMES = frozenset(_KERNELS)
 _DAMPING_NAMES = frozenset({"constant", "adaptive"})
+_JACOBIAN_STRATEGIES = frozenset({"auto", "analytic", "jacrev", "jacfwd", "finite_difference"})
+_CONFIG_CHOICES = (
+    ("optimizer", _OPTIMIZER_NAMES),
+    ("linear_solver", _LINEAR_SOLVER_NAMES),
+    ("kernel", _KERNEL_NAMES),
+    ("damping", _DAMPING_NAMES),
+    ("jacobian_strategy", _JACOBIAN_STRATEGIES),
+)
 
 
 @dataclass
@@ -103,37 +107,29 @@ class IKResult:
         return data.frame_pose_world[..., frame_id, :]
 
 
+def _validate_choices(config: OptimizerConfig) -> None:
+    for name, allowed in _CONFIG_CHOICES:
+        value = getattr(config, name)
+        if not isinstance(value, str) or value not in allowed:
+            raise ValueError(f"Unknown {name} {value!r}; expected one of {sorted(allowed)}")
+
+
+def _reject_unused(config: OptimizerConfig, optimizer: str, defaults: tuple[tuple[str, str], ...]) -> None:
+    if config.optimizer == optimizer:
+        unused = [name for name, default in defaults if getattr(config, name) != default]
+        if unused:
+            raise ValueError(
+                f"optimizer={optimizer!r} does not use {', '.join(unused)}; leave these fields at their defaults"
+            )
+
+
 def _validate_optimizer_config(config: OptimizerConfig) -> None:
     """Validate facade policy before building residuals or solver state."""
-    if not isinstance(config.optimizer, str) or config.optimizer not in _OPTIMIZER_NAMES:
-        raise ValueError(f"Unknown optimizer {config.optimizer!r}; expected one of {sorted(_OPTIMIZER_NAMES)}")
-    if not isinstance(config.linear_solver, str) or config.linear_solver not in _LINEAR_SOLVER_NAMES:
-        raise ValueError(
-            f"Unknown linear_solver {config.linear_solver!r}; expected one of {sorted(_LINEAR_SOLVER_NAMES)}"
-        )
-    if not isinstance(config.kernel, str) or config.kernel not in _KERNEL_NAMES:
-        raise ValueError(f"Unknown kernel {config.kernel!r}; expected one of {sorted(_KERNEL_NAMES)}")
-    if not isinstance(config.damping, str) or config.damping not in _DAMPING_NAMES:
-        raise ValueError(f"Unknown damping {config.damping!r}; expected one of {sorted(_DAMPING_NAMES)}")
-    if config.jacobian_strategy not in {"auto", "analytic", "jacrev", "jacfwd", "finite_difference"}:
-        raise ValueError(
-            f"Unknown jacobian_strategy {config.jacobian_strategy!r}; expected auto, analytic, "
-            "jacrev, jacfwd, or finite_difference"
-        )
-
-    if config.optimizer == "adam":
-        unused: list[str] = []
-        if config.linear_solver != "cholesky":
-            unused.append("linear_solver")
-        if config.jacobian_strategy != "auto":
-            unused.append("jacobian_strategy")
-        if config.damping != "adaptive":
-            unused.append("damping")
-        if unused:
-            fields = ", ".join(unused)
-            raise ValueError(f"optimizer='adam' does not use {fields}; leave these fields at their defaults")
-    if config.optimizer == "gn" and config.damping != "adaptive":
-        raise ValueError("optimizer='gn' does not use damping; leave this field at its default")
+    _validate_choices(config)
+    _reject_unused(
+        config, "adam", (("linear_solver", "cholesky"), ("jacobian_strategy", "auto"), ("damping", "adaptive"))
+    )
+    _reject_unused(config, "gn", (("damping", "adaptive"),))
     if config.refine_disabled_items and config.optimizer != "lm_then_adam":
         raise ValueError(
             "refine_disabled_items is only used by optimizer='lm_then_adam'; leave it empty for other optimizers"
@@ -142,18 +138,16 @@ def _validate_optimizer_config(config: OptimizerConfig) -> None:
 
 def _make_linear_solver(name: str):
     """Return a fresh named-block linear solver."""
-    table = {"cholesky": Cholesky}
-    if name not in table:
-        raise ValueError(f"Unknown linear_solver {name!r}; expected one of {sorted(table)}")
-    return table[name]()
+    if name not in _LINEAR_SOLVERS:
+        raise ValueError(f"Unknown linear_solver {name!r}; expected one of {sorted(_LINEAR_SOLVERS)}")
+    return _LINEAR_SOLVERS[name]()
 
 
 def _make_robust_kernel(name: str):
     """Return a fresh robust kernel, including the explicit L2 kernel."""
-    table = {"l2": L2, "huber": Huber, "cauchy": Cauchy, "tukey": Tukey}
-    if name not in table:
-        raise ValueError(f"Unknown kernel {name!r}; expected one of {sorted(table)}")
-    return table[name]()
+    if name not in _KERNELS:
+        raise ValueError(f"Unknown kernel {name!r}; expected one of {sorted(_KERNELS)}")
+    return _KERNELS[name]()
 
 
 def _broadcast_initial_configuration(
@@ -162,30 +156,26 @@ def _broadcast_initial_configuration(
     targets: dict[str, torch.Tensor],
     q_rest: torch.Tensor | None,
 ) -> torch.Tensor:
-    if not isinstance(initial_q, torch.Tensor) or not initial_q.is_floating_point():
-        raise TypeError("initial_q must be a floating torch.Tensor")
-    if initial_q.ndim < 1 or initial_q.shape[-1] != model.nq:
-        raise ValueError(f"initial_q must end in model.nq={model.nq}, got {tuple(initial_q.shape)}")
-    batch_shapes: list[tuple[int, ...]] = [tuple(initial_q.shape[:-1])]
-    for frame_name, target in targets.items():
-        if not isinstance(target, torch.Tensor) or not target.is_floating_point():
-            raise TypeError(f"target for frame {frame_name!r} must be a floating tensor")
-        if target.ndim < 1 or target.shape[-1] != 7:
-            raise ValueError(f"target for frame {frame_name!r} must end in SE3 shape (7,), got {tuple(target.shape)}")
-        batch_shapes.append(tuple(target.shape[:-1]))
+    tensors = [check_tensor("initial_q", initial_q, shape=(model.nq,), floating=True)]
+    tensors.extend(
+        check_tensor(f"target for frame {name!r}", target, shape=(7,), floating=True)
+        for name, target in targets.items()
+    )
     if q_rest is not None:
-        if not isinstance(q_rest, torch.Tensor) or not q_rest.is_floating_point():
-            raise TypeError("IKCostConfig.q_rest must be a floating torch.Tensor")
-        if q_rest.ndim < 1 or q_rest.shape[-1] != model.nq:
-            raise ValueError(f"IKCostConfig.q_rest must end in model.nq={model.nq}, got {tuple(q_rest.shape)}")
-        batch_shapes.append(tuple(q_rest.shape[:-1]))
+        tensors.append(check_tensor("IKCostConfig.q_rest", q_rest, shape=(model.nq,), floating=True))
+
+    batch_shape = _ik_batch_shape(tensors)
+    return torch.broadcast_to(initial_q, (*batch_shape, model.nq)).clone()
+
+
+def _ik_batch_shape(tensors: list[torch.Tensor]) -> torch.Size:
+    batch_shapes = [tuple(tensor.shape[:-1]) for tensor in tensors]
     try:
-        batch_shape = torch.broadcast_shapes(*batch_shapes)
+        return torch.broadcast_shapes(*batch_shapes)
     except RuntimeError as exc:
         raise ValueError(
             f"initial_q, target, and q_rest leading batch shapes must broadcast; got {batch_shapes}"
         ) from exc
-    return torch.broadcast_to(initial_q, (*batch_shape, model.nq)).clone()
 
 
 def _state_iterations(state: Any) -> torch.Tensor:
@@ -379,7 +369,7 @@ def solve_ik(  # noqa: PLR0912, PLR0915 - explicit preset assembly keeps task po
             solver = GaussNewton(max_iter=optimizer_cfg.max_iter, **common)
             values, state = solver.run(values, problem)
             states = (state,)
-        elif optimizer_cfg.optimizer == "lm_then_adam":
+        else:  # only lm_then_adam remains after boundary validation
             coarse_iters = optimizer_cfg.max_iter // 2
             refine_iters = optimizer_cfg.max_iter - coarse_iters
             values, coarse_state = LevenbergMarquardt(
@@ -396,9 +386,6 @@ def solve_ik(  # noqa: PLR0912, PLR0915 - explicit preset assembly keeps task po
                 tolerance=optimizer_cfg.tol,
             )
             states = (coarse_state, refine_state)
-        else:  # validated Literal plus runtime protection for untyped callers
-            raise ValueError(f"Unknown optimizer {optimizer_cfg.optimizer!r}")
-
     iterations, converged = _public_diagnostics(states, values["q"])
     return IKResult(
         q=values["q"],

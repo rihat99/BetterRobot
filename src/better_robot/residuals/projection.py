@@ -13,6 +13,7 @@ from typing import Any
 
 import torch
 
+from .._validation import check_tensor
 from ..data_model.model import Model
 from ..kinematics.jacobian import get_frame_jacobian
 
@@ -100,26 +101,6 @@ def _normalize_point_ids(point_ids: Sequence[int] | torch.Tensor) -> tuple[int, 
     return tuple(raw_ids)
 
 
-def _require_floating_tensor(value: Any, *, name: str, suffix: tuple[int, ...]) -> torch.Tensor:
-    if not isinstance(value, torch.Tensor) or not value.is_floating_point():
-        raise TypeError(f"{name} must be a floating torch.Tensor")
-    if tuple(value.shape[-len(suffix) :]) != suffix:
-        raise ValueError(f"{name} must end in shape {suffix}, got {tuple(value.shape)}")
-    return value
-
-
-def _require_same_dtype_device(
-    reference: torch.Tensor,
-    value: torch.Tensor,
-    *,
-    name: str,
-) -> None:
-    if value.dtype != reference.dtype:
-        raise TypeError(f"{name} must have dtype {reference.dtype}, got {value.dtype}")
-    if value.device != reference.device:
-        raise ValueError(f"{name} must be on device {reference.device}, got {value.device}")
-
-
 def _validate_parameter_names(names: Mapping[str, str | None]) -> tuple[str, ...]:
     declared: list[str] = []
     for label, value in names.items():
@@ -139,15 +120,8 @@ def _context_tensor(
     ctx: Mapping[str, Any],
     fallback: torch.Tensor | None,
     parameter_name: str | None,
-    *,
-    label: str,
 ) -> torch.Tensor | None:
-    if parameter_name is None:
-        return fallback
-    value = ctx[parameter_name]
-    if not isinstance(value, torch.Tensor):
-        raise TypeError(f"named context entry {parameter_name!r} for {label} must be a tensor")
-    return value
+    return fallback if parameter_name is None else ctx[parameter_name]
 
 
 class ProjectionResidual:
@@ -214,35 +188,17 @@ class ProjectionResidual:
         if any(point_id < 0 or point_id >= model.nframes for point_id in ids):
             raise ValueError(f"point_ids must index model frame rows in [0, {model.nframes})")
         count = len(ids)
-        K = _require_floating_tensor(K, name="K", suffix=(3, 3))
-        extrinsics = _require_floating_tensor(
-            extrinsics,
-            name="extrinsics",
-            suffix=(4, 4),
+        K = check_tensor("K", K, shape=(3, 3), floating=True)
+        extrinsics = check_tensor("extrinsics", extrinsics, shape=(4, 4), floating=True, dtype=K.dtype, device=K.device)
+        target_px = check_tensor(
+            "target_px", target_px, shape=(count, 2), floating=True, dtype=K.dtype, device=K.device
         )
-        target_px = _require_floating_tensor(
-            target_px,
-            name="target_px",
-            suffix=(count, 2),
-        )
-        _require_same_dtype_device(K, extrinsics, name="extrinsics")
-        _require_same_dtype_device(K, target_px, name="target_px")
         if weights is not None:
-            weights = _require_floating_tensor(
-                weights,
-                name="weights",
-                suffix=(count,),
-            )
-            if not bool(torch.isfinite(weights).all()) or bool(torch.any(weights < 0.0)):
-                raise ValueError("weights must be finite and non-negative")
-            _require_same_dtype_device(K, weights, name="weights")
+            weights = check_tensor("weights", weights, shape=(count,), floating=True, dtype=K.dtype, device=K.device)
+            if bool(torch.any(weights < 0.0)):
+                raise ValueError("weights must be non-negative")
         if valid_mask is not None:
-            if not isinstance(valid_mask, torch.Tensor) or valid_mask.dtype != torch.bool:
-                raise TypeError("valid_mask must be a boolean torch.Tensor")
-            if tuple(valid_mask.shape[-1:]) != (count,):
-                raise ValueError(f"valid_mask must end in shape ({count},), got {tuple(valid_mask.shape)}")
-            if valid_mask.device != K.device:
-                raise ValueError(f"valid_mask must be on device {K.device}, got {valid_mask.device}")
+            valid_mask = check_tensor("valid_mask", valid_mask, shape=(count,), dtype=torch.bool, device=K.device)
         min_depth = float(min_depth)
         if not math.isfinite(min_depth) or min_depth <= 0.0:
             raise ValueError(f"min_depth must be finite and positive, got {min_depth!r}")
@@ -295,43 +251,46 @@ class ProjectionResidual:
         torch.Tensor | None,
     ]:
         count = len(self.point_ids)
-        intrinsics = _context_tensor(ctx, self.K, self.K_name, label="K")
-        extrinsics = _context_tensor(
-            ctx,
-            self.extrinsics,
-            self.extrinsics_name,
-            label="extrinsics",
-        )
-        target_px = _context_tensor(ctx, self.target_px, self.target_name, label="target_px")
-        weights = _context_tensor(ctx, self.weights, self.weights_name, label="weights")
-        valid_mask = _context_tensor(
-            ctx,
-            self.valid_mask,
-            self.valid_mask_name,
-            label="valid_mask",
-        )
+        intrinsics = _context_tensor(ctx, self.K, self.K_name)
+        extrinsics = _context_tensor(ctx, self.extrinsics, self.extrinsics_name)
+        target_px = _context_tensor(ctx, self.target_px, self.target_name)
+        weights = _context_tensor(ctx, self.weights, self.weights_name)
+        valid_mask = _context_tensor(ctx, self.valid_mask, self.valid_mask_name)
         assert intrinsics is not None and extrinsics is not None and target_px is not None
-        intrinsics = _require_floating_tensor(intrinsics, name="K", suffix=(3, 3))
-        extrinsics = _require_floating_tensor(extrinsics, name="extrinsics", suffix=(4, 4))
-        target_px = _require_floating_tensor(target_px, name="target_px", suffix=(count, 2))
-        for label, value in (
-            ("K", intrinsics),
-            ("extrinsics", extrinsics),
-            ("target_px", target_px),
-        ):
-            _require_same_dtype_device(exemplar, value, name=label)
+        intrinsics = check_tensor(
+            "K", intrinsics, shape=(3, 3), floating=True, dtype=exemplar.dtype, device=exemplar.device
+        )
+        extrinsics = check_tensor(
+            "extrinsics",
+            extrinsics,
+            shape=(4, 4),
+            floating=True,
+            dtype=exemplar.dtype,
+            device=exemplar.device,
+        )
+        target_px = check_tensor(
+            "target_px",
+            target_px,
+            shape=(count, 2),
+            floating=True,
+            dtype=exemplar.dtype,
+            device=exemplar.device,
+        )
         if weights is not None:
-            weights = _require_floating_tensor(weights, name="weights", suffix=(count,))
-            _require_same_dtype_device(exemplar, weights, name="weights")
-            if not bool(torch.isfinite(weights).all()) or bool(torch.any(weights < 0.0)):
-                raise ValueError("weights must be finite and non-negative")
+            weights = check_tensor(
+                "weights",
+                weights,
+                shape=(count,),
+                floating=True,
+                dtype=exemplar.dtype,
+                device=exemplar.device,
+            )
+            if bool(torch.any(weights < 0.0)):
+                raise ValueError("weights must be non-negative")
         if valid_mask is not None:
-            if valid_mask.dtype != torch.bool:
-                raise TypeError("valid_mask must be a boolean torch.Tensor")
-            if tuple(valid_mask.shape[-1:]) != (count,):
-                raise ValueError(f"valid_mask must end in shape ({count},), got {tuple(valid_mask.shape)}")
-            if valid_mask.device != exemplar.device:
-                raise ValueError(f"valid_mask must be on device {exemplar.device}, got {valid_mask.device}")
+            valid_mask = check_tensor(
+                "valid_mask", valid_mask, shape=(count,), dtype=torch.bool, device=exemplar.device
+            )
         return intrinsics, extrinsics, target_px, weights, valid_mask
 
     @staticmethod

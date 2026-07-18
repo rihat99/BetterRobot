@@ -1,7 +1,8 @@
-"""Public FK and dynamics calls validate model values exactly once."""
+"""Public passes trust attached model values and validate call inputs once."""
 
 from __future__ import annotations
 
+import importlib
 from collections.abc import Callable
 
 import pytest
@@ -44,7 +45,7 @@ def _model():
     return build_model(builder.finalize(), dtype=torch.float64)
 
 
-def test_each_public_fk_and_dynamics_call_validates_values_once(
+def test_public_passes_trust_attached_values_and_validate_inputs_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     model = _model()
@@ -56,33 +57,45 @@ def test_each_public_fk_and_dynamics_call_validates_values_once(
     data_input = model.create_data()
     data_input.q = q
 
-    validation_count = 0
+    value_validation_count = 0
+    input_validation_count = 0
     original_validate = ModelValues.validate
+    forward_module = importlib.import_module("better_robot.kinematics.forward")
+    execution_module = importlib.import_module("better_robot.dynamics._execution")
+    original_validate_q = forward_module._validate_q
 
     def counted_validate(values: ModelValues, structure) -> None:
-        nonlocal validation_count
-        validation_count += 1
+        nonlocal value_validation_count
+        value_validation_count += 1
         original_validate(values, structure)
 
-    monkeypatch.setattr(ModelValues, "validate", counted_validate)
+    def counted_validate_q(structure, values, q) -> None:
+        nonlocal input_validation_count
+        input_validation_count += 1
+        original_validate_q(structure, values, q)
 
-    public_calls: dict[str, Callable[[], object]] = {
-        "forward_kinematics(tensor)": lambda: forward_kinematics(model, q),
-        "forward_kinematics(data)": lambda: forward_kinematics(model, data_input),
-        "forward_kinematics(frames)": lambda: forward_kinematics(model, q, compute_frames=True),
-        "update_frame_placements": lambda: update_frame_placements(model, placed_data),
-        "rnea": lambda: rnea(model, q, v, a),
-        "bias_forces": lambda: bias_forces(model, q, v),
-        "compute_generalized_gravity": lambda: compute_generalized_gravity(model, q),
-        "aba": lambda: aba(model, q, v, tau),
-        "crba": lambda: crba(model, q),
-        "center_of_mass": lambda: center_of_mass(model, q, v),
-        "compute_centroidal_map": lambda: compute_centroidal_map(model, q),
-        "compute_centroidal_momentum": lambda: compute_centroidal_momentum(model, q, v),
-        "ccrba": lambda: ccrba(model, q, v),
+    monkeypatch.setattr(ModelValues, "validate", counted_validate)
+    monkeypatch.setattr(forward_module, "_validate_q", counted_validate_q)
+    monkeypatch.setattr(execution_module, "_validate_q", counted_validate_q)
+
+    public_calls: dict[str, tuple[Callable[[], object], int]] = {
+        "forward_kinematics(tensor)": (lambda: forward_kinematics(model, q), 1),
+        "forward_kinematics(data)": (lambda: forward_kinematics(model, data_input), 1),
+        "forward_kinematics(frames)": (lambda: forward_kinematics(model, q, compute_frames=True), 1),
+        "update_frame_placements": (lambda: update_frame_placements(model, placed_data), 0),
+        "rnea": (lambda: rnea(model, q, v, a), 1),
+        "bias_forces": (lambda: bias_forces(model, q, v), 1),
+        "compute_generalized_gravity": (lambda: compute_generalized_gravity(model, q), 1),
+        "aba": (lambda: aba(model, q, v, tau), 1),
+        "crba": (lambda: crba(model, q), 1),
+        "center_of_mass": (lambda: center_of_mass(model, q, v), 1),
+        "compute_centroidal_map": (lambda: compute_centroidal_map(model, q), 1),
+        "compute_centroidal_momentum": (lambda: compute_centroidal_momentum(model, q, v), 1),
+        "ccrba": (lambda: ccrba(model, q, v), 1),
     }
 
-    for name, public_call in public_calls.items():
-        count_before = validation_count
+    for name, (public_call, expected_input_checks) in public_calls.items():
+        inputs_before = input_validation_count
         public_call()
-        assert validation_count == count_before + 1, name
+        assert value_validation_count == 0, name
+        assert input_validation_count == inputs_before + expected_input_checks, name

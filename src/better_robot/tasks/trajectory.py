@@ -10,6 +10,7 @@ See ``docs/concepts/tasks.md §2``.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from math import prod
 from typing import TYPE_CHECKING, Any, Literal
 
 import torch
@@ -28,13 +29,10 @@ def _validate_pair(name: str, t: torch.Tensor, q: torch.Tensor) -> None:
     if t.dim() < 1:
         raise ShapeError(f"{name}: t must have ≥ 1 dim; got {tuple(t.shape)}")
     if q.shape[-2] != t.shape[-1]:
-        raise ShapeError(
-            f"{name}: q has T={q.shape[-2]} but t has T={t.shape[-1]}"
-        )
+        raise ShapeError(f"{name}: q has T={q.shape[-2]} but t has T={t.shape[-1]}")
     if q.shape[:-2] != t.shape[:-1]:
         raise ShapeError(
-            f"{name}: batch shapes disagree — q.shape[:-2]={tuple(q.shape[:-2])} "
-            f"vs t.shape[:-1]={tuple(t.shape[:-1])}"
+            f"{name}: batch shapes disagree — q.shape[:-2]={tuple(q.shape[:-2])} vs t.shape[:-1]={tuple(t.shape[:-1])}"
         )
 
 
@@ -58,22 +56,11 @@ class Trajectory:
 
     def __post_init__(self) -> None:
         _validate_pair("Trajectory(t, q)", self.t, self.q)
-        if self.v is not None:
-            if self.v.shape[:-1] != self.q.shape[:-1]:
+        for name, value in (("v", self.v), ("a", self.a), ("tau", self.tau)):
+            if value is not None and value.shape[:-1] != self.q.shape[:-1]:
                 raise ShapeError(
-                    f"Trajectory: v.shape={tuple(self.v.shape)} incompatible "
-                    f"with q.shape={tuple(self.q.shape)}"
+                    f"Trajectory: {name}.shape={tuple(value.shape)} incompatible with q.shape={tuple(self.q.shape)}"
                 )
-        if self.a is not None and self.a.shape[:-1] != self.q.shape[:-1]:
-            raise ShapeError(
-                f"Trajectory: a.shape={tuple(self.a.shape)} incompatible "
-                f"with q.shape={tuple(self.q.shape)}"
-            )
-        if self.tau is not None and self.tau.shape[:-1] != self.q.shape[:-1]:
-            raise ShapeError(
-                f"Trajectory: tau.shape={tuple(self.tau.shape)} incompatible "
-                f"with q.shape={tuple(self.q.shape)}"
-            )
 
     # ─────────────────────────── shape introspection ─────────────────────────
 
@@ -94,12 +81,7 @@ class Trajectory:
 
     @property
     def batch_size(self) -> int:
-        if not self.batch_shape:
-            return 1
-        out = 1
-        for d in self.batch_shape:
-            out *= d
-        return out
+        return prod(self.batch_shape)
 
     # ─────────────────────────── batch normalisation ─────────────────────────
 
@@ -113,7 +95,7 @@ class Trajectory:
         """
         cur = len(self.batch_shape)
 
-        def _expand(x: torch.Tensor | None, *, feature_dims: int) -> torch.Tensor | None:
+        def _expand(x: torch.Tensor | None) -> torch.Tensor | None:
             if x is None:
                 return None
             target_batch = n
@@ -127,8 +109,7 @@ class Trajectory:
             collapse = cur - target_batch
             if any(s != 1 for s in x.shape[:collapse]):
                 raise ShapeError(
-                    f"with_batch_dims({n}): cannot squeeze non-singleton "
-                    f"batch dims {tuple(x.shape[:collapse])}"
+                    f"with_batch_dims({n}): cannot squeeze non-singleton batch dims {tuple(x.shape[:collapse])}"
                 )
             for _ in range(collapse):
                 x = x.squeeze(0)
@@ -136,11 +117,11 @@ class Trajectory:
 
         # q has 2 trailing feature dims (T, nq); t has 1 (T)
         return Trajectory(
-            t=_expand(self.t, feature_dims=1),
-            q=_expand(self.q, feature_dims=2),
-            v=_expand(self.v, feature_dims=2),
-            a=_expand(self.a, feature_dims=2),
-            tau=_expand(self.tau, feature_dims=2),
+            t=_expand(self.t),
+            q=_expand(self.q),
+            v=_expand(self.v),
+            a=_expand(self.a),
+            tau=_expand(self.tau),
             extras=dict(self.extras),
             metadata=dict(self.metadata),
             model_id=self.model_id,
@@ -160,8 +141,7 @@ class Trajectory:
         idx = torch.where(mask)[0]
         if idx.numel() == 0:
             raise ValueError(
-                f"slice({t_start}, {t_end}) is empty for t in "
-                f"[{float(t_flat.min())}, {float(t_flat.max())}]"
+                f"slice({t_start}, {t_end}) is empty for t in [{float(t_flat.min())}, {float(t_flat.max())}]"
             )
         i0, i1 = int(idx[0]), int(idx[-1]) + 1
         return Trajectory(
@@ -193,20 +173,13 @@ class Trajectory:
         See ``docs/concepts/tasks.md §2``.
         """
         t_flat = self.t.reshape(-1, self.t.shape[-1])[0]  # (T,) reference grid
-        # Per-feature linear interpolation on the time axis.
-        q_resampled = _linear_interp_along_axis(self.q, t_flat, new_t, axis=-2)
-        v_resampled = (
-            _linear_interp_along_axis(self.v, t_flat, new_t, axis=-2) if self.v is not None else None
-        )
-        a_resampled = (
-            _linear_interp_along_axis(self.a, t_flat, new_t, axis=-2) if self.a is not None else None
-        )
-        tau_resampled = (
-            _linear_interp_along_axis(self.tau, t_flat, new_t, axis=-2) if self.tau is not None else None
-        )
+        q_resampled = _linear_interp_along_axis(self.q, t_flat, new_t)
+        v_resampled = _linear_interp_along_axis(self.v, t_flat, new_t) if self.v is not None else None
+        a_resampled = _linear_interp_along_axis(self.a, t_flat, new_t) if self.a is not None else None
+        tau_resampled = _linear_interp_along_axis(self.tau, t_flat, new_t) if self.tau is not None else None
 
         if kind == "sclerp":
-            from ..lie.so3 import slerp as so3_slerp
+            from ..lie.so3 import slerp as so3_slerp  # noqa: PLC0415
 
             # Replace the first 4 quaternion components (indices 3:7) of q with
             # slerp on the original samples.
@@ -252,20 +225,14 @@ class Trajectory:
         Useful for vectorised collision / FK evaluation across the whole
         clip in one shot.
         """
-        from ..kinematics.forward import forward_kinematics
+        from ..kinematics.forward import forward_kinematics  # noqa: PLC0415
 
         flat_q = self.q.reshape(-1, self.q.shape[-1])
         return forward_kinematics(model, flat_q, compute_frames=True)
 
 
-def _linear_interp_along_axis(
-    x: torch.Tensor, t_orig: torch.Tensor, t_new: torch.Tensor, *, axis: int
-) -> torch.Tensor:
+def _linear_interp_along_axis(x: torch.Tensor, t_orig: torch.Tensor, t_new: torch.Tensor) -> torch.Tensor:
     """Per-feature linear interpolation of ``x`` from ``t_orig`` onto ``t_new``."""
-    # Reshape to bring the time axis to the second-to-last position so we
-    # can broadcast over the batch and feature dims.
-    if axis != -2:
-        x = x.movedim(axis, -2)
     # ``torch.searchsorted`` finds insertion indices on the time grid.
     idx = torch.searchsorted(t_orig, t_new).clamp(1, t_orig.shape[-1] - 1)
     t0 = t_orig[idx - 1]
@@ -275,14 +242,10 @@ def _linear_interp_along_axis(
     x_lo = torch.index_select(x, dim=-2, index=idx - 1)
     x_hi = torch.index_select(x, dim=-2, index=idx)
     out = x_lo + (x_hi - x_lo) * w.reshape(*([1] * (x.ndim - 2)), -1, 1)
-    if axis != -2:
-        out = out.movedim(-2, axis)
     return out
 
 
-def _slerp_along_axis(
-    quat: torch.Tensor, t_orig: torch.Tensor, t_new: torch.Tensor, slerp_fn
-) -> torch.Tensor:
+def _slerp_along_axis(quat: torch.Tensor, t_orig: torch.Tensor, t_new: torch.Tensor, slerp_fn) -> torch.Tensor:
     """Per-knot SLERP of a quaternion ``(..., T, 4)`` onto ``t_new``."""
     idx = torch.searchsorted(t_orig, t_new).clamp(1, t_orig.shape[-1] - 1)
     t0 = t_orig[idx - 1]

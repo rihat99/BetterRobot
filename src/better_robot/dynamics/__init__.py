@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from .aba import aba, aba_raw
 from .centroidal import (
+    CCRBAResult,
     ccrba,
     ccrba_raw,
     center_of_mass,
@@ -40,6 +41,7 @@ __all__ = [
     "center_of_mass",
     "compute_centroidal_map",
     "compute_centroidal_momentum",
+    "CCRBAResult",
     "ccrba",
     "ccrba_raw",
     "compute_rnea_derivatives",

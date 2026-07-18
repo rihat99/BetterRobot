@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 import torch
 
+from .._validation import check_tensor
 from ..data_model.model import Model
 from ..data_model.model_values import ModelValues
 from ..dynamics.rnea import rnea_raw
@@ -27,12 +28,7 @@ class ContactForceWeights:
     torque_smooth: float = 0.0
 
     def __post_init__(self) -> None:
-        for name in (
-            "base_wrench",
-            "force_magnitude",
-            "force_smooth",
-            "torque_smooth",
-        ):
+        for name in ("base_wrench", "force_magnitude", "force_smooth", "torque_smooth"):
             value = getattr(self, name)
             if isinstance(value, bool) or not isinstance(value, (int, float)):
                 raise TypeError(f"ContactForceWeights.{name} must be a real number")
@@ -193,10 +189,7 @@ def _gravity_values(
 ) -> ModelValues:
     if gravity is None:
         return model.values
-    if not isinstance(gravity, torch.Tensor):
-        raise TypeError("gravity must be a torch.Tensor or None")
-    if gravity.device != device or gravity.dtype != dtype:
-        raise ValueError("gravity must share the model dtype and device")
+    gravity = check_tensor("gravity", gravity, dtype=dtype, device=device)
     if gravity.shape[-1:] == (3,):
         gravity = torch.cat((gravity, torch.zeros_like(gravity)), dim=-1)
     if gravity.shape[-1:] != (6,):
@@ -216,6 +209,7 @@ def _contact_joint_ids(
     value: torch.Tensor | Sequence[int],
     *,
     device: torch.device,
+    count: int,
 ) -> torch.Tensor:
     if isinstance(value, torch.Tensor):
         if value.dtype not in {
@@ -226,14 +220,43 @@ def _contact_joint_ids(
             torch.uint8,
         }:
             raise TypeError("contact_joint_ids tensor must use an integer dtype")
-        return value.to(device=device, dtype=torch.long)
-    ids = list(value)
-    if any(isinstance(item, bool) or not isinstance(item, int) for item in ids):
-        raise TypeError("contact_joint_ids must contain integers")
-    return torch.tensor(ids, dtype=torch.long, device=device)
+        result = value.to(device=device, dtype=torch.long)
+    else:
+        ids = list(value)
+        if any(isinstance(item, bool) or not isinstance(item, int) for item in ids):
+            raise TypeError("contact_joint_ids must contain integers")
+        result = torch.tensor(ids, dtype=torch.long, device=device)
+    if result.ndim != 1 or result.numel() == 0:
+        raise ValueError("contact_joint_ids must be a non-empty one-dimensional sequence")
+    if bool(((result < 0) | (result >= count)).any()):
+        raise ValueError(f"contact_joint_ids must lie in [0, {count})")
+    return result
 
 
-def solve_contact_forces(  # noqa: PLR0912, PLR0915 - validates one complete public task boundary
+def _contact_activity(value: torch.Tensor, shape: tuple[int, ...], exemplar: torch.Tensor) -> torch.Tensor:
+    value = check_tensor("active_mask", value, device=exemplar.device)
+    if value.dtype != torch.bool and not value.is_floating_point():
+        raise TypeError("active_mask must be boolean or floating point")
+    if value.is_floating_point() and (
+        not bool(torch.isfinite(value).all()) or bool(((value < 0.0) | (value > 1.0)).any())
+    ):
+        raise ValueError("floating active_mask values must be finite and lie in [0, 1]")
+    try:
+        return torch.broadcast_to(value, shape).to(dtype=exemplar.dtype)
+    except RuntimeError as error:
+        raise ValueError(f"active_mask is not broadcastable to {shape}") from error
+
+
+def _initial_forces(value: torch.Tensor | None, shape: tuple[int, ...], exemplar: torch.Tensor) -> torch.Tensor:
+    if value is None:
+        return exemplar.new_zeros(shape)
+    value = check_tensor("initial_forces", value, dtype=exemplar.dtype, device=exemplar.device)
+    if tuple(value.shape) != shape:
+        raise ValueError(f"initial_forces must have shape {shape}, got {tuple(value.shape)}")
+    return value.detach().clone()
+
+
+def solve_contact_forces(  # noqa: PLR0912, PLR0915 - one complete public task boundary
     model: Model,
     q_traj: torch.Tensor,
     contact_joint_ids: torch.Tensor | Sequence[int],
@@ -258,17 +281,14 @@ def solve_contact_forces(  # noqa: PLR0912, PLR0915 - validates one complete pub
 
     if model.nv < 6 or len(model.joint_models) < 2 or model.joint_models[1].kind != "free_flyer":
         raise ValueError("solve_contact_forces requires a floating-base model with a six-dimensional base tangent")
-    if not isinstance(q_traj, torch.Tensor) or q_traj.ndim < 2 or q_traj.shape[-1] != model.nq:
-        actual = tuple(q_traj.shape) if isinstance(q_traj, torch.Tensor) else type(q_traj).__name__
-        raise ValueError(f"q_traj must end in (T, model.nq={model.nq}), got {actual}")
-    if q_traj.shape[-2] < 1:
-        raise ValueError("q_traj must contain at least one timestep")
+    q_traj = check_tensor("q_traj", q_traj)
+    if q_traj.ndim < 2 or q_traj.shape[-2] < 1:
+        raise ValueError(f"q_traj must contain at least one timestep, got shape {tuple(q_traj.shape)}")
     if isinstance(dt, bool) or not isinstance(dt, (int, float)) or not math.isfinite(float(dt)) or dt <= 0.0:
         raise ValueError("dt must be a finite positive number")
     if isinstance(max_iter, bool) or not isinstance(max_iter, int) or max_iter < 0:
         raise ValueError("max_iter must be a non-negative integer")
-    if weights is None:
-        weights = ContactForceWeights()
+    weights = ContactForceWeights() if weights is None else weights
     if not isinstance(weights, ContactForceWeights):
         raise TypeError("weights must be ContactForceWeights or None")
 
@@ -278,27 +298,9 @@ def solve_contact_forces(  # noqa: PLR0912, PLR0915 - validates one complete pub
     time = q.shape[-2]
     velocity, acceleration = _trajectory_derivatives(model, q, float(dt))
 
-    ids = _contact_joint_ids(contact_joint_ids, device=q.device)
-    if ids.ndim != 1 or ids.numel() == 0:
-        raise ValueError("contact_joint_ids must be a non-empty one-dimensional sequence")
-    if bool(((ids < 0) | (ids >= model.njoints)).any()):
-        raise ValueError(f"contact_joint_ids must lie in [0, {model.njoints})")
+    ids = _contact_joint_ids(contact_joint_ids, device=q.device, count=model.njoints)
     contacts = ids.numel()
-
-    if not isinstance(active_mask, torch.Tensor):
-        raise TypeError("active_mask must be a torch.Tensor")
-    if active_mask.device != q.device:
-        raise ValueError("active_mask must share q_traj.device")
-    if active_mask.dtype != torch.bool and not active_mask.is_floating_point():
-        raise TypeError("active_mask must be boolean or floating point")
-    if active_mask.is_floating_point() and (
-        not bool(torch.isfinite(active_mask).all()) or bool(((active_mask < 0.0) | (active_mask > 1.0)).any())
-    ):
-        raise ValueError("floating active_mask values must be finite and lie in [0, 1]")
-    try:
-        active = torch.broadcast_to(active_mask, (*batch_shape, time, contacts)).to(dtype=q.dtype)
-    except RuntimeError as error:
-        raise ValueError(f"active_mask is not broadcastable to {(*batch_shape, time, contacts)}") from error
+    active = _contact_activity(active_mask, (*batch_shape, time, contacts), q)
 
     joint_pose = data.joint_pose_world.index_select(-2, ids)
     world_to_local = so3.to_matrix(joint_pose[..., 3:]).mT.detach()
@@ -312,19 +314,7 @@ def solve_contact_forces(  # noqa: PLR0912, PLR0915 - validates one complete pub
     )
 
     force_shape = (*batch_shape, time, contacts, 3)
-    if initial_forces is None:
-        forces0 = q.new_zeros(force_shape)
-    else:
-        if not isinstance(initial_forces, torch.Tensor) or tuple(initial_forces.shape) != force_shape:
-            actual = (
-                tuple(initial_forces.shape)
-                if isinstance(initial_forces, torch.Tensor)
-                else type(initial_forces).__name__
-            )
-            raise ValueError(f"initial_forces must have shape {force_shape}, got {actual}")
-        if initial_forces.dtype != q.dtype or initial_forces.device != q.device:
-            raise ValueError("initial_forces must share q_traj dtype and device")
-        forces0 = initial_forces.detach().clone()
+    forces0 = _initial_forces(initial_forces, force_shape, q)
 
     provider = _ContactDynamicsProvider(
         model=model,

@@ -19,6 +19,7 @@ import torch
 
 from ..data_model.data import Data
 from ._temporal_jacobian import dense_temporal_jacobian, temporal_free_indices
+from .base import _configuration
 from .structure import TemporalPattern
 
 
@@ -39,7 +40,7 @@ def _slice_data(data: Data, t_idx: int) -> Data:
 
 
 class _TimeSliceContext(Mapping[str, Any]):
-    """Named-block context view with trajectory ``q``/``data`` sliced."""
+    """Evaluation-context view with trajectory ``q``/``data`` sliced."""
 
     def __init__(self, ctx: Mapping[str, Any], t_idx: int) -> None:
         self._ctx = ctx
@@ -48,15 +49,12 @@ class _TimeSliceContext(Mapping[str, Any]):
 
     def __getitem__(self, key: str) -> Any:
         if key == "q":
-            q = self._ctx[key]
-            if not isinstance(q, torch.Tensor):
-                raise TypeError("named-block context entry 'q' must be a torch.Tensor")
-            return q[..., self._t_idx, :]
+            return self._ctx[key][..., self._t_idx, :]
         if key == "data":
             if self._data is None:
                 data = self._ctx[key]
                 if not isinstance(data, Data):
-                    raise TypeError("named-block context entry 'data' must be Data")
+                    raise TypeError(f"data must be Data, got {type(data).__name__}")
                 self._data = _slice_data(data, self._t_idx)
             return self._data
         return self._ctx[key]
@@ -69,8 +67,6 @@ class _TimeSliceContext(Mapping[str, Any]):
 
     def free_indices(self, variable_name: str) -> torch.Tensor:
         q = self._ctx[variable_name]
-        if not isinstance(q, torch.Tensor):
-            raise TypeError(f"named-block context entry {variable_name!r} must be a tensor")
         return temporal_free_indices(self._ctx, variable_name, device=q.device)
 
 
@@ -115,18 +111,14 @@ class TimeIndexedResidual:
         self,
         ctx: Mapping[str, Any],
     ) -> tuple[torch.Tensor, int]:
-        q = ctx["q"]
-        if not isinstance(q, torch.Tensor):
-            raise TypeError("named-block context entry 'q' must be a torch.Tensor")
+        q = _configuration(ctx)
         if self.horizon is None:
-            raise ValueError("TimeIndexedResidual requires horizon=... for named-block use")
+            raise ValueError("TimeIndexedResidual requires horizon=... for problem use")
         if q.ndim < 2:  # bench-ok: trajectory-shape contract validation
             raise ValueError(f"TimeIndexedResidual expects (B..., T, nq); got {tuple(q.shape)}")
         T = int(q.shape[-2])
-        if self.horizon is not None and T != self.horizon:
+        if T != self.horizon:
             raise ValueError(f"trajectory horizon {T} != declared horizon {self.horizon}")
-        if not 0 <= self.t_idx < T:
-            raise IndexError(f"t_idx={self.t_idx} out of range for T={T}")
         return q, T
 
     def _slice_input(
@@ -163,8 +155,6 @@ class TimeIndexedResidual:
             raise ValueError("TimeIndexedResidual inner analytic blocks must contain exactly 'q'")
         block = blocks["q"]
         q = ctx["q"]
-        if not isinstance(q, torch.Tensor):
-            raise TypeError("named-block context entry 'q' must be a torch.Tensor")
         return block + (q.sum(dim=(-2, -1)) * 0.0)[..., None, None]
 
     def temporal_jacobian_blocks(
@@ -184,7 +174,7 @@ class TimeIndexedResidual:
             return {}
         pattern = self.temporal_structure("q")
         if pattern is None:
-            raise ValueError("TimeIndexedResidual requires horizon=... for named-block use")
+            raise ValueError("TimeIndexedResidual requires horizon=... for problem use")
         return {
             "q": dense_temporal_jacobian(
                 pattern,

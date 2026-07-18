@@ -7,7 +7,8 @@ from typing import Any
 
 import torch
 
-from ._point_cloud import _detached_nearest
+from .._validation import check_tensor
+from ._point_cloud import _detached_nearest, _validate_clouds
 
 
 class MaskedChamferResidual:
@@ -78,22 +79,21 @@ class MaskedChamferResidual:
         rows_per_frame = source_count + (target_count if bidirectional else 0)
         self.dim = frames * rows_per_frame
 
-    @staticmethod
-    def _require_shape(tensor: torch.Tensor, suffix: tuple[int, ...], label: str) -> None:
-        if not isinstance(tensor, torch.Tensor):
-            raise TypeError(f"{label} must be a torch.Tensor")
-        if tensor.ndim < len(suffix) or tuple(tensor.shape[-len(suffix) :]) != suffix:
-            raise ValueError(f"{label} must end in {suffix}, got {tuple(tensor.shape)}")
-
     def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        source = ctx[self.source]
-        target = ctx[self.target]
-        source_validity = ctx[self.source_validity]
-        target_validity = ctx[self.target_validity]
-        self._require_shape(source, (self.frames, self.source_count, 3), self.source)
-        self._require_shape(target, (self.frames, self.target_count, 3), self.target)
-        self._require_shape(source_validity, (self.frames, self.source_count), self.source_validity)
-        self._require_shape(target_validity, (self.frames, self.target_count), self.target_validity)
+        clouds = (
+            ctx[self.source],
+            ctx[self.target],
+            ctx[self.source_validity],
+            ctx[self.target_validity],
+        )
+        for label, value, event_shape in (
+            (self.source, clouds[0], (self.frames, self.source_count, 3)),
+            (self.target, clouds[1], (self.frames, self.target_count, 3)),
+            (self.source_validity, clouds[2], (self.frames, self.source_count)),
+            (self.target_validity, clouds[3], (self.frames, self.target_count)),
+        ):
+            check_tensor(label, value, shape=event_shape)
+        source, target, source_validity, target_validity = _validate_clouds(*clouds)
 
         forward = _detached_nearest(
             source,
@@ -104,9 +104,11 @@ class MaskedChamferResidual:
         ).distance
         if self.vertex_weights is not None:
             weights = ctx[self.vertex_weights]
-            self._require_shape(weights, (self.frames, self.source_count), self.vertex_weights)
-            if not weights.is_floating_point():
-                raise TypeError(f"{self.vertex_weights} must use a floating dtype")
+            if not isinstance(weights, torch.Tensor) or not weights.is_floating_point():
+                raise TypeError(f"{self.vertex_weights} must be a floating torch.Tensor")
+            suffix = (self.frames, self.source_count)
+            if tuple(weights.shape[-2:]) != suffix:
+                raise ValueError(f"{self.vertex_weights} must end in {suffix}, got {tuple(weights.shape)}")
             if weights.dtype != forward.dtype or weights.device != forward.device:
                 raise ValueError(f"{self.vertex_weights} must share point dtype/device")
             forward = forward * weights

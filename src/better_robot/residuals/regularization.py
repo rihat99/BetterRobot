@@ -15,16 +15,11 @@ from typing import Any
 
 import torch
 
+from .._validation import check_tensor
 from ..data_model.model import Model
 from ._temporal_jacobian import dense_temporal_jacobian, temporal_free_indices
+from .base import _configuration
 from .structure import TemporalPattern
-
-
-def _configuration(ctx: Mapping[str, Any]) -> torch.Tensor:
-    q = ctx["q"]
-    if not isinstance(q, torch.Tensor):
-        raise TypeError("named context entry 'q' must be a torch.Tensor")
-    return q
 
 
 class RestResidual:
@@ -68,7 +63,7 @@ class RestResidual:
         if self.target_name is not None:
             q_rest = ctx[self.target_name]
             if not isinstance(q_rest, torch.Tensor):
-                raise TypeError(f"named-block context entry {self.target_name!r} must be a tensor")
+                raise TypeError(f"{self.target_name!r} must be a tensor, got {type(q_rest).__name__}")
         q_rest = q_rest.to(device=q.device, dtype=q.dtype)
         # Broadcast q_rest across any leading batch dims.
         if q.dim() > 1 and q_rest.dim() == 1:
@@ -125,14 +120,10 @@ class JointRotationPrior:
     ) -> None:
         if not isinstance(name, str) or not name:
             raise ValueError("name must be a non-empty string")
-        if not isinstance(q_mean, torch.Tensor) or not q_mean.is_floating_point():
-            raise TypeError("q_mean must be a floating torch.Tensor")
+        q_mean = check_tensor("q_mean", q_mean, floating=True)
         if tuple(q_mean.shape) != (model.nq,):
             raise ValueError(f"q_mean must have shape ({model.nq},), got {tuple(q_mean.shape)}")
-        if not bool(torch.isfinite(q_mean).all()):
-            raise ValueError("q_mean must contain only finite values")
-        if not isinstance(per_joint_weight, torch.Tensor) or not per_joint_weight.is_floating_point():
-            raise TypeError("per_joint_weight must be a floating torch.Tensor")
+        per_joint_weight = check_tensor("per_joint_weight", per_joint_weight, floating=True)
         if tuple(per_joint_weight.shape) == (model.njoints,):
             repeats = torch.tensor(model.nvs, dtype=torch.long, device=per_joint_weight.device)
             tangent_weight = torch.repeat_interleave(per_joint_weight, repeats)
@@ -143,8 +134,6 @@ class JointRotationPrior:
                 f"per_joint_weight must have shape ({model.njoints},) or ({model.nv},), "
                 f"got {tuple(per_joint_weight.shape)}"
             )
-        if not bool(torch.isfinite(tangent_weight).all()):
-            raise ValueError("per_joint_weight must contain only finite values")
         if bool(torch.any(tangent_weight < 0.0)):
             raise ValueError("per_joint_weight must be non-negative")
 

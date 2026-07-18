@@ -5,12 +5,13 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
-from numbers import Real
 from typing import TYPE_CHECKING
 
 import torch
 
+from .._validation import check_tensor
 from ..residuals.structure import TemporalPattern
+from . import kernels as _kernels
 
 if TYPE_CHECKING:
     from .problem import Problem, Weight
@@ -42,16 +43,21 @@ class TemporalAnalysis:
     patterns: tuple[tuple[str, TemporalPattern], ...] = ()
 
 
-def _check_flat(name: str, value: torch.Tensor, matrix: BlockBandedMatrix) -> None:
-    if not isinstance(value, torch.Tensor):
-        raise TypeError(f"{name} must be a torch.Tensor")
-    if value.ndim < 1 or value.shape[-1] != matrix.size:
-        raise ValueError(f"{name} must end in flattened size {matrix.size}, got {tuple(value.shape)}")
-    if value.dtype != matrix.bands.dtype or value.device != matrix.bands.device:
-        raise ValueError(
-            f"{name} must share band dtype/device {matrix.bands.dtype}/{matrix.bands.device}, "
-            f"got {value.dtype}/{value.device}"
-        )
+def _check_flat(
+    name: str,
+    value: torch.Tensor,
+    matrix: BlockBandedMatrix,
+    *,
+    size: int | None = None,
+    exact_batch: bool = False,
+    exemplar: torch.Tensor | None = None,
+) -> None:
+    width = matrix.size if size is None else size
+    exemplar = matrix.bands if exemplar is None else exemplar
+    check_tensor(name, value, shape=(width,), dtype=exemplar.dtype, device=exemplar.device)
+    if exact_batch and tuple(value.shape[:-1]) != matrix.batch_shape:
+        expected = (*matrix.batch_shape, width)
+        raise ValueError(f"{name} must have shape {expected}, got {tuple(value.shape)}")
 
 
 @dataclass(frozen=True)
@@ -295,13 +301,7 @@ class StructuredNormal:
     _terms: tuple[_StructuredTerm, ...] = field(repr=False)
 
     def _validate(self, name: str, vector: torch.Tensor, size: int) -> None:
-        if not isinstance(vector, torch.Tensor):
-            raise TypeError(f"{name} must be a torch.Tensor")
-        expected = (*self.normal.batch_shape, size)
-        if tuple(vector.shape) != expected:
-            raise ValueError(f"{name} must have shape {expected}, got {tuple(vector.shape)}")
-        if vector.dtype != self.gradient.dtype or vector.device != self.gradient.device:
-            raise ValueError(f"{name} must preserve structured-normal dtype/device")
+        _check_flat(name, vector, self.normal, size=size, exact_batch=True, exemplar=self.gradient)
 
     def jvp(self, vector: torch.Tensor) -> torch.Tensor:
         self._validate("vector", vector, self.normal.size)
@@ -329,26 +329,6 @@ class StructuredNormal:
 
     def normal_matvec(self, vector: torch.Tensor) -> torch.Tensor:
         return self.vjp(self.jvp(vector))
-
-
-def _broadcast_weight(weight: Weight, output: torch.Tensor) -> torch.Tensor:
-    value = (
-        weight.to(dtype=output.dtype, device=output.device)
-        if isinstance(weight, torch.Tensor)
-        else output.new_tensor(weight)
-    )
-    return value.reshape(*value.shape, *((1,) * (output.ndim - value.ndim)))
-
-
-def _validate_weight(name: str, weight: Weight, batch: tuple[int, ...], exemplar: torch.Tensor) -> None:
-    if not isinstance(weight, torch.Tensor):
-        return
-    if tuple(weight.shape) not in ((), batch):
-        raise ValueError(
-            f"Tensor weight for item {name!r} must be scalar or have exact batch shape {batch}, got {tuple(weight.shape)}"
-        )
-    if weight.dtype != exemplar.dtype or weight.device != exemplar.device:
-        raise ValueError(f"Tensor weight for item {name!r} must preserve working dtype/device")
 
 
 def assemble_structured_normal(  # noqa: PLR0912, PLR0915
@@ -398,8 +378,8 @@ def assemble_structured_normal(  # noqa: PLR0912, PLR0915
             continue
         weight = problem._weights_for(item, weights)
         if validate_runtime:
-            _validate_weight(item.name, weight, batch_shape, exemplar)
-        if isinstance(weight, Real) and float(weight) == 0.0:
+            _kernels._validate_runtime_weight(item.name, weight, batch_shape, exemplar)
+        if _kernels._is_inactive(weight):
             continue
         raw = item.residual.temporal_jacobian_blocks(ctx, spec.name)
         if not isinstance(raw, Mapping):
@@ -424,7 +404,7 @@ def assemble_structured_normal(  # noqa: PLR0912, PLR0915
                 raise ValueError(f"Residual {item.name!r} temporal block {offset} must preserve dtype/device")
             if graph_required and not block.requires_grad:
                 raise ValueError(f"Temporal block {(item.name, spec.name, offset)!r} cannot honor create_graph=True")
-            weighted = block * _broadcast_weight(weight, block) * item_scale
+            weighted = block * _kernels._broadcast_weight(weight, block) * item_scale
             blocks.append((offset, weighted if create_graph else weighted.detach()))
 
         row = weighted_residual[..., problem.row_offsets[item.name]].reshape(

@@ -1,13 +1,18 @@
 # 04 — Polish the core
 
+**Implementation log (2026-07-18):** Complete on `dev`. The user revised the
+source budget to 250–310 net lines removed; the final Task-owned delta is
+**−282**. The full gate is green (`1443 passed, 2 skipped`), as are parity,
+compile/hot-path, lint, type, and documentation checks. See `04_results.md`.
+
 **Goal:** the validation diet and the style pass. After this phase the code
 reads like one careful author wrote it: inputs checked once at the boundary
 with helpful messages, nothing re-checked below, no duplicated logic, uniform
 conventions. The policy is `plan/02_architecture.md` §3–4; this order lists
 the evidence-backed targets.
 
-**Size budget:** net `src/` delta ≤ −600 lines, no behavior change (all
-regression and parity tests untouched and green).
+**Size budget (user-revised 2026-07-18):** remove 250–310 net `src/` lines,
+with no behavior change (all regression and parity tests untouched and green).
 
 **Contract-test authorization:** `tests/contract/
 test_boundary_validation_count.py` only (per T1). No other contract file

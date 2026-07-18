@@ -26,6 +26,7 @@ import torch
 from ..data_model.data import Data
 from ..data_model.model import Model
 from ._temporal_jacobian import dense_temporal_jacobian, temporal_free_indices
+from .base import _configuration
 from .structure import TemporalPattern
 
 
@@ -69,12 +70,10 @@ class ContactConsistencyResidual:
         self,
         ctx: Mapping[str, Any],
     ) -> tuple[torch.Tensor, Data]:
-        q = ctx["q"]
+        q = _configuration(ctx)
         data = ctx["data"]
-        if not isinstance(q, torch.Tensor):
-            raise TypeError("named context entry 'q' must be a torch.Tensor")
         if not isinstance(data, Data):
-            raise TypeError("named context entry 'data' must be Data")
+            raise TypeError(f"data must be Data, got {type(data).__name__}")
         if q.ndim < 2:  # bench-ok: trajectory-shape contract validation
             raise ValueError(f"ContactConsistencyResidual expects (B..., T, nq); got {tuple(q.shape)}")
         if q.shape[-2] != self.horizon:

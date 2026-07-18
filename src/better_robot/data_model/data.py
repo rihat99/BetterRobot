@@ -19,11 +19,14 @@ See ``docs/concepts/model_and_data.md §3``.
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass
 from typing import Optional
 
 import torch
 
+from ..exceptions import StaleCacheError
+from ..lie.types import SE3
 from ._kinematics_level import KinematicsLevel
 
 # Cache buckets per kinematic level. A field is at level ``L`` if its
@@ -170,21 +173,13 @@ class Data:
         ``PLACEMENTS``).
         """
         if int(self._kinematics_level) < int(level):
-            from ..exceptions import StaleCacheError
-
-            held = (
-                self._kinematics_level.name
-                if isinstance(self._kinematics_level, KinematicsLevel)
-                else str(self._kinematics_level)
-            )
             raise StaleCacheError(
-                f"Data is at kinematics level {held}; need {level.name}. Call forward_kinematics first."
+                f"Data is at kinematics level {self._kinematics_level.name}; "
+                f"need {level.name}. Call forward_kinematics first."
             )
 
     def clone(self) -> "Data":
         """Return a deep copy of this evaluation workspace."""
-        import copy
-
         return copy.deepcopy(self)
 
     @property
@@ -200,11 +195,7 @@ class Data:
         kinematics has not been computed yet.
         """
         if self.joint_pose_world is None:
-            from ..exceptions import StaleCacheError
-
             raise StaleCacheError("Data.joint_pose_world is None; call forward_kinematics first.")
-        from ..lie.types import SE3
-
         return SE3(self.joint_pose_world[..., joint_id, :])
 
     def frame_pose(self, frame_id: int):
@@ -216,12 +207,8 @@ class Data:
         with ``compute_frames=True`` or ``update_frame_placements``).
         """
         if self.frame_pose_world is None:
-            from ..exceptions import StaleCacheError
-
             raise StaleCacheError(
                 "Data.frame_pose_world is None; call forward_kinematics "
                 "with compute_frames=True (or update_frame_placements)."
             )
-        from ..lie.types import SE3
-
         return SE3(self.frame_pose_world[..., frame_id, :])
