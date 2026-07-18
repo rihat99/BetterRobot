@@ -5,46 +5,31 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
-- **Lean optimization core.** `better_robot.optim` is now one flat package
-  with `Problem.add_variable` / `add_residual`, one named-context residual
-  protocol, recursive provider memoization, dense or block-banded LM/GN, and a
-  small adapter for ordinary `torch.optim` optimizers. The scalar-objective
-  subsystem, custom Adam and phase engine, matrix-free normal-CG route, LSTSQ
-  option, shadow prevalidated methods, and Jacobian-strategy enum were removed.
-- **CUDA-validated opt-in Warp FK.** The fused FK lane now covers fp32/fp64,
-  fixed/free bases, branched and deep models, value batching, q/placement
-  VJPs, current-stream ordering, and forward graph replay on RTX 6000 Ada.
-  Forward-only SMPL measurements beat compiled Torch in the four committed
-  batches; the Torch-recompute backward was not timed, so no default changed.
-- **Definition-first performance evidence.** The M6 harness defines a
-  144-selector Panda/free-Panda/SMPL matrix with isolated cold starts, raw
-  samples, memory, and provenance. Only the hardware-named Warp FK cases and a
-  filtered SMPL B=1 Torch result are measured; the complete matrix and
-  external competitor measurements remain open.
-- **Manual-only CI.** The GitHub Actions workflow remains
-  `workflow_dispatch` only by owner request. It has no hosted CUDA, automatic
-  pull-request/nightly, coverage, or blocking benchmark gate.
-- **Opt-in implicit LM/GN differentiation.** Generic named-block solvers add
-  `solve(..., differentiate="implicit")` for first-order gradients to declared
-  external context tensors. The backward recomputes the exact robust
-  tangent/KKT system, supports product manifolds and stable active bounds, and
-  strictly rejects invalid batches, Huber kinks, terminal quaternion
-  representatives at absolute pi, tensor-role identity collisions, and singular systems. Dense size is
-  capped; true structured backward and direct ModelValues/weight rebinding
-  remain explicit gaps.
-- **Structured trajectory optimization.** Named-block variables may declare
-  `time_axis=0`; temporal residuals expose `TemporalPattern` plus exact local
-  Jacobian blocks. LM routes between dense Cholesky and block-banded
-  `BandedCholesky`, with stable requested/used/reason/detail diagnostics and
-  dense automatic fallback.
-- **Named-block `solve_trajopt`.** An explicit sequence of `ResidualItem`
-  values is adapted to one temporal `RobotConfig` block with arbitrary leading
-  batches, sanitized optional bounds, per-element state diagnostics, and route
-  fields in `TrajOptResult`.
-- **Explicit deferrals.** The component-space `BSplineTrajectory` remains a
-  numerical utility rather than a robot-manifold parameterization. Schur
-  elimination for temporal plus shared variables also remains deferred; M5
-  does not claim either feature.
+- **One optimization API.** `Problem.add_variable` and `add_residual` build
+  least-squares problems over named variable blocks. LM and Gauss–Newton share
+  the same dense or block-banded evaluation path, while `run_first_order`
+  adapts a problem to ordinary `torch.optim` optimizers. Unused parallel
+  problem, objective, and first-order implementations were removed.
+- **An open differentiable core.** Tensor-only kinematics and dynamics passes
+  are public and return named results. Dynamics workspaces are optional.
+  Gradients can flow to configurations and model values, and IK exposes an
+  implicit differentiation option for eligible solves.
+- **Clearer public boundaries.** Public functions validate shapes, dtypes,
+  and devices once. Model values are checked when attached to a model instead
+  of during every kinematics or dynamics call. Error messages now follow one
+  consistent pattern.
+- **A truthful surface.** Importable placeholders, unused aliases, and modules
+  without working behavior were removed. The roadmap now lists only explicit
+  runtime guards that remain in source.
+- **Structured trajectories.** Temporal variables and residual patterns can
+  route LM through block-banded Cholesky. Problems without complete temporal
+  structure continue to use the dense correctness path.
+- **Opt-in Warp forward kinematics.** The fused GPU pass remains an explicit
+  alternative to the PyTorch reference pass. It has forward and gradient
+  parity tests, but PyTorch remains the default and the source of truth.
+- **Documentation for readers.** Tutorials now define the robotics ideas they
+  use, guides show complete tasks, concept chapters explain the trade-offs,
+  and the reference matches the current public API.
 
 ## v0.2.0 — 2026-04-11
 

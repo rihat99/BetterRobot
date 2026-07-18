@@ -5,12 +5,10 @@ around the Diátaxis quadrants:
 
 - ``getting_started/`` — tutorials.
 - ``guides/`` — task-oriented how-to guides.
-- ``concepts/`` — explanation; the chapter set that walks through
-  every layer of the architecture.
+- ``concepts/`` — explanations of the mathematics and design choices.
 - ``conventions/`` — normative cross-cutting rules (naming,
   performance, testing, contracts, style, packaging, extension).
-- ``reference/`` — auto-generated API reference (built by
-  ``sphinx-autodoc2``) plus the changelog, roadmap, and glossary.
+- ``reference/`` — generated API pages plus factual project reference.
 
 The in-repo ``CHANGELOG.md`` is included verbatim into
 ``reference/changelog`` and is excluded from the rest of the build.
@@ -116,9 +114,9 @@ autodoc2_index_template = None  # use the autodoc2-generated index
 autodoc2_replace_annotations = []
 autodoc2_replace_bases = []
 autodoc2_skip_module_regexes = [
-    r"better_robot\..*\._.*",  # private submodules
-    # Named-block implementation modules are intentionally not a second API
-    # surface. The frozen public imports live at ``better_robot.optim``.
+    r"better_robot(?:\..*)?\._.*",  # private root modules and submodules
+    # Optimizer implementation modules are not a second API surface. The
+    # documented public imports live at ``better_robot.optim``.
     r"better_robot\.optim\.blocks(?:\..*)?$",
 ]
 autodoc2_hidden_objects = ["dunder", "private", "inherited"]

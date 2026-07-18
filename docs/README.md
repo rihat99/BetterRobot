@@ -9,8 +9,9 @@ in GitHub: [rihat99.github.io/BetterRobot](https://rihat99.github.io/BetterRobot
 
 ```bash
 # from the repo root
-uv sync --extra dev
+uv sync --extra dev --extra demos
 make -C docs html
+make -C docs doctest
 # open docs/_build/html/index.html
 
 uv run make -C docs serve
@@ -30,6 +31,7 @@ make -C docs serve
 ```
 
 `make -C docs strict` builds with warnings-as-errors.
+`make -C docs doctest` runs every `{testcode}` example.
 `make -C docs linkcheck` validates external links.
 
 ## Publish GitHub Pages
@@ -49,7 +51,7 @@ git push origin gh-pages:gh-pages
 ```
 
 If the remote branch moved, fetch and regenerate instead of force-pushing.
-The legacy ``make -C docs publish`` target wraps ``ghp-import -p -f`` and
+The older ``make -C docs publish`` target wraps ``ghp-import -p -f`` and
 therefore skips this review/fast-forward guard; use it only when that destructive
 deployment behavior is explicitly intended.
 
@@ -57,11 +59,11 @@ deployment behavior is explicitly intended.
 
 | Folder | Purpose |
 |--------|---------|
-| `getting_started/` | Five-minute quickstarts (install → FK → IK → floating base). |
+| `getting_started/` | Tutorials from robot anatomy through batched GPU work. |
 | `guides/` | Task-oriented how-to guides for extending and integrating BetterRobot. |
 | `concepts/` | Explanation chapters that walk through every layer of the architecture. |
 | `conventions/` | Cross-cutting normative specs (naming, performance, extension, testing, contracts, style, packaging). |
-| `reference/` | Auto-generated API, changelog, roadmap, glossary. |
+| `reference/` | Generated API, changelog, roadmap, glossary, and capability notes. |
 | `CHANGELOG.md` | Engineering changelog. Surfaced via `reference/changelog.md`. |
 
 ## Where to start reading

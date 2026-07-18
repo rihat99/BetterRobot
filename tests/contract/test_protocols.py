@@ -2,7 +2,7 @@
 and every built-in implementation passes the corresponding ``isinstance`` check.
 
 See ``docs/conventions/extension.md`` for the seam inventory and
-``docs/concepts/residuals_and_costs.md §5`` for the concrete Protocols.
+``docs/concepts/residuals_costs_and_solvers.md`` for the concrete protocols.
 """
 
 from __future__ import annotations

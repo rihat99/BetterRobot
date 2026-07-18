@@ -1,72 +1,63 @@
-# Source and License Decision Memo
+# Source and license
 
-> **Decision status:** Apache-2.0 selected by the owner on 2026-07-17.
-> BetterRobot uses the top-level `LICENSE`; the source ledger below remains
-> mandatory for every external adaptation. This is an engineering provenance
-> control, not legal advice.
+BetterRobot is licensed under Apache-2.0. The top-level `LICENSE` file is
+the authoritative license text. This page describes the provenance record
+required when code or tests are adapted from another project. It is an
+engineering procedure, not legal advice.
 
-BetterRobot plans to learn from MIT- and Apache-2.0-licensed projects. The
-project license governs BetterRobot's original work; copied or modified
-third-party material continues to carry its source license and notices. A
-license choice therefore does not replace source-by-source provenance work.
+## What the project license does
 
-## Options
+Apache-2.0 grants broad copyright and patent permissions subject to its
+conditions. It does not erase the license of material taken from elsewhere.
+Copied or modified third-party work keeps the notices, attribution, and other
+conditions required by its source license.
 
-| | Apache License 2.0 | MIT License |
+Read the primary texts when making a licensing decision:
+
+- [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
+- [Apache guidance on applying the license](https://www.apache.org/legal/apply-license)
+- [MIT License](https://opensource.org/license/mit)
+
+Do not create a project `NOTICE` file merely because BetterRobot uses
+Apache-2.0. Add or carry notice material when an included upstream work
+requires it.
+
+## Before adapting external material
+
+Create a provenance record before copying, translating, or closely following
+an external implementation. Record:
+
+| Field | Required information |
+|---|---|
+| Source | project, canonical URL, exact revision, and source file or symbol |
+| License | SPDX identifier, license text at that revision, copyright holder, and any notice file |
+| Relationship | concept-only reference, independent implementation, copied, modified, or vendored |
+| Destination | every BetterRobot file and symbol affected |
+| Compliance | retained headers, modification notes, bundled license or notice location, and attribution |
+| Review | author, reviewer, and review date |
+
+Using the same published algorithm is not automatically copying code. Closely
+translating structure, comments, constants, or tests may still be an
+adaptation. When the relationship is uncertain, preserve the upstream terms
+and ask for review before merging.
+
+## Projects used as design references
+
+The projects below have been discussed as possible references. This table does
+not claim that BetterRobot contains their code.
+
+| Project | Repository license | Requirement before adaptation |
 |---|---|---|
-| Text and administration | Longer license with explicit redistribution conditions. | Short permission notice; retain it in copies or substantial portions. |
-| Patents | Express contributor patent grant plus defensive termination. | No express patent grant. |
-| Attribution | Retain relevant copyright, patent, trademark, and attribution notices; mark modified files. If an upstream work ships a `NOTICE`, carry its relevant attributions in a permitted location. | Retain the copyright and permission notice. Third-party licenses still apply to their material. |
-| Planned source fit | Matches JAXopt, MuJoCo Warp, and Newton, reducing project-level license mismatch when code is actually adapted. | Matches PyRoki and is operationally simple for BetterRobot-only code. |
-| Main consequence | More release bookkeeping, especially for imported Apache material and notices. Choosing Apache-2.0 for new original work does **not by itself** require inventing a `NOTICE`; section 4(d) is triggered when a distributed upstream work includes one. | Apache-derived files cannot simply be relabeled MIT. A distribution may keep MIT for original BetterRobot files while retaining Apache-2.0 terms, change notices, attribution, and any required `NOTICE` material for Apache-derived files. |
+| [JAXopt](https://github.com/google/jaxopt) | Apache-2.0 | verify the chosen revision and retain applicable notices |
+| [MuJoCo Warp](https://github.com/google-deepmind/mujoco_warp) | Apache-2.0 | verify the chosen revision and retain applicable notices |
+| [Newton](https://github.com/newton-physics/newton) | Apache-2.0 | verify the chosen revision and retain applicable notices |
+| [PyRoki](https://github.com/chungmin99/pyroki) | MIT | retain the MIT notice for adapted material |
 
-Primary texts: [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0),
-[Apache guidance on applying it](https://www.apache.org/legal/apply-license),
-and the [MIT License](https://opensource.org/license/mit).
+Licenses can change between revisions. Verify the exact source again when the
+record is created.
 
-## Candidate sources named by the roadmap
+## Review rule
 
-Repository licenses below were checked on 2026-07-17.
-
-| Project | Verified repository license | Provenance rule before adaptation |
-|---------|-----------------------------|----------------------------------------|
-| [JAXopt](https://github.com/google/jaxopt) | Apache-2.0 | Open a ledger entry and retain applicable notices before porting. |
-| [MuJoCo Warp](https://github.com/google-deepmind/mujoco_warp) | Apache-2.0 | Open a ledger entry and retain applicable notices before porting. |
-| [Newton](https://github.com/newton-physics/newton) | Apache-2.0 | Open a ledger entry and retain applicable notices before porting. |
-| [PyRoki](https://github.com/chungmin99/pyroki) | MIT | Open a ledger entry and retain the MIT notice before porting. |
-
-The table identifies planned references; it is not a finding that BetterRobot
-currently contains their code. Verify the exact upstream commit and license
-again when a ledger entry is opened.
-
-## Required source ledger
-
-Create an entry before adapting an external implementation. Each entry records:
-
-| Field | Required content |
-|-------|------------------|
-| Source | Project, canonical URL, exact commit/tag, file/function. |
-| License | SPDX identifier, link to the license at that revision, upstream copyright holder, and whether `NOTICE` exists. |
-| Relationship | `concept-only`, `clean reimplementation`, `copied`, `modified`, or `vendored`; explain the evidence. |
-| BetterRobot destination | Every affected file and symbol. |
-| Compliance | Retained headers/notices, modified-file marker, bundled license/NOTICE location, and attribution text. |
-| Review | Author, reviewer, and date. |
-
-“Same algorithm” is not automatically copied code, but translating structure,
-comments, constants, or tests can be a derivative adaptation. When in doubt,
-record it as modified/copy-derived and preserve the upstream terms.
-
-## Owner decision record
-
-Recorded on 2026-07-17:
-
-1. Project license: **Apache-2.0**.
-2. Copyright: **2026 BetterRobot contributors**.
-3. No voluntary project `NOTICE` is created initially. Required upstream
-   notices or third-party attributions will be added when a ledger entry calls
-   for them.
-4. The repository owner reviews the existing tree for provenance before the
-   first licensed release.
-
-No candidate-project source was ported during M1. Future adaptation is blocked
-until its ledger entry and required license/notice handling are reviewed.
+No external implementation is copied into BetterRobot until its provenance
+record and required license handling have been reviewed. Keep that record
+with the change so a future release can reproduce the attribution decision.

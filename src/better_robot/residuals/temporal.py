@@ -6,7 +6,7 @@ single configuration. When the optimization variable is a whole trajectory
 residual, and — for the analytic Jacobian — scatter the resulting block
 into the correct columns of a ``(dim_inner, T*nv)`` matrix.
 
-See ``docs/concepts/residuals_and_costs.md §2``.
+See ``docs/concepts/residuals_costs_and_solvers.md``.
 """
 
 from __future__ import annotations

@@ -3,7 +3,7 @@
 Pinocchio-style canonical functions — a single dispatch path that replaces
 the legacy four-way fixed/floating × analytic/autodiff mess.
 
-See ``docs/concepts/kinematics.md §3``.
+See ``docs/concepts/kinematics_and_jacobians.md``.
 """
 
 from __future__ import annotations
@@ -109,7 +109,7 @@ def compute_joint_jacobians(model: Model, data: Data) -> Data:
     :func:`forward_kinematics` first; otherwise raises
     :class:`~better_robot.exceptions.StaleCacheError`.
 
-    See docs/concepts/kinematics.md §3.
+    See docs/concepts/kinematics_and_jacobians.md.
     """
     data.require(KinematicsLevel.PLACEMENTS)
     assert data.joint_pose_world is not None
@@ -130,7 +130,7 @@ def get_joint_jacobian(
     Shape: ``(B..., 6, nv)``. The literal reference strings mirror
     Pinocchio's three reference-frame conventions.
 
-    See docs/concepts/kinematics.md §3.
+    See docs/concepts/kinematics_and_jacobians.md.
     """
     data.require(KinematicsLevel.PLACEMENTS)
     if data.joint_jacobians is None:
@@ -170,7 +170,7 @@ def get_frame_jacobian(
     - ``"local"``: both linear and angular rows expressed in the body-local
       frame of this frame. Matches Pinocchio's ``LOCAL``.
 
-    See docs/concepts/kinematics.md §3.
+    See docs/concepts/kinematics_and_jacobians.md.
     """
     data.require(KinematicsLevel.PLACEMENTS)
     assert data.joint_pose_world is not None, "call forward_kinematics before get_frame_jacobian"

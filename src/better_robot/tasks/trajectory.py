@@ -4,7 +4,7 @@ Either unbatched ``(T, nq)`` or batched ``(*B, T, nq)`` is accepted. The
 ``with_batch_dims`` view always normalises to a batched form so callers
 can iterate without an ``if traj.q.dim() == 2`` branch.
 
-See ``docs/concepts/tasks.md §2``.
+See ``docs/concepts/residuals_costs_and_solvers.md``.
 """
 
 from __future__ import annotations
@@ -170,7 +170,7 @@ class Trajectory:
         plain linear for the rest. It does not discover other manifold blocks
         from a robot model.
 
-        See ``docs/concepts/tasks.md §2``.
+        See ``docs/concepts/residuals_costs_and_solvers.md``.
         """
         t_flat = self.t.reshape(-1, self.t.shape[-1])[0]  # (T,) reference grid
         q_resampled = _linear_interp_along_axis(self.q, t_flat, new_t)

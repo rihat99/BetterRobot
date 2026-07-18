@@ -3,7 +3,7 @@
 Every residual is a callable over an evaluation context. Optional analytic
 Jacobians are exposed through ``jacobian_blocks``.
 
-See ``docs/concepts/residuals_and_costs.md``.
+See ``docs/concepts/residuals_costs_and_solvers.md``.
 """
 
 from __future__ import annotations

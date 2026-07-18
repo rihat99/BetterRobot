@@ -111,7 +111,7 @@ under `better_robot.optim`. Named-block Adam/LM/GN and the `solve_ik` and
 knot-based `solve_trajopt` task facades preserve leading batch axes with
 per-element solver state. The flat solver stack remains available for direct
 compatibility callers. See
-[Write a custom block residual](docs/guides/custom_residuals.md).
+[Write a custom residual](docs/guides/custom_residual.md).
 
 ## Dependencies
 

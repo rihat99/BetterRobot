@@ -1,6 +1,6 @@
 """``better_robot.kinematics`` — forward kinematics, frame updates, Jacobians.
 
-See ``docs/concepts/kinematics.md``.
+See ``docs/concepts/kinematics_and_jacobians.md``.
 """
 
 from __future__ import annotations

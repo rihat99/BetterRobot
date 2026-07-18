@@ -48,16 +48,17 @@ FRICTION_LOG = (
 
 
 def _extract_guide_custom_residual() -> tuple[str, type]:
-    guide = Path(__file__).resolve().parents[2] / "docs" / "guides" / "custom_residuals.md"
+    guide = Path(__file__).resolve().parents[2] / "docs" / "guides" / "custom_residual.md"
     text = guide.read_text()
     start_marker = "<!-- custom-residual-example:start -->"
     end_marker = "<!-- custom-residual-example:end -->"
     if text.count(start_marker) != 1 or text.count(end_marker) != 1:
         raise RuntimeError("custom residual guide must contain exactly one marked example")
     marked = text.split(start_marker, 1)[1].split(end_marker, 1)[0]
-    if marked.count("```python") != 1 or marked.count("```") != 2:
-        raise RuntimeError("marked custom residual example must contain one Python fence")
-    source = marked.split("```python", 1)[1].split("```", 1)[0].strip()
+    fence = "```{testcode}"
+    if marked.count(fence) != 1 or marked.count("```") != 2:
+        raise RuntimeError("marked custom residual example must contain one testcode fence")
+    source = marked.split(fence, 1)[1].split("```", 1)[0].strip()
     namespace: dict[str, Any] = {"torch": torch, "__name__": __name__}
     exec(compile(source, str(guide), "exec"), namespace)  # noqa: S102 - executable guide contract
     return source, namespace["PenetrationResidual"]

@@ -1,5 +1,11 @@
 # 05 — Rewrite the documentation
 
+**Implementation log (2026-07-18):** Complete on `dev` after Task 04 commit
+`8f82b32`. The rewritten tree has 43 hand-written pages (4,550 lines), 19
+doctests, zero banned-process or stale-page hits, and a green 1,468-test full
+gate. The requested documentation skills were unavailable; the accepted
+Diátaxis structure and gates were applied directly. See `05_results.md`.
+
 **Goal:** documentation a human wrote for humans. A beginner who knows Python
 but has never touched a robot can learn from it; an expert finds every design
 decision argued, not asserted. Runs **after phases 1–4** — the API it

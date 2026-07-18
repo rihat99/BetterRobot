@@ -4,7 +4,7 @@ Each collision capsule is attached to a *frame* (not a joint) via a local
 ``(a, b, radius)`` triple. At query time, ``RobotCollision`` uses
 ``data.frame_pose_world`` to transform the capsules into the world frame.
 
-See ``docs/concepts/collision_and_geometry.md §5``.
+See ``docs/reference/collision_and_geometry.md``.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from .geometry import Box, Capsule, Sphere
 class RobotCollision:
     """Capsule/sphere decomposition of a robot, attached to frames.
 
-    See docs/concepts/collision_and_geometry.md §5.
+    See docs/reference/collision_and_geometry.md.
     """
 
     frame_ids: tuple[int, ...]
@@ -43,23 +43,23 @@ class RobotCollision:
     ) -> "RobotCollision":
         """Build a capsule (or sphere) decomposition from a ``Model``.
 
-        See docs/concepts/collision_and_geometry.md §5.
+        See docs/reference/collision_and_geometry.md.
         """
-        raise NotImplementedError("see docs/concepts/collision_and_geometry.md §5")
+        raise NotImplementedError("see docs/reference/collision_and_geometry.md")
 
     def world_capsules(self, data: Data) -> Capsule:
         """Return a ``(B..., n_caps)`` ``Capsule`` with world-frame endpoints.
 
-        See docs/concepts/collision_and_geometry.md §5.
+        See docs/reference/collision_and_geometry.md.
         """
-        raise NotImplementedError("see docs/concepts/collision_and_geometry.md §5")
+        raise NotImplementedError("see docs/reference/collision_and_geometry.md")
 
     def self_distances(self, data: Data) -> torch.Tensor:
         """``(B..., n_pairs)`` signed distances for every self-pair.
 
-        See docs/concepts/collision_and_geometry.md §5.
+        See docs/reference/collision_and_geometry.md.
         """
-        raise NotImplementedError("see docs/concepts/collision_and_geometry.md §5")
+        raise NotImplementedError("see docs/reference/collision_and_geometry.md")
 
     def world_distances(
         self,
@@ -68,6 +68,6 @@ class RobotCollision:
     ) -> torch.Tensor:
         """``(B..., n_caps, len(world))`` signed distances against external geometry.
 
-        See docs/concepts/collision_and_geometry.md §5.
+        See docs/reference/collision_and_geometry.md.
         """
-        raise NotImplementedError("see docs/concepts/collision_and_geometry.md §5")
+        raise NotImplementedError("see docs/reference/collision_and_geometry.md")

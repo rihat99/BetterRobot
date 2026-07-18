@@ -1,55 +1,43 @@
 # Concepts
 
-The chapters in this section read end-to-end. Together they explain
-*why* BetterRobot is shaped the way it is — what each layer of the
-architecture exists to do, what alternatives we considered, and what
-goes wrong without that piece. If you want to call the API, the
-{doc}`/getting_started/index` tutorials are the right entry point.
-If you want the rules contributors must follow, the
-{doc}`/conventions/index` chapters are the place. This is the third
-quadrant: explanation.
+These chapters explain why BetterRobot is shaped the way it is. They start
+with robot models and motion, then build toward dynamics, optimization, and
+the optional GPU seam. Tutorials show what to type; this section explains
+what the operations mean and why the alternatives were rejected.
 
 ```{toctree}
 :maxdepth: 1
 
-vision
+why_betterrobot
+design_decisions
 architecture
 model_and_data
 joints_bodies_frames
 lie_and_spatial
-parsers_and_ir
-kinematics
+kinematics_and_jacobians
 dynamics
-residuals_and_costs
-solver_stack
-tasks
-collision_and_geometry
-batching_and_backends
-warp_bridge
+residuals_costs_and_solvers
+the_compute_seam
+parsers_and_ir
 viewer
 ```
 
-## Reading order
+## A useful reading path
 
-The chapters work in order: each one builds on the previous and
-points forward to the next. Read top to bottom for a complete tour.
-You can also jump in at any layer — every chapter ends with pointers
-to the chapters it depends on and the ones that depend on it.
+| Chapter | Question it answers |
+|---|---|
+| {doc}`why_betterrobot` | What kind of robotics work is this library for? |
+| {doc}`design_decisions` | Which alternatives were considered, and what did each choice cost? |
+| {doc}`architecture` | Which package owns each responsibility? |
+| {doc}`model_and_data` | Why are robot identity and per-call results separate? |
+| {doc}`joints_bodies_frames` | How do joints, rigid bodies, and named frames fit together? |
+| {doc}`lie_and_spatial` | How are rotations, poses, twists, forces, and inertias represented? |
+| {doc}`kinematics_and_jacobians` | How do joint coordinates determine poses and local motion? |
+| {doc}`dynamics` | How do motion, force, inertia, and acceleration relate? |
+| {doc}`residuals_costs_and_solvers` | How does a desired outcome become a least-squares problem? |
+| {doc}`the_compute_seam` | How do batching, compilation, and the opt-in Warp pass coexist? |
+| {doc}`parsers_and_ir` | How do files and builders become the same model? |
+| {doc}`viewer` | How does visualization stay separate from robot computation? |
 
-| Chapter | What it covers |
-|---------|----------------|
-| {doc}`vision` | Why the library exists; the commitments that decided every other choice. |
-| {doc}`architecture` | The layered DAG, the compact public API, and the contract tests that enforce both. |
-| {doc}`model_and_data` | Frozen `Model`, mutable `Data`, and the cache invariant that prevents stale Jacobians. |
-| {doc}`joints_bodies_frames` | The universal joint taxonomy and the free-flyer convention that unifies fixed and floating base. |
-| {doc}`lie_and_spatial` | SE(3) / SO(3) ops, the spatial-algebra value types, why we do not subclass `torch.Tensor`. |
-| {doc}`parsers_and_ir` | URDF / MJCF / programmatic builder all converging on a single intermediate representation. |
-| {doc}`kinematics` | Forward kinematics and the unified Jacobian dispatch. |
-| {doc}`dynamics` | RNEA, ABA, CRBA, the centroidal map, and rigid-body state manifolds. |
-| {doc}`residuals_and_costs` | Structural residuals, explicit `ResidualItem` composition, robust groups, and temporal declarations. |
-| {doc}`solver_stack` | Named-block `Problem` evaluation and the Adam/LM/GN solver lifecycle. |
-| {doc}`tasks` | `solve_ik`, `solve_trajopt`, `Trajectory`. |
-| {doc}`collision_and_geometry` | Reserved collision containers and the currently stubbed distance, decomposition, and residual surfaces. |
-| {doc}`batching_and_backends` | Tensor/device conventions, the structure/value seam, and whole-pass compute lanes. |
-| {doc}`warp_bridge` | The functional Torch–Warp boundary, gradient ownership, and CUDA-validated opt-in FK decision record. |
-| {doc}`viewer` | The viser-backed visualisation layer. |
+Jump to any chapter if you already know its prerequisites. Terms used by the
+tutorials are also defined in the {doc}`/reference/glossary`.

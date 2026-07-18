@@ -5,7 +5,7 @@ shape ``(B, K, 3)`` represents ``B*K`` spheres, not one. This is how the
 same types express "one sphere" and "a robot's worth of self-collision
 spheres" without a second dataclass.
 
-See ``docs/concepts/collision_and_geometry.md §3, §7``.
+See ``docs/reference/collision_and_geometry.md``.
 """
 
 from __future__ import annotations
@@ -61,6 +61,6 @@ def colldist_from_sdf(d: torch.Tensor, margin: float) -> torch.Tensor:
     ``0 <= d < m    → -0.5/m * (d - m)^2``
     ``d < 0         → d - 0.5 * m``
 
-    See docs/concepts/collision_and_geometry.md §7.
+    See docs/reference/collision_and_geometry.md.
     """
-    raise NotImplementedError("see docs/concepts/collision_and_geometry.md §7")
+    raise NotImplementedError("see docs/reference/collision_and_geometry.md")

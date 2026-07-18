@@ -1,34 +1,34 @@
 # Conventions
 
-Cross-cutting normative specs — everything the library expects at its
-boundaries. Where {doc}`/concepts/index` is the *what*, these are the
-*how*: the rules that the test suite enforces and that contributors
-have to keep in mind.
+These pages collect the rules that keep BetterRobot predictable. They explain
+what public inputs must look like, how extension points work, how performance
+claims are measured, and what a contribution must prove.
 
 ```{toctree}
 :maxdepth: 1
 
 naming
-performance
+contracts
 extension
 testing
-contracts
-engineering
-source_and_license
+performance
 style
 packaging
+source_and_license
 ```
 
-## When to consult which doc
+## Choose a page
 
-| Spec | Read when |
-|------|-----------|
-| {doc}`naming` | Adding any new identifier, or staring at the Pinocchio → BetterRobot rename table. |
-| {doc}`performance` | Touching hot paths, debugging compile / latency / memory. |
-| {doc}`extension` | Plugging in a new residual / joint / solver / backend / parameterisation. |
-| {doc}`testing` | Running the suite, adding tests, and understanding the current manual-only workflow and advisory benchmarks. |
-| {doc}`contracts` | Touching the public API, raising a new exception, or changing numerical guarantees. |
-| {doc}`engineering` | Deciding dtype, quaternion, concurrency, serialization, differentiation, or compile behavior. |
-| {doc}`source_and_license` | Apache-2.0 decision record and external-source ledger rules. |
-| {doc}`style` | Writing any new code or docstring. |
-| {doc}`packaging` | Adding a dependency, cutting a release, deprecating a symbol. |
+| Page | Read it when you are… |
+|---|---|
+| {doc}`naming` | choosing a public field, function, or tensor name |
+| {doc}`contracts` | checking shapes, dtypes, errors, gradients, or state ownership |
+| {doc}`extension` | adding a residual, joint, solver, parser, viewer mode, or asset resolver |
+| {doc}`testing` | deciding which checks and numerical comparisons a change needs |
+| {doc}`performance` | measuring a hot path or changing compile, batching, or allocation behavior |
+| {doc}`style` | writing or reviewing source code and docstrings |
+| {doc}`packaging` | changing dependencies, extras, versions, or releases |
+| {doc}`source_and_license` | adapting material from another project |
+
+The code and tests are the final authority. If a page disagrees with a public
+signature or an executable contract, fix the page with the code change.

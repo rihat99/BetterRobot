@@ -3,7 +3,7 @@
 Uses a clamped penalty — zero inside limits, positive outside. This is
 what replaces the current ``costs/limits.py`` ``torch.clamp(min=0)`` pattern.
 
-See ``docs/concepts/residuals_and_costs.md §2``.
+See ``docs/concepts/residuals_costs_and_solvers.md``.
 """
 
 from __future__ import annotations

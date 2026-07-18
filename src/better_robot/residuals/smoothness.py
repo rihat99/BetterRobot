@@ -7,7 +7,7 @@ space via ``Model.difference`` — so SE(3) floating bases, spherical joints,
 and revolute joints all contribute the right number of DOFs without
 special-casing.
 
-See ``docs/concepts/residuals_and_costs.md §2``.
+See ``docs/concepts/residuals_costs_and_solvers.md``.
 """
 
 from __future__ import annotations
@@ -256,7 +256,7 @@ class JerkResidual:
     """Placeholder — jerk (third-derivative) smoothness on trajectory.
 
     Not implemented in v1: acceleration regularization is sufficient for
-    the human motion / manipulator scenarios in ``docs/concepts/tasks.md §3``.
+    human-motion and manipulator trajectory problems.
     """
 
     name: str = "jerk"

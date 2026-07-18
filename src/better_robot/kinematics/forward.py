@@ -5,7 +5,7 @@ Replaces the legacy split between ``_fk_impl`` and the
 ``model.topo_order`` and calls ``joint_models[j].joint_transform``. A
 free-flyer root is not a special case — it's the joint at index 1.
 
-See ``docs/concepts/kinematics.md §2``.
+See ``docs/concepts/kinematics_and_jacobians.md``.
 """
 
 from __future__ import annotations
@@ -136,7 +136,7 @@ def forward_kinematics_raw(
     :func:`forward_kinematics` with ``check_quaternion_norm=True`` to run the
     opt-in debug check before calling this hot-path primitive.
 
-    See docs/concepts/kinematics.md §6 and docs/conventions/naming.md for the rename.
+    See docs/concepts/kinematics_and_jacobians.md and docs/conventions/naming.md.
     """
     batch_shape = values._execution_batch_shape(q)
     q = broadcast_to_execution_batch(
@@ -225,7 +225,7 @@ def forward_kinematics(
         ``Data`` with ``joint_pose_local`` and ``joint_pose_world`` populated
         (and ``frame_pose_world`` if ``compute_frames=True``).
 
-    See docs/concepts/kinematics.md §2.
+    See docs/concepts/kinematics_and_jacobians.md.
     """
     if isinstance(q_or_data, Data):
         data = q_or_data
@@ -291,7 +291,7 @@ def update_frame_placements(model: Model, data: Data) -> Data:
     Requires ``data.joint_pose_world`` to be populated (call
     :func:`forward_kinematics` first).
 
-    See docs/concepts/kinematics.md §2.
+    See docs/concepts/kinematics_and_jacobians.md.
     """
     joint_pose_world = data.joint_pose_world
     assert joint_pose_world is not None, "call forward_kinematics before update_frame_placements"

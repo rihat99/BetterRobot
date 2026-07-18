@@ -1,12 +1,12 @@
 # Installation
 
-BetterRobot is pure-Python plus PyTorch. CPU and CUDA both work; a
-CUDA-enabled PyTorch build is detected automatically.
+BetterRobot is a Python package built on PyTorch. The same API works on CPU
+and CUDA; your PyTorch installation decides which devices are available.
 
-## Quick install
+## Install from the repository
 
-BetterRobot is not currently published on PyPI. Install the current `dev`
-source checkout instead:
+BetterRobot is not currently published on PyPI. Install the `dev` branch from
+a source checkout:
 
 ```bash
 git clone --branch dev https://github.com/rihat99/BetterRobot.git
@@ -14,56 +14,37 @@ cd BetterRobot
 python -m pip install .
 ```
 
-That installs the tensor algorithms and URDF loader: `torch`, `numpy`, and
-`yourdfpy`. Install only the optional integrations you need:
+The core install includes the URDF loader. Add only the integrations you need:
 
 ```bash
-python -m pip install '.[demos]'       # robot_descriptions examples
-python -m pip install '.[viewer]'      # viser browser viewer
-python -m pip install '.[io-mjcf]'     # MuJoCo-backed MJCF loading
-python -m pip install '.[meshes]'      # direct trimesh APIs
-python -m pip install '.[warp]'        # CUDA-validated opt-in Warp FK
+python -m pip install '.[demos]'    # robot_descriptions used by these tutorials
+python -m pip install '.[viewer]'   # interactive browser viewer
+python -m pip install '.[io-mjcf]'  # MJCF loading through MuJoCo
+python -m pip install '.[warp]'     # optional fused FK lane
 ```
 
-Extras can be combined, for example
-`python -m pip install '.[demos,viewer]'` from the repository root.
-
-## Contributors
-
-```bash
-python -m pip install -e '.[dev,demos]'
-```
-
-The `dev` extra adds the contributor toolchain — `pytest`,
-`hypothesis`, `pin` (Pinocchio reference oracle), `pyperf`, the Sphinx
-docs stack, plus `ruff` / `pyright` / `mypy` / `pre-commit`. The separate
-`demos` extra supplies `robot_descriptions` for the verification example and
-robot fixtures below.
-
-## Verify the install
-
-```python
-import better_robot as br
-import torch
-from robot_descriptions import panda_description
-
-model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
-print(model.nq, model.nv, model.njoints)
-# 8 8 14 with the currently locked Panda description
-```
-
-The Panda gripper mimic target is removed from the public reduced-coordinate
-layout, so public `nq`/`nv` are one smaller than the full internal layout. If
-the example prints those three integers, you are ready for
-{doc}`forward_kinematics`.
-
-## With `uv`
-
-If you use `uv` (recommended for development):
+Contributors can install the test and documentation tools with a reproducible
+lockfile:
 
 ```bash
 uv sync --extra dev --extra demos
 ```
 
-`uv sync` consumes the committed `uv.lock`; it is the reproducible contributor
-setup for this repository.
+## Check the installation
+
+The following imports BetterRobot, loads the tutorial robot, and checks that
+its public coordinate vectors agree with the model dimensions.
+
+```{testcode}
+import better_robot as br
+from robot_descriptions import panda_description
+
+model = br.load(panda_description.URDF_PATH)
+
+assert model.q_neutral.shape == (model.nq,)
+assert model.nq > 0
+assert model.nv > 0
+assert model.njoints > 0
+```
+
+Continue with {doc}`01_robot_model` to see what the loaded object contains.

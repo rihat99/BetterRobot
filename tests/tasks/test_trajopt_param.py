@@ -5,7 +5,7 @@
 * Robot ``solve_trajopt`` supports knots and honestly rejects the numerical
   B-spline basis until manifold-safe trajectory optimisation lands in M5.
 
-See ``docs/concepts/tasks.md §3``.
+See ``docs/concepts/residuals_costs_and_solvers.md``.
 """
 
 from __future__ import annotations

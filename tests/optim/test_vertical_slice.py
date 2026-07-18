@@ -5,7 +5,7 @@
 2. **Shared provider:** counted synthetic kinematics feeds one detached-index
    nearest-neighbor provider shared by penetration, attraction, and clearance.
 3. **Custom residual:** ``PenetrationResidual`` is executed from the exact
-   marked Python fence in ``docs/guides/custom_residuals.md``; it is not copied.
+   marked testcode fence in ``docs/guides/custom_residual.md``; it is not copied.
 4. **Scale prior:** ``ScalePriorResidual`` is an ordinary one-row residual
    and optimized by the first-order loop.
 5. **Masks:** the root phase retains one q coordinate per frame; the full phase
@@ -66,7 +66,8 @@ def _run_adam_segment(
 
 
 def test_marked_guide_residual_and_provider_evaluation_counts() -> None:
-    assert GUIDE_CUSTOM_RESIDUAL_SOURCE.startswith("class PenetrationResidual:")
+    assert GUIDE_CUSTOM_RESIDUAL_SOURCE.startswith("import torch")
+    assert "class PenetrationResidual:" in GUIDE_CUSTOM_RESIDUAL_SOURCE
     assert PenetrationResidual.__module__.endswith("slice_support")
     assert len(FRICTION_LOG) == 3
 

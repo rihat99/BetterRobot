@@ -5,7 +5,7 @@ Keep the configuration near a user-provided reference. Residuals live in
 spherical joints contribute the right number of DOFs instead of the raw
 ``nq`` slices.
 
-See ``docs/concepts/residuals_and_costs.md §2``.
+See ``docs/concepts/residuals_costs_and_solvers.md``.
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ class RestResidual:
     Analytic Jacobian: ``weight * I`` of shape ``(nv, nv)`` — the exact
     right-Jacobian correction ``Jr_inv`` is dropped as a small-angle
     approximation, consistent with the treatment in
-    ``docs/concepts/kinematics.md §5``.
+    ``docs/concepts/kinematics_and_jacobians.md``.
     """
 
     name: str = "rest"
@@ -285,4 +285,4 @@ class NullspaceResidual:
 
     def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
         del ctx
-        raise NotImplementedError("see docs/concepts/residuals_and_costs.md §2")
+        raise NotImplementedError("see docs/concepts/residuals_costs_and_solvers.md")

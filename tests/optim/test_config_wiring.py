@@ -1,6 +1,6 @@
 """Verify the live ``OptimizerConfig`` factories.
 
-See ``docs/concepts/solver_stack.md §5``.
+See ``docs/concepts/residuals_costs_and_solvers.md``.
 """
 
 from __future__ import annotations

@@ -4,7 +4,7 @@ Users call ``distance(a, b)``; the dispatch table picks the right kernel
 based on ``(type(a), type(b))``. New primitive types register new pairs via
 ``@register_pair``.
 
-See ``docs/concepts/collision_and_geometry.md §4``.
+See ``docs/reference/collision_and_geometry.md``.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ _PAIR: dict[tuple[type, type], Callable] = {}
 def register_pair(type_a: type, type_b: type):
     """Decorator: register a signed-distance kernel for ``(type_a, type_b)``.
 
-    See docs/concepts/collision_and_geometry.md §4.
+    See docs/reference/collision_and_geometry.md.
     """
 
     def _inner(fn):
@@ -35,6 +35,6 @@ def distance(a, b) -> torch.Tensor:
 
     ``> 0`` separated, ``0`` touching, ``< 0`` penetration.
 
-    See docs/concepts/collision_and_geometry.md §4.
+    See docs/reference/collision_and_geometry.md.
     """
-    raise NotImplementedError("see docs/concepts/collision_and_geometry.md §4")
+    raise NotImplementedError("see docs/reference/collision_and_geometry.md")

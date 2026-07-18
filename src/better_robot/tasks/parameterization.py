@@ -7,7 +7,7 @@ low-level Euclidean basis/compression utility.  It is not a manifold-safe
 robot trajectory parameterisation and ``solve_trajopt`` rejects it until the
 missing retraction, Jacobian, and bound semantics are implemented.
 
-See ``docs/concepts/tasks.md §3``.
+See ``docs/concepts/residuals_costs_and_solvers.md``.
 """
 
 from __future__ import annotations
@@ -74,7 +74,7 @@ class BSplineTrajectory:
     :class:`KnotTrajectory` currently has the required manifold-safe solver
     semantics.
 
-    See ``docs/concepts/tasks.md §3``.
+    See ``docs/concepts/residuals_costs_and_solvers.md``.
     """
 
     def __init__(self, *, num_control_points: int, degree: int = 3) -> None:

@@ -8,7 +8,7 @@ task result. Trajectory helpers remain plain, differentiable tensor operations.
 No Jacobian code, no solver loops, no fixed-vs-floating base branching
 lives here — that all belongs one layer down.
 
-See ``docs/concepts/tasks.md``.
+See ``docs/concepts/residuals_costs_and_solvers.md``.
 """
 
 from __future__ import annotations
