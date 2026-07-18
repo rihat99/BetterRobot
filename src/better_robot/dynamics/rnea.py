@@ -21,8 +21,6 @@ Known limitations:
   for every current joint type because their motion subspaces are body-
   frame constant; joints with ``q``-dependent subspaces only need to
   override the hook to plug in correctly.
-* :func:`compute_coriolis_matrix` remains a stub — it requires a separate
-  world-frame recursion (Pinocchio ``rnea.hxx`` §CoriolisMatrixForwardStep).
 
 See ``docs/concepts/dynamics.md``.
 """
@@ -140,7 +138,9 @@ def rnea_raw(  # noqa: PLR0912, PLR0915 - recursive Newton-Euler passes are expl
     device, dtype = q.device, q.dtype
 
     # ── Pass 0: forward kinematics (liMi needed for adjoints) ────────────
-    oMi, liMi = forward_kinematics_raw(structure, values, q)
+    fk_result = forward_kinematics_raw(structure, values, q)
+    oMi = fk_result.joint_pose_world
+    liMi = fk_result.joint_pose_local
 
     # ── Base spatial velocity / acceleration ─────────────────────────────
     # a_gf[0] = −gravity: folds gravity into the inertial bias so the
@@ -246,14 +246,14 @@ def rnea_raw(  # noqa: PLR0912, PLR0915 - recursive Newton-Euler passes are expl
 
 def rnea(
     model: Model,
-    data: Data,
     q: torch.Tensor,
     v: torch.Tensor,
     a: torch.Tensor,
     *,
     fext: torch.Tensor | None = None,
+    data: Data | None = None,
 ) -> torch.Tensor:
-    """Public inverse-dynamics wrapper that populates a ``Data`` workspace."""
+    """Return inverse dynamics, optionally populating ``data`` in place."""
 
     query_inputs: dict[str, tuple[torch.Tensor, tuple[int, ...]]] = {
         "v": (v, (model.nv,)),
@@ -261,7 +261,7 @@ def rnea(
     }
     if fext is not None:
         query_inputs["fext"] = (fext, (model.njoints, 6))
-    q, prepared, _ = prepare_dynamics_inputs(
+    q, prepared, batch = prepare_dynamics_inputs(
         model.structure,
         model.values,
         q,
@@ -270,6 +270,8 @@ def rnea(
     v = prepared["v"]
     a = prepared["a"]
     fext = prepared.get("fext")
+    if data is None:
+        data = model.create_data(batch_shape=batch, device=q.device, dtype=q.dtype)
     data.q = q
     data.v = v
     data.a = a
@@ -286,52 +288,34 @@ def rnea(
 
 def bias_forces(
     model: Model,
-    data: Data,
     q: torch.Tensor,
     v: torch.Tensor,
+    *,
+    data: Data | None = None,
 ) -> torch.Tensor:
     """Bias forces ``b(q, v) = C(q, v)·v + g(q)`` — RNEA with ``a = 0``.
 
     Populates ``data.bias_forces`` in addition to the usual RNEA fields.
     """
     a_zero = torch.zeros_like(v)
-    tau = rnea(model, data, q, v, a_zero)
-    data.bias_forces = tau
+    tau = rnea(model, q, v, a_zero, data=data)
+    if data is not None:
+        data.bias_forces = tau
     return tau
-
-
-# Deprecated alias — remove in v1.1. See docs/conventions/naming.md.
-nle = bias_forces
 
 
 def compute_generalized_gravity(
     model: Model,
-    data: Data,
     q: torch.Tensor,
+    *,
+    data: Data | None = None,
 ) -> torch.Tensor:
     """Generalised gravity torque ``g(q)`` — RNEA with ``v = 0, a = 0``.
 
     Populates ``data.gravity_torque`` in addition to the usual RNEA fields.
     """
     zeros_v = torch.zeros(*q.shape[:-1], model.nv, device=q.device, dtype=q.dtype)
-    tau = rnea(model, data, q, zeros_v, zeros_v)
-    data.gravity_torque = tau
+    tau = rnea(model, q, zeros_v, zeros_v, data=data)
+    if data is not None:
+        data.gravity_torque = tau
     return tau
-
-
-def compute_coriolis_matrix(
-    model: Model,
-    data: Data,
-    q: torch.Tensor,
-    v: torch.Tensor,
-) -> torch.Tensor:
-    """``C(q, v)`` — Coriolis matrix. Populates ``data.coriolis_matrix``.
-
-    Deferred: this requires a dedicated world-frame recursion with the
-    composite-inertia variation ``B[i]`` (Pinocchio ``rnea.hxx``
-    §CoriolisMatrixForwardStep). Not derivable as a slice of RNEA.
-    """
-    raise NotImplementedError(
-        "compute_coriolis_matrix is a separate recursion; see the deferred "
-        "dynamics work in docs/reference/roadmap.md."
-    )

@@ -128,4 +128,6 @@ def test_solve_ik_signature_shape() -> None:
     assert "initial_q" in params
     assert "cost_cfg" in params
     assert "optimizer_cfg" in params
+    assert params["differentiable"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert params["differentiable"].default is False
     assert "robot_collision" not in params

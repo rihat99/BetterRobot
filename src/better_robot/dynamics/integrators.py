@@ -1,8 +1,8 @@
 """Time integrators over the state manifold.
 
-``integrate_q`` is implementable today (it uses only ``Model.integrate``
-and therefore the per-joint ``JointModel.integrate`` routines). The dynamics
-integrator entry points remain reserved and are currently unsupported.
+``integrate_q`` uses ``Model.integrate`` and therefore the per-joint
+``JointModel.integrate`` routines. Full physics integration belongs to a
+simulation layer and is not advertised by this package.
 
 See ``docs/concepts/dynamics.md`` ("Integrators").
 """
@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import torch
 
-from ..data_model.data import Data
 from ..data_model.model import Model
 
 
@@ -43,45 +42,3 @@ def integrate_q(
         ``(B..., nq)`` retracted configuration.
     """
     return model.integrate(q, dt * v)
-
-
-def semi_implicit_euler(
-    model: Model,
-    data: Data,
-    q: torch.Tensor,
-    v: torch.Tensor,
-    tau: torch.Tensor,
-    dt: float,
-    *,
-    fext: torch.Tensor | None = None,
-):
-    """Reserved semi-implicit Euler entry point; currently unsupported."""
-    raise NotImplementedError("semi_implicit_euler is not implemented")
-
-
-def symplectic_euler(
-    model: Model,
-    data: Data,
-    q: torch.Tensor,
-    v: torch.Tensor,
-    tau: torch.Tensor,
-    dt: float,
-    *,
-    fext: torch.Tensor | None = None,
-):
-    """Reserved symplectic Euler entry point; currently unsupported."""
-    raise NotImplementedError("symplectic_euler is not implemented")
-
-
-def rk4(
-    model: Model,
-    data: Data,
-    q: torch.Tensor,
-    v: torch.Tensor,
-    tau: torch.Tensor,
-    dt: float,
-    *,
-    fext: torch.Tensor | None = None,
-):
-    """Reserved fourth-order Runge-Kutta entry point; currently unsupported."""
-    raise NotImplementedError("rk4 is not implemented")

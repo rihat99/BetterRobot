@@ -29,6 +29,7 @@ from better_robot.dynamics import (
 def _panda():
     pytest.importorskip("robot_descriptions")
     from robot_descriptions import panda_description
+
     return br.load(panda_description.URDF_PATH, dtype=torch.float64)
 
 
@@ -40,7 +41,7 @@ def test_rnea_gradcheck():
     a = (torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1).requires_grad_(True)
 
     def f(q_, v_, a_):
-        return rnea(model, model.create_data(), q_, v_, a_)
+        return rnea(model, q_, v_, a_)
 
     assert torch.autograd.gradcheck(f, (q, v, a), eps=1e-6, atol=1e-4, rtol=1e-3)
 
@@ -53,7 +54,7 @@ def test_aba_gradcheck():
     tau = (torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1).requires_grad_(True)
 
     def f(q_, v_, tau_):
-        return aba(model, model.create_data(), q_, v_, tau_)
+        return aba(model, q_, v_, tau_)
 
     assert torch.autograd.gradcheck(f, (q, v, tau), eps=1e-6, atol=1e-4, rtol=1e-3)
 
@@ -62,12 +63,12 @@ def test_dtau_da_matches_crba():
     """``∂τ/∂a`` returned by RNEA derivatives must equal ``M(q)`` from CRBA."""
     model = _panda()
     rng = torch.Generator().manual_seed(2)
-    q = (torch.rand(model.nq, generator=rng, dtype=torch.float64) * 0.2)
-    v = (torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1)
-    a = (torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1)
+    q = torch.rand(model.nq, generator=rng, dtype=torch.float64) * 0.2
+    v = torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1
+    a = torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1
 
     _, _, dtau_da = compute_rnea_derivatives(model, model.create_data(), q, v, a)
-    M = crba(model, model.create_data(), q)
+    M = crba(model, q)
     torch.testing.assert_close(dtau_da, M, rtol=1e-10, atol=1e-10)
 
 
@@ -75,11 +76,11 @@ def test_dadtau_matches_minverse():
     """``∂a/∂τ`` from ABA derivatives equals ``M(q)⁻¹``."""
     model = _panda()
     rng = torch.Generator().manual_seed(3)
-    q = (torch.rand(model.nq, generator=rng, dtype=torch.float64) * 0.2)
-    v = (torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1)
-    tau = (torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1)
+    q = torch.rand(model.nq, generator=rng, dtype=torch.float64) * 0.2
+    v = torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1
+    tau = torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1
 
     _, _, da_dtau = compute_aba_derivatives(model, model.create_data(), q, v, tau)
-    M = crba(model, model.create_data(), q)
+    M = crba(model, q)
     M_inv = torch.linalg.inv(M)
     torch.testing.assert_close(da_dtau, M_inv, rtol=1e-9, atol=1e-9)

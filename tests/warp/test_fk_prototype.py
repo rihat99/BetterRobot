@@ -92,8 +92,10 @@ def _outputs(result) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
 
 
 def _torch_outputs(model, values, q) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    world, local = forward_kinematics_raw(model.structure, values, q)
-    frames = frame_placements_raw(model.structure, values, world)
+    result = forward_kinematics_raw(model.structure, values, q)
+    world = result.joint_pose_world
+    local = result.joint_pose_local
+    frames = frame_placements_raw(model.structure, values, world).frame_pose_world
     return world, local, frames
 
 

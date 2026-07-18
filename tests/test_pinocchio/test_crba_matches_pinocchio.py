@@ -34,7 +34,7 @@ def test_crba_matches_pinocchio(panda_both):
     for i in range(qs.shape[0]):
         q = qs[i]
         data = br_model.create_data()
-        M_br = br_crba(br_model, data, q).detach().cpu().numpy()
+        M_br = br_crba(br_model, q, data=data).detach().cpu().numpy()
         M_pin = np.asarray(pin.crba(pin_model, pin_data, q.numpy()))
         # Pinocchio fills only the upper triangle by default; mirror it.
         M_pin_full = np.triu(M_pin) + np.triu(M_pin, k=1).T
@@ -52,13 +52,13 @@ def test_crba_consistent_with_rnea(panda_both):
         a = (torch.rand(br_model.nv, generator=rng, dtype=torch.float64) - 0.5) * 2.0
 
         d_M = br_model.create_data()
-        M = br_crba(br_model, d_M, q)
+        M = br_crba(br_model, q, data=d_M)
 
         d_b = br_model.create_data()
-        b = br_bias_forces(br_model, d_b, q, v)
+        b = br_bias_forces(br_model, q, v, data=d_b)
 
         d_t = br_model.create_data()
-        tau = br_rnea(br_model, d_t, q, v, a)
+        tau = br_rnea(br_model, q, v, a, data=d_t)
 
         lhs = (M @ a.unsqueeze(-1)).squeeze(-1) + b
         torch.testing.assert_close(lhs, tau, rtol=1e-10, atol=1e-10)
@@ -69,7 +69,7 @@ def test_crba_neutral_is_spd(panda_both):
     br_model, _, _, _ = panda_both
     q = br_model.q_neutral.clamp(br_model.lower_pos_limit, br_model.upper_pos_limit)
     data = br_model.create_data()
-    M = br_crba(br_model, data, q).detach().cpu().double()
+    M = br_crba(br_model, q, data=data).detach().cpu().double()
     # Symmetric:
     torch.testing.assert_close(M, M.transpose(-1, -2), rtol=1e-12, atol=1e-12)
     # Positive-definite (Cholesky succeeds):
@@ -79,10 +79,10 @@ def test_crba_neutral_is_spd(panda_both):
 def test_crba_batched(panda_both):
     """Batched CRBA matches a per-sample loop."""
     br_model, _, _, _ = panda_both
-    qs = sample_panda_q(4, seed=3)                      # (4, nq)
+    qs = sample_panda_q(4, seed=3)  # (4, nq)
     data_batch = br_model.create_data(batch_shape=(4,))
-    M_batch = br_crba(br_model, data_batch, qs)
+    M_batch = br_crba(br_model, qs, data=data_batch)
     for k in range(qs.shape[0]):
         d_k = br_model.create_data()
-        M_k = br_crba(br_model, d_k, qs[k])
+        M_k = br_crba(br_model, qs[k], data=d_k)
         torch.testing.assert_close(M_batch[k], M_k, rtol=1e-12, atol=1e-12)

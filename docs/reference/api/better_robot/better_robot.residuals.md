@@ -18,8 +18,6 @@ better_robot.residuals.base
 better_robot.residuals.human
 better_robot.residuals.projection
 better_robot.residuals.contact
-better_robot.residuals.manipulability
-better_robot.residuals.collision
 better_robot.residuals.chamfer
 better_robot.residuals.regularization
 better_robot.residuals.limits

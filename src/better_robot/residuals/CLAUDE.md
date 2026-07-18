@@ -8,7 +8,7 @@ returns `(..., dim)` rows, and may implement
 the `Problem` Jacobian strategy; finite differences remain an explicit debug
 choice.
 
-Providers own shared computation. Declare their static `inputs` and `outputs`;
+Providers own shared computation. Declare their static `reads` and `outputs`;
 `Problem` evaluates each provider at most once per evaluation context. Residuals
 must not cache graph-carrying tensors across evaluations.
 
@@ -59,8 +59,8 @@ Robust kernels live on `optim.ResidualItem`, not inside residual math. Use
   reference-trajectory terms.
 - `smoothness.py`, `temporal.py`: trajectory differences and time indexing.
 - `contact.py`: contact-consistency residual.
-- `collision.py`: collision residual placeholders explicitly deferred; do not
-  partially implement this path without a new reviewed scope.
+- Collision residuals are not exported; the separate collision package remains
+  owner-gated and must not be partially implemented without reviewed scope.
 
 ## Author checklist
 

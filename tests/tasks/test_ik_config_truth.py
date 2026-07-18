@@ -129,3 +129,26 @@ def test_phased_optimizer_accepts_refinement_disabled_items(
         ),
     )
     assert result.q.shape == model.q_neutral.shape
+
+
+def test_differentiable_flag_requires_a_bool(
+    ik_case: tuple[Model, dict[str, torch.Tensor]],
+) -> None:
+    model, targets = ik_case
+
+    with pytest.raises(TypeError, match="differentiable must be a bool"):
+        solve_ik(model, targets, differentiable=1)  # type: ignore[arg-type]
+
+
+def test_differentiable_ik_requires_lm(
+    ik_case: tuple[Model, dict[str, torch.Tensor]],
+) -> None:
+    model, targets = ik_case
+
+    with pytest.raises(ValueError, match="requires optimizer_cfg.optimizer='lm'"):
+        solve_ik(
+            model,
+            targets,
+            optimizer_cfg=OptimizerConfig(optimizer="adam"),
+            differentiable=True,
+        )

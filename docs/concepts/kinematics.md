@@ -55,11 +55,17 @@ Source: `src/better_robot/kinematics/forward.py`.
 The algorithm is one topological pass:
 
 ```python
+@dataclass(frozen=True)
+class FKResult:
+    joint_pose_world: torch.Tensor
+    joint_pose_local: torch.Tensor
+
+
 def forward_kinematics_raw(
     structure: ModelStructure,
     values: ModelValues,
     q: torch.Tensor,
-) -> tuple[Tensor, Tensor]:
+) -> FKResult:
     q_full = expand_configuration(structure, q)
     world = [None] * structure.njoints
     local = [None] * structure.njoints
@@ -80,7 +86,10 @@ def forward_kinematics_raw(
         parent = structure.parents[j]
         world[j] = local[j] if parent < 0 else lie.se3.compose(world[parent], local[j])
 
-    return torch.stack(world, dim=-2), torch.stack(local, dim=-2)
+    return FKResult(
+        joint_pose_world=torch.stack(world, dim=-2),
+        joint_pose_local=torch.stack(local, dim=-2),
+    )
 ```
 
 Properties of this FK:
@@ -139,14 +148,9 @@ sharing the same underlying assembly:
 - **`get_frame_jacobian(model, data, frame_id, *, reference=...)`**
   — same idea but for an arbitrary named frame.
 
-```python
-class ReferenceFrame(str, Enum):
-    WORLD               = "world"
-    LOCAL               = "local"
-    LOCAL_WORLD_ALIGNED = "local_world_aligned"
-```
-
-`LOCAL_WORLD_ALIGNED` is the default for `get_frame_jacobian`. It is
+The `reference=` keyword takes one of the literal strings `"world"`,
+`"local"`, or `"local_world_aligned"`. `"local_world_aligned"` is the
+default for `get_frame_jacobian`. It is
 the Jacobian where:
 
 - linear rows = velocity of the frame origin expressed in the **world**
@@ -217,7 +221,7 @@ class PoseResidual:
         Jr_inv  = lie.tangents.right_jacobian_inv_se3(log_err)        # (B..., 6, 6)
         J_frame = get_frame_jacobian(self.model, data,
                                      self.frame_id,
-                                     reference=ReferenceFrame.LOCAL)   # (B..., 6, nv)
+                                     reference="local")                # (B..., 6, nv)
         J = self.weight_mat @ Jr_inv @ J_frame                          # (B..., 6, nv)
         return {"q": J.index_select(-1, ctx.free_indices("q"))}
 ```
@@ -237,13 +241,18 @@ def forward_kinematics_raw(
     structure: ModelStructure,
     values: ModelValues,
     q: torch.Tensor,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """Return (joint_pose_world, joint_pose_local) without touching any Data.
+) -> FKResult:
+    """Return named world/local placements without touching any Data.
 
     Useful for torch.func.jacrev / torch.vmap closures where you do not
     want a stateful Data mutation in the graph.
     """
 ```
+
+`frame_placements_raw(structure, values, joint_pose_world)` returns a
+`FramePlacementsResult.frame_pose_world` tensor. The sequencing-free
+`joint_jacobians_raw(structure, q, joint_pose_world)` returns
+`JointJacobiansResult.joint_jacobians`; neither primitive mutates `Data`.
 
 `forward_kinematics(model, q, ...)` selects one complete pass, then writes
 the returned tensors into `Data`. For research code that

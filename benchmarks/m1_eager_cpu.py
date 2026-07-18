@@ -87,7 +87,7 @@ def run(label: str, batches: tuple[int, ...], warmup: int, samples: int) -> dict
 
             cases: tuple[tuple[str, Callable[[], object]], ...] = (
                 ("forward_kinematics", lambda: br.forward_kinematics(model, q, compute_frames=True)),
-                ("rnea", lambda: br.rnea(model, data, q, v, a)),
+                ("rnea", lambda: br.rnea(model, q, v, a, data=data)),
             )
             for operation, function in cases:
                 measurements.append(

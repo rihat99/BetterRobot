@@ -137,7 +137,7 @@ In particular, `from_model` does not accept `resolver=`, does not inspect
 `Model.meta`, and does not fit or cache capsules.  There is no implemented
 `update` method.
 
-## Reserved penalty and residuals
+## Reserved penalty; no residual exports
 
 The following function is declared but not evaluated:
 
@@ -149,12 +149,11 @@ def colldist_from_sdf(d: torch.Tensor, margin: float) -> torch.Tensor:
 Its docstring records an intended piecewise penalty, but that formula is
 design intent rather than shipped behavior.
 
-`SelfCollisionResidual` and `WorldCollisionResidual` have importable
-constructors in `src/better_robot/residuals/collision.py`.  Both
-`__call__` methods and both `jacobian` methods raise `NotImplementedError`.
-The constructors' `dim` bookkeeping therefore must not be interpreted as an
-evaluatable residual-shape guarantee, and no active-pair compaction or sparse
-Jacobian path exists.
+BetterRobot does not export `SelfCollisionResidual` or
+`WorldCollisionResidual`. Their former constructors advertised no executable
+behavior and were removed. A real residual surface waits on the owner-gated
+collision-package decision, including stable output-shape and Jacobian
+contracts.
 
 ## Meshes and asset resolvers
 

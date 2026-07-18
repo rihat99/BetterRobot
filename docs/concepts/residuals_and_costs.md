@@ -58,6 +58,7 @@ AD):
 | File | Class | dim | Notes |
 |------|-------|-----|-------|
 | `human.py` | `SwingTwistLimitResidual` | 3 * selected joints | Piecewise swing/twist limits; decomposition is singular at pure-pi swing |
+| `limits.py` | `JointVelocityLimit` | 2 * nv | Clamped penalty over velocity stored in the evaluation data |
 | `regularization.py` | `JointRotationPrior` | nv | Exact per-joint weighted manifold difference; no small-angle identity Jacobian claim |
 
 Stubs (raise `NotImplementedError`; signatures pinned):
@@ -65,10 +66,7 @@ Stubs (raise `NotImplementedError`; signatures pinned):
 | File | Class | Notes |
 |------|-------|-------|
 | `smoothness.py` | `JerkResidual` | Third-derivative smoothness |
-| `manipulability.py` | `YoshikawaResidual` | det(J Jᵀ)^½ |
 | `regularization.py` | `NullspaceResidual` | Project gradient onto null space |
-| `collision.py` | `SelfCollisionResidual`, `WorldCollisionResidual` | Collision primitives and residual evaluation are currently stubbed |
-| `limits.py` | `JointVelocityLimit.jacobian`, `JointAccelLimit` | `__call__` works; analytic Jacobian or full body pending |
 
 A residual without an analytic block is differentiated through
 `RobotConfig.retract` with `torch.func.jacrev` or `jacfwd`; finite differences
@@ -227,9 +225,9 @@ and damping stable, the contract is:
 - The active subset may vary internally, but the output dimension remains
   stable and explicit LM assembly remains dense.
 
-This is the reserved shape contract for a future
-`SelfCollisionResidual`. That residual still raises `NotImplementedError`;
-collision-aware `solve_ik` integration is roadmap work.
+This is a possible shape contract for a future collision residual. No
+`SelfCollisionResidual` or `WorldCollisionResidual` export ships today;
+collision-aware `solve_ik` integration remains future work.
 
 ## Mapping to current code
 

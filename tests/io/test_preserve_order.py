@@ -96,14 +96,12 @@ def test_preserved_smpl_fk_and_rnea_match_default_dfs_model():
 
     tau_preserved = br.rnea(
         preserved,
-        preserved.create_data(),
         q_preserved,
         v_preserved,
         a_preserved,
     )
     tau_default = br.rnea(
         default,
-        default.create_data(),
         q_default,
         v_default,
         a_default,

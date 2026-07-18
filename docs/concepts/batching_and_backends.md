@@ -76,11 +76,13 @@ A ``Model`` exposes two views used by whole-pass implementations:
 The raw Torch passes consume that seam directly:
 
 ```python
-joint_pose_world, joint_pose_local = forward_kinematics_raw(
+fk_result = forward_kinematics_raw(
     model.structure,
     model.values,
     q,
 )
+joint_pose_world = fk_result.joint_pose_world
+joint_pose_local = fk_result.joint_pose_local
 
 rnea_result = rnea_raw(
     model.structure,

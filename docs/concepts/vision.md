@@ -106,9 +106,9 @@ already reach for them and tests can already assume them.
 
 ## What we deliberately do not do
 
-- We do not ship a physics engine. `integrate_q` is live, while
-  `semi_implicit_euler`, `symplectic_euler`, and `rk4` are explicit stubs.
-  Applications that need simulation must supply that layer separately.
+- We do not ship a physics engine. `integrate_q` is a live configuration
+  retraction; full-physics integrators are omitted. Applications that need
+  simulation must supply that layer separately.
 - We do not ship optimal control or action-model skeletons. A future DDP/iLQR
   milestone should introduce that boundary together with executable behavior.
 - We do not ship anatomical joints, muscles, or SMPL parsing in core.

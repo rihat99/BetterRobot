@@ -84,7 +84,9 @@ def ccrba_raw(
     device, dtype = q.device, q.dtype
     njoints = structure.njoints
     nv_full = structure.nv_full
-    oMi, liMi = forward_kinematics_raw(structure, values, q)
+    fk_result = forward_kinematics_raw(structure, values, q)
+    oMi = fk_result.joint_pose_world
+    liMi = fk_result.joint_pose_local
     total_mass, com_world = _world_com(structure, values, oMi)
     spatial_inertias = values.spatial_inertias()
     motion_subspaces = structure.joint_motion_subspaces
@@ -131,10 +133,11 @@ def ccrba_raw(
 
 def center_of_mass(
     model: Model,
-    data: Data,
     q: torch.Tensor,
     v: torch.Tensor | None = None,
     a: torch.Tensor | None = None,
+    *,
+    data: Data | None = None,
 ) -> torch.Tensor:
     """Whole-body center of mass. ``(B..., 3)``.
 
@@ -149,13 +152,15 @@ def center_of_mass(
     if a is not None:
         raise NotImplementedError("center-of-mass acceleration is not implemented; omit a")
     query_inputs = {} if v is None else {"v": (v, (model.nv,))}
-    q, prepared, _ = prepare_dynamics_inputs(
+    q, prepared, batch = prepare_dynamics_inputs(
         model.structure,
         model.values,
         q,
         query_inputs,
     )
     v = prepared.get("v")
+    if data is None:
+        data = model.create_data(batch_shape=batch, device=q.device, dtype=q.dtype)
     data.q = q
     data.v = v
     result = ccrba_raw(model.structure, model.values, q, v)
@@ -167,59 +172,64 @@ def center_of_mass(
 
 def compute_centroidal_map(
     model: Model,
-    data: Data,
     q: torch.Tensor,
+    *,
+    data: Data | None = None,
 ) -> torch.Tensor:
     """Centroidal momentum matrix ``A_g(q)`` — shape ``(B..., 6, nv)``.
 
     Populates ``data.centroidal_momentum_matrix`` and ``data.com_position``.
     """
-    A_g, _ = _ccrba_impl(model, data, q, v=None)
+    A_g, _ = _ccrba_impl(model, q, v=None, data=data)
     return A_g
 
 
 def compute_centroidal_momentum(
     model: Model,
-    data: Data,
     q: torch.Tensor,
     v: torch.Tensor,
+    *,
+    data: Data | None = None,
 ) -> torch.Tensor:
     """Centroidal spatial momentum ``h_g = A_g(q) v`` — shape ``(B..., 6)``.
 
     Populates ``data.centroidal_momentum`` (and the matrix as a side
     effect).
     """
-    _, h_g = _ccrba_impl(model, data, q, v=v)
+    _, h_g = _ccrba_impl(model, q, v=v, data=data)
     return h_g
 
 
 def ccrba(
     model: Model,
-    data: Data,
     q: torch.Tensor,
     v: torch.Tensor,
+    *,
+    data: Data | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Centroidal CRBA — return ``(A_g, h_g)`` and populate the matching
     fields on ``data``.
     """
-    return _ccrba_impl(model, data, q, v=v)
+    return _ccrba_impl(model, q, v=v, data=data)
 
 
 def _ccrba_impl(
     model: Model,
-    data: Data,
     q: torch.Tensor,
     *,
     v: torch.Tensor | None,
+    data: Data | None,
 ) -> tuple[torch.Tensor, torch.Tensor | None]:
     query_inputs = {} if v is None else {"v": (v, (model.nv,))}
-    q, prepared, _ = prepare_dynamics_inputs(
+    q, prepared, batch = prepare_dynamics_inputs(
         model.structure,
         model.values,
         q,
         query_inputs,
     )
     v = prepared.get("v")
+    if data is None:
+        data = model.create_data(batch_shape=batch, device=q.device, dtype=q.dtype)
     data.q = q
     data.v = v
     result = ccrba_raw(model.structure, model.values, q, v)

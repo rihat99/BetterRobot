@@ -53,10 +53,10 @@ def test_hg_linear_equals_mass_times_vcom():
         q = qs[i]
         v = torch.rand(model.nv, generator=rng, dtype=torch.float64) - 0.5
         data = model.create_data()
-        center_of_mass(model, data, q, v=v)
+        center_of_mass(model, q, v=v, data=data)
         assert data.com_velocity is not None
         v_com = data.com_velocity
-        _, h_g = ccrba(model, model.create_data(), q, v)
+        _, h_g = ccrba(model, q, v)
         torch.testing.assert_close(h_g[:3], total_mass * v_com, rtol=1e-10, atol=1e-10)
 
 
@@ -69,9 +69,9 @@ def test_ag_times_v_equals_hg():
         q = qs[i]
         v = torch.rand(model.nv, generator=rng, dtype=torch.float64) - 0.5
         data = model.create_data()
-        A_g = compute_centroidal_map(model, data, q)
+        A_g = compute_centroidal_map(model, q, data=data)
         h_g_expected = (A_g @ v.unsqueeze(-1)).squeeze(-1)
-        h_g = compute_centroidal_momentum(model, model.create_data(), q, v)
+        h_g = compute_centroidal_momentum(model, q, v)
         torch.testing.assert_close(h_g, h_g_expected, rtol=1e-12, atol=1e-12)
 
 
@@ -82,7 +82,7 @@ def test_zero_velocity_gives_zero_momentum():
     for i in range(qs.shape[0]):
         q = qs[i]
         zero_v = torch.zeros(model.nv, dtype=torch.float64)
-        _, h_g = ccrba(model, model.create_data(), q, zero_v)
+        _, h_g = ccrba(model, q, zero_v)
         torch.testing.assert_close(
             h_g,
             torch.zeros(6, dtype=torch.float64),
@@ -102,7 +102,7 @@ def test_centroidal_g1_free_flyer():
     v = torch.zeros(model.nv, dtype=torch.float64)
     v[0] = 1.0
 
-    _, h_g = ccrba(model, model.create_data(), q, v)
+    _, h_g = ccrba(model, q, v)
     total_mass = sum(model.body_inertias[i, 0].item() for i in range(model.njoints))
     torch.testing.assert_close(
         h_g[0],

@@ -388,8 +388,8 @@ def solve_contact_forces(  # noqa: PLR0912, PLR0915 - validates one complete pub
         converged = bool(state.converged)
     return ContactForceResult(
         forces_world=forces,
-        fext_local=diagnostics["fext_local"].detach(),
-        generalized_force=diagnostics["generalized_force"].detach(),
+        fext_local=diagnostics["fext_local"],
+        generalized_force=diagnostics["generalized_force"],
         residual=state.residual,
         cost=state.cost,
         iters=iters,

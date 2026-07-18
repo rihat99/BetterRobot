@@ -59,11 +59,22 @@ differentiable blocks); the actual feature — patterns, examples, perhaps a
   joint origins, `[force, torque=0]`; a real contact offset contributes
   `r × f`).
 
+## Residuals
+
+- **Yoshikawa manipulability:** the placeholder export was deleted. Add a real
+  residual only with an explicit Jacobian-conditioning and singularity
+  contract.
+- **Acceleration limits:** `JointAccelLimit` was deleted because neither
+  `Model` nor `ModelValues` declares acceleration bounds. A future residual
+  first needs an owned source and unit/shape contract for those limits.
+
 ## Collision
 
 Still a stub package. Decision owed: port a real implementation (owner's
 external code is the candidate source), or cut the package entirely until it
 has one. No Torch oracle exists, which also blocks any collision kernel work.
+The empty `SelfCollisionResidual` and `WorldCollisionResidual` exports were
+deleted; a residual API belongs with the eventual package decision.
 
 ## Trajectory representations
 

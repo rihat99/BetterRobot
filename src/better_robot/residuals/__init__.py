@@ -10,9 +10,7 @@ from __future__ import annotations
 
 from .base import Residual
 from .chamfer import MaskedChamferResidual
-from .collision import SelfCollisionResidual, WorldCollisionResidual
-from .limits import JointAccelLimit, JointPositionLimit, JointVelocityLimit
-from .manipulability import YoshikawaResidual
+from .limits import JointPositionLimit, JointVelocityLimit
 from .human import SwingTwistLimitResidual
 from .pose import OrientationResidual, PoseResidual, PositionResidual
 from .projection import ProjectionResidual
@@ -43,7 +41,6 @@ __all__ = [
     "SceneClearanceResidual",
     "JointPositionLimit",
     "JointVelocityLimit",
-    "JointAccelLimit",
     "SwingTwistLimitResidual",
     "RestResidual",
     "JointRotationPrior",
@@ -55,7 +52,4 @@ __all__ = [
     "AccelerationResidual",
     "JerkResidual",
     "TemporalPattern",
-    "YoshikawaResidual",
-    "SelfCollisionResidual",
-    "WorldCollisionResidual",
 ]

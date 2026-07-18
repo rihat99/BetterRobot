@@ -135,19 +135,3 @@ class JointVelocityLimit:
         lower_viol = torch.clamp(-lim - v, min=0.0) * self.weight
         upper_viol = torch.clamp(v - lim, min=0.0) * self.weight
         return torch.cat([lower_viol, upper_viol], dim=-1)
-
-
-class JointAccelLimit:
-    """One-sided clamped penalty on joint acceleration limits. ``dim = 2 * nv``."""
-
-    name: str = "joint_accel_limit"
-    reads = ("q", "data")
-
-    def __init__(self, model: Model, *, weight: float = 1.0) -> None:
-        self.model = model
-        self.weight = weight
-        self.dim = 2 * model.nv
-
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        del ctx
-        raise NotImplementedError("see docs/concepts/residuals_and_costs.md §2")

@@ -23,10 +23,6 @@
   - ```{autodoc2-docstring} better_robot.residuals.limits.JointVelocityLimit
     :summary:
     ```
-* - {py:obj}`JointAccelLimit <better_robot.residuals.limits.JointAccelLimit>`
-  - ```{autodoc2-docstring} better_robot.residuals.limits.JointAccelLimit
-    :summary:
-    ```
 ````
 
 ### API
@@ -91,35 +87,6 @@
    ('q', 'data')
 
 ```{autodoc2-docstring} better_robot.residuals.limits.JointVelocityLimit.reads
-```
-
-````
-
-`````
-
-`````{py:class} JointAccelLimit(model: better_robot.data_model.model.Model, *, weight: float = 1.0)
-:canonical: better_robot.residuals.limits.JointAccelLimit
-
-```{autodoc2-docstring} better_robot.residuals.limits.JointAccelLimit
-```
-
-````{py:attribute} name
-:canonical: better_robot.residuals.limits.JointAccelLimit.name
-:type: str
-:value: >
-   'joint_accel_limit'
-
-```{autodoc2-docstring} better_robot.residuals.limits.JointAccelLimit.name
-```
-
-````
-
-````{py:attribute} reads
-:canonical: better_robot.residuals.limits.JointAccelLimit.reads
-:value: >
-   ('q', 'data')
-
-```{autodoc2-docstring} better_robot.residuals.limits.JointAccelLimit.reads
 ```
 
 ````

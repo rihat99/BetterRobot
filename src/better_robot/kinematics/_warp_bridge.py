@@ -61,8 +61,14 @@ def _vjp(
             frame_placements=frames_exec,
             body_inertias=body_inertias,
         )
-        world, local = forward_kinematics_raw(structure, recompute_values, q_exec)
-        frames = frame_placements_raw(structure, recompute_values, world)
+        fk_result = forward_kinematics_raw(structure, recompute_values, q_exec)
+        world = fk_result.joint_pose_world
+        local = fk_result.joint_pose_local
+        frames = frame_placements_raw(
+            structure,
+            recompute_values,
+            world,
+        ).frame_pose_world
         gradients = torch.autograd.grad(
             (world, local, frames),
             working,

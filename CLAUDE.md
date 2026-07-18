@@ -194,7 +194,8 @@ uv run pytest tests/ -v   # all tests must pass
 Tests use real Panda URDF via `robot_descriptions`. No mocking of FK or URDF parsing.
 `tests/contract/test_layer_dependencies.py` enforces the dependency DAG via AST parsing.
 `tests/contract/test_public_api.py` enforces the required top-level core and duplicate-free `__all__`
-(23 required symbols, including `SE3` and `ModelBuilder`). `tests/contract/` carries the rest of
+(24 required symbols, including `ModelStructure`, `ModelValues`, `SE3`, and `ModelBuilder`).
+`tests/contract/` carries the rest of
 the AST + structural contract suite (cache invariants, optional
 imports, no-legacy-strings, hot-path lint,
 pluggable Protocols, solver state, naming, docstrings, submodule reachability).

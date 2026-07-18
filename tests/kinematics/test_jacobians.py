@@ -14,10 +14,11 @@ import torch
 
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.io.build_model import build_model
-from better_robot.kinematics.forward import forward_kinematics
+from better_robot.kinematics.forward import forward_kinematics, forward_kinematics_raw
 from better_robot.kinematics.jacobian import (
     compute_joint_jacobians,
     get_frame_jacobian,
+    joint_jacobians_raw,
 )
 from better_robot.residuals.pose import PoseResidual
 
@@ -93,6 +94,20 @@ def test_compute_joint_jacobians_shape(arm):
     data = forward_kinematics(arm, q)
     compute_joint_jacobians(arm, data)
     assert data.joint_jacobians.shape == (arm.njoints, 6, arm.nv)
+
+
+def test_joint_jacobians_raw_matches_workspace_pass(arm):
+    q = arm.q_neutral
+    fk_result = forward_kinematics_raw(arm.structure, arm.values, q)
+    raw_result = joint_jacobians_raw(
+        arm.structure,
+        q,
+        fk_result.joint_pose_world,
+    )
+    data = forward_kinematics(arm, q)
+    compute_joint_jacobians(arm, data)
+
+    torch.testing.assert_close(raw_result.joint_jacobians, data.joint_jacobians)
 
 
 def test_get_frame_jacobian_shape(arm):

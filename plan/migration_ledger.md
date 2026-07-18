@@ -61,6 +61,14 @@ public symbol; the owner resolves the consumer side.
 | `NormalCG`, `NormalOperator`, `linearization="matrix_free"`, and `LinearSystemKind` | Use automatic dense/block-banded routing, or force `linearization="dense"` / `"structured"`. |
 | `better_robot.optim.structure` | Import `BlockBandedMatrix`, `TemporalAnalysis`, and `LinearizationReason` from `better_robot.optim`; route records live with LM. |
 | `LMState.previous_linear_step`, `projected_gradient`, and `linear_solve_*` diagnostics | Inspect convergence, cost, gradients, `factorization_ok`, and status; iterative-solver warm-start diagnostics disappeared with `NormalCG`. |
+| `better_robot.dynamics.compute_minverse`, `better_robot.dynamics.crba.compute_minverse` | Call `torch.linalg.inv(crba(...))` when an explicit inverse is acceptable; no direct ABA-factorization inverse ships. |
+| `better_robot.dynamics.compute_coriolis_matrix`, `better_robot.dynamics.rnea.compute_coriolis_matrix` | Use `bias_forces` when the needed quantity is `C(q, v) v + g(q)`; no standalone Coriolis-matrix pass ships. |
+| `better_robot.dynamics.compute_centroidal_dynamics_derivatives`, `better_robot.dynamics.derivatives.compute_centroidal_dynamics_derivatives` | Differentiate through `compute_centroidal_map` or `compute_centroidal_momentum`; no named analytic helper ships. |
+| `better_robot.dynamics.semi_implicit_euler`, `symplectic_euler`, `rk4` and their `better_robot.dynamics.integrators` paths | `integrate_q` retracts configurations; full physics integration belongs to the caller's simulation layer. |
+| `better_robot.dynamics.nle`, `better_robot.dynamics.rnea.nle` | `better_robot.dynamics.bias_forces`. |
+| `better_robot.residuals.YoshikawaResidual`, `better_robot.residuals.manipulability.YoshikawaResidual` | No replacement ships; implement an explicit residual when its conditioning contract is defined. |
+| `better_robot.residuals.SelfCollisionResidual`, `WorldCollisionResidual` and their `better_robot.residuals.collision` paths | No replacement ships; collision residuals wait on the owner-gated collision package decision. |
+| `better_robot.residuals.JointAccelLimit`, `better_robot.residuals.limits.JointAccelLimit` | No replacement ships; the model currently has no acceleration-limit values. |
 
 ## To be removed by the polish phases (agents append exact rows as they land)
 

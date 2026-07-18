@@ -22,100 +22,105 @@ The Featherstone passes are live: RNEA, ABA, CRBA, CCRBA, the centroidal map
 and momentum, COM position and velocity, and the autograd-derived
 `compute_rnea_derivatives`, `compute_aba_derivatives`, and
 `compute_crba_derivatives` helpers. The underlying differentiable passes have
-gradient coverage. `compute_centroidal_dynamics_derivatives`, COM acceleration,
-`compute_minverse`, `compute_coriolis_matrix`, and the three full-physics
-integrators (`semi_implicit_euler`, `symplectic_euler`, and `rk4`) are stubs
-that raise `NotImplementedError` and are listed in
-{doc}`/reference/roadmap`.
+gradient coverage. Direct inverse-mass and Coriolis-matrix passes, centroidal
+dynamics derivatives, and full-physics integrators are future capabilities,
+not importable placeholder functions. COM acceleration remains an explicit
+guard on the otherwise-live `center_of_mass` wrapper.
 
 ## Entry points
 
 ```python
-# src/better_robot/dynamics/__init__.py
-from .rnea        import rnea, bias_forces, compute_generalized_gravity, compute_coriolis_matrix
+# selected exports from src/better_robot/dynamics/__init__.py
+from .rnea        import rnea, rnea_raw, bias_forces, compute_generalized_gravity
 from .aba         import aba
-from .crba        import crba, compute_minverse
+from .crba        import crba, crba_raw
 from .centroidal  import center_of_mass, compute_centroidal_map, compute_centroidal_momentum, ccrba
 from .derivatives import (
     compute_rnea_derivatives,
     compute_aba_derivatives,
     compute_crba_derivatives,
-    compute_centroidal_dynamics_derivatives,
 )
-from .integrators import integrate_q, symplectic_euler, rk4, semi_implicit_euler
+from .integrators import integrate_q
 ```
 
-The forward dynamics algorithms write into one caller-supplied `Data` object
-and accept arbitrary leading batch axes. Configuration inputs end in `nq`;
-generalized vectors end in `nv`; mass matrices end in `(nv, nv)`. The explicit
-derivative helpers return higher-rank Jacobians described below.
+The forward dynamics wrappers allocate their temporary `Data` internally by
+default and accept arbitrary leading batch axes. Pass `data=workspace` when
+the populated intermediates are useful; that exact object is filled in place.
+Configuration inputs end in `nq`; generalized vectors end in `nv`; mass
+matrices end in `(nv, nv)`. The explicit derivative helpers return higher-rank
+Jacobians described below.
 
 ## Canonical signatures
 
 ```python
 def rnea(
     model: Model,
-    data: Data,
     q: Tensor,           # (B..., nq)
     v: Tensor,           # (B..., nv)
     a: Tensor,           # (B..., nv)
     *,
     fext: Tensor | None = None,   # (B..., njoints, 6) external wrenches per joint, local frame
+    data: Data | None = None,
 ) -> Tensor:             # (B..., nv)
     """Inverse dynamics: τ = M(q) a + b(q, v) + g(q) − Jᵀ fext.
 
     Two-pass Featherstone: forward (velocities, accelerations), then
-    backward (forces, joint torques). Populates ``data.tau``,
-    ``data.joint_pose_world``, ``data.v``, ``data.a``.
+    backward (forces, joint torques). When supplied, populates ``data.tau``,
+    ``data.joint_pose_world``, ``data.v``, and ``data.a``.
     """
 
 def aba(
     model: Model,
-    data: Data,
     q: Tensor,
     v: Tensor,
     tau: Tensor,
     *,
     fext: Tensor | None = None,
+    data: Data | None = None,
 ) -> Tensor:             # (B..., nv)
     """Forward dynamics via Articulated Body Algorithm.
 
     Returns ``q̈ = M(q)^{-1}(τ − b(q, v) − g(q) + Jᵀ fext)``.
-    Populates ``data.ddq``.
+    Populates ``data.ddq`` when a workspace is supplied.
     """
 
 def crba(
     model: Model,
-    data: Data,
     q: Tensor,
+    *,
+    data: Data | None = None,
 ) -> Tensor:             # (B..., nv, nv)
     """Composite Rigid Body Algorithm — joint-space inertia M(q).
-    Populates ``data.mass_matrix``."""
+    Populates ``data.mass_matrix`` when a workspace is supplied."""
 
 def bias_forces(
     model: Model,
-    data: Data,
     q: Tensor,
     v: Tensor,
+    *,
+    data: Data | None = None,
 ) -> Tensor:             # (B..., nv)
     """Bias forces (a.k.a. non-linear effects): C(q, v) v + g(q).
-    Populates ``data.bias_forces``. Specialised path that avoids the
-    mass-matrix multiply."""
+    Populates ``data.bias_forces`` when supplied. Specialised path that
+    avoids the mass-matrix multiply."""
 
-def compute_generalized_gravity(model, data, q) -> Tensor:    # (B..., nv)
-def compute_coriolis_matrix    (model, data, q, v) -> Tensor:  # (B..., nv, nv) — stub
-def compute_minverse           (model, data, q) -> Tensor:     # (B..., nv, nv) — stub
+def compute_generalized_gravity(model, q, *, data=None) -> Tensor:  # (B..., nv)
 ```
+
+Use `torch.linalg.inv(crba(...))` when an explicit inverse is genuinely
+required. There is no standalone public `C(q, v)` pass; `bias_forces` computes
+the usually-needed product `C(q, v) v + g(q)` directly.
 
 ## Centroidal
 
 ```python
 def center_of_mass(
     model: Model,
-    data: Data,
     q: Tensor,
     v: Tensor | None = None,
     a: Tensor | None = None,
+    *,
+    data: Data | None = None,
 ) -> Tensor:
     """Whole-body centre of mass and optional velocity.
 
@@ -125,14 +130,14 @@ def center_of_mass(
     populated.
     """
 
-def compute_centroidal_map(model, data, q) -> Tensor:
+def compute_centroidal_map(model, q, *, data=None) -> Tensor:
     """Centroidal momentum matrix A_g(q) ∈ (B..., 6, nv).
     Populates ``data.centroidal_momentum_matrix``."""
 
-def compute_centroidal_momentum(model, data, q, v) -> Tensor:
+def compute_centroidal_momentum(model, q, v, *, data=None) -> Tensor:
     """h_g = A_g(q) v ∈ (B..., 6). Populates ``data.centroidal_momentum``."""
 
-def ccrba(model, data, q, v) -> tuple[Tensor, Tensor]:
+def ccrba(model, q, v, *, data=None) -> tuple[Tensor, Tensor]:
     """Centroidal CRBA — returns (A_g, h_g)."""
 ```
 
@@ -161,9 +166,6 @@ def compute_aba_derivatives(
 
 def compute_crba_derivatives(model, data, q) -> Tensor:
     """Return ∂M/∂q; unbatched shape (nv, nv, nq)."""
-
-def compute_centroidal_dynamics_derivatives(model, data, q, v, a) -> ...:  # stub
-    ...
 ```
 
 The three implemented derivative helpers use
@@ -264,15 +266,12 @@ manifold cheap to assemble.
 ```python
 def integrate_q(model: Model, q: Tensor, v: Tensor, dt: float) -> Tensor:
     """Retract q by dt * v via model.integrate (a.k.a. q ⊕ dt*v)."""
-
-def semi_implicit_euler(model, data, q, v, tau, dt, *, fext=None): ...   # stub
-def symplectic_euler   (model, data, q, v, tau, dt, *, fext=None): ...   # stub
-def rk4                (model, data, q, v, tau, dt, *, fext=None): ...   # stub
 ```
 
 `integrate_q` is implementable purely with kinematic machinery (the
-per-joint `JointModel.integrate`) and is live. The full physics
-integrators wait for stable contact handling.
+per-joint `JointModel.integrate`) and is live. BetterRobot does not expose
+placeholder physics integrators; applications that simulate forces and
+contacts supply that layer explicitly.
 
 ## Forward and derivative ownership
 
@@ -294,10 +293,9 @@ through ``rnea`` remain owned by Torch autograd.
 - **Centroidal frame.** `compute_centroidal_map` returns a Jacobian
   expressed at the COM, not at the root joint. CCRBA pairs it with
   the centroidal momentum.
-- **Stub guard.** Calling `compute_minverse`, `compute_coriolis_matrix`,
-  `compute_centroidal_dynamics_derivatives`, any full-physics integrator
-  (`semi_implicit_euler`, `symplectic_euler`, or `rk4`), or
-  `center_of_mass(..., a=...)` raises `NotImplementedError`.
+- **COM acceleration.** `center_of_mass(..., a=...)` raises
+  `NotImplementedError`; omit `a` and differentiate the live centroidal passes
+  when their available outputs are sufficient.
 - **Floating-base RNEA.** The first 6 columns of every joint-space
   Jacobian / mass matrix correspond to the free-flyer base when
   `model.joint_models[1] = JointFreeFlyer`. There is no "stripped"

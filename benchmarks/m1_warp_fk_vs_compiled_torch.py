@@ -140,10 +140,7 @@ def _finish_cuda_memory_measurement(
         ),
         "ending_allocated_bytes": torch.cuda.memory_allocated(device),
         "ending_reserved_bytes": torch.cuda.memory_reserved(device),
-        "scope": (
-            "PyTorch CUDA caching allocator; allocations owned directly by Warp "
-            "may not be visible"
-        ),
+        "scope": ("PyTorch CUDA caching allocator; allocations owned directly by Warp may not be visible"),
     }
 
 
@@ -184,9 +181,9 @@ def _torch_lane(
     values: ModelValues,
     q: torch.Tensor,
 ) -> FKOutputs:
-    world, local = forward_kinematics_raw(structure, values, q)
-    frames = frame_placements_raw(structure, values, world)
-    return world, local, frames
+    fk = forward_kinematics_raw(structure, values, q)
+    frames = frame_placements_raw(structure, values, fk.joint_pose_world)
+    return fk.joint_pose_world, fk.joint_pose_local, frames.frame_pose_world
 
 
 def _cpu_name() -> str:
@@ -285,11 +282,7 @@ def _match_physical_device(
         physical_index = int(visible_token)
         return (
             next(
-                (
-                    candidate
-                    for candidate in inventory
-                    if candidate["physical_index"] == physical_index
-                ),
+                (candidate for candidate in inventory if candidate["physical_index"] == physical_index),
                 None,
             ),
             "numeric CUDA_VISIBLE_DEVICES token",
@@ -300,8 +293,7 @@ def _match_physical_device(
                 (
                     candidate
                     for candidate in inventory
-                    if candidate["uuid"].startswith(visible_token)
-                    or visible_token.startswith(candidate["uuid"])
+                    if candidate["uuid"].startswith(visible_token) or visible_token.startswith(candidate["uuid"])
                 ),
                 None,
             ),
@@ -309,11 +301,7 @@ def _match_physical_device(
         )
     if device_uuid is not None:
         match = next(
-            (
-                candidate
-                for candidate in inventory
-                if candidate["uuid"] == device_uuid
-            ),
+            (candidate for candidate in inventory if candidate["uuid"] == device_uuid),
             None,
         )
         if match is not None:
@@ -321,11 +309,7 @@ def _match_physical_device(
     if os.environ.get("CUDA_VISIBLE_DEVICES") is None:
         return (
             next(
-                (
-                    candidate
-                    for candidate in inventory
-                    if candidate["physical_index"] == logical_index
-                ),
+                (candidate for candidate in inventory if candidate["physical_index"] == logical_index),
                 None,
             ),
             "default CUDA ordinal",
@@ -336,9 +320,7 @@ def _match_physical_device(
 def _device_metadata(device: torch.device) -> dict[str, Any]:
     if device.type == "cpu":
         return {"type": "cpu", "name": _cpu_name()}
-    logical_index = (
-        device.index if device.index is not None else torch.cuda.current_device()
-    )
+    logical_index = device.index if device.index is not None else torch.cuda.current_device()
     properties = torch.cuda.get_device_properties(device)
     inventory, inventory_error = _nvidia_smi_inventory()
     visible_token = _visible_device_token(logical_index)
@@ -360,16 +342,10 @@ def _device_metadata(device: torch.device) -> dict[str, Any]:
         "torch_cuda_version": torch.version.cuda,
         "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
         "visible_device_token": visible_token,
-        "physical_index": (
-            physical_device["physical_index"] if physical_device is not None else None
-        ),
-        "uuid": (
-            physical_device["uuid"] if physical_device is not None else device_uuid
-        ),
+        "physical_index": (physical_device["physical_index"] if physical_device is not None else None),
+        "uuid": (physical_device["uuid"] if physical_device is not None else device_uuid),
         "torch_device_uuid": device_uuid,
-        "pci_bus_id": (
-            physical_device["pci_bus_id"] if physical_device is not None else None
-        ),
+        "pci_bus_id": (physical_device["pci_bus_id"] if physical_device is not None else None),
         "physical_mapping_source": mapping_source,
         "nvidia_driver_version": (
             physical_device["driver_version"]
@@ -413,9 +389,7 @@ def _environment_flag(name: str, *, default: bool = False) -> bool:
         return True
     if normalized in {"0", "false", "no", "off"}:
         return False
-    raise ValueError(
-        f"{name} must be one of 1/0, true/false, yes/no, or on/off"
-    )
+    raise ValueError(f"{name} must be one of 1/0, true/false, yes/no, or on/off")
 
 
 def _validate_fresh_case_caches(
@@ -427,8 +401,7 @@ def _validate_fresh_case_caches(
         return False
     if len(batches) != 1:
         raise ValueError(
-            "--require-fresh-case-caches requires exactly one --batches value; "
-            "run each shape in a new process"
+            "--require-fresh-case-caches requires exactly one --batches value; run each shape in a new process"
         )
 
     cache_variables = ("TORCHINDUCTOR_CACHE_DIR", "WARP_CACHE_PATH")
@@ -436,9 +409,7 @@ def _validate_fresh_case_caches(
     for variable in cache_variables:
         raw_path = os.environ.get(variable)
         if not raw_path:
-            raise ValueError(
-                f"--require-fresh-case-caches requires {variable} to be set"
-            )
+            raise ValueError(f"--require-fresh-case-caches requires {variable} to be set")
         cache_path = Path(raw_path).expanduser().resolve()
         if cache_path.exists() and not cache_path.is_dir():
             raise ValueError(f"{variable} is not a directory: {cache_path}")
@@ -528,10 +499,7 @@ def run(
             def warp_call() -> FKOutputs:
                 result = try_warp_forward_kinematics(model.structure, model.values, q)
                 if result is None:
-                    raise RuntimeError(
-                        "supported benchmark input fell back to Torch; "
-                        "the Warp lane was not measured"
-                    )
+                    raise RuntimeError("supported benchmark input fell back to Torch; the Warp lane was not measured")
                 return result.world, result.local, result.frames
 
             torch_output, torch_cold_ms, torch_cold_memory = _time_once_with_memory(
@@ -553,18 +521,14 @@ def run(
                     "torch_compile_fullgraph": {
                         "cold_first_call_ms": torch_cold_ms,
                         "cold_first_call_cache_scope": cold_timing["cache_scope"],
-                        "cold_first_call_verified_cache_cold": cold_timing[
-                            "verified_cache_cold"
-                        ],
+                        "cold_first_call_verified_cache_cold": cold_timing["verified_cache_cold"],
                         "cold_cuda_memory": torch_cold_memory,
                         **torch_steady,
                     },
                     "warp_fused_fk": {
                         "cold_first_call_ms": warp_cold_ms,
                         "cold_first_call_cache_scope": cold_timing["cache_scope"],
-                        "cold_first_call_verified_cache_cold": cold_timing[
-                            "verified_cache_cold"
-                        ],
+                        "cold_first_call_verified_cache_cold": cold_timing["verified_cache_cold"],
                         "cold_cuda_memory": warp_cold_memory,
                         **warp_steady,
                     },
@@ -616,9 +580,7 @@ def run(
         ),
         "warmup_iterations": warmup,
         "samples": samples,
-        "statistic": (
-            "median with inclusive Q1/Q3 and IQR over raw host wall-clock samples"
-        ),
+        "statistic": ("median with inclusive Q1/Q3 and IQR over raw host wall-clock samples"),
         "timing_scope": (
             "first-call cold timings exclude imports/model construction; "
             "CUDA steady-state samples include completion synchronization"
@@ -635,9 +597,7 @@ def _parse_dtype(name: str) -> torch.dtype:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     try:
-        require_fresh_case_caches = _environment_flag(
-            "BETTERROBOT_BENCH_REQUIRE_FRESH_CASE_CACHES"
-        )
+        require_fresh_case_caches = _environment_flag("BETTERROBOT_BENCH_REQUIRE_FRESH_CASE_CACHES")
     except ValueError as error:
         parser.error(str(error))
     parser.add_argument("--label", required=True)

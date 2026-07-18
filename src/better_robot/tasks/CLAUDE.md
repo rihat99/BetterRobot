@@ -16,7 +16,7 @@ Tasks are thin facades. No Jacobian code, no solver loops, no branching for fixe
 
 ## solve_ik
 
-Assembles one bounded `RobotConfig` block, `PoseResidual` items, optional limit/rest items, and evaluation-local robot state. Pose targets are declared differentiable `Problem.parameters`. Named-block LM/GN, the `torch.optim` adapter, and sequential `lm_then_adam` are supported; the L-BFGS spellings fail honestly. Arbitrary common leading batch axes return per-element diagnostics.
+Assembles one bounded `RobotConfig` block, `PoseResidual` items, optional limit/rest items, and evaluation-local robot state. Pose targets are declared differentiable `Problem.parameters`. `differentiable=True` attaches LM's guarded implicit backward; other optimizer choices reject that flag. Named-block LM/GN, the `torch.optim` adapter, and sequential `lm_then_adam` are supported; the L-BFGS spellings fail honestly. Arbitrary common leading batch axes return per-element diagnostics.
 
 **Single code path** — floating-base is transparent. First 7 DOF of q are base pose for free-flyer models. Solver doesn't need to know.
 
@@ -33,6 +33,8 @@ rotations, scatters `[force, torque=0]` external wrenches, and runs `rnea_raw`
 once per evaluation through a provider. The public term weights are base
 wrench, force magnitude, force smoothness, and actuated-torque smoothness.
 Gravity is a task argument; do not mutate or replace the caller's model.
+Final diagnostics preserve available graphs to gravity and active-mask inputs;
+the force solver and frozen trajectory internals remain detached.
 
 ## Trajectory
 

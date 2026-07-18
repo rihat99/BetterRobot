@@ -40,8 +40,9 @@ def compute_rnea_derivatives(
     input batch axes: ``(*B, nv, *B, nq)`` for ``q`` and
     ``(*B, nv, *B, nv)`` for ``v`` and ``a``.
     """
+
     def _fn(q_, v_, a_):
-        return _rnea(model, model.create_data(), q_, v_, a_, fext=fext)
+        return _rnea(model, q_, v_, a_, fext=fext)
 
     dtau_dq, dtau_dv, dtau_da = torch.autograd.functional.jacobian(
         _fn, (q.detach(), v.detach(), a.detach()), create_graph=False, vectorize=False
@@ -66,7 +67,7 @@ def compute_aba_derivatives(
     """
 
     def _fn(q_, v_, tau_):
-        return aba(model, model.create_data(), q_, v_, tau_, fext=fext)
+        return aba(model, q_, v_, tau_, fext=fext)
 
     da_dq, da_dv, da_dtau = torch.autograd.functional.jacobian(
         _fn, (q.detach(), v.detach(), tau.detach()), create_graph=False, vectorize=False
@@ -84,27 +85,8 @@ def compute_crba_derivatives(
     Its unbatched shape is ``(nv, nv, nq)``. With batch prefix ``*B`` it is
     ``(*B, nv, nv, *B, nq)``.
     """
+
     def _fn(q_):
-        return crba(model, model.create_data(), q_)
+        return crba(model, q_)
 
     return torch.autograd.functional.jacobian(_fn, (q.detach(),))[0]
-
-
-def compute_centroidal_dynamics_derivatives(
-    model: Model,
-    data: Data,
-    q: torch.Tensor,
-    v: torch.Tensor,
-    a: torch.Tensor,
-):
-    """Return centroidal dynamics derivatives.
-
-    Implementation gap left for a future analytic pass; today this is a
-    stub. Use :func:`compute_centroidal_map` together with autograd in
-    the meantime.
-    """
-    raise NotImplementedError(
-        "compute_centroidal_dynamics_derivatives — see docs/concepts/dynamics.md §4 "
-        "for the analytic Carpentier–Mansard formula. Use autograd through "
-        "compute_centroidal_map(q) until then."
-    )

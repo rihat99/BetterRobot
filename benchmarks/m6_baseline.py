@@ -121,9 +121,9 @@ def _fk_workload(
     values: ModelValues,
     q: torch.Tensor,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    world, local = forward_kinematics_raw(structure, values, q)
-    frames = frame_placements_raw(structure, values, world)
-    return world, local, frames
+    fk = forward_kinematics_raw(structure, values, q)
+    frames = frame_placements_raw(structure, values, fk.joint_pose_world)
+    return fk.joint_pose_world, fk.joint_pose_local, frames.frame_pose_world
 
 
 def _rnea_workload(
@@ -168,8 +168,7 @@ def _parse_case_id(case_id: str) -> CaseSpec:
     fields = case_id.split("/")
     if len(fields) != 5 or not fields[4].startswith("b"):
         raise ValueError(
-            f"invalid case id {case_id!r}; expected model/operation/device/lane/batch, "
-            "for example smpl/fk/cpu/eager/b1"
+            f"invalid case id {case_id!r}; expected model/operation/device/lane/batch, for example smpl/fk/cpu/eager/b1"
         )
     try:
         batch = int(fields[4][1:])
@@ -303,11 +302,7 @@ def _physical_cuda_device(
         physical_index = int(visible_token)
         return (
             next(
-                (
-                    candidate
-                    for candidate in inventory
-                    if candidate["physical_index"] == physical_index
-                ),
+                (candidate for candidate in inventory if candidate["physical_index"] == physical_index),
                 None,
             ),
             visible_token,
@@ -818,9 +813,7 @@ def _run_worker(case: CaseSpec, args: argparse.Namespace) -> dict[str, object]:
             "the public solve_ik facade constructs Python Problem/solver objects and uses host-controlled termination; "
             "no honest fullgraph compiled public-IK workload exists, and no lower-level substitute is measured",
         )
-    if case.device == "cuda" and (
-        not torch.cuda.is_available() or args.cuda_index >= torch.cuda.device_count()
-    ):
+    if case.device == "cuda" and (not torch.cuda.is_available() or args.cuda_index >= torch.cuda.device_count()):
         return _unsupported_result(
             case,
             f"CUDA device index {args.cuda_index} is unavailable (torch sees {torch.cuda.device_count()} device(s))",
@@ -1095,7 +1088,7 @@ def _compare_outputs(
 ) -> dict[str, object]:
     eager_tensors = _artifact_tensors(eager)
     compiled_tensors = _artifact_tensors(compiled)
-    atol, rtol = ((2e-5, 2e-5) if dtype == torch.float32 else (2e-9, 2e-9))
+    atol, rtol = (2e-5, 2e-5) if dtype == torch.float32 else (2e-9, 2e-9)
     shapes_match = len(eager_tensors) == len(compiled_tensors) and all(
         eager_tensor.shape == compiled_tensor.shape
         for eager_tensor, compiled_tensor in zip(eager_tensors, compiled_tensors, strict=True)
@@ -1222,8 +1215,7 @@ def run(args: argparse.Namespace, cases: Sequence[CaseSpec]) -> dict[str, object
             "input_identity": input_identity,
             "eager_vs_compiled_parity": eager_compiled_parity,
             "all_evaluated_checks_passed": all(
-                check["status"] != "FAIL"
-                for check in (*input_identity, *eager_compiled_parity)
+                check["status"] != "FAIL" for check in (*input_identity, *eager_compiled_parity)
             ),
         },
         "cases": case_results,

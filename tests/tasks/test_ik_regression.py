@@ -107,6 +107,46 @@ def test_solve_ik_reachable_target(panda):
     assert pos_err < 0.01, f"Position error: {pos_err:.4f} m"
 
 
+def test_differentiable_solve_ik_matches_target_finite_difference(panda) -> None:
+    model = panda.to(dtype=torch.float64)
+    q0 = torch.tensor([0.0, 0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 0.02], dtype=torch.float64)
+    q_target = q0.clone()
+    q_target[0] += 0.05
+    frame_name = _ee_frame(model)
+    target = (
+        forward_kinematics(model, q_target, compute_frames=True)
+        .frame_pose_world[model.frame_id(frame_name)]
+        .detach()
+        .clone()
+        .requires_grad_()
+    )
+    cost = IKCostConfig(limit_weight=0.0, rest_weight=0.01, q_rest=q0)
+    optimizer = OptimizerConfig(max_iter=100, tol=1e-12)
+
+    result = solve_ik(
+        model,
+        {frame_name: target},
+        initial_q=q0,
+        cost_cfg=cost,
+        optimizer_cfg=optimizer,
+        differentiable=True,
+    )
+    derivative = torch.autograd.grad(result.q[0], target)[0][0]
+
+    epsilon = 1e-4
+    plus, minus = target.detach().clone(), target.detach().clone()
+    plus[0] += epsilon
+    minus[0] -= epsilon
+    q_plus = solve_ik(model, {frame_name: plus}, initial_q=q0, cost_cfg=cost, optimizer_cfg=optimizer).q[0]
+    q_minus = solve_ik(model, {frame_name: minus}, initial_q=q0, cost_cfg=cost, optimizer_cfg=optimizer).q[0]
+    finite_difference = (q_plus - q_minus) / (2.0 * epsilon)
+
+    assert result.q.grad_fn is not None
+    assert torch.isfinite(derivative)
+    assert derivative.abs() > 0.0
+    torch.testing.assert_close(derivative, finite_difference, atol=5e-4, rtol=5e-3)
+
+
 def test_solve_ik_limits_respected(panda):
     """After solve_ik, q should be within joint limits."""
     # Use a starting configuration within limits so the IK and bound-clamping

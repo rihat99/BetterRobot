@@ -16,6 +16,7 @@ def solve_ik(
     initial_q: torch.Tensor | None = None,
     cost_cfg: IKCostConfig | None = None,
     optimizer_cfg: OptimizerConfig | None = None,
+    differentiable: bool = False,
 ) -> IKResult:
     """Solve one or an arbitrary leading batch of frame-target problems."""
 ```
@@ -39,7 +40,7 @@ class IKCostConfig:
 
 ```python
 def solve_ik(model, targets, *, initial_q=None, cost_cfg=None,
-             optimizer_cfg=None) -> IKResult:
+             optimizer_cfg=None, differentiable=False) -> IKResult:
     cost_cfg      = cost_cfg or IKCostConfig()
     optimizer_cfg = optimizer_cfg or OptimizerConfig()
     seed = initial_q if initial_q is not None else model.q_neutral
@@ -72,16 +73,27 @@ def solve_ik(model, targets, *, initial_q=None, cost_cfg=None,
             kernel=item.kernel,
             name=item.name,
         )
-    values, state = named_block_solver(optimizer_cfg).run({"q": q0}, problem)
+    solver = selected_solver(optimizer_cfg)
+    if differentiable:
+        values, state = solver.solve({"q": q0}, problem,
+                                     differentiate="implicit")
+    else:
+        values, state = solver.run({"q": q0}, problem)
     return IKResult(q=values["q"], residual=problem.residual(values), ...)
 ```
 
 Pose targets and the enabled rest target are declared `Problem.parameters` and
 are read by name from the residual context. This keeps their differentiation
 role explicit for the generic LM/GN implicit-solve boundary; no tensor-identity
-inference is used. The `solve_ik` facade itself remains detached. `RestResidual`
-reads the latter through `target_name="target_rest"`. Built-in pose, limit, and
-rest residuals all use the named-context protocol used by direct problems.
+inference is used. By default the result stays detached. Passing
+`differentiable=True` with the LM optimizer attaches a first-order implicit
+backward from `result.q` to target tensors that require gradients. This assumes
+the returned optimum converged at a locally smooth point with a stable active
+set. Ineligible convergence, active bounds, robust-kernel kinks, quaternion
+branch cuts, or singular systems raise `ImplicitDifferentiationError` during
+backward rather than returning a misleading gradient. `RestResidual` reads the
+rest target through `target_name="target_rest"`. Built-in pose, limit, and rest
+residuals all use the same context protocol used by direct problems.
 
 ### `IKResult`
 
@@ -120,7 +132,7 @@ The iteration budget is split evenly between the stages. Entries named in
 L-BFGS is deliberately deferred because batching requires per-element history,
 line search, and curvature-reset semantics; `"lbfgs"` and
 `"lm_then_lbfgs"` fail with an actionable error. Collision is not wired into
-`solve_ik`; its collision residuals remain stubbed and task integration is
+`solve_ik`; no collision residual exports ship, and task integration is
 explicitly deferred.
 
 ### Batched IK
@@ -234,8 +246,10 @@ spatial `(..., 6)` gravity tensor can be supplied per clip without replacing
 the model.
 
 `ContactForceResult` returns fitted world forces, local external wrenches,
-generalized forces, final residual/cost, and per-batch solver status. This task
-uses the Torch dynamics lane; Warp dynamics kernels remain unimplemented.
+generalized forces, final residual/cost, and per-batch solver status. Solver
+iterations remain detached, while the two derived force outputs preserve any
+available graph to their inputs. This task uses the Torch dynamics lane; Warp
+dynamics kernels remain unimplemented.
 
 ## Trajectory optimisation
 

@@ -150,7 +150,6 @@ def test_missing_joint_rnea_matches_pinocchio(missing_joint_pair):
     tau_br = (
         br.rnea(
             br_model,
-            br_model.create_data(),
             q,
             v,
             acceleration,

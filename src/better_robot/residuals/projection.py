@@ -14,7 +14,6 @@ from typing import Any
 import torch
 
 from ..data_model.model import Model
-from ..kinematics import ReferenceFrame
 from ..kinematics.jacobian import get_frame_jacobian
 
 
@@ -384,7 +383,6 @@ class ProjectionResidual:
                     self.model,
                     data,
                     point_id,
-                    reference=ReferenceFrame.LOCAL_WORLD_ALIGNED,
                 )
                 for point_id in self.point_ids
             ],

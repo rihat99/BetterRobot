@@ -60,21 +60,21 @@ def test_rnea_crba_centroidal_and_aba_use_one_reduced_map() -> None:
     acceleration_full = expand_tangent(constrained.structure, acceleration)
     expansion = constrained.v_expansion
 
-    tau = rnea(constrained, constrained.create_data(), q, v, acceleration)
-    tau_full = rnea(full, full.create_data(), q_full, v_full, acceleration_full)
+    tau = rnea(constrained, q, v, acceleration)
+    tau_full = rnea(full, q_full, v_full, acceleration_full)
     torch.testing.assert_close(tau, tau_full @ expansion, rtol=1e-11, atol=1e-11)
 
-    mass = crba(constrained, constrained.create_data(), q)
-    mass_full = crba(full, full.create_data(), q_full)
+    mass = crba(constrained, q)
+    mass_full = crba(full, q_full)
     expected_mass = expansion.mT @ mass_full @ expansion
     torch.testing.assert_close(mass, expected_mass, rtol=1e-11, atol=1e-11)
 
-    centroidal, momentum = ccrba(constrained, constrained.create_data(), q, v)
-    centroidal_full, _ = ccrba(full, full.create_data(), q_full, v_full)
+    centroidal, momentum = ccrba(constrained, q, v)
+    centroidal_full, _ = ccrba(full, q_full, v_full)
     torch.testing.assert_close(centroidal, centroidal_full @ expansion, rtol=1e-11, atol=1e-11)
     torch.testing.assert_close(momentum, (centroidal @ v.unsqueeze(-1)).squeeze(-1))
 
-    ddq = aba(constrained, constrained.create_data(), q, v, tau)
+    ddq = aba(constrained, q, v, tau)
     torch.testing.assert_close(ddq, acceleration, rtol=1e-10, atol=1e-10)
 
 
@@ -87,11 +87,11 @@ def test_projected_aba_matches_reduced_mass_and_bias_solve() -> None:
     v_full = expand_tangent(constrained.structure, v)
     expansion = constrained.v_expansion
 
-    mass_full = crba(full, full.create_data(), q_full)
-    bias_full = rnea(full, full.create_data(), q_full, v_full, torch.zeros_like(v_full))
+    mass_full = crba(full, q_full)
+    bias_full = rnea(full, q_full, v_full, torch.zeros_like(v_full))
     reduced_mass = expansion.mT @ mass_full @ expansion
     reduced_bias = bias_full @ expansion
     expected = torch.linalg.solve(reduced_mass, (tau - reduced_bias).unsqueeze(-1)).squeeze(-1)
 
-    actual = aba(constrained, constrained.create_data(), q, v, tau)
+    actual = aba(constrained, q, v, tau)
     torch.testing.assert_close(actual, expected, rtol=1e-11, atol=1e-11)

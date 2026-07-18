@@ -1,59 +1,49 @@
 """``better_robot.dynamics`` — RNEA, ABA, CRBA, centroidal, and integrators.
 
-Public functions retain the ``Model``/``Data`` API. Their implemented hot
-passes delegate to pure structure/value functions in the owning modules; a few
-named derivative and inverse-mass surfaces remain explicit roadmap stubs.
+Public wrappers delegate to pure structure/value functions in their owning
+modules. Unsupported future algorithms are omitted from the import surface.
 """
 
 from __future__ import annotations
 
-from .aba import aba
+from .aba import aba, aba_raw
 from .centroidal import (
     ccrba,
+    ccrba_raw,
     center_of_mass,
     compute_centroidal_map,
     compute_centroidal_momentum,
 )
-from .crba import compute_minverse, crba
+from .crba import crba, crba_raw
 from .derivatives import (
     compute_aba_derivatives,
-    compute_centroidal_dynamics_derivatives,
     compute_crba_derivatives,
     compute_rnea_derivatives,
 )
-from .integrators import (
-    integrate_q,
-    rk4,
-    semi_implicit_euler,
-    symplectic_euler,
-)
+from .integrators import integrate_q
 from .rnea import (
     bias_forces,
-    compute_coriolis_matrix,
     compute_generalized_gravity,
-    nle,  # deprecated alias for bias_forces — remove in v1.1
     rnea,
+    rnea_raw,
 )
 
 __all__ = [
     "rnea",
+    "rnea_raw",
     "bias_forces",
-    "nle",  # deprecated alias
     "compute_generalized_gravity",
-    "compute_coriolis_matrix",
     "aba",
+    "aba_raw",
     "crba",
-    "compute_minverse",
+    "crba_raw",
     "center_of_mass",
     "compute_centroidal_map",
     "compute_centroidal_momentum",
     "ccrba",
+    "ccrba_raw",
     "compute_rnea_derivatives",
     "compute_aba_derivatives",
     "compute_crba_derivatives",
-    "compute_centroidal_dynamics_derivatives",
     "integrate_q",
-    "semi_implicit_euler",
-    "symplectic_euler",
-    "rk4",
 ]

@@ -33,7 +33,14 @@ SUBMODULE_PATHS: list[tuple[str, str]] = [
     ("better_robot.spatial", "SO3"),
     ("better_robot.spatial", "Pose"),
     # kinematics
-    ("better_robot.kinematics", "ReferenceFrame"),
+    ("better_robot.kinematics", "forward_kinematics_raw"),
+    ("better_robot.kinematics", "frame_placements_raw"),
+    ("better_robot.kinematics", "joint_jacobians_raw"),
+    # dynamics
+    ("better_robot.dynamics", "rnea_raw"),
+    ("better_robot.dynamics", "aba_raw"),
+    ("better_robot.dynamics", "crba_raw"),
+    ("better_robot.dynamics", "ccrba_raw"),
     # data_model
     ("better_robot.data_model", "KinematicsLevel"),
     # io
@@ -94,6 +101,30 @@ SUBMODULE_PATHS: list[tuple[str, str]] = [
 def test_submodule_attribute_resolves(module_path: str, attr: str) -> None:
     mod = importlib.import_module(module_path)
     assert hasattr(mod, attr), f"{module_path} is missing {attr}"
+
+
+@pytest.mark.parametrize(
+    "module_path, raw_names",
+    [
+        (
+            "better_robot.kinematics",
+            {"forward_kinematics_raw", "frame_placements_raw", "joint_jacobians_raw"},
+        ),
+        (
+            "better_robot.dynamics",
+            {"rnea_raw", "aba_raw", "crba_raw", "ccrba_raw"},
+        ),
+    ],
+)
+def test_raw_passes_are_in_package_all(module_path: str, raw_names: set[str]) -> None:
+    mod = importlib.import_module(module_path)
+    assert raw_names <= set(mod.__all__)
+
+
+def test_reference_frame_enum_stays_removed() -> None:
+    kinematics = importlib.import_module("better_robot.kinematics")
+    assert "ReferenceFrame" not in kinematics.__all__
+    assert not hasattr(kinematics, "ReferenceFrame")
 
 
 def test_symmetric3_is_submodule_only() -> None:

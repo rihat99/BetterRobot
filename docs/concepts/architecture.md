@@ -146,8 +146,6 @@ src/better_robot/
 │   ├── limits.py
 │   ├── smoothness.py              # temporal velocity / acceleration
 │   ├── structure.py               # optimizer-independent TemporalPattern
-│   ├── manipulability.py
-│   ├── collision.py
 │   ├── regularization.py
 │   └── contact.py
 │
@@ -200,8 +198,8 @@ common entry points:
 
 ```python
 __all__ = [
-    # data_model (5)
-    "Model", "Data", "Frame", "Joint", "Body",
+    # data_model (7)
+    "Model", "ModelStructure", "ModelValues", "Data", "Frame", "Joint", "Body",
     # io (2)
     "load", "ModelBuilder",
     # lie (1)
@@ -229,7 +227,10 @@ are not in the top-level `__all__`:
 ```python
 from better_robot.lie         import SO3, Pose
 from better_robot.spatial     import Motion, Force, Inertia, Symmetric3
-from better_robot.kinematics  import ReferenceFrame
+from better_robot.kinematics  import (
+    forward_kinematics_raw, frame_placements_raw, joint_jacobians_raw,
+)
+from better_robot.dynamics    import rnea_raw, aba_raw, crba_raw, ccrba_raw
 from better_robot.tasks.ik    import IKResult, IKCostConfig, OptimizerConfig
 
 from better_robot.optim import (
@@ -240,6 +241,10 @@ from better_robot.optim import (
     detach_values,
 )
 ```
+
+The `better_robot.spatial` package is also reachable as `br.spatial` after
+`import better_robot as br`; like the other qualified namespaces it is not a
+top-level wildcard export.
 
 The manifold suffixes are part of the contract: `better_robot.SE3` and
 `better_robot.lie.SE3` are typed Lie-group pose wrappers, whereas

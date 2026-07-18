@@ -63,12 +63,11 @@ def test_batched_inertias_match_scalar_dynamics_loop(
     a = torch.tensor([-0.4], dtype=inertias.dtype)
 
     def evaluate(current_model):
-        tau = rnea(current_model, current_model.create_data(), q, v, a)
-        mass = crba(current_model, current_model.create_data(), q)
-        ddq = aba(current_model, current_model.create_data(), q, v, tau)
+        tau = rnea(current_model, q, v, a)
+        mass = crba(current_model, q)
+        ddq = aba(current_model, q, v, tau)
         centroidal_map, momentum = ccrba(
             current_model,
-            current_model.create_data(),
             q,
             v,
         )
@@ -92,7 +91,7 @@ def test_dynamics_wrappers_store_the_execution_batch_in_data() -> None:
     a = torch.tensor([0.2], dtype=inertias.dtype)
     data = rebound.create_data()
 
-    tau = rnea(rebound, data, q, v, a)
+    tau = rnea(rebound, q, v, a, data=data)
     assert tau.shape == (2, rebound.nv)
     assert data.q.shape == (2, rebound.nq)
     assert data.v is not None and data.v.shape == (2, rebound.nv)
@@ -114,7 +113,7 @@ def test_batched_inertia_autograd_reaches_leaf() -> None:
     q = torch.tensor([0.35], dtype=inertias.dtype)
     v = torch.tensor([0.1], dtype=inertias.dtype)
     a = torch.tensor([0.2], dtype=inertias.dtype)
-    tau = rnea(rebound, rebound.create_data(), q, v, a)
+    tau = rnea(rebound, q, v, a)
     tau.square().sum().backward()
 
     assert delta.grad is not None
@@ -132,4 +131,4 @@ def test_dynamics_value_batch_mismatch_is_an_honest_shape_error() -> None:
         ShapeError,
         match=r"cannot broadcast q batch \(2, 3\) with body_inertias batch \(2,\)",
     ):
-        rnea(rebound, rebound.create_data(), q, v, v)
+        rnea(rebound, q, v, v)

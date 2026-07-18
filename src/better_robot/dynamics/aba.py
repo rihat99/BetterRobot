@@ -131,7 +131,9 @@ def aba_raw(  # noqa: PLR0912, PLR0915 - articulated-body passes are intentional
     nv = structure.nv_full
 
     # ── FK pass (drives the adjoint matrices) ────────────────────────────
-    oMi, liMi = forward_kinematics_raw(structure, values, q)
+    fk_result = forward_kinematics_raw(structure, values, q)
+    oMi = fk_result.joint_pose_world
+    liMi = fk_result.joint_pose_local
 
     Ad_inv: list[torch.Tensor | None] = [None] * njoints
     for i in range(1, njoints):
@@ -271,14 +273,14 @@ def aba_raw(  # noqa: PLR0912, PLR0915 - articulated-body passes are intentional
 
 def aba(
     model: Model,
-    data: Data,
     q: torch.Tensor,
     v: torch.Tensor,
     tau: torch.Tensor,
     *,
     fext: torch.Tensor | None = None,
+    data: Data | None = None,
 ) -> torch.Tensor:
-    """Public ABA wrapper that populates the caller's ``Data`` workspace."""
+    """Return forward dynamics, optionally populating ``data`` in place."""
 
     query_inputs: dict[str, tuple[torch.Tensor, tuple[int, ...]]] = {
         "v": (v, (model.nv,)),
@@ -286,7 +288,7 @@ def aba(
     }
     if fext is not None:
         query_inputs["fext"] = (fext, (model.njoints, 6))
-    q, prepared, _ = prepare_dynamics_inputs(
+    q, prepared, batch = prepare_dynamics_inputs(
         model.structure,
         model.values,
         q,
@@ -295,6 +297,8 @@ def aba(
     v = prepared["v"]
     tau = prepared["tau"]
     fext = prepared.get("fext")
+    if data is None:
+        data = model.create_data(batch_shape=batch, device=q.device, dtype=q.dtype)
     data.q = q
     data.v = v
     data.tau = tau

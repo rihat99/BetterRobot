@@ -116,7 +116,6 @@ class ContactConsistencyResidual:
 
     def _frame_jacobians(self, data: Data) -> torch.Tensor:
         """Return LWA linear frame Jacobians ``(B..., T, K, 3, nv)``."""
-        from ..kinematics import ReferenceFrame  # noqa: PLC0415
         from ..kinematics.jacobian import get_frame_jacobian  # noqa: PLC0415
 
         return torch.stack(
@@ -125,7 +124,6 @@ class ContactConsistencyResidual:
                     self.model,
                     data,
                     frame_id,
-                    reference=ReferenceFrame.LOCAL_WORLD_ALIGNED,
                 )[..., :3, :]
                 for frame_id in self.frame_ids
             ],

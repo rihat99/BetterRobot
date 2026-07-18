@@ -8,6 +8,7 @@ See ``docs/concepts/kinematics.md §3``.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Literal
 
 import torch
@@ -16,6 +17,7 @@ from ..data_model import KinematicsLevel
 from ..data_model.data import Data
 from ..data_model.execution_batch import broadcast_to_execution_batch
 from ..data_model.model import Model
+from ..data_model.model_structure import ModelStructure
 from ..data_model.reduced_coordinates import (
     expand_configuration,
     reduce_jacobian,
@@ -23,44 +25,54 @@ from ..data_model.reduced_coordinates import (
 from ..lie import se3, so3
 from ..lie.tangents import hat_so3
 
-ReferenceFrame = Literal["world", "local", "local_world_aligned"]
+_ReferenceFrame = Literal["world", "local", "local_world_aligned"]
 
 
-def _compute_joint_jacobians_raw(model: Model, data: Data) -> torch.Tensor:
-    """Tensor-only joint-Jacobian primitive — returns the stack ``(B..., njoints, 6, nv)``.
+@dataclass(frozen=True)
+class JointJacobiansResult:
+    """Fresh world-frame joint Jacobians from :func:`joint_jacobians_raw`."""
+
+    joint_jacobians: torch.Tensor
+
+
+def joint_jacobians_raw(
+    structure: ModelStructure,
+    q: torch.Tensor,
+    joint_pose_world: torch.Tensor,
+) -> JointJacobiansResult:
+    """Tensor-only joint-Jacobian primitive with no ``Data`` sequencing.
 
     Uses the propagation trick: ``J[j] = J[parent[j]]`` then adds the
-    contribution of joint ``j`` itself. Requires ``data.joint_pose_world``
-    populated (call :func:`forward_kinematics` first).
+    contribution of joint ``j`` itself. ``joint_pose_world`` has shape
+    ``(B..., njoints, 7)`` and the result field has shape
+    ``(B..., njoints, 6, nv)``.
     """
-    assert data.joint_pose_world is not None, "call forward_kinematics before compute_joint_jacobians"
-    joint_pose_world = data.joint_pose_world  # (B..., njoints, 7)
     batch = tuple(joint_pose_world.shape[:-2])
     q = broadcast_to_execution_batch(
-        data.q,
+        q,
         batch,
-        (model.nq,),
-        name="data.q",
+        (structure.nq,),
+        name="q",
     )
-    q_full = expand_configuration(model.structure, q)
+    q_full = expand_configuration(structure, q)
     device, dtype = q.device, q.dtype
 
     J = torch.zeros(
         *batch,
-        model.njoints,
+        structure.njoints,
         6,
-        model.nv_full,
+        structure.nv_full,
         device=device,
         dtype=dtype,
     )
 
-    for j in model.topo_order:
-        parent = model.parents[j]
+    for j in structure.topo_order:
+        parent = structure.parents[j]
         if parent >= 0:
             J[..., j, :, :] = J[..., parent, :, :]
 
-        nv_j = model.nvs_full[j]
-        v_j = model.idx_vs_full[j]
+        nv_j = structure.nvs_full[j]
+        v_j = structure.idx_vs_full[j]
 
         if nv_j == 0:
             continue
@@ -70,9 +82,9 @@ def _compute_joint_jacobians_raw(model: Model, data: Data) -> torch.Tensor:
         R_j = so3.to_matrix(T_j[..., 3:])  # (B..., 3, 3)
         hat_p = hat_so3(p_j)  # (B..., 3, 3)
 
-        nq_j = model.nqs_full[j]
-        q_j = q_full[..., model.idx_qs_full[j] : model.idx_qs_full[j] + nq_j]
-        S_local = model.joint_models[j].joint_motion_subspace(q_j)
+        nq_j = structure.nqs_full[j]
+        q_j = q_full[..., structure.idx_qs_full[j] : structure.idx_qs_full[j] + nq_j]
+        S_local = structure.joint_models[j].joint_motion_subspace(q_j)
         S_local = S_local.to(device=device, dtype=dtype)  # (B..., 6, nv_j)
 
         S_lin = S_local[..., :3, :]  # (B..., 3, nv_j)
@@ -86,7 +98,7 @@ def _compute_joint_jacobians_raw(model: Model, data: Data) -> torch.Tensor:
         J[..., j, :3, v_j : v_j + nv_j] = R_S_lin + hat_p_R_S_ang
         J[..., j, 3:, v_j : v_j + nv_j] = R_S_ang
 
-    return reduce_jacobian(model.structure, J)
+    return JointJacobiansResult(joint_jacobians=reduce_jacobian(structure, J))
 
 
 def compute_joint_jacobians(model: Model, data: Data) -> Data:
@@ -100,7 +112,9 @@ def compute_joint_jacobians(model: Model, data: Data) -> Data:
     See docs/concepts/kinematics.md §3.
     """
     data.require(KinematicsLevel.PLACEMENTS)
-    data.joint_jacobians = _compute_joint_jacobians_raw(model, data)
+    assert data.joint_pose_world is not None
+    result = joint_jacobians_raw(model.structure, data.q, data.joint_pose_world)
+    data.joint_jacobians = result.joint_jacobians
     return data
 
 
@@ -109,12 +123,12 @@ def get_joint_jacobian(
     data: Data,
     joint_id: int,
     *,
-    reference: ReferenceFrame = "world",
+    reference: _ReferenceFrame = "world",
 ) -> torch.Tensor:
     """Extract the spatial Jacobian of a single joint from ``data.joint_jacobians``.
 
-    Shape: ``(B..., 6, nv)``. Reference frames mirror Pinocchio's
-    ``ReferenceFrame`` enum.
+    Shape: ``(B..., 6, nv)``. The literal reference strings mirror
+    Pinocchio's three reference-frame conventions.
 
     See docs/concepts/kinematics.md §3.
     """
@@ -138,7 +152,7 @@ def get_frame_jacobian(
     data: Data,
     frame_id: int,
     *,
-    reference: ReferenceFrame = "local_world_aligned",
+    reference: _ReferenceFrame = "local_world_aligned",
 ) -> torch.Tensor:
     """Spatial Jacobian of an arbitrary frame.
 

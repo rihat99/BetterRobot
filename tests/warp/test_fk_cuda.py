@@ -105,8 +105,10 @@ def _model_and_q(kind: str = "smpl", dtype: torch.dtype = torch.float32):
 
 def _torch_outputs(model, q, values=None):
     values = model.values if values is None else values
-    world, local = forward_kinematics_raw(model.structure, values, q)
-    frames = frame_placements_raw(model.structure, values, world)
+    result = forward_kinematics_raw(model.structure, values, q)
+    world = result.joint_pose_world
+    local = result.joint_pose_local
+    frames = frame_placements_raw(model.structure, values, world).frame_pose_world
     return world, local, frames
 
 
@@ -252,11 +254,13 @@ def test_cuda_multi_axis_shared_value_gradient_reduction(dtype: torch.dtype) -> 
         joint_placements=placements_ref,
         frame_placements=frames_ref,
     )
-    world_ref, local_ref = forward_kinematics_raw(model.structure, values_ref, q_ref)
+    result_ref = forward_kinematics_raw(model.structure, values_ref, q_ref)
+    world_ref = result_ref.joint_pose_world
+    local_ref = result_ref.joint_pose_local
     expected = (
         world_ref,
         local_ref,
-        frame_placements_raw(model.structure, values_ref, world_ref),
+        frame_placements_raw(model.structure, values_ref, world_ref).frame_pose_world,
     )
     expected_gradients = torch.autograd.grad(
         _weighted_loss(expected),

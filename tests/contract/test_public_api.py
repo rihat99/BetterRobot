@@ -19,6 +19,8 @@ REQUIRED: frozenset[str] = frozenset(
     {
         # data_model
         "Model",
+        "ModelStructure",
+        "ModelValues",
         "Data",
         "Frame",
         "Joint",
@@ -69,6 +71,10 @@ def test_retired_top_level_symbols_stay_removed() -> None:
 def test_all_symbols_importable() -> None:
     for name in br.__all__:
         assert hasattr(br, name), f"{name} not found on better_robot"
+
+
+def test_spatial_subpackage_is_attribute_reachable() -> None:
+    assert br.spatial.__name__ == "better_robot.spatial"
 
 
 def test_all_symbols_have_docstrings() -> None:

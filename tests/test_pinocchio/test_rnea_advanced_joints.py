@@ -9,6 +9,7 @@ Since BetterRobot switched to DFS topological ordering (matching Pinocchio), the
 ``q``/``v``/``tau`` indexings align 1-to-1 with Pinocchio for URDF-loaded models,
 so comparisons are direct tensor operations.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -22,11 +23,13 @@ pin = pytest.importorskip("pinocchio")
 
 # ───────────────────────── free-flyer (G1) ─────────────────────────
 
+
 @pytest.fixture(scope="module")
 def g1_both():
     """Load G1 with free-flyer in both libraries."""
     robot_descriptions = pytest.importorskip("robot_descriptions")
     from robot_descriptions import g1_description
+
     br_m = br.load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
     pin_m = pin.buildModelFromUrdf(g1_description.URDF_PATH, pin.JointModelFreeFlyer())
     pin_d = pin_m.createData()
@@ -52,7 +55,7 @@ def test_rnea_free_flyer_g1_matches_pinocchio(g1_both, seed):
     v = torch.randn(br_m.nv, generator=rng, dtype=torch.float64) * 0.2
     a = torch.randn(br_m.nv, generator=rng, dtype=torch.float64) * 0.2
 
-    tau_br = br.rnea(br_m, br_m.create_data(), q, v, a).detach().cpu().numpy()
+    tau_br = br.rnea(br_m, q, v, a).detach().cpu().numpy()
     tau_pin = np.asarray(pin.rnea(pin_m, pin_d, q.numpy(), v.numpy(), a.numpy()))
 
     # Looser than Panda's 1e-5 because G1 has deeper chains → more fp32-URDF
@@ -66,12 +69,13 @@ def test_rnea_free_flyer_base_wrench_matches_pinocchio(g1_both):
     q = torch.zeros(br_m.nq, dtype=torch.float64)
     q[6] = 1.0  # identity quat
     zero = torch.zeros(br_m.nv, dtype=torch.float64)
-    tau_br = br.rnea(br_m, br_m.create_data(), q, zero, zero).detach().cpu().numpy()
+    tau_br = br.rnea(br_m, q, zero, zero).detach().cpu().numpy()
     tau_pin = np.asarray(pin.rnea(pin_m, pin_d, q.numpy(), zero.numpy(), zero.numpy()))
     np.testing.assert_allclose(tau_br[:6], tau_pin[:6], atol=1e-5)
 
 
 # ───────────────────────── spherical joint ─────────────────────────
+
 
 def _build_spherical_chain():
     """2-body chain: spherical joint + revolute RZ. Same in BR and Pinocchio."""
@@ -104,9 +108,7 @@ def _build_spherical_chain():
         pin.Inertia(float(mass1), com1.numpy().astype(float), I1.numpy().astype(float)),
         pin.SE3.Identity(),
     )
-    j_rz_id = pin_m.addJoint(
-        j_sph_id, pin.JointModelRZ(), pin.SE3(np.eye(3), rz_offset.numpy().astype(float)), "j_rz"
-    )
+    j_rz_id = pin_m.addJoint(j_sph_id, pin.JointModelRZ(), pin.SE3(np.eye(3), rz_offset.numpy().astype(float)), "j_rz")
     pin_m.appendBodyToJoint(
         j_rz_id,
         pin.Inertia(float(mass2), com2.numpy().astype(float), I2.numpy().astype(float)),
@@ -132,7 +134,7 @@ def _spherical_random_qva(seed: int) -> tuple[torch.Tensor, torch.Tensor, torch.
 def test_rnea_spherical_matches_pinocchio(seed):
     br_m, pin_m, pin_d = _build_spherical_chain()
     q, v, a = _spherical_random_qva(seed)
-    tau_br = br.rnea(br_m, br_m.create_data(), q, v, a).detach().cpu().numpy()
+    tau_br = br.rnea(br_m, q, v, a).detach().cpu().numpy()
     tau_pin = np.asarray(pin.rnea(pin_m, pin_d, q.numpy(), v.numpy(), a.numpy()))
     # No URDF fp32 round-trip here — programmatic, fp64 end-to-end.
     np.testing.assert_allclose(tau_br, tau_pin, atol=1e-10)
@@ -142,7 +144,7 @@ def test_rnea_spherical_gravity_only():
     br_m, pin_m, pin_d = _build_spherical_chain()
     q = torch.tensor([0.0, 0.0, 0.0, 1.0, 0.0], dtype=torch.float64)  # identity quat + θ=0
     z = torch.zeros(4, dtype=torch.float64)
-    tau_br = br.rnea(br_m, br_m.create_data(), q, z, z).detach().cpu().numpy()
+    tau_br = br.rnea(br_m, q, z, z).detach().cpu().numpy()
     tau_pin = np.asarray(pin.rnea(pin_m, pin_d, q.numpy(), z.numpy(), z.numpy()))
     np.testing.assert_allclose(tau_br, tau_pin, atol=1e-12)
 
@@ -157,14 +159,14 @@ def test_rnea_spherical_populates_tangent_fields_correctly():
     br_m, _, _ = _build_spherical_chain()
     assert br_m.nv == 4
     assert br_m.nq == 5  # 4 quat + 1 angle
-    assert br_m.joint_models[1].kind == "fixed"        # synthetic base
+    assert br_m.joint_models[1].kind == "fixed"  # synthetic base
     assert br_m.joint_models[2].kind == "spherical"
     assert br_m.joint_models[3].kind == "revolute_rz"
     q = torch.tensor([0.0, 0.0, 0.0, 1.0, 0.0], dtype=torch.float64)
     v = torch.tensor([0.1, 0.2, 0.3, 0.4], dtype=torch.float64)
     a = torch.tensor([0.05, -0.1, 0.2, 0.3], dtype=torch.float64)
     data = br_m.create_data()
-    tau = br.rnea(br_m, data, q, v, a)
+    tau = br.rnea(br_m, q, v, a, data=data)
     assert tau.shape == (4,)
     assert data.joint_velocity_local.shape == (br_m.njoints, 6)
     assert data.joint_acceleration_local.shape == (br_m.njoints, 6)

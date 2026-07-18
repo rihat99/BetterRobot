@@ -1,5 +1,13 @@
 # 03 — Open the core
 
+> **Implementation log (2026-07-18):** T1–T6 are complete. The seven raw
+> passes now expose frozen named results; dynamics owns optional `Data`; IK and
+> contact outputs preserve requested graphs; retired stubs/aliases are gone;
+> and a 16-test public VJP net pins the differentiability claim. Findings and
+> deviations are recorded in `03_results.md`. **Completed:** full gate `1439
+> passed, 2 skipped, 16 deselected`; Sphinx HTML/doctest green; source net
+> **−177 lines** (budget: ≤ +150).
+
 **Goal:** every block a robotics user could legitimately want is public,
 uniformly named, and differentiable; the surface tells the truth. The audit
 evidence (2026-07-18, confirmed by autograd probes): the core already

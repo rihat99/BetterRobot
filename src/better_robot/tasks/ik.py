@@ -232,13 +232,14 @@ def _refinement_problem(problem: Problem, disabled_items: tuple[str, ...]) -> Pr
     )
 
 
-def solve_ik(  # noqa: PLR0915 - explicit preset assembly keeps task policy visible
+def solve_ik(  # noqa: PLR0912, PLR0915 - explicit preset assembly keeps task policy visible
     model: Model,
     targets: dict[str, torch.Tensor],
     *,
     initial_q: torch.Tensor | None = None,
     cost_cfg: IKCostConfig | None = None,
     optimizer_cfg: OptimizerConfig | None = None,
+    differentiable: bool = False,
 ) -> IKResult:
     """Solve one or an arbitrary leading batch of frame-target IK problems.
 
@@ -246,12 +247,21 @@ def solve_ik(  # noqa: PLR0915 - explicit preset assembly keeps task policy visi
     ``initial_q`` may be ``(nq,)`` or ``(B..., nq)`` and is broadcast with all
     target batches. Per-element convergence and iteration tensors are returned
     for batched calls; unbatched diagnostics remain Python scalars.
+
+    ``differentiable=True`` requires the LM optimizer and attaches a first-order
+    implicit backward from ``result.q`` to graph-carrying targets. The backward
+    assumes a converged, locally smooth optimum with a stable active set and
+    raises the implicit solver's eligibility error when those conditions fail.
     """
+    if not isinstance(differentiable, bool):
+        raise TypeError("differentiable must be a bool")
     cost_cfg = cost_cfg if cost_cfg is not None else IKCostConfig()
     optimizer_cfg = optimizer_cfg if optimizer_cfg is not None else OptimizerConfig()
     _validate_optimizer_config(optimizer_cfg)
     if not isinstance(targets, dict):
         raise TypeError("targets must be a dict mapping frame names to SE3 tensors")
+    if differentiable and optimizer_cfg.optimizer != "lm":
+        raise ValueError("differentiable=True requires optimizer_cfg.optimizer='lm'")
     if optimizer_cfg.optimizer in {"lbfgs", "lm_then_lbfgs"}:
         raise NotImplementedError(
             "Batched named-block L-BFGS is deferred because per-element line "
@@ -360,7 +370,10 @@ def solve_ik(  # noqa: PLR0915 - explicit preset assembly keeps task policy visi
                 **common,
                 fixed_damping=optimizer_cfg.damping == "constant",
             )
-            values, state = solver.run(values, problem)
+            if differentiable:
+                values, state = solver.solve(values, problem, differentiate="implicit")
+            else:
+                values, state = solver.run(values, problem)
             states = (state,)
         elif optimizer_cfg.optimizer == "gn":
             solver = GaussNewton(max_iter=optimizer_cfg.max_iter, **common)

@@ -33,9 +33,9 @@ def test_aba_matches_pinocchio(panda_both):
     rng = torch.Generator().manual_seed(1)
     for i in range(qs.shape[0]):
         q = qs[i]
-        v = (torch.rand(br_model.nv, generator=rng, dtype=torch.float64) - 0.5)
-        tau = (torch.rand(br_model.nv, generator=rng, dtype=torch.float64) - 0.5)
-        ddq_br = br_aba(br_model, br_model.create_data(), q, v, tau).detach().cpu().numpy()
+        v = torch.rand(br_model.nv, generator=rng, dtype=torch.float64) - 0.5
+        tau = torch.rand(br_model.nv, generator=rng, dtype=torch.float64) - 0.5
+        ddq_br = br_aba(br_model, q, v, tau).detach().cpu().numpy()
         ddq_pin = np.asarray(pin.aba(pin_model, pin_data, q.numpy(), v.numpy(), tau.numpy()))
         np.testing.assert_allclose(ddq_br, ddq_pin, rtol=_RTOL, atol=_ATOL)
 
@@ -49,8 +49,8 @@ def test_aba_inverse_of_rnea_panda(panda_both):
         q = qs[i]
         v = (torch.rand(br_model.nv, generator=rng, dtype=torch.float64) - 0.5) * 2.0
         a = (torch.rand(br_model.nv, generator=rng, dtype=torch.float64) - 0.5) * 2.0
-        tau = br_rnea(br_model, br_model.create_data(), q, v, a)
-        ddq = br_aba(br_model, br_model.create_data(), q, v, tau)
+        tau = br_rnea(br_model, q, v, a)
+        ddq = br_aba(br_model, q, v, tau)
         torch.testing.assert_close(ddq, a, rtol=1e-10, atol=1e-10)
 
 
@@ -64,8 +64,8 @@ def test_aba_inverse_of_rnea_g1():
     q = model.q_neutral.clone()
     v = (torch.rand(model.nv, generator=rng, dtype=torch.float64) - 0.5) * 0.2
     a = (torch.rand(model.nv, generator=rng, dtype=torch.float64) - 0.5) * 0.2
-    tau = br_rnea(model, model.create_data(), q, v, a)
-    ddq = br_aba(model, model.create_data(), q, v, tau)
+    tau = br_rnea(model, q, v, a)
+    ddq = br_aba(model, q, v, tau)
     torch.testing.assert_close(ddq, a, rtol=1e-9, atol=1e-9)
 
 
@@ -74,10 +74,10 @@ def test_aba_batched(panda_both):
     br_model, _, _, _ = panda_both
     qs = sample_panda_q(4, seed=4)
     rng = torch.Generator().manual_seed(5)
-    vs = (torch.rand(4, br_model.nv, generator=rng, dtype=torch.float64) - 0.5)
-    taus = (torch.rand(4, br_model.nv, generator=rng, dtype=torch.float64) - 0.5)
+    vs = torch.rand(4, br_model.nv, generator=rng, dtype=torch.float64) - 0.5
+    taus = torch.rand(4, br_model.nv, generator=rng, dtype=torch.float64) - 0.5
 
-    ddq_batch = br_aba(br_model, br_model.create_data(batch_shape=(4,)), qs, vs, taus)
+    ddq_batch = br_aba(br_model, qs, vs, taus)
     for k in range(qs.shape[0]):
-        ddq_k = br_aba(br_model, br_model.create_data(), qs[k], vs[k], taus[k])
+        ddq_k = br_aba(br_model, qs[k], vs[k], taus[k])
         torch.testing.assert_close(ddq_batch[k], ddq_k, rtol=1e-12, atol=1e-12)

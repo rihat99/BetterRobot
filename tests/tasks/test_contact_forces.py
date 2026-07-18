@@ -89,6 +89,33 @@ def test_contact_force_provider_is_differentiable_through_fext() -> None:
     )
 
 
+def test_contact_force_result_preserves_available_output_graphs() -> None:
+    model = _floating_body()
+    q = _clip(model, time=1)
+    active = torch.ones(1, 1, dtype=q.dtype, requires_grad=True)
+    gravity = model.values.gravity[:3].detach().clone().requires_grad_()
+
+    result = solve_contact_forces(
+        model,
+        q,
+        [1],
+        active,
+        dt=0.1,
+        gravity=gravity,
+        weights=ContactForceWeights(base_wrench=1.0, force_magnitude=1e-6),
+        max_iter=30,
+        tolerance=1e-9,
+    )
+    active_gradient = torch.autograd.grad(result.fext_local.sum(), active, retain_graph=True)[0]
+    gravity_gradient = torch.autograd.grad(result.generalized_force.sum(), gravity)[0]
+
+    assert not result.forces_world.requires_grad
+    assert result.fext_local.requires_grad
+    assert result.generalized_force.requires_grad
+    assert torch.isfinite(active_gradient).all() and active_gradient.abs().max() > 0.0
+    assert torch.isfinite(gravity_gradient).all() and gravity_gradient.abs().max() > 0.0
+
+
 def test_force_and_torque_smooth_terms_match_hand_differences() -> None:
     forces = torch.tensor([[[1.0, 0.0, 0.0]], [[3.0, 1.0, 0.0]], [[2.0, 4.0, 1.0]]])
     force_rows = _ForceSmoothResidual(3, 1)({"forces": forces})

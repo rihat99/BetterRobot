@@ -10,6 +10,8 @@ See ``docs/concepts/kinematics.md §2``.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import torch
 
 from ..data_model import KinematicsLevel
@@ -32,6 +34,21 @@ from ..lie import se3
 
 #: Tolerance used by the opt-in free-flyer quaternion debug check.
 _QUAT_NORM_TOL = 0.1
+
+
+@dataclass(frozen=True)
+class FKResult:
+    """Fresh world- and parent-frame joint placements from raw FK."""
+
+    joint_pose_world: torch.Tensor
+    joint_pose_local: torch.Tensor
+
+
+@dataclass(frozen=True)
+class FramePlacementsResult:
+    """Fresh world-frame placements from :func:`frame_placements_raw`."""
+
+    frame_pose_world: torch.Tensor
 
 
 def _validate_q(
@@ -91,8 +108,8 @@ def forward_kinematics_raw(
     structure: ModelStructure,
     values: ModelValues,
     q: torch.Tensor,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """Tensor-only FK primitive — returns world/local joint placements.
+) -> FKResult:
+    """Tensor-only FK primitive returning named world/local placements.
 
     Autograd-safe: uses list accumulation + ``torch.stack`` instead of
     in-place writes so the backward pass can trace through every SE3
@@ -106,10 +123,11 @@ def forward_kinematics_raw(
 
     Returns
     -------
-    joint_pose_world : (B..., njoints, 7)
-        World-frame joint placements (the quantity historically called ``oMi``).
-    joint_pose_local : (B..., njoints, 7)
-        Parent-frame joint placements (``liMi``).
+    FKResult
+        ``joint_pose_world`` has shape ``(B..., njoints, 7)`` and contains
+        world-frame joint placements (the quantity historically called
+        ``oMi``). ``joint_pose_local`` has the same shape and contains
+        parent-frame joint placements (``liMi``).
 
     Notes
     -----
@@ -168,7 +186,10 @@ def forward_kinematics_raw(
     stack_dim = len(batch_shape)
     joint_pose_world = torch.stack(world_list, dim=stack_dim)  # (B..., njoints, 7)
     joint_pose_local = torch.stack(local_list, dim=stack_dim)
-    return joint_pose_world, joint_pose_local
+    return FKResult(
+        joint_pose_world=joint_pose_world,
+        joint_pose_local=joint_pose_local,
+    )
 
 
 def forward_kinematics(
@@ -243,7 +264,9 @@ def forward_kinematics(
         except ImportError:
             warp_result = None
     if warp_result is None:
-        joint_pose_world, joint_pose_local = forward_kinematics_raw(model.structure, model.values, q)
+        fk_result = forward_kinematics_raw(model.structure, model.values, q)
+        joint_pose_world = fk_result.joint_pose_world
+        joint_pose_local = fk_result.joint_pose_local
     else:
         joint_pose_world, joint_pose_local = warp_result.world, warp_result.local
     data.joint_pose_world = joint_pose_world
@@ -257,7 +280,7 @@ def forward_kinematics(
             model.structure,
             model.values,
             joint_pose_world,
-        )
+        ).frame_pose_world
 
     return data
 
@@ -275,7 +298,11 @@ def update_frame_placements(model: Model, data: Data) -> Data:
     assert joint_pose_world is not None, "call forward_kinematics before update_frame_placements"
 
     model.values.validate(model.structure)
-    data.frame_pose_world = frame_placements_raw(model.structure, model.values, joint_pose_world)
+    data.frame_pose_world = frame_placements_raw(
+        model.structure,
+        model.values,
+        joint_pose_world,
+    ).frame_pose_world
     return data
 
 
@@ -283,7 +310,7 @@ def frame_placements_raw(
     structure: ModelStructure,
     values: ModelValues,
     joint_pose_world: torch.Tensor,
-) -> torch.Tensor:
+) -> FramePlacementsResult:
     """Place frames from prevalidated structure/value tensors."""
 
     batch_shape = tuple(joint_pose_world.shape[:-2])
@@ -295,4 +322,4 @@ def frame_placements_raw(
         (structure.nframes, 7),
         name="frame_placements",
     )
-    return se3.compose(parent_poses, local)
+    return FramePlacementsResult(frame_pose_world=se3.compose(parent_poses, local))

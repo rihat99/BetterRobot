@@ -57,7 +57,9 @@ def crba_raw(  # noqa: PLR0912, PLR0915 - composite-body passes are intentionall
     njoints = structure.njoints
 
     # ── FK pass: oMi (unused) and liMi (drives the adjoints) ─────────────
-    oMi, liMi = forward_kinematics_raw(structure, values, q)
+    fk_result = forward_kinematics_raw(structure, values, q)
+    oMi = fk_result.joint_pose_world
+    liMi = fk_result.joint_pose_local
     spatial_inertias = values.spatial_inertias()
     motion_subspaces = structure.joint_motion_subspaces
 
@@ -125,10 +127,17 @@ def crba_raw(  # noqa: PLR0912, PLR0915 - composite-body passes are intentionall
     return CRBAResult(reduce_mass_matrix(structure, M), oMi, liMi)
 
 
-def crba(model: Model, data: Data, q: torch.Tensor) -> torch.Tensor:
-    """Public CRBA wrapper that populates the caller's ``Data`` workspace."""
+def crba(
+    model: Model,
+    q: torch.Tensor,
+    *,
+    data: Data | None = None,
+) -> torch.Tensor:
+    """Return the mass matrix, optionally populating ``data`` in place."""
 
-    q, _, _ = prepare_dynamics_inputs(model.structure, model.values, q, {})
+    q, _, batch = prepare_dynamics_inputs(model.structure, model.values, q, {})
+    if data is None:
+        data = model.create_data(batch_shape=batch, device=q.device, dtype=q.dtype)
     data.q = q
     result = crba_raw(model.structure, model.values, q)
     data.mass_matrix = result.mass_matrix
@@ -136,12 +145,3 @@ def crba(model: Model, data: Data, q: torch.Tensor) -> torch.Tensor:
     data.joint_pose_local = result.joint_pose_local
     object.__setattr__(data, "_kinematics_level", KinematicsLevel.PLACEMENTS)
     return result.mass_matrix
-
-
-def compute_minverse(
-    model: Model,
-    data: Data,
-    q: torch.Tensor,
-) -> torch.Tensor:
-    """Reserved direct ``M(q)^{-1}`` entry point; currently unsupported."""
-    raise NotImplementedError("compute_minverse is not implemented")

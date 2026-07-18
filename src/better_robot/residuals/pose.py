@@ -17,7 +17,6 @@ import torch
 
 from ..data_model.data import Data
 from ..data_model.model import Model
-from ..kinematics import ReferenceFrame
 from ..kinematics.jacobian import get_frame_jacobian
 from ..lie import se3, so3
 from ..lie.tangents import right_jacobian_inv_se3, right_jacobian_inv_so3
@@ -151,9 +150,7 @@ class PoseResidual:
 
         # World-frame spatial Jacobian of the end-effector frame
         # (LOCAL_WORLD_ALIGNED convention: [v_frame_origin_world, omega_world])
-        J_world = get_frame_jacobian(
-            model, data, self.frame_id, reference=ReferenceFrame.LOCAL_WORLD_ALIGNED
-        )  # (B..., 6, nv)
+        J_world = get_frame_jacobian(model, data, self.frame_id)  # (B..., 6, nv)
 
         # Body-frame Jacobian: just rotate both halves by R_ee^T.
         # get_frame_jacobian returns the velocity of the frame origin (not the world
@@ -230,9 +227,7 @@ class PositionResidual:
         ctx: Mapping[str, Any],
     ) -> torch.Tensor:
         model, _q, data = _context_state(ctx, self.model)
-        J_world = get_frame_jacobian(
-            model, data, self.frame_id, reference=ReferenceFrame.LOCAL_WORLD_ALIGNED
-        )  # (B..., 6, nv)
+        J_world = get_frame_jacobian(model, data, self.frame_id)  # (B..., 6, nv)
         return J_world[..., :3, :] * self.weight  # (B..., 3, nv)
 
     def jacobian_blocks(
@@ -296,7 +291,7 @@ class OrientationResidual:
         q_ee = T_ee[..., 3:]
         r = so3.log(so3.compose(so3.inverse(q_target), q_ee))  # (B..., 3)
 
-        J_world = get_frame_jacobian(model, data, self.frame_id, reference=ReferenceFrame.LOCAL_WORLD_ALIGNED)
+        J_world = get_frame_jacobian(model, data, self.frame_id)
         J_ang = J_world[..., 3:, :]  # angular rows (B..., 3, nv)
 
         Jr_inv = right_jacobian_inv_so3(r)  # (B..., 3, 3)

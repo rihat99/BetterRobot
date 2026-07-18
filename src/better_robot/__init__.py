@@ -19,9 +19,9 @@ Layered DAG (arrows point from dependent to dependency)::
 
 from __future__ import annotations
 
-from . import exceptions as exceptions, io as io
+from . import exceptions as exceptions, io as io, spatial as spatial
 from ._version import __version__ as __version__
-from .data_model import Body, Data, Frame, Joint, Model
+from .data_model import Body, Data, Frame, Joint, Model, ModelStructure, ModelValues
 from .dynamics import (
     aba,
     center_of_mass,
@@ -41,8 +41,10 @@ from .lie.types import SE3
 from .tasks import Trajectory, solve_contact_forces, solve_ik, solve_trajopt
 
 __all__ = [
-    # data_model (5)
+    # data_model (7)
     "Model",
+    "ModelStructure",
+    "ModelValues",
     "Data",
     "Frame",
     "Joint",
@@ -52,7 +54,7 @@ __all__ = [
     "ModelBuilder",
     # lie (1)
     "SE3",
-    # kinematics (6)
+    # kinematics (5)
     "forward_kinematics",
     "update_frame_placements",
     "compute_joint_jacobians",

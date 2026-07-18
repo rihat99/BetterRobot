@@ -5,9 +5,8 @@ See ``docs/concepts/kinematics.md``.
 
 from __future__ import annotations
 
-from enum import Enum
-
 from .forward import (
+    frame_placements_raw,
     forward_kinematics,
     forward_kinematics_raw,
     update_frame_placements,
@@ -16,29 +15,16 @@ from .jacobian import (
     compute_joint_jacobians,
     get_frame_jacobian,
     get_joint_jacobian,
+    joint_jacobians_raw,
 )
-
-
-class ReferenceFrame(str, Enum):
-    """Pinocchio-style reference frame for spatial Jacobians.
-
-    The string values match the ``reference=`` keyword accepted by
-    :func:`get_frame_jacobian` and :func:`get_joint_jacobian`. Plain strings
-    are still accepted (``str`` subclass), so existing call sites keep
-    working.
-    """
-
-    WORLD = "world"
-    LOCAL = "local"
-    LOCAL_WORLD_ALIGNED = "local_world_aligned"
-
 
 __all__ = [
     "forward_kinematics",
     "forward_kinematics_raw",
+    "frame_placements_raw",
     "update_frame_placements",
     "compute_joint_jacobians",
+    "joint_jacobians_raw",
     "get_joint_jacobian",
     "get_frame_jacobian",
-    "ReferenceFrame",
 ]

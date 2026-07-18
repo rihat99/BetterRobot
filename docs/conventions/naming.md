@@ -177,15 +177,15 @@ The user-facing names already follow the conventions above:
 | `FirstOrderResult` | Detached per-element result from `run_first_order` |
 | `TrajectoryParameterization` | Protocol; concrete `KnotTrajectory`, `BSplineTrajectory` |
 
-### 2.8 Enums replacing string literals
+### 2.8 Closed string literals and enums
 
-| Enum | Purpose | Members |
+| API | Purpose | Values |
 |------|---------|---------|
-| `ReferenceFrame` (in `kinematics`) | Replaces `reference="..."` strings on `get_*_jacobian` | `WORLD`, `LOCAL`, `LOCAL_WORLD_ALIGNED` |
+| `get_*_jacobian(..., reference=...)` | Selects the Jacobian reference frame | `"world"`, `"local"`, `"local_world_aligned"` |
 | `KinematicsLevel` (in `data_model`) | Tracks how far FK has been computed on a `Data` | `NONE` (0), `PLACEMENTS` (1), `VELOCITIES` (2), `ACCELERATIONS` (3) |
 
-`ReferenceFrame` subclasses `str`; `KinematicsLevel` subclasses `int`, so user code that
-still compares to a string literal continues to work.
+Reference frames are intentionally literal strings. `KinematicsLevel`
+subclasses `int` so cache-level comparisons remain lightweight.
 
 ### 2.9 Shape annotations — `_typing.py` aliases
 

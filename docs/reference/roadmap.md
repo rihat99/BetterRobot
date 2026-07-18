@@ -23,15 +23,8 @@ entries.
 - `src/better_robot/collision/pairs.py`
 - `src/better_robot/collision/robot_collision.py`
 - `src/better_robot/dynamics/centroidal.py`
-- `src/better_robot/dynamics/crba.py`
-- `src/better_robot/dynamics/derivatives.py`
-- `src/better_robot/dynamics/integrators.py`
-- `src/better_robot/dynamics/rnea.py`
 - `src/better_robot/io/build_model.py`
-- `src/better_robot/residuals/collision.py`
 - `src/better_robot/residuals/contact.py`
-- `src/better_robot/residuals/limits.py`
-- `src/better_robot/residuals/manipulability.py`
 - `src/better_robot/residuals/regularization.py`
 - `src/better_robot/residuals/smoothness.py`
 - `src/better_robot/spatial/force.py`
@@ -47,15 +40,11 @@ The recursive Featherstone passes are live: `rnea`, `aba`, `crba`,
 `compute_aba_derivatives`, and `compute_crba_derivatives` are implemented.
 The underlying RNEA/ABA passes have gradcheck coverage, while derivative
 identity tests compare `∂τ/∂a` with CRBA and `∂a/∂τ` with the inverse mass
-matrix. The remaining pieces:
-
-| Symbol | File | What it needs |
-|---|---|---|
-| `compute_minverse` | `dynamics/crba.py` | Direct ABA-factorisation path that skips the explicit `crba` + `cholesky_solve`. |
-| `compute_coriolis_matrix` | `dynamics/rnea.py` | Standalone world-frame recursion for `C(q, v)`. |
-| `compute_centroidal_dynamics_derivatives` | `dynamics/derivatives.py` | Analytic recursion. The autograd path is documented as a workaround. |
-| Analytic Carpentier–Mansard derivatives | `dynamics/derivatives.py` | Replace the autograd bodies of the RNEA, ABA, and CRBA derivative helpers with the analytic forms. |
-| `semi_implicit_euler`, `symplectic_euler`, `rk4` | `dynamics/integrators.py` | Bodies. `integrate_q` is live. |
+matrix. Unsupported direct inverse-mass, Coriolis-matrix, centroidal-derivative,
+and full-physics integration algorithms are omitted from the public surface
+rather than represented by functions that only raise. Analytic
+Carpentier–Mansard recursions may eventually replace the autograd derivative
+helpers without changing those live signatures.
 
 ## Residuals
 
@@ -64,18 +53,14 @@ The full residual library is live except:
 | Symbol | File |
 |---|---|
 | `JerkResidual` | `residuals/smoothness.py` |
-| `YoshikawaResidual` | `residuals/manipulability.py` |
-| `SelfCollisionResidual`, `WorldCollisionResidual` | `residuals/collision.py` |
-| `JointVelocityLimit.jacobian` | `residuals/limits.py` (the `__call__` works; the analytic Jacobian is missing) |
-| `JointAccelLimit` | `residuals/limits.py` |
 | `NullspaceResidual` | `residuals/regularization.py` |
 
 ## Collision
 
 The exported collision dataclasses are usable only as containers.
 `distance`, the closest-point helpers, `colldist_from_sdf`, every
-`RobotCollision` constructor/query, and both collision residual evaluations
-raise `NotImplementedError`. No collision task integration or performance
+`RobotCollision` constructor/query raise `NotImplementedError`. Collision
+residuals are not exported, and no collision task integration or performance
 claim ships today; see {doc}`/concepts/collision_and_geometry`.
 
 ## Tasks

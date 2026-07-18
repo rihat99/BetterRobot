@@ -3,7 +3,9 @@
 ## Entry Points
 
 - `forward_kinematics(model, q_or_data, compute_frames=False, use_warp=False)` — selects one whole FK pass, fills `joint_pose_world` (and `frame_pose_world` if `compute_frames=True`)
-- `forward_kinematics_raw(structure, values, q)` — pure Torch pass over the `ModelStructure` / `ModelValues` seam
+- `forward_kinematics_raw(structure, values, q)` — pure Torch pass returning a named `FKResult`
+- `frame_placements_raw(structure, values, joint_pose_world)` — pure frame-table pass returning a named result
+- `joint_jacobians_raw(structure, q, joint_pose_world)` — sequencing-free Jacobian pass returning a named result
 - `update_frame_placements(model, data)` — fills `frame_pose_world` from existing `joint_pose_world`
 - `compute_joint_jacobians(model, data)` — fills `data.joint_jacobians` for all joints
 - `get_frame_jacobian(model, data, frame_id, reference=...)` — extracts `(B..., 6, nv)` for one frame
@@ -32,20 +34,11 @@ J_local = torch.cat([R_ee.mT @ J_world[..., :3, :], R_ee.mT @ J_world[..., 3:, :
 
 `compute_joint_jacobians` returns WORLD-frame Jacobian (velocity at world origin).
 
-## Jacobian Strategy
+## Residual Jacobian Strategy
 
-```python
-class JacobianStrategy(str, Enum):
-    ANALYTIC = "analytic"     # call residual.jacobian(state)
-    FINITE_DIFF = "finite_diff" # central FD, 2*nv + 1 evaluations
-    AUTO = "auto"             # prefer analytic, fall back to finite diff
-```
-
-`residual_jacobian`'s AUTO fallback is unbatched central finite differences:
-one base evaluation plus two evaluations per tangent dimension. The legacy
-enum does not expose `torch.func` strategies. The named-block `Problem`
-surface separately supports analytic, `jacrev`, `jacfwd`, and
-finite-difference Jacobian strategies.
+Kinematics owns no residual-Jacobian dispatcher. Named-block `Problem` accepts
+the literal strategies `"auto"`, `"analytic"`, `"jacrev"`, `"jacfwd"`, and
+`"finite_difference"`; finite differences remain an explicit debug oracle.
 
 ## FK Hot Path
 

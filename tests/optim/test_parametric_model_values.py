@@ -101,7 +101,7 @@ def test_fake_betas_reach_batched_fk_ik_objective_and_rnea() -> None:
     ik_cost = problem.objective({"q": q}).sum()
     v = torch.zeros(batch, model.nv, dtype=q.dtype)
     a = torch.full_like(v, 0.2)
-    tau = rnea(shaped, shaped.create_data(), q, v, a)
+    tau = rnea(shaped, q, v, a)
     loss = ik_cost + 0.01 * tau.square().sum() + 0.01 * fk.joint_pose_world.square().sum()
     loss.backward()
 
