@@ -24,18 +24,18 @@ explicit `--output` path is supplied.
 
 ## Bumping the baseline
 
-Per `docs/claude_plan/accepted/12_regression_and_benchmarks.md §12.D`:
+Use the following repository-local review procedure:
 
 1. Confirm the change is intentional (algorithm bump, dependency
    upgrade, hardware flip).
 2. Run the bench on the standard CI machine
    (`benchmark-json=tests/bench/baseline_cpu.json`).
 3. Open a PR titled `bench-baseline: bump <reason>`, with the new
-   `baseline_cpu.json` (and `baseline_cuda_l40.json` if relevant).
+   `baseline_cpu.json` and any hardware-named CUDA artifact if relevant.
 4. Two reviewers must approve a baseline bump.
 
-The same procedure applies to `baseline_cuda_l40.json` on the
-self-hosted GPU runner.
+CUDA artifacts must name the GPU actually measured and carry the environment
+header from `definitions.md`; do not infer a self-hosted runner from a filename.
 
 ## File layout
 
@@ -49,17 +49,18 @@ self-hosted GPU runner.
 | `bench_trajopt_sparse.py` | M5 dense-vs-banded CPU scaling harness with isolated subprocess RSS |
 | `test_trajopt_sparse_smoke.py` | Normal-suite T=50, one-update structured smoke |
 | `test_mem_watermark.py` | Nightly only: peak memory tracking |
+| `definitions.md` | M6 hardware header, canonical matrix, timing rules, and evidence status |
 | `baseline_cpu.json` | CI-runner baseline (currently a `_status: PLACEHOLDER`; populate from one CI run before relying on the comparison gate) |
-| `baseline_cuda_l40.json` | Self-hosted L40 baseline (currently a `_status: PLACEHOLDER`; same caveat) |
+| `baselines/warp_fk_cuda_rtx6000_ada_b*.json` | Measured, fresh-process M6 SMPL FK Warp-vs-compiled-Torch CUDA cases |
+| `baselines/m6_torch_filtered_smpl_b1_rtx6000_ada.json` | Filtered B=1 SMPL FK/RNEA/IK CPU/CUDA eager/compiled evidence; not the complete canonical matrix |
 | `baselines/trajopt_sparse_cpu.json` | M5 Phase-C schema/results; pending the canonical full CPU run |
 
 > ### Status: placeholder baselines
 >
-> `baseline_cpu.json` and `baseline_cuda_l40.json` ship with
-> ``_status: "PLACEHOLDER"`` and an empty ``benchmarks`` list. The
+> `baseline_cpu.json` ships with ``_status: "PLACEHOLDER"`` and an empty
+> ``benchmarks`` list. The
 > CI advisory job will run the suite but cannot detect regressions
-> until the placeholders are replaced with real numbers from one
-> known-good CI run (and L40 GPU run). Until then, `bench-cpu-advisory`
+> until it is replaced with real numbers from one known-good CI run. Until
+> then, `bench-cpu-advisory`
 > records numbers but the comparison is meaningless. The first PR that
-> stabilises the bench fixtures should bump both files following the
-> bumping procedure above.
+> stabilises the bench fixtures should bump it following the procedure above.

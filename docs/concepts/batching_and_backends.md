@@ -182,13 +182,16 @@ passes explicitly; see {doc}`/conventions/performance` for current coverage.
 
 ## CUDA graph capture
 
-CUDA graph capture is roadmap work. A capture-safe solver must use fixed
-storage and record forward **and backward together** so replay preserves the
-intended differentiation lifecycle. BetterRobot does not currently ship a
-capture decorator or context manager. Named-block LM's tensor-only state and
-pure, fixed-shape `update` are capture-ready by construction, but a CPU
-fullgraph smoke test is not certification. Capture remains opt-in until M6's
-actual replay-parity harness covers the solver lifecycle and kernel adjoints.
+The experimental internal
+`better_robot.optim._graph_executor.GraphExecutor` harness is a tensor-only
+pytree wrapper with CPU/disabled eager fallback, side-stream warmup, lazy
+recording, input-copy replay, controlled resize/stream re-recording, and
+cloned outputs. CUDA tests certify fixed groups of named-block LM updates
+(including changing nonlinear jacrev work) and a mixed Torch/Warp FK graph.
+It is not exported as public API. The public LM `run` loop is not wired to it
+and no end-to-end IK capture benchmark exists. Only explicit inputs are
+signatured, so closure state must stay fixed until reset. Ordinary solves
+remain eager.
 
 ## Requirements for an opt-in kernel lane
 

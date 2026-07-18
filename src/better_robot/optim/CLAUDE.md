@@ -196,10 +196,14 @@ final-point KKT evaluation also passes.
 hyperparameters are frozen Python configuration. `update` must stay
 fixed-shape, sync-free, input-pure, and tensor-branching only. Public/static
 validation belongs to `init_state`; the eager `run` boundary may perform one
-all-terminal host check per iteration. The module is capture-ready by the M2b
-structural checklist, but only M6's actual CUDA capture/replay parity harness
-may call it capture-certified. Custom residuals/providers that use dynamic
-shapes, host syncs, or value-keyed Python caches remain eager-only.
+all-terminal host check per iteration. M6's internal experimental
+`GraphExecutor` CUDA harness certifies fixed groups of `update` calls,
+including nonlinear jacrev work, resize, and mixed Torch/Warp replay. It is
+not exported as public API. `run` itself remains eager and has no end-to-end
+graph benchmark. Only explicit call arguments participate in the graph
+signature; keep closure state fixed until reset and pass changing targets as
+explicit inputs. Custom residuals/providers that use dynamic shapes, host
+syncs, or value-keyed Python caches remain eager-only.
 
 Finite Euclidean/configuration bounds use a restricted active-set normal
 system plus projected-gradient KKT termination. Finite world-axis boxes on

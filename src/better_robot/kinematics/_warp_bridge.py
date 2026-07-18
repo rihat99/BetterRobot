@@ -227,6 +227,29 @@ class WarpFKResult:
     frames: torch.Tensor
 
 
+def _capture_is_active(*tensors: torch.Tensor) -> bool:
+    return any(tensor.is_cuda for tensor in tensors) and torch.cuda.is_current_stream_capturing()
+
+
+def _raise_capture_layout_error(name: str, *capture_inputs: torch.Tensor) -> None:
+    """Reject a layout fallback while the current CUDA stream is recording."""
+    if _capture_is_active(*capture_inputs):
+        raise RuntimeError(
+            f"better_robot: input {name!r} has an unsupported layout for the Warp FK lane "
+            "while CUDA graph capture is active; silent Torch fallback is disabled during "
+            "capture. Make the input contiguous before capture, or disable graph capture."
+        )
+
+
+def _raise_capture_fallback(*capture_inputs: torch.Tensor, reason: str, remedy: str) -> None:
+    """Forbid an otherwise-silent Torch fallback during graph recording."""
+    if _capture_is_active(*capture_inputs):
+        raise RuntimeError(
+            "better_robot: Warp FK cannot silently fall back to the Torch lane while CUDA "
+            f"graph capture is active. {reason}. {remedy}, or disable graph capture."
+        )
+
+
 def try_warp_forward_kinematics(  # noqa: PLR0911
     structure: ModelStructure,
     values: ModelValues,
@@ -238,14 +261,51 @@ def try_warp_forward_kinematics(  # noqa: PLR0911
         # The frozen prototype ABI consumes one public q slice per concrete
         # joint. Reduced mimic coordinates deliberately stay on the torch lane
         # until a dedicated full-space expansion kernel is validated.
+        _raise_capture_fallback(
+            q,
+            values.joint_placements,
+            values.frame_placements,
+            reason="the model contains mimic joints",
+            remedy="Use a model without mimic joints for the captured Warp lane",
+        )
         return None
     if q.dtype not in (torch.float32, torch.float64):
+        _raise_capture_fallback(
+            q,
+            values.joint_placements,
+            values.frame_placements,
+            reason=f"q has unsupported dtype {q.dtype}",
+            remedy="Convert q to float32 or float64 before capture",
+        )
         return None
     if any(code < 0 or code == JOINT_KIND_CODES["composite"] for code in structure.joint_kind_codes):
+        _raise_capture_fallback(
+            q,
+            values.joint_placements,
+            values.frame_placements,
+            reason="the model contains a joint kind unsupported by the Warp ABI",
+            remedy="Use only fixed, revolute, continuous, prismatic, planar, or floating joints",
+        )
         return None
-    if q.stride(-1) != 1 or values.joint_placements.stride(-1) != 1 or values.frame_placements.stride(-1) != 1:
+    layout_inputs = (
+        ("q", q),
+        ("joint_placements", values.joint_placements),
+        ("frame_placements", values.frame_placements),
+    )
+    unsupported_layout = tuple((name, tensor) for name, tensor in layout_inputs if tensor.stride(-1) != 1)
+    if unsupported_layout:
+        capture_inputs = (q, values.joint_placements, values.frame_placements)
+        for name, _ in unsupported_layout:
+            _raise_capture_layout_error(name, *capture_inputs)
         return None
     if values.joint_placements.shape[:-2] != values.frame_placements.shape[:-2]:
+        _raise_capture_fallback(
+            q,
+            values.joint_placements,
+            values.frame_placements,
+            reason="joint and frame placements have different batch shapes",
+            remedy="Give joint and frame placements identical batch shapes before capture",
+        )
         return None
 
     placements = values.joint_placements.to(dtype=q.dtype)
@@ -255,16 +315,29 @@ def try_warp_forward_kinematics(  # noqa: PLR0911
         (placements, frame_placements, values.body_inertias),
         value_event_ndims=(2, 2, 2),
     )
-    if not torch.equal(execution.values[0].batch_indices, execution.values[1].batch_indices):
-        return None
+    # Equal placement batch shapes passed to ``flatten_execution_batch`` yield
+    # the same value map by construction. Avoid ``torch.equal`` here: it would
+    # synchronize the host while the public selector is being graph-captured.
     q_unique = execution.q.tensor
     placement_unique = execution.values[0].tensor
     frame_unique = execution.values[1].tensor
-    if (
-        q_unique.data_ptr() != q.data_ptr()
-        or placement_unique.data_ptr() != placements.data_ptr()
-        or frame_unique.data_ptr() != frame_placements.data_ptr()
-    ):
+    materialized = tuple(
+        name
+        for name, flattened, original in (
+            ("q", q_unique, q),
+            ("joint_placements", placement_unique, placements),
+            ("frame_placements", frame_unique, frame_placements),
+        )
+        if flattened.data_ptr() != original.data_ptr()
+    )
+    if materialized:
+        _raise_capture_fallback(
+            q,
+            values.joint_placements,
+            values.frame_placements,
+            reason=f"flattening would materialize inputs {materialized}",
+            remedy="Make those batch dimensions reshape-compatible before capture",
+        )
         return None
 
     q_map = execution.q.batch_indices.to(device=q.device, dtype=torch.int32)

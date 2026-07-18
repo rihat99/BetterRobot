@@ -37,8 +37,9 @@ small-problem unrolled differentiation oracle.
 ````{py:method} update(values, state, problem, *, create_graph=False) -> tuple[Values, LMState]
 :canonical: better_robot.optim.LevenbergMarquardt.update
 
-Apply one pure, sync-free, fixed-shape batched update. This is capture-ready by
-construction; M6's actual CUDA capture/replay parity test owns certification.
+Apply one pure, sync-free, fixed-shape batched update. M6's internal
+experimental CUDA-graph harness tests replay of fixed update groups; the
+public `run` loop remains eager.
 `create_graph=True` preserves the graph through this step for small reference
 problems; the default does not retain the Jacobian graph.
 ````

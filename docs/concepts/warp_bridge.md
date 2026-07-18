@@ -24,7 +24,7 @@ autograd formula for a non-functional custom operator.
 | Warp gradient ownership | ``wp.from_torch(..., requires_grad=False)`` | Avoids deferred Warp ``.grad`` synchronization and double accumulation |
 | First-order VJP | Recompute the Torch FK table pass in the registered autograd formula | Gradcheck for q, joint placements, frame placements, and shared-value reduction |
 | Second order | Grad-enabled backward recomputes with ``create_graph=True`` | Public bridge gradgradcheck, including zero joint angle |
-| Capture | Direct functional forward op is CUDA-graph replayable | CUDA replay parity test; solver forward+backward capture remains future work |
+| Capture | Public supported selector and direct functional forward op are CUDA-graph replayable | CUDA replay parity tests; unsupported selector fallbacks hard-error during capture |
 
 The registered forward formula performs its Torch-lane recomputation directly.
 A custom-op implementation executes below Torch's Autograd dispatch key, so it
@@ -50,23 +50,30 @@ spatial type.
 
 | Pass | Thread mapping | Differentiable inputs | Adjoint strategy | Status |
 |---|---|---|---|---|
-| Fused FK + frames | One thread per execution row; serial topological loop | q, joint placements, frame placements | Torch-lane recompute; Warp generated adjoint rejected because dynamic-loop locals are not replayed reliably | Opt-in prototype |
+| Fused FK + frames | One thread per execution row; serial topological loop | q, joint placements, frame placements | Torch-lane recompute; Warp generated adjoint rejected because dynamic-loop locals are not replayed reliably | CUDA-validated opt-in; default review pending |
 | Jacobian / RNEA / ABA / CRBA | Undecided | Must be declared per pass | Must be re-evaluated per pass | Not implemented |
 
 The FK kernel uses stable int8 kind codes and flat topology/value tables. Tests
 cover fp32/fp64, branches, a chain deeper than 16 joints, free-flyer and
 spherical joints, broadcast maps, shared gradients, and the zero-angle seam.
-CUDA validation on an RTX 6000 Ada covers forward parity, q-gradient parity,
-current-stream ordering, and graph replay. The GPU performance comparison and
-any default-on decision remain M6 work.
+CUDA validation on RTX 6000 Ada covers fp32/fp64, fixed/free bases, branched
+and >16-deep trees, multi-axis/value batches, q and placement VJPs, a numerical
+zero-angle gradcheck, current-stream ordering, and graph replay. The committed
+SMPL FK cases in `tests/bench/baselines/warp_fk_cuda_rtx6000_ada_b*.json` report
+forward-only wins over compiled Torch at every measured batch size. Any
+default-on decision remains an owner review because the backward path is a
+Torch recomputation and was not part of that timing.
 
 ## Known prototype limits
 
 - The Torch VJP currently reads immutable topology tables to the host. That is
   correct but is not suitable for a captured hot backward loop.
-- Eligibility checks run in Python, so the direct custom op—not the full
-  public selection wrapper—is the validated full-graph/capture boundary.
-- CUDA graph replay has been validated for the forward op only. A solver must
-  capture its intended forward and backward lifecycle together.
+- The supported public selection path and direct custom op are capture-tested.
+  An otherwise-silent dtype, model, batch, or layout fallback hard-errors
+  during capture instead of baking a hidden lane change into the graph.
+- FK CUDA graph replay has been validated for the forward op only. The
+  separate internal solver harness captures nonlinear jacrev work, but the
+  public solver does not yet capture an end-to-end FK/backward/iteration
+  lifecycle.
 - Warp is an optional dependency. Importing BetterRobot without the ``warp``
   extra leaves the Torch lane fully functional.

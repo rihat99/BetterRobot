@@ -1,6 +1,0 @@
-{
-  "_status": "PLACEHOLDER",
-  "_comment": "No baseline numbers recorded yet. To populate: run the suite on the self-hosted L40 GPU runner, capture --benchmark-json output, and replace this file. See tests/bench/README.md.",
-  "_schema_version": 1,
-  "benchmarks": []
-}

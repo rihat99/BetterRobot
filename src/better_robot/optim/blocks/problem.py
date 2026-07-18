@@ -139,7 +139,14 @@ def _is_inactive(weight: Weight) -> bool:
 
 
 def _broadcast_weight(weight: Weight, output: torch.Tensor) -> torch.Tensor:
-    result = torch.as_tensor(weight, dtype=output.dtype, device=output.device)
+    # ``torch.as_tensor(Python_scalar, device="cuda")`` performs a host-to-device
+    # transfer, which CUDA graph capture rejects. A device-side fill is both
+    # capture-safe and equivalent for frozen scalar weights.
+    result = (
+        weight.to(dtype=output.dtype, device=output.device)
+        if isinstance(weight, torch.Tensor)
+        else output.new_full((), float(weight))
+    )
     while result.ndim < output.ndim:
         result = result.unsqueeze(-1)
     return result

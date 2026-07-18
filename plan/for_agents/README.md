@@ -59,9 +59,12 @@ These come from `plan/04_roadmap.md` and are binding:
    against the compiled torch lane. Warp-CPU parity alone = **prototype**;
    **production** requires CUDA validation on a real GPU runner;
    **default-on** additionally requires benchmark evidence.
-7. **CUDA is broken on this dev box.** Local warp validation is warp-CPU
-   only. Never claim GPU validation from this machine. Anything needing a
-   real GPU is blocked on the remote CUDA runner (an M1 action item).
+7. **CUDA commands need the host execution context on this dev box.** The
+   default agent sandbox hides `/dev/nvidia*` and produces a false-negative
+   `nvidia-smi`, but the host has eight working RTX 6000 Ada GPUs. Run GPU
+   validation only with approved device access, pin one device explicitly,
+   and record the exact command/environment. Sandbox-only output is neither
+   evidence that CUDA works nor evidence that it is broken.
 8. **Evidence-gated decisions stay with the owner.** Where an instruction
    file says "produce the evidence and stop for review", do exactly that —
    do not silently pick a default.

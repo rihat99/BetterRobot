@@ -130,11 +130,13 @@ The Jacobian and `CostStack` boundaries remain roadmap work. The outer
 Python — `Model` construction, `Data` allocation, and solver iteration —
 stays eager.
 
-### 2.5 Adaptive kernel dispatch
+### 2.5 Adaptive kernel dispatch (design target)
 
-For routines whose cost depends on a discrete size parameter — number
-of collision spheres, trajectory horizon — the library picks a
-specialised kernel at first call.
+Future routines whose cost depends on a discrete size parameter — number of
+collision spheres or trajectory horizon — may select a specialised kernel at
+first call. The following table is a proposed policy, not shipping dispatch;
+collision residuals are currently stubs and no horizon-specialised CUDA kernel
+is installed.
 
 | Regime | Kernel |
 |--------|--------|
@@ -143,22 +145,28 @@ specialised kernel at first call.
 | `horizon ≤ 32` | rolled Python loop inside one compile block |
 | `horizon > 32` | scan-style parallel prefix kernel |
 
-Dispatch is keyed on the `Model` (or `LeastSquaresProblem`) identity,
-so each problem compiles once.
+If this policy is implemented, dispatch and cache lifetime must be keyed on
+the static model/problem structure and measured before it becomes a default.
 
 ### 2.6 CUDA graph capture for hot solver loops
 
-CUDA graph capture is roadmap work, not a helper that ships today. A
-capture-ready solver needs fixed storage, a warm-up phase, explicit
-invalidation when shapes or storage change, and a replay lifecycle that
-records forward **and backward together**. Capturing only the forward pass
-would not preserve the intended autograd work on replay.
+M6 includes an experimental internal
+`better_robot.optim._graph_executor.GraphExecutor` tensor-pytree harness with
+an eager CPU/disabled path. It is not a supported public API. A capture-ready
+callable needs fixed storage, a warm-up phase, controlled invalidation when
+shapes or storage change, and a replay lifecycle that records forward **and
+backward together**. Capturing only the forward pass would not preserve the
+intended autograd work on replay.
 
-Named-block LM now supplies the fixed-structure tensor state and pure,
-sync-free `update` required by that checklist; the CPU fullgraph smoke is only
-a graph-break proxy. Actual capture remains opt-in until M6 records and
-replays the full solver lifecycle and any custom-kernel adjoints with parity.
-There is currently no public capture decorator or context manager.
+M6's CUDA tests record and replay fixed groups of named-block LM updates,
+including jacrev work, with resize re-recording, memory stability, and mixed
+Torch/Warp FK parity. Scalar Python residual weights are materialized with a
+capture-safe device fill. Unsafe views are rejected before recording, and a
+signature or sequential caller-stream change triggers a synchronized
+re-record. Only explicit arguments are signatured; closure tensors and Python
+configuration must remain stable until `reset()`. The public solver `run` loop
+is still eager and no end-to-end IK graph benchmark is committed, so no public
+capture execution mode ships yet.
 
 ### 2.7 Current allocation and matrix-free limits
 
@@ -221,7 +229,8 @@ the `kinematics/` and `optim/` trees).
 
 ### 4.1 Microbenchmarks (`tests/bench/`)
 
-One file per public operation. Shape:
+The repository carries advisory pytest microbenchmarks plus standalone,
+schema-backed milestone harnesses. A representative intended shape is:
 
 ```python
 # tests/bench/bench_forward_kinematics.py
@@ -230,8 +239,9 @@ def test_panda_fk_cuda_b1(benchmark):     ...  # ≤ 150 µs
 def test_panda_fk_cuda_b1024(benchmark):  ...  # ≤ 250 µs
 ```
 
-All targets from §1 are encoded as `benchmark.extra_info["budget_us"]`
-and asserted.
+The current pytest files do not encode or assert every target from §1. The M6
+measurement contract, real RTX 6000 Ada environment header, canonical batch
+matrix, and artifact status live in `tests/bench/definitions.md`.
 
 ### 4.2 Regression guard — advisory-then-blocking ladder
 
@@ -241,16 +251,16 @@ collected enough signal:
 | Gate | Initial mode | Promotion criterion |
 |------|--------------|---------------------|
 | Contract bundle (correctness, DAG, hot-path lint, mypy strict, cache invariants, optional imports) | Blocking from day 1 | — |
-| CPU bench | Advisory (PR comment) | Two release cycles of stable runner variance < 5% |
-| CUDA bench | Nightly only | One cycle of stable self-hosted-runner data |
-| `mem_watermark` | Nightly only, advisory | Promoted at v1 release |
+| CPU bench | Manual advisory; placeholder comparison baseline | Two release cycles of stable runner variance < 5% |
+| CUDA bench | Manual host-context evidence | One cycle of stable self-hosted-runner data |
+| `mem_watermark` | Test definition present; no scheduled gate | Promoted at v1 release |
 
-Once promoted, `pytest tests/bench/ --benchmark-compare
---benchmark-fail=mean:20%` against the committed baseline
-(`tests/bench/baseline_cpu.json`, `tests/bench/baseline_cuda_l40.json`)
-is the gate. Hard CUDA gates *before* runner stability is measured
-produce flaky CI that gets muted; the ladder is the discipline that
-prevents that.
+No performance row is currently promoted to a blocking comparison. The legacy
+`tests/bench/baseline_cpu.json` is explicitly a placeholder; measured
+hardware-named artifacts live under `tests/bench/baselines/`. Hard CUDA gates
+before runner stability is measured produce flaky CI that gets muted; the
+ladder is the discipline that prevents that. The workflow remains
+manual-only by owner request.
 
 Baseline is bumped only when:
 

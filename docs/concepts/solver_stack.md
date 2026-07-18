@@ -205,10 +205,11 @@ retraction tangent step. This is a solver trust-region knob, not a state bound.
 `update` is a pure, fixed-shape, sync-free tensor program. Public validation
 and static layout construction happen in `init_state`; `run` is an eager
 convenience loop and may perform one host-side all-terminal check per
-iteration. This makes the step capture-ready by construction, but does not
-certify CUDA graph replay. Certification requires M6's warmup/capture/replay
-parity harness. Custom residuals and providers must also satisfy the
-fixed-shape, sync-free eligibility rules in
+iteration. M6's internal experimental `GraphExecutor` CUDA harness certifies
+replay of fixed groups of these updates, including nonlinear jacrev work; the
+public `run` loop remains eager and has no end-to-end IK graph benchmark.
+Custom residuals and providers must also satisfy the fixed-shape, sync-free
+eligibility rules in
 {doc}`/guides/custom_residuals`; non-eligible residuals remain usable eagerly.
 
 The terminal `LMStatus` values are `RUNNING`, `CONVERGED`,

@@ -1,14 +1,14 @@
 # M6 — Warp Fast Path & CUDA Graphs: Agent Execution Instructions
 
-> **Implementation log (2026-07-17):** The CUDA gate failed (zero devices;
-> driver unavailable), so all GPU/kernel/capture/benchmark tasks remain open.
-> A conservative dense Torch-lane implicit `solve` subset landed; its remaining
-> contract gaps are recorded in `m6_results.md`.
+> **Implementation log (corrected 2026-07-18):** The earlier CUDA failure was
+> a sandbox visibility error, not a host failure. Host-context validation passes
+> on RTX 6000 Ada; expanded T6.3 coverage, four measured FK cases, and a partial
+> internal graph harness landed. M6 remains incomplete; CI stays manual-only.
 
 > Read `plan/for_agents/README.md` first. It carries the standing rules
 > (deletion ordering, honesty rules, the five kernel requirements, test
 > commands). Standing rules 4 (committed benchmark definitions), 6 (every
-> warp kernel's five requirements), 7 (CUDA broken on the dev box), and 8
+> warp kernel's five requirements), 7 (host-context CUDA evidence), and 8
 > (evidence-gated decisions stay with the owner) govern every task below.
 
 ## Mission
@@ -26,12 +26,14 @@ owner — is each kernel's **default-on** switch, per (device, dtype).
 
 ## Prerequisite gate: a real CUDA GPU box
 
-**Nothing GPU-specific in this milestone can be validated on the current dev
-box.** Reverified 2026-07-17 after the dependency refresh: Torch is
-`2.13.0+cu126` (`torch.version.cuda == "12.6"`) but reports
-`torch.cuda.is_available() == False` and zero devices; `nvidia-smi` cannot
-communicate with an NVIDIA driver. Warp `1.15.0` is installed and, with an
-isolated writable cache, reports toolkit 12.9 but no CUDA driver/device.
+**GPU validation on this dev host must run outside the default agent
+sandbox.** Reverified 2026-07-18 in the approved host context: the machine has
+eight NVIDIA RTX 6000 Ada GPUs with driver 560.35.03; locked Torch
+`2.13.0+cu126` sees CUDA 12.6, and Warp `1.15.0` sees the selected sm_89 device
+with toolkit 12.9 / driver API 12.6. The default sandbox omits the NVIDIA
+device nodes and therefore makes `nvidia-smi` and `torch.cuda.is_available()`
+fail. That output describes sandbox visibility, not host health.
+
 Warp-CPU (embedded Clang, single-threaded serial grid loop —
 `audit_warp_platform.md §3.2`) compiles kernels and adjoints and is a
 legitimate **correctness/parity vehicle for prototyping**, but it
@@ -180,23 +182,24 @@ kernel-cache directory used by CI; the `warp` packaging extra from M1
 installs cleanly there (`uv sync --extra warp` or the M1-decided
 equivalent).
 
-**Current state:** dev box CUDA broken (verified — see gate section);
-`tests/bench/baseline_cuda_l40.json` is a `_status: "PLACEHOLDER"` file
-whose name presumes an L40 runner that does not exist; the bench README
-references a `docs/claude_plan/accepted/12_regression_and_benchmarks.md`
-that is **not in the tree** and a "self-hosted L40 baseline" procedure
-with no CI behind it (no `.github/` existed pre-M1; M1 item 10 was to
-create CI). Treat those files as aspirational scaffolding, not fact.
+**Current state:** the local host gate passes in the approved execution
+context and is recorded in `tests/bench/definitions.md`. CUDA FK correctness,
+gradient, current-stream, and graph-replay tests pass on a selected RTX 6000
+Ada. The nonexistent-L40 placeholder and stale benchmark procedure were
+removed; the complete T6.1 matrix is still open. CI is intentionally
+`workflow_dispatch`/manual-only.
 
-**Implementation plan:** run the gate checklist; wire the GPU runner
-into the M1 CI as a dedicated job (warp extra, persistent kernel cache,
-bounded parity cases — 03 §2.5); fix or replace the stale bench README
-claims and rename `baseline_cuda_l40.json` to match the actual GPU (or
-generalize the naming to `baseline_cuda_<gpu>.json`).
+**Implementation plan:** retain the gate commands and exact host metadata in
+the benchmark definition; use an explicitly selected GPU and isolated cache
+for every run. The owner's request to keep CI stopped overrides the proposed
+runner job, so runner wiring remains a documented deviation until that request
+changes. Keep hardware-named measured artifacts and no aspirational runner
+filenames.
 
-**What to test:** the CI job runs the M1 warp-CPU parity suite AND a
-first CUDA smoke test (one FK kernel launch on `cuda`, parity vs torch
-lane at one batch shape) green.
+**What to test:** the existing Warp CPU parity suite and expanded CUDA FK
+module both pass; the latter must assert CUDA and exercise a kernel launch,
+gradients, current-stream ordering, and graph replay. If CI is later enabled,
+the same locked suites become its bounded smoke.
 
 **Pitfalls:** warp kernel caches are content-addressed but
 `clear_kernel_cache()` is not multi-process-safe; give the CI job a
@@ -217,15 +220,16 @@ codegen latency (measured here for the first time — the audits could
 not), and CUDA-graph record time (fed by T6.9). This baseline is the bar
 every kernel must clear. **No kernel work starts before it exists.**
 
-**Current state:** `tests/bench/` exists with pytest-benchmark
-micro-benches (`bench_forward_kinematics.py`, `bench_jacobian.py`,
-`bench_lie.py`, `bench_solve_ik.py`) — Panda-only, CPU-only in
-practice, both baseline JSONs are placeholders. The only measured
-compile number in the plan: codex probe, CPU, fixed-base Panda B=256 —
-eager ~2.91 ms → steady compiled ~0.269 ms (~10.8×), **first compile
-~31.5 s, amortized only after ~12k calls**
-(`plan/research/codex_plan_review.md:186`). That number predates the M1
-seam rewrite; re-measure, do not quote it as current.
+**Current state:** `tests/bench/definitions.md` now fixes the hardware,
+matrix, cold-cache, timing, memory, and raw-sample contract. The standalone
+`benchmarks/m6_baseline.py` enumerates the 144 Panda/free-Panda/SMPL ×
+FK/RNEA/IK × CPU/CUDA × eager/compiled × batch selectors in isolated child
+processes and records unsupported cases rather than substituting workloads.
+Four fresh-process SMPL FK CUDA cases are committed, but they compare Warp
+only with compiled Torch. A separate filtered SMPL B=1 artifact covers
+CPU/CUDA eager/compiled FK and RNEA plus eager public IK (10 successes, two
+honest unsupported compiled-IK rows). These do not complete the full
+CPU/GPU Panda/SMPL batch matrix or graph-record costs.
 
 **Implementation plan:**
 
@@ -349,14 +353,15 @@ is delivered to the owner with a stated margin. The kernel is
 **production** after CUDA validation; it becomes **default** for
 (cuda, fp32) etc. only on the owner's sign-off.
 
-**Current state:** today's torch FK is `forward_kinematics_raw`
-(`kinematics/forward.py:73`) — a serial Python loop over `topo_order`
-(~4 ms fixed overhead; B=1 costs the same as B=256 — boundary table
-row 1). M1 replaced the seam and landed the kernel per the Newton-style
-mapping: one thread per execution-batch element, serial topological
-loop, int8 kind dispatch, with a recorded adjoint strategy. The old
-`backends/warp/` stub (`bridge.py` raising NotImplementedError) was
-deleted in M1 — if you still see it, M1 did not land; stop.
+**Current state:** the opt-in M1 FK kernel has now run on CUDA in fp32/fp64
+across fixed/free bases, branched and >16-deep models, multi-axis batches,
+shared model values, q/placement gradients, a numerical zero-angle
+gradcheck, current-stream ordering, and graph replay. Four committed
+fresh-cache SMPL cases at B=1/16/256/4096 show forward-only Warp steady
+medians 1.17×/2.00×/1.85×/1.80× faster than full-graph compiled Torch on
+the recorded RTX 6000 Ada. The registered backward still recomputes in Torch
+and was not benchmarked, so the kernel remains opt-in pending owner review;
+no default was flipped.
 
 **Implementation plan:** (1) run the M1 test matrix on CUDA; fix what
 breaks (stream bridging and grad-buffer management are the likely
@@ -626,18 +631,19 @@ batched-IK win (eager loop vs captured replay, fixed iteration budget,
 several B); inside capture, the warp-lane layout fallback becomes a
 **hard error**.
 
-**Current state:** M2b's `update` satisfies the structural
-capture-readiness checklist (fixed input buffers via `copy_`,
-branch-free `torch.where` logic, `cholesky_ex` info-mask fallback as
-fixed tensor work, no host syncs in `update`, syncs only at `run`
-boundaries) — accepted there by inspection, certified here. cuRobo's
-verified recording protocol: `gc.collect()` + `torch.cuda.synchronize()`
-(flush pending graph destructions), clone inputs, **3 warmup runs on a
-side stream**, `with torch.cuda.graph(graph, pool=mem_pool,
-stream=stream)`, then replay with `copy_` into captured inputs
-(skipping same-`data_ptr`) — and it captures full autograd:
-`cost.backward()` runs inside the graph
-(`audit_curobo_warp_integration.md §3`).
+**Current state:** an internal experimental
+`better_robot.optim._graph_executor.GraphExecutor` harness implements lazy
+side-stream warmup/recording, stable input buffers, copied replay inputs,
+cloned outputs, explicit reset, and safe automatic re-recording on supported
+signature or caller-stream changes. CUDA tests cover nonlinear LM update
+groups whose jacrev-derived work changes with the inputs, resize, replay
+stability, mixed Torch/Warp capture, public Warp-selector capture behavior,
+and hard errors for unsafe layouts/views. The public solver `run` remains
+eager: no persistent fixed-trip driver, custom-residual eligibility warning,
+B=128 IK parity case, or end-to-end speed artifact has landed. The helper is
+therefore internal and T6.9 is partial, not a public capture API. Its signature
+covers explicit inputs only; changing closure targets/configuration must be
+passed explicitly or followed by `reset()` before any future promotion.
 
 **Implementation plan:**
 
@@ -765,12 +771,14 @@ declared, not inferred). Torch lane only; works on CPU; second-order
 composition documented (the backward's linear solve is itself
 differentiable torch — state what is and is not supported).
 
-**Current state:** M2a decided the differentiation contract questions
-(state shape, per-element statuses, what non-convergence means for
-gradients) precisely so this implementation would not be blocked —
-read that contract first (`m2a_variable_blocks_and_slice.md`); the
-sketch is 03 §4 "Implicit differentiation". Reference:
-`references/design/jaxopt.md` (root_vjp / fixed-point VJP machinery).
+**Current state:** `LevenbergMarquardt.solve` (and inherited GN) ships a
+detached default plus explicit `differentiate="implicit"` for declared
+external parameters. The conservative dense implementation covers tangent
+charts, stable active bounds, robust objectives, strict per-batch validity,
+and singular-system rejection/fallback within a configured size cap. It is a
+useful T6.11 subset, but true banded/operator backward, per-element gradient
+quality, implicit-vs-unrolled coverage, and Panda task-facade finite
+differences remain open; see `m6_results.md` for the exact deviations.
 
 **Implementation plan:** (1) wrap `run` in an autograd.Function; save
 converged `values*` + external params; backward: assemble the
@@ -825,12 +833,12 @@ the target, the sanctioned escape is T6.10's warp static
 specialization, never a second kernel language. Committed numbers with
 stated caveats — **no bare ratios anywhere** (standing rule 4).
 
-**Current state:** an in-tree cuRobo checkout exists at
-`references/kin_dyn/curobo/` — but it is **cuRoboV2, tag
-`v0.8.0-2-gca94158`, a research release**, not the public v0.7.x most
-published numbers describe (`audit_curobo_warp_integration.md` header).
-All cuRobo performance numbers in the digests are paper claims — nothing
-was locally verified. No comparison harness exists.
+**Current state:** `tests/bench/external/definition.md` was written before
+measurement and fixes the Panda dataset, success oracle, work budget, cold
+costs, memory fields, and required caveats. No competitor environment or
+measurement has been run. The in-tree reference is cuRoboV2 tag
+`v0.8.0-2-gca94158`, not public v0.7, and no published number is treated as a
+local result.
 
 **Implementation plan:** (1) write and commit the definition file
 (suggested `tests/bench/external/definition.md`) FIRST — get owner

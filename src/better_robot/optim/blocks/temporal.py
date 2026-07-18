@@ -214,7 +214,11 @@ class StructuredNormal:
 
 
 def _broadcast_weight(weight: Weight, output: torch.Tensor) -> torch.Tensor:
-    result = torch.as_tensor(weight, dtype=output.dtype, device=output.device)
+    result = (
+        weight.to(dtype=output.dtype, device=output.device)
+        if isinstance(weight, torch.Tensor)
+        else output.new_full((), float(weight))
+    )
     while result.ndim < output.ndim:
         result = result.unsqueeze(-1)
     return result

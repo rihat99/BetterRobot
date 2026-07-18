@@ -1,0 +1,2625 @@
+{
+  "advisory_only": true,
+  "benchmark": "m6_torch_baseline",
+  "canonical_protocol": false,
+  "cases": [
+    {
+      "case_id": "smpl/fk/cpu/eager/b1",
+      "cold": {
+        "compile_wrapper_creation_ms": null,
+        "first_call_includes_lazy_graph_compilation": false,
+        "first_call_ms": 5.767079,
+        "note": "first eager invocation after model and input preparation"
+      },
+      "cuda_memory": null,
+      "model": {
+        "base": "free_flyer",
+        "name": "smpl_body",
+        "nframes": 25,
+        "njoints": 25,
+        "nq": 99,
+        "nv": 75
+      },
+      "output": {
+        "all_finite": true,
+        "float64_sum_checksum": 72.27187924191821,
+        "tensor_fingerprints": [
+          {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 24.523560224915855,
+            "sha256": "a1622ff6124ebb6af503b3134ba3c5279ac8864b203b8b95336c84659c475151",
+            "shape": [
+              1,
+              25,
+              7
+            ]
+          },
+          {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 23.224758792086504,
+            "sha256": "5d0cebe6ef646bb3c5dd91a065b993dc46141b89eab0b268651cf46e4235fa0d",
+            "shape": [
+              1,
+              25,
+              7
+            ]
+          },
+          {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 24.523560224915855,
+            "sha256": "a1622ff6124ebb6af503b3134ba3c5279ac8864b203b8b95336c84659c475151",
+            "shape": [
+              1,
+              25,
+              7
+            ]
+          }
+        ],
+        "tensor_shapes": [
+          [
+            1,
+            25,
+            7
+          ],
+          [
+            1,
+            25,
+            7
+          ],
+          [
+            1,
+            25,
+            7
+          ]
+        ]
+      },
+      "selector": {
+        "batch": 1,
+        "device": "cpu",
+        "ik_mode": null,
+        "lane": "eager",
+        "model": "smpl",
+        "operation": "fk"
+      },
+      "status": "SUCCESS",
+      "steady_state": {
+        "iqr_ms": 0.13424725000000048,
+        "max_ms": 5.59775,
+        "median_ms": 5.5101580000000006,
+        "min_ms": 2.795266,
+        "q1_ms": 5.38827375,
+        "q3_ms": 5.522521,
+        "samples_ms": [
+          5.386065,
+          5.510119,
+          5.412155,
+          5.501276,
+          5.537462,
+          5.527194,
+          5.5939,
+          5.360765,
+          5.512497,
+          5.549561,
+          5.530425,
+          5.518235,
+          5.510907,
+          5.535876,
+          5.510197,
+          5.515121,
+          5.556291,
+          5.371798,
+          5.523376,
+          5.51905,
+          5.401343,
+          5.5192,
+          5.512033,
+          5.503783,
+          5.511434,
+          5.49855,
+          5.516699,
+          5.491676,
+          5.522236,
+          5.492591,
+          5.514224,
+          5.491451,
+          5.515919,
+          5.503546,
+          5.48445,
+          5.549051,
+          5.371583,
+          5.529929,
+          5.543915,
+          5.508768,
+          5.530549,
+          5.507116,
+          5.51202,
+          5.513683,
+          5.511042,
+          5.518677,
+          5.38901,
+          5.534022,
+          5.523928,
+          5.531556,
+          5.542662,
+          5.518142,
+          5.516441,
+          5.408821,
+          5.535558,
+          5.506341,
+          5.514599,
+          5.507582,
+          5.505578,
+          5.495251,
+          5.367405,
+          5.523567,
+          5.510273,
+          5.536071,
+          5.546542,
+          5.514789,
+          5.38245,
+          5.554785,
+          5.516794,
+          5.503542,
+          5.507039,
+          5.552571,
+          5.372581,
+          5.59775,
+          5.503386,
+          5.390902,
+          5.559138,
+          5.511241,
+          5.510629,
+          5.381927,
+          5.504011,
+          5.507882,
+          5.3488,
+          5.528239,
+          3.793894,
+          2.795266,
+          2.904658,
+          2.881664,
+          2.889527,
+          2.822427,
+          2.893205,
+          2.890894,
+          2.79943,
+          2.915096,
+          2.959683,
+          2.891069,
+          2.813369,
+          2.900421,
+          2.887922,
+          2.802464
+        ]
+      },
+      "workload": {
+        "api": "forward_kinematics_raw + frame_placements_raw",
+        "autograd_mode": "torch.inference_mode",
+        "compute_frames": true,
+        "input_seed": 8017957482787845671,
+        "input_shapes": {
+          "q": [
+            1,
+            99
+          ]
+        },
+        "inputs": {
+          "q": {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 23.85475876496639,
+            "sha256": "1552117dd4135e48cac57ff6aab88ccbbd417a8fa8423ddffa71f3aeac40efe3",
+            "shape": [
+              1,
+              99
+            ]
+          }
+        }
+      }
+    },
+    {
+      "case_id": "smpl/fk/cpu/compiled/b1",
+      "cold": {
+        "compile_wrapper_creation_ms": 27.76322,
+        "first_call_includes_lazy_graph_compilation": true,
+        "first_call_ms": 70493.793978,
+        "note": "torch.compile wrapper creation is separate; the compiled first call combines lazy compilation and execution"
+      },
+      "cuda_memory": null,
+      "model": {
+        "base": "free_flyer",
+        "name": "smpl_body",
+        "nframes": 25,
+        "njoints": 25,
+        "nq": 99,
+        "nv": 75
+      },
+      "output": {
+        "all_finite": true,
+        "float64_sum_checksum": 72.27187943190802,
+        "tensor_fingerprints": [
+          {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 24.52356028824579,
+            "sha256": "d91c0f8596f0d61df6354310737c84eb99ce05c9e639e869d5f5e9a431e6eae9",
+            "shape": [
+              1,
+              25,
+              7
+            ]
+          },
+          {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 23.22475885541644,
+            "sha256": "1841154f3b9beb4e13c0d5efa7664d9f495a61deea22553344cdfb53446154ed",
+            "shape": [
+              1,
+              25,
+              7
+            ]
+          },
+          {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 24.52356028824579,
+            "sha256": "d91c0f8596f0d61df6354310737c84eb99ce05c9e639e869d5f5e9a431e6eae9",
+            "shape": [
+              1,
+              25,
+              7
+            ]
+          }
+        ],
+        "tensor_shapes": [
+          [
+            1,
+            25,
+            7
+          ],
+          [
+            1,
+            25,
+            7
+          ],
+          [
+            1,
+            25,
+            7
+          ]
+        ]
+      },
+      "selector": {
+        "batch": 1,
+        "device": "cpu",
+        "ik_mode": null,
+        "lane": "compiled",
+        "model": "smpl",
+        "operation": "fk"
+      },
+      "status": "SUCCESS",
+      "steady_state": {
+        "iqr_ms": 0.004311249999999989,
+        "max_ms": 0.623297,
+        "median_ms": 0.60145,
+        "min_ms": 0.593433,
+        "q1_ms": 0.598841,
+        "q3_ms": 0.60315225,
+        "samples_ms": [
+          0.598817,
+          0.605434,
+          0.604675,
+          0.602378,
+          0.623297,
+          0.601847,
+          0.606214,
+          0.60686,
+          0.601698,
+          0.609141,
+          0.597167,
+          0.603237,
+          0.616689,
+          0.602881,
+          0.601011,
+          0.596064,
+          0.608801,
+          0.604278,
+          0.596746,
+          0.602912,
+          0.597058,
+          0.603016,
+          0.59899,
+          0.59414,
+          0.60959,
+          0.606818,
+          0.601461,
+          0.607411,
+          0.601597,
+          0.605525,
+          0.604824,
+          0.600225,
+          0.602576,
+          0.60189,
+          0.608274,
+          0.602155,
+          0.597185,
+          0.601971,
+          0.596993,
+          0.604182,
+          0.603124,
+          0.600009,
+          0.599229,
+          0.61032,
+          0.602153,
+          0.598849,
+          0.600735,
+          0.601166,
+          0.597562,
+          0.597378,
+          0.60483,
+          0.596754,
+          0.604294,
+          0.59862,
+          0.600209,
+          0.601407,
+          0.598201,
+          0.60171,
+          0.600127,
+          0.599468,
+          0.602194,
+          0.597135,
+          0.601936,
+          0.600101,
+          0.604415,
+          0.604793,
+          0.597299,
+          0.603103,
+          0.593433,
+          0.60137,
+          0.605188,
+          0.599398,
+          0.604835,
+          0.602615,
+          0.598772,
+          0.598937,
+          0.595647,
+          0.599998,
+          0.602333,
+          0.594839,
+          0.600312,
+          0.59362,
+          0.601083,
+          0.602633,
+          0.59665,
+          0.601995,
+          0.59646,
+          0.597677,
+          0.604112,
+          0.593794,
+          0.599952,
+          0.601642,
+          0.602097,
+          0.599674,
+          0.599209,
+          0.602095,
+          0.601439,
+          0.600675,
+          0.601258,
+          0.594293
+        ]
+      },
+      "workload": {
+        "api": "forward_kinematics_raw + frame_placements_raw",
+        "autograd_mode": "torch.inference_mode",
+        "compute_frames": true,
+        "input_seed": 8017957482787845671,
+        "input_shapes": {
+          "q": [
+            1,
+            99
+          ]
+        },
+        "inputs": {
+          "q": {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 23.85475876496639,
+            "sha256": "1552117dd4135e48cac57ff6aab88ccbbd417a8fa8423ddffa71f3aeac40efe3",
+            "shape": [
+              1,
+              99
+            ]
+          }
+        }
+      }
+    },
+    {
+      "case_id": "smpl/fk/cuda/eager/b1",
+      "cold": {
+        "compile_wrapper_creation_ms": null,
+        "first_call_includes_lazy_graph_compilation": false,
+        "first_call_ms": 139.76417,
+        "note": "first eager invocation after model and input preparation"
+      },
+      "cuda_memory": {
+        "incremental_peak_allocated_bytes": 35328,
+        "incremental_peak_reserved_bytes": 0,
+        "peak_allocated_bytes": 143360,
+        "peak_reserved_bytes": 2097152,
+        "start_allocated_bytes": 108032,
+        "start_reserved_bytes": 2097152
+      },
+      "model": {
+        "base": "free_flyer",
+        "name": "smpl_body",
+        "nframes": 25,
+        "njoints": 25,
+        "nq": 99,
+        "nv": 75
+      },
+      "output": {
+        "all_finite": true,
+        "float64_sum_checksum": 72.27187942818273,
+        "tensor_fingerprints": [
+          {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 24.523560286383145,
+            "sha256": "1eb3e46477fbeec5770c01bf4872d2f58053dddf7f1567d83f55b746d9562930",
+            "shape": [
+              1,
+              25,
+              7
+            ]
+          },
+          {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 23.22475885541644,
+            "sha256": "1841154f3b9beb4e13c0d5efa7664d9f495a61deea22553344cdfb53446154ed",
+            "shape": [
+              1,
+              25,
+              7
+            ]
+          },
+          {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 24.523560286383145,
+            "sha256": "1eb3e46477fbeec5770c01bf4872d2f58053dddf7f1567d83f55b746d9562930",
+            "shape": [
+              1,
+              25,
+              7
+            ]
+          }
+        ],
+        "tensor_shapes": [
+          [
+            1,
+            25,
+            7
+          ],
+          [
+            1,
+            25,
+            7
+          ],
+          [
+            1,
+            25,
+            7
+          ]
+        ]
+      },
+      "selector": {
+        "batch": 1,
+        "device": "cuda",
+        "ik_mode": null,
+        "lane": "eager",
+        "model": "smpl",
+        "operation": "fk"
+      },
+      "status": "SUCCESS",
+      "steady_state": {
+        "iqr_ms": 0.4169982499999989,
+        "max_ms": 21.669559,
+        "median_ms": 16.334841,
+        "min_ms": 16.074221,
+        "q1_ms": 16.218416,
+        "q3_ms": 16.63541425,
+        "samples_ms": [
+          16.180017,
+          16.219147,
+          16.181611,
+          16.168898,
+          16.208227,
+          16.163122,
+          16.323426,
+          16.213942,
+          16.218272,
+          16.175341,
+          16.207545,
+          16.267711,
+          16.233361,
+          16.264378,
+          16.252148,
+          16.202293,
+          16.211441,
+          21.669559,
+          16.554027,
+          16.216315,
+          16.378959,
+          16.334422,
+          16.289686,
+          16.231631,
+          16.421599,
+          16.487672,
+          16.394841,
+          16.33526,
+          16.418381,
+          16.383283,
+          16.532322,
+          16.472631,
+          16.484088,
+          16.457688,
+          16.485472,
+          16.524007,
+          16.655011,
+          16.740293,
+          16.575692,
+          16.562255,
+          16.606604,
+          16.634659,
+          16.755983,
+          16.585414,
+          16.707123,
+          16.567432,
+          16.807399,
+          16.666959,
+          16.63768,
+          16.682321,
+          16.649058,
+          16.659987,
+          16.685173,
+          16.663837,
+          16.697745,
+          16.660712,
+          16.669069,
+          16.712696,
+          16.713378,
+          16.645332,
+          16.717278,
+          16.615448,
+          16.648085,
+          16.447879,
+          16.332071,
+          16.356485,
+          16.367448,
+          16.290063,
+          16.241342,
+          16.161737,
+          16.253169,
+          16.187287,
+          16.218551,
+          16.19964,
+          16.226974,
+          16.286432,
+          16.218464,
+          16.160804,
+          16.245949,
+          16.36531,
+          16.296146,
+          16.187015,
+          16.222289,
+          16.16795,
+          16.203586,
+          20.032073,
+          16.940347,
+          16.171995,
+          16.136237,
+          16.074221,
+          16.273161,
+          16.264169,
+          16.330827,
+          16.257697,
+          16.26525,
+          18.616501,
+          18.480597,
+          16.096904,
+          16.169073,
+          16.117206
+        ]
+      },
+      "workload": {
+        "api": "forward_kinematics_raw + frame_placements_raw",
+        "autograd_mode": "torch.inference_mode",
+        "compute_frames": true,
+        "input_seed": 8017957482787845671,
+        "input_shapes": {
+          "q": [
+            1,
+            99
+          ]
+        },
+        "inputs": {
+          "q": {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 23.85475876496639,
+            "sha256": "1552117dd4135e48cac57ff6aab88ccbbd417a8fa8423ddffa71f3aeac40efe3",
+            "shape": [
+              1,
+              99
+            ]
+          }
+        }
+      }
+    },
+    {
+      "case_id": "smpl/fk/cuda/compiled/b1",
+      "cold": {
+        "compile_wrapper_creation_ms": 3.69727,
+        "first_call_includes_lazy_graph_compilation": true,
+        "first_call_ms": 26131.2833,
+        "note": "torch.compile wrapper creation is separate; the compiled first call combines lazy compilation and execution"
+      },
+      "cuda_memory": {
+        "incremental_peak_allocated_bytes": 100668928,
+        "incremental_peak_reserved_bytes": 100663296,
+        "peak_allocated_bytes": 100776960,
+        "peak_reserved_bytes": 102760448,
+        "start_allocated_bytes": 108032,
+        "start_reserved_bytes": 2097152
+      },
+      "model": {
+        "base": "free_flyer",
+        "name": "smpl_body",
+        "nframes": 25,
+        "njoints": 25,
+        "nq": 99,
+        "nv": 75
+      },
+      "output": {
+        "all_finite": true,
+        "float64_sum_checksum": 72.27188082365319,
+        "tensor_fingerprints": [
+          {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 24.523560898553114,
+            "sha256": "c28fd4720abc9fb3ec875c955c2aeb02d4ac5937b23c46c2d6df882b9e94da5f",
+            "shape": [
+              1,
+              25,
+              7
+            ]
+          },
+          {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 23.224759026546963,
+            "sha256": "4f1368cb058a3c33b5a9c9d74c8e7a632a4a53774c61760fe6f6b0d0fb45a9b3",
+            "shape": [
+              1,
+              25,
+              7
+            ]
+          },
+          {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 24.523560898553114,
+            "sha256": "c28fd4720abc9fb3ec875c955c2aeb02d4ac5937b23c46c2d6df882b9e94da5f",
+            "shape": [
+              1,
+              25,
+              7
+            ]
+          }
+        ],
+        "tensor_shapes": [
+          [
+            1,
+            25,
+            7
+          ],
+          [
+            1,
+            25,
+            7
+          ],
+          [
+            1,
+            25,
+            7
+          ]
+        ]
+      },
+      "selector": {
+        "batch": 1,
+        "device": "cuda",
+        "ik_mode": null,
+        "lane": "compiled",
+        "model": "smpl",
+        "operation": "fk"
+      },
+      "status": "SUCCESS",
+      "steady_state": {
+        "iqr_ms": 0.009290999999999938,
+        "max_ms": 0.728519,
+        "median_ms": 0.689453,
+        "min_ms": 0.674523,
+        "q1_ms": 0.68460425,
+        "q3_ms": 0.69389525,
+        "samples_ms": [
+          0.690394,
+          0.699387,
+          0.698933,
+          0.693021,
+          0.688178,
+          0.693643,
+          0.693338,
+          0.693169,
+          0.728519,
+          0.705981,
+          0.686536,
+          0.685346,
+          0.702418,
+          0.686927,
+          0.707665,
+          0.702469,
+          0.694372,
+          0.686608,
+          0.690391,
+          0.689769,
+          0.68739,
+          0.683993,
+          0.679511,
+          0.689315,
+          0.684612,
+          0.683875,
+          0.71973,
+          0.696286,
+          0.690637,
+          0.691714,
+          0.683712,
+          0.682091,
+          0.682899,
+          0.692638,
+          0.690669,
+          0.690016,
+          0.694013,
+          0.699428,
+          0.689876,
+          0.678275,
+          0.69767,
+          0.685399,
+          0.681517,
+          0.703264,
+          0.690493,
+          0.689823,
+          0.692882,
+          0.69678,
+          0.687547,
+          0.677252,
+          0.686216,
+          0.687042,
+          0.681089,
+          0.681216,
+          0.726601,
+          0.705539,
+          0.683477,
+          0.694989,
+          0.685376,
+          0.678916,
+          0.683264,
+          0.693856,
+          0.689884,
+          0.689591,
+          0.700274,
+          0.692439,
+          0.714323,
+          0.693302,
+          0.689845,
+          0.675459,
+          0.688535,
+          0.695027,
+          0.676618,
+          0.686149,
+          0.682613,
+          0.686404,
+          0.679653,
+          0.683338,
+          0.689667,
+          0.678094,
+          0.686452,
+          0.692474,
+          0.674523,
+          0.677139,
+          0.685034,
+          0.681716,
+          0.690216,
+          0.684581,
+          0.686281,
+          0.697008,
+          0.687141,
+          0.687734,
+          0.698607,
+          0.684451,
+          0.687615,
+          0.689239,
+          0.68704,
+          0.69582,
+          0.689023,
+          0.712186
+        ]
+      },
+      "workload": {
+        "api": "forward_kinematics_raw + frame_placements_raw",
+        "autograd_mode": "torch.inference_mode",
+        "compute_frames": true,
+        "input_seed": 8017957482787845671,
+        "input_shapes": {
+          "q": [
+            1,
+            99
+          ]
+        },
+        "inputs": {
+          "q": {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 23.85475876496639,
+            "sha256": "1552117dd4135e48cac57ff6aab88ccbbd417a8fa8423ddffa71f3aeac40efe3",
+            "shape": [
+              1,
+              99
+            ]
+          }
+        }
+      }
+    },
+    {
+      "case_id": "smpl/rnea/cpu/eager/b1",
+      "cold": {
+        "compile_wrapper_creation_ms": null,
+        "first_call_includes_lazy_graph_compilation": false,
+        "first_call_ms": 17.36429,
+        "note": "first eager invocation after model and input preparation"
+      },
+      "cuda_memory": null,
+      "model": {
+        "base": "free_flyer",
+        "name": "smpl_body",
+        "nframes": 25,
+        "njoints": 25,
+        "nq": 99,
+        "nv": 75
+      },
+      "output": {
+        "all_finite": true,
+        "float64_sum_checksum": 552.764661829499,
+        "tensor_fingerprints": [
+          {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 552.764661829499,
+            "sha256": "74c6660f8b2f080a97f1189f54c8e4182fe0fffda24677d5e749943b017f1c11",
+            "shape": [
+              1,
+              75
+            ]
+          }
+        ],
+        "tensor_shapes": [
+          [
+            1,
+            75
+          ]
+        ]
+      },
+      "selector": {
+        "batch": 1,
+        "device": "cpu",
+        "ik_mode": null,
+        "lane": "eager",
+        "model": "smpl",
+        "operation": "rnea"
+      },
+      "status": "SUCCESS",
+      "steady_state": {
+        "iqr_ms": 0.045271750000001276,
+        "max_ms": 9.870103,
+        "median_ms": 8.8552055,
+        "min_ms": 8.785517,
+        "q1_ms": 8.834299999999999,
+        "q3_ms": 8.87957175,
+        "samples_ms": [
+          9.870103,
+          9.819701,
+          9.732901,
+          9.643818,
+          8.787796,
+          8.785517,
+          8.797022,
+          8.813434,
+          8.798472,
+          8.809835,
+          8.861071,
+          8.841777,
+          8.82378,
+          8.806926,
+          8.816487,
+          8.823648,
+          8.830703,
+          8.825457,
+          8.840072,
+          8.8044,
+          8.833655,
+          8.844565,
+          8.84653,
+          8.814283,
+          8.80075,
+          8.827493,
+          8.811604,
+          8.826146,
+          8.807294,
+          8.84861,
+          8.84301,
+          8.842884,
+          8.844955,
+          8.880678,
+          8.879514,
+          8.83728,
+          8.833611,
+          8.859005,
+          8.860888,
+          8.844427,
+          8.856886,
+          8.865267,
+          8.857981,
+          8.835866,
+          8.841037,
+          8.836906,
+          8.840757,
+          8.83105,
+          8.831403,
+          8.813619,
+          9.053237,
+          8.856057,
+          8.86675,
+          8.835472,
+          8.819952,
+          8.848511,
+          8.889553,
+          8.84226,
+          8.857651,
+          8.858662,
+          8.856723,
+          8.851782,
+          8.878268,
+          8.894987,
+          8.854189,
+          8.869818,
+          8.834515,
+          8.882433,
+          8.879745,
+          8.881715,
+          8.890624,
+          8.891888,
+          8.867613,
+          8.87301,
+          8.867966,
+          8.848395,
+          8.840517,
+          8.876758,
+          8.836369,
+          8.874471,
+          8.883181,
+          8.917961,
+          8.927137,
+          8.869046,
+          8.886721,
+          8.897303,
+          8.858436,
+          8.866758,
+          8.854354,
+          8.893287,
+          8.869468,
+          8.895265,
+          8.894279,
+          8.882278,
+          8.89708,
+          8.86096,
+          9.331597,
+          8.934107,
+          8.873881,
+          8.83529
+        ]
+      },
+      "workload": {
+        "api": "rnea_raw(...).tau",
+        "autograd_mode": "torch.inference_mode",
+        "input_seed": 1633422576607766842,
+        "input_shapes": {
+          "a": [
+            1,
+            75
+          ],
+          "q": [
+            1,
+            99
+          ],
+          "v": [
+            1,
+            75
+          ]
+        },
+        "inputs": {
+          "a": {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": -0.4676893219293561,
+            "sha256": "7753fb5437978a53c58e503bf3bff1295a9a94529776e452ec2cd3b93585b1bf",
+            "shape": [
+              1,
+              75
+            ]
+          },
+          "q": {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 24.065091611118987,
+            "sha256": "9f50de2c14e9094d5be01c474ebe208fb139564f7d851ca9b98a7f5dbdd39d33",
+            "shape": [
+              1,
+              99
+            ]
+          },
+          "v": {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": -0.17691126512363553,
+            "sha256": "1a725bd37cf2c1499d698d3f840403d4aa0e1331bad96d40ef43e9716ef2fe4a",
+            "shape": [
+              1,
+              75
+            ]
+          }
+        }
+      }
+    },
+    {
+      "case_id": "smpl/rnea/cpu/compiled/b1",
+      "cold": {
+        "compile_wrapper_creation_ms": 5.604185,
+        "first_call_includes_lazy_graph_compilation": true,
+        "first_call_ms": 132780.105105,
+        "note": "torch.compile wrapper creation is separate; the compiled first call combines lazy compilation and execution"
+      },
+      "cuda_memory": null,
+      "model": {
+        "base": "free_flyer",
+        "name": "smpl_body",
+        "nframes": 25,
+        "njoints": 25,
+        "nq": 99,
+        "nv": 75
+      },
+      "output": {
+        "all_finite": true,
+        "float64_sum_checksum": 552.7646702203086,
+        "tensor_fingerprints": [
+          {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 552.7646702203086,
+            "sha256": "c3ec5da57239ac7b4d8800bef46ad593881894a9acfbd9c969fbf96f8db67e11",
+            "shape": [
+              1,
+              75
+            ]
+          }
+        ],
+        "tensor_shapes": [
+          [
+            1,
+            75
+          ]
+        ]
+      },
+      "selector": {
+        "batch": 1,
+        "device": "cpu",
+        "ik_mode": null,
+        "lane": "compiled",
+        "model": "smpl",
+        "operation": "rnea"
+      },
+      "status": "SUCCESS",
+      "steady_state": {
+        "iqr_ms": 0.018560249999999723,
+        "max_ms": 2.482433,
+        "median_ms": 1.3402565,
+        "min_ms": 1.317657,
+        "q1_ms": 1.32913725,
+        "q3_ms": 1.3476974999999998,
+        "samples_ms": [
+          1.335161,
+          1.354302,
+          1.350686,
+          1.345457,
+          1.344253,
+          1.340245,
+          1.33712,
+          1.351816,
+          1.336122,
+          1.353226,
+          1.347225,
+          1.341998,
+          1.370239,
+          1.347166,
+          1.340268,
+          1.359627,
+          1.355151,
+          1.354295,
+          1.347502,
+          1.346312,
+          1.332862,
+          1.343385,
+          1.341254,
+          1.341271,
+          1.347217,
+          1.338441,
+          1.341743,
+          1.355572,
+          1.340702,
+          1.344961,
+          1.341837,
+          1.333836,
+          1.344958,
+          1.348538,
+          1.332403,
+          1.34928,
+          1.339923,
+          1.359025,
+          1.333908,
+          1.341154,
+          1.344885,
+          1.353998,
+          1.338997,
+          1.371184,
+          1.343189,
+          1.336774,
+          1.334439,
+          1.33365,
+          1.332871,
+          1.341489,
+          1.334556,
+          1.326586,
+          1.348284,
+          1.340793,
+          1.337068,
+          1.345165,
+          1.349722,
+          1.351315,
+          1.342663,
+          1.338341,
+          1.344289,
+          1.317657,
+          1.327616,
+          1.328163,
+          1.327433,
+          1.327905,
+          1.325347,
+          1.32552,
+          1.353293,
+          1.324366,
+          1.324703,
+          1.32727,
+          1.3256,
+          1.336405,
+          1.337453,
+          1.319405,
+          1.323448,
+          1.319602,
+          1.324365,
+          1.322953,
+          1.32701,
+          1.317762,
+          1.321504,
+          1.332189,
+          1.329462,
+          1.323142,
+          1.325284,
+          1.32178,
+          1.320096,
+          1.326283,
+          1.335603,
+          1.334669,
+          1.333629,
+          1.38522,
+          1.433214,
+          1.384685,
+          1.441984,
+          1.805773,
+          2.482433,
+          2.472331
+        ]
+      },
+      "workload": {
+        "api": "rnea_raw(...).tau",
+        "autograd_mode": "torch.inference_mode",
+        "input_seed": 1633422576607766842,
+        "input_shapes": {
+          "a": [
+            1,
+            75
+          ],
+          "q": [
+            1,
+            99
+          ],
+          "v": [
+            1,
+            75
+          ]
+        },
+        "inputs": {
+          "a": {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": -0.4676893219293561,
+            "sha256": "7753fb5437978a53c58e503bf3bff1295a9a94529776e452ec2cd3b93585b1bf",
+            "shape": [
+              1,
+              75
+            ]
+          },
+          "q": {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 24.065091611118987,
+            "sha256": "9f50de2c14e9094d5be01c474ebe208fb139564f7d851ca9b98a7f5dbdd39d33",
+            "shape": [
+              1,
+              99
+            ]
+          },
+          "v": {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": -0.17691126512363553,
+            "sha256": "1a725bd37cf2c1499d698d3f840403d4aa0e1331bad96d40ef43e9716ef2fe4a",
+            "shape": [
+              1,
+              75
+            ]
+          }
+        }
+      }
+    },
+    {
+      "case_id": "smpl/rnea/cuda/eager/b1",
+      "cold": {
+        "compile_wrapper_creation_ms": null,
+        "first_call_includes_lazy_graph_compilation": false,
+        "first_call_ms": 307.523428,
+        "note": "first eager invocation after model and input preparation"
+      },
+      "cuda_memory": {
+        "incremental_peak_allocated_bytes": 8584704,
+        "incremental_peak_reserved_bytes": 20971520,
+        "peak_allocated_bytes": 8693760,
+        "peak_reserved_bytes": 23068672,
+        "start_allocated_bytes": 109056,
+        "start_reserved_bytes": 2097152
+      },
+      "model": {
+        "base": "free_flyer",
+        "name": "smpl_body",
+        "nframes": 25,
+        "njoints": 25,
+        "nq": 99,
+        "nv": 75
+      },
+      "output": {
+        "all_finite": true,
+        "float64_sum_checksum": 552.7645015160635,
+        "tensor_fingerprints": [
+          {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 552.7645015160637,
+            "sha256": "515d4555edc07094e860d750eb85fc4115dffa68acf756285c600950879275f2",
+            "shape": [
+              1,
+              75
+            ]
+          }
+        ],
+        "tensor_shapes": [
+          [
+            1,
+            75
+          ]
+        ]
+      },
+      "selector": {
+        "batch": 1,
+        "device": "cuda",
+        "ik_mode": null,
+        "lane": "eager",
+        "model": "smpl",
+        "operation": "rnea"
+      },
+      "status": "SUCCESS",
+      "steady_state": {
+        "iqr_ms": 20.174008999999998,
+        "max_ms": 51.452897,
+        "median_ms": 44.832859,
+        "min_ms": 25.615956,
+        "q1_ms": 25.90250975,
+        "q3_ms": 46.07651875,
+        "samples_ms": [
+          47.090586,
+          47.796903,
+          47.530181,
+          46.517735,
+          45.772986,
+          45.815713,
+          44.834989,
+          44.696371,
+          44.580348,
+          44.946424,
+          44.830729,
+          44.75742,
+          44.787859,
+          50.151444,
+          46.053489,
+          44.741672,
+          44.992734,
+          45.048342,
+          45.342687,
+          45.262945,
+          45.273959,
+          45.57018,
+          45.633645,
+          45.891323,
+          46.323502,
+          46.582746,
+          46.21301,
+          45.459253,
+          44.942964,
+          45.364734,
+          44.722913,
+          44.866102,
+          44.876303,
+          44.849581,
+          44.735003,
+          44.558177,
+          45.121304,
+          45.266328,
+          45.998888,
+          45.534991,
+          45.726737,
+          45.852344,
+          46.145608,
+          46.355795,
+          46.885143,
+          47.133355,
+          47.580767,
+          48.164471,
+          49.367822,
+          51.023672,
+          51.336444,
+          51.410012,
+          51.452897,
+          51.379167,
+          49.919764,
+          49.87368,
+          48.212783,
+          47.451044,
+          50.531751,
+          38.140461,
+          27.00988,
+          26.771175,
+          26.64694,
+          26.397706,
+          26.281406,
+          26.159996,
+          26.100578,
+          25.860458,
+          25.845997,
+          28.282065,
+          25.850682,
+          25.86903,
+          25.882286,
+          25.892042,
+          25.891187,
+          25.903357,
+          25.810661,
+          25.862401,
+          25.808585,
+          25.835787,
+          25.884971,
+          25.933495,
+          25.854696,
+          25.783507,
+          25.819954,
+          25.899968,
+          25.946921,
+          25.895868,
+          25.834777,
+          25.93599,
+          26.069304,
+          27.148134,
+          26.493132,
+          25.718742,
+          25.657169,
+          25.615956,
+          25.672135,
+          25.658481,
+          25.66248,
+          25.710115
+        ]
+      },
+      "workload": {
+        "api": "rnea_raw(...).tau",
+        "autograd_mode": "torch.inference_mode",
+        "input_seed": 1633422576607766842,
+        "input_shapes": {
+          "a": [
+            1,
+            75
+          ],
+          "q": [
+            1,
+            99
+          ],
+          "v": [
+            1,
+            75
+          ]
+        },
+        "inputs": {
+          "a": {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": -0.4676893219293561,
+            "sha256": "7753fb5437978a53c58e503bf3bff1295a9a94529776e452ec2cd3b93585b1bf",
+            "shape": [
+              1,
+              75
+            ]
+          },
+          "q": {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 24.065091611118987,
+            "sha256": "9f50de2c14e9094d5be01c474ebe208fb139564f7d851ca9b98a7f5dbdd39d33",
+            "shape": [
+              1,
+              99
+            ]
+          },
+          "v": {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": -0.17691126512363553,
+            "sha256": "1a725bd37cf2c1499d698d3f840403d4aa0e1331bad96d40ef43e9716ef2fe4a",
+            "shape": [
+              1,
+              75
+            ]
+          }
+        }
+      }
+    },
+    {
+      "case_id": "smpl/rnea/cuda/compiled/b1",
+      "cold": {
+        "compile_wrapper_creation_ms": 5.687117,
+        "first_call_includes_lazy_graph_compilation": true,
+        "first_call_ms": 84396.551065,
+        "note": "torch.compile wrapper creation is separate; the compiled first call combines lazy compilation and execution"
+      },
+      "cuda_memory": {
+        "incremental_peak_allocated_bytes": 8548864,
+        "incremental_peak_reserved_bytes": 20971520,
+        "peak_allocated_bytes": 8657920,
+        "peak_reserved_bytes": 23068672,
+        "start_allocated_bytes": 109056,
+        "start_reserved_bytes": 2097152
+      },
+      "model": {
+        "base": "free_flyer",
+        "name": "smpl_body",
+        "nframes": 25,
+        "njoints": 25,
+        "nq": 99,
+        "nv": 75
+      },
+      "output": {
+        "all_finite": true,
+        "float64_sum_checksum": 552.7644925773922,
+        "tensor_fingerprints": [
+          {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 552.7644925773919,
+            "sha256": "6c5d858c4b98c7a34de7399a6f8bf224d03f0285a1bf0b93167963784c4d6111",
+            "shape": [
+              1,
+              75
+            ]
+          }
+        ],
+        "tensor_shapes": [
+          [
+            1,
+            75
+          ]
+        ]
+      },
+      "selector": {
+        "batch": 1,
+        "device": "cuda",
+        "ik_mode": null,
+        "lane": "compiled",
+        "model": "smpl",
+        "operation": "rnea"
+      },
+      "status": "SUCCESS",
+      "steady_state": {
+        "iqr_ms": 0.6840009999999994,
+        "max_ms": 6.359096,
+        "median_ms": 5.883613,
+        "min_ms": 5.157006,
+        "q1_ms": 5.4891715,
+        "q3_ms": 6.1731725,
+        "samples_ms": [
+          5.32578,
+          5.340036,
+          5.396891,
+          5.346352,
+          5.492399,
+          5.344472,
+          5.448032,
+          5.450705,
+          5.528764,
+          5.432794,
+          5.447553,
+          5.479489,
+          5.521244,
+          5.429807,
+          5.414521,
+          5.555921,
+          5.631085,
+          5.47429,
+          5.494002,
+          5.49405,
+          5.476688,
+          5.477824,
+          5.528444,
+          5.583948,
+          5.680991,
+          5.647385,
+          5.527768,
+          5.659621,
+          5.674866,
+          5.670132,
+          5.872962,
+          5.856739,
+          5.854168,
+          5.86379,
+          5.885364,
+          5.731197,
+          5.71252,
+          5.881862,
+          5.904622,
+          5.919449,
+          5.850316,
+          5.918027,
+          5.878457,
+          5.981383,
+          6.028748,
+          6.018733,
+          6.090915,
+          6.146299,
+          6.158597,
+          6.168195,
+          6.066632,
+          6.159783,
+          6.139725,
+          6.312484,
+          6.213313,
+          6.312266,
+          6.212314,
+          6.250818,
+          6.225598,
+          6.335069,
+          6.269093,
+          6.257381,
+          6.267295,
+          6.359096,
+          6.191228,
+          6.293244,
+          6.345318,
+          6.278108,
+          6.191025,
+          6.293737,
+          6.329963,
+          6.299079,
+          6.232467,
+          6.248872,
+          6.169971,
+          6.258135,
+          6.182777,
+          6.113652,
+          6.10821,
+          6.205475,
+          6.144552,
+          6.212358,
+          6.143836,
+          6.153081,
+          6.101752,
+          6.097359,
+          6.044705,
+          6.096471,
+          6.122102,
+          5.662956,
+          5.364804,
+          5.297071,
+          5.300003,
+          5.299385,
+          5.178888,
+          5.224271,
+          5.337034,
+          5.177944,
+          5.157006,
+          5.246394
+        ]
+      },
+      "workload": {
+        "api": "rnea_raw(...).tau",
+        "autograd_mode": "torch.inference_mode",
+        "input_seed": 1633422576607766842,
+        "input_shapes": {
+          "a": [
+            1,
+            75
+          ],
+          "q": [
+            1,
+            99
+          ],
+          "v": [
+            1,
+            75
+          ]
+        },
+        "inputs": {
+          "a": {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": -0.4676893219293561,
+            "sha256": "7753fb5437978a53c58e503bf3bff1295a9a94529776e452ec2cd3b93585b1bf",
+            "shape": [
+              1,
+              75
+            ]
+          },
+          "q": {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 24.065091611118987,
+            "sha256": "9f50de2c14e9094d5be01c474ebe208fb139564f7d851ca9b98a7f5dbdd39d33",
+            "shape": [
+              1,
+              99
+            ]
+          },
+          "v": {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": -0.17691126512363553,
+            "sha256": "1a725bd37cf2c1499d698d3f840403d4aa0e1331bad96d40ef43e9716ef2fe4a",
+            "shape": [
+              1,
+              75
+            ]
+          }
+        }
+      }
+    },
+    {
+      "case_id": "smpl/ik/cpu/eager/b1",
+      "cold": {
+        "compile_wrapper_creation_ms": null,
+        "first_call_includes_lazy_graph_compilation": false,
+        "first_call_ms": 249.375862,
+        "note": "first eager invocation after model and input preparation"
+      },
+      "cuda_memory": null,
+      "model": {
+        "base": "free_flyer",
+        "name": "smpl_body",
+        "nframes": 25,
+        "njoints": 25,
+        "nq": 99,
+        "nv": 75
+      },
+      "output": {
+        "all_finite": true,
+        "converged_elements": 0,
+        "float64_sum_checksum": 24.283141014535886,
+        "iterations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unique": [
+            5
+          ]
+        },
+        "tensor_fingerprints": [
+          {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 24.274520899169147,
+            "sha256": "ca56935423bfae1d087f3e5e3277e1a5ff825c35140a59cfbe23a8a7d3ef47cd",
+            "shape": [
+              99
+            ]
+          },
+          {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 0.0086201153667389,
+            "sha256": "b8407a63167e7fffbabe12d41c2829d36349e181c4905dbbfb904fa950bdaa69",
+            "shape": [
+              279
+            ]
+          }
+        ],
+        "tensor_shapes": [
+          [
+            99
+          ],
+          [
+            279
+          ]
+        ],
+        "total_elements": 1
+      },
+      "selector": {
+        "batch": 1,
+        "device": "cpu",
+        "ik_mode": "single_unbatched",
+        "lane": "eager",
+        "model": "smpl",
+        "operation": "ik"
+      },
+      "status": "SUCCESS",
+      "steady_state": {
+        "iqr_ms": 0.4536267500000122,
+        "max_ms": 136.82358,
+        "median_ms": 127.794376,
+        "min_ms": 126.88601,
+        "q1_ms": 127.57062525,
+        "q3_ms": 128.02425200000002,
+        "samples_ms": [
+          128.022792,
+          127.603945,
+          127.56694,
+          127.809119,
+          129.335354,
+          127.57101,
+          127.979777,
+          128.209123,
+          127.773172,
+          127.956787,
+          128.210798,
+          127.810394,
+          128.182157,
+          127.916758,
+          127.961006,
+          128.229354,
+          128.017421,
+          127.9467,
+          128.18587,
+          128.354566,
+          128.332172,
+          128.157315,
+          127.815417,
+          127.922266,
+          128.010449,
+          128.174457,
+          128.011848,
+          128.008898,
+          127.745472,
+          127.673517,
+          128.005066,
+          128.054304,
+          127.918254,
+          127.986016,
+          127.756978,
+          128.048395,
+          127.942134,
+          128.07927,
+          128.139213,
+          127.699936,
+          127.569471,
+          127.622915,
+          136.82358,
+          127.491164,
+          128.042994,
+          127.630862,
+          127.588798,
+          127.660698,
+          127.514752,
+          127.502109,
+          127.400762,
+          127.364897,
+          127.349133,
+          128.618556,
+          127.844299,
+          127.843017,
+          127.56547,
+          127.620143,
+          127.564566,
+          127.779633,
+          127.458213,
+          127.255012,
+          128.472861,
+          128.028632,
+          127.714837,
+          127.498358,
+          127.520053,
+          128.584207,
+          127.810905,
+          127.564326,
+          127.492533,
+          128.362825,
+          127.840418,
+          127.614488,
+          127.598591,
+          127.67443,
+          127.819927,
+          127.620469,
+          127.43939,
+          127.381305,
+          128.119314,
+          127.825883,
+          127.593355,
+          127.592345,
+          127.770663,
+          127.713857,
+          127.846142,
+          127.743686,
+          134.608811,
+          134.439431,
+          127.585884,
+          127.286887,
+          127.235024,
+          127.185626,
+          127.352323,
+          127.280015,
+          126.88601,
+          126.935762,
+          128.104,
+          127.773569
+        ]
+      },
+      "workload": {
+        "api": "solve_ik",
+        "autograd_mode": "normal grad mode (public facade default)",
+        "frame": "body_right_hand",
+        "input_seed": 4365107519757113634,
+        "input_shapes": {
+          "initial_q": [
+            99
+          ],
+          "target": [
+            7
+          ]
+        },
+        "inputs": {
+          "initial_q": {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 24.0,
+            "sha256": "e4acb278ee40bd994f15da9688f5147b0963b8f5e1b6b5d93261f3594e3b7fd6",
+            "shape": [
+              99
+            ]
+          },
+          "target": {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 1.0496105402708054,
+            "sha256": "336c58f0209a187937b759d7bc18308cc2ed8537983e69838768af4cfecf3ed8",
+            "shape": [
+              7
+            ]
+          }
+        },
+        "iteration_budget": 5,
+        "mode": "single_unbatched",
+        "optimizer": "LevenbergMarquardt",
+        "target_definition": "FK(integrate(feasible_neutral, linspace(-0.15, 0.15, nv)))",
+        "tol": 0.0
+      }
+    },
+    {
+      "case_id": "smpl/ik/cpu/compiled/b1",
+      "reason": "the public solve_ik facade constructs Python Problem/solver objects and uses host-controlled termination; no honest fullgraph compiled public-IK workload exists, and no lower-level substitute is measured",
+      "selector": {
+        "batch": 1,
+        "device": "cpu",
+        "ik_mode": "single_unbatched",
+        "lane": "compiled",
+        "model": "smpl",
+        "operation": "ik"
+      },
+      "status": "UNSUPPORTED"
+    },
+    {
+      "case_id": "smpl/ik/cuda/eager/b1",
+      "cold": {
+        "compile_wrapper_creation_ms": null,
+        "first_call_includes_lazy_graph_compilation": false,
+        "first_call_ms": 656.38553,
+        "note": "first eager invocation after model and input preparation"
+      },
+      "cuda_memory": {
+        "incremental_peak_allocated_bytes": 8899072,
+        "incremental_peak_reserved_bytes": 20971520,
+        "peak_allocated_bytes": 9007616,
+        "peak_reserved_bytes": 23068672,
+        "start_allocated_bytes": 108544,
+        "start_reserved_bytes": 2097152
+      },
+      "model": {
+        "base": "free_flyer",
+        "name": "smpl_body",
+        "nframes": 25,
+        "njoints": 25,
+        "nq": 99,
+        "nv": 75
+      },
+      "output": {
+        "all_finite": true,
+        "converged_elements": 0,
+        "float64_sum_checksum": 24.28314202823333,
+        "iterations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unique": [
+            5
+          ]
+        },
+        "tensor_fingerprints": [
+          {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 24.274521861691028,
+            "sha256": "991e1037b75759a9dc7cbcd5df6736e960e686abf074043cba41a46ec6e521e2",
+            "shape": [
+              99
+            ]
+          },
+          {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 0.008620166542300467,
+            "sha256": "495dc389dbee85b0bfe600688cd5f38634dbbae02061a059fcb437007b8cc94e",
+            "shape": [
+              279
+            ]
+          }
+        ],
+        "tensor_shapes": [
+          [
+            99
+          ],
+          [
+            279
+          ]
+        ],
+        "total_elements": 1
+      },
+      "selector": {
+        "batch": 1,
+        "device": "cuda",
+        "ik_mode": "single_unbatched",
+        "lane": "eager",
+        "model": "smpl",
+        "operation": "ik"
+      },
+      "status": "SUCCESS",
+      "steady_state": {
+        "iqr_ms": 0.9419885000000363,
+        "max_ms": 365.587986,
+        "median_ms": 320.419807,
+        "min_ms": 318.632509,
+        "q1_ms": 319.87131225,
+        "q3_ms": 320.81330075000005,
+        "samples_ms": [
+          320.113903,
+          320.377262,
+          322.201228,
+          321.3562,
+          321.197387,
+          321.205897,
+          320.561761,
+          320.865746,
+          320.640789,
+          319.968625,
+          320.761381,
+          322.424639,
+          320.970276,
+          320.601326,
+          320.929115,
+          321.614942,
+          320.656301,
+          320.626227,
+          320.456341,
+          320.31034,
+          321.30007,
+          320.49938,
+          320.816201,
+          320.412583,
+          320.390243,
+          321.748968,
+          320.743292,
+          320.437999,
+          320.31471,
+          320.494827,
+          320.574979,
+          320.239382,
+          320.812334,
+          320.573419,
+          320.27948,
+          321.602818,
+          320.351902,
+          320.594001,
+          320.837884,
+          320.608118,
+          320.809207,
+          320.780514,
+          320.181083,
+          320.398627,
+          320.941079,
+          320.319856,
+          320.962392,
+          320.926062,
+          320.982413,
+          320.542813,
+          320.632679,
+          319.841085,
+          321.174761,
+          321.909924,
+          320.652188,
+          321.571549,
+          320.47903,
+          320.873103,
+          320.316375,
+          320.427031,
+          320.390768,
+          365.587986,
+          327.287741,
+          320.016578,
+          319.481648,
+          319.167943,
+          319.537469,
+          318.957942,
+          319.078883,
+          319.591704,
+          318.773346,
+          318.978452,
+          318.632509,
+          319.764179,
+          319.145557,
+          319.624473,
+          319.058894,
+          319.374436,
+          319.31906,
+          319.288004,
+          320.405388,
+          319.881388,
+          319.120113,
+          318.838908,
+          319.35715,
+          319.113109,
+          321.574733,
+          320.73245,
+          319.751351,
+          319.704964,
+          320.095298,
+          319.754717,
+          319.925641,
+          320.096094,
+          320.199135,
+          319.940752,
+          320.121498,
+          320.070148,
+          320.436816,
+          319.159179
+        ]
+      },
+      "workload": {
+        "api": "solve_ik",
+        "autograd_mode": "normal grad mode (public facade default)",
+        "frame": "body_right_hand",
+        "input_seed": 4365107519757113634,
+        "input_shapes": {
+          "initial_q": [
+            99
+          ],
+          "target": [
+            7
+          ]
+        },
+        "inputs": {
+          "initial_q": {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 24.0,
+            "sha256": "e4acb278ee40bd994f15da9688f5147b0963b8f5e1b6b5d93261f3594e3b7fd6",
+            "shape": [
+              99
+            ]
+          },
+          "target": {
+            "dtype": "torch.float32",
+            "float64_sum_checksum": 1.0496105402708054,
+            "sha256": "336c58f0209a187937b759d7bc18308cc2ed8537983e69838768af4cfecf3ed8",
+            "shape": [
+              7
+            ]
+          }
+        },
+        "iteration_budget": 5,
+        "mode": "single_unbatched",
+        "optimizer": "LevenbergMarquardt",
+        "target_definition": "FK(integrate(feasible_neutral, linspace(-0.15, 0.15, nv)))",
+        "tol": 0.0
+      }
+    },
+    {
+      "case_id": "smpl/ik/cuda/compiled/b1",
+      "reason": "the public solve_ik facade constructs Python Problem/solver objects and uses host-controlled termination; no honest fullgraph compiled public-IK workload exists, and no lower-level substitute is measured",
+      "selector": {
+        "batch": 1,
+        "device": "cuda",
+        "ik_mode": "single_unbatched",
+        "lane": "compiled",
+        "model": "smpl",
+        "operation": "ik"
+      },
+      "status": "UNSUPPORTED"
+    }
+  ],
+  "definition": {
+    "canonical_batches": [
+      1,
+      16,
+      256,
+      4096
+    ],
+    "canonical_samples": 100,
+    "canonical_warmup": 20,
+    "cold_scope": "one fresh process and fresh TorchInductor cache directory per case; model/input construction excluded; compile wrapper creation and lazy compile-plus-first-execution are separate fields",
+    "compiled": {
+      "api": "torch.compile",
+      "backend": "inductor",
+      "dynamic": false,
+      "fullgraph": true,
+      "public_ik": "UNSUPPORTED"
+    },
+    "cuda_memory": "torch.cuda.max_memory_allocated/reserved after reset; start and incremental peaks retained",
+    "deferred_cold_costs": {
+      "cuda_graph_record": "requires T6.9 GraphExecutor and is not fabricated here",
+      "warp_first_launch": "measured by the separate Warp lane harness"
+    },
+    "dtype": "torch.float32",
+    "ik_iteration_budget": 5,
+    "models": {
+      "panda_fixed": "Franka Panda URDF, fixed base",
+      "panda_free": "Franka Panda URDF with JointFreeFlyer root",
+      "smpl": "make_smpl_like_model, 25 joints including universe, free-flyer + spherical joints"
+    },
+    "operations": {
+      "fk": "tensor-only FK plus frame placements",
+      "ik": "public solve_ik; B=1 is unbatched, B>1 independently batched",
+      "rnea": "tensor-only RNEA torque output"
+    },
+    "samples": 100,
+    "seed": 20260718,
+    "statistics": "raw samples plus median, inclusive Q1/Q3, IQR, min, and max",
+    "timer": "time.perf_counter_ns wall clock; CUDA synchronized before and after every timed invocation",
+    "torch_intra_and_interop_threads": 1,
+    "warmup": 20
+  },
+  "environment": {
+    "better_robot_source": "/data3/rikhat.akizhanov/better/BetterRobot/src/better_robot/__init__.py",
+    "cpu": "INTEL(R) XEON(R) PLATINUM 8570",
+    "cpu_affinity": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63,
+      64,
+      65,
+      66,
+      67,
+      68,
+      69,
+      70,
+      71,
+      72,
+      73,
+      74,
+      75,
+      76,
+      77,
+      78,
+      79,
+      80,
+      81,
+      82,
+      83,
+      84,
+      85,
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95,
+      96,
+      97,
+      98,
+      99,
+      100,
+      101,
+      102,
+      103,
+      104,
+      105,
+      106,
+      107,
+      108,
+      109,
+      110,
+      111,
+      112,
+      113,
+      114,
+      115,
+      116,
+      117,
+      118,
+      119,
+      120,
+      121,
+      122,
+      123,
+      124,
+      125,
+      126,
+      127,
+      128,
+      129,
+      130,
+      131,
+      132,
+      133,
+      134,
+      135,
+      136,
+      137,
+      138,
+      139,
+      140,
+      141,
+      142,
+      143,
+      144,
+      145,
+      146,
+      147,
+      148,
+      149,
+      150,
+      151,
+      152,
+      153,
+      154,
+      155,
+      156,
+      157,
+      158,
+      159,
+      160,
+      161,
+      162,
+      163,
+      164,
+      165,
+      166,
+      167,
+      168,
+      169,
+      170,
+      171,
+      172,
+      173,
+      174,
+      175,
+      176,
+      177,
+      178,
+      179,
+      180,
+      181,
+      182,
+      183,
+      184,
+      185,
+      186,
+      187,
+      188,
+      189,
+      190,
+      191,
+      192,
+      193,
+      194,
+      195,
+      196,
+      197,
+      198,
+      199,
+      200,
+      201,
+      202,
+      203,
+      204,
+      205,
+      206,
+      207,
+      208,
+      209,
+      210,
+      211,
+      212,
+      213,
+      214,
+      215,
+      216,
+      217,
+      218,
+      219,
+      220,
+      221,
+      222,
+      223
+    ],
+    "cuda": {
+      "available": true,
+      "compute_capability": [
+        8,
+        9
+      ],
+      "cuda_visible_devices": "4",
+      "device_count": 1,
+      "logical_index": 0,
+      "name": "NVIDIA RTX 6000 Ada Generation",
+      "nvidia_driver_version": "560.35.03",
+      "nvidia_smi_inventory_error": null,
+      "pci_bus_id": "00000000:98:00.0",
+      "physical_index": 4,
+      "physical_mapping_source": "numeric CUDA_VISIBLE_DEVICES token",
+      "requested_index": 0,
+      "torch_cuda_build": "12.6",
+      "torch_device_uuid": "ba51bb8b-da02-ea99-e99e-350952268322",
+      "total_memory_bytes": 50896961536,
+      "uuid": "GPU-ba51bb8b-da02-ea99-e99e-350952268322",
+      "visible_device_token": "4"
+    },
+    "git": {
+      "commit": "d8d60f6ba9f337ef11d7c863cbeb74066dcf160c",
+      "dirty": true
+    },
+    "hostname": "robotics2-ESC8000-E11",
+    "logical_cpus": 224,
+    "platform": "Linux-6.8.0-110-generic-x86_64-with-glibc2.35",
+    "python": "3.11.15",
+    "timestamp_utc": "2026-07-18T08:25:25.227848+00:00",
+    "torch": "2.13.0+cu126",
+    "torch_cuda_build": "12.6"
+  },
+  "label": "m6-smpl-b1-cpu-cuda-rtx6000ada-2026-07-18",
+  "protocol": "filtered",
+  "schema_version": 1,
+  "selection": {
+    "case_ids": [
+      "smpl/fk/cpu/eager/b1",
+      "smpl/fk/cpu/compiled/b1",
+      "smpl/fk/cuda/eager/b1",
+      "smpl/fk/cuda/compiled/b1",
+      "smpl/rnea/cpu/eager/b1",
+      "smpl/rnea/cpu/compiled/b1",
+      "smpl/rnea/cuda/eager/b1",
+      "smpl/rnea/cuda/compiled/b1",
+      "smpl/ik/cpu/eager/b1",
+      "smpl/ik/cpu/compiled/b1",
+      "smpl/ik/cuda/eager/b1",
+      "smpl/ik/cuda/compiled/b1"
+    ],
+    "case_timeout_seconds": 900.0,
+    "selected_count": 12,
+    "status_counts": {
+      "ERROR": 0,
+      "OOM": 0,
+      "SUCCESS": 10,
+      "TIMEOUT": 0,
+      "UNSUPPORTED": 2
+    },
+    "worker_isolation": "fresh Python process and fresh temporary TorchInductor cache per case"
+  },
+  "validation": {
+    "all_evaluated_checks_passed": true,
+    "eager_vs_compiled_parity": [
+      {
+        "comparison_id": "smpl/fk/cpu/b1",
+        "compiled_case_id": "smpl/fk/cpu/compiled/b1",
+        "eager_case_id": "smpl/fk/cpu/eager/b1",
+        "input_fingerprints_identical": true,
+        "numeric": {
+          "atol": 2e-05,
+          "max_abs_error": 5.960464477539063e-08,
+          "max_rel_error": 9.931007980412687e-07,
+          "passed": true,
+          "rtol": 2e-05,
+          "shapes_match": true
+        },
+        "status": "PASS"
+      },
+      {
+        "comparison_id": "smpl/fk/cuda/b1",
+        "compiled_case_id": "smpl/fk/cuda/compiled/b1",
+        "eager_case_id": "smpl/fk/cuda/eager/b1",
+        "input_fingerprints_identical": true,
+        "numeric": {
+          "atol": 2e-05,
+          "max_abs_error": 1.1920928955078125e-07,
+          "max_rel_error": 1.03208994914894e-05,
+          "passed": true,
+          "rtol": 2e-05,
+          "shapes_match": true
+        },
+        "status": "PASS"
+      },
+      {
+        "comparison_id": "smpl/rnea/cpu/b1",
+        "compiled_case_id": "smpl/rnea/cpu/compiled/b1",
+        "eager_case_id": "smpl/rnea/cpu/eager/b1",
+        "input_fingerprints_identical": true,
+        "numeric": {
+          "atol": 2e-05,
+          "max_abs_error": 2.1457672119140625e-06,
+          "max_rel_error": 5.065723419189453,
+          "passed": true,
+          "rtol": 2e-05,
+          "shapes_match": true
+        },
+        "status": "PASS"
+      },
+      {
+        "comparison_id": "smpl/rnea/cuda/b1",
+        "compiled_case_id": "smpl/rnea/cuda/compiled/b1",
+        "eager_case_id": "smpl/rnea/cuda/eager/b1",
+        "input_fingerprints_identical": true,
+        "numeric": {
+          "atol": 2e-05,
+          "max_abs_error": 1.52587890625e-05,
+          "max_rel_error": 1.9748541116714478,
+          "passed": true,
+          "rtol": 2e-05,
+          "shapes_match": true
+        },
+        "status": "PASS"
+      },
+      {
+        "comparison_id": "smpl/ik/cpu/b1",
+        "compiled_case_id": "smpl/ik/cpu/compiled/b1",
+        "eager_case_id": "smpl/ik/cpu/eager/b1",
+        "input_fingerprints_identical": false,
+        "lane_statuses": {
+          "compiled": "UNSUPPORTED",
+          "eager": "SUCCESS"
+        },
+        "reason": "both lanes must be SUCCESS",
+        "status": "NOT_EVALUATED"
+      },
+      {
+        "comparison_id": "smpl/ik/cuda/b1",
+        "compiled_case_id": "smpl/ik/cuda/compiled/b1",
+        "eager_case_id": "smpl/ik/cuda/eager/b1",
+        "input_fingerprints_identical": false,
+        "lane_statuses": {
+          "compiled": "UNSUPPORTED",
+          "eager": "SUCCESS"
+        },
+        "reason": "both lanes must be SUCCESS",
+        "status": "NOT_EVALUATED"
+      }
+    ],
+    "input_identity": [
+      {
+        "case_ids": [
+          "smpl/fk/cpu/eager/b1",
+          "smpl/fk/cpu/compiled/b1",
+          "smpl/fk/cuda/eager/b1",
+          "smpl/fk/cuda/compiled/b1"
+        ],
+        "fingerprints_identical": true,
+        "status": "PASS",
+        "workload_id": "smpl/fk/b1"
+      },
+      {
+        "case_ids": [
+          "smpl/rnea/cpu/eager/b1",
+          "smpl/rnea/cpu/compiled/b1",
+          "smpl/rnea/cuda/eager/b1",
+          "smpl/rnea/cuda/compiled/b1"
+        ],
+        "fingerprints_identical": true,
+        "status": "PASS",
+        "workload_id": "smpl/rnea/b1"
+      },
+      {
+        "case_ids": [
+          "smpl/ik/cpu/eager/b1",
+          "smpl/ik/cuda/eager/b1"
+        ],
+        "fingerprints_identical": true,
+        "status": "PASS",
+        "workload_id": "smpl/ik/b1"
+      }
+    ]
+  }
+}
