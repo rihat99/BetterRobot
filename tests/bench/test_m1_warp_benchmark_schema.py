@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import math
+import re
+import statistics
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -25,6 +29,14 @@ def _load_benchmark_module() -> ModuleType:
 
 
 BENCHMARK = _load_benchmark_module()
+_MEASUREMENT_COMMIT = "c0560e3c16ee974a2bf6a8d09c618b45a5311163"
+_BASELINES = tuple(
+    sorted(
+        (Path(__file__).parent / "baselines").glob(
+            "warp_fk_cuda_rtx6000_ada_b*.json"
+        )
+    )
+)
 
 
 def test_summary_retains_raw_samples_and_quartiles() -> None:
@@ -99,3 +111,38 @@ def test_numeric_visible_device_token_maps_to_physical_gpu() -> None:
 
     assert device == inventory[0]
     assert source == "numeric CUDA_VISIBLE_DEVICES token"
+
+
+def test_committed_cuda_artifacts_have_clean_source_and_recomputable_statistics() -> None:
+    reports = [json.loads(path.read_text(encoding="utf-8")) for path in _BASELINES]
+
+    assert len(reports) == 4
+    assert {report["batch_shapes"][0][0] for report in reports} == {1, 16, 256, 4096}
+    commits = {report["git"]["commit"] for report in reports}
+    assert commits == {_MEASUREMENT_COMMIT}
+    assert re.fullmatch(r"[0-9a-f]{40}", _MEASUREMENT_COMMIT)
+
+    for report in reports:
+        assert report["schema_version"] == 2
+        assert report["benchmark"] == "m1_warp_fk_vs_compiled_torch"
+        assert report["git"]["dirty"] is False
+        assert report["cold_timing"]["verified_cache_cold"] is True
+        assert report["cold_timing"]["single_case_process"] is True
+        assert report["device"]["physical_index"] == 4
+        assert report["device"]["uuid"] == "GPU-ba51bb8b-da02-ea99-e99e-350952268322"
+        assert report["device"]["nvidia_driver_version"] == "560.35.03"
+        assert report["samples"] == 100
+        assert len(report["measurements"]) == 1
+
+        measurement = report["measurements"][0]
+        assert measurement["max_abs_error"] == 0.0
+        for lane in ("torch_compile_fullgraph", "warp_fused_fk"):
+            summary = measurement[lane]
+            samples = summary["samples_ms"]
+            assert len(samples) == 100
+            assert all(math.isfinite(sample) and sample >= 0.0 for sample in samples)
+            q1, _, q3 = statistics.quantiles(samples, n=4, method="inclusive")
+            assert summary["median_ms"] == statistics.median(samples)
+            assert summary["q1_ms"] == q1
+            assert summary["q3_ms"] == q3
+            assert summary["iqr_ms"] == q3 - q1

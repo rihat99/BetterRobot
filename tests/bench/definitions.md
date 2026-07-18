@@ -58,11 +58,13 @@ must not be labelled cold.
 - `baselines/warp_fk_cuda_rtx6000_ada_b*.json` are the known-good SMPL FK
   cases from the host above. Each batch ran in its own fresh process with
   distinct empty TorchInductor and Warp caches, comparing opt-in fused Warp
-  with full-graph compiled Torch.
+  with full-graph compiled Torch. All four were measured from clean commit
+  `c0560e3c16ee974a2bf6a8d09c618b45a5311163`.
 - `baselines/m6_torch_filtered_smpl_b1_rtx6000_ada.json` is a filtered B=1
   cross-device run of the new Torch baseline harness. It records 10 successful
   SMPL FK/RNEA/public-IK rows and two honest `UNSUPPORTED` compiled-public-IK
   rows; every evaluated eager/compiled parity and input-identity check passes.
+  It was measured from the same clean commit.
 - `baselines/trajopt_sparse_cpu.json` is the separate M5 trajectory study and
   is not an M6 GPU baseline.
 - `baseline_cpu.json` is retained as legacy pytest-benchmark scaffolding. Its

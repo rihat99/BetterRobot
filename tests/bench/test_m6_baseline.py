@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import math
+import statistics
 import subprocess
 import sys
 from pathlib import Path
@@ -23,6 +24,7 @@ _FILTERED_RESULT = (
     / "baselines"
     / "m6_torch_filtered_smpl_b1_rtx6000_ada.json"
 )
+_MEASUREMENT_COMMIT = "c0560e3c16ee974a2bf6a8d09c618b45a5311163"
 _SPEC = importlib.util.spec_from_file_location("better_robot_m6_baseline", _SCRIPT)
 assert _SPEC is not None and _SPEC.loader is not None
 baseline = importlib.util.module_from_spec(_SPEC)
@@ -62,6 +64,7 @@ def test_canonical_protocol_requires_every_measurement_policy_field(
         "CUDA_VISIBLE_DEVICES",
         baseline.CANONICAL_CUDA_VISIBLE_DEVICES,
     )
+    monkeypatch.setattr(baseline.os, "sched_getaffinity", lambda _pid: {0})
     args = baseline._parser().parse_args(["--label", "canonical-check"])
     cases = baseline._all_cases()
     assert baseline._canonical_protocol(args, cases)
@@ -75,10 +78,24 @@ def test_canonical_protocol_requires_the_documented_visible_gpu(
 ) -> None:
     args = baseline._parser().parse_args(["--label", "canonical-check"])
     cases = baseline._all_cases()
+    monkeypatch.setattr(baseline.os, "sched_getaffinity", lambda _pid: {0})
     monkeypatch.setenv("CUDA_VISIBLE_DEVICES", baseline.CANONICAL_CUDA_VISIBLE_DEVICES)
     assert baseline._canonical_protocol(args, cases)
 
     monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "0")
+    assert not baseline._canonical_protocol(args, cases)
+
+
+def test_canonical_protocol_requires_pinned_cpu_affinity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    args = baseline._parser().parse_args(["--label", "canonical-check"])
+    cases = baseline._all_cases()
+    monkeypatch.setenv("CUDA_VISIBLE_DEVICES", baseline.CANONICAL_CUDA_VISIBLE_DEVICES)
+    monkeypatch.setattr(baseline.os, "sched_getaffinity", lambda _pid: {7})
+    assert baseline._canonical_protocol(args, cases)
+
+    monkeypatch.setattr(baseline.os, "sched_getaffinity", lambda _pid: {7, 8})
     assert not baseline._canonical_protocol(args, cases)
 
 
@@ -256,6 +273,8 @@ def test_committed_filtered_result_is_measured_and_self_consistent() -> None:
         "UNSUPPORTED": 2,
     }
     assert report["validation"]["all_evaluated_checks_passed"] is True
+    assert report["environment"]["git"]["dirty"] is False
+    assert report["environment"]["git"]["commit"] == _MEASUREMENT_COMMIT
 
     successes = [case for case in report["cases"] if case["status"] == "SUCCESS"]
     unsupported = [case for case in report["cases"] if case["status"] == "UNSUPPORTED"]
@@ -263,5 +282,14 @@ def test_committed_filtered_result_is_measured_and_self_consistent() -> None:
     assert len(unsupported) == 2
     assert all(len(case["steady_state"]["samples_ms"]) == 100 for case in successes)
     assert all(case["output"]["all_finite"] for case in successes)
+    for case in successes:
+        summary = case["steady_state"]
+        samples = summary["samples_ms"]
+        q1, _, q3 = statistics.quantiles(samples, n=4, method="inclusive")
+        assert all(math.isfinite(sample) and sample >= 0.0 for sample in samples)
+        assert summary["median_ms"] == statistics.median(samples)
+        assert summary["q1_ms"] == q1
+        assert summary["q3_ms"] == q3
+        assert summary["iqr_ms"] == q3 - q1
     assert {case["selector"]["operation"] for case in unsupported} == {"ik"}
     assert {case["selector"]["lane"] for case in unsupported} == {"compiled"}

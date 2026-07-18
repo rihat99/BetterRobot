@@ -979,6 +979,7 @@ def _run_child_case(  # noqa: PLR0913 - explicit child protocol is easier to aud
 
 
 def _canonical_protocol(args: argparse.Namespace, cases: Sequence[CaseSpec]) -> bool:
+    cpu_affinity_is_pinned = hasattr(os, "sched_getaffinity") and len(os.sched_getaffinity(0)) == 1
     return (
         not args.smoke
         and not args.case
@@ -996,6 +997,7 @@ def _canonical_protocol(args: argparse.Namespace, cases: Sequence[CaseSpec]) -> 
         and args.threads == CANONICAL_THREADS
         and args.cuda_index == CANONICAL_CUDA_INDEX
         and os.environ.get("CUDA_VISIBLE_DEVICES") == CANONICAL_CUDA_VISIBLE_DEVICES
+        and cpu_affinity_is_pinned
         and len(cases) == len(_all_cases())
     )
 

@@ -358,7 +358,7 @@ across fixed/free bases, branched and >16-deep models, multi-axis batches,
 shared model values, q/placement gradients, a numerical zero-angle
 gradcheck, current-stream ordering, and graph replay. Four committed
 fresh-cache SMPL cases at B=1/16/256/4096 show forward-only Warp steady
-medians 1.17×/2.00×/1.85×/1.80× faster than full-graph compiled Torch on
+medians 1.31×/2.45×/1.99×/1.99× faster than full-graph compiled Torch on
 the recorded RTX 6000 Ada. The registered backward still recomputes in Torch
 and was not benchmarked, so the kernel remains opt-in pending owner review;
 no default was flipped.

@@ -33,16 +33,17 @@ TorchInductor cache, fixed input seed/fingerprints, raw synchronized samples,
 cold-call timing, and CUDA allocation peaks. Unsupported public compiled IK is
 reported as `UNSUPPORTED`; it is never replaced by a different workload.
 
-The committed filtered SMPL B=1 result has 10 successes, two compiled-IK
-`UNSUPPORTED` rows, zero errors/OOM/timeouts, and all evaluated input and
-eager/compiled numerical checks passing. Representative medians and cold first
-calls are:
+The committed filtered SMPL B=1 result was measured from clean commit
+`c0560e3c16ee974a2bf6a8d09c618b45a5311163`. It has 10 successes, two
+compiled-IK `UNSUPPORTED` rows, zero errors/OOM/timeouts, and all evaluated
+input and eager/compiled numerical checks passing. Representative medians and
+cold first calls are:
 
 | Operation | CPU eager | CPU compiled | CUDA eager | CUDA compiled |
 |---|---:|---:|---:|---:|
-| FK | 5.510 ms | 0.601 ms (70.49 s cold) | 16.335 ms | 0.689 ms (26.13 s cold) |
-| RNEA | 8.855 ms | 1.340 ms (132.78 s cold) | 44.833 ms | 5.884 ms (84.40 s cold) |
-| Public IK, 5 iterations | 127.794 ms | unsupported | 320.420 ms | unsupported |
+| FK | 5.620 ms | 0.631 ms (49.44 s cold) | 16.136 ms | 0.653 ms (23.88 s cold) |
+| RNEA | 8.732 ms | 2.453 ms (82.46 s cold) | 26.707 ms | 4.913 ms (71.81 s cold) |
+| Public IK, 5 iterations | 132.514 ms | unsupported | 336.789 ms | unsupported |
 
 This is filtered evidence, not the canonical 144-case baseline.
 
@@ -58,13 +59,15 @@ with full-graph compiled Torch:
 
 | Batch | Compiled Torch median | Warp median | Warp speedup |
 |---:|---:|---:|---:|
-| 1 | 0.696 ms | 0.595 ms | 1.17× |
-| 16 | 1.219 ms | 0.611 ms | 2.00× |
-| 256 | 0.777 ms | 0.421 ms | 1.85× |
-| 4096 | 0.751 ms | 0.418 ms | 1.80× |
+| 1 | 0.712 ms | 0.541 ms | 1.31× |
+| 16 | 1.424 ms | 0.582 ms | 2.45× |
+| 256 | 1.253 ms | 0.630 ms | 1.99× |
+| 4096 | 1.246 ms | 0.625 ms | 1.99× |
 
 Each artifact includes 100 raw samples, inclusive quartiles/IQR, measured
-cold calls, allocator peaks, exact GPU UUID/driver mapping, and cache scope.
+cold calls, allocator peaks, exact GPU UUID/driver mapping, cache scope, and
+the same clean source commit.
+
 The backward path still recomputes through Torch and was not timed, so the
 lane remains opt-in pending owner review.
 
@@ -108,9 +111,9 @@ and competitor caveats before any cuRobo or JAX-class measurement.
 ## Verification
 
 - CUDA Graph/Warp suite: **28 passed** on physical GPU 4.
-- Full CPU, non-benchmark/non-CUDA suite: **1,535 passed, 2 skipped,
+- Full CPU, non-benchmark/non-CUDA suite: **1,543 passed, 2 skipped,
   28 deselected**.
-- Benchmark harness/schema tests: **11 passed**.
+- Benchmark harness/schema tests: **19 passed**.
 - Scoped Ruff passes for every changed Python file. Scoped strict mypy passes
   for the new GraphExecutor and changed Warp bridge production modules.
 - Offline `uv lock --check` and `git diff --check` pass.
