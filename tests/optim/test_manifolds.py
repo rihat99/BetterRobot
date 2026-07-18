@@ -171,7 +171,8 @@ def test_group_bounds_raise_the_exact_global_box_error(manifold, shape, kind) ->
     expected = (
         f"{kind} variable blocks have no meaningful global box bound — neither in "
         "state space nor in tangent space. Express rotation limits as residuals "
-        "(rotation prior / swing-twist, roadmap M3), or use RobotConfig with joint "
+        "(for example JointRotationPrior or SwingTwistLimitResidual), or use "
+        "RobotConfig with joint "
         f"limits. Got bounds={bounds!r} on VarSpec 'orientation'."
     )
     assert str(exc_info.value) == expected

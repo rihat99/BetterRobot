@@ -175,19 +175,8 @@ def main() -> None:
     # --- Viewer playback ------------------------------------------------------
     from better_robot.viewer import Visualizer  # noqa: PLC0415
 
-    # Viewer needs fp32 at the moment; downcast the trajectory for playback.
-    model_f32 = br.load(panda_description.URDF_PATH)
-    traj_f32 = type(result.trajectory)(
-        t=result.trajectory.t.float(),
-        q=result.trajectory.q.float(),
-        v=None,
-        a=None,
-        u=None,
-        model_id=getattr(model_f32, "id", -1),
-    )
-
-    viewer = Visualizer(model_f32, port=8080)
-    player = viewer.add_trajectory(traj_f32)
+    viewer = Visualizer(model, port=8080)
+    player = viewer.add_trajectory(result.trajectory)
     viewer.show(block=False)
     print(f"Viewer at http://localhost:8080 — playing {T} frames at {args.fps} fps. Ctrl-C to exit.")
     try:

@@ -5,31 +5,63 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
-- **One optimization API.** `Problem.add_variable` and `add_residual` build
-  least-squares problems over named variable blocks. LM and Gauss–Newton share
-  the same dense or block-banded evaluation path, while `run_first_order`
-  adapts a problem to ordinary `torch.optim` optimizers. Unused parallel
-  problem, objective, and first-order implementations were removed.
-- **An open differentiable core.** Tensor-only kinematics and dynamics passes
-  are public and return named results. Dynamics workspaces are optional.
-  Gradients can flow to configurations and model values, and IK exposes an
-  implicit differentiation option for eligible solves.
-- **Clearer public boundaries.** Public functions validate shapes, dtypes,
-  and devices once. Model values are checked when attached to a model instead
-  of during every kinematics or dynamics call. Error messages now follow one
-  consistent pattern.
-- **A truthful surface.** Importable placeholders, unused aliases, and modules
-  without working behavior were removed. The roadmap now lists only explicit
-  runtime guards that remain in source.
-- **Structured trajectories.** Temporal variables and residual patterns can
-  route LM through block-banded Cholesky. Problems without complete temporal
-  structure continue to use the dense correctness path.
-- **Opt-in Warp forward kinematics.** The fused GPU pass remains an explicit
-  alternative to the PyTorch reference pass. It has forward and gradient
-  parity tests, but PyTorch remains the default and the source of truth.
-- **Documentation for readers.** Tutorials now define the robotics ideas they
-  use, guides show complete tasks, concept chapters explain the trade-offs,
-  and the reference matches the current public API.
+- `Problem.add_variable` and `Problem.add_residual` now build least-squares
+  problems directly from named variables and residual callables. `VarSpec`
+  and `ResidualItem` remain available when explicit records are useful.
+- `solve_trajopt` now takes a sequence of `ResidualItem` objects through its
+  `residuals=` argument. Callers choose active terms by passing only those
+  items; robust kernels, weights, and grouping remain attached to each item.
+- `LevenbergMarquardt` and `GaussNewton` now share one dense or block-banded
+  path. `run_first_order` adapts the same `Problem` to a standard
+  `torch.optim.Optimizer`, and eligible converged solves can request guarded
+  implicit differentiation.
+- Temporal variables and residual patterns can route trajectory problems
+  through block-banded Cholesky. Problems without complete temporal structure
+  continue to use the dense path and report why.
+- Tensor-only FK, frame-placement, Jacobian, RNEA, ABA, CRBA, and CCRBA passes
+  are public and return named result objects. `ModelStructure` and
+  `ModelValues` are public, dynamics workspaces are optional, and gradients
+  can flow through configurations and model values.
+- `solve_ik` exposes implicit differentiation for eligible solves, and
+  `solve_contact_forces` no longer detaches the force and dynamics tensors it
+  returns. Ordinary task solves remain detached where documented.
+- Public functions validate tensor shape, dtype, and device once. Model values
+  are checked when attached to a model instead of during every kinematics or
+  dynamics call, and public input errors now use consistent wording.
+- `ccrba` now returns `CCRBAResult`, which names the centroidal map and
+  momentum while retaining tuple unpacking.
+- The former optimization object hierarchy and import paths were removed,
+  including `CostStack`, `CostItem`, `CostKind`, `LeastSquaresProblem`,
+  `Optimizer`, `OptimizationResult`, `SolverState`, `SolverStatus`, the custom
+  `Adam` state machine, L-BFGS and multi-stage wrappers, damping strategies,
+  phase records, and the `better_robot.costs` package. Every removed symbol
+  and its supported replacement is listed in the
+  [migration details](https://github.com/rihat99/BetterRobot/blob/dev/plan/migration_ledger.md).
+- Scalar objectives, `ResidualState`, residual-owned Jacobian hooks,
+  `ResidualSpec`, provider `inputs` declarations, and the root/kinematics
+  `JacobianStrategy` export were removed or replaced by the single callable
+  residual protocol. Exact replacements are in the
+  [migration details](https://github.com/rihat99/BetterRobot/blob/dev/plan/migration_ledger.md).
+- `LSTSQ`, the rank-deficient Cholesky fallback, `NormalCG`, `NormalOperator`,
+  matrix-free routing, pure linear-solve diagnostics, and nested
+  `optim.blocks`, `optim.kernels.*`, `optim.solvers.*`, and `optim.structure`
+  import paths were removed. Dense and declared temporal routes replace them;
+  the [migration details](https://github.com/rihat99/BetterRobot/blob/dev/plan/migration_ledger.md)
+  cover each surface.
+- Unimplemented public dynamics exports (`compute_minverse`,
+  `compute_coriolis_matrix`, centroidal dynamics derivatives, three dynamics
+  integrators, and `nle`) and residual exports (`YoshikawaResidual`, collision
+  residuals, and `JointAccelLimit`) were removed. Their supported alternatives
+  are listed in the
+  [migration details](https://github.com/rihat99/BetterRobot/blob/dev/plan/migration_ledger.md).
+- The unused `ReferenceFrame` enum was replaced by the literal frame strings
+  accepted by the Jacobian API; see the
+  [migration details](https://github.com/rihat99/BetterRobot/blob/dev/plan/migration_ledger.md).
+- Fused Warp forward kinematics remains an explicit GPU alternative with
+  forward and gradient parity coverage; PyTorch remains the default path.
+- Tutorials now introduce the robotics concepts they use, guides show complete
+  tasks, concept chapters explain design trade-offs, and the generated
+  reference matches the current public API.
 
 ## v0.2.0 — 2026-04-11
 

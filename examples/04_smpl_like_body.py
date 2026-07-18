@@ -6,16 +6,16 @@ no URDF and no collision geometry — SkeletonMode is always available.
 Usage:
     uv run python examples/04_smpl_like_body.py [--no-viewer]
 """
+
 import argparse
-import torch
+
 import better_robot as br
 from better_robot.io.builders.smpl_like import make_smpl_like_model
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--no-viewer", action="store_true",
-                        help="Skip the viser viewer (useful in CI)")
+    parser.add_argument("--no-viewer", action="store_true", help="Skip the viser viewer (useful in CI)")
     args = parser.parse_args()
 
     model = make_smpl_like_model()
@@ -27,7 +27,8 @@ def main() -> None:
     print(f"Root position: {data.joint_pose_world[0, :3]}")
 
     if not args.no_viewer:
-        from better_robot.viewer import Visualizer
+        from better_robot.viewer import Visualizer  # noqa: PLC0415 - optional viewer extra
+
         viewer = Visualizer(model, port=8081)
         viewer.update(q0)
         print("\nOpening viewer at http://localhost:8081 — press Ctrl-C to exit.")

@@ -1,4 +1,4 @@
-"""Definition-first M6 Torch baseline harness.
+"""Definition-first Torch baseline harness.
 
 The canonical matrix covers fixed-base Panda, free-flyer Panda, and the
 SMPL-like 25-joint tree; FK, RNEA, and public fixed-budget IK; CPU and CUDA;
@@ -7,10 +7,10 @@ eager and compiled lanes; and ``B in {1, 16, 256, 4096}``.
 Canonical runs are intentionally expensive.  Select one or more cases with
 the matrix filters or an exact ``--case`` identifier while developing::
 
-    python benchmarks/m6_baseline.py --label cpu-smoke --smoke \
+    python benchmarks/baseline.py --label cpu-smoke --smoke \
         --models smpl --operations fk --devices cpu --lanes eager
-    python benchmarks/m6_baseline.py --label one-case \
-        --case panda_fixed/rnea/cuda/compiled/b16 --output /tmp/m6.json
+    python benchmarks/baseline.py --label one-case \
+        --case panda_fixed/rnea/cuda/compiled/b16 --output /tmp/baseline.json
 
 Every selected combination produces a result row.  Public ``solve_ik`` is a
 Python problem-construction and host-controlled solve facade, so its compiled
@@ -1032,7 +1032,7 @@ def _definition(args: argparse.Namespace) -> dict[str, object]:
         ),
         "deferred_cold_costs": {
             "warp_first_launch": "measured by the separate Warp lane harness",
-            "cuda_graph_record": "requires T6.9 GraphExecutor and is not fabricated here",
+            "cuda_graph_record": "not implemented by this harness",
         },
     }
 
@@ -1177,7 +1177,7 @@ def _eager_compiled_parity(
 def run(args: argparse.Namespace, cases: Sequence[CaseSpec]) -> dict[str, object]:
     protocol = "smoke" if args.smoke else ("canonical" if _canonical_protocol(args, cases) else "filtered")
     case_results: list[dict[str, object]] = []
-    with tempfile.TemporaryDirectory(prefix="betterrobot-m6-baseline-") as scratch_name:
+    with tempfile.TemporaryDirectory(prefix="betterrobot-baseline-") as scratch_name:
         scratch = Path(scratch_name)
         for case in cases:
             case_results.append(_run_child_case(case, args, scratch=scratch))
@@ -1194,7 +1194,7 @@ def run(args: argparse.Namespace, cases: Sequence[CaseSpec]) -> dict[str, object
     }
     return {
         "schema_version": SCHEMA_VERSION,
-        "benchmark": "m6_torch_baseline",
+        "benchmark": "torch_baseline",
         "label": args.label,
         "protocol": protocol,
         "canonical_protocol": protocol == "canonical",

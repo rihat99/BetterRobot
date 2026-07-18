@@ -52,15 +52,18 @@ public symbol; the owner resolves the consumer side.
 | `better_robot.optim.solvers.{base,banded_cholesky,cholesky}` import paths | Import the surviving solver protocols, result types, `BandedCholesky`, or `Cholesky` directly from `better_robot.optim`. |
 | `better_robot.optim.LSTSQ`, `better_robot.optim.solvers.LSTSQ`, `better_robot.optim.solvers.lstsq.LSTSQ`, and `OptimizerConfig(linear_solver="lstsq")` | Use the default SPD `Cholesky` route; call `torch.linalg.lstsq` explicitly when a separate least-squares fallback is genuinely required. |
 | Rank-deficient fallback in `Cholesky.solve` | Inputs must be SPD; use `Cholesky.solve_with_info` for per-element failure status or call `torch.linalg.lstsq` explicitly. |
-| `ObjectiveItem`, `ObjectiveTerm`, and `Problem.require_least_squares` | Express every term as a residual and add it with `Problem.add_residual`. |
-| `ResidualState`, `residual_jacobian`, and residual `.jacobian()` / transpose-apply hooks | Residuals read a named evaluation context; provide `jacobian_blocks` only when an analytic block is worthwhile. |
-| `better_robot.JacobianStrategy` and `better_robot.kinematics.JacobianStrategy` | Pass a `better_robot.optim.JacobianStrategy` string: `"auto"`, `"analytic"`, `"jacrev"`, `"jacfwd"`, or `"finite_difference"`. |
+| `ObjectiveItem`, `ObjectiveTerm`, `Problem(objectives=...)`, `Problem.objectives`, and `Problem.require_least_squares` | Express every term as a residual and add it with `Problem.add_residual`. |
+| `ResidualState`, `residual_jacobian`, and residual `.jacobian()` / transpose-apply hooks | Residuals read a named evaluation context; provide `jacobian_blocks` only when an analytic block is worthwhile. Known downstream caller: BHF `scripts/motion/optimize_motion.py:211-216`. |
+| `better_robot.JacobianStrategy`, `better_robot.kinematics.JacobianStrategy`, and `better_robot.kinematics.jacobian_strategy.JacobianStrategy` | Pass a `better_robot.optim.JacobianStrategy` string: `"auto"`, `"analytic"`, `"jacrev"`, `"jacfwd"`, or `"finite_difference"`. |
 | Provider `inputs` declarations | Rename the declaration to `reads`; outputs and lazy evaluation remain unchanged. |
+| `VarSpec.validate_value(..., check_feasible=...)` | Call `validate_value(value)` for structural checks. There is no content/feasibility-validation mode; enforce application-specific value policy at the caller boundary. |
 | `better_robot.optim.Adam`, `AdamState`, and `AdamStatus` | Use `run_first_order` with any `torch.optim.Optimizer`; inspect `FirstOrderResult`. |
 | `better_robot.optim.Phase`, `PhaseResult`, and `run_phases` | Call algorithms sequentially and rebuild a problem explicitly when stage weights change. |
-| `NormalCG`, `NormalOperator`, `linearization="matrix_free"`, and `LinearSystemKind` | Use automatic dense/block-banded routing, or force `linearization="dense"` / `"structured"`. |
+| `better_robot.optim.solvers.NormalCG`, `better_robot.optim.solvers.normal_cg.NormalCG`, `NormalOperator`, `TemporalAnalysis.operator_eligible`, `LinearizationReason.EXPLICIT_MATRIX_FREE`, `linearization="matrix_free"`, and `LinearSystemKind` | Use automatic dense/block-banded routing, or force `linearization="dense"` / `"structured"`; inspect `TemporalAnalysis.direct_eligible` for block-banded eligibility. |
+| `better_robot.optim.LinearizationReason.INCOMPATIBLE_SOLVER` | No enum replacement; an incompatible solver/linearization combination raises `ValueError`. |
 | `better_robot.optim.structure` | Import `BlockBandedMatrix`, `TemporalAnalysis`, and `LinearizationReason` from `better_robot.optim`; route records live with LM. |
 | `LMState.previous_linear_step`, `projected_gradient`, and `linear_solve_*` diagnostics | Inspect convergence, cost, gradients, `factorization_ok`, and status; iterative-solver warm-start diagnostics disappeared with `NormalCG`. |
+| `ImplicitDiffConfig.optimality_tolerance`, `active_set_tolerance`, `strict_complementarity_tolerance`, `nonsmooth_tolerance`, `linear_solve_atol`, `linear_solve_rtol`, and `lstsq_rcond` | No configurable replacement; implicit-gradient safeguards now use a fixed internal policy. `max_dense_tangent_dim` and `allow_banded_dense_backward` remain configurable. |
 | `better_robot.dynamics.compute_minverse`, `better_robot.dynamics.crba.compute_minverse` | Call `torch.linalg.inv(crba(...))` when an explicit inverse is acceptable; no direct ABA-factorization inverse ships. |
 | `better_robot.dynamics.compute_coriolis_matrix`, `better_robot.dynamics.rnea.compute_coriolis_matrix` | Use `bias_forces` when the needed quantity is `C(q, v) v + g(q)`; no standalone Coriolis-matrix pass ships. |
 | `better_robot.dynamics.compute_centroidal_dynamics_derivatives`, `better_robot.dynamics.derivatives.compute_centroidal_dynamics_derivatives` | Differentiate through `compute_centroidal_map` or `compute_centroidal_momentum`; no named analytic helper ships. |
@@ -69,16 +72,4 @@ public symbol; the owner resolves the consumer side.
 | `better_robot.residuals.YoshikawaResidual`, `better_robot.residuals.manipulability.YoshikawaResidual` | No replacement ships; implement an explicit residual when its conditioning contract is defined. |
 | `better_robot.residuals.SelfCollisionResidual`, `WorldCollisionResidual` and their `better_robot.residuals.collision` paths | No replacement ships; collision residuals wait on the owner-gated collision package decision. |
 | `better_robot.residuals.JointAccelLimit`, `better_robot.residuals.limits.JointAccelLimit` | No replacement ships; the model currently has no acceleration-limit values. |
-
-## To be removed by the polish phases (agents append exact rows as they land)
-
-The polish roadmap (`plan/03_roadmap.md`) deletes the legacy optimization
-stack outright. Known consumer call sites recorded before the repository
-boundary was closed (paths are in the consumer repos, unverified since
-2026-07-17):
-
-| Legacy surface being deleted | Known consumer site | Replacement |
-|---|---|---|
-| `ResidualState` legacy evaluation protocol | BHF `scripts/motion/optimize_motion.py:211-216` | Residuals evaluated through a `Problem` context. |
-
-`Trajectory` stays public and is not scheduled for deletion.
+| `better_robot.kinematics.ReferenceFrame` | Pass `"world"`, `"local"`, or `"local_world_aligned"` directly to `get_joint_jacobian` or `get_frame_jacobian`. |

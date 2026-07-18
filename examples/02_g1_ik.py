@@ -5,6 +5,7 @@ Drag any hand/foot gizmo in the browser to re-solve whole-body IK.
 Usage:
     uv run python examples/02_g1_ik.py [--no-viewer]
 """
+
 import argparse
 import time
 
@@ -43,14 +44,13 @@ def main() -> None:
     available = [f for f in TARGET_FRAMES if f in model.frame_name_to_id]
     targets = {n: data.frame_pose_world[model.frame_id(n)].clone() for n in available}
 
-    result = solve_ik(model, targets=targets, initial_q=q0,
-                      cost_cfg=COST, optimizer_cfg=OPT)
+    result = solve_ik(model, targets=targets, initial_q=q0, cost_cfg=COST, optimizer_cfg=OPT)
     print(f"Initial IK: converged={result.converged}  iters={result.iters}")
 
     if args.no_viewer:
         return
 
-    from better_robot.viewer import Visualizer
+    from better_robot.viewer import Visualizer  # noqa: PLC0415 - optional viewer extra
 
     viewer = Visualizer(model, port=8081)
     viewer.update(result.q)
@@ -63,10 +63,8 @@ def main() -> None:
     try:
         while True:
             cur = overlay.live_targets()
-            if any(not torch.allclose(cur[k], last[k], atol=1e-4)
-                   for k in cur):
-                r = solve_ik(model, targets=cur, initial_q=viewer.last_q,
-                             cost_cfg=COST, optimizer_cfg=OPT)
+            if any(not torch.allclose(cur[k], last[k], atol=1e-4) for k in cur):
+                r = solve_ik(model, targets=cur, initial_q=viewer.last_q, cost_cfg=COST, optimizer_cfg=OPT)
                 viewer.update(r.q)
                 last = {k: v.clone() for k, v in cur.items()}
             time.sleep(0.02)

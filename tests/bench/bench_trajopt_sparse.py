@@ -1,4 +1,4 @@
-"""M5 Phase-C CPU benchmark for dense and block-banded trajectory LM.
+"""CPU benchmark for dense and block-banded trajectory LM.
 
 This file is an executable benchmark harness rather than a pytest-benchmark
 micro-benchmark.  Every ``(route, horizon)`` case runs in a fresh child
@@ -10,8 +10,8 @@ For a short harness check that does not overwrite the committed baseline::
 
     uv run python tests/bench/bench_trajopt_sparse.py --quick --allow-unpinned
 
-The exact definition is frozen in
-``plan/design/m5_sparse_trajectory_structure_design.md §11``.
+The exact definition is recorded by the constants below. Pass ``--output``
+to retain a local result; the repository does not ship a baseline artifact.
 """
 
 from __future__ import annotations
@@ -65,7 +65,6 @@ THREAD_ENVIRONMENT = {
     "PYTHONHASHSEED": str(SEED),
 }
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_DEFAULT_BASELINE = Path(__file__).resolve().parent / "baselines" / "trajopt_sparse_cpu.json"
 
 
 class TrajectoryTangentEnvelopeResidual:
@@ -555,7 +554,6 @@ def _runtime_metadata() -> dict[str, Any]:
 
 def _definition() -> dict[str, Any]:
     return {
-        "design_reference": "plan/design/m5_sparse_trajectory_structure_design.md §11",
         "host": EXPECTED_HOST,
         "cpu": "Intel Xeon Platinum 8570, 2 sockets, 56 cores/socket, 2 threads/core",
         "affinity": f"taskset -c {CPU_AFFINITY}",
@@ -719,7 +717,7 @@ def _run_case_subprocess(  # noqa: PLR0913
     allow_unpinned: bool,
 ) -> dict[str, Any]:
     script = Path(__file__).resolve()
-    with tempfile.TemporaryDirectory(prefix="betterrobot-m5-bench-") as temp_dir:
+    with tempfile.TemporaryDirectory(prefix="betterrobot-trajopt-bench-") as temp_dir:
         case_output = Path(temp_dir) / "case.json"
         command = [
             sys.executable,
@@ -858,7 +856,7 @@ def _run_parent(args: argparse.Namespace) -> int:
     output = {
         "_schema_version": SCHEMA_VERSION,
         "_status": "MEASURED" if canonical_protocol and complete_matrix else "NONCANONICAL_PARTIAL",
-        "benchmark": "m5_sparse_trajectory_cpu",
+        "benchmark": "sparse_trajectory_cpu",
         "definition": _definition(),
         "run": {
             "generated_at_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -881,18 +879,8 @@ def _run_parent(args: argparse.Namespace) -> int:
             canonical_protocol=canonical_protocol,
             complete_matrix=complete_matrix,
         ),
-        "gpu": {
-            "status": "pending_m6",
-            "device": None,
-            "peak_memory_bytes": None,
-            "cases": None,
-        },
     }
-    output_path = (
-        Path(args.output).resolve()
-        if args.output
-        else (_DEFAULT_BASELINE if canonical_protocol and complete_matrix else None)
-    )
+    output_path = Path(args.output).resolve() if args.output else None
     if output_path is not None:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(json.dumps(output, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -978,7 +966,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--quick", action="store_true", help="run one unpinned-friendly T=50 structured smoke case")
     parser.add_argument("--path", action="append", choices=PATHS, help="select one or more routes")
     parser.add_argument("--horizon", action="append", type=int, choices=HORIZONS, help="select one or more horizons")
-    parser.add_argument("--output", help="parent JSON output path; full runs default to the committed baseline")
+    parser.add_argument("--output", help="optional parent JSON output path")
     parser.add_argument("--allow-unpinned", action="store_true", help="omit taskset; makes the run noncanonical")
     parser.add_argument("--timeout-seconds", type=int, default=CASE_TIMEOUT_SECONDS)
     parser.add_argument("--address-limit-bytes", type=int, default=ADDRESS_LIMIT_BYTES)

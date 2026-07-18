@@ -1,4 +1,4 @@
-# M6 external comparison definition
+# External comparison definition
 
 This definition is committed before measurement. It is intentionally not a
 performance claim. Results may be added only with exact package revisions,

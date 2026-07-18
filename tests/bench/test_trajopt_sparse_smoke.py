@@ -1,4 +1,4 @@
-"""Normal-suite smoke for the M5 Phase-C trajectory benchmark harness."""
+"""Normal-suite smoke for the trajectory benchmark harness."""
 
 from __future__ import annotations
 
@@ -11,11 +11,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from tests.bench.bench_trajopt_sparse import _failure_status, _run_parent
+from tests.bench.bench_trajopt_sparse import _definition, _failure_status, _run_parent
 
 
 _BENCHMARK = Path(__file__).with_name("bench_trajopt_sparse.py")
-_BASELINE = Path(__file__).with_name("baselines") / "trajopt_sparse_cpu.json"
 
 
 def test_trajopt_sparse_structured_t50_one_update(tmp_path: Path) -> None:
@@ -68,13 +67,12 @@ def test_trajopt_sparse_structured_t50_one_update(tmp_path: Path) -> None:
     assert result["measured_solves"][0]["success"]
 
 
-def test_trajopt_sparse_baseline_schema_is_pending() -> None:
-    baseline = json.loads(_BASELINE.read_text(encoding="utf-8"))
-    assert baseline["_schema_version"] == 1
-    assert baseline["_status"] == "PENDING_MEASUREMENT"
-    assert baseline["benchmark"] == "m5_sparse_trajectory_cpu"
-    assert baseline["definition"]["horizons"] == [50, 125, 250, 500]
-    assert baseline["gpu"]["status"] == "pending_m6"
+def test_trajopt_sparse_definition_is_complete() -> None:
+    definition = _definition()
+    assert definition["horizons"] == [50, 125, 250, 500]
+    assert definition["paths"] == ["dense", "structured"]
+    assert definition["measurement"]["case_timeout_seconds"] == 600
+    assert definition["measurement"]["address_space_limit_bytes"] == 16 * 2**30
 
 
 def test_unknown_process_signal_is_not_mislabeled_as_oom() -> None:

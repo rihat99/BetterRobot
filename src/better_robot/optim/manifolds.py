@@ -71,7 +71,8 @@ class Euclidean:
 _GROUP_BOUNDS_ERROR = (
     "{kind} variable blocks have no meaningful global box bound — neither in "
     "state space nor in tangent space. Express rotation limits as residuals "
-    "(rotation prior / swing-twist, roadmap M3), or use RobotConfig with joint "
+    "(for example JointRotationPrior or SwingTwistLimitResidual), or use "
+    "RobotConfig with joint "
     "limits. Got bounds={bounds!r} on VarSpec {name!r}."
 )
 

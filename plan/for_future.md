@@ -13,10 +13,10 @@ loops, implicit differentiation as the bridge. The polish phase prepares this
 differentiable blocks); the actual feature — patterns, examples, perhaps a
 `ResidualModule` — is a design task of its own. **Do not implement early.**
 
-## Warp / GPU expansion (the unfinished GPU milestone)
+## Warp / GPU expansion
 
 - **Full benchmark baseline:** the 144-selector definition exists
-  (`benchmarks/m6_baseline.py`); only SMPL B=1 Torch and four Warp FK cases
+  (`benchmarks/baseline.py`); only SMPL B=1 Torch and four Warp FK cases
   were measured. Panda, remaining batches, IK modes, and graph-record costs
   are open.
 - **Warp FK default-on decision:** CUDA-validated, 1.3–2.5× vs compiled Torch

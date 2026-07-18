@@ -1,5 +1,10 @@
 # 06 — Loose ends
 
+**Implementation log (2026-07-18):** Complete on `dev` after Task 05 commit
+`188b247`. The full gate is 1,469 passed; placeholder and stale-name audits
+are empty. The CPU sweep was inconclusive, so its placeholder/default-output
+promise was deleted as authorized. See `06_results.md`.
+
 **Goal:** close the small, concrete items the post-implementation review
 surfaced (2026-07-18) that no other phase owns. Each item is independent;
 fix, or move to `plan/for_future.md` with a reason. Items marked (after 02)

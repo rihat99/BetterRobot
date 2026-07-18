@@ -1,53 +1,25 @@
-# io/ — Robot Loading and Parsing
+# `io/` — Parsing and Model Construction
 
-## Architecture
-
-Parser → IR (Intermediate Representation) → `build_model()` → frozen Model.
-
-Parsers live at the boundary. They emit a common IR; a single factory produces the Model. This decouples format support from the data model.
-
-## IR Structure
-
-```python
-IRModel → list[IRJoint] + list[IRBody] + list[IRFrame] + list[IRGeom]
+```text
+URDF | MJCF | ModelBuilder -> IRModel -> build_model -> Model
 ```
 
-IR is flat and order-unconstrained — no topo-sort or idx_q/idx_v yet. That happens in `build_model()`.
+Parsers own source-format interpretation and emit flat, order-independent IR
+records. `build_model` owns tree validation, topological order, concrete joint
+selection, reduced mimic coordinates, packed tensors, frames, limits, and
+metadata. Do not move format-specific cases into kinematics or dynamics.
 
-## Parsers
+`load(...)` dispatches by suffix/type or an explicit format. `free_flyer=True`
+selects a `JointFreeFlyer` root; `root_joint=` is the general form.
+`preserve_joint_order=True` keeps an already-topological source order through a
+stable Kahn sort; the default retains the established DFS order.
 
-| Parser | Input | Module |
-|--------|-------|--------|
-| `parse_urdf` | URDF file or `yourdfpy.URDF` object | `parsers/urdf.py` |
-| `parse_mjcf` | MuJoCo MJCF XML | `parsers/mjcf.py` |
-| `ModelBuilder` | Python fluent API | `parsers/programmatic.py` |
+`ModelBuilder` and file parsers meet at the IR boundary. Programmatic custom
+joint objects may use the builder's opaque payload, but file formats must use
+serializable joint fields. Mimic tags stay on supported concrete scalar joints
+and are resolved centrally by `build_model`.
 
-## build_model()
-
-`build_model(ir, root_joint=None, preserve_joint_order=False, device=None, dtype=float32)`:
-1. Replace root joint with `root_joint` if supplied (e.g., `JointFreeFlyer` for floating-base)
-2. Resolve mimic edges
-3. Topo-sort parents-before-children (historical DFS by default; opt-in stable
-   Kahn ordering preserves already-topological IR order)
-4. Assign `idx_q`, `idx_v` by accumulating nq, nv
-5. Select concrete `JointModel` from kind + axis
-6. Pack tensors, build frames, return frozen `Model`
-
-`ModelBuilder.add_joint(kind=<JointModel instance>)` stores an opaque,
-programmatic-only payload on `IRJoint` so class-specific state survives the
-IR boundary; file parsers never populate it and it is not a serialization
-contract. Direct `JointMimic` payloads are rejected because the placeholder
-lacks target motion semantics. A mimic tag stays on its concrete scalar joint;
-`build_model` resolves chains, constructs reduced/full coordinate maps,
-intersects position/velocity limits, and accumulates generalized capacities.
-
-## Public Entry Point
-
-`load(source, *, free_flyer=False, preserve_joint_order=False, device=None,
-dtype=None)` — dispatches by suffix or type, calls parser + `build_model()`.
-
-## Adding a New Format
-
-1. Create parser under `parsers/` that emits `IRModel`
-2. Register suffix in `load()` dispatch
-3. No changes to `build_model()` or downstream code needed
+For a new format, add a parser returning `IRModel` and register its suffix with
+`register_parser`; downstream model construction should not change. Keep asset
+resolution separate from topology and retain geometry metadata even when an
+asset is unavailable.

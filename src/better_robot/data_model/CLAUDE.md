@@ -1,66 +1,29 @@
-# data_model/ — Model/Data and the Compute Seam
+# `data_model/` — Robot Identity and Query State
 
-Pinocchio-style architecture: immutable Model (tree description) + mutable Data (per-query workspace).
+`Model` is the shallowly frozen robot description; `Data` is a mutable
+workspace for one query. Do not share `Data` across concurrent evaluations or
+mutate model tensors in place.
 
-## Core objects
+`ModelStructure` holds immutable topology and both Python and device tables.
+`ModelValues` holds differentiable placements, inertias, limits, gravity, and
+mimic tensors. Raw Torch passes consume this pair; optional whole-pass kernels
+use the same seam. `Model.with_values(...)` rebinds checked tensors while
+preserving structure, and `Model.to(...)` returns a moved copy.
 
-| Object | Mutability | Purpose |
-|--------|-----------|---------|
-| `Model` | Frozen dataclass | Shared kinematic tree: topology, joint models, limits, frames |
-| `Data` | Mutable dataclass | Per-query workspace: `joint_pose_world`, `frame_pose_world`, `joint_jacobians`, `mass_matrix`, etc. |
-| `ModelStructure` | Frozen dataclass | Static Python topology mirrors plus equivalent flat device tables for whole-pass lanes |
-| `ModelValues` | Frozen tensor pytree | Differentiable placements, inertias, limits, gravity, and mimic values |
-| `ExecutionBatch` | Frozen dataclass | Flat-`E` broadcast ABI with per-input index maps and gradient reduction |
-| `Frame` | Immutable | Metadata: name, parent joint, placement SE3, type |
+## Coordinate rules
 
-Every `Model` constructs `.structure` and `.values`. Raw Torch passes consume
-that explicit pair; an eligible Warp kernel consumes the same seam. Keep both
-representations of topology: Python tuples preserve static unrolling, while
-device tables provide the kernel ABI.
+- Joint 0 is the zero-DOF universe; a floating base is joint 1 as
+  `JointFreeFlyer`.
+- `nq != nv` for manifold joints. Use `Model.integrate` and
+  `Model.difference`; use `idx_qs`/`idx_vs` for slices.
+- `Model.q_permutation` supplies scalar gather tables for external joint
+  orders and supports arbitrary leading batches.
+- Mimic targets have zero-width public slices. The packed expansion and offset
+  maps are the source of truth for kinematics, dynamics, and limits.
 
-`Model.with_values(joint_placements=..., body_inertias=...,
-frame_placements=...)` is the public differentiable rebind surface. It shares
-the exact same `ModelStructure`, validates trailing event shapes/device/dtype,
-normalizes placement quaternions, and accepts arbitrary right-broadcastable
-leading value axes. The frame table in `ModelValues` is the compute source of
-truth; `Frame.joint_placement` is an unbatched compatibility metadata view.
+## Extending joints
 
-## Joint 0 Convention
-
-Joint 0 is always `universe` (root placeholder). First real joint is joint 1. For floating-base robots, joint 1 is `JointFreeFlyer` — no special "floating base mode" flag.
-
-## Joint Model Protocol
-
-Every joint type implements `JointModel` with:
-- `.nq`, `.nv` — configuration and tangent dimensions
-- `.joint_transform(q)` — returns SE3 7-vector for the joint's own motion
-- `.integrate(q, v)` — manifold retraction (addition for revolute, SE3 for free-flyer)
-- `.difference(q0, q1)` — tangent vector between configurations
-
-Per-kind implementations live in `joint_models/`; `joint_dispatch.py`
-centralises the stable kind-code mapping used by whole-pass algorithms. Do
-not duplicate parser-string dispatch inside FK or dynamics.
-
-## nq != nv
-
-Free-flyer: nq=7 (quaternion), nv=6 (twist). Spherical: nq=4, nv=3. `model.idx_qs` and `model.idx_vs` map each joint to its slice of q and v.
-
-`Model.q_permutation(other_joint_order)` constructs scalar q/v gather tables
-from those public slices. It handles arbitrary leading batch dimensions via
-`q_external[..., perm_q]`; never replace it with a per-sample remap loop.
-
-## Mimic Joints
-
-Mimic targets use zero-width public `nqs`/`nvs` slices and concrete full-space
-slices. `q_expansion`/`q_offset`/`v_expansion` are the single source of truth
-for FK, Jacobian, RNEA, CRBA, ABA, centroidal, and limit coupling. The current
-honest subset is scalar bounded revolute/prismatic/helical chains; unsupported
-manifold/custom endpoints and cycles fail at build. `JointMimic` itself is a
-legacy zero-DOF placeholder and cannot be selected by the loader.
-
-## Adding a New Joint Type
-
-1. Create class in `joint_models/` implementing `JointModel`
-2. Add kind string to `Joint` enum in `joint.py`
-3. Add (nq, nv) to `JOINT_DIMENSIONS`
-4. Wire dispatch in `io/build_model.py`
+Implement the `JointModel` protocol in `joint_models/`, add the public kind and
+dimensions, then wire the centralized dispatch and `io/build_model.py`.
+Algorithms must not duplicate parser-string dispatch. Preserve scalar-last
+quaternions and linear-first tangents throughout.

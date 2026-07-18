@@ -1,6 +1,6 @@
-# M6 benchmark definition
+# Benchmark definition
 
-This file is the committed measurement contract for M6. Results are evidence,
+This file is the committed measurement contract. Results are evidence,
 not automatic default-lane decisions; every Warp default-on change remains an
 owner review.
 
@@ -37,7 +37,7 @@ affinity `0-223`, while future canonical CPU runs should pin an explicit core.
 Use fresh, per-case TorchInductor and Warp cache directories whenever a field
 is described as a cold compile.
 
-The complete T6.1 matrix is three models (fixed-base Panda, free-flyer Panda,
+The complete matrix is three models (fixed-base Panda, free-flyer Panda,
 and the 25-joint SMPL-like model) × three operations (FK, RNEA, and public IK)
 × four batches (`B ∈ {1, 16, 256, 4096}`) × CPU/CUDA × eager/compiled:
 144 selectors. Public IK uses one unbatched target at B=1 and independently
@@ -60,18 +60,18 @@ must not be labelled cold.
   distinct empty TorchInductor and Warp caches, comparing opt-in fused Warp
   with full-graph compiled Torch. All four were measured from clean commit
   `c0560e3c16ee974a2bf6a8d09c618b45a5311163`.
-- `baselines/m6_torch_filtered_smpl_b1_rtx6000_ada.json` is a filtered B=1
+- `baselines/torch_filtered_smpl_b1_rtx6000_ada.json` is a filtered B=1
   cross-device run of the new Torch baseline harness. It records 10 successful
   SMPL FK/RNEA/public-IK rows and two honest `UNSUPPORTED` compiled-public-IK
   rows; every evaluated eager/compiled parity and input-identity check passes.
   It was measured from the same clean commit.
-- `baselines/trajopt_sparse_cpu.json` is the separate M5 trajectory study and
-  is not an M6 GPU baseline.
-- `baseline_cpu.json` is retained as legacy pytest-benchmark scaffolding. Its
-  placeholder status means it is not a regression gate.
 
-The current artifacts do not complete T6.1: the filtered Torch run covers only
-SMPL B=1, compiled public IK is not an expressible full-graph workload, and
-the remaining batches/models plus graph-record timing remain open. The files
-do include raw samples, allocator peaks, isolated cold compilation, exact input
-fingerprints, and numerical lane validation.
+The separate CPU trajectory harness remains a definition only. Its canonical
+sweep could not complete enough dense horizons within the committed timeout
+and memory limits to support a scaling baseline, so no result artifact ships.
+
+The current GPU artifacts do not complete the full matrix: the filtered Torch
+run covers only SMPL B=1, compiled public IK is not an expressible full-graph
+workload, and the remaining batches/models plus graph-record timing remain
+open. The files do include raw samples, allocator peaks, isolated cold
+compilation, exact input fingerprints, and numerical lane validation.

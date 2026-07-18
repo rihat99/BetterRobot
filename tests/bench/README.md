@@ -11,17 +11,17 @@ blocking baseline or gate merges.
 uv run pytest tests/bench/bench_*.py -m bench --benchmark-only
 ```
 
-The M5 trajectory scaling benchmark is a separate fresh-process harness, not
-a pytest-benchmark micro-benchmark. Its canonical CPU run writes the committed
-schema at `baselines/trajopt_sparse_cpu.json`:
+The trajectory scaling benchmark is a separate fresh-process harness, not
+a pytest-benchmark micro-benchmark:
 
 ```bash
 uv run python tests/bench/bench_trajopt_sparse.py
 ```
 
-Use `--quick --allow-unpinned` for a single structured T=50 harness check; a
-quick or partial run never overwrites the canonical baseline unless an
-explicit `--output` path is supplied.
+Use `--quick --allow-unpinned` for a single structured T=50 harness check and
+`--output <path>` to retain any run. The repository does not ship a trajectory
+baseline: the full canonical sweep could not complete enough dense points
+within its committed timeout and memory bounds to support its scaling checks.
 
 ## Bumping the baseline
 
@@ -49,23 +49,9 @@ header from `definitions.md`; do not infer a self-hosted runner from a filename.
 | `bench_jacobian.py` | `compute_joint_jacobians` on Panda |
 | `bench_integrate_difference.py` | Grouped vs loop manifold operations on a length-200 SMPL-like trajectory |
 | `bench_solve_ik.py` | One-shot Panda IK |
-| `bench_trajopt_sparse.py` | M5 dense-vs-banded CPU scaling harness with isolated subprocess RSS |
+| `bench_trajopt_sparse.py` | Dense-vs-banded CPU scaling harness with isolated subprocess RSS |
 | `test_trajopt_sparse_smoke.py` | Normal-suite T=50, one-update structured smoke |
 | `test_mem_watermark.py` | Explicit local/manual peak-memory tracking; not scheduled |
-| `definitions.md` | M6 hardware header, canonical matrix, timing rules, and evidence status |
-| `baseline_cpu.json` | Legacy pytest-benchmark placeholder; no comparison gate uses it |
-| `baselines/warp_fk_cuda_rtx6000_ada_b*.json` | Measured, fresh-process M6 SMPL FK Warp-vs-compiled-Torch CUDA cases |
-| `baselines/m6_torch_filtered_smpl_b1_rtx6000_ada.json` | Filtered B=1 SMPL FK/RNEA/IK CPU/CUDA eager/compiled evidence; not the complete canonical matrix |
-| `baselines/trajopt_sparse_cpu.json` | M5 Phase-C schema/results; pending the canonical full CPU run |
-
-> ### Status: placeholder baselines
->
-> `baseline_cpu.json` ships with ``_status: "PLACEHOLDER"`` and an empty
-> ``benchmarks`` list. The
-> manual `benchmarks` workflow job will run the microbenchmarks but cannot
-> detect regressions
-> until it is replaced with real numbers from one documented, reproducible
-> measurement host. Until
-> then, the workflow records numbers but no baseline comparison occurs. The
-> first change that
-> stabilises the bench fixtures should bump it following the procedure above.
+| `definitions.md` | Hardware header, canonical matrix, timing rules, and evidence status |
+| `baselines/warp_fk_cuda_rtx6000_ada_b*.json` | Measured, fresh-process SMPL FK Warp-vs-compiled-Torch CUDA cases |
+| `baselines/torch_filtered_smpl_b1_rtx6000_ada.json` | Filtered B=1 SMPL FK/RNEA/IK CPU/CUDA eager/compiled evidence; not the complete canonical matrix |

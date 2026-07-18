@@ -73,6 +73,10 @@ LM-then-Adam sequence.
 Euclidean numerical utility; component interpolation is not a manifold-safe
 robot trajectory and cannot enforce robot state bounds correctly.
 
+`solve_contact_forces` applies each fitted force at the selected joint origin
+as `[force, torque=0]`. It does not model an arbitrary offset contact point;
+an offset `r` would contribute the additional moment `r × force`.
+
 ## What is implemented
 
 The following nearby surfaces are live:

@@ -1,6 +1,6 @@
 {
   "advisory_only": true,
-  "benchmark": "m6_torch_baseline",
+  "benchmark": "torch_baseline",
   "canonical_protocol": false,
   "cases": [
     {
@@ -2186,7 +2186,7 @@
     },
     "cuda_memory": "torch.cuda.max_memory_allocated/reserved after reset; start and incremental peaks retained",
     "deferred_cold_costs": {
-      "cuda_graph_record": "requires T6.9 GraphExecutor and is not fabricated here",
+      "cuda_graph_record": "not implemented by this harness",
       "warp_first_launch": "measured by the separate Warp lane harness"
     },
     "dtype": "torch.float32",

@@ -21,6 +21,18 @@ class _GroupedResidual:
         return ctx["x"] - ctx["target"]
 
 
+class _NonzeroAtOriginKernel:
+    def __init__(self) -> None:
+        self.rho_calls = 0
+
+    def rho(self, squared_norm: torch.Tensor) -> torch.Tensor:
+        self.rho_calls += 1
+        return squared_norm + 7.0
+
+    def weight(self, squared_norm: torch.Tensor) -> torch.Tensor:
+        return torch.ones_like(squared_norm)
+
+
 @pytest.mark.parametrize(
     "kernel",
     [
@@ -70,3 +82,18 @@ def test_public_objective_and_gradient_use_grouped_kernel_convention(kernel: obj
     torch.testing.assert_close(objective, expected_cost, rtol=1e-12, atol=1e-12)
     torch.testing.assert_close(gradient, expected_gradient, rtol=1e-11, atol=1e-11)
     torch.testing.assert_close(coordinate_gradient, expected_gradient, rtol=1e-11, atol=1e-11)
+
+
+def test_inactive_residual_skips_kernel_with_nonzero_origin() -> None:
+    kernel = _NonzeroAtOriginKernel()
+    problem = Problem(
+        vars=(VarSpec("x", (4,)),),
+        residuals=(ResidualItem("grouped", _GroupedResidual(), kernel=kernel, group_size=2),),
+        parameters={"target": torch.zeros(4)},
+    )
+    values = {"x": torch.ones(4)}
+    weights = {"grouped": 0.0}
+
+    torch.testing.assert_close(problem.objective(values, weights=weights), torch.tensor(0.0))
+    torch.testing.assert_close(problem.gradient(values, weights=weights)["x"], torch.zeros(4))
+    assert kernel.rho_calls == 0

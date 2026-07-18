@@ -1,4 +1,4 @@
-"""Fast normal-suite checks for the definition-first M6 baseline harness."""
+"""Fast normal-suite checks for the definition-first baseline harness."""
 
 from __future__ import annotations
 
@@ -16,16 +16,10 @@ import torch
 
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_SCRIPT = _REPO_ROOT / "benchmarks" / "m6_baseline.py"
-_FILTERED_RESULT = (
-    _REPO_ROOT
-    / "tests"
-    / "bench"
-    / "baselines"
-    / "m6_torch_filtered_smpl_b1_rtx6000_ada.json"
-)
+_SCRIPT = _REPO_ROOT / "benchmarks" / "baseline.py"
+_FILTERED_RESULT = _REPO_ROOT / "tests" / "bench" / "baselines" / "torch_filtered_smpl_b1_rtx6000_ada.json"
 _MEASUREMENT_COMMIT = "c0560e3c16ee974a2bf6a8d09c618b45a5311163"
-_SPEC = importlib.util.spec_from_file_location("better_robot_m6_baseline", _SCRIPT)
+_SPEC = importlib.util.spec_from_file_location("better_robot_baseline", _SCRIPT)
 assert _SPEC is not None and _SPEC.loader is not None
 baseline = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = baseline
@@ -197,7 +191,7 @@ def test_statistics_and_status_schema_helpers() -> None:
 
 
 def test_smpl_cpu_eager_fk_smoke_subprocess(tmp_path: Path) -> None:
-    output = tmp_path / "m6-smoke.json"
+    output = tmp_path / "baseline-smoke.json"
     completed = subprocess.run(
         [
             sys.executable,
@@ -226,6 +220,7 @@ def test_smpl_cpu_eager_fk_smoke_subprocess(tmp_path: Path) -> None:
 
     report = json.loads(output.read_text(encoding="utf-8"))
     assert report["schema_version"] == baseline.SCHEMA_VERSION
+    assert report["benchmark"] == "torch_baseline"
     assert report["canonical_protocol"] is False
     assert report["protocol"] == "smoke"
     assert report["selection"]["selected_count"] == 1
@@ -255,6 +250,7 @@ def test_committed_filtered_result_is_measured_and_self_consistent() -> None:
     report = json.loads(_FILTERED_RESULT.read_text(encoding="utf-8"))
 
     assert report["schema_version"] == baseline.SCHEMA_VERSION
+    assert report["benchmark"] == "torch_baseline"
     assert report["protocol"] == "filtered"
     assert report["canonical_protocol"] is False
     cuda = report["environment"]["cuda"]

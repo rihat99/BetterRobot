@@ -277,6 +277,11 @@ def solve_contact_forces(  # noqa: PLR0912, PLR0915 - one complete public task b
     ``(B..., T, C)``. Forces are optimized as one named Euclidean block;
     a lazy provider scatters them into local external wrenches and evaluates
     RNEA once per residual/Jacobian context.
+
+    Each ``contact_joint_ids`` entry places its force at that joint's origin.
+    The resulting local wrench is ``[force, torque=0]``. Arbitrary contact
+    offsets are not represented: a force applied at offset ``r`` would also
+    contribute the moment ``r × force``.
     """
 
     if model.nv < 6 or len(model.joint_models) < 2 or model.joint_models[1].kind != "free_flyer":
