@@ -15,9 +15,9 @@ class JacobianStrategy(str, Enum):
     FINITE_DIFF — central finite differences through ``model.integrate``.
     AUTO        — prefer analytic, fall back to finite differences.
 
-    This enum belongs to the legacy ``CostStack`` lane. The named-block
-    :class:`better_robot.optim.blocks.Problem` lane separately supports
-    ``jacrev`` and ``jacfwd`` strategies through ``torch.func``.
+    Task facades map this compact policy onto the named-block
+    :class:`better_robot.optim.blocks.Problem` strategies, which also support
+    ``jacrev`` and ``jacfwd`` through ``torch.func``.
     """
 
     ANALYTIC = "analytic"

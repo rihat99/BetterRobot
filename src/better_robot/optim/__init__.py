@@ -1,10 +1,8 @@
-"""``better_robot.optim`` — optimization problems and solver components.
+"""``better_robot.optim`` — named-block problems and solver components.
 
-Named-block :class:`Problem` values use batched :class:`Adam`,
+:class:`Problem` values use batched :class:`Adam`,
 :class:`LevenbergMarquardt`, or :class:`GaussNewton` directly and may be
-orchestrated with :class:`Phase`. Legacy :class:`LeastSquaresProblem` callers
-instantiate an optimizer from :mod:`better_robot.optim.optimizers` and call
-its ``minimize`` method directly.
+orchestrated with :class:`Phase`.
 
 See ``docs/concepts/solver_stack.md``.
 """
@@ -46,19 +44,8 @@ from .blocks import (
     detach_values,
     run_phases,
 )
-from .cost_stack import CostItem, CostKind, CostStack
-from .optimizers.base import OptimizationResult, Optimizer
-from .problem import LeastSquaresProblem
-from .state import SolverState
 
 __all__ = [
-    "LeastSquaresProblem",
-    "Optimizer",
-    "OptimizationResult",  # deprecated alias for SolverState
-    "SolverState",
-    "CostKind",
-    "CostItem",
-    "CostStack",
     # Named-block evaluation and solver API. Deliberately qualified under ``optim``;
     # the package root keeps its existing Lie ``SE3`` identity.
     "Bounds",

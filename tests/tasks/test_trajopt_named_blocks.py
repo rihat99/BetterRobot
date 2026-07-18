@@ -9,10 +9,7 @@ import torch
 
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
-from better_robot.optim import CostStack, LevenbergMarquardt, LinearizationReason
-from better_robot.optim.optimizers.levenberg_marquardt import (
-    LevenbergMarquardt as LegacyLevenbergMarquardt,
-)
+from better_robot.optim import LevenbergMarquardt, LinearizationReason, ResidualItem
 from better_robot.residuals.regularization import ReferenceTrajectoryResidual
 from better_robot.tasks.parameterization import BSplineTrajectory
 from better_robot.tasks.trajopt import solve_trajopt
@@ -55,17 +52,13 @@ def _floating_body():
     return build_model(builder.finalize())
 
 
-def _reference_stack(model, reference: torch.Tensor) -> CostStack:
-    stack = CostStack()
-    stack.add(
-        "reference",
-        ReferenceTrajectoryResidual(
-            model,
-            reference,
-            name="internal_reference_name",
-        ),
+def _reference_residuals(model, reference: torch.Tensor) -> tuple[ResidualItem, ...]:
+    residual = ReferenceTrajectoryResidual(
+        model,
+        reference,
+        name="reference",
     )
-    return stack
+    return (ResidualItem("reference", residual),)
 
 
 def _solve_reference(model, seed, reference, *, linearization: str, **kwargs):
@@ -74,7 +67,7 @@ def _solve_reference(model, seed, reference, *, linearization: str, **kwargs):
         horizon=seed.shape[-2],
         dt=0.05,
         initial_q_traj=seed,
-        cost_stack=_reference_stack(model, reference),
+        residuals=_reference_residuals(model, reference),
         optimizer=LevenbergMarquardt(
             max_iter=12,
             damping_parameter=1e-5,
@@ -122,7 +115,7 @@ def test_auto_route_honors_optional_bounds_and_projects_seed() -> None:
         horizon=horizon,
         dt=0.05,
         initial_q_traj=seed,
-        cost_stack=_reference_stack(model, reference),
+        residuals=_reference_residuals(model, reference),
         optimizer=LevenbergMarquardt(max_iter=12, linearization="auto"),
         lower=lower,
         upper=upper,
@@ -197,15 +190,14 @@ def test_auto_falls_back_to_dense_for_undeclared_temporal_item() -> None:
     seed = model.q_neutral.expand(horizon, -1).clone()
     target = seed.clone()
     target[:, 0] = 0.1
-    stack = CostStack()
-    stack.add("undeclared", _UndeclaredTrajectoryResidual(target))
+    residual = _UndeclaredTrajectoryResidual(target)
 
     result = solve_trajopt(
         model,
         horizon=horizon,
         dt=0.05,
         initial_q_traj=seed,
-        cost_stack=stack,
+        residuals=(ResidualItem(residual.name, residual),),
         optimizer=LevenbergMarquardt(max_iter=8, linearization="auto"),
     )
 
@@ -215,36 +207,11 @@ def test_auto_falls_back_to_dense_for_undeclared_temporal_item() -> None:
     assert "undeclared" in result.linearization_detail
 
 
-def test_constraints_legacy_optimizer_and_bspline_fail_actionably() -> None:
+def test_bspline_fails_actionably() -> None:
     model = _fixed_arm()
     horizon = 5
     seed = model.q_neutral.expand(horizon, -1).clone()
     reference = seed.clone()
-
-    constraint_stack = CostStack()
-    constraint_stack.add(
-        "reference_constraint",
-        ReferenceTrajectoryResidual(model, reference),
-        kind="constraint_leq_zero",
-    )
-    with pytest.raises(NotImplementedError, match="soft least-squares items only"):
-        solve_trajopt(
-            model,
-            horizon=horizon,
-            dt=0.05,
-            initial_q_traj=seed,
-            cost_stack=constraint_stack,
-        )
-
-    with pytest.raises(TypeError, match="Legacy.*LeastSquaresProblem"):
-        solve_trajopt(
-            model,
-            horizon=horizon,
-            dt=0.05,
-            initial_q_traj=seed,
-            cost_stack=_reference_stack(model, reference),
-            optimizer=LegacyLevenbergMarquardt(),
-        )
 
     with pytest.raises(NotImplementedError, match="component-space.*deferred"):
         solve_trajopt(
@@ -252,6 +219,6 @@ def test_constraints_legacy_optimizer_and_bspline_fail_actionably() -> None:
             horizon=horizon,
             dt=0.05,
             initial_q_traj=seed,
-            cost_stack=_reference_stack(model, reference),
+            residuals=_reference_residuals(model, reference),
             parameterization=BSplineTrajectory(num_control_points=4),
         )

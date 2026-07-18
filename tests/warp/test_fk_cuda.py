@@ -361,3 +361,45 @@ def test_cuda_current_stream_and_graph_replay(model_kind: str, dtype: torch.dtyp
         _torch_outputs(model, target),
         dtype,
     )
+
+
+@pytest.mark.parametrize("input_name", ("q", "joint_placements"))
+def test_warp_layout_fallback_is_a_hard_error_only_during_capture(input_name: str) -> None:
+    model = make_smpl_like_model(dtype=torch.float32).to(device="cuda")
+    q = model.q_neutral.unsqueeze(0).contiguous()
+    values = model.values
+    if input_name == "q":
+        storage = torch.empty(q.shape[0], q.shape[1] * 2, dtype=q.dtype, device=q.device)
+        q = storage[..., ::2]
+        q.copy_(model.q_neutral)
+        assert q.stride(-1) == 2
+    else:
+        placements = values.joint_placements
+        storage = torch.empty(
+            *placements.shape[:-1],
+            placements.shape[-1] * 2,
+            dtype=placements.dtype,
+            device=placements.device,
+        )
+        placement_view = storage[..., ::2]
+        placement_view.copy_(placements)
+        assert placement_view.stride(-1) == 2
+        values = dataclasses.replace(values, joint_placements=placement_view)
+
+    # Outside capture the opt-in probe keeps its established silent fallback.
+    assert try_warp_forward_kinematics(model.structure, values, q) is None
+
+    expected = (
+        f"better_robot: input {input_name!r} has an unsupported layout for the Warp FK lane "
+        "while CUDA graph capture is active; silent Torch fallback is disabled during capture. "
+        "Make the input contiguous before capture, or disable graph capture."
+    )
+    torch.cuda.synchronize()
+    graph = torch.cuda.CUDAGraph()
+    stream = torch.cuda.Stream()
+    with pytest.raises(RuntimeError) as caught, torch.cuda.graph(graph, stream=stream):
+        # Keep the intentionally aborted graph non-empty so PyTorch does not
+        # emit its unrelated empty-capture warning on context teardown.
+        torch.square(q)
+        try_warp_forward_kinematics(model.structure, values, q)
+    assert str(caught.value) == expected

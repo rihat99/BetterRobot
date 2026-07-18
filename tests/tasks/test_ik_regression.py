@@ -177,6 +177,25 @@ def test_solve_ik_optimizers_reach_target(panda, optimizer):
     assert pos_err < 0.05, f"{optimizer}: position error {pos_err:.4f} m too large"
 
 
+def test_lm_then_adam_returns_scalar_public_diagnostics(panda) -> None:
+    q = _feasible_q(panda)
+    data = forward_kinematics(panda, q, compute_frames=True)
+    frame_name = _ee_frame(panda)
+    target = data.frame_pose_world[panda.frame_id(frame_name)].clone()
+
+    result = solve_ik(
+        panda,
+        {frame_name: target},
+        initial_q=q,
+        optimizer_cfg=OptimizerConfig(optimizer="lm_then_adam", max_iter=20),
+    )
+
+    assert hasattr(result, "q")
+    assert hasattr(result, "converged")
+    assert isinstance(result.iters, int)
+    assert isinstance(result.converged, bool)
+
+
 @pytest.mark.parametrize("optimizer", ["lbfgs", "lm_then_lbfgs"])
 def test_solve_ik_defers_named_block_lbfgs(panda, optimizer):
     frame_name = _ee_frame(panda)
@@ -215,8 +234,8 @@ def test_solve_ik_floating_base_with_limits(g1):
     """solve_ik with default limit_weight must run end-to-end on a free-flyer robot.
 
     This is the Phase 4 pass criterion for examples/02_g1_floating_ik.py —
-    the limits-residual Jacobian has to be in nv space, not nq, otherwise
-    CostStack.jacobian fails to concatenate against the pose Jacobian.
+    the limits-residual Jacobian has to be in nv space, not nq, otherwise it
+    cannot concatenate against the pose Jacobian.
     """
     # Neutral with base at standing height
     q0 = g1.q_neutral.clone()

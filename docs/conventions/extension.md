@@ -36,9 +36,9 @@ labels it reserved.
            ┌────────────────────────┼───────────────────────┐
            │                        │                       │
   ┌────────▼─────────┐     ┌────────▼────────┐     ┌────────▼────────┐
-  │ Parser           │     │ Residual        │     │ Optimizer       │
-  │ (register_parser │     │ (explicit       │     │ (legacy         │
-  │  suffix function)│     │  construction)  │     │  .minimize)     │
+  │ Parser           │     │ Residual        │     │ Solver          │
+  │ (register_parser │     │ (explicit       │     │ (explicit       │
+  │  suffix function)│     │  construction)  │     │  .run)          │
   └──────────────────┘     └─────────────────┘     └─────────────────┘
            │                        │                       │
   ┌────────▼─────────┐     ┌────────▼────────┐     ┌────────▼────────┐
@@ -70,12 +70,8 @@ For new named-block residuals and providers, follow
 residual shapes, provider lifetime, robust groups, analytic blocks, and
 per-element failure signaling.
 
-The `ResidualState`/`CostStack` recipe below belongs to the legacy
-single-variable solver stack and remains for direct compatibility callers.
-`solve_trajopt` accepts a `CostStack` only as an input container and adapts its
-active soft terms into named blocks; it does not run this legacy recipe.
-`solve_ik` also uses named blocks. Do not use the legacy recipe as the starting
-point for new integrations.
+The short recipe below uses that same named-block surface. `solve_ik` and
+`solve_trajopt` also assemble named-block problems internally.
 :::
 
 ```python
@@ -86,46 +82,43 @@ class NeutralResidual:
     """Penalise tangent displacement from the model's neutral pose."""
 
     name = "neutral"
+    reads = ("q",)
 
     def __init__(self, model):
         self.model = model
         self.dim = model.nv
 
-    def __call__(self, state) -> torch.Tensor:
+    def __call__(self, ctx) -> torch.Tensor:
+        q = ctx["q"]
         target = self.model.q_neutral.to(
-            device=state.variables.device,
-            dtype=state.variables.dtype,
+            device=q.device,
+            dtype=q.dtype,
         )
-        return self.model.difference(target, state.variables)
-
-    # The method is part of the runtime-checkable legacy Protocol. Returning
-    # None asks AUTO to use its unbatched central-finite-difference fallback.
-    def jacobian(self, state) -> None:
-        return None
+        return self.model.difference(target, q)
 ```
 
 Then:
 
 ```python
-import better_robot as br
-cost = br.CostStack()
-cost.add("neutral", NeutralResidual(model), weight=0.1)
+from better_robot.optim import ResidualItem
+
+residual = ResidualItem("neutral", NeutralResidual(model), weight=0.1)
 ```
 
-Contract (`Residual` Protocol — see {doc}`/concepts/residuals_and_costs`):
+Contract (see {doc}`/guides/custom_residuals`):
 
 | Member | Type | Required |
 |--------|------|----------|
 | `name` | stable class/instance name | Yes |
+| `reads` | tuple of context entry names | Yes |
 | `dim` | `int` property | Yes |
-| `__call__(state) -> Tensor` | residual `(B..., dim)` | Yes |
-| `jacobian(state) -> Tensor or None` | `(B..., dim, nv)`, or `None` for unbatched central FD | Yes |
+| `__call__(ctx) -> Tensor` | residual `(B..., dim)` | Yes |
+| `jacobian_blocks(ctx) -> dict[str, Tensor]` | complete analytic blocks for selected variables | No |
 
 Residuals are instantiated and added explicitly. BetterRobot does not keep a
-process-wide residual registry. Put the scalar weight on `CostStack.add`; the
-stack applies that weight to both the residual and its Jacobian. The legacy
-finite-difference fallback is unbatched, which is another reason to prefer the
-named-block guide for new work.
+process-wide residual registry. Put the residual multiplier and optional
+robust kernel on `ResidualItem`; `Problem` applies them consistently during
+residual, objective, gradient, and solver linearization evaluation.
 
 ## 2 · Add a joint type
 
@@ -219,121 +212,55 @@ registry.
 
 ## 3 · Add an optimiser
 
-**Use when:** you want a solver for the retained, unbatched
-`LeastSquaresProblem` contract. Named-block solvers have a different
-`Problem`/`Values` lifecycle and do not share this legacy `Optimizer` Protocol.
+**Use when:** you are contributing a solver for the named-block
+`Problem`/`Values` lifecycle. There is no public generic solver protocol or
+solver registry. The concrete `Adam`, `GaussNewton`, and
+`LevenbergMarquardt` implementations are the reference contracts.
 
-This minimal gradient-descent implementation is runnable and shows the exact
-call signature. A production solver should add its own validation and
-diagnostics:
+A solver accepted by `Phase` is a dataclass with a replaceable `max_iter`
+field and this structural lifecycle:
 
 ```python
-# my_package/optim/gradient_descent.py
-import torch
+from dataclasses import dataclass
 
-from better_robot.optim import SolverState
+@dataclass(frozen=True)
+class CustomSolver:
+    max_iter: int = 50
 
-class GradientDescent:
-    def __init__(self, *, learning_rate: float = 1e-2, tol: float = 1e-6):
-        self.learning_rate = learning_rate
-        self.tol = tol
-
-    def minimize(
-        self,
-        problem,
-        *,
-        max_iter: int = 50,
-        linear_solver=None,
-        kernel=None,
-        strategy=None,
-        scheduler=None,
-    ) -> SolverState:
-        if any(x is not None for x in (linear_solver, kernel, strategy, scheduler)):
-            raise ValueError("GradientDescent does not consume solver components")
-        state = SolverState.from_problem(problem)
-        for iteration in range(max_iter):
-            jacobian = problem.jacobian(state.x)
-            gradient = jacobian.mT @ state.residual
-            if not bool(torch.isfinite(gradient).all()):
-                state.status = "stalled"
-                return state
-            if float(torch.linalg.vector_norm(gradient)) <= self.tol:
-                state.status = "converged"
-                return state
-
-            next_x = problem.step(state.x, -self.learning_rate * gradient)
-            if problem.lower is not None:
-                next_x = torch.maximum(next_x, problem.lower.to(next_x))
-            if problem.upper is not None:
-                next_x = torch.minimum(next_x, problem.upper.to(next_x))
-            state.x = next_x
-            state.residual = problem.residual(state.x)
-            state.residual_norm = 0.5 * (state.residual * state.residual).sum()
-            state.iters = iteration + 1
-
-        state.status = "maxiter"
-        return state
+    def init_state(self, values, problem): ...
+    def update(self, values, state, problem): ...
+    def run(self, values, problem, state=None): ...
 ```
 
-Contract (`Optimizer` Protocol):
+`init_state` validates the solve boundary, `update` returns a fresh
+`(Values, state)` pair for one fixed-shape step, and `run` returns the final
+pair. State and status types are solver-specific. Implementing the lifecycle
+correctly also requires batched per-element termination, manifold retraction,
+bounds, failure isolation, and graph-lifetime tests; use the shipped solvers
+as the implementation reference. Custom solvers are passed to `Phase` or
+called directly and are never discovered by `solve_ik` or `solve_trajopt`.
+
+## 4 · Configure LM damping
 
 ```python
-@runtime_checkable
-class Optimizer(Protocol):
-    def minimize(
-        self,
-        problem: LeastSquaresProblem,
-        *,
-        max_iter: int,
-        linear_solver,
-        kernel,
-        strategy,
-        scheduler=None,
-    ) -> SolverState: ...
-```
+from better_robot.optim import LevenbergMarquardt
 
-`SolverState` carries `x`, `residual`, `residual_norm`, `iters`, `damping`,
-`gain_ratio`, `status`, and `history`; `converged` is a read-only property
-derived from `status`. A `LeastSquaresProblem` owns its residual/Jacobian,
-bounds, initial guess, and optional manifold retraction. Custom legacy
-optimizers are instantiated and called directly; `solve_ik` and
-`solve_trajopt` do not discover them from a registry.
-
-## 4 · Add a legacy LM damping strategy
-
-```python
-class MultiplicativeDamping:
-    def __init__(self, initial: float = 1e-4, factor: float = 2.0):
-        self.initial = initial
-        self.factor = factor
-
-    def init(self, problem) -> float:
-        return self.initial
-
-    def accept(self, lam: float) -> float:
-        return lam / self.factor
-
-    def reject(self, lam: float) -> float:
-        return lam * self.factor
-```
-
-Then:
-
-```python
-from better_robot.optim.optimizers import LevenbergMarquardt
-
-result = LevenbergMarquardt().minimize(
-    problem,
-    max_iter=50,
-    strategy=MultiplicativeDamping(),
+fixed = LevenbergMarquardt(
+    damping_parameter=1e-4,
+    fixed_damping=True,
+)
+adaptive = LevenbergMarquardt(
+    damping_parameter=1e-4,
+    mu_min=1e-12,
+    mu_max=1e8,
+    increase_factor_max=1e6,
 )
 ```
 
-The exact structural contract is `init(problem)`, `accept(lam)`, and
-`reject(lam)`. It does not receive a gain ratio. This seam belongs to the
-legacy LM optimizer; task `OptimizerConfig.damping` accepts only the shipped
-string choices, and named-block LM configures damping through its own frozen
-fields.
+LM owns its damping policy through frozen solver fields; it does not accept a
+separate policy object. `fixed_damping=True` holds damping fixed, while the
+default adapts it after accepted and rejected steps. Task
+`OptimizerConfig.damping` exposes the corresponding shipped string choices.
 
 ## 5 · Add a linear solver
 
@@ -509,19 +436,18 @@ An opt-in lane must:
 6. keep optional imports local to the owning pass.
 
 For Warp, conversion and custom-autograd plumbing belong in that local
-integration module. The private experimental
-``better_robot.optim._graph_executor.GraphExecutor`` has CUDA replay evidence
-for fixed groups of named-block LM updates and mixed Torch/Warp FK. It is not
-a production solver caller or public API. New capture integration must keep
-forward and backward in one stable lifecycle and must not invent a public
-capture decorator before an end-to-end solver path is certified.
+integration module. Capture validation is caller-owned; the public solver
+loop remains eager. New capture integration must keep forward and backward in
+one stable lifecycle and must not invent a public capture decorator before an
+end-to-end solver path is certified.
 
 ## 11 · Discovery and explicit construction
 
 Parser suffixes are the only working public discovery registry. Use
 `register_parser(suffix, fn)`; do not mutate the private `_PARSERS` dictionary.
-Residuals, optimizers, kernels, damping strategies, linear solvers, render
-modes, renderer backends, and asset resolvers are passed explicitly.
+Residuals, solvers, kernels, linear solvers, render modes, renderer backends,
+and asset resolvers are passed explicitly. LM damping is configured on the
+solver itself.
 
 There are internal `MODE_REGISTRY`, `RENDERER_REGISTRY`, and collision pair
 tables in the source tree, but they are not general public plugin seams:
@@ -634,7 +560,7 @@ BetterRobot does not import ``chumpy``, SMPL, or OpenSim.
 |-------|---------|
 | `Model` / `Data` schemas | Would break every algorithm. Extend via `Model.meta` dict or a wrapper class. |
 | The SE(3) representation `[tx,ty,tz,qx,qy,qz,qw]` | Every algorithm depends on it. Change requires a major version. |
-| `LeastSquaresProblem` structure | Freeze the problem contract so solvers are interchangeable. |
+| `Problem` / `Values` structure | Freeze the solver-facing named-block contract so solvers are interchangeable. |
 | Layer DAG | If you want to import from a higher layer, refactor instead. |
 | `IRModel` shape | Internal parser/build boundary; re-parse assets after upgrades. |
 

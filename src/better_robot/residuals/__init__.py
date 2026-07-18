@@ -1,8 +1,8 @@
 """``better_robot.residuals`` — residual classes.
 
 Every residual is a callable object with an optional analytic
-``.jacobian()``. Compose them into a ``CostStack``, and the stack is what
-the solver sees.
+``.jacobian()``. Wrap residuals in ``ResidualItem`` objects and add them to a
+named-block ``Problem`` for optimization.
 
 See ``docs/concepts/residuals_and_costs.md``.
 """

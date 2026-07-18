@@ -79,10 +79,6 @@ SUBMODULE_PATHS: list[tuple[str, str]] = [
     ("better_robot.optim", "Phase"),
     ("better_robot.optim", "PhaseResult"),
     ("better_robot.optim", "run_phases"),
-    # optim-owned legacy flat-cost composition
-    ("better_robot.optim", "CostStack"),
-    ("better_robot.optim", "CostItem"),
-    ("better_robot.optim", "CostKind"),
     # exceptions
     ("better_robot.exceptions", "StaleCacheError"),
 ]
@@ -130,11 +126,3 @@ def test_named_block_api_is_qualified_and_has_no_lie_name_collision() -> None:
     assert block_names.isdisjoint(better_robot.__all__)
     for name in block_names:
         assert not hasattr(better_robot, name)
-
-
-def test_optimizer_owned_cost_stack_exports_are_public() -> None:
-    cost_names = {"CostStack", "CostItem", "CostKind"}
-
-    assert cost_names <= set(optim.__all__)
-    assert "CostStack" in better_robot.__all__
-    assert better_robot.CostStack is optim.CostStack

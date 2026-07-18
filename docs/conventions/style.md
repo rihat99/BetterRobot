@@ -156,17 +156,10 @@ from typing import Protocol
 from torch import Tensor
 from jaxtyping import Float
 
-class Optimizer(Protocol):
-    def minimize(
-        self,
-        problem: "LeastSquaresProblem",
-        *,
-        max_iter: int,
-        linear_solver,
-        kernel,
-        strategy,
-        scheduler=None,
-    ) -> "SolverState": ...
+class LinearSolver(Protocol):
+    supported_systems: frozenset[str]
+
+    def solve(self, A, b: Tensor, ridge: Tensor | float | None = None) -> Tensor: ...
 
 def forward_kinematics(
     model: "Model",
@@ -305,9 +298,8 @@ use ``%`` placeholders for deferred formatting:
 - `IKResult`, `Trajectory`: plain mutable dataclasses. ``Trajectory.slice``,
   ``resample``, and ``with_batch_dims`` return new instances, but that does not
   freeze existing fields or tensors.
-- `CostStack`: mutable through `.add`, `.remove`, `.set_weight`, and
-  `.set_active`; its public `items` mapping also exposes mutable `CostItem`
-  values, so keep each stack problem-local.
+- Solver states are immutable tensor pytrees returned by each update; carry the
+  returned state forward rather than mutating it in place.
 
 ## 13 · Numerics
 
@@ -319,9 +311,8 @@ use ``%`` placeholders for deferred formatting:
   `so3.to_matrix`, or compare a relative-log tangent norm; quaternion component
   equality is not sign-invariant.
 - **Allocating vs. in-place**: direct math functions normally return new
-  tensors. ``Data`` cache mutation and the private ``GraphExecutor.reset``
-  lifecycle are explicit exceptions; legacy ``SolverState`` has no reset
-  method.
+  tensors. ``Data`` cache mutation is an explicit exception; solver updates
+  return a new state.
 - **Avoid mutable default arguments** — use `None` and construct
   inside.
 - **Pure raw math, explicit workspace mutation**: ``lie/`` and raw

@@ -10,11 +10,6 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   VJPs, current-stream ordering, and forward graph replay on RTX 6000 Ada.
   Forward-only SMPL measurements beat compiled Torch in the four committed
   batches; the Torch-recompute backward was not timed, so no default changed.
-- **Experimental internal graph replay.** A private tensor-pytree
-  `GraphExecutor` provides eager fallback and controlled CUDA record/replay.
-  Fixed groups of nonlinear named-block LM updates and mixed Torch/Warp FK are
-  tested, but public solver `run` remains eager and no end-to-end IK capture
-  benchmark is claimed.
 - **Definition-first performance evidence.** The M6 harness defines a
   144-selector Panda/free-Panda/SMPL matrix with isolated cold starts, raw
   samples, memory, and provenance. Only the hardware-named Warp FK cases and a
@@ -36,11 +31,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Jacobian blocks. LM routes between dense Cholesky, block-banded
   `BandedCholesky`, and explicit `NormalOperator`/`NormalCG`, with stable
   requested/used/reason/detail diagnostics and dense automatic fallback.
-- **Named-block `solve_trajopt`.** Active soft `CostStack` items are adapted to
-  one temporal `RobotConfig` block with arbitrary leading batches, sanitized
-  optional bounds, per-element state diagnostics, and route fields in
-  `TrajOptResult`. Legacy optimizers and constraint-kind items fail
-  actionably.
+- **Named-block `solve_trajopt`.** An explicit sequence of `ResidualItem`
+  values is adapted to one temporal `RobotConfig` block with arbitrary leading
+  batches, sanitized optional bounds, per-element state diagnostics, and route
+  fields in `TrajOptResult`.
 - **Explicit deferrals.** The component-space `BSplineTrajectory` remains a
   numerical utility rather than a robot-manifold parameterization. Schur
   elimination for temporal plus shared variables also remains deferred; M5

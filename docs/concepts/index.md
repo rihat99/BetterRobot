@@ -46,8 +46,8 @@ to the chapters it depends on and the ones that depend on it.
 | {doc}`parsers_and_ir` | URDF / MJCF / programmatic builder all converging on a single intermediate representation. |
 | {doc}`kinematics` | Forward kinematics and the unified Jacobian dispatch. |
 | {doc}`dynamics` | RNEA, ABA, CRBA, the centroidal map, and rigid-body state manifolds. |
-| {doc}`residuals_and_costs` | The legacy residual library plus `CostStack`, retained for direct compatibility callers. |
-| {doc}`solver_stack` | Named-block `Problem` evaluation and the coexisting `LeastSquaresProblem` solver stack. |
+| {doc}`residuals_and_costs` | Structural residuals, explicit `ResidualItem` composition, robust groups, and temporal declarations. |
+| {doc}`solver_stack` | Named-block `Problem` evaluation and the Adam/LM/GN solver lifecycle. |
 | {doc}`tasks` | `solve_ik`, `solve_trajopt`, `Trajectory`. |
 | {doc}`collision_and_geometry` | Reserved collision containers and the currently stubbed distance, decomposition, and residual surfaces. |
 | {doc}`batching_and_backends` | Tensor/device conventions, the structure/value seam, and whole-pass compute lanes. |

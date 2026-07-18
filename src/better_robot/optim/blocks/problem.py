@@ -1092,6 +1092,6 @@ class Problem:
             raise ValueError(
                 f"problem contains scalar objective term(s) {names} — "
                 f"{method} minimize sums of squared residual vectors and cannot consume "
-                "scalar terms. Run these terms in a first-order phase (Adam/LBFGS), "
+                "scalar terms. Run these terms in a first-order phase (for example Adam), "
                 "or reformulate them as residual vectors."
             )

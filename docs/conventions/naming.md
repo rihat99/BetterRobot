@@ -173,8 +173,8 @@ The user-facing names already follow the conventions above:
 | `TrajOptResult` | Result of `solve_trajopt` |
 | `IKCostConfig` | User-facing knobs for the IK cost stack |
 | `OptimizerConfig` | User-facing knobs for the optimiser |
-| `SolverState` | Per-iteration state shared between `Optimizer`, `DampingStrategy`, `LinearSolver` |
-| `OptimizerStage` / `MultiStageOptimizer` | Composite of stages |
+| `LMState` / `AdamState` | Solver-specific tensor state returned by the named-block lifecycle |
+| `Phase` / `PhaseResult` | Functional sequence of named-block solver stages |
 | `TrajectoryParameterization` | Protocol; concrete `KnotTrajectory`, `BSplineTrajectory` |
 
 ### 2.8 Enums replacing string literals
@@ -236,9 +236,9 @@ have no pytest percentage gate.
 | **LOCAL_WORLD_ALIGNED** | Twist at the frame origin with both linear and angular components expressed in world axes. Default for `get_frame_jacobian`. |
 | **WORLD** | Spatial twist expressed in world axes and translated to the world origin. |
 | **Residual** | A differentiable function `r(model, data, …) -> (B..., dim)` — the quantity the optimiser drives toward zero. |
-| **CostStack** | Weighted concatenation of residuals; returns a single flat residual vector. |
-| **LeastSquaresProblem** | `(cost_stack, x0, bounds, jacobian_strategy)` — a fully specified optimisation problem. |
-| **Optimizer** | A `Protocol` that minimises a `LeastSquaresProblem` (LM, GN, Adam, LBFGS, …). |
+| **ResidualItem** | Named residual, weight, robust kernel, and robust group size stored in a `Problem`. |
+| **Problem** | Named variables, residual/objective items, providers, and parameters evaluated in reduced tangent coordinates. |
+| **Solver lifecycle** | `init_state` / `update` / `run` methods implemented by named-block LM, GN, and Adam. |
 | **bias_forces** | `C(q, q̇) q̇ + g(q)` — the generalised force present even at zero input torque. |
 | **centroidal momentum** | 6D momentum of the robot around its centre of mass. |
 | **mass matrix** | Joint-space inertia `M(q)`. |

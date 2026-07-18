@@ -77,14 +77,13 @@ Forward kinematics; analytic Jacobians with an unbatched central-FD fallback;
 named optimization-variable blocks with Euclidean, SO(3), SE(3), and robot
 configuration manifolds; batched `Problem` evaluation with mask-eliminated
 tangent coordinates, structural residuals, scalar objective terms, and lazy
-provider DAGs; the legacy residual library (pose / position / orientation,
+provider DAGs; the residual library (pose / position / orientation,
 joint position limits, rest, contact consistency, reference trajectories,
-velocity and acceleration smoothness, time-indexed residuals); `CostStack`;
-LM, GN, Adam, L-BFGS, and multi-stage optimizers; dense, block-banded,
+velocity and acceleration smoothness, time-indexed residuals); named-block
+LM, GN, Adam, and functional phases; dense, block-banded,
 and normal-operator linear solvers (Cholesky, LSTSQ, BandedCholesky,
 NormalCG); pluggable robust
-kernels (L2, Huber, Cauchy, Tukey, Geman–McClure) and damping strategies (Constant,
-Adaptive); batched IK on fixed and floating-base robots;
+kernels (L2, Huber, Cauchy, Tukey, Geman–McClure); batched IK on fixed and floating-base robots;
 trajectory optimisation with knot parameterisation and automatic banded/dense
 routing (the Euclidean B-spline basis is numerical-only pending a separate
 robot-manifold design); floating-base contact-force fitting; opt-in dense
@@ -96,8 +95,7 @@ momentum, and the autograd-derived `compute_rnea_derivatives`,
 `ModelBuilder`; a viewer with skeleton / URDF-mesh render modes,
 draggable IK target gizmos, and trajectory playback; and a CUDA-validated,
 explicitly selected fused Warp FK lane whose VJP recomputes the Torch oracle.
-Private CUDA graph tests cover fixed groups of named-block LM updates; public
-solver drivers remain eager.
+Public solver drivers remain eager; no captured solver mode ships.
 
 A small set of named symbols are deliberately stubbed and listed in
 {doc}`reference/roadmap`. They have the correct signatures and raise

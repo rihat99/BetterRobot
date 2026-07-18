@@ -1,8 +1,7 @@
 """Batched named-block Gauss--Newton and Levenberg--Marquardt solvers.
 
-The update is pure, fixed-shape, and tensor-branching only. Private
-``GraphExecutor`` CUDA tests cover capture/replay parity for fixed groups of
-these updates; the public ``run`` driver remains eager.
+The update is pure, fixed-shape, and tensor-branching only; the public ``run``
+driver remains eager.
 
 Bounds use projected active-set LM with a projected-gradient safeguard.  The
 normal system is restricted before solving, the gain ratio uses the tangent
@@ -535,9 +534,8 @@ class LevenbergMarquardt:
     Hyperparameters are frozen.  All mutable per-element quantities live in
     :class:`LMState`.  ``update`` preserves a possible explicit unrolled
     oracle; ``run`` is the detached default driver and performs at most one
-    host-side terminal check per iteration. It is capture-ready by
-    construction; private ``GraphExecutor`` CUDA tests cover fixed update
-    groups, while the public driver remains eager. ``block_step_limits`` optionally caps the
+    host-side terminal check per iteration. The public driver remains eager.
+    ``block_step_limits`` optionally caps the
     physical tangent norm of named variable blocks before every retraction;
     state-space bounds remain the responsibility of :class:`VarSpec`.
     """
@@ -607,10 +605,14 @@ class LevenbergMarquardt:
         """Resolve one static dense/banded/operator route for ``problem``."""
         analysis = problem.temporal_analysis
         solver = self.linear_solver
-        supported = frozenset({"dense"}) if solver is None else getattr(
-            solver,
-            "supported_systems",
-            frozenset({"dense"}),
+        supported = (
+            frozenset({"dense"})
+            if solver is None
+            else getattr(
+                solver,
+                "supported_systems",
+                frozenset({"dense"}),
+            )
         )
 
         def decision(used: Literal["dense", "banded", "matrix_free"], reason, detail: str):
@@ -682,8 +684,7 @@ class LevenbergMarquardt:
                 "explicit solver accepts the normal operator",
             )
         raise ValueError(
-            "incompatible_solver: explicit linear solver supports none of the eligible "
-            f"systems {sorted(supported)}"
+            f"incompatible_solver: explicit linear solver supports none of the eligible systems {sorted(supported)}"
         )
 
     def _resolved_linear_solver(self, decision: LinearizationDecision) -> _ResolvedLinearSolver:
@@ -807,14 +808,13 @@ class LevenbergMarquardt:
             time_length = problem.temporal_analysis.time_length
             reduced_width = problem.temporal_analysis.reduced_width
             block_shape = (
-                (time_length, reduced_width)
-                if time_length is not None and reduced_width is not None
-                else None
+                (time_length, reduced_width) if time_length is not None and reduced_width is not None else None
             )
             system = NormalOperator(
                 size=problem.tangent_dim_total,
-                matvec=lambda vector: coordinate * model.operators.normal_matvec(coordinate * vector)
-                + diagonal * vector,
+                matvec=lambda vector: (
+                    coordinate * model.operators.normal_matvec(coordinate * vector) + diagonal * vector
+                ),
                 preconditioner=lambda vector: vector / safe_diagonal,
                 block_shape=block_shape,
             )

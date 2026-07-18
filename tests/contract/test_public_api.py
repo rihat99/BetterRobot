@@ -41,10 +41,6 @@ REQUIRED: frozenset[str] = frozenset(
         "crba",
         "center_of_mass",
         "compute_centroidal_map",
-        # costs
-        "CostStack",
-        # optim
-        "LeastSquaresProblem",
         # tasks
         "solve_ik",
         "solve_trajopt",

@@ -19,8 +19,6 @@ EXPECTED_CLASSES = {
     "Frame",
     "Body",
     "Joint",
-    "CostStack",
-    "LeastSquaresProblem",
     "Trajectory",
     "JacobianStrategy",
     "SE3",
@@ -85,9 +83,15 @@ def test_data_has_core_fields() -> None:
     data_cls = br.Data
     fields = {f.name for f in data_cls.__dataclass_fields__.values()}
     required = {
-        "q", "v", "a", "tau",
-        "joint_pose_local", "joint_pose_world", "frame_pose_world",
-        "mass_matrix", "joint_jacobians",
+        "q",
+        "v",
+        "a",
+        "tau",
+        "joint_pose_local",
+        "joint_pose_world",
+        "frame_pose_world",
+        "mass_matrix",
+        "joint_jacobians",
     }
     missing = required - fields
     assert not missing, f"Data missing dataclass fields: {missing}"
@@ -95,9 +99,24 @@ def test_data_has_core_fields() -> None:
 
 def test_data_legacy_aliases_are_removed() -> None:
     old_names = {
-        "oMi", "oMf", "liMi", "ov", "oa", "v_joint", "a_joint",
-        "M", "C", "g", "nle", "J", "dJ", "Ag", "hg", "com",
-        "vcom", "acom",
+        "oMi",
+        "oMf",
+        "liMi",
+        "ov",
+        "oa",
+        "v_joint",
+        "a_joint",
+        "M",
+        "C",
+        "g",
+        "nle",
+        "J",
+        "dJ",
+        "Ag",
+        "hg",
+        "com",
+        "vcom",
+        "acom",
     }
     assert all(not hasattr(br.Data, name) for name in old_names)
 
@@ -118,11 +137,3 @@ def test_solve_ik_signature_shape() -> None:
     assert "cost_cfg" in params
     assert "optimizer_cfg" in params
     assert "robot_collision" not in params
-
-
-def test_cost_stack_basic_api() -> None:
-    stack = br.CostStack()
-    assert hasattr(stack, "add")
-    assert hasattr(stack, "items")
-    assert isinstance(stack.items, dict)
-    assert len(stack.items) == 0

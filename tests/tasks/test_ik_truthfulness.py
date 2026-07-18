@@ -10,7 +10,6 @@ import torch
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics.forward import forward_kinematics
-from better_robot.optim.state import SolverState
 from better_robot.tasks.ik import IKCostConfig, OptimizerConfig, solve_ik
 
 
@@ -49,18 +48,6 @@ def test_solve_ik_accepts_batched_initial_configuration() -> None:
     assert isinstance(result.converged, torch.Tensor)
     assert result.converged.shape == (4,)
     assert bool(result.converged.all())
-
-
-def test_solver_state_rejects_batched_residual_backstop() -> None:
-    class BatchedProblem:
-        x0 = torch.zeros(2)
-
-        @staticmethod
-        def residual(x: torch.Tensor) -> torch.Tensor:
-            return torch.zeros(3, 2, dtype=x.dtype)
-
-    with pytest.raises(NotImplementedError, match="Batched|batched|M2b"):
-        SolverState.from_problem(BatchedProblem())
 
 
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])

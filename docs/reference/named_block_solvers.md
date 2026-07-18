@@ -1,8 +1,7 @@
 # Named-block solver API
 
-The symbols on this page are imported from `better_robot.optim`. They solve a
-named-block `Problem`; the identically named classes under
-`better_robot.optim.optimizers` are legacy `LeastSquaresProblem` optimizers.
+The symbols on this page are imported from `better_robot.optim` and solve a
+named-block `Problem`.
 
 ```{py:module} better_robot.optim
 :no-index:
@@ -37,9 +36,8 @@ small-problem unrolled differentiation oracle.
 ````{py:method} update(values, state, problem, *, create_graph=False) -> tuple[Values, LMState]
 :canonical: better_robot.optim.LevenbergMarquardt.update
 
-Apply one pure, sync-free, fixed-shape batched update. M6's internal
-experimental CUDA-graph harness tests replay of fixed update groups; the
-public `run` loop remains eager.
+Apply one pure, sync-free, fixed-shape batched update. The public `run` loop
+remains eager; the package does not provide a captured driver.
 `create_graph=True` preserves the graph through this step for small reference
 problems; the default does not retain the Jacobian graph.
 ````

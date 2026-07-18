@@ -19,7 +19,7 @@ accidental API.
 | Deeply immutable model state | **Gap** | `Model` is a frozen dataclass, but its tensors, dictionaries, and `meta` members remain mutable. |
 | Versioned serialization | **Gap** | There is no structure/values `state_dict` API; `Model.meta` retains builder IR and resolver objects. |
 | Differentiable solve | Partial | Named-block LM/GN has an explicit dense first-order implicit mode; `run` and `solve_ik` remain detached, and structured/operator backward plus stable ModelValues/weight bindings are gaps. |
-| Warp differentiation/capture | Partial, private/opt-in | Fused FK has CUDA forward/VJP and forward-capture evidence; fixed LM update groups have a private graph harness. No Warp default or public captured solver mode ships. |
+| Warp differentiation/capture | Partial, private/opt-in | Fused FK has CUDA forward/VJP and raw forward-capture evidence. No package capture driver, Warp default, or public captured solver mode ships. |
 
 ## Dtype and numerics
 
@@ -304,30 +304,11 @@ dynamic-shape fallback policy, bounded eviction layer, or public observability
 surface. Cold compilation remains part of performance reporting, separate
 from warmed execution.
 
-The private experimental ``GraphExecutor`` has a narrower implemented
-lifecycle:
-
-- its explicit tensor-pytree signature includes tree/alias structure, shape,
-  stride, storage offset, dtype, device, and layout;
-- incoming storage addresses are not signature fields: values are copied into
-  graph-owned stable buffers, so a compatible tensor with new storage replays
-  without re-recording;
-- a signature or sequential caller-stream change synchronizes and re-records;
-  a changing topology, target, or configuration hidden in the callable's
-  closure is not detected and requires an explicit ``reset()``;
-- record time may reserve graph-pool storage. The captured callable must not do
-  dynamic allocation, fallback, compilation, or host synchronization during
-  replay; cloned return values are produced outside the recorded program; and
-- phase or residual-structure changes belong in explicit inputs when values
-  alone change, or in a reset/separately recorded program when the executed
-  structure changes.
-
-CUDA tests cover fixed groups of nonlinear named-block LM updates, signature
-and stream re-recording, memory stability, and mixed Torch/Warp FK. They do not
-establish a package-level cache policy, a public captured solver lifecycle,
-arbitrary custom-residual eligibility, or an end-to-end IK speed claim. Any
-future production cache must additionally key topology and source/runtime
-versions, bound and expose eviction, and preserve results across cache misses.
+No package-level capture driver ships. Named-block LM `update` is designed as
+a fixed-shape, sync-free tensor step for eligible problems, but callers who
+experiment with CUDA graphs own stable storage, warmup, invalidation, replay
+parity, and the forward/backward lifecycle. No end-to-end IK capture speed
+claim is established.
 
 ## Provenance gate
 

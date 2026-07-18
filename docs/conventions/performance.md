@@ -84,8 +84,7 @@ We do **not** set targets for:
 Tensor kernels such as FK, residual evaluation, and analytic Jacobians
 accept `(B..., feature)` tensors and walk the robot topology **once** per
 call, regardless of `B`. Named-block Adam/LM/GN, `solve_ik`, and
-`solve_trajopt` preserve the same leading axes with per-element state; legacy
-flat optimizers remain single-problem. See
+`solve_trajopt` preserve the same leading axes with per-element state. See
 {doc}`/concepts/batching_and_backends`.
 
 ### 2.2 Static topology, dynamic values
@@ -127,9 +126,9 @@ boundaries are:
 
 1. `forward_kinematics.inner(q, joint_placements, ...)` — the topo walk.
 2. `compute_joint_jacobians.inner(joint_pose_world_stack, motion_subspaces, ...)`.
-3. `CostStack.__call__.inner(state)` — residual concatenation loop.
+3. Named-block `Problem` residual and Jacobian evaluation.
 
-The Jacobian and `CostStack` boundaries remain roadmap work. The outer
+The Jacobian and `Problem` boundaries remain roadmap work. The outer
 Python — `Model` construction, `Data` allocation, and solver iteration —
 stays eager.
 
@@ -153,23 +152,11 @@ the static model/problem structure and measured before it becomes a default.
 
 ### 2.6 CUDA graph capture for hot solver loops
 
-M6 includes an experimental internal
-`better_robot.optim._graph_executor.GraphExecutor` tensor-pytree harness with
-an eager CPU/disabled path. It is not a supported public API. A capture-ready
-callable needs fixed storage, a warm-up phase, controlled invalidation when
-shapes or storage change, and a replay lifecycle that records forward **and
-backward together**. Capturing only the forward pass would not preserve the
-intended autograd work on replay.
-
-M6's CUDA tests record and replay fixed groups of named-block LM updates,
-including jacrev work, with resize re-recording, memory stability, and mixed
-Torch/Warp FK parity. Scalar Python residual weights are materialized with a
-capture-safe device fill. Unsafe views are rejected before recording, and a
-signature or sequential caller-stream change triggers a synchronized
-re-record. Only explicit arguments are signatured; closure tensors and Python
-configuration must remain stable until `reset()`. The public solver `run` loop
-is still eager and no end-to-end IK graph benchmark is committed, so no public
-capture execution mode ships yet.
+No captured solver driver ships. Named-block LM `update` is fixed-shape and
+sync-free for eligible problems, but the public `run` loop is eager and no
+end-to-end IK graph benchmark is committed. A future capture path must own
+fixed storage, warmup, invalidation, and a replay lifecycle that covers the
+required forward and backward work together.
 
 ### 2.7 Current allocation and matrix-free limits
 
@@ -179,13 +166,10 @@ capture execution mode ships yet.
 - Named-block LM/GN retain dense assembly as the correctness route. A problem
   with one declared temporal block can instead assemble block-banded normal
   storage or use the explicit `NormalOperator`/`NormalCG` route.
-- `optim/cost_stack.py` assembles legacy residuals and Jacobians with
-  `torch.cat`; it does not own a persistent flat buffer.
 - Knot-based `solve_trajopt` uses route-aware named-block LM and reports the
   chosen dense or banded path. Undeclared residuals fall back to dense;
-  structured routing is never inferred from numerical zeros. The legacy Adam
-  and L-BFGS classes remain direct-use compatibility APIs. Manifold-safe spline
-  integration is still deferred.
+  structured routing is never inferred from numerical zeros. Manifold-safe
+  spline integration is still deferred.
 
 The memory values in §1.3 are tracked targets, not evidence that a 200-knot
 trajectory solve currently meets them.
@@ -231,10 +215,10 @@ pull-request trigger today.
 | Torch allocation inside a Python loop | `for ...: torch.zeros(...)` | Hoist or preallocate; named-block initialization has its narrow documented exemption. |
 | Rank branch through `.dim()` | `if x.dim() == 2: ...` | Follow the leading-batch convention instead of maintaining rank-specific paths. |
 
-The linter watches ``kinematics/``, ``dynamics/``, legacy
-``optim/optimizers/``, ``residuals/``, ``lie/``, and the two named-block solver
-files listed in the test. It does not claim a general all-``optim/`` walk or
-rules for arbitrary tensor conditionals, `.to()`, or `torch.cat`.
+The linter watches ``kinematics/``, ``dynamics/``, ``residuals/``, ``lie/``,
+and the two named-block solver files listed in the test. It does not claim a
+general all-``optim/`` walk or rules for arbitrary tensor conditionals,
+`.to()`, or `torch.cat`.
 
 ## 4 · Measurement — how we know
 
@@ -325,10 +309,8 @@ cache can avoid recompiling in non-cold developer or workflow runs.
 | `kinematics/jacobian.py` | Spatial Jacobian | Analytic; automatic compilation is roadmap work |
 | `dynamics/*.py` | RNEA / ABA / CRBA | Differentiable recursion; `compute_rnea_derivatives`, `compute_aba_derivatives`, and `compute_crba_derivatives` are autograd-derived |
 | `residuals/*.py` | Residual evaluation | Analytic blocks where implemented; temporal residuals declare exact knot offsets |
-| `optim/cost_stack.py` | Legacy concatenation | Fresh `torch.cat` assembly; no persistent flat buffer |
-| `optim/blocks/solver_adam.py` | Named-block first-order solve | Tangent objective VJP; no Jacobian assembly; no CUDA replay certification |
-| `optim/blocks/solver_lm.py` | Named-block LM/GN | Dense/banded/operator routing; fixed update groups have private GraphExecutor CUDA replay tests, while public `run` remains eager |
-| `optim/optimizers/*.py` | Legacy flat solver loops | Dense Jacobian path, including legacy Adam/L-BFGS; eager and single-problem |
+| `optim/blocks/solver_adam.py` | Named-block first-order solve | Tangent objective VJP; no Jacobian assembly |
+| `optim/blocks/solver_lm.py` | Named-block LM/GN | Dense/banded/operator routing; fixed-shape update and eager public `run` |
 | `optim/solvers/*.py` | Linear solves | Dense Cholesky/LSTSQ, block-banded Cholesky, and preconditioned normal CG |
 | `tasks/parameterization.py` | Numerical trajectory bases | B-spline compression utility; robot-manifold integration requires a separate reviewed design |
 | `collision/*.py` | Reserved geometry, distance, decomposition, and residual surfaces | Primitive containers only; computation and performance work are not shipped |

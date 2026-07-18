@@ -180,12 +180,10 @@ automatic broadcast-size warning.
 | `Data` | Yes | Mutated by kinematics / dynamics. Thread-local — do not share across threads without copying. |
 | `IKResult` | Yes | Plain dataclass containing tensors. Treat it as caller-owned result state; no immutability or view guarantee is promised. |
 | `Trajectory` | Yes | Plain dataclass; `slice` and `resample` return new instances, but fields and contained tensors are not frozen. |
-| `CostStack` | Yes | `.add(...)`, `.remove(...)`, `.set_weight(...)`, and `.set_active(...)` are the supported mutation methods; its `items` mapping contains mutable `CostItem` values. |
-| `LeastSquaresProblem` | Yes | Plain compatibility dataclass. Re-build or isolate it per solve instead of mutating shared state concurrently. |
 
 Do not infer deep immutability from a dataclass wrapper. Share model state only
 under the read-only discipline in {doc}`engineering`; keep mutable data,
-problems, stacks, results, and trajectories evaluation-local unless the caller
+solver state, results, and trajectories evaluation-local unless the caller
 provides its own synchronization.
 
 ## 5 · Autograd rules
@@ -195,7 +193,7 @@ provides its own synchronization.
   function differentiable. The complete matrix is in {doc}`engineering`.
 - The current `solve_ik` detaches its initial iterate and has no
   differentiable-solve guarantee.
-- Legacy `residual_jacobian(..., strategy=ANALYTIC)` uses the residual's
+- `residual_jacobian(..., strategy=ANALYTIC)` uses the residual's
   `.jacobian()` method. `strategy=AUTO` prefers analytic and falls back to
   unbatched central finite differences at a cost of `2·nv + 1` residual
   evaluations. The named-block `Problem` API separately supports analytic,
@@ -211,8 +209,6 @@ provides its own synchronization.
   immutable.
 - `Data` is mutable ⇒ one `Data` per thread. Use `data.clone()` for
   fork points.
-- `CostStack` is mutable; one per optimisation problem. Parallelising
-  over problems requires a fresh stack per thread.
 - The library does not call `torch.set_num_threads` internally; it
   inherits the user's setting.
 
@@ -269,16 +265,16 @@ a shim should add a focused warning test and removal version.
 
 | Tier | Meaning | Examples |
 |------|---------|----------|
-| Stable | SemVer-bound; major bump to remove or rename | `Model`, `Data`, `forward_kinematics`, `solve_ik`, `SE3`, `ModelBuilder`, `LeastSquaresProblem`, `Trajectory` |
-| Stable (Protocol) | Extending the protocol (adding methods) is a major bump; using existing methods is stable | `JointModel`, `Residual`, `Optimizer`, `LinearSolver`, `RobustKernel`, `DampingStrategy`, `TrajectoryParameterization`, `AssetResolver` |
-| Experimental | May change in minor releases with a deprecation warning | `solve_trajopt`, `compute_centroidal_map`, `BSplineTrajectory`, `MultiStageOptimizer` |
+| Stable | SemVer-bound; major bump to remove or rename | `Model`, `Data`, `forward_kinematics`, `solve_ik`, `SE3`, `ModelBuilder`, `Trajectory` |
+| Stable (Protocol) | Extending the protocol (adding methods) is a major bump; using existing methods is stable | `JointModel`, `Residual`, `LinearSolver`, `RobustKernel`, `TrajectoryParameterization`, `AssetResolver` |
+| Experimental | May change in minor releases with a deprecation warning | `solve_trajopt`, `compute_centroidal_map`, `BSplineTrajectory` |
 
 | Module | Stability |
 |--------|-----------|
 | `lie/`, `spatial/` | Stable from v1. Changes require major bump. |
 | `data_model/` | Stable from v1. Field renames follow §7.1 deprecation. |
 | `kinematics/`, `dynamics/` | Stable from v1. |
-| `residuals/`, `costs/`, `optim/` | Stable from v1 — Protocol signatures are frozen. |
+| `residuals/`, `optim/` | Stable from v1 — Protocol signatures are frozen. |
 | `tasks/` | Stable from v1 for IK; `solve_trajopt` is experimental. `TrajectoryParameterization` Protocol is stable. |
 | `collision/` | Experimental. |
 | `viewer/` | Experimental. The `RendererBackend` protocol refers only to scene rendering and is stable; concrete modes may iterate. |
@@ -307,7 +303,5 @@ These rules define the supported behavior described above:
 5. FK does not enforce position limits. ``solve_ik`` always supplies hard
    bounds; ``limit_weight`` only adds/removes its soft limit residual.
 6. `Data` is per-thread.
-7. `CostStack`, `LeastSquaresProblem` are per-optimisation.
-
 Break any of these and the library will do something, but we make no
 promise about what.

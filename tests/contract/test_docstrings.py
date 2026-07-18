@@ -10,6 +10,7 @@ from __future__ import annotations
 import inspect
 
 import better_robot
+from better_robot import exceptions
 
 
 def test_every_public_symbol_has_a_docstring() -> None:
@@ -27,23 +28,9 @@ def test_every_public_symbol_has_a_docstring() -> None:
 
 def test_exceptions_module_symbols_have_docstrings() -> None:
     """Every entry in ``better_robot.exceptions.__all__`` is documented."""
-    from better_robot import exceptions
-
     offenders: list[str] = []
     for name in exceptions.__all__:
         obj = getattr(exceptions, name)
         if not (inspect.getdoc(obj) or "").strip():
             offenders.append(name)
     assert not offenders, offenders
-
-
-def test_solver_state_is_documented() -> None:
-    """``SolverState`` is the shared optimiser record — must be documented."""
-    from better_robot.optim.state import SolverState
-
-    doc = inspect.getdoc(SolverState)
-    assert doc, "SolverState needs a purpose-statement docstring."
-    summary = doc.splitlines()[0].lower()
-    assert "iteration" in summary and "terminal" in summary, (
-        "SolverState's summary must describe its iteration and terminal roles."
-    )

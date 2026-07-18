@@ -1,7 +1,6 @@
 """Kinematic trajectory optimization as a named-block problem preset.
 
-The public ``CostStack`` remains the composition surface while this facade
-adapts its active soft items to one temporal ``q`` block.  Solver ownership is
+Residual items are adapted to one temporal ``q`` block. Solver ownership is
 otherwise entirely in :mod:`better_robot.optim`: this module contains no
 optimization loop or dense/structured dispatch of its own.
 
@@ -13,7 +12,7 @@ map and does not preserve bounds.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from copy import copy
 from dataclasses import dataclass, replace
 import math
@@ -21,7 +20,6 @@ from typing import Any, Literal
 
 import torch
 
-from ..costs.stack import CostStack
 from ..data_model.model import Model
 from ..kinematics.jacobian_strategy import JacobianStrategy
 from ..optim import (
@@ -44,10 +42,10 @@ from .trajectory import Trajectory
 
 
 class _CostResidualAdapter:
-    """Give one legacy ``CostStack`` item the named-block item identity.
+    """Give one trajectory residual the item identity expected by ``Problem``.
 
     Shipped trajectory residuals already accept named contexts.  Residuals
-    that predate that protocol and do not declare ``reads`` retain a dense AD
+    that do not declare ``reads`` retain a dense AD
     fallback through a lazily assembled ``ResidualState``.  Optional analytic
     and temporal hooks are exposed by normal attribute delegation, so their
     absence remains structurally meaningful to ``Problem``.
@@ -168,22 +166,22 @@ def _prepare_cost_residual(
     item_name: str,
     manifold: RobotConfig,
 ) -> Any:
-    """Clone one residual and fill legacy static-horizon metadata."""
+    """Clone one residual and fill static-horizon metadata."""
     prepared = copy(residual)
     declared_horizon = getattr(prepared, "horizon", None)
     if declared_horizon is not None and declared_horizon != horizon:
         raise ValueError(
-            f"Active cost item {item_name!r} declares horizon={declared_horizon}, but solve_trajopt horizon={horizon}"
+            f"Residual item {item_name!r} declares horizon={declared_horizon}, but solve_trajopt horizon={horizon}"
         )
 
     if isinstance(prepared, (VelocityResidual, AccelerationResidual)):
         if horizon < 3:
-            raise ValueError(f"Active cost item {item_name!r} requires horizon >= 3, got {horizon}")
+            raise ValueError(f"Residual item {item_name!r} requires horizon >= 3, got {horizon}")
         prepared.horizon = horizon
         prepared.dim = (horizon - 2) * model.nv
     elif isinstance(prepared, TimeIndexedResidual):
         if not 0 <= prepared.t_idx < horizon:
-            raise ValueError(f"Active cost item {item_name!r} has t_idx={prepared.t_idx} outside horizon={horizon}")
+            raise ValueError(f"Residual item {item_name!r} has t_idx={prepared.t_idx} outside horizon={horizon}")
         prepared.horizon = horizon
         prepared.inner = copy(prepared.inner)
         if getattr(prepared.inner, "model", False) is None and hasattr(prepared.inner, "model"):
@@ -204,26 +202,15 @@ def _prepare_cost_residual(
     return prepared
 
 
-def _active_soft_residuals(
-    cost_stack: CostStack,
+def _prepare_residuals(
+    items: Sequence[ResidualItem],
     *,
     model: Model,
     horizon: int,
     manifold: RobotConfig,
 ) -> tuple[ResidualItem, ...]:
-    if not isinstance(cost_stack, CostStack):
-        raise TypeError("cost_stack must be a better_robot.optim.CostStack")
     residuals: list[ResidualItem] = []
-    for item in cost_stack.items.values():
-        if not item.active:
-            continue
-        if item.kind != "soft":
-            raise NotImplementedError(
-                f"Active cost item {item.name!r} has kind={item.kind!r}; "
-                "solve_trajopt's named-block LM accepts soft least-squares "
-                "items only. Express the constraint as a residual or use a "
-                "constraint-capable task."
-            )
+    for item in items:
         prepared = _prepare_cost_residual(
             item.residual,
             model=model,
@@ -232,14 +219,13 @@ def _active_soft_residuals(
             manifold=manifold,
         )
         residuals.append(
-            ResidualItem(
-                item.name,
-                _CostResidualAdapter(item.name, prepared, model=model),
-                weight=item.weight,
+            replace(
+                item,
+                residual=_CostResidualAdapter(item.name, prepared, model=model),
             )
         )
     if not residuals:
-        raise ValueError("cost_stack must contain at least one active soft residual")
+        raise ValueError("residuals must contain at least one residual")
     return tuple(residuals)
 
 
@@ -272,7 +258,7 @@ def solve_trajopt(  # noqa: PLR0913, PLR0915 - explicit facade policy stays audi
     horizon: int,
     dt: float,
     initial_q_traj: torch.Tensor,
-    cost_stack: CostStack,
+    residuals: Sequence[ResidualItem],
     optimizer: LevenbergMarquardt | None = None,
     max_iter: int = 50,
     jacobian_strategy: JacobianStrategy = JacobianStrategy.AUTO,
@@ -285,8 +271,6 @@ def solve_trajopt(  # noqa: PLR0913, PLR0915 - explicit facade policy stays audi
     ``initial_q_traj`` is shaped ``(B..., T, nq)``.  ``optimizer=None``
     constructs route-aware named-block LM with ``linearization="auto"``;
     pass ``LevenbergMarquardt(linearization="dense")`` for the dense oracle.
-    Legacy objects from ``better_robot.optim.optimizers`` are intentionally
-    rejected because they own the removed flat ``LeastSquaresProblem`` seam.
     """
     if isinstance(horizon, bool) or not isinstance(horizon, int) or horizon <= 0:
         raise ValueError("horizon must be a positive int")
@@ -311,13 +295,6 @@ def solve_trajopt(  # noqa: PLR0913, PLR0915 - explicit facade policy stays audi
             "trajectory map and cannot preserve state bounds. Robot B-spline "
             "support remains explicitly deferred; use KnotTrajectory."
         )
-    if optimizer is not None and not isinstance(optimizer, LevenbergMarquardt):
-        raise TypeError(
-            "optimizer must be better_robot.optim.LevenbergMarquardt or None. "
-            "Legacy better_robot.optim.optimizers objects operate on "
-            "LeastSquaresProblem and cannot be used by the named-block "
-            "trajectory task."
-        )
     if not isinstance(jacobian_strategy, JacobianStrategy):
         raise ValueError(f"Unknown jacobian_strategy {jacobian_strategy!r}; expected a JacobianStrategy member")
 
@@ -337,15 +314,15 @@ def solve_trajopt(  # noqa: PLR0913, PLR0915 - explicit facade policy stays audi
     start = _hemisphere_align_robot_trajectory(start, manifold)
     start = manifold.project(start, bounds)
 
-    residuals = _active_soft_residuals(
-        cost_stack,
+    prepared_residuals = _prepare_residuals(
+        residuals,
         model=model,
         horizon=horizon,
         manifold=manifold,
     )
     problem = Problem(
         vars=(spec,),
-        residuals=residuals,
+        residuals=prepared_residuals,
         providers=(RobotStateProvider(model),),
     )
 

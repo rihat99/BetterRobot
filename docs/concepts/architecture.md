@@ -40,24 +40,19 @@ dynamics. A whole-pass kernel lives beside its Torch counterpart in the owning
 package; it is not a new dependency layer. Purely kinematic IK therefore does
 not pull dynamics into its import or compile path.
 
-The optimization layer retains two contracts. The direct-compatibility path
-keeps `residuals/` as functions of `(model, data, variables)`, composes them in
-`optim/CostStack`, and hands a
-`LeastSquaresProblem` to an optimizer. The old `better_robot.costs` import path
-is a forwarding compatibility package, not a dependency layer. The named-block
-path lives in `optim/blocks/`: a `Problem` owns `VarSpec`s, structural residual
-items, scalar objective items, and a provider DAG. Providers may reach directly
-to lower layers such as kinematics, while user residuals consume only the
-read-only context names they declare. Residual-owned `TemporalPattern` values
-remain below `optim`; the optimizer consumes them to build block-banded or
-operator representations without creating a reverse dependency.
+The optimization layer has one construction contract. A named-block `Problem`
+owns `VarSpec`s, structural residual items, scalar objective items, and a
+provider DAG. Providers may reach directly to lower layers such as kinematics,
+while user residuals consume only the read-only context names they declare.
+Residual-owned `TemporalPattern` values remain below `optim`; the optimizer
+consumes them to build block-banded or operator representations without
+creating a reverse dependency.
 
 `tasks/` is the topmost user-facing facade. `solve_ik` builds a named-block
 `Problem` with a `RobotConfig` variable and provider-backed built-in
-residuals. `solve_trajopt` adapts active soft `CostStack` items into one
-time-annotated `RobotConfig` block and uses route-aware named-block LM. Legacy
-callers may still invoke an optimizer's `minimize` method directly;
-named-block problems use the named-block solvers' `run` methods.
+residuals. `solve_trajopt` adapts an explicit sequence of `ResidualItem`
+values into one time-annotated `RobotConfig` block and uses route-aware LM.
+Direct problem callers use the same named-block solvers' `run` methods.
 
 `io/` and `viewer/` sit alongside the main spine, not above it. `io/`
 reads from `data_model/` only — the URDF parser does not invoke
@@ -93,7 +88,7 @@ with the offending file and line number if that rule breaks.
 | `kinematics` | FK, frame updates, Jacobians, local whole-pass kernels | `dynamics` / `residuals` / above |
 | `dynamics` | RNEA / ABA / CRBA / centroidal algorithms and local whole-pass kernels | `residuals` / above |
 | `residuals` | Pure residual functions | `optim` / `tasks` / `io` / `viewer` |
-| `optim` | Named-block `Problem` evaluation plus legacy `CostStack` / `LeastSquaresProblem`, optimizers, linear solvers, kernels, and damping | `tasks` / `io` / `viewer` |
+| `optim` | Named-block `Problem` evaluation, Adam/LM/GN, linear solvers, robust kernels, and structure types | `tasks` / `io` / `viewer` |
 | `collision` | Reserved primitive, pair-dispatch, and robot-decomposition surfaces (computation is stubbed) | `tasks` / `io` / `viewer` |
 | `io` | Parsers, IR, builders | `tasks` / `viewer` |
 | `tasks` | `solve_ik`, `solve_trajopt`, `solve_contact_forces`, and trajectory types | `viewer` |
@@ -159,18 +154,10 @@ src/better_robot/
 │   └── contact.py
 │
 ├── optim/
-│   ├── cost_stack.py              # legacy flat-residual CostStack
-│   ├── problem.py                 # LeastSquaresProblem
 │   ├── blocks/                    # named Problem / VarSpec / manifolds / temporal assembly
 │   ├── structure.py               # bands, normal operators, route decisions
-│   ├── state.py                   # SolverState
-│   ├── optimizers/                # LM / GN / Adam / LBFGS / MultiStage
 │   ├── solvers/                   # Cholesky / LSTSQ / BandedCholesky / NormalCG
-│   ├── kernels/                   # L2 / Huber / Cauchy / Tukey / GemanMcClure
-│   └── strategies/                # legacy Constant / Adaptive
-│
-├── costs/                         # forwarding compatibility package
-│   └── stack.py                   # re-exports optim.cost_stack identities
+│   └── kernels/                   # L2 / Huber / Cauchy / Tukey / GemanMcClure
 │
 ├── tasks/
 │   ├── ik.py                      # solve_ik
@@ -221,8 +208,6 @@ __all__ = [
     "JacobianStrategy",
     # dynamics (5)
     "rnea", "aba", "crba", "center_of_mass", "compute_centroidal_map",
-    # optim (2)
-    "CostStack", "LeastSquaresProblem",
     # tasks (4)
     "solve_ik", "solve_trajopt", "solve_contact_forces", "Trajectory",
 ]
@@ -242,7 +227,6 @@ are not in the top-level `__all__`:
 from better_robot.lie         import SO3, Pose
 from better_robot.spatial     import Motion, Force, Inertia, Symmetric3
 from better_robot.kinematics  import ReferenceFrame
-from better_robot.optim.state import SolverState
 from better_robot.tasks.ik    import IKResult, IKCostConfig, OptimizerConfig
 
 from better_robot.optim import (
@@ -264,7 +248,7 @@ paths so a refactor cannot silently move them.
 
 ## Extension seams
 
-Growth uses several explicit seams. Residuals, joints, optimizers, linear
+Growth uses several explicit seams. Residuals, joints, solver lifecycles, linear
 solvers, render modes, trajectory parameterizations, and asset resolvers have
 structural or class contracts; parser discovery is a suffix registry plus
 loader function. Collision and actuator surfaces are reserved sketches rather
@@ -284,18 +268,13 @@ not a public plugin Protocol or process-wide registry.
 - **`data_model/joint_models/` one-file-per-joint.** Adding a new
   joint kind is an isolated change. See
   {doc}`joints_bodies_frames`.
-- **Two Jacobian boundaries with different jobs.** Direct flat compatibility
-  callers use the unified residual Jacobian dispatch, which selects an
-  analytic Jacobian or the unbatched central-finite-difference fallback.
-  Named-block `Problem`
-  evaluation instead assembles per-residual, per-variable tangent blocks and
-  uses `torch.func` forward/reverse AD when an analytic block is absent. See
-  {doc}`kinematics` and {doc}`solver_stack`.
-- **Residuals never reach into solvers.** Legacy built-ins live above
-  kinematics and compose through optimizer-owned `CostStack`. Named-block
-  residuals are structural consumers of declared context names;
-  evaluation-local providers own shared FK or other expensive lower-layer
-  work. Both routes preserve the downward dependency rule while they coexist.
+- **One Jacobian boundary.** Named-block `Problem` evaluation assembles
+  per-residual, per-variable tangent blocks and uses `torch.func`
+  forward/reverse AD when an analytic block is absent. See {doc}`kinematics`
+  and {doc}`solver_stack`.
+- **Residuals never reach into solvers.** Residuals are structural consumers
+  of declared context names; evaluation-local providers own shared FK or other
+  expensive lower-layer work. This preserves the downward dependency rule.
   `tasks/` remains the top user-facing facade.
 - **`io` and `viewer` siblings of `tasks`, not ancestors.** `load()`
   never constructs a `Task`; it returns a `Model`. The viewer is

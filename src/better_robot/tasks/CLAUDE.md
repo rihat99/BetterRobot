@@ -22,7 +22,7 @@ Assembles one bounded `RobotConfig` block, `PoseResidual` items, optional limit/
 
 ## solve_trajopt
 
-Adapts active soft `CostStack` items into one `VarSpec("q", (T, nq), RobotConfig(model), time_axis=0)` with a lazy `RobotStateProvider`. Route-aware named-block LM chooses the banded path when every residual declares temporal blocks; forced dense remains the parity oracle and explicit `matrix_free` uses the normal-operator route. `TrajOptResult` exposes `linearization_requested`, `linearization_used`, `linearization_reason`, and `linearization_detail`. Arbitrary leading batch axes return per-element iterations, convergence, and status. Legacy optimizer objects and constraint-kind items fail actionably. `BSplineTrajectory` remains a Euclidean numerical basis utility and is rejected until a separately reviewed manifold-safe mapping exists.
+Adapts an explicit sequence of `ResidualItem` values into one `VarSpec("q", (T, nq), RobotConfig(model), time_axis=0)` with a lazy `RobotStateProvider`. Route-aware named-block LM chooses the banded path when every residual declares temporal blocks; forced dense remains the parity oracle and explicit `matrix_free` uses the normal-operator route. `TrajOptResult` exposes `linearization_requested`, `linearization_used`, `linearization_reason`, and `linearization_detail`. Arbitrary leading batch axes return per-element iterations, convergence, and status. Callers omit residuals they do not want to solve. `BSplineTrajectory` remains a Euclidean numerical basis utility and is rejected until a separately reviewed manifold-safe mapping exists.
 
 ## solve_contact_forces
 

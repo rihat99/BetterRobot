@@ -166,13 +166,12 @@ are allowed. Tensor-dependent choices use fixed-shape operations such as
 when autodiff supplies a block, its transformed residual/provider path must
 also satisfy them.
 
-A non-eligible residual is still supported by the detached eager `run` loop;
-it simply must not be placed in a captured driver. The hot-path lint and a CPU
+A non-eligible residual is still supported by the detached eager `run` loop.
+The hot-path lint and a CPU
 `torch.compile(fullgraph=True)` smoke test catch common graph breaks, but
-neither proves CUDA graph safety. M6 added a private reusable
-`GraphExecutor` harness and CUDA replay evidence for fixed LM update groups;
-each custom residual still needs warmup plus actual capture/replay parity,
-including any custom-kernel adjoints. The public solver loop remains eager.
+neither proves CUDA graph safety. A caller-owned captured driver needs warmup
+plus actual capture/replay parity, including any custom-kernel adjoints. The
+public solver loop remains eager.
 
 ## Verification checklist
 
@@ -185,5 +184,5 @@ Before shipping a custom residual:
 4. compare analytic blocks with forced reverse and forward AD, if supplied;
 5. test mask-reduced columns and robust `group_size` boundaries;
 6. test one invalid batch element without raising or corrupting its neighbors;
-7. if capture matters, run the fixed-shape fullgraph smoke and M6 replay-parity
-   harness rather than treating eager success as certification.
+7. if capture matters, run the fixed-shape fullgraph smoke and caller-owned
+   replay parity rather than treating eager success as certification.

@@ -1,16 +1,13 @@
 """``Residual`` protocol and ``ResidualState`` struct.
 
 Every residual is a **callable object** — not a plain function — so it can
-optionally own an analytic ``.jacobian()``. The legacy fallback is central
+optionally own an analytic ``.jacobian()``. The state-based fallback is central
 finite differences in ``kinematics.jacobian.residual_jacobian``. Named-block
-``Problem`` evaluation separately provides ``torch.func``
-Jacobian strategies; this legacy dispatcher remains analytic/finite-difference.
+``Problem`` evaluation separately provides ``torch.func`` Jacobian strategies.
 
-Legacy trajectory residuals can also implement
-``apply_jac_transpose(state, vec) -> Tensor`` to compute ``J^T @ vec`` through
-``LeastSquaresProblem.gradient``. No production solver or task calls that
-gradient path; it is retained only for the matrix-free contract tests. The
-default implementation builds the dense Jacobian and multiplies.
+State-based trajectory residuals can also implement
+``apply_jac_transpose(state, vec) -> Tensor`` for direct transpose-Jacobian
+products. The default implementation builds the dense Jacobian and multiplies.
 
 See ``docs/concepts/residuals_and_costs.md`` ("The Residual Protocol") and
 ``docs/concepts/kinematics.md`` ("The unified Jacobian dispatch").

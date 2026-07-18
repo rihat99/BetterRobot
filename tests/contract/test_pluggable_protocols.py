@@ -1,9 +1,8 @@
-"""Conformance tests for the three pluggable Protocols.
+"""Conformance tests for the retained pluggable Protocols.
 
 * ``LinearSolver`` — every concrete solver in ``optim.solvers`` satisfies
   ``isinstance(obj, LinearSolver)`` (``runtime_checkable`` protocol).
-* ``DampingStrategy`` — same for ``optim.strategies``.
-* ``RobustKernel`` — same for ``optim.kernels``.
+* ``RobustKernel`` — every concrete kernel satisfies the same contract.
 
 See ``docs/conventions/extension.md §§4–6``.
 """
@@ -21,19 +20,11 @@ from better_robot.optim.kernels.tukey import Tukey
 from better_robot.optim.solvers.base import LinearSolver
 from better_robot.optim.solvers.cholesky import Cholesky
 from better_robot.optim.solvers.lstsq import LSTSQ
-from better_robot.optim.strategies.adaptive import Adaptive
-from better_robot.optim.strategies.base import DampingStrategy
-from better_robot.optim.strategies.constant import Constant
 
 
 @pytest.mark.parametrize("cls", [Cholesky, LSTSQ])
 def test_linear_solver_protocol(cls) -> None:
     assert isinstance(cls(), LinearSolver)
-
-
-@pytest.mark.parametrize("cls", [Adaptive, Constant])
-def test_damping_strategy_protocol(cls) -> None:
-    assert isinstance(cls(), DampingStrategy)
 
 
 @pytest.mark.parametrize("cls", [L2, Huber, Cauchy, Tukey])

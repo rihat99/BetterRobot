@@ -79,8 +79,8 @@ class ShapeError(BetterRobotError, ValueError):
 class ConvergenceError(BetterRobotError, RuntimeError):
     """Optimizer exited without reaching the requested tolerance.
 
-    Not always a bug: inspect the returned ``SolverState`` for the final
-    residual norm and gain ratio. ``solve_ik`` returns a non-converged
+    Not always a bug: inspect the returned solver state for final diagnostics.
+    ``solve_ik`` returns a non-converged
     ``IKResult`` instead of raising; callers may choose to promote that state
     into this exception.
     """

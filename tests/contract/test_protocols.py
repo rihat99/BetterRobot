@@ -23,15 +23,8 @@ from better_robot.data_model.joint_models import (
 )
 from better_robot.optim.kernels import Cauchy, Huber, L2
 from better_robot.optim.kernels.base import RobustKernel
-from better_robot.optim.optimizers.adam import Adam
-from better_robot.optim.optimizers.base import Optimizer
-from better_robot.optim.optimizers.gauss_newton import GaussNewton
-from better_robot.optim.optimizers.lbfgs import LBFGS
-from better_robot.optim.optimizers.levenberg_marquardt import LevenbergMarquardt
 from better_robot.optim.solvers import LSTSQ, Cholesky
 from better_robot.optim.solvers.base import LinearSolver
-from better_robot.optim.strategies import Adaptive, Constant
-from better_robot.optim.strategies.base import DampingStrategy
 from better_robot.residuals.base import Residual
 from better_robot.residuals.pose import OrientationResidual, PoseResidual, PositionResidual
 from better_robot.viewer.render_modes.base import RenderMode
@@ -44,7 +37,7 @@ def _is_runtime_checkable(proto: type) -> bool:
 
 @pytest.mark.parametrize(
     "proto",
-    [Residual, Optimizer, LinearSolver, DampingStrategy, RobustKernel, JointModel, RenderMode],
+    [Residual, LinearSolver, RobustKernel, JointModel, RenderMode],
 )
 def test_protocol_is_runtime_checkable(proto: type) -> None:
     """Every extension-seam Protocol must support ``isinstance``."""
@@ -70,28 +63,12 @@ def test_residual_instances_satisfy_protocol() -> None:
     assert isinstance(ori, Residual)
 
 
-# ── Optimizers ────────────────────────────────────────────────────────────────
-
-
-@pytest.mark.parametrize("cls", [LevenbergMarquardt, GaussNewton, Adam, LBFGS])
-def test_optimizer_instances_satisfy_protocol(cls: type) -> None:
-    assert isinstance(cls(), Optimizer), cls.__name__
-
-
 # ── Linear solvers ────────────────────────────────────────────────────────────
 
 
 @pytest.mark.parametrize("cls", [Cholesky, LSTSQ])
 def test_linear_solver_instances_satisfy_protocol(cls: type) -> None:
     assert isinstance(cls(), LinearSolver), cls.__name__
-
-
-# ── Damping strategies ───────────────────────────────────────────────────────
-
-
-@pytest.mark.parametrize("cls", [Adaptive, Constant])
-def test_damping_strategy_instances_satisfy_protocol(cls: type) -> None:
-    assert isinstance(cls(), DampingStrategy), cls.__name__
 
 
 # ── Robust kernels ────────────────────────────────────────────────────────────

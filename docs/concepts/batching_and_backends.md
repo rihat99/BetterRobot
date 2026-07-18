@@ -5,8 +5,7 @@ an empty or multi-axis batch prefix and ``feature`` is the semantic last
 axis. A single pose is ``(7,)``; a batch of one is ``(1, 7)``. FK,
 residuals, and analytic Jacobians support leading batches. Named-block
 ``Problem``, Adam/LM/GN, phases, and ``solve_ik`` preserve arbitrary common
-leading axes with independent per-element state. The legacy flat optimizers
-remain single-problem.
+leading axes with independent per-element state.
 
 BetterRobot has one public tensor API and a whole-pass compute seam. The
 canonical lane is eager or caller-compiled Torch. An opt-in Warp lane may
@@ -183,16 +182,10 @@ passes explicitly; see {doc}`/conventions/performance` for current coverage.
 
 ## CUDA graph capture
 
-The experimental internal
-`better_robot.optim._graph_executor.GraphExecutor` harness is a tensor-only
-pytree wrapper with CPU/disabled eager fallback, side-stream warmup, lazy
-recording, input-copy replay, controlled resize/stream re-recording, and
-cloned outputs. CUDA tests certify fixed groups of named-block LM updates
-(including changing nonlinear jacrev work) and a mixed Torch/Warp FK graph.
-It is not exported as public API. The public LM `run` loop is not wired to it
-and no end-to-end IK capture benchmark exists. Only explicit inputs are
-signatured, so closure state must stay fixed until reset. Ordinary solves
-remain eager.
+No public or internal captured solver driver ships. Named-block LM `update`
+is fixed-shape and sync-free for eligible problems, but the public `run` loop
+is eager and no end-to-end IK capture benchmark exists. Callers experimenting
+with capture own warmup, stable storage, invalidation, and replay parity.
 
 ## Requirements for an opt-in kernel lane
 

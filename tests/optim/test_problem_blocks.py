@@ -284,7 +284,7 @@ def test_scalar_term_weighted_gradient_diagnostics_and_second_order_fence() -> N
         expected = (
             "problem contains scalar objective term(s) ['quadratic'] — "
             f"{method} minimize sums of squared residual vectors and cannot consume "
-            "scalar terms. Run these terms in a first-order phase (Adam/LBFGS), "
+            "scalar terms. Run these terms in a first-order phase (for example Adam), "
             "or reformulate them as residual vectors."
         )
         with pytest.raises(ValueError) as caught:

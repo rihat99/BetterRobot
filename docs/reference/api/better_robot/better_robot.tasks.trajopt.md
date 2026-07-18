@@ -153,7 +153,7 @@
 
 `````
 
-````{py:function} solve_trajopt(model: better_robot.data_model.model.Model, *, horizon: int, dt: float, initial_q_traj: torch.Tensor, cost_stack: better_robot.costs.stack.CostStack, optimizer: better_robot.optim.LevenbergMarquardt | None = None, max_iter: int = 50, jacobian_strategy: better_robot.kinematics.jacobian_strategy.JacobianStrategy = JacobianStrategy.AUTO, lower: torch.Tensor | None = None, upper: torch.Tensor | None = None, parameterization: better_robot.tasks.parameterization.KnotTrajectory | None = None) -> better_robot.tasks.trajopt.TrajOptResult
+````{py:function} solve_trajopt(model: better_robot.data_model.model.Model, *, horizon: int, dt: float, initial_q_traj: torch.Tensor, residuals: collections.abc.Sequence[better_robot.optim.ResidualItem], optimizer: better_robot.optim.LevenbergMarquardt | None = None, max_iter: int = 50, jacobian_strategy: better_robot.kinematics.jacobian_strategy.JacobianStrategy = JacobianStrategy.AUTO, lower: torch.Tensor | None = None, upper: torch.Tensor | None = None, parameterization: better_robot.tasks.parameterization.KnotTrajectory | None = None) -> better_robot.tasks.trajopt.TrajOptResult
 :canonical: better_robot.tasks.trajopt.solve_trajopt
 
 ```{autodoc2-docstring} better_robot.tasks.trajopt.solve_trajopt

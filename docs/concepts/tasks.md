@@ -242,7 +242,7 @@ def solve_trajopt(
     horizon: int,
     dt: float,
     initial_q_traj: torch.Tensor,
-    cost_stack: CostStack,
+    residuals: Sequence[ResidualItem],
     optimizer: LevenbergMarquardt | None = None,
     max_iter: int = 50,
     jacobian_strategy: JacobianStrategy = JacobianStrategy.AUTO,
@@ -252,10 +252,9 @@ def solve_trajopt(
 ) -> TrajOptResult:
     """Kinematic trajectory optimisation.
 
-    KnotTrajectory is the only supported robot parameterisation. Active soft
-    CostStack items are adapted to a named temporal q block. None constructs
-    route-aware LM; pass named-block LM with linearization="dense" for the
-    dense oracle.
+    KnotTrajectory is the only supported robot parameterisation. Residual
+    items are adapted to a named temporal q block. None constructs route-aware
+    LM; pass named-block LM with linearization="dense" for the dense oracle.
     """
 ```
 
@@ -372,9 +371,8 @@ without a release note, but the internals may iterate.
   numerical basis, not a manifold-aware robot parameterisation. Use
   `KnotTrajectory` until a reviewed spline-on-manifold mapping supplies the
   required retraction, Jacobian, and bound semantics.
-- **Trajectory constraints are not silently softened.** `solve_trajopt`
-  accepts active `CostStack` items of kind `"soft"`; constraint-kind items
-  and legacy flat optimizer objects fail with migration guidance. Results
+- **Trajectory residual selection is explicit.** `solve_trajopt` evaluates the
+  `ResidualItem` values the caller passes; omit a term to disable it. Results
   report requested/used linearization, reason/detail, and per-batch LM status.
 - **`Trajectory.resample(..., kind="sclerp")` has one fixed pose layout.**
   It applies quaternion SLERP only to indices `3:7`; other coordinates and
@@ -383,8 +381,7 @@ without a release note, but the internals may iterate.
 
 ## Where to look next
 
-- {doc}`solver_stack` — named-block Adam/LM/GN and automatic temporal routing,
-  plus the retained legacy direct-use stack.
+- {doc}`solver_stack` — named-block Adam/LM/GN and automatic temporal routing.
 - {doc}`residuals_and_costs` — the residual library that
   `solve_ik` and `solve_trajopt` compose.
 - {doc}`viewer` — interactive IK with a draggable target gizmo

@@ -40,10 +40,7 @@ def _layer_of(module_parts: tuple[str, ...]) -> str | None:
     """Return the top-level sub-package name, or ``None`` for the root."""
     if not module_parts:
         return None
-    layer = module_parts[0]
-    # ``costs`` is a compatibility import path, not a separate dependency
-    # layer; its implementation lives in ``optim``.
-    return "optim" if layer == "costs" else layer
+    return module_parts[0]
 
 
 def _iter_py_files() -> Iterable[Path]:
@@ -156,17 +153,10 @@ def test_retired_compute_backends_package_is_absent() -> None:
     assert not (SRC / "backends").exists()
 
 
-def test_costs_package_is_an_optim_compatibility_path() -> None:
-    """The retired layer may contain forwarding modules, not implementation."""
+def test_retired_costs_package_is_absent() -> None:
+    """The retired compatibility package must not grow back."""
     assert "costs" not in LAYER_RANK
-    assert _layer_of(("costs", "stack")) == "optim"
-
-    costs_dir = SRC / "costs"
-    python_files = {path.name for path in costs_dir.glob("*.py")}
-    assert python_files == {"__init__.py", "stack.py"}
-
-    tree = ast.parse((costs_dir / "stack.py").read_text())
-    assert not any(isinstance(node, (ast.ClassDef, ast.FunctionDef)) for node in tree.body)
+    assert not (SRC / "costs").exists()
 
 
 def test_no_pypose_imports() -> None:

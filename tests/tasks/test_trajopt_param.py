@@ -15,11 +15,10 @@ import math
 import pytest
 import torch
 
-from better_robot.costs.stack import CostStack
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics.forward import forward_kinematics
-from better_robot.optim import LevenbergMarquardt
+from better_robot.optim import LevenbergMarquardt, ResidualItem
 from better_robot.residuals.pose import PoseResidual
 from better_robot.residuals.temporal import TimeIndexedResidual
 from better_robot.tasks.parameterization import (
@@ -96,10 +95,15 @@ def test_solve_trajopt_with_knots_reaches_target() -> None:
     target = forward_kinematics(model, q0, compute_frames=True).frame_pose_world[fid].clone()
     target[..., 0] += 0.03
 
-    stack = CostStack()
-    stack.add(
-        "pose_final",
-        TimeIndexedResidual(PoseResidual(frame_id=fid, target=target), t_idx=T - 1),
+    residuals = (
+        ResidualItem(
+            "pose_final",
+            TimeIndexedResidual(
+                PoseResidual(frame_id=fid, target=target),
+                t_idx=T - 1,
+                name="pose_final",
+            ),
+        ),
     )
 
     res = solve_trajopt(
@@ -107,7 +111,7 @@ def test_solve_trajopt_with_knots_reaches_target() -> None:
         horizon=T,
         dt=0.05,
         initial_q_traj=initial_q_traj,
-        cost_stack=stack,
+        residuals=residuals,
         optimizer=LevenbergMarquardt(max_iter=20),
         parameterization=KnotTrajectory(),
     )
@@ -129,7 +133,7 @@ def test_solve_trajopt_rejects_floating_base_bspline() -> None:
             horizon=horizon,
             dt=0.05,
             initial_q_traj=q_seed,
-            cost_stack=CostStack(),
+            residuals=(),
             parameterization=BSplineTrajectory(num_control_points=4),
         )
 
@@ -145,7 +149,7 @@ def test_solve_trajopt_rejects_bounded_bspline() -> None:
             horizon=horizon,
             dt=0.05,
             initial_q_traj=q_seed,
-            cost_stack=CostStack(),
+            residuals=(),
             lower=torch.full_like(model.q_neutral, -0.25),
             upper=torch.full_like(model.q_neutral, 0.25),
             parameterization=BSplineTrajectory(num_control_points=4),
@@ -163,6 +167,6 @@ def test_solve_trajopt_rejects_multistage_bspline() -> None:
             horizon=horizon,
             dt=0.05,
             initial_q_traj=q_seed,
-            cost_stack=CostStack(),
+            residuals=(),
             parameterization=BSplineTrajectory(num_control_points=4),
         )

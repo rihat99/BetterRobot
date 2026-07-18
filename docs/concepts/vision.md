@@ -45,13 +45,11 @@ makes G1 humanoid IK use the same call as Panda IK without ceremony.
 
 The fourth and fifth commitments fall out of those:
 
-**One forward direction for optimisation, with compatibility kept explicit.**
+**One forward direction for optimisation.**
 IK and knot trajectory optimisation construct named-block `Problem` instances
 with `VarSpec` variables, structural residuals, providers, and batched solver
-state. The older flat `CostStack` / `LeastSquaresProblem` / `Optimizer` stack
-remains available to direct compatibility callers, but no shipped task depends
-on it. New multi-block work belongs on the named-block contract rather than a
-third solver abstraction.
+state. Direct callers use that same construction and solver lifecycle; new
+multi-block work belongs on this contract rather than a parallel abstraction.
 
 **A whole-pass compute seam that does not leak runtime types.** The direct
 Torch math and raw algorithm passes are the default. `ModelStructure` and
@@ -85,11 +83,10 @@ Implemented and tested: forward kinematics; analytic Jacobians with an
 unbatched central finite-difference fallback; the
 residual library (pose / position / orientation, joint position
 limits, rest, contact consistency, reference trajectories, velocity
-and acceleration smoothness, time-indexed residuals); `CostStack`;
-LM, GN, Adam, L-BFGS, and multi-stage optimisers; dense, block-banded, and
+and acceleration smoothness, time-indexed residuals); named-block LM, GN,
+Adam, and functional phases; dense, block-banded, and
 normal-operator linear solvers (Cholesky, LSTSQ, BandedCholesky, NormalCG); pluggable robust
-kernels (L2, Huber, Cauchy, Tukey, Geman–McClure) and damping strategies (Constant,
-Adaptive); batched IK on fixed and floating-base robots;
+kernels (L2, Huber, Cauchy, Tukey, Geman–McClure); batched IK on fixed and floating-base robots;
 trajectory optimisation with knot parameterisation and automatic banded/dense
 routing (the Euclidean B-spline basis remains a numerical utility, not a
 robot-manifold map);
@@ -99,9 +96,8 @@ and the autograd-derived `compute_rnea_derivatives`,
 `ModelBuilder`; a CUDA-validated, explicitly selected fused Warp FK lane
 whose backward recomputes the Torch oracle; and a viewer with skeleton and
 URDF-mesh render modes, draggable IK target gizmos, and trajectory playback.
-An internal experimental CUDA-graph harness certifies fixed groups of
-named-block LM updates, but the public solver loop remains eager and has no
-end-to-end IK capture benchmark.
+The public solver loop remains eager and has no end-to-end IK capture
+benchmark.
 
 A handful of named symbols are deliberately stubbed — they have the
 correct signatures, raise `NotImplementedError`, and are listed in
@@ -148,10 +144,9 @@ choices:
 - {doc}`dynamics` covers RNEA, ABA, CRBA, the centroidal map, and
   rigid-body state manifolds; removed action-model placeholders are documented
   there as future work.
-- {doc}`residuals_and_costs` is the residual library plus
-  `CostStack`.
-- {doc}`solver_stack` covers the named-block `Problem`/solver stack and the
-  retained flat `LeastSquaresProblem` compatibility surface.
+- {doc}`residuals_and_costs` covers structural residuals and explicit problem
+  composition.
+- {doc}`solver_stack` covers the named-block `Problem` and solver lifecycle.
 - {doc}`tasks` is `solve_ik`, `solve_trajopt`, and `Trajectory`.
 - {doc}`collision_and_geometry` records the reserved, currently stubbed
   collision surface.

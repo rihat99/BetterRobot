@@ -13,8 +13,6 @@
 :titlesonly:
 :maxdepth: 3
 
-better_robot.optim.strategies
-better_robot.optim.optimizers
 better_robot.optim.kernels
 better_robot.optim.solvers
 ```
@@ -25,8 +23,5 @@ better_robot.optim.solvers
 :titlesonly:
 :maxdepth: 1
 
-better_robot.optim.cost_stack
-better_robot.optim.state
-better_robot.optim.problem
 better_robot.optim.structure
 ```

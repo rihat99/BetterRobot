@@ -28,7 +28,6 @@ entries.
 - `src/better_robot/dynamics/integrators.py`
 - `src/better_robot/dynamics/rnea.py`
 - `src/better_robot/io/build_model.py`
-- `src/better_robot/optim/state.py`
 - `src/better_robot/residuals/collision.py`
 - `src/better_robot/residuals/contact.py`
 - `src/better_robot/residuals/limits.py`
@@ -89,8 +88,8 @@ Explicit matrix-free routing uses `NormalOperator`/`NormalCG`.
 make it a robot-manifold map, and robot use stays rejected pending a separate
 reviewed interpolation/retraction and bound contract. Schur elimination for a
 temporal block plus shared variables is likewise deferred until a second
-production caller exists. The former retargeting placeholder was removed; see
-{doc}`m1_removed_symbols`.
+production caller exists. The former retargeting placeholder was removed;
+build retargeting explicitly from trajectory residuals and `solve_trajopt`.
 
 ## Viewer
 
@@ -125,15 +124,13 @@ compilation and broader boundaries remain roadmap work:
 
 | Symbol | File |
 |---|---|
-| Automatic `@torch.compile(fullgraph=True)` on public FK / Jacobian / `CostStack` | not applied; raw FK supports explicit caller-side compilation |
+| Automatic `@torch.compile(fullgraph=True)` on public FK / Jacobian / `Problem` evaluation | not applied; raw FK supports explicit caller-side compilation |
 | `@cache_kernel` adaptive dispatch | not yet wired |
 | `BR_PROFILE=1` env hook | not yet wired |
 
-No public capture decorator, context manager, or captured solver mode ships
-today. The private experimental ``GraphExecutor`` records and replays
-tensor-pytree callables and has CUDA tests for fixed named-block LM update
-groups and mixed Torch/Warp FK. Public solver ``run`` remains eager, and an
-end-to-end IK capture lifecycle and benchmark are still open.
+No public or internal capture driver, context manager, or captured solver mode
+ships today. Public solver ``run`` remains eager, and an end-to-end IK capture
+lifecycle and benchmark are still open.
 
 ## How to close an entry
 

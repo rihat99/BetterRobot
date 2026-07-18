@@ -1,12 +1,12 @@
-# optim/ — Legacy Solvers and Named-Block Optimization
+# optim/ — Named-Block Optimization
 
-Two optimization surfaces coexist. Keep their types and capabilities separate.
+One optimization surface is supported: named variables and residuals in a
+`Problem`, consumed directly by the named-block solvers.
 
 ## Status at a Glance
 
 | Surface | Problem type | What is implemented |
 |---|---|---|
-| Legacy solver stack | `optim.problem.LeastSquaresProblem` | Flat-variable `CostStack`; LM/GN/Adam/LBFGS/MultiStage; direct compatibility use through `Optimizer.minimize` |
 | Named-block layer | `optim.blocks.problem.Problem` | Manifold blocks/providers/evaluation, matrix-free batched Adam, dense/banded/operator LM/GN, robust groups, and projected active-set bounds |
 
 Named-block residual-vector problems use
@@ -43,9 +43,6 @@ There are two different kinds of bounds:
 - Trust regions, step clamps, and other **tangent-space** limits belong to a
   solver. The shipped active-set solver consumes state-space `Bounds`; it does
   not reinterpret them as tangent boxes.
-
-The legacy `LeastSquaresProblem.lower/upper` pair is separate, older
-projection-only solver behavior; it is not the named-block `Bounds` contract.
 
 ## Residuals, Scalar Objectives, and Linearization
 
@@ -142,11 +139,8 @@ per-element step/cost/gradient/status leaves. Its update calls only the
 prevalidated tangent objective VJP plus feasible retraction; Jacobian assembly
 is forbidden. `run` is detached and warm starts retain moments/step counts only
 across an exactly compatible named reduced layout. Batched named-block LBFGS is
-deferred; do not port the scalar dense-J legacy history.
-
-The legacy optimizers remain single-problem direct-use solvers. `solve_ik` and
-knot `solve_trajopt` use the named-block stack. Do not pass a block `Problem`
-to a legacy optimizer merely because its evaluation methods are batched.
+deferred; it requires per-element histories, line searches, and curvature
+reset rules.
 
 ## Named-Block Solver Lifecycle
 
@@ -196,49 +190,16 @@ final-point KKT evaluation also passes.
 hyperparameters are frozen Python configuration. `update` must stay
 fixed-shape, sync-free, input-pure, and tensor-branching only. Public/static
 validation belongs to `init_state`; the eager `run` boundary may perform one
-all-terminal host check per iteration. The internal experimental
-`GraphExecutor` CUDA harness certifies fixed groups of `update` calls,
-including nonlinear jacrev work, resize, and mixed Torch/Warp replay. It is
-not exported as public API. `run` itself remains eager and has no end-to-end
-graph benchmark. Only explicit call arguments participate in the graph
-signature; keep closure state fixed until reset and pass changing targets as
-explicit inputs. Custom residuals/providers that use dynamic shapes, host
-syncs, or value-keyed Python caches remain eager-only.
+all-terminal host check per iteration. `run` remains eager and has no
+end-to-end graph-capture benchmark. Custom residuals/providers that use
+dynamic shapes, host syncs, or value-keyed Python caches remain eager-only.
 
 Finite Euclidean/configuration bounds use a restricted active-set normal
 system plus projected-gradient KKT termination. Finite world-axis boxes on
 free-flyer translation are rejected because the solver tangent is right-local.
 Do not weaken that rejection without a constraint-normal representation.
 
-## Legacy Solver Stack
-
-The existing stack remains:
-
-```text
-LeastSquaresProblem  ->  Optimizer  ->  LinearSolver
-                         |              |
-                         v              v
-                    DampingStrategy   RobustKernel
-```
-
-- Optimizers: `LevenbergMarquardt`, `GaussNewton`, `Adam`, `LBFGS`,
-  `MultiStageOptimizer`, and `LMThenLBFGS`.
-- Legacy optimizers use dense batched `Cholesky` or `LSTSQ`. The shared solver
-  package also exposes `BandedCholesky` for `BlockBandedMatrix` and fixed-work
-  preconditioned `NormalCG` for `NormalOperator`; those two are selected by
-  named-block LM routing, not by legacy optimizer loops.
-- Legacy damping: `Constant` and `Adaptive`; no placeholder strategies are
-  exported.
-- Kernels: `L2`, `Huber`, `Cauchy`, `Tukey`, and `GemanMcClure` with the legacy row-wise IRLS
-  convention.
-
-Legacy LM projects trial points to `lower/upper`, does not clamp the initial
-point, and has no active-set/KKT treatment. It can finish as `maxiter` at an
-active bound.
-
 ## Solver Entry Points
 
-Legacy `LeastSquaresProblem` callers instantiate an optimizer from
-`better_robot.optim.optimizers` and call `minimize` directly. Named-block
-consumers call `better_robot.optim.LevenbergMarquardt().run(values, problem)`
+Consumers call `better_robot.optim.LevenbergMarquardt().run(values, problem)`
 (or `GaussNewton`) directly; scalar block objectives remain first-order only.
