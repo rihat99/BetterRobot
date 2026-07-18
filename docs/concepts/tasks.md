@@ -59,14 +59,19 @@ def solve_ik(model, targets, *, initial_q=None, cost_cfg=None,
             RestResidual(model, q_rest, target_name="target_rest"),
             weight=cost_cfg.rest_weight,
         ))
+    robot = RobotConfig(model)
     problem = Problem(
-        vars=(VarSpec("q", (model.nq,), manifold=RobotConfig(model),
-                      bounds=configuration_bounds(model)),),
-        residuals=residuals,
-        providers=(RobotStateProvider(model),),
         parameters=parameters,
         differentiable_parameters=tuple(differentiable_parameters),
     )
+    problem.add_variable("q", manifold=robot, bounds=robot.joint_bounds())
+    for item in residuals:
+        problem.add_residual(
+            item.residual,
+            weight=item.weight,
+            kernel=item.kernel,
+            name=item.name,
+        )
     values, state = named_block_solver(optimizer_cfg).run({"q": q0}, problem)
     return IKResult(q=values["q"], residual=problem.residual(values), ...)
 ```
@@ -76,9 +81,7 @@ are read by name from the residual context. This keeps their differentiation
 role explicit for the generic LM/GN implicit-solve boundary; no tensor-identity
 inference is used. The `solve_ik` facade itself remains detached. `RestResidual`
 reads the latter through `target_name="target_rest"`. Built-in pose, limit, and
-rest residuals retain their legacy `ResidualState` call shape for direct
-compatibility callers while implementing the named-block protocol used by the
-task facades.
+rest residuals all use the named-context protocol used by direct problems.
 
 ### `IKResult`
 
@@ -104,7 +107,8 @@ fixed/floating return rule; a free-flyer remains part of `q`.
 
 ### Two-stage solver
 
-`lm_then_adam` seeds with named-block LM and refines with matrix-free Adam:
+`lm_then_adam` seeds with named-block LM and refines through the `torch.optim`
+adapter:
 
 ```python
 cfg = OptimizerConfig(optimizer="lm_then_adam",
@@ -112,7 +116,7 @@ cfg = OptimizerConfig(optimizer="lm_then_adam",
 ```
 
 The iteration budget is split evenly between the stages. Entries named in
-`refine_disabled_items` receive a zero weight in the Adam phase. Named-block
+`refine_disabled_items` receive a zero weight in the refinement problem. Named-block
 L-BFGS is deliberately deferred because batching requires per-element history,
 line search, and curvature-reset semantics; `"lbfgs"` and
 `"lm_then_lbfgs"` fail with an actionable error. Collision is not wired into
@@ -245,7 +249,9 @@ def solve_trajopt(
     residuals: Sequence[ResidualItem],
     optimizer: LevenbergMarquardt | None = None,
     max_iter: int = 50,
-    jacobian_strategy: JacobianStrategy = JacobianStrategy.AUTO,
+    jacobian_strategy: Literal[
+        "auto", "analytic", "jacrev", "jacfwd", "finite_difference"
+    ] = "auto",
     lower: torch.Tensor | None = None,
     upper: torch.Tensor | None = None,
     parameterization: KnotTrajectory | None = None,
@@ -308,7 +314,7 @@ promise manifold or bound semantics. M5 deliberately did not reinterpret that
 Euclidean utility as a robot-manifold map, so the robot task facade accepts
 only `KnotTrajectory` pending a separate reviewed design.
 
-### Dense, banded, and matrix-free routes
+### Dense and banded routes
 
 - The trajectory is one `VarSpec("q", (T, nq), time_axis=0)`, not one Python
   variable per knot. Solver vectors remain flat knot-major tangents.
@@ -318,8 +324,6 @@ only `KnotTrajectory` pending a separate reviewed design.
 - `linearization="auto"` uses `BandedCholesky` when the whole active problem is
   directly eligible and otherwise uses the dense correctness path. Forced
   `"structured"` rejects an ineligible problem rather than falling back.
-- Explicit `"matrix_free"` uses a `NormalOperator` with `NormalCG`. Automatic
-  mode does not choose the autograd operator fallback.
 - Mixed temporal/shared optimized variables remain dense because Schur
   elimination has no second production caller. Collision residuals without a
   temporal declaration likewise keep the complete problem dense.
@@ -381,7 +385,7 @@ without a release note, but the internals may iterate.
 
 ## Where to look next
 
-- {doc}`solver_stack` — named-block Adam/LM/GN and automatic temporal routing.
+- {doc}`solver_stack` — LM/GN, `torch.optim`, and automatic temporal routing.
 - {doc}`residuals_and_costs` — the residual library that
   `solve_ik` and `solve_trajopt` compose.
 - {doc}`viewer` — interactive IK with a draggable target gizmo

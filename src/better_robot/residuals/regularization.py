@@ -17,8 +17,14 @@ import torch
 
 from ..data_model.model import Model
 from ._temporal_jacobian import dense_temporal_jacobian, temporal_free_indices
-from .base import ResidualState, _residual_model_q
 from .structure import TemporalPattern
+
+
+def _configuration(ctx: Mapping[str, Any]) -> torch.Tensor:
+    q = ctx["q"]
+    if not isinstance(q, torch.Tensor):
+        raise TypeError("named context entry 'q' must be a torch.Tensor")
+    return q
 
 
 class RestResidual:
@@ -56,26 +62,26 @@ class RestResidual:
         self.weight = weight
         self.dim = model.nv
 
-    def __call__(self, value: ResidualState | Mapping[str, Any]) -> torch.Tensor:
-        model, q = _residual_model_q(value, model=self.model)
+    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
+        q = _configuration(ctx)
         q_rest = self.q_rest
-        if self.target_name is not None and not isinstance(value, ResidualState):
-            q_rest = value[self.target_name]
+        if self.target_name is not None:
+            q_rest = ctx[self.target_name]
             if not isinstance(q_rest, torch.Tensor):
                 raise TypeError(f"named-block context entry {self.target_name!r} must be a tensor")
         q_rest = q_rest.to(device=q.device, dtype=q.dtype)
         # Broadcast q_rest across any leading batch dims.
         if q.dim() > 1 and q_rest.dim() == 1:
             q_rest = q_rest.expand_as(q)
-        return model.difference(q_rest, q) * self.weight  # (B..., nv)
+        return self.model.difference(q_rest, q) * self.weight  # (B..., nv)
 
-    def jacobian(
+    def _analytic_jacobian(
         self,
-        value: ResidualState | Mapping[str, Any],
-    ) -> torch.Tensor | None:
+        ctx: Mapping[str, Any],
+    ) -> torch.Tensor:
         """Identity Jacobian (scaled by ``weight``). Shape ``(B..., nv, nv)``."""
-        model, q = _residual_model_q(value, model=self.model)
-        nv = model.nv
+        q = _configuration(ctx)
+        nv = self.model.nv
         *batch, _ = q.shape
         identity = torch.eye(nv, dtype=q.dtype, device=q.device)
         if batch:
@@ -87,8 +93,7 @@ class RestResidual:
         ctx: Mapping[str, Any],
     ) -> dict[str, torch.Tensor]:
         """Return the mask-reduced analytic ``q`` block."""
-        full = self.jacobian(ctx)
-        assert full is not None
+        full = self._analytic_jacobian(ctx)
         indices = ctx.free_indices("q").to(device=full.device)
         return {"q": full.index_select(-1, indices)}
 
@@ -104,8 +109,8 @@ class JointRotationPrior:
 
     Unlike :class:`RestResidual`, this class does not label the identity as an
     analytic Jacobian. The exact derivative away from the mean includes Lie
-    right-Jacobian factors, so named-block callers use tangent AD and legacy
-    callers use finite differences.
+    right-Jacobian factors, so callers use tangent AD or the explicit
+    finite-difference debug strategy.
     """
 
     reads = ("q",)
@@ -149,15 +154,11 @@ class JointRotationPrior:
         self.per_joint_weight = tangent_weight
         self.dim = model.nv
 
-    def __call__(self, value: ResidualState | Mapping[str, Any]) -> torch.Tensor:
-        model, q = _residual_model_q(value, model=self.model)
+    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
+        q = _configuration(ctx)
         q_mean = self.q_mean.to(device=q.device, dtype=q.dtype)
         weight = self.per_joint_weight.to(device=q.device, dtype=q.dtype)
-        return model.difference(q_mean, q) * weight
-
-    def jacobian(self, value: ResidualState | Mapping[str, Any]) -> torch.Tensor | None:
-        """Return no small-angle approximation; use tangent AD or explicit FD."""
-        del value
+        return self.model.difference(q_mean, q) * weight
 
 
 class ReferenceTrajectoryResidual:
@@ -212,17 +213,17 @@ class ReferenceTrajectoryResidual:
 
     def _trajectory(
         self,
-        value: ResidualState | Mapping[str, Any],
+        ctx: Mapping[str, Any],
     ) -> torch.Tensor:
-        _model, q = _residual_model_q(value, model=self.model)
+        q = _configuration(ctx)
         if q.dim() < 2:  # bench-ok: trajectory-shape contract validation
             raise ValueError(f"ReferenceTrajectoryResidual expects (B..., T, nq); got {tuple(q.shape)}")
         if q.shape[-2] != self.horizon:
             raise ValueError(f"trajectory length {q.shape[-2]} != q_ref length {self.horizon}")
         return q
 
-    def __call__(self, value: ResidualState | Mapping[str, Any]) -> torch.Tensor:
-        q = self._trajectory(value)
+    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
+        q = self._trajectory(ctx)
         T = self.horizon
         q_ref = self.q_ref.to(device=q.device, dtype=q.dtype)
         r = self.model.difference(q_ref, q)  # (B..., T, nv)
@@ -278,33 +279,6 @@ class ReferenceTrajectoryResidual:
             )
         }
 
-    def jacobian(
-        self,
-        value: ResidualState | Mapping[str, Any],
-    ) -> torch.Tensor | None:
-        q = self._trajectory(value)
-        pattern = self.temporal_structure("q")
-        assert pattern is not None
-        indices = torch.arange(self.model.nv, device=q.device)
-        return dense_temporal_jacobian(
-            pattern,
-            self._temporal_blocks(q, indices),
-            horizon=self.horizon,
-        )
-
-    def apply_jac_transpose(self, state: ResidualState, r: torch.Tensor) -> torch.Tensor:
-        """``J^T @ r`` without materialising the dense Jacobian — O(T·nv).
-
-        Jacobian is diagonal (scaled identity per timestep), so the
-        transpose-product is just per-frame scaling.
-        """
-        q = self._trajectory(state)
-        T = self.horizon
-        nv = self.model.nv
-        w = self._per_frame_scale(T, q.device, q.dtype)  # (T,)
-        r_mat = r.reshape(*q.shape[:-2], T, nv)
-        return (w.unsqueeze(-1) * r_mat).reshape(*q.shape[:-2], T * nv)
-
 
 class NullspaceResidual:
     """Nullspace projection of ``(q - q_rest)`` onto the unconstrained subspace.
@@ -313,14 +287,13 @@ class NullspaceResidual:
     """
 
     name: str = "nullspace"
+    reads = ("q",)
 
     def __init__(self, q_rest: torch.Tensor, *, weight: float = 1.0) -> None:
         self.q_rest = q_rest
         self.weight = weight
         self.dim = int(q_rest.shape[-1])
 
-    def __call__(self, state: ResidualState) -> torch.Tensor:
-        raise NotImplementedError("see docs/concepts/residuals_and_costs.md §2")
-
-    def jacobian(self, state: ResidualState) -> torch.Tensor | None:
+    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
+        del ctx
         raise NotImplementedError("see docs/concepts/residuals_and_costs.md §2")

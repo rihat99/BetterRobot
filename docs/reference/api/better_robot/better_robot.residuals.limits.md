@@ -58,14 +58,6 @@
 
 ````
 
-````{py:method} jacobian(value: better_robot.residuals.base.ResidualState | collections.abc.Mapping[str, typing.Any]) -> torch.Tensor | None
-:canonical: better_robot.residuals.limits.JointPositionLimit.jacobian
-
-```{autodoc2-docstring} better_robot.residuals.limits.JointPositionLimit.jacobian
-```
-
-````
-
 ````{py:method} jacobian_blocks(ctx: collections.abc.Mapping[str, typing.Any]) -> dict[str, torch.Tensor]
 :canonical: better_robot.residuals.limits.JointPositionLimit.jacobian_blocks
 
@@ -93,11 +85,12 @@
 
 ````
 
-````{py:method} jacobian(state: better_robot.residuals.base.ResidualState) -> torch.Tensor | None
-:canonical: better_robot.residuals.limits.JointVelocityLimit.jacobian
-:abstractmethod:
+````{py:attribute} reads
+:canonical: better_robot.residuals.limits.JointVelocityLimit.reads
+:value: >
+   ('q', 'data')
 
-```{autodoc2-docstring} better_robot.residuals.limits.JointVelocityLimit.jacobian
+```{autodoc2-docstring} better_robot.residuals.limits.JointVelocityLimit.reads
 ```
 
 ````
@@ -121,11 +114,12 @@
 
 ````
 
-````{py:method} jacobian(state: better_robot.residuals.base.ResidualState) -> torch.Tensor | None
-:canonical: better_robot.residuals.limits.JointAccelLimit.jacobian
-:abstractmethod:
+````{py:attribute} reads
+:canonical: better_robot.residuals.limits.JointAccelLimit.reads
+:value: >
+   ('q', 'data')
 
-```{autodoc2-docstring} better_robot.residuals.limits.JointAccelLimit.jacobian
+```{autodoc2-docstring} better_robot.residuals.limits.JointAccelLimit.reads
 ```
 
 ````

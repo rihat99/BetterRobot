@@ -7,7 +7,7 @@ import math
 import pytest
 import torch
 
-from better_robot.exceptions import DtypeMismatchError, QuaternionNormError
+from better_robot.exceptions import DtypeMismatchError
 from better_robot.io import ModelBuilder, build_model, load
 from better_robot.optim import (
     Bounds,
@@ -158,29 +158,6 @@ def test_feasible_retraction_clamps_only_box_coordinates_and_preserves_units(
     torch.testing.assert_close(projected[7:11].norm(), torch.tensor(1.0))
 
 
-def test_robot_config_prevalidated_projection_skips_bounds_revalidation(
-    floating_spherical_model,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    model = floating_spherical_model
-    manifold = RobotConfig(model)
-    bounds = _floating_bounds(model)
-    q = model.q_neutral.clone()
-    dv = torch.zeros(model.nv)
-    dv[0] = 2.0
-    dv[-1] = 1.0
-    candidate = model.integrate(q, dv)
-    expected = manifold.project(candidate, bounds)
-
-    def forbidden(*_args, **_kwargs):
-        raise AssertionError("private RobotConfig projection revalidated static bounds")
-
-    monkeypatch.setattr(RobotConfig, "validate_bounds", forbidden)
-    actual = manifold._project_prevalidated(candidate, bounds)
-
-    torch.testing.assert_close(actual, expected)
-
-
 @pytest.mark.parametrize(
     ("manifold", "shape", "kind"),
     ((SO3Manifold(), (4,), "SO3"), (SE3Manifold(), (7,), "SE3")),
@@ -221,43 +198,6 @@ def test_robot_config_rejects_bounds_on_quaternion_coordinates_exactly(
         "manifold coordinates [3, 4, 5, 6, 7, 8, 9, 10]; quaternion/unit-circle "
         "coordinates are never clamped"
     )
-
-
-def test_infeasible_panda_neutral_is_rejected_without_clamping(panda_model) -> None:
-    spec = VarSpec(
-        name="q",
-        shape=(panda_model.nq,),
-        manifold=RobotConfig(panda_model),
-        bounds=Bounds(panda_model.lower_pos_limit, panda_model.upper_pos_limit),
-    )
-
-    with pytest.raises(ValueError) as exc_info:
-        spec.validate_value(panda_model.q_neutral)
-
-    assert str(exc_info.value) == (
-        "Initial value for VarSpec 'q' is outside its state bounds; initial values "
-        "are validated, not silently clamped. Supply a feasible start (notably, "
-        "Panda q_neutral violates joint-4 limits and must be projected explicitly "
-        "by the caller)."
-    )
-    torch.testing.assert_close(
-        panda_model.q_neutral,
-        torch.zeros_like(panda_model.q_neutral),
-    )
-
-
-def test_public_retract_and_difference_reject_infeasible_base_state() -> None:
-    spec = VarSpec(
-        name="x",
-        shape=(1,),
-        bounds=Bounds(torch.tensor([-1.0]), torch.tensor([1.0])),
-    )
-    infeasible = torch.tensor([2.0])
-
-    with pytest.raises(ValueError, match="outside its state bounds"):
-        spec.retract(infeasible, torch.zeros(1))
-    with pytest.raises(ValueError, match="outside its state bounds"):
-        spec.difference(infeasible, torch.zeros(1))
 
 
 def test_mask_eliminates_fixed_tangent_coordinates() -> None:
@@ -316,8 +256,8 @@ def test_difference_validates_both_inputs_and_rejects_mixed_dtype() -> None:
             torch.ones(2, dtype=torch.float32),
             torch.zeros(2, dtype=torch.float64),
         )
-    with pytest.raises(ValueError, match="only finite entries"):
-        spec.difference(torch.ones(2), torch.tensor([0.0, float("nan")]))
+    difference = spec.difference(torch.ones(2), torch.tensor([0.0, float("nan")]))
+    assert torch.isnan(difference[-1])
 
 
 def test_bounds_reject_nan_endpoints() -> None:
@@ -327,22 +267,15 @@ def test_bounds_reject_nan_endpoints() -> None:
         Bounds(torch.tensor([-1.0]), torch.tensor([float("nan")]))
 
 
-def test_initial_group_values_must_belong_to_their_manifold() -> None:
-    with pytest.raises(QuaternionNormError, match="not on its configuration manifold"):
-        VarSpec("rotation", (4,), manifold=SO3Manifold()).validate_value(torch.zeros(4))
-    with pytest.raises(QuaternionNormError, match="not on its configuration manifold"):
-        VarSpec("pose", (7,), manifold=SE3Manifold()).validate_value(torch.zeros(7))
-
-
-def test_initial_robot_configuration_rejects_invalid_unit_coordinates(
+def test_value_validation_checks_structure_without_scanning_manifold_content(
     floating_spherical_model,
 ) -> None:
+    VarSpec("rotation", (4,), manifold=SO3Manifold()).validate_value(torch.zeros(4))
+    VarSpec("pose", (7,), manifold=SE3Manifold()).validate_value(torch.zeros(7))
     q = floating_spherical_model.q_neutral.clone()
     q[3:7] = 0.0
-
-    with pytest.raises(QuaternionNormError, match="unit quaternion/unit-circle"):
-        VarSpec(
-            "q",
-            (floating_spherical_model.nq,),
-            manifold=RobotConfig(floating_spherical_model),
-        ).validate_value(q)
+    VarSpec(
+        "q",
+        (floating_spherical_model.nq,),
+        manifold=RobotConfig(floating_spherical_model),
+    ).validate_value(q)

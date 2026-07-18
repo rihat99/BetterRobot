@@ -160,11 +160,9 @@ Use the oracle that matches the claimed derivative:
 - include broadcast/shared-value reductions when a compute lane owns a custom
   VJP.
 
-Not every legacy residual has an analytic Jacobian. The legacy
-``JacobianStrategy.AUTO`` prefers an analytic method and otherwise uses its
-documented unbatched central-finite-difference fallback. The named-block
-``Problem`` surface separately supports analytic, ``jacrev``, ``jacfwd``, and
-finite-difference strategies.
+Not every residual has an analytic Jacobian block. The named-block ``Problem``
+surface supports ``auto``, ``analytic``, ``jacrev``, ``jacfwd``, and the
+explicit finite-difference debugging strategy.
 
 ### 5.4 Frozen FK regression oracle
 

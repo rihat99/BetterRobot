@@ -14,9 +14,7 @@ from ..data_model.model_values import ModelValues
 from ..dynamics.rnea import rnea_raw
 from ..kinematics.forward import forward_kinematics
 from ..lie import so3
-from ..optim.blocks.problem import Problem, ResidualItem
-from ..optim.blocks.solver_lm import LevenbergMarquardt
-from ..optim.blocks.variables import VarSpec
+from ..optim import LevenbergMarquardt, Problem, ResidualItem, VarSpec
 
 
 @dataclass(frozen=True)
@@ -92,7 +90,7 @@ class _ContactDynamicsProvider:
     contact_to_joint: torch.Tensor
     values: ModelValues
     name: str = "contact_dynamics"
-    inputs: tuple[str, ...] = ("forces",)
+    reads: tuple[str, ...] = ("forces",)
     outputs: tuple[str, ...] = ("generalized_force", "fext_local")
 
     def __call__(self, ctx: Mapping[str, torch.Tensor]) -> dict[str, torch.Tensor]:

@@ -14,7 +14,13 @@ from typing import Any
 import torch
 
 from ..data_model.model import Model
-from .base import ResidualState, _residual_model_q
+
+
+def _configuration(ctx: Mapping[str, Any]) -> torch.Tensor:
+    q = ctx["q"]
+    if not isinstance(q, torch.Tensor):
+        raise TypeError("named context entry 'q' must be a torch.Tensor")
+    return q
 
 
 class JointPositionLimit:
@@ -50,7 +56,7 @@ class JointPositionLimit:
 
         # Precompute dq/dv projection: (nq, nv) with identity blocks where
         # a joint has nq == nv, zeros elsewhere. Built on CPU once; the
-        # jacobian() method moves it to the caller's device/dtype lazily.
+        # analytic block helper moves it to the caller's device/dtype lazily.
         dq_dv = torch.zeros(model.nq, model.nv, dtype=torch.float32)
         for j in range(model.njoints):
             nq_j = model.nqs[j]
@@ -63,22 +69,22 @@ class JointPositionLimit:
                 dq_dv[iq + k, iv + k] = 1.0
         self._dq_dv = dq_dv  # (nq, nv)
 
-    def __call__(self, value: ResidualState | Mapping[str, Any]) -> torch.Tensor:
-        model, q = _residual_model_q(value, model=self.model)
-        lo = model.lower_pos_limit.to(q.device, q.dtype)  # (nq,)
-        hi = model.upper_pos_limit.to(q.device, q.dtype)  # (nq,)
+    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
+        q = _configuration(ctx)
+        lo = self.model.lower_pos_limit.to(q.device, q.dtype)  # (nq,)
+        hi = self.model.upper_pos_limit.to(q.device, q.dtype)  # (nq,)
         lower_viol = torch.clamp(lo - q, min=0.0) * self.weight  # (B..., nq)
         upper_viol = torch.clamp(q - hi, min=0.0) * self.weight  # (B..., nq)
         return torch.cat([lower_viol, upper_viol], dim=-1)  # (B..., 2*nq)
 
-    def jacobian(
+    def _analytic_jacobian(
         self,
-        value: ResidualState | Mapping[str, Any],
-    ) -> torch.Tensor | None:
+        ctx: Mapping[str, Any],
+    ) -> torch.Tensor:
         """Analytic Jacobian in tangent space. Shape ``(B..., 2*nq, nv)``."""
-        model, q = _residual_model_q(value, model=self.model)
-        lo = model.lower_pos_limit.to(q.device, q.dtype)
-        hi = model.upper_pos_limit.to(q.device, q.dtype)
+        q = _configuration(ctx)
+        lo = self.model.lower_pos_limit.to(q.device, q.dtype)
+        hi = self.model.upper_pos_limit.to(q.device, q.dtype)
 
         # Per-q indicator of active lower/upper violation, scaled by weight.
         lower_diag = torch.where(
@@ -103,8 +109,7 @@ class JointPositionLimit:
         ctx: Mapping[str, Any],
     ) -> dict[str, torch.Tensor]:
         """Return the mask-reduced analytic ``q`` block."""
-        full = self.jacobian(ctx)
-        assert full is not None
+        full = self._analytic_jacobian(ctx)
         indices = ctx.free_indices("q").to(device=full.device)
         return {"q": full.index_select(-1, indices)}
 
@@ -113,37 +118,36 @@ class JointVelocityLimit:
     """One-sided clamped penalty on joint velocity limits. ``dim = 2 * nv``."""
 
     name: str = "joint_velocity_limit"
+    reads = ("q", "data")
 
     def __init__(self, model: Model, *, weight: float = 1.0) -> None:
         self.model = model
         self.weight = weight
         self.dim = 2 * model.nv
 
-    def __call__(self, state: ResidualState) -> torch.Tensor:
-        # For velocity limits we check state.data.v if available,
+    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
+        q = _configuration(ctx)
+        data = ctx["data"]
+        # For velocity limits we check data.v if available,
         # otherwise fall back to a zero residual.
-        v = state.data.v if state.data.v is not None else torch.zeros_like(state.variables)
+        v = data.v if data.v is not None else torch.zeros_like(q)
         lim = self.model.velocity_limit.to(v.device, v.dtype)  # (nv,)
         lower_viol = torch.clamp(-lim - v, min=0.0) * self.weight
         upper_viol = torch.clamp(v - lim, min=0.0) * self.weight
         return torch.cat([lower_viol, upper_viol], dim=-1)
-
-    def jacobian(self, state: ResidualState) -> torch.Tensor | None:
-        raise NotImplementedError("see docs/concepts/residuals_and_costs.md §2")
 
 
 class JointAccelLimit:
     """One-sided clamped penalty on joint acceleration limits. ``dim = 2 * nv``."""
 
     name: str = "joint_accel_limit"
+    reads = ("q", "data")
 
     def __init__(self, model: Model, *, weight: float = 1.0) -> None:
         self.model = model
         self.weight = weight
         self.dim = 2 * model.nv
 
-    def __call__(self, state: ResidualState) -> torch.Tensor:
-        raise NotImplementedError("see docs/concepts/residuals_and_costs.md §2")
-
-    def jacobian(self, state: ResidualState) -> torch.Tensor | None:
+    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
+        del ctx
         raise NotImplementedError("see docs/concepts/residuals_and_costs.md §2")

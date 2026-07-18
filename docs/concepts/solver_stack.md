@@ -1,378 +1,223 @@
-# Named-Block Evaluation and Solvers
+# Optimization problems and solvers
 
-BetterRobot exposes one optimization surface. A `Problem` owns named `VarSpec`
-blocks, structural residuals and scalar objective terms, and a lazy provider
-DAG. It evaluates residuals, objectives, tangent gradients, and Jacobian
-blocks; matrix-free `Adam` consumes its tangent gradient, while
-`LevenbergMarquardt` and `GaussNewton` solve residual-vector problems with
-independent tensor state for every batch element.
+BetterRobot has one optimization stack. A `Problem` owns named variable
+blocks, least-squares residuals, and evaluation-local providers.
+`LevenbergMarquardt` and `GaussNewton` solve dense or block-banded normal
+systems; `run_first_order` adapts the same problem to any `torch.optim`
+optimizer.
 
-## Named-block evaluation
+## The smallest complete problem
 
-The canonical imports live under `better_robot.optim`; the top-level
-`better_robot` namespace remains compact:
+This is the complete line-fitting example. The `testcode` fence is executed by
+the documentation doctest target, and the optimizer regression suite checks
+that the fitted values are `(2, 1)`.
+
+```{testcode}
+import torch
+from better_robot.optim import Problem, LevenbergMarquardt
+
+x = torch.tensor([0., 1., 2., 3.]); y = torch.tensor([1., 3., 5., 7.])
+
+def fit(ctx):
+    m, c = ctx["theta"][..., 0:1], ctx["theta"][..., 1:2]
+    return m * x + c - y
+
+problem = Problem()
+problem.add_variable("theta", shape=(2,))               # Euclidean by default
+problem.add_residual(fit, dim=4)                        # plain callable is enough
+values, state = LevenbergMarquardt().run({"theta": torch.zeros(2)}, problem)
+```
+
+`add_variable` creates the underlying `VarSpec`; `add_residual` creates the
+underlying `ResidualItem`. Those records remain useful for generated or
+advanced problem construction, but simple callers do not need to spell them.
+A residual name defaults to its `name` attribute or callable name. A plain
+callable supplies `dim=` when registering it.
+
+The canonical public imports live under `better_robot.optim`:
 
 ```python
 from better_robot.optim import (
-    Adam,
-    AdamState,
-    AdamStatus,
+    BandedCholesky,
     BlockBandedMatrix,
     Bounds,
+    Cholesky,
     Euclidean,
+    FirstOrderResult,
     GaussNewton,
+    Huber,
     LevenbergMarquardt,
     LMState,
     LMStatus,
-    LinearizationDecision,
-    LinearizationReason,
-    NormalOperator,
-    ObjectiveItem,
-    Phase,
     Problem,
     ResidualItem,
     RobotConfig,
     RobotStateProvider,
     SE3Manifold,
     SO3Manifold,
-    TemporalPattern,
-    Values,
     VarSpec,
-    detach_values,
-    run_phases,
+    run_first_order,
 )
 ```
 
-`SO3Manifold` and `SE3Manifold` are intentionally explicit names.
-`better_robot.SE3` and `better_robot.lie.SE3` remain the typed Lie-group pose
-wrapper, not optimization manifolds.
+`SO3Manifold` and `SE3Manifold` are optimization policies. They are distinct
+from the typed Lie-group wrappers at `better_robot.lie.SO3` and
+`better_robot.SE3`.
 
-A `VarSpec` separates full state coordinates from reduced tangent coordinates.
-Its `shape` is an event shape; arbitrary leading axes on each value are
-independent batch axes. `bounds` constrain state space, while `mask` eliminates
-fixed tangent coordinates and `scale` describes the retained tangent
-coordinates. `RobotConfig(model)` is the boundary that handles `nq != nv`.
+## Variables, residuals, and contexts
 
-Residual and provider implementations are structural: authors declare names,
-dependencies, and output dimensions without inheriting from a BetterRobot base
-class. `Problem` validates that static graph once. Residual, objective,
-gradient, and analytic-Jacobian paths use a fresh read-only context and run
-each requested provider at most once in that context. An AD-generated
-Jacobian uses a fresh transform-local context for each missing
-`(residual, variable)` block, so a provider may run once per transformed
-block. See {doc}`/guides/custom_residuals` for the author contract.
+A variable shape is its event shape. Arbitrary leading axes in its value are
+independent batch axes. A variable may specify a manifold, state-space
+`Bounds`, a fixed-coordinate mask, tangent scale, and a temporal axis.
+`RobotConfig(model)` handles the `nq != nv` layout and provides
+`joint_bounds()` with quaternion coordinates excluded from the box.
 
-The public evaluation operations are:
-
-- `residual(values)` and `objective(values)`;
-- `gradient(values)`, in reduced tangent coordinates per variable;
-- `jacobian_blocks(values)` and `dense_jacobian(values)`;
-- `structured_normal(values)`, for a directly eligible temporal problem;
-- `retract(values, steps)`, which applies manifold-aware feasible steps.
-
-Callers that need a dense normal matrix form it explicitly as
-`J.mT @ J` from `dense_jacobian(values)`.
-
-`ResidualItem.kernel` and `group_size` define robust-loss groups. Direct
-`residual()` remains the weighted raw vector; `objective()` sums each group's
-`rho`, and `gradient()` differentiates that same objective using the normalized
-`weight(s) = 2*rho'(s)` convention. Scalar `ObjectiveItem`s keep their linear
-objective weights and participate in `objective()`/`gradient()` and Adam, but
-LM/GN reject them via `Problem.require_least_squares()` instead of silently
-changing their mathematical meaning.
-
-### Temporal structure and route selection
-
-`VarSpec(..., time_axis=0)` marks the first event axis as time while preserving
-the existing value, retraction, and knot-major dense-column contracts. A
-residual can refine its block-level `reads` declaration with
-`TemporalPattern(rows, row_width, row_origin, offsets)`. For row group `r`,
-offset `o` refers to knot `r + row_origin + o`. Numeric
-`temporal_jacobian_blocks` use the same offsets and return exact reduced
-per-knot blocks; item weights and robust row scales are applied centrally.
-
-`Problem` caches a static `TemporalAnalysis`. Direct eligibility requires one
-free time variable, a time-separable mask, complete patterns, and complete
-numeric temporal blocks. Operator eligibility permits a declaration without
-numeric blocks and supplies an explicit autograd JVP/VJP fallback. Multiple
-optimized variables, mixed temporal/shared dependencies, undeclared temporal
-residuals, or a non-separable mask are ineligible in v1. A zero weight does
-not erase structure.
-
-`LevenbergMarquardt(linearization=...)` uses the following policy:
-
-| Request | Representation and default solver | Ineligible behavior |
-|---|---|---|
-| `"dense"` | dense normal / `Cholesky` | always available |
-| `"structured"` | `BlockBandedMatrix` / `BandedCholesky` | raises with cached reason/detail |
-| `"matrix_free"` | `NormalOperator` / `NormalCG` | raises when operator-ineligible |
-| `"auto"` | banded when directly eligible, otherwise dense | records the stable fallback reason/detail |
-
-An explicit solver must advertise a compatible system kind. Automatic mode
-does not select the more expensive autograd operator fallback. There is no
-numerical-zero inference or mixed band-plus-dense container. Schur elimination
-for temporal plus shared/nuisance variables remains deferred until a second
-production caller supplies evidence.
-
-## Named-block LM/GN
-
-The named-block solvers expose a jaxopt-style lifecycle:
+Residuals are callables over a read-only context:
 
 ```python
-from better_robot.optim import LevenbergMarquardt
+class PositionError:
+    name = "position"
+    reads = ("x", "target")
+    dim = 3
 
+    def __call__(self, ctx):
+        return ctx["x"] - ctx["target"]
+```
+
+`reads` declares Jacobian structure; it does not police runtime access. When a
+problem has exactly one variable, an omitted declaration defaults to that
+variable. Optional `jacobian_blocks(ctx)` and temporal hooks provide analytic
+structure; otherwise `Problem` uses `jacrev`, `jacfwd`, or the explicit
+finite-difference debug strategy. Jacobian strategy is a string literal:
+`"auto"`, `"analytic"`, `"jacrev"`, `"jacfwd"`, or
+`"finite_difference"`.
+
+Providers declare `reads` and `outputs`, then compute a mapping. Their results
+are memoized only within one evaluation context. Resolution is recursive, so
+shared FK or scene queries run once per evaluation; a resolving set turns a
+provider cycle into a direct error. Dependencies propagate through providers
+when the optimizer determines Jacobian block structure. For a single
+`RobotConfig` variable, a residual that reads `"data"` receives an automatic
+`RobotStateProvider` when no explicit provider supplies it.
+
+The main evaluation operations are:
+
+- `residual(values)` for the weighted raw residual vector;
+- `objective(values)` for the grouped robust least-squares objective;
+- `gradient(values)` in reduced tangent coordinates;
+- `jacobian_blocks(values)` and `dense_jacobian(values)`;
+- `structured_normal(values)` for an eligible temporal problem; and
+- `retract(values, steps)` for manifold-aware feasible updates.
+
+There is no parallel scalar-objective protocol. Express an optimization term
+as a residual so every solver sees the same mathematical problem.
+
+## Dense and temporal routes
+
+`VarSpec(..., time_axis=0)` marks time without changing knot-major value or
+column ordering. A residual may refine `reads` with a `TemporalPattern` and
+exact per-knot numeric Jacobian blocks. A directly eligible problem has one
+free temporal variable, a separable mask, complete patterns, and complete
+numeric blocks.
+
+`LevenbergMarquardt(linearization=...)` resolves only two representations:
+
+| Request | Representation | Default solver | Ineligible behavior |
+|---|---|---|---|
+| `"dense"` | dense normal matrix | `Cholesky` | always available |
+| `"structured"` | `BlockBandedMatrix` | `BandedCholesky` | raises with a stable reason and detail |
+| `"auto"` | banded when directly eligible, otherwise dense | matching solver | records the fallback reason and detail |
+
+There is no numerical-zero structure inference and no mixed band-plus-dense
+container. Temporal plus shared optimized variables remain dense until a
+reviewed Schur-complement design has a production caller.
+
+## LM and Gauss--Newton
+
+LM exposes an explicit lifecycle for consumers that own the loop:
+
+```python
 solver = LevenbergMarquardt(max_iter=50, gtol=1e-6)
 state = solver.init_state(values, problem)
-values, state = solver.update(values, state, problem)  # one pure tensor step
+values, state = solver.update(values, state, problem)
 values, state = solver.finalize(values, state, problem)
 
-# Or use the detached eager driver:
+# Or use the detached eager driver.
 values, state = solver.run(values, problem)
 ```
 
-For a small explicit unrolled-differentiation oracle, pass
-`create_graph=True` to `init_state`, every `update`, and `finalize`. The
-default path does not retain the Jacobian graph, and `run` is intentionally
-always detached. For an implicit gradient of a converged optimum with respect
-to explicitly declared external parameters, opt in separately:
+`LMState` is tensor-only and preserves every batch axis. It retains state
+needed for damping warm starts plus cost, residual, KKT, factorization,
+convergence, status, and iteration data. `GaussNewton` is a fixed-damping
+preset of the same guarded update.
+
+Bounds use a projected active set and projected-gradient KKT termination.
+`block_step_limits` optionally caps physical tangent-block norms. An initially
+non-finite model is `FAILED`; a non-finite trial is rejected and can
+legitimately finish `MAXITER`.
+
+For a first-order implicit gradient of an eligible converged optimum, use:
 
 ```python
-values, state = solver.solve(
-    values,
-    problem,
-    differentiate="implicit",
-)
+values, state = solver.solve(values, problem, differentiate="implicit")
 loss = values["q"].square().sum()
 loss.backward()
 ```
 
-The forward iterations remain detached; there is no gradient to the initial
-guess, warm-start state, bounds/masks, or solver hyperparameters. Backward
-recomputes the exact robust tangent optimality system, maps ambient output
-cotangents through each manifold retraction, eliminates stable active-bound
-coordinates, and uses undamped Cholesky or a verified full-rank least-squares
-solve. Any invalid element, unstable active set, Huber kink, nonfinite system,
-terminal-manifold quaternion representative at the absolute-pi principal-log
-cut, or singular system raises `ImplicitDifferentiationError` for the whole batch. The same tensor object
-cannot be both an optimized input and an external parameter. The custom
-backward is first-order only.
+The forward solve remains detached. Backward keeps the convergence,
+active-set, quaternion-cut, robust-kink, size, and routing guards documented
+by `ImplicitDiffConfig`; violating a guard raises
+`ImplicitDifferentiationError` instead of returning a silently wrong
+gradient.
 
-This initial implementation has an explicit dense-size cap (512 tangent
-coordinates by default). Matrix-free backward is rejected. A small banded
-forward may opt into the same capped dense correctness oracle with
-`ImplicitDiffConfig(allow_banded_dense_backward=True)`; this is not a true
-structured backward and long trajectories are never silently densified.
-Declared context parameters are the stable supported input path. Direct
-ModelValues reconstruction, named item-weight/kernel-scale binding, generic
-custom-kernel kink declarations, and returned per-element gradient-quality
-metadata remain follow-up work. Item/kernel object identity is not a binding;
-a declared differentiable parameter disconnected from terminal optimality is
-rejected instead of receiving a silent zero gradient.
+## First-order optimization through `torch.optim`
 
-The terminal-representative check cannot inspect arbitrary residual/provider
-code. A relative-rotation `log` can therefore have its own principal branch
-point even when the optimized quaternion is near identity; custom residual
-authors must reject or avoid such points until residual-level smoothness
-declarations exist.
-
-`LMState` is a fixed-structure pytree containing tensors only. Cost, damping,
-gain ratio, accept/reject effects, factorization health, KKT measures, status,
-and iteration counts retain every leading batch axis; a rejected or failed
-element does not move a valid neighbor. `GaussNewton` is a fixed-damping preset
-of the same guarded update rather than a second implementation.
-
-The solver scales residual/Jacobian rows by the configured group-wise robust
-weights, solves reduced tangent systems, and applies state-space feasibility
-through each `VarSpec` manifold. Finite Euclidean/configuration bounds use a
-projected active set and projected-gradient KKT termination. World-axis boxes
-on a free-flyer translation are rejected because they are not axis-aligned in
-the right-local `SE(3)` tangent; express those constraints as residuals until
-constraint-normal support lands.
-
-`block_step_limits=(("translation", 0.2), ...)` optionally caps the physical
-reduced-tangent L2 norm of individual free blocks before both the LM and
-projected-gradient retractions. Gain prediction uses the actual post-
-retraction tangent step. This is a solver trust-region knob, not a state bound.
-
-`update` is a pure, fixed-shape, sync-free tensor program. Public validation
-and static layout construction happen in `init_state`; `run` is an eager
-convenience loop and may perform one host-side all-terminal check per
-iteration. No public captured-execution driver is shipped. Custom residuals
-and providers must satisfy the fixed-shape, sync-free eligibility rules in
-{doc}`/guides/custom_residuals`; non-eligible residuals remain usable eagerly.
-
-The terminal `LMStatus` values are `RUNNING`, `CONVERGED`,
-`STALLED_AT_BOUNDS`, `MAXITER`, and `FAILED`. Call `finalize` after a manual
-update loop so residuals, robust weights, active masks, and KKT diagnostics all
-describe the returned terminal point. `run` does this automatically and
-detaches returned artifacts. A supplied prior state is a warm start for
-damping, not permission to reuse stale target-dependent linearizations; its
-batch shape, dtype, and device must match exactly.
-
-Accepted-step `xtol`/`ftol` termination applies only to unbounded problems.
-Bounded problems require projected-gradient KKT for every success status, and
-a tolerance-only unbounded `CONVERGED` state is not `implicit_valid` unless
-final evaluation also satisfies KKT. Damping has a strictly positive floor;
-after escalation reaches `mu_max`, a failing factorization receives one solve
-attempt at the cap before the element becomes `FAILED`.
-
-## Named-block matrix-free Adam
-
-`Adam` uses the same `init_state(values, problem)`, pure
-`update(values, state, problem)`, and detached `run(values, problem,
-state=None)` lifecycle. Its moments end in each block's mask-reduced tangent
-dimension, and every step goes through the block manifold's feasible
-retraction. Arbitrary common leading batch axes produce independent step,
-cost, gradient-norm, convergence, and status tensors.
-
-The update calls a prevalidated tangent VJP of the robust `Problem.objective`.
-It does not call `jacobian_blocks` or `dense_jacobian`.
-Warm-start moments and bias-correction counts are retained only when variable
-names/order, reduced shapes, batch shape, dtype, and device match; current
-target-dependent diagnostics/status are always recomputed. `run` detaches all
-returned leaves and may synchronize only for its all-terminal loop check.
-
-Named-block LBFGS is deferred rather than half-ported: correct batching needs
-per-element histories and line searches plus curvature-validity/history-reset
-rules. Use matrix-free `Adam` or named-block LM/GN until that dedicated
-milestone lands.
-
-## Functional phases
-
-`Phase` combines a solver instance and iteration budget with absolute item
-weight overrides, static per-block tangent masks, and an optional `on_start`
-hook. `run_phases(problem, values, phases)` carries accepted values forward but
-creates fresh solver state for every phase, so Adam momentum cannot leak across
-a DOF transition.
-
-Problems and variable specs are immutable, so phase application is a cheap
-functional rebuild rather than in-place snapshot/restore. The caller's
-`Problem` is unchanged even when a phase raises. A phase mask intersects the
-base mask and therefore cannot unfreeze a permanently fixed coordinate. A
-Python-zero weight removes the item from evaluation, including providers read
-only by that item. `on_start` runs once even when the phase has zero iterations.
-
-## Linear solvers
+`run_first_order` holds persistent tangent buffers, lets an ordinary
+`torch.optim.Optimizer` update them, retracts onto each manifold, and rebases
+the buffers without discarding optimizer state:
 
 ```python
-class LinearSolver(Protocol):
-    def solve(
-        self,
-        A: Tensor,
-        b: Tensor,
-        ridge: Tensor | float | None = None,
-    ) -> Tensor: ...
-
-class Cholesky(LinearSolver): ...        # dense, SPD
-class LSTSQ(LinearSolver): ...           # dense, rank-deficient safe
-class BandedCholesky(LinearSolver): ...  # BlockBandedMatrix
-class NormalCG(LinearSolver): ...        # NormalOperator, warm-start capable
-```
-
-Source: `src/better_robot/optim/solvers/`.
-
-Every solver accepts `b` with shape `(B..., n)` and the stable
-`solve(A, b, ridge=None)` seam. A tensor ridge is scalar or broadcastable to
-`B...` and does not modify the caller's system. `Cholesky` and `LSTSQ` accept
-dense `(B..., n, n)` tensors. `BandedCholesky` consumes padded lower
-`BlockBandedMatrix` storage and returns independent per-batch SPD/finite
-status. `NormalCG` consumes a sized `NormalOperator`, may use its
-preconditioner and a compatible warm start, and reports fixed-work convergence
-and residual diagnostics. Each implementation advertises `supported_systems`;
-LM rejects an explicitly incompatible solver instead of densifying silently.
-
-## Robust kernels
-
-```python
-class RobustKernel(Protocol):
-    def rho(self, squared_norm: Tensor) -> Tensor: ...
-    def weight(self, squared_norm: Tensor) -> Tensor: ...
-
-class L2(RobustKernel):    ...   # trivial identity
-class Huber(RobustKernel): ...
-class Cauchy(RobustKernel): ...
-class Tukey(RobustKernel): ...
-```
-
-Source: `src/better_robot/optim/kernels/`.
-
-Each kernel is attached to a `ResidualItem` and applied after item-weight
-scaling, so thresholds such as Huber's `delta` are in weighted residual units.
-Built-ins use the normalized IRLS convention `weight(s) = 2·ρ'(s)`: residual
-and Jacobian rows are multiplied by `sqrt(weight(r²))` before the linear solve.
-`Problem.objective()` evaluates the matching grouped robust objective, while
-`Problem.residual()` preserves the weighted raw residual vector.
-
-## IK `OptimizerConfig`
-
-`OptimizerConfig` is the user-facing dial. Solver-selection fields are
-validated at the facade boundary, and a non-default method-specific setting
-is either applied by the selected method or rejected; it is not silently
-ignored.
-
-```python
-@dataclass
-class OptimizerConfig:
-    optimizer: Literal["lm", "gn", "adam", "lbfgs",
-                       "lm_then_adam", "lm_then_lbfgs"] = "lm"
-    max_iter: int = 100
-    jacobian_strategy: JacobianStrategy = JacobianStrategy.AUTO
-
-    linear_solver: Literal["cholesky", "lstsq"] = "cholesky"
-    kernel: Literal["l2", "huber", "cauchy", "tukey"] = "l2"
-    damping: Literal["constant", "adaptive"] = "adaptive"
-    tol: float = 1e-6
-    refine_disabled_items: tuple[str, ...] = ()
-```
-
-`solve_ik` maps these fields to the named-block solvers explicitly:
-
-```python
-solver = LevenbergMarquardt(
-    max_iter=cfg.max_iter,
-    gtol=cfg.tol,
-    linear_solver=_make_linear_solver(cfg.linear_solver),
-    kernel=_make_robust_kernel(cfg.kernel),
-    jacobian_strategy=map_strategy(cfg.jacobian_strategy),
-    fixed_damping=cfg.damping == "constant",
+values, result = run_first_order(
+    values,
+    problem,
+    lambda parameters: torch.optim.Adam(parameters, lr=1e-2),
+    max_iter=100,
+    tolerance=1e-6,
 )
-values, state = solver.run(values, problem)
 ```
 
-Adam intentionally has no linear-solver, Jacobian-strategy, or damping
-arguments. Non-default values for those fields are rejected when
-`optimizer="adam"`; Gauss--Newton likewise rejects a non-default damping
-selector. `refine_disabled_items` is accepted only by `lm_then_adam`.
-Named-block L-BFGS is not half-ported: `"lbfgs"` and `"lm_then_lbfgs"` raise an
-actionable error, while `"lm_then_adam"` uses the functional phase engine.
+The factory may return Adam, SGD, or another compatible Torch optimizer.
+`FirstOrderResult` reports detached per-element `step`, `converged`, and
+`cost` tensors. The adapter deliberately does not reproduce custom warm-start
+moments, per-element bias-correction counters, or atomic non-finite rollback.
+
+`solve_ik(..., optimizer="lm_then_adam")` performs two sequential calls. It
+rebuilds the refinement problem with any `refine_disabled_items` set to zero
+weight; there is no general phase engine.
+
+## Robust kernels and linear solvers
+
+`ResidualItem.kernel` and `group_size` define contiguous robust groups. The
+built-ins are `L2`, `Huber`, `Cauchy`, `Tukey`, and `GemanMcClure`; they use
+the normalized IRLS convention `weight(s) = 2*rho'(s)`. Thresholds are in
+weighted residual units.
+
+Dense LM uses strict SPD `Cholesky`; temporal LM uses
+`BandedCholesky`. A failed Cholesky factorization is reported to LM so damping
+can increase. Rank-deficient least-squares fallback is not part of the linear
+solver contract.
 
 ## Task results
 
-`solve_ik` and `solve_trajopt` convert named-block tensor state to task result
-objects with scalar diagnostics for unbatched calls and per-element tensors
-for batches. `TrajOptResult` additionally records
-`linearization_requested`, `linearization_used`, `linearization_reason`, and
-`linearization_detail`; `linearization_used` is `"dense"`, `"banded"`, or
-`"matrix_free"`.
-
-## Sharp edges
-
-- **Matrix-free is explicit.** `better_robot.optim.Adam` uses the tangent
-  objective VJP, while named-block LM uses `NormalOperator`/`NormalCG` only
-  when `linearization="matrix_free"` or an explicit compatible solver selects
-  that route. Automatic LM prefers direct bands and otherwise falls back to
-  dense. Batched named-block LBFGS is deferred.
-- **`OptimizerConfig` exposes only supported choices.** Dense Cholesky and
-  LSTSQ are the only linear-solver choices; unimplemented iterative, sparse,
-  and trust-region placeholders are not importable. Incompatible
-  method-specific non-defaults fail at the `solve_ik` boundary.
+`solve_ik` and `solve_trajopt` translate tensor solver state into task result
+objects. Unbatched diagnostics are Python scalars; batched diagnostics retain
+their leading axes. `TrajOptResult.linearization_used` is `"dense"` or
+`"banded"`, with the requested route and stable reason/detail alongside it.
 
 ## Where to look next
 
-- {doc}`tasks` — named-block `solve_ik` and temporal `solve_trajopt` presets.
-- {doc}`/conventions/extension` — supported linear-solver and robust-kernel
-  extension seams.
-- {doc}`/guides/custom_residuals` — author a residual for the named-block
-  evaluation contract.
-- {doc}`/conventions/performance` §2.7 — current dense, banded, matrix-free,
-  and allocation boundaries.
+- {doc}`tasks` — IK, trajectory optimization, and contact-force presets.
+- {doc}`/guides/custom_residuals` — author a structural residual and provider.
+- {doc}`/conventions/extension` — supported residual, provider, kernel, and
+  linear-solver seams.
+- {doc}`/conventions/performance` — allocation and capture boundaries.

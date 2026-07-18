@@ -3,33 +3,40 @@
 Covers:
 * Linearly-interpolated trajectory in config space → acceleration ≈ 0.
 * Perturbed trajectory → acceleration ≠ 0.
-* Analytic Jacobian matches central finite differences through
+* Analytic named blocks match central finite differences through
   ``model.integrate`` (the identity-right-Jacobian approximation is
   valid in the small-step regime these residuals operate in).
 """
 
 from __future__ import annotations
 
-import math
-
 import pytest
 import torch
 
 import better_robot as br
 from better_robot.residuals import AccelerationResidual, VelocityResidual
-from better_robot.residuals.base import ResidualState
 
 
 @pytest.fixture(scope="module")
 def panda_model():
     pytest.importorskip("robot_descriptions")
-    from robot_descriptions import panda_description
+    from robot_descriptions import panda_description  # noqa: PLC0415
+
     return br.load(panda_description.URDF_PATH, dtype=torch.float64)
 
 
-def _state(model, q_traj):
-    data = br.forward_kinematics(model, q_traj, compute_frames=True)
-    return ResidualState(model=model, data=data, variables=q_traj)
+class _Context(dict):
+    def __init__(self, *args, nv: int, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.nv = nv
+
+    def temporal_free_indices(self, variable_name: str) -> torch.Tensor:
+        assert variable_name == "q"
+        return torch.arange(self.nv)
+
+
+def _context(model, q_traj):
+    return _Context({"q": q_traj}, nv=model.nv)
 
 
 def test_acceleration_zero_on_linear_trajectory(panda_model):
@@ -41,8 +48,8 @@ def test_acceleration_zero_on_linear_trajectory(panda_model):
     alpha = torch.linspace(0, 1, T, dtype=torch.float64).unsqueeze(1)
     q_traj = q0 * (1 - alpha) + q1 * alpha
 
-    res = AccelerationResidual(panda_model, dt=0.1)
-    r = res(_state(panda_model, q_traj))
+    res = AccelerationResidual(panda_model, dt=0.1, horizon=T)
+    r = res(_context(panda_model, q_traj))
     # Machine-precision zero for a pure Euclidean linear interpolation.
     assert float(r.abs().max()) < 1e-12, f"expected ~0, got {float(r.abs().max()):.3e}"
 
@@ -54,8 +61,8 @@ def test_acceleration_nonzero_on_perturbed_trajectory(panda_model):
     q = panda_model.q_neutral.double().unsqueeze(0).expand(T, -1).clone()
     q += torch.randn_like(q) * 0.1
 
-    res = AccelerationResidual(panda_model, dt=0.05)
-    r = res(_state(panda_model, q))
+    res = AccelerationResidual(panda_model, dt=0.05, horizon=T)
+    r = res(_context(panda_model, q))
     assert float(r.norm()) > 1.0, "perturbed trajectory should have nonzero acceleration"
 
 
@@ -63,8 +70,8 @@ def test_velocity_zero_on_constant_trajectory(panda_model):
     """Constant configuration across time → zero velocity."""
     T = 6
     q_traj = panda_model.q_neutral.double().unsqueeze(0).expand(T, -1).clone()
-    res = VelocityResidual(panda_model, dt=0.1)
-    r = res(_state(panda_model, q_traj))
+    res = VelocityResidual(panda_model, dt=0.1, horizon=T)
+    r = res(_context(panda_model, q_traj))
     assert float(r.abs().max()) < 1e-12
 
 
@@ -76,9 +83,8 @@ def test_acceleration_analytic_jacobian_matches_fd(panda_model):
     q_traj = panda_model.q_neutral.double().unsqueeze(0).expand(T, -1).clone()
     q_traj = q_traj + torch.randn_like(q_traj) * 0.02
 
-    res = AccelerationResidual(panda_model, dt=dt)
-    state = _state(panda_model, q_traj)
-    J_an = res.jacobian(state)
+    res = AccelerationResidual(panda_model, dt=dt, horizon=T)
+    J_an = res.jacobian_blocks(_context(panda_model, q_traj))["q"]
 
     nv = panda_model.nv
     eps = 1e-6
@@ -89,8 +95,8 @@ def test_acceleration_analytic_jacobian_matches_fd(panda_model):
             dv[s, i] = eps
             q_p = panda_model.integrate(q_traj, dv)
             q_m = panda_model.integrate(q_traj, -dv)
-            r_p = res(_state(panda_model, q_p))
-            r_m = res(_state(panda_model, q_m))
+            r_p = res(_context(panda_model, q_p))
+            r_m = res(_context(panda_model, q_m))
             J_fd[:, s * nv + i] = (r_p - r_m) / (2 * eps)
 
     torch.testing.assert_close(J_an, J_fd, atol=1e-6, rtol=1e-4)
@@ -103,9 +109,8 @@ def test_velocity_analytic_jacobian_matches_fd(panda_model):
     q_traj = panda_model.q_neutral.double().unsqueeze(0).expand(T, -1).clone()
     q_traj = q_traj + torch.randn_like(q_traj) * 0.02
 
-    res = VelocityResidual(panda_model, dt=dt)
-    state = _state(panda_model, q_traj)
-    J_an = res.jacobian(state)
+    res = VelocityResidual(panda_model, dt=dt, horizon=T)
+    J_an = res.jacobian_blocks(_context(panda_model, q_traj))["q"]
 
     nv = panda_model.nv
     eps = 1e-6
@@ -116,8 +121,8 @@ def test_velocity_analytic_jacobian_matches_fd(panda_model):
             dv[s, i] = eps
             q_p = panda_model.integrate(q_traj, dv)
             q_m = panda_model.integrate(q_traj, -dv)
-            r_p = res(_state(panda_model, q_p))
-            r_m = res(_state(panda_model, q_m))
+            r_p = res(_context(panda_model, q_p))
+            r_m = res(_context(panda_model, q_m))
             J_fd[:, s * nv + i] = (r_p - r_m) / (2 * eps)
 
     torch.testing.assert_close(J_an, J_fd, atol=1e-6, rtol=1e-4)
@@ -132,8 +137,8 @@ def test_autograd_through_difference(panda_model):
     delta_v = torch.zeros(T, panda_model.nv, dtype=torch.float64, requires_grad=True)
 
     q_traj = panda_model.integrate(q_init, delta_v)
-    res = AccelerationResidual(panda_model, dt=dt)
-    r = res(_state(panda_model, q_traj))
+    res = AccelerationResidual(panda_model, dt=dt, horizon=T)
+    r = res(_context(panda_model, q_traj))
     loss = 0.5 * (r * r).sum()
     loss.backward()
 

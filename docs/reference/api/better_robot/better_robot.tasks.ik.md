@@ -147,9 +147,9 @@
 
 ````{py:attribute} jacobian_strategy
 :canonical: better_robot.tasks.ik.OptimizerConfig.jacobian_strategy
-:type: better_robot.kinematics.jacobian_strategy.JacobianStrategy
+:type: better_robot.optim.JacobianStrategy
 :value: >
-   None
+   'auto'
 
 ```{autodoc2-docstring} better_robot.tasks.ik.OptimizerConfig.jacobian_strategy
 ```
@@ -158,7 +158,7 @@
 
 ````{py:attribute} linear_solver
 :canonical: better_robot.tasks.ik.OptimizerConfig.linear_solver
-:type: typing.Literal[cholesky, lstsq]
+:type: typing.Literal[cholesky]
 :value: >
    'cholesky'
 

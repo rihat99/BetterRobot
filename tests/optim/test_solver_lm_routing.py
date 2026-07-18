@@ -1,4 +1,4 @@
-"""Dense, banded, and matrix-free routing for named-block LM."""
+"""Dense and banded routing for named-block LM."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from better_robot.optim import (
     TemporalPattern,
     VarSpec,
 )
-from better_robot.optim.solvers import BandedCholesky, Cholesky, NormalCG
+from better_robot.optim.solvers import BandedCholesky, Cholesky
 
 
 @dataclass(frozen=True)
@@ -107,24 +107,22 @@ def _problem(
     )
 
 
-def test_auto_banded_matches_forced_dense_and_matrix_free() -> None:
+def test_auto_banded_matches_forced_dense() -> None:
     residual = _DiagonalTrajectoryResidual(6, 3)
     problem = _problem(residual)
     values = {"x": torch.zeros(2, 6, 3, dtype=torch.float64)}
 
     outputs = {}
     states = {}
-    for mode in ("dense", "structured", "matrix_free", "auto"):
+    for mode in ("dense", "structured", "auto"):
         solver = LevenbergMarquardt(max_iter=4, linearization=mode)
         outputs[mode], states[mode] = solver.run(values, problem)
 
     assert LevenbergMarquardt().resolve_linearization(problem).used == "banded"
-    for mode in ("structured", "matrix_free", "auto"):
+    for mode in ("structured", "auto"):
         torch.testing.assert_close(outputs[mode]["x"], outputs["dense"]["x"], atol=1e-10, rtol=1e-10)
         torch.testing.assert_close(states[mode].cost, states["dense"].cost, atol=1e-12, rtol=1e-12)
         assert torch.equal(states[mode].status, states["dense"].status)
-        assert states[mode].linear_solve_status.shape == (2,)
-        assert states[mode].previous_linear_step.shape == (2, 18)
 
 
 def test_structured_route_never_calls_dense_jacobian(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -134,33 +132,26 @@ def test_structured_route_never_calls_dense_jacobian(monkeypatch: pytest.MonkeyP
     def fail_dense(*_args, **_kwargs):
         raise AssertionError("structured route materialized the dense Jacobian")
 
-    monkeypatch.setattr(Problem, "_dense_jacobian_prevalidated", fail_dense)
+    monkeypatch.setattr(Problem, "dense_jacobian", fail_dense)
     values = {"x": torch.zeros(5, 2, dtype=torch.float64)}
     state = LevenbergMarquardt(linearization="structured").init_state(values, problem)
 
     assert torch.isfinite(state.cost)
-    assert state.previous_linear_step.numel() == problem.tangent_dim_total
 
 
-def test_missing_numeric_blocks_are_operator_only() -> None:
+def test_missing_numeric_blocks_fall_back_to_dense() -> None:
     residual = _DeclaredWithoutBlocks(4, 2)
     problem = _problem(residual)
     analysis = problem.temporal_analysis
 
-    assert analysis.operator_eligible
     assert not analysis.direct_eligible
     assert analysis.reason is LinearizationReason.MISSING_TEMPORAL_BLOCKS
     assert LevenbergMarquardt().resolve_linearization(problem).used == "dense"
-    assert LevenbergMarquardt(linear_solver=NormalCG()).resolve_linearization(problem).used == "matrix_free"
     with pytest.raises(ValueError, match="missing_temporal_blocks"):
         LevenbergMarquardt(linearization="structured").resolve_linearization(problem)
 
     values = {"x": torch.zeros(4, 2, dtype=torch.float64)}
-    solved, state = LevenbergMarquardt(
-        max_iter=4,
-        linearization="matrix_free",
-        linear_solver=NormalCG(rtol=1e-10),
-    ).run(values, problem)
+    solved, state = LevenbergMarquardt(max_iter=4).run(values, problem)
     torch.testing.assert_close(solved["x"], torch.full_like(solved["x"], 0.5), atol=1e-8, rtol=1e-8)
     assert torch.isfinite(state.cost)
 
@@ -185,7 +176,6 @@ def test_explicit_solver_compatibility_is_not_silently_ignored() -> None:
 
     assert LevenbergMarquardt(linear_solver=Cholesky()).resolve_linearization(problem).used == "dense"
     assert LevenbergMarquardt(linear_solver=BandedCholesky()).resolve_linearization(problem).used == "banded"
-    assert LevenbergMarquardt(linear_solver=NormalCG()).resolve_linearization(problem).used == "matrix_free"
     with pytest.raises(ValueError, match="incompatible_solver"):
         LevenbergMarquardt(
             linearization="dense",

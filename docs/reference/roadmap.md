@@ -83,7 +83,6 @@ claim ships today; see {doc}`/concepts/collision_and_geometry`.
 `solve_ik` and knot-based `solve_trajopt` are live on named blocks. Temporal
 residuals declare `TemporalPattern` support; automatic LM uses block-banded
 assembly when directly eligible and otherwise records a dense fallback.
-Explicit matrix-free routing uses `NormalOperator`/`NormalCG`.
 `BSplineTrajectory` remains a Euclidean numerical basis utility: M5 did not
 make it a robot-manifold map, and robot use stays rejected pending a separate
 reviewed interpolation/retraction and bound contract. Schur elimination for a

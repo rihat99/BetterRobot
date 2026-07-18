@@ -25,3 +25,17 @@ def _blend_values(mask: torch.Tensor, yes: Values, no: Values) -> Values:
         )
         for name in yes
     }
+
+
+def _state_coordinates(
+    values: Values,
+    problem: Problem,
+    state_index: torch.Tensor,
+) -> torch.Tensor:
+    """Gather ambient coordinates corresponding to tangent-space bounds."""
+    flat = torch.cat(
+        tuple(values[spec.name].reshape(*_batch_shape(values, problem), -1) for spec in problem.vars),
+        dim=-1,
+    )
+    gathered = flat.index_select(-1, state_index.clamp(min=0))
+    return torch.where(state_index >= 0, gathered, torch.zeros_like(gathered))

@@ -5,6 +5,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- **Lean optimization core.** `better_robot.optim` is now one flat package
+  with `Problem.add_variable` / `add_residual`, one named-context residual
+  protocol, recursive provider memoization, dense or block-banded LM/GN, and a
+  small adapter for ordinary `torch.optim` optimizers. The scalar-objective
+  subsystem, custom Adam and phase engine, matrix-free normal-CG route, LSTSQ
+  option, shadow prevalidated methods, and Jacobian-strategy enum were removed.
 - **CUDA-validated opt-in Warp FK.** The fused FK lane now covers fp32/fp64,
   fixed/free bases, branched and deep models, value batching, q/placement
   VJPs, current-stream ordering, and forward graph replay on RTX 6000 Ada.
@@ -24,13 +30,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   tangent/KKT system, supports product manifolds and stable active bounds, and
   strictly rejects invalid batches, Huber kinks, terminal quaternion
   representatives at absolute pi, tensor-role identity collisions, and singular systems. Dense size is
-  capped; structured/operator backward and direct ModelValues/weight rebinding
+  capped; true structured backward and direct ModelValues/weight rebinding
   remain explicit gaps.
 - **Structured trajectory optimization.** Named-block variables may declare
   `time_axis=0`; temporal residuals expose `TemporalPattern` plus exact local
-  Jacobian blocks. LM routes between dense Cholesky, block-banded
-  `BandedCholesky`, and explicit `NormalOperator`/`NormalCG`, with stable
-  requested/used/reason/detail diagnostics and dense automatic fallback.
+  Jacobian blocks. LM routes between dense Cholesky and block-banded
+  `BandedCholesky`, with stable requested/used/reason/detail diagnostics and
+  dense automatic fallback.
 - **Named-block `solve_trajopt`.** An explicit sequence of `ResidualItem`
   values is adapted to one temporal `RobotConfig` block with arbitrary leading
   batches, sanitized optional bounds, per-element state diagnostics, and route

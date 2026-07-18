@@ -1,13 +1,12 @@
 # residuals/ — Residual Functions and Named-Block Components
 
-## Two supported call shapes
+## Residual protocol
 
-Legacy residuals accept `ResidualState(model, data, variables)` and may expose
-an analytic `jacobian(state)`. Current optimization tasks use the named-block
-`Problem`: a residual is a callable over an evaluation-local mapping, declares
-`reads`, returns `(..., dim)` rows, and may implement
-`jacobian_blocks(ctx) -> dict[var_name, Tensor]`. Do not introduce a third
-protocol or silently fall back to finite differences.
+A residual is a callable over an evaluation-local mapping, declares `reads`,
+returns `(..., dim)` rows, and may implement
+`jacobian_blocks(ctx) -> dict[var_name, Tensor]`. Missing analytic blocks use
+the `Problem` Jacobian strategy; finite differences remain an explicit debug
+choice.
 
 Providers own shared computation. Declare their static `inputs` and `outputs`;
 `Problem` evaluates each provider at most once per evaluation context. Residuals

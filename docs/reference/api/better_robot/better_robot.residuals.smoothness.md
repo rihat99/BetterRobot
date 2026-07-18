@@ -82,22 +82,6 @@
 
 ````
 
-````{py:method} jacobian(value: better_robot.residuals.base.ResidualState | collections.abc.Mapping[str, typing.Any]) -> torch.Tensor | None
-:canonical: better_robot.residuals.smoothness.VelocityResidual.jacobian
-
-```{autodoc2-docstring} better_robot.residuals.smoothness.VelocityResidual.jacobian
-```
-
-````
-
-````{py:method} apply_jac_transpose(state: better_robot.residuals.base.ResidualState, r: torch.Tensor) -> torch.Tensor
-:canonical: better_robot.residuals.smoothness.VelocityResidual.apply_jac_transpose
-
-```{autodoc2-docstring} better_robot.residuals.smoothness.VelocityResidual.apply_jac_transpose
-```
-
-````
-
 `````
 
 `````{py:class} AccelerationResidual(model: better_robot.data_model.model.Model, *, dt: float, weight: float = 1.0, horizon: int | None = None, name: str = 'acceleration')
@@ -151,22 +135,6 @@
 
 ````
 
-````{py:method} jacobian(value: better_robot.residuals.base.ResidualState | collections.abc.Mapping[str, typing.Any]) -> torch.Tensor | None
-:canonical: better_robot.residuals.smoothness.AccelerationResidual.jacobian
-
-```{autodoc2-docstring} better_robot.residuals.smoothness.AccelerationResidual.jacobian
-```
-
-````
-
-````{py:method} apply_jac_transpose(state: better_robot.residuals.base.ResidualState, r: torch.Tensor) -> torch.Tensor
-:canonical: better_robot.residuals.smoothness.AccelerationResidual.apply_jac_transpose
-
-```{autodoc2-docstring} better_robot.residuals.smoothness.AccelerationResidual.apply_jac_transpose
-```
-
-````
-
 `````
 
 `````{py:class} JerkResidual(model: better_robot.data_model.model.Model, *, dt: float, weight: float = 1.0)
@@ -197,11 +165,12 @@
 
 ````
 
-````{py:method} jacobian(state: better_robot.residuals.base.ResidualState) -> torch.Tensor | None
-:canonical: better_robot.residuals.smoothness.JerkResidual.jacobian
-:abstractmethod:
+````{py:attribute} reads
+:canonical: better_robot.residuals.smoothness.JerkResidual.reads
+:value: >
+   ('q',)
 
-```{autodoc2-docstring} better_robot.residuals.smoothness.JerkResidual.jacobian
+```{autodoc2-docstring} better_robot.residuals.smoothness.JerkResidual.reads
 ```
 
 ````

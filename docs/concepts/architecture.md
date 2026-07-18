@@ -41,12 +41,11 @@ package; it is not a new dependency layer. Purely kinematic IK therefore does
 not pull dynamics into its import or compile path.
 
 The optimization layer has one construction contract. A named-block `Problem`
-owns `VarSpec`s, structural residual items, scalar objective items, and a
-provider DAG. Providers may reach directly to lower layers such as kinematics,
-while user residuals consume only the read-only context names they declare.
-Residual-owned `TemporalPattern` values remain below `optim`; the optimizer
-consumes them to build block-banded or operator representations without
-creating a reverse dependency.
+owns `VarSpec`s, least-squares residual items, and evaluation-local providers.
+Providers may reach directly to lower layers such as kinematics, while user
+residuals consume a read-only context. Residual-owned `TemporalPattern` values
+remain below `optim`; the optimizer consumes them to build block-banded normal
+systems without creating a reverse dependency.
 
 `tasks/` is the topmost user-facing facade. `solve_ik` builds a named-block
 `Problem` with a `RobotConfig` variable and provider-backed built-in
@@ -88,7 +87,7 @@ with the offending file and line number if that rule breaks.
 | `kinematics` | FK, frame updates, Jacobians, local whole-pass kernels | `dynamics` / `residuals` / above |
 | `dynamics` | RNEA / ABA / CRBA / centroidal algorithms and local whole-pass kernels | `residuals` / above |
 | `residuals` | Pure residual functions | `optim` / `tasks` / `io` / `viewer` |
-| `optim` | Named-block `Problem` evaluation, Adam/LM/GN, linear solvers, robust kernels, and structure types | `tasks` / `io` / `viewer` |
+| `optim` | Named-block `Problem` evaluation, LM/GN, a `torch.optim` adapter, linear solvers, robust kernels, and temporal structure | `tasks` / `io` / `viewer` |
 | `collision` | Reserved primitive, pair-dispatch, and robot-decomposition surfaces (computation is stubbed) | `tasks` / `io` / `viewer` |
 | `io` | Parsers, IR, builders | `tasks` / `viewer` |
 | `tasks` | `solve_ik`, `solve_trajopt`, `solve_contact_forces`, and trajectory types | `viewer` |
@@ -132,7 +131,6 @@ src/better_robot/
 ├── kinematics/
 │   ├── forward.py                 # forward_kinematics, update_frame_placements
 │   ├── jacobian.py                # compute_joint_jacobians, get_joint/frame_jacobian
-│   └── jacobian_strategy.py       # JacobianStrategy enum
 │
 ├── dynamics/
 │   ├── rnea.py
@@ -154,10 +152,16 @@ src/better_robot/
 │   └── contact.py
 │
 ├── optim/
-│   ├── blocks/                    # named Problem / VarSpec / manifolds / temporal assembly
-│   ├── structure.py               # bands, normal operators, route decisions
-│   ├── solvers/                   # Cholesky / LSTSQ / BandedCholesky / NormalCG
-│   └── kernels/                   # L2 / Huber / Cauchy / Tukey / GemanMcClure
+│   ├── manifolds.py               # manifolds, robot configurations, bounds
+│   ├── variables.py               # Values / VarSpec
+│   ├── problem.py                 # builder, evaluation context, Jacobians
+│   ├── providers.py               # lazy provider memo and robot state
+│   ├── lm.py                      # LM/GN lifecycle and route decisions
+│   ├── first_order.py             # thin torch.optim adapter
+│   ├── temporal.py                # block-banded analysis and assembly
+│   ├── implicit.py                # guarded implicit differentiation
+│   ├── solvers.py                 # Cholesky / BandedCholesky
+│   └── kernels.py                 # L2 / Huber / Cauchy / Tukey / GemanMcClure
 │
 ├── tasks/
 │   ├── ik.py                      # solve_ik
@@ -202,10 +206,9 @@ __all__ = [
     "load", "ModelBuilder",
     # lie (1)
     "SE3",
-    # kinematics (6)
+    # kinematics (5)
     "forward_kinematics", "update_frame_placements",
     "compute_joint_jacobians", "get_joint_jacobian", "get_frame_jacobian",
-    "JacobianStrategy",
     # dynamics (5)
     "rnea", "aba", "crba", "center_of_mass", "compute_centroidal_map",
     # tasks (4)
@@ -231,9 +234,10 @@ from better_robot.tasks.ik    import IKResult, IKCostConfig, OptimizerConfig
 
 from better_robot.optim import (
     Bounds, Euclidean, SO3Manifold, SE3Manifold, RobotConfig,
-    Values, VarSpec, Problem, ResidualItem, ObjectiveItem, TemporalPattern,
-    BlockBandedMatrix, NormalOperator, LinearizationDecision,
-    RobotStateProvider, detach_values,
+    Values, VarSpec, Problem, ResidualItem, TemporalPattern,
+    BlockBandedMatrix, LinearizationDecision, RobotStateProvider,
+    FirstOrderResult, run_first_order, LevenbergMarquardt, GaussNewton,
+    detach_values,
 )
 ```
 

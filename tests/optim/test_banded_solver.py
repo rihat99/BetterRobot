@@ -6,7 +6,7 @@ import pytest
 import torch
 
 from better_robot.optim.solvers import BandedCholesky, LinearSolveStatus
-from better_robot.optim.structure import BlockBandedMatrix
+from better_robot.optim.temporal import BlockBandedMatrix
 
 
 def _banded_spd(

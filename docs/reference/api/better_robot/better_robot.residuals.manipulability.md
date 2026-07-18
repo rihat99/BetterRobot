@@ -42,10 +42,12 @@ Bases: {py:obj}`better_robot.residuals.base.Residual`
 
 ````
 
-````{py:method} jacobian(state: better_robot.residuals.base.ResidualState) -> torch.Tensor | None
-:canonical: better_robot.residuals.manipulability.YoshikawaResidual.jacobian
+````{py:attribute} reads
+:canonical: better_robot.residuals.manipulability.YoshikawaResidual.reads
+:value: >
+   ('q', 'data')
 
-```{autodoc2-docstring} better_robot.residuals.manipulability.YoshikawaResidual.jacobian
+```{autodoc2-docstring} better_robot.residuals.manipulability.YoshikawaResidual.reads
 ```
 
 ````

@@ -10,7 +10,7 @@ from typing import Any
 
 import torch
 
-from better_robot.optim import ObjectiveItem, Problem, ResidualItem, VarSpec
+from better_robot.optim import Problem, ResidualItem, VarSpec
 
 
 SEED = 20260717
@@ -22,13 +22,13 @@ ROOT_WEIGHTS = {
     "penetration": 0.25,
     "attraction": 1.0,
     "clearance": 0.0,
-    "scale_prior": 0.6,
+    "scale_prior": math.sqrt(0.6),
 }
 FULL_WEIGHTS = {
     "penetration": 0.4,
     "attraction": 1.0,
     "clearance": 0.15,
-    "scale_prior": 0.25,
+    "scale_prior": 0.5,
 }
 PROVIDER_INACTIVE_WEIGHTS = {
     "penetration": 0.0,
@@ -43,7 +43,7 @@ FRICTION_LOG = (
     "torch.optim.Adam consumes leaf gradients, while Problem.gradient returns named "
     "reduced tangents; zeroed tangent buffers adapt Adam updates into Problem.retract.",
     "The guide intentionally keeps providers structural rather than prescribing a "
-    "base class; the slice supplies name/inputs/outputs/__call__ without inheritance.",
+    "base class; the slice supplies name/reads/outputs/__call__ without inheritance.",
 )
 
 
@@ -80,7 +80,7 @@ class SyntheticKinematicsProvider:
 
     counters: SliceCounters
     name: str = "synthetic_kinematics"
-    inputs: tuple[str, ...] = ("q",)
+    reads: tuple[str, ...] = ("q",)
     outputs: tuple[str, ...] = ("kinematic_origins",)
 
     def __call__(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
@@ -94,7 +94,7 @@ class DetachedNearestNeighborProvider:
 
     counters: SliceCounters
     name: str = "scene_nearest_neighbor"
-    inputs: tuple[str, ...] = (
+    reads: tuple[str, ...] = (
         "kinematic_origins",
         "log_s",
         "template_points",
@@ -154,14 +154,15 @@ class ClearanceResidual:
         return torch.relu(signed - 0.02).reshape(*signed.shape[:-2], self.dim)
 
 
-class ScalePriorTerm:
-    """Scalar first-order prior keeping log-scale near the synthetic target."""
+class ScalePriorResidual:
+    """One-row least-squares prior keeping log-scale near the target."""
 
     name = "scale_prior"
     reads = ("log_s", "target_log_s")
+    dim = 1
 
     def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        return (ctx["log_s"] - ctx["target_log_s"]).square().sum(dim=-1)
+        return math.sqrt(2.0) * (ctx["log_s"] - ctx["target_log_s"])
 
 
 @dataclass(frozen=True)
@@ -234,8 +235,8 @@ def make_problem(
             ResidualItem("penetration", penetration),
             ResidualItem("attraction", AttractionResidual(), group_size=COORDS),
             ResidualItem("clearance", ClearanceResidual()),
+            ResidualItem("scale_prior", ScalePriorResidual()),
         ),
-        objectives=(ObjectiveItem("scale_prior", ScalePriorTerm()),),
         providers=(
             SyntheticKinematicsProvider(counters),
             DetachedNearestNeighborProvider(counters),

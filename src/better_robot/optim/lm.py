@@ -1,13 +1,4 @@
-"""Batched named-block Gauss--Newton and Levenberg--Marquardt solvers.
-
-The update is pure, fixed-shape, and tensor-branching only; the public ``run``
-driver remains eager.
-
-Bounds use projected active-set LM with a projected-gradient safeguard.  The
-normal system is restricted before solving, the gain ratio uses the tangent
-step actually taken after projection, and terminal bound stalls are reported
-only after a projected-gradient KKT check.
-"""
+"""Batched projected Gauss--Newton and Levenberg--Marquardt solvers."""
 
 from __future__ import annotations
 
@@ -21,24 +12,33 @@ from typing import Literal, NamedTuple, TypeAlias, cast
 
 import torch
 
-from ..kernels import L2
-from ..kernels.base import RobustKernel
-from ..solvers import BandedCholesky, Cholesky, NormalCG
-from ..solvers.base import LinearSolveResult, LinearSolveStatus, LinearSolver
-from ..structure import (
-    BlockBandedMatrix,
-    LinearizationDecision,
-    LinearizationMode,
-    LinearizationReason,
-    NormalOperator,
+from .kernels import L2, RobustKernel, _group_rows
+from .solvers import (
+    BandedCholesky,
+    Cholesky,
+    LinearSolver,
 )
-from ._solver_common import _batch_shape, _blend_values
+from ._solver_common import _blend_values, _state_coordinates
 from .implicit import ImplicitDiffConfig
 from .manifolds import Euclidean, RobotConfig, _joint_coordinate_layout
 from .problem import JacobianStrategy, Problem
+from .temporal import BlockBandedMatrix, LinearizationReason
 from .variables import Values, detach_values
 
-_ResolvedLinearSolver: TypeAlias = LinearSolver | BandedCholesky | NormalCG | Cholesky
+LinearizationMode: TypeAlias = Literal["auto", "dense", "structured"]
+
+
+@dataclass(frozen=True)
+class LinearizationDecision:
+    """Resolved dense or block-banded linearization route."""
+
+    requested: LinearizationMode
+    used: Literal["dense", "banded"]
+    reason: LinearizationReason
+    detail: str
+
+
+_ResolvedLinearSolver: TypeAlias = LinearSolver | BandedCholesky | Cholesky
 
 
 class LMStatus(IntEnum):
@@ -52,14 +52,7 @@ class LMStatus(IntEnum):
 
 
 class LMState(NamedTuple):
-    """Fixed-structure tensor state for one arbitrary leading batch shape.
-
-    ``converged`` means that an element has satisfied either the unconstrained
-    or bound-constrained KKT test.  Inspect ``status`` to distinguish those
-    two successful terminal cases.  ``implicit_valid`` records structural
-    terminal eligibility; implicit attachment separately validates and solves
-    the backward system.
-    """
+    """Fixed-structure tensor state for arbitrary leading batch axes."""
 
     residual: torch.Tensor
     robust_weights: torch.Tensor
@@ -69,17 +62,11 @@ class LMState(NamedTuple):
     gain_ratio: torch.Tensor
     gradient: torch.Tensor
     grad_norm: torch.Tensor
-    projected_gradient: torch.Tensor
     projected_grad_norm: torch.Tensor
     step_norm: torch.Tensor
     relative_decrease: torch.Tensor
     active_mask: torch.Tensor
     factorization_ok: torch.Tensor
-    linear_solve_iterations: torch.Tensor
-    linear_solve_residual_norm: torch.Tensor
-    linear_solve_relative_residual: torch.Tensor
-    linear_solve_status: torch.Tensor
-    previous_linear_step: torch.Tensor
     converged: torch.Tensor
     implicit_valid: torch.Tensor
     status: torch.Tensor
@@ -96,25 +83,9 @@ class LMState(NamedTuple):
         return self.projected_grad_norm
 
 
-@dataclass(frozen=True)
-class _JacobianOperators:
-    """Evaluation-local physical-tangent Jacobian operations."""
-
-    jvp_fn: Callable[[torch.Tensor], torch.Tensor]
-    vjp_fn: Callable[[torch.Tensor], torch.Tensor]
-    normal_diagonal_tensor: torch.Tensor
-
-    def jvp(self, tangent: torch.Tensor) -> torch.Tensor:
-        return self.jvp_fn(tangent)
-
-    def vjp(self, cotangent: torch.Tensor) -> torch.Tensor:
-        return self.vjp_fn(cotangent)
-
-    def normal_matvec(self, tangent: torch.Tensor) -> torch.Tensor:
-        return self.vjp(self.jvp(tangent))
-
-    def normal_diagonal(self) -> torch.Tensor:
-        return self.normal_diagonal_tensor
+class _JacobianOperators(NamedTuple):
+    jvp: Callable[[torch.Tensor], torch.Tensor]
+    normal_matvec: Callable[[torch.Tensor], torch.Tensor]
 
 
 class _LinearizedLeastSquares(NamedTuple):
@@ -126,7 +97,6 @@ class _LinearizedLeastSquares(NamedTuple):
     operators: _JacobianOperators
     normal: torch.Tensor | BlockBandedMatrix | None
     grad_norm: torch.Tensor
-    projected_gradient: torch.Tensor
     projected_grad_norm: torch.Tensor
     active_mask: torch.Tensor
     finite: torch.Tensor
@@ -144,11 +114,10 @@ def _difference_reduced(
     x0: Values,
     x1: Values,
     problem: Problem,
-    batch_shape: tuple[int, ...],
 ) -> torch.Tensor:
-    full = problem._difference_prevalidated(x0, x1, batch_shape=batch_shape)
+    full = problem.difference(x0, x1)
     return torch.cat(
-        tuple(spec._gather_tangent_prevalidated(full[spec.name]) for spec in problem.vars),
+        tuple(spec.gather_tangent(full[spec.name]) for spec in problem.vars),
         dim=-1,
     )
 
@@ -157,13 +126,15 @@ def _retract_reduced(
     values: Values,
     step: torch.Tensor,
     problem: Problem,
-    batch_shape: tuple[int, ...],
 ) -> Values:
-    return problem._retract_prevalidated(
-        values,
-        _split_step(step, problem),
-        batch_shape=batch_shape,
-    )
+    return problem.retract(values, _split_step(step, problem))
+
+
+def _project_step(
+    values: Values, step: torch.Tensor, problem: Problem, limits: tuple[tuple[str, float], ...]
+) -> tuple[Values, torch.Tensor]:
+    proposed = _retract_reduced(values, _limit_block_step_norms(step, problem, limits), problem)
+    return proposed, _difference_reduced(values, proposed, problem)
 
 
 def _limit_block_step_norms(
@@ -302,20 +273,6 @@ def _static_layout(  # noqa: PLR0912 - handles the finite supported variable lay
     return scale, state_index, lower, upper, bounded
 
 
-def _state_coordinates(
-    values: Values,
-    problem: Problem,
-    state_index: torch.Tensor,
-) -> torch.Tensor:
-    flat = torch.cat(
-        tuple(values[spec.name].reshape(*_batch_shape(values, problem), -1) for spec in problem.vars),
-        dim=-1,
-    )
-    mapped = state_index >= 0
-    gathered = flat.index_select(-1, state_index.clamp(min=0))
-    return torch.where(mapped, gathered, torch.zeros_like(gathered))
-
-
 def _robustify(
     residual: torch.Tensor,
     problem: Problem,
@@ -325,7 +282,7 @@ def _robustify(
     row_weights: list[torch.Tensor] = []
     for item in problem.residuals:
         rows = residual[..., problem.row_offsets[item.name]]
-        groups = rows.reshape(*rows.shape[:-1], item.residual.dim // item.group_size, item.group_size)
+        groups = _group_rows(rows, item.group_size)
         squared_norm = groups.square().sum(dim=-1)
         kernel = item.kernel if item.kernel is not None else default_kernel
         costs.append(kernel.rho(squared_norm).sum(dim=-1))
@@ -347,14 +304,23 @@ def _robust_decrease(
     decreases: list[torch.Tensor] = []
     for item in problem.residuals:
         row_slice = problem.row_offsets[item.name]
-        shape = (*current.shape[:-1], item.residual.dim // item.group_size, item.group_size)
-        current_groups = current[..., row_slice].reshape(shape)
-        candidate_groups = candidate[..., row_slice].reshape(shape)
+        current_groups = _group_rows(current[..., row_slice], item.group_size)
+        candidate_groups = _group_rows(candidate[..., row_slice], item.group_size)
         kernel = item.kernel if item.kernel is not None else default_kernel
         current_rho = kernel.rho(current_groups.square().sum(dim=-1))
         candidate_rho = kernel.rho(candidate_groups.square().sum(dim=-1))
         decreases.append((current_rho - candidate_rho).sum(dim=-1))
     return torch.stack(decreases, dim=-1).sum(dim=-1)
+
+
+def _robust_finite(residual: torch.Tensor, cost: torch.Tensor, weights: torch.Tensor) -> torch.Tensor:
+    return (
+        torch.isfinite(residual).all(dim=-1)
+        & torch.isfinite(cost)
+        & torch.isfinite(weights).all(dim=-1)
+        & (weights >= 0.0).all(dim=-1)
+        & (weights <= 1.0).all(dim=-1)
+    )
 
 
 def _active_mask(
@@ -379,48 +345,34 @@ def _projected_gradient(
     values: Values,
     gradient: torch.Tensor,
     problem: Problem,
-    batch_shape: tuple[int, ...],
     bounded: torch.Tensor,
 ) -> torch.Tensor:
-    projected = _retract_reduced(values, -gradient, problem, batch_shape)
+    projected = _retract_reduced(values, -gradient, problem)
     # P(x - g) - x is the projected *descent* direction; negate it so the
     # stored vector follows the ordinary-gradient sign on bounded axes. Group
     # manifolds are unbounded under VarSpec and can wrap a large tangent
     # through log(exp(.)); retain their raw gradient instead.
-    projected_box_gradient = -_difference_reduced(values, projected, problem, batch_shape)
+    projected_box_gradient = -_difference_reduced(values, projected, problem)
     return torch.where(bounded, projected_box_gradient, gradient)
 
 
 def _linearize_model(
     values: Values,
     problem: Problem,
-    *,
+    solver: LevenbergMarquardt,
     decision: LinearizationDecision,
-    kernel: RobustKernel,
-    jacobian_strategy: JacobianStrategy,
-    state_index: torch.Tensor,
-    lower: torch.Tensor,
-    upper: torch.Tensor,
-    bounded: torch.Tensor,
-    bound_tolerance: float,
+    bounds: tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor],
     create_graph: bool = False,
 ) -> _LinearizedLeastSquares:
-    batch_shape = _batch_shape(values, problem)
-    residual = problem._residual_prevalidated(values, batch_shape=batch_shape)
-    cost, robust_weights, row_scale = _robustify(residual, problem, kernel)
-    common_finite = (
-        torch.isfinite(residual).all(dim=-1)
-        & torch.isfinite(cost)
-        & torch.isfinite(robust_weights).all(dim=-1)
-        & (robust_weights >= 0.0).all(dim=-1)
-        & (robust_weights <= 1.0).all(dim=-1)
-    )
+    state_index, lower, upper, bounded = bounds
+    residual = problem.residual(values)
+    cost, robust_weights, row_scale = _robustify(residual, problem, solver.kernel)
+    common_finite = _robust_finite(residual, cost, robust_weights)
 
     if decision.used == "dense":
-        jacobian_raw = problem._dense_jacobian_prevalidated(
+        jacobian_raw = problem.dense_jacobian(
             values,
-            batch_shape=batch_shape,
-            strategy=jacobian_strategy,
+            strategy=solver.jacobian_strategy,
             create_graph=create_graph,
         )
         jacobian = jacobian_raw * row_scale.unsqueeze(-1)
@@ -429,65 +381,26 @@ def _linearize_model(
         normal = jacobian.mT @ jacobian
         normal_diagonal = normal.diagonal(dim1=-2, dim2=-1)
         operators = _JacobianOperators(
-            jvp_fn=lambda tangent: (jacobian @ tangent.unsqueeze(-1)).squeeze(-1),
-            vjp_fn=lambda cotangent: (jacobian.mT @ cotangent.unsqueeze(-1)).squeeze(-1),
-            normal_diagonal_tensor=normal_diagonal,
+            lambda tangent: (jacobian @ tangent.unsqueeze(-1)).squeeze(-1),
+            lambda tangent: (normal @ tangent.unsqueeze(-1)).squeeze(-1),
         )
         representation: torch.Tensor | BlockBandedMatrix | None = normal
         linearization_finite = torch.isfinite(jacobian).all(dim=(-2, -1))
-    elif decision.used == "banded" or problem.temporal_analysis.direct_eligible:
-        structured = problem._structured_normal_prevalidated(
+    else:
+        structured = problem.structured_normal(
             values,
-            batch_shape=batch_shape,
             row_scale=row_scale,
             residual=residual,
             create_graph=create_graph,
         )
         gradient = structured.gradient
         normal_diagonal = structured.normal_diagonal
-        operators = _JacobianOperators(
-            jvp_fn=structured.jvp,
-            vjp_fn=structured.vjp,
-            normal_diagonal_tensor=normal_diagonal,
-        )
-        representation = structured.normal if decision.used == "banded" else None
+        operators = _JacobianOperators(structured.jvp, structured.normal_matvec)
+        representation = structured.normal
         linearization_finite = structured.finite
-    else:
-        zero = residual.new_zeros(*batch_shape, problem.tangent_dim_total)
-
-        def tangent_residual(delta: torch.Tensor) -> torch.Tensor:
-            perturbed = _retract_reduced(values, delta, problem, batch_shape)
-            raw = problem._residual_prevalidated(perturbed, batch_shape=batch_shape)
-            return raw * row_scale
-
-        _weighted_at_zero, pullback = torch.func.vjp(tangent_residual, zero)  # type: ignore[misc]
-
-        def jvp(tangent: torch.Tensor) -> torch.Tensor:
-            return torch.func.jvp(tangent_residual, (zero,), (tangent,))[1]
-
-        def vjp(cotangent: torch.Tensor) -> torch.Tensor:
-            return pullback(cotangent)[0]
-
-        weighted_residual = residual * row_scale
-        gradient = vjp(weighted_residual)
-        basis = torch.eye(
-            problem.tangent_dim_total,
-            dtype=zero.dtype,
-            device=zero.device,
-        ).reshape(problem.tangent_dim_total, *([1] * len(batch_shape)), problem.tangent_dim_total)
-        basis = basis.expand(problem.tangent_dim_total, *batch_shape, problem.tangent_dim_total)
-        columns = torch.vmap(jvp)(basis).movedim(0, -1)
-        normal_diagonal = columns.square().sum(dim=-2)
-        operators = _JacobianOperators(
-            jvp_fn=jvp,
-            vjp_fn=vjp,
-            normal_diagonal_tensor=normal_diagonal,
-        )
-        representation = None
-        linearization_finite = torch.isfinite(normal_diagonal).all(dim=-1)
 
     grad_norm = _max_abs(gradient)
-    projected_gradient = _projected_gradient(values, gradient, problem, batch_shape, bounded)
+    projected_gradient = _projected_gradient(values, gradient, problem, bounded)
     projected_grad_norm = _max_abs(projected_gradient)
     active = _active_mask(
         values,
@@ -497,7 +410,7 @@ def _linearize_model(
         lower,
         upper,
         bounded,
-        bound_tolerance,
+        solver.bound_tolerance,
     )
     finite = common_finite & linearization_finite & torch.isfinite(gradient).all(dim=-1)
     return _LinearizedLeastSquares(
@@ -509,7 +422,6 @@ def _linearize_model(
         operators,
         representation,
         grad_norm,
-        projected_gradient,
         projected_grad_norm,
         active,
         finite,
@@ -529,16 +441,7 @@ def _terminal_status(model: _LinearizedLeastSquares, gtol: float) -> torch.Tenso
 
 @dataclass(frozen=True)
 class LevenbergMarquardt:
-    """Batched projected active-set LM over named-block ``Problem``/``Values``.
-
-    Hyperparameters are frozen.  All mutable per-element quantities live in
-    :class:`LMState`.  ``update`` preserves a possible explicit unrolled
-    oracle; ``run`` is the detached default driver and performs at most one
-    host-side terminal check per iteration. The public driver remains eager.
-    ``block_step_limits`` optionally caps the
-    physical tangent norm of named variable blocks before every retraction;
-    state-space bounds remain the responsibility of :class:`VarSpec`.
-    """
+    """Batched projected active-set LM over named-block problems."""
 
     max_iter: int = 50
     gtol: float = 1e-6
@@ -591,80 +494,44 @@ class LevenbergMarquardt:
             "finite_difference",
         }:
             raise ValueError("solver jacobian_strategy must be auto/analytic/jacrev/jacfwd/finite_difference")
-        if self.linearization not in {"auto", "dense", "structured", "matrix_free"}:
-            raise ValueError("linearization must be auto/dense/structured/matrix_free")
+        if self.linearization not in {"auto", "dense", "structured"}:
+            raise ValueError("linearization must be auto/dense/structured")
         if self.linear_solver is not None and not isinstance(self.linear_solver, LinearSolver):
             raise TypeError("linear_solver must implement solve(A, b, ridge=None)")
         if not isinstance(self.kernel, RobustKernel):
             raise TypeError("kernel must implement rho(squared_norm) and weight(squared_norm)")
 
-    def resolve_linearization(  # noqa: PLR0911, PLR0912 - explicit routing matrix
-        self,
-        problem: Problem,
-    ) -> LinearizationDecision:
-        """Resolve one static dense/banded/operator route for ``problem``."""
+    def resolve_linearization(self, problem: Problem) -> LinearizationDecision:
+        """Resolve one static dense or block-banded route for ``problem``."""
         analysis = problem.temporal_analysis
         solver = self.linear_solver
-        supported = (
-            frozenset({"dense"})
-            if solver is None
-            else getattr(
-                solver,
-                "supported_systems",
-                frozenset({"dense"}),
-            )
-        )
+        supported = frozenset({"dense"}) if solver is None else getattr(solver, "supported_systems", {"dense"})
 
-        def decision(used: Literal["dense", "banded", "matrix_free"], reason, detail: str):
-            return LinearizationDecision(
-                requested=self.linearization,
-                used=used,
-                reason=reason,
-                detail=detail,
-            )
+        def choice(used: Literal["dense", "banded"], reason: LinearizationReason, detail: str):
+            return LinearizationDecision(self.linearization, used, reason, detail)
 
         if self.linearization == "dense":
             if solver is not None and "dense" not in supported:
                 raise ValueError("incompatible_solver: forced dense linearization requires a dense linear solver")
-            return decision(
-                "dense",
-                LinearizationReason.FORCED_DENSE,
-                "dense linearization was requested explicitly",
-            )
-
+            return choice("dense", LinearizationReason.FORCED_DENSE, "dense linearization was requested explicitly")
         if self.linearization == "structured":
             if not analysis.direct_eligible:
                 raise ValueError(f"{analysis.reason.value}: {analysis.detail}")
             if solver is not None and "banded" not in supported:
                 raise ValueError("incompatible_solver: structured linearization requires a banded linear solver")
-            return decision(
-                "banded",
-                LinearizationReason.ELIGIBLE_BANDED,
-                "validated temporal blocks use the banded route",
+            return choice(
+                "banded", LinearizationReason.ELIGIBLE_BANDED, "validated temporal blocks use the banded route"
             )
-
-        if self.linearization == "matrix_free":
-            if not analysis.operator_eligible:
-                raise ValueError(f"{analysis.reason.value}: {analysis.detail}")
-            if solver is not None and "operator" not in supported:
-                raise ValueError("incompatible_solver: matrix_free linearization requires an operator linear solver")
-            return decision(
-                "matrix_free",
-                LinearizationReason.EXPLICIT_MATRIX_FREE,
-                "matrix-free linearization was requested",
-            )
-
         if solver is None:
             if analysis.direct_eligible:
-                return decision(
+                return choice(
                     "banded",
                     LinearizationReason.ELIGIBLE_BANDED,
                     "validated temporal blocks use the automatic banded route",
                 )
-            return decision("dense", analysis.reason, analysis.detail)
-
+            return choice("dense", analysis.reason, analysis.detail)
         if analysis.direct_eligible and "banded" in supported:
-            return decision(
+            return choice(
                 "banded",
                 LinearizationReason.ELIGIBLE_BANDED,
                 "explicit solver accepts the validated banded system",
@@ -676,25 +543,13 @@ class LevenbergMarquardt:
                 if analysis.direct_eligible
                 else analysis.detail
             )
-            return decision("dense", reason, detail)
-        if analysis.operator_eligible and "operator" in supported:
-            return decision(
-                "matrix_free",
-                LinearizationReason.EXPLICIT_MATRIX_FREE,
-                "explicit solver accepts the normal operator",
-            )
+            return choice("dense", reason, detail)
         raise ValueError(
             f"incompatible_solver: explicit linear solver supports none of the eligible systems {sorted(supported)}"
         )
 
     def _resolved_linear_solver(self, decision: LinearizationDecision) -> _ResolvedLinearSolver:
-        if self.linear_solver is not None:
-            return self.linear_solver
-        if decision.used == "banded":
-            return BandedCholesky()
-        if decision.used == "matrix_free":
-            return NormalCG()
-        return Cholesky()
+        return self.linear_solver or (BandedCholesky() if decision.used == "banded" else Cholesky())
 
     def init_state(
         self,
@@ -706,7 +561,6 @@ class LevenbergMarquardt:
         """Validate a solve boundary and evaluate its initial linearization."""
         if not isinstance(create_graph, bool):
             raise TypeError("create_graph must be a static bool")
-        problem.require_least_squares(type(self).__name__)
         if not problem.residuals:
             raise ValueError(f"{type(self).__name__} requires at least one residual vector")
         limited_names = {name for name, _limit in self.block_step_limits}
@@ -724,19 +578,7 @@ class LevenbergMarquardt:
         batch_shape = problem._validate_values(values)
         decision = self.resolve_linearization(problem)
         scale, state_index, lower, upper, bounded = _static_layout(values, problem)
-        model = _linearize_model(
-            values,
-            problem,
-            decision=decision,
-            kernel=self.kernel,
-            jacobian_strategy=self.jacobian_strategy,
-            state_index=state_index,
-            lower=lower,
-            upper=upper,
-            bounded=bounded,
-            bound_tolerance=self.bound_tolerance,
-            create_graph=create_graph,
-        )
+        model = _linearize_model(values, problem, self, decision, (state_index, lower, upper, bounded), create_graph)
         diagonal_max = (model.normal_diagonal * scale.square()).amax(dim=-1)
         mu = (self.damping_parameter * diagonal_max).clamp(min=self.mu_min, max=self.mu_max)
         status = _terminal_status(model, self.gtol)
@@ -751,17 +593,11 @@ class LevenbergMarquardt:
             gain_ratio=zeros,
             gradient=model.gradient,
             grad_norm=model.grad_norm,
-            projected_gradient=model.projected_gradient,
             projected_grad_norm=model.projected_grad_norm,
             step_norm=zeros,
             relative_decrease=zeros,
             active_mask=model.active_mask,
             factorization_ok=torch.ones_like(model.cost, dtype=torch.bool),
-            linear_solve_iterations=torch.zeros_like(status, dtype=torch.int64),
-            linear_solve_residual_norm=zeros,
-            linear_solve_relative_residual=zeros,
-            linear_solve_status=torch.full_like(status, LinearSolveStatus.SUCCESS.value),
-            previous_linear_step=model.gradient.new_zeros(*batch_shape, problem.tangent_dim_total),
             converged=converged,
             implicit_valid=(status == LMStatus.CONVERGED.value) & model.finite,
             status=status,
@@ -777,9 +613,8 @@ class LevenbergMarquardt:
         self,
         model: _LinearizedLeastSquares,
         state: LMState,
-        problem: Problem,
         decision: LinearizationDecision,
-    ) -> tuple[torch.Tensor, LinearSolveResult]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         scaled_gradient = model.gradient * state.scale
         movable = (~model.active_mask).to(dtype=model.gradient.dtype)
         diagonal = state.mu.unsqueeze(-1) * movable + (1.0 - movable)
@@ -792,8 +627,8 @@ class LevenbergMarquardt:
             restricted = scaled_normal * movable.unsqueeze(-1) * movable.unsqueeze(-2)
             dense_system = restricted.clone()
             dense_system.diagonal(dim1=-2, dim2=-1).add_(diagonal)
-            system: torch.Tensor | BlockBandedMatrix | NormalOperator = dense_system
-        elif decision.used == "banded":
+            system: torch.Tensor | BlockBandedMatrix = dense_system
+        else:
             if not isinstance(model.normal, BlockBandedMatrix):
                 raise RuntimeError("banded linearization did not produce block-banded normal storage")
             system = model.normal.scaled_restricted(
@@ -801,63 +636,16 @@ class LevenbergMarquardt:
                 movable,
                 diagonal,
             )
-        else:
-            coordinate = state.scale * movable
-            approximate_diagonal = model.normal_diagonal * coordinate.square() + diagonal
-            safe_diagonal = approximate_diagonal.clamp_min(torch.finfo(model.gradient.dtype).tiny)
-            time_length = problem.temporal_analysis.time_length
-            reduced_width = problem.temporal_analysis.reduced_width
-            block_shape = (
-                (time_length, reduced_width) if time_length is not None and reduced_width is not None else None
-            )
-            system = NormalOperator(
-                size=problem.tangent_dim_total,
-                matvec=lambda vector: (
-                    coordinate * model.operators.normal_matvec(coordinate * vector) + diagonal * vector
-                ),
-                preconditioner=lambda vector: vector / safe_diagonal,
-                block_shape=block_shape,
-            )
-
         solver = self._resolved_linear_solver(decision)
         informative = getattr(solver, "solve_with_info", None)
         if informative is not None:
-            initial = state.previous_linear_step if getattr(solver, "supports_initial", False) else None
-            result = informative(system, rhs, ridge=None, initial=initial)
+            result = informative(system, rhs, ridge=None, initial=None)
+            raw_step, ok = result.solution, result.ok
         else:
             raw_step = cast(LinearSolver, solver).solve(system, rhs, ridge=None)
-            finite = torch.isfinite(raw_step).all(dim=-1)
-            if isinstance(system, torch.Tensor):
-                linear_residual = (system @ raw_step.unsqueeze(-1)).squeeze(-1) - rhs
-            elif isinstance(system, BlockBandedMatrix):
-                linear_residual = system.matvec(raw_step) - rhs
-            else:
-                linear_residual = system(raw_step) - rhs
-            residual_norm = torch.linalg.vector_norm(linear_residual, dim=-1)
-            rhs_norm = torch.linalg.vector_norm(rhs, dim=-1)
-            relative = residual_norm / rhs_norm.clamp_min(torch.finfo(rhs.dtype).tiny)
-            finite = finite & torch.isfinite(residual_norm) & torch.isfinite(relative)
-            status = torch.where(
-                finite,
-                torch.full_like(finite, LinearSolveStatus.SUCCESS.value, dtype=torch.int8),
-                torch.full_like(finite, LinearSolveStatus.NONFINITE.value, dtype=torch.int8),
-            )
-            result = LinearSolveResult(
-                solution=torch.where(finite.unsqueeze(-1), raw_step, torch.zeros_like(raw_step)),
-                converged=finite,
-                finite=finite,
-                ok=finite,
-                iterations=torch.zeros_like(finite, dtype=torch.int64),
-                residual_norm=residual_norm,
-                relative_residual=relative,
-                status=status,
-            )
-        scaled_step = torch.where(
-            result.ok.unsqueeze(-1),
-            torch.nan_to_num(result.solution),
-            torch.zeros_like(result.solution),
-        )
-        return state.scale * scaled_step * movable, result
+            ok = torch.isfinite(raw_step).all(dim=-1)
+        safe_step = torch.where(ok.unsqueeze(-1), torch.nan_to_num(raw_step), torch.zeros_like(raw_step))
+        return state.scale * safe_step * movable, ok
 
     def update(  # noqa: PLR0915 - one fixed-work tensor program keeps acceptance auditable
         self,
@@ -872,52 +660,27 @@ class LevenbergMarquardt:
         ``create_graph=True`` is the explicit small-problem unrolled oracle;
         the default step and :meth:`run` retain no Jacobian graph.
         """
-        batch_shape = _batch_shape(values, problem)
         decision = self.resolve_linearization(problem)
-        model = _linearize_model(
-            values,
-            problem,
-            decision=decision,
-            kernel=self.kernel,
-            jacobian_strategy=self.jacobian_strategy,
-            state_index=state.bound_state_index,
-            lower=state.bound_lower,
-            upper=state.bound_upper,
-            bounded=state.bounded_mask,
-            bound_tolerance=self.bound_tolerance,
-            create_graph=create_graph,
-        )
+        bounds = (state.bound_state_index, state.bound_lower, state.bound_upper, state.bounded_mask)
+        model = _linearize_model(values, problem, self, decision, bounds, create_graph)
         terminal_now = _terminal_status(model, self.gtol)
         was_running = state.status == LMStatus.RUNNING.value
         terminal_from_model = was_running & (terminal_now != LMStatus.RUNNING.value)
         current_status = torch.where(terminal_from_model, terminal_now, state.status)
         movable_element = current_status == LMStatus.RUNNING.value
 
-        lm_step, linear_result = self._solve_step(model, state, problem, decision)
-        factorization_ok = linear_result.ok
-        lm_step = _limit_block_step_norms(lm_step, problem, self.block_step_limits)
-        lm_values = _retract_reduced(values, lm_step, problem, batch_shape)
-        lm_actual_step = _difference_reduced(values, lm_values, problem, batch_shape)
+        lm_step, factorization_ok = self._solve_step(model, state, decision)
+        lm_values, lm_actual_step = _project_step(values, lm_step, problem, self.block_step_limits)
         lm_jp = model.operators.jvp(lm_actual_step)
         lm_prediction = -((model.gradient * lm_actual_step).sum(dim=-1) + 0.5 * lm_jp.square().sum(dim=-1))
 
-        pg1_proposal = _limit_block_step_norms(
-            -model.gradient,
-            problem,
-            self.block_step_limits,
-        )
-        pg1_values = _retract_reduced(values, pg1_proposal, problem, batch_shape)
-        pg1_step = _difference_reduced(values, pg1_values, problem, batch_shape)
+        _pg1_values, pg1_step = _project_step(values, -model.gradient, problem, self.block_step_limits)
         pg1_h = model.operators.normal_matvec(pg1_step)
         pg_denominator = (pg1_step * pg1_h).sum(dim=-1).clamp(min=torch.finfo(model.cost.dtype).eps)
         pg_beta = (-(model.gradient * pg1_step).sum(dim=-1) / pg_denominator).clamp(min=0.0, max=1.0)
-        pg_proposal = _limit_block_step_norms(
-            pg_beta.unsqueeze(-1) * pg1_step,
-            problem,
-            self.block_step_limits,
+        pg_values, pg_actual_step = _project_step(
+            values, pg_beta.unsqueeze(-1) * pg1_step, problem, self.block_step_limits
         )
-        pg_values = _retract_reduced(values, pg_proposal, problem, batch_shape)
-        pg_actual_step = _difference_reduced(values, pg_values, problem, batch_shape)
         pg_jp = model.operators.jvp(pg_actual_step)
         pg_prediction = -((model.gradient * pg_actual_step).sum(dim=-1) + 0.5 * pg_jp.square().sum(dim=-1))
 
@@ -933,7 +696,7 @@ class LevenbergMarquardt:
             torch.zeros_like(selected_step),
         )
 
-        candidate_residual = problem._residual_prevalidated(selected_values, batch_shape=batch_shape)
+        candidate_residual = problem.residual(selected_values)
         candidate_cost, candidate_weights, _candidate_row_scale = _robustify(
             candidate_residual,
             problem,
@@ -946,13 +709,7 @@ class LevenbergMarquardt:
             self.kernel,
         )
         gain_ratio = actual_decrease / prediction.clamp(min=torch.finfo(model.cost.dtype).eps)
-        candidate_finite = (
-            torch.isfinite(candidate_residual).all(dim=-1)
-            & torch.isfinite(candidate_cost)
-            & torch.isfinite(candidate_weights).all(dim=-1)
-            & (candidate_weights >= 0.0).all(dim=-1)
-            & (candidate_weights <= 1.0).all(dim=-1)
-        )
+        candidate_finite = _robust_finite(candidate_residual, candidate_cost, candidate_weights)
         accept = (
             movable_element & model.finite & candidate_finite & factorization_ok & valid_prediction & (gain_ratio > 0.0)
         )
@@ -1020,7 +777,6 @@ class LevenbergMarquardt:
             gain_ratio=torch.where(movable_element, gain_ratio, state.gain_ratio),
             gradient=model.gradient,
             grad_norm=model.grad_norm,
-            projected_gradient=model.projected_gradient,
             projected_grad_norm=model.projected_grad_norm,
             step_norm=torch.where(movable_element, step_norm, state.step_norm),
             relative_decrease=torch.where(
@@ -1030,31 +786,6 @@ class LevenbergMarquardt:
             ),
             active_mask=model.active_mask,
             factorization_ok=torch.where(movable_element, factorization_ok, state.factorization_ok),
-            linear_solve_iterations=torch.where(
-                movable_element,
-                linear_result.iterations,
-                state.linear_solve_iterations,
-            ),
-            linear_solve_residual_norm=torch.where(
-                movable_element,
-                linear_result.residual_norm,
-                state.linear_solve_residual_norm,
-            ),
-            linear_solve_relative_residual=torch.where(
-                movable_element,
-                linear_result.relative_residual,
-                state.linear_solve_relative_residual,
-            ),
-            linear_solve_status=torch.where(
-                movable_element,
-                linear_result.status,
-                state.linear_solve_status,
-            ),
-            previous_linear_step=torch.where(
-                (movable_element & factorization_ok).unsqueeze(-1),
-                linear_result.solution,
-                state.previous_linear_step,
-            ),
             converged=converged,
             # Step/decrease termination is a valid numerical stop, but only
             # the final-point KKT evaluation may make it implicit-eligible.
@@ -1075,22 +806,10 @@ class LevenbergMarquardt:
         create_graph: bool = False,
     ) -> tuple[Values, LMState]:
         """Canonical final-point evaluation for consistent terminal artifacts."""
-        problem.require_least_squares(type(self).__name__)
         problem._validate_values(values)
         decision = self.resolve_linearization(problem)
-        model = _linearize_model(
-            values,
-            problem,
-            decision=decision,
-            kernel=self.kernel,
-            jacobian_strategy=self.jacobian_strategy,
-            state_index=state.bound_state_index,
-            lower=state.bound_lower,
-            upper=state.bound_upper,
-            bounded=state.bounded_mask,
-            bound_tolerance=self.bound_tolerance,
-            create_graph=create_graph,
-        )
+        bounds = (state.bound_state_index, state.bound_lower, state.bound_upper, state.bounded_mask)
+        model = _linearize_model(values, problem, self, decision, bounds, create_graph)
         terminal = _terminal_status(model, self.gtol)
         preserve_terminal_failure = (state.status == LMStatus.FAILED.value) | (state.status == LMStatus.MAXITER.value)
         same_terminal_artifacts = (
@@ -1117,7 +836,6 @@ class LevenbergMarquardt:
             cost=model.cost,
             gradient=model.gradient,
             grad_norm=model.grad_norm,
-            projected_gradient=model.projected_gradient,
             projected_grad_norm=model.projected_grad_norm,
             active_mask=model.active_mask,
             converged=converged,
@@ -1154,7 +872,6 @@ class LevenbergMarquardt:
         state: LMState | None = None,
     ) -> tuple[Values, LMState]:
         """Run the detached eager loop, optionally retaining warm-start damping."""
-        problem.require_least_squares(type(self).__name__)
         current_values = detach_values(values)
         current_state = (
             self.init_state(current_values, problem)
@@ -1189,16 +906,7 @@ class LevenbergMarquardt:
         differentiate: Literal["detached", "implicit"] = "detached",
         implicit_config: ImplicitDiffConfig | None = None,
     ) -> tuple[Values, LMState]:
-        """Solve with detached semantics by default or an implicit backward.
-
-        ``differentiate="implicit"`` attaches a first-order custom autograd
-        boundary to the detached terminal values. Gradients flow only to
-        external tensors explicitly named by
-        :attr:`Problem.differentiable_external_parameters`; the initial guess,
-        warm-start state, bounds, masks, and solver hyperparameters never
-        receive an implicit gradient. :meth:`run` remains the always-detached
-        compatibility entry point.
-        """
+        """Solve detached by default, or attach the guarded implicit backward."""
         if differentiate not in {"detached", "implicit"}:
             raise ValueError("differentiate must be 'detached' or 'implicit'")
         if differentiate == "detached" and implicit_config is not None:

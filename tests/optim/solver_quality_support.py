@@ -6,7 +6,7 @@ import torch
 
 from better_robot.data_model.model import Model
 from better_robot.kinematics import forward_kinematics
-from better_robot.optim.blocks import (
+from better_robot.optim import (
     Bounds,
     Problem,
     ResidualItem,

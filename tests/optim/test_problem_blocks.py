@@ -11,7 +11,7 @@ import torch
 from better_robot.lie import so3
 from better_robot.optim import (
     Euclidean,
-    ObjectiveItem,
+    LevenbergMarquardt,
     Problem,
     ResidualItem,
     SO3Manifold,
@@ -62,15 +62,6 @@ class _MaskedPositionResidual:
         return ctx["x"][..., (0, 2)]
 
 
-class _QuadraticTerm:
-    name = "quadratic"
-    reads = ("x",)
-
-    def __call__(self, ctx: Mapping[str, Any]) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
-        x = ctx["x"]
-        return x.square().sum(dim=-1), {"max_abs": x.abs().amax(dim=-1)}
-
-
 class _ParameterResidual:
     name = "parameter"
     reads = ("x", "target")
@@ -86,7 +77,7 @@ class _UndeclaredReadResidual:
     dim = 3
 
     def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        return ctx["rotation"]
+        return ctx["rotation"][..., :3]
 
 
 class _PromotingResidual:
@@ -137,6 +128,24 @@ def _two_block_problem(*, residuals=None, x_spec: VarSpec | None = None) -> Prob
             ResidualItem("attitude", _AttitudeResidual()),
         ),
     )
+
+
+def test_builder_solves_the_public_line_fit_example() -> None:
+    x = torch.tensor([0.0, 1.0, 2.0, 3.0])
+    y = torch.tensor([1.0, 3.0, 5.0, 7.0])
+
+    def fit(ctx):
+        m, c = ctx["theta"][..., 0:1], ctx["theta"][..., 1:2]
+        return m * x + c - y
+
+    problem = Problem()
+    problem.add_variable("theta", shape=(2,))
+    item = problem.add_residual(fit, dim=4)
+    values, _state = LevenbergMarquardt().run({"theta": torch.zeros(2)}, problem)
+
+    assert item.name == "fit"
+    assert item.residual.reads == ("theta",)
+    torch.testing.assert_close(values["theta"], torch.tensor([2.0, 1.0]), rtol=1e-4, atol=1e-4)
 
 
 def test_two_block_shapes_gradient_and_structural_zeros() -> None:
@@ -229,8 +238,6 @@ def test_mask_gather_expand_scale_and_reduced_normal_matrix() -> None:
     ("scale", "error", "message"),
     [
         (torch.ones(2), ValueError, "must have tangent shape"),
-        (torch.tensor([1.0, 0.0, 2.0]), ValueError, "finite and > 0"),
-        (torch.tensor([1.0, float("inf"), 2.0]), ValueError, "finite and > 0"),
         (torch.tensor([1, 2, 3]), TypeError, "floating dtype"),
     ],
 )
@@ -259,62 +266,6 @@ def test_dense_assembly_has_exact_declared_offsets() -> None:
     expected[:3, 2:] = torch.eye(3)
     expected[3:, :2] = torch.eye(2)
     torch.testing.assert_close(problem.dense_jacobian(values), expected)
-
-
-def test_scalar_term_weighted_gradient_diagnostics_and_second_order_fence() -> None:
-    problem = Problem(
-        vars=(VarSpec("x", (3,)),),
-        objectives=(ObjectiveItem("quadratic", _QuadraticTerm(), weight=2.5),),
-    )
-    values = {
-        "x": torch.tensor(
-            [[1.0, -2.0, 0.5], [-0.3, 0.2, 0.1]],
-            requires_grad=True,
-        )
-    }
-
-    objective, diagnostics = problem.objective(values, return_diagnostics=True)
-    torch.testing.assert_close(objective, 2.5 * values["x"].square().sum(dim=-1))
-    torch.testing.assert_close(diagnostics["quadratic"]["max_abs"], torch.tensor([2.0, 0.3]))
-    assert diagnostics["quadratic"]["max_abs"].requires_grad is False
-    assert diagnostics["quadratic"]["max_abs"].grad_fn is None
-    torch.testing.assert_close(problem.gradient(values)["x"], 5.0 * values["x"])
-
-    for method in ("Gauss-Newton", "Levenberg-Marquardt"):
-        expected = (
-            "problem contains scalar objective term(s) ['quadratic'] — "
-            f"{method} minimize sums of squared residual vectors and cannot consume "
-            "scalar terms. Run these terms in a first-order phase (for example Adam), "
-            "or reformulate them as residual vectors."
-        )
-        with pytest.raises(ValueError) as caught:
-            problem.require_least_squares(method)
-        assert str(caught.value) == expected
-
-
-@pytest.mark.parametrize(
-    ("values", "weight", "expected_batch"),
-    [
-        (torch.ones(3), torch.ones(2), ()),
-        (torch.ones(2, 3), torch.ones(2, 1), (2,)),
-    ],
-)
-def test_tensor_objective_weight_requires_scalar_or_exact_batch_shape(
-    values: torch.Tensor,
-    weight: torch.Tensor,
-    expected_batch: tuple[int, ...],
-) -> None:
-    problem = Problem(
-        vars=(VarSpec("x", (3,)),),
-        objectives=(ObjectiveItem("quadratic", _QuadraticTerm()),),
-    )
-
-    with pytest.raises(
-        ValueError,
-        match="must be scalar or have exact batch shape",
-    ) as caught:
-        problem.objective({"x": values}, weights={"quadratic": weight})
-    assert f"shape {expected_batch}" in str(caught.value)
 
 
 def test_tensor_weight_must_match_working_dtype() -> None:
@@ -366,11 +317,16 @@ def test_unused_gradient_block_stays_connected_to_declared_external_parameter() 
     torch.testing.assert_close(target_vjp, torch.zeros_like(target))
 
 
-def test_declared_reads_and_working_dtype_fail_fast() -> None:
+def test_reads_declare_structure_without_policing_access() -> None:
     values = {"x": torch.ones(3), "rotation": _identity_rotation()}
     undeclared = _two_block_problem(residuals=(ResidualItem("undeclared", _UndeclaredReadResidual()),))
-    with pytest.raises(KeyError, match="was not declared"):
-        undeclared.residual(values)
+    torch.testing.assert_close(undeclared.residual(values), torch.zeros(3))
+    blocks = undeclared.jacobian_blocks(values, strategy="jacrev")
+    assert set(blocks) == {("undeclared", "x")}
+    torch.testing.assert_close(blocks[("undeclared", "x")], torch.zeros(3, 3))
+
+
+def test_working_dtype_fails_fast() -> None:
 
     promoting = Problem(
         vars=(VarSpec("x", (3,)),),
@@ -425,52 +381,3 @@ def test_invalid_batch_element_uses_nan_rows_without_raising() -> None:
     assert residual.shape == (2, 1)
     torch.testing.assert_close(residual[0], torch.tensor([-1.0]))
     assert torch.isnan(residual[1]).all()
-
-
-def test_prevalidated_solver_path_matches_public_path_without_host_tensor_reads(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    problem = _two_block_problem()
-    batch_shape = (2, 3)
-    values = {
-        "x": torch.linspace(-0.4, 0.7, 18).reshape(*batch_shape, 3),
-        "rotation": _identity_rotation(*batch_shape),
-    }
-    steps = {
-        "x": torch.linspace(-0.02, 0.03, 18).reshape(*batch_shape, 3),
-        "rotation": torch.linspace(-0.01, 0.02, 18).reshape(*batch_shape, 3),
-    }
-    expected_residual = problem.residual(values)
-    expected_jacobian = problem.dense_jacobian(values)
-    expected_values = problem.retract(values, steps)
-    expected_difference = {
-        spec.name: spec.difference(values[spec.name], expected_values[spec.name]) for spec in problem.vars
-    }
-
-    def forbidden(*_args, **_kwargs):
-        raise AssertionError("prevalidated solver path reached a public validation/host-read boundary")
-
-    with monkeypatch.context() as context:
-        context.setattr(torch.Tensor, "__bool__", forbidden)
-        context.setattr(torch.Tensor, "item", forbidden)
-        context.setattr(Problem, "_validate_values", forbidden)
-        context.setattr(Problem, "_validate_weights", forbidden)
-        context.setattr(VarSpec, "validate_value", forbidden)
-        context.setattr(VarSpec, "retract", forbidden)
-        context.setattr(VarSpec, "difference", forbidden)
-        context.setattr(SO3Manifold, "project", forbidden)
-
-        actual_residual = problem._residual_prevalidated(values, batch_shape=batch_shape)
-        actual_jacobian = problem._dense_jacobian_prevalidated(values, batch_shape=batch_shape)
-        actual_values = problem._retract_prevalidated(values, steps, batch_shape=batch_shape)
-        actual_difference = problem._difference_prevalidated(
-            values,
-            actual_values,
-            batch_shape=batch_shape,
-        )
-
-    torch.testing.assert_close(actual_residual, expected_residual)
-    torch.testing.assert_close(actual_jacobian, expected_jacobian)
-    for spec in problem.vars:
-        torch.testing.assert_close(actual_values[spec.name], expected_values[spec.name])
-        torch.testing.assert_close(actual_difference[spec.name], expected_difference[spec.name])

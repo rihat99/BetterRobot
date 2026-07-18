@@ -10,11 +10,9 @@ from .variables import Values, VarSpec
 
 
 def perturb_values(
-    specs: tuple[VarSpec, ...],
-    values: Mapping[str, torch.Tensor],
-    deltas: Mapping[str, torch.Tensor],
+    specs: tuple[VarSpec, ...], values: Mapping[str, torch.Tensor], deltas: Mapping[str, torch.Tensor]
 ) -> Values:
-    """Evaluate the product-manifold retraction ``values ⊕ deltas``."""
+    """Retract each named value by its reduced tangent delta."""
     return {spec.name: spec.retract(values[spec.name], deltas[spec.name]) for spec in specs}
 
 
@@ -26,16 +24,11 @@ def tangent_grad(
     create_graph: bool = False,
     graph_inputs: Sequence[torch.Tensor] = (),
 ) -> Values:
-    """Differentiate ``f(values ⊕ delta)`` at ``delta = 0`` per free block.
-
-    Tensor outputs are summed, yielding independent per-batch gradients when
-    the function is batch-separable. Fixed coordinates never enter autograd;
-    returned tensors therefore use each block's reduced tangent dimension.
-    """
+    """Differentiate ``f(values ⊕ delta)`` at zero in reduced tangents."""
     batch_shapes = tuple(spec.batch_shape(values[spec.name]) for spec in specs)
     if batch_shapes and any(shape != batch_shapes[0] for shape in batch_shapes[1:]):
         raise ValueError(f"All tangent_grad values must share a batch shape, got {batch_shapes}")
-    _value, gradient = _tangent_value_and_grad_prevalidated(
+    _value, gradient = _tangent_value_and_grad(
         f,
         specs,
         values,
@@ -46,7 +39,7 @@ def tangent_grad(
     return gradient
 
 
-def _tangent_value_and_grad_prevalidated(
+def _tangent_value_and_grad(
     f: Callable[[Values], torch.Tensor],
     specs: tuple[VarSpec, ...],
     values: Mapping[str, torch.Tensor],
@@ -55,13 +48,6 @@ def _tangent_value_and_grad_prevalidated(
     create_graph: bool = False,
     graph_inputs: Sequence[torch.Tensor] = (),
 ) -> tuple[torch.Tensor, Values]:
-    """Return ``f`` and its reduced tangent gradient without public validation.
-
-    Solver entry points validate values once, then use this fixed-layout helper
-    from their update loop. Retraction therefore goes through each block's
-    prevalidated reduced-tangent path instead of repeating finite/manifold/bound
-    host checks.
-    """
     deltas: Values = {}
     active: list[torch.Tensor] = []
     active_names: list[str] = []
@@ -73,33 +59,18 @@ def _tangent_value_and_grad_prevalidated(
             active_names.append(spec.name)
         deltas[spec.name] = delta
 
-    perturbed = {
-        spec.name: spec._retract_prevalidated(
-            values[spec.name],
-            deltas[spec.name],
-            batch_shape=batch_shape,
-        )
-        for spec in specs
-    }
+    perturbed = {spec.name: spec.retract(values[spec.name], deltas[spec.name]) for spec in specs}
     output = f(perturbed)
     if output.numel() == 0:
         raise ValueError("tangent_grad requires a non-empty tensor output")
     computed = (
-        torch.autograd.grad(
-            output.sum(),
-            active,
-            create_graph=create_graph,
-            allow_unused=True,
-        )
+        torch.autograd.grad(output.sum(), active, create_graph=create_graph, allow_unused=True)
         if active and output.requires_grad
         else ()
     )
     by_name = dict(zip(active_names, computed))
-    graph_anchor = None
-    if create_graph:
-        anchors = [value.sum() * 0.0 for value in (*values.values(), *graph_inputs) if value.requires_grad]
-        if anchors:
-            graph_anchor = sum(anchors[1:], anchors[0])
+    anchors = [value.sum() * 0.0 for value in (*values.values(), *graph_inputs) if create_graph and value.requires_grad]
+    graph_anchor = sum(anchors[1:], anchors[0]) if anchors else None
 
     result: Values = {}
     for spec in specs:
@@ -109,5 +80,4 @@ def _tangent_value_and_grad_prevalidated(
         if graph_anchor is not None:
             value = value + graph_anchor
         result[spec.name] = value
-    value = output if create_graph else output.detach()
-    return value, result
+    return output if create_graph else output.detach(), result

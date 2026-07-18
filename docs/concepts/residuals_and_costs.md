@@ -7,7 +7,7 @@ problem owns variable blocks, providers, and evaluation. `solve_ik` and
 
 This chapter documents the residual library, explicit composition, robust
 groups, and temporal declarations. The next chapter ({doc}`solver_stack`)
-covers evaluation and the Adam/LM/GN solver lifecycle.
+covers evaluation, the LM/GN lifecycle, and the `torch.optim` adapter.
 
 ## The `Residual` Protocol
 
@@ -21,7 +21,7 @@ class Residual(Protocol):
         """(B..., dim)."""
 ```
 
-Source: `src/better_robot/optim/blocks/problem.py`.
+Source: `src/better_robot/optim/problem.py`.
 
 A residual is a callable object with a stable name, static output dimension,
 and declared context reads. It may carry optional analytic and temporal
@@ -37,7 +37,7 @@ effect. Custom residuals implement the `Residual` protocol, including a stable
 
 ## The shipped residual library
 
-Live, with analytic `.jacobian()`:
+Live, with analytic `jacobian_blocks(ctx)`:
 
 | File | Class | dim | Notes |
 |------|-------|-----|-------|
@@ -100,10 +100,9 @@ applies both once.
 
 Velocity declares offsets `(-1, +1)`, acceleration `(-1, 0, +1)`,
 time-indexed and reference-trajectory terms `(0,)`, and contact consistency
-`(0, +1)`. Missing declarations keep automatic LM dense. A declaration
-without numeric blocks is eligible only for the explicit normal-operator
-fallback. Structure is static: a zero weight never makes an undeclared item
-eligible, and numerical zeros are never inspected.
+`(0, +1)`. Missing declarations or numeric blocks keep automatic LM dense.
+Structure is static: a zero weight never makes an undeclared item eligible,
+and numerical zeros are never inspected.
 
 ### Human spherical-joint limits and priors
 
@@ -163,20 +162,21 @@ class RestResidual:
         self.weight = weight
         self.dim = model.nv
 
-    def __call__(self, value: ResidualState | Mapping[str, Any]) -> torch.Tensor:
-        model, q = _residual_model_q(value, model=self.model)
+    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
+        q = ctx["q"]
         q_rest = self.q_rest
-        if self.target_name is not None and not isinstance(value, ResidualState):
-            q_rest = value[self.target_name]
+        if self.target_name is not None:
+            q_rest = ctx[self.target_name]
         q_rest = q_rest.to(device=q.device, dtype=q.dtype)
         if q.ndim > 1 and q_rest.ndim == 1:
             q_rest = q_rest.expand_as(q)
-        return model.difference(q_rest, q) * self.weight
+        return self.model.difference(q_rest, q) * self.weight
 
-    def jacobian(self, value: ResidualState | Mapping[str, Any]) -> torch.Tensor:
-        _, q = _residual_model_q(value, model=self.model)
+    def jacobian_blocks(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
+        q = ctx["q"]
         I = torch.eye(self.dim, device=q.device, dtype=q.dtype)
-        return I.expand(*q.shape[:-1], self.dim, self.dim) * self.weight
+        J = I.expand(*q.shape[:-1], self.dim, self.dim) * self.weight
+        return {"q": J.index_select(-1, ctx.free_indices("q"))}
 ```
 
 Source: `src/better_robot/residuals/regularization.py`.
@@ -211,8 +211,7 @@ applies grouped robust losses, `Problem.gradient()` differentiates that same
 objective in reduced tangent coordinates, and `Problem.dense_jacobian()`
 assembles the explicit residual Jacobian. Temporal metadata is consumed only
 after `Problem` validates the block/time layout;
-`Problem.structured_normal()` assembles lower block bands and JVP/VJP
-operations.
+`Problem.structured_normal()` assembles lower block bands.
 
 ## Stable `dim` for collision residuals
 
@@ -238,38 +237,21 @@ collision-aware `solve_ik` integration is roadmap work.
 # Construction
 import better_robot as br
 from robot_descriptions import panda_description
-from better_robot.residuals.pose          import PoseResidual
-from better_robot.residuals.limits        import JointPositionLimit
-from better_robot.residuals.regularization import RestResidual
-from better_robot.optim import (
-    Problem, ResidualItem, RobotConfig, RobotStateProvider, VarSpec,
-)
+from better_robot.optim import LevenbergMarquardt, Problem, RobotConfig
+from better_robot.residuals.pose import PoseResidual
 
 model = br.load(panda_description.URDF_PATH)
-hand_id = model.frame_id("body_panda_hand")
-
 pose = PoseResidual(
-    frame_id=hand_id,
+    model,
+    frame="body_panda_hand",
     target=target_pose,
-    model=model,
-    name="pose",
 )
-limits = JointPositionLimit(model, name="limits")
-rest = RestResidual(model, model.q_neutral, name="rest")
+robot = RobotConfig(model)
+problem = Problem()
+problem.add_variable("q", manifold=robot, bounds=robot.joint_bounds())
+problem.add_residual(pose)
 
-problem = Problem(
-    vars=(VarSpec("q", (model.nq,), manifold=RobotConfig(model)),),
-    residuals=(
-        ResidualItem("pose", pose),
-        ResidualItem("limits", limits, weight=0.1),
-        ResidualItem("rest", rest, weight=0.01),
-    ),
-    providers=(RobotStateProvider(model),),
-)
-
-# Evaluate (manually, for diagnostics)
-r = problem.residual({"q": q})
-J = problem.dense_jacobian({"q": q})
+values, state = LevenbergMarquardt().run({"q": q}, problem)
 ```
 
 `solve_ik` constructs the same item and problem types internally.
@@ -289,7 +271,7 @@ residuals to one named temporal variable.
 
 ## Where to look next
 
-- {doc}`solver_stack` — named-block evaluation and the Adam/LM/GN lifecycle.
+- {doc}`solver_stack` — named-block evaluation, LM/GN, and `torch.optim`.
 - {doc}`kinematics` — the analytic Jacobian path that
   `PoseResidual` follows.
 - {doc}`/conventions/extension` §1, §6 — recipes for adding a new

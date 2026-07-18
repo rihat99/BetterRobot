@@ -131,7 +131,7 @@ contract below. It covers small dense systems, product manifolds, stable active
 bounds, exact robust optimality, shared/batched context parameters, terminal
 quaternion-representative rejection at absolute pi, and strict invalid-batch rejection.
 A small banded forward may use a capped dense backward only by explicit
-configuration; matrix-free/true banded backward, returned
+configuration; true banded backward, returned
 per-element gradient-quality metadata, stable named binding for item weights
 and kernel scales, direct ModelValues reconstruction, and generic custom-kernel
 nonsmoothness declarations remain gaps. Contract rows describing those inputs
@@ -164,7 +164,7 @@ parameter of that solution. The role is declared, never inferred from
 | Active optimized `Values` blocks | First-order residual, objective, and Jacobian derivatives in local tangent coordinates | The returned optimum accepts a cotangent, but there is no implicit gradient to the initial guess; the trajectory is intentionally ignored |
 | Continuous external `ModelValues` such as placements and inertias | First order when the field is declared differentiable and used by the evaluated path | First order when explicitly enumerated by `Problem` |
 | Residual targets, tensor weights, and tensor kernel scales | First order when declared differentiable by the residual/kernel | First order when explicitly enumerated and locally smooth at the solution |
-| Provider inputs | Inherit the guarantee above only when the provider preserves the graph and declares the dependency | Same; a deliberately detached provider output is a declared stop-gradient boundary |
+| Provider reads | Inherit the guarantee above only when the provider preserves the graph and declares the dependency | Same; a deliberately detached provider output is a declared stop-gradient boundary |
 | Initial optimized values | Ordinary direct derivatives apply before solving | No implicit gradient; an optimum is not a function of the initialization under the implicit contract |
 | Bounds/limits, boolean masks, topology, names, integer tables | Not differentiable | Not differentiable |
 | Frozen solver hyperparameters (`max_iter`, tolerances, damping policy, linear solver, step caps) | Not differentiable | Not differentiable |

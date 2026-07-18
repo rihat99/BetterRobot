@@ -17,7 +17,13 @@ import torch
 
 from ..data_model.model import Model
 from ..lie import so3
-from .base import ResidualState, _residual_model_q
+
+
+def _configuration(ctx: Mapping[str, Any]) -> torch.Tensor:
+    q = ctx["q"]
+    if not isinstance(q, torch.Tensor):
+        raise TypeError("named context entry 'q' must be a torch.Tensor")
+    return q
 
 
 def _per_joint_values(
@@ -67,7 +73,7 @@ class SwingTwistLimitResidual:
     A pure pi swing has no unique twist; the residual assigns zero twist in a
     tiny neighbourhood of that singularity. Consequently there is no truthful
     globally analytic Jacobian. Named-block problems use tangent-space AD;
-    legacy callers receive the explicit finite-difference fallback.
+    callers may select the explicit finite-difference debug strategy.
     """
 
     reads = ("q",)
@@ -154,8 +160,8 @@ class SwingTwistLimitResidual:
         self._joint_count = count
         self.dim = 3 * count
 
-    def __call__(self, value: ResidualState | Mapping[str, Any]) -> torch.Tensor:
-        _model, q = _residual_model_q(value, model=self.model)
+    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
+        q = _configuration(ctx)
         indices = self._q_indices.to(device=q.device)
         joint_q = q.index_select(-1, indices).reshape(*q.shape[:-1], self._joint_count, 4)
         joint_q = so3.normalize(joint_q)
@@ -192,10 +198,6 @@ class SwingTwistLimitResidual:
             dim=-1,
         )
         return rows.reshape(*q.shape[:-1], self.dim)
-
-    def jacobian(self, value: ResidualState | Mapping[str, Any]) -> torch.Tensor | None:
-        """Return no approximate Jacobian; callers dispatch to tangent AD/FD."""
-        del value
 
 
 __all__ = ["SwingTwistLimitResidual"]

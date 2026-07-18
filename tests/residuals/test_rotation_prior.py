@@ -44,7 +44,6 @@ def test_explicit_tangent_weights_match_manual_difference() -> None:
 
     expected = model.difference(model.q_neutral, q) * weights
     torch.testing.assert_close(prior({"q": q}), expected)
-    assert prior.jacobian({"q": q}) is None
 
 
 def test_named_block_ad_matches_finite_difference_away_from_mean() -> None:

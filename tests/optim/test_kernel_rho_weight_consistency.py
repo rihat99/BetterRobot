@@ -7,12 +7,7 @@ from collections.abc import Sequence
 import pytest
 import torch
 
-from better_robot.optim.kernels.base import RobustKernel
-from better_robot.optim.kernels.cauchy import Cauchy
-from better_robot.optim.kernels.geman_mcclure import GemanMcClure
-from better_robot.optim.kernels.huber import Huber
-from better_robot.optim.kernels.l2 import L2
-from better_robot.optim.kernels.tukey import Tukey
+from better_robot.optim import Cauchy, GemanMcClure, Huber, L2, RobustKernel, Tukey
 
 
 @pytest.mark.parametrize(

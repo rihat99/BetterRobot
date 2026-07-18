@@ -13,14 +13,16 @@ from better_robot.io.builders.smpl_like import make_smpl_like_model
 from better_robot.kinematics import forward_kinematics
 from better_robot.optim import (
     Euclidean,
+    Problem,
+    ResidualItem,
     RobotConfig,
+    RobotStateProvider,
     SE3Manifold,
     SO3Manifold,
     Values,
     VarSpec,
 )
-from better_robot.optim.blocks.autograd import perturb_values, tangent_grad
-from better_robot.residuals.base import ResidualState
+from better_robot.optim.autograd import perturb_values, tangent_grad
 from better_robot.residuals.pose import PoseResidual
 
 
@@ -213,20 +215,21 @@ def test_panda_pose_tangent_gradient_matches_existing_analytic_path(panda_model)
     frame_name = "body_panda_hand" if "body_panda_hand" in model.frame_name_to_id else model.frame_names[-1]
     frame_id = model.frame_id(frame_name)
     target = data.frame_pose_world[frame_id].detach().clone()
-    residual = PoseResidual(frame_id=frame_id, target=target)
-    state = ResidualState(model=model, data=data, variables=q)
+    residual = PoseResidual(model, frame_id=frame_id, target=target)
     cotangent = torch.tensor([0.7, -0.4, 0.2, -0.3, 0.5, 0.6])
-    analytic_jacobian = residual.jacobian(state)
-    assert analytic_jacobian is not None
-    expected = analytic_jacobian.mT @ cotangent
-
     spec = VarSpec(name="q", shape=(model.nq,), manifold=RobotConfig(model))
+    problem = Problem(
+        vars=(spec,),
+        residuals=(ResidualItem("pose", residual),),
+        providers=(RobotStateProvider(model),),
+    )
+    analytic_jacobian = problem.dense_jacobian({"q": q}, strategy="analytic")
+    expected = analytic_jacobian.mT @ cotangent
 
     def objective(values: Values) -> torch.Tensor:
         q_value = values["q"]
         value_data = forward_kinematics(model, q_value, compute_frames=True)
-        value_state = ResidualState(model=model, data=value_data, variables=q_value)
-        return residual(value_state) @ cotangent
+        return residual({"q": q_value, "data": value_data}) @ cotangent
 
     actual = tangent_grad(objective, (spec,), {"q": q})["q"]
 

@@ -7,7 +7,7 @@ import torch
 
 from better_robot.data_model.model import Model
 from better_robot.io import ModelBuilder, build_model
-from better_robot.kinematics import JacobianStrategy, forward_kinematics
+from better_robot.kinematics import forward_kinematics
 from better_robot.tasks.ik import OptimizerConfig, solve_ik
 
 
@@ -54,29 +54,13 @@ def test_invalid_solver_knobs_fail_at_facade_boundary(
         solve_ik(model, targets, optimizer_cfg=config)
 
 
-def test_jacobian_strategy_requires_the_public_enum(
-    ik_case: tuple[Model, dict[str, torch.Tensor]],
-) -> None:
-    model, targets = ik_case
-    with pytest.raises(ValueError, match="JacobianStrategy member"):
-        solve_ik(
-            model,
-            targets,
-            optimizer_cfg=OptimizerConfig(jacobian_strategy="auto"),
-        )
-
-
 @pytest.mark.parametrize(
     ("config", "field"),
     [
         (
-            OptimizerConfig(optimizer="adam", linear_solver="lstsq"),
-            "linear_solver",
-        ),
-        (
             OptimizerConfig(
                 optimizer="adam",
-                jacobian_strategy=JacobianStrategy.ANALYTIC,
+                jacobian_strategy="analytic",
             ),
             "jacobian_strategy",
         ),

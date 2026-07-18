@@ -83,9 +83,9 @@ Implemented and tested: forward kinematics; analytic Jacobians with an
 unbatched central finite-difference fallback; the
 residual library (pose / position / orientation, joint position
 limits, rest, contact consistency, reference trajectories, velocity
-and acceleration smoothness, time-indexed residuals); named-block LM, GN,
-Adam, and functional phases; dense, block-banded, and
-normal-operator linear solvers (Cholesky, LSTSQ, BandedCholesky, NormalCG); pluggable robust
+and acceleration smoothness, time-indexed residuals); named-block LM and GN
+plus a first-order `torch.optim` adapter; dense and block-banded linear
+solvers (Cholesky and BandedCholesky); pluggable robust
 kernels (L2, Huber, Cauchy, Tukey, Geman–McClure); batched IK on fixed and floating-base robots;
 trajectory optimisation with knot parameterisation and automatic banded/dense
 routing (the Euclidean B-spline basis remains a numerical utility, not a

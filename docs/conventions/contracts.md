@@ -160,10 +160,9 @@ relevant residual/solver directories.
   principal-log cut, the rotation remains valid but the chosen tangent's sign
   and derivative are not continuous.
 - Dense Cholesky uses ``torch.linalg.cholesky_ex`` rather than relying on a
-  thrown ``LinAlgError``. Direct ``Cholesky.solve`` has an LSTSQ fallback;
-  named-block ``solve_with_info`` returns a zero step and per-element failure
-  status when factorization is unhealthy. Solvers return diagnostics instead
-  of converting this path into ``ConvergenceError`` automatically.
+  thrown ``LinAlgError``. It is strict: an unhealthy factorization returns a
+  zero step and per-element failure status to LM, which may increase damping.
+  There is no rank-deficient least-squares fallback hidden inside the solver.
 
 ### 3.4 Batched broadcasting
 

@@ -6,7 +6,7 @@
    nearest-neighbor provider shared by penetration, attraction, and clearance.
 3. **Custom residual:** ``PenetrationResidual`` is executed from the exact
    marked Python fence in ``docs/guides/custom_residuals.md``; it is not copied.
-4. **Scalar term:** ``ScalePriorTerm`` is registered through ``ObjectiveItem``
+4. **Scale prior:** ``ScalePriorResidual`` is an ordinary one-row residual
    and optimized by the first-order loop.
 5. **Masks:** the root phase retains one q coordinate per frame; the full phase
    rebuild retains every q tangent coordinate, proving elimination semantics.
@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import torch
 
-from better_robot.optim import Values, detach_values
+from better_robot.optim import Values, run_first_order
 
 from .slice_support import (
     COORDS,
@@ -53,23 +53,15 @@ def _run_adam_segment(
     iterations: int,
     learning_rate: float,
 ) -> Values:
-    """Use Adam only as a tangent-step generator; BetterRobot owns retraction."""
-    tangent_buffers = {
-        spec.name: torch.nn.Parameter(values[spec.name].new_zeros(spec.free_dim)) for spec in problem.vars
-    }
-    optimizer = torch.optim.Adam(tuple(tangent_buffers.values()), lr=learning_rate)
-    current = detach_values(values)
-    for _ in range(iterations):
-        optimizer.zero_grad(set_to_none=True)
-        gradient = problem.gradient(current, weights=weights)
-        for name, buffer in tangent_buffers.items():
-            buffer.grad = gradient[name].detach().clone()
-        optimizer.step()
-        steps = {name: buffer.detach().clone() for name, buffer in tangent_buffers.items()}
-        current = detach_values(problem.retract(current, steps))
-        with torch.no_grad():
-            for buffer in tangent_buffers.values():
-                buffer.zero_()
+    """Run the public torch.optim adapter for one staged segment."""
+    current, _ = run_first_order(
+        values,
+        problem,
+        lambda params: torch.optim.Adam(params, lr=learning_rate),
+        max_iter=iterations,
+        tolerance=0.0,
+        weights=weights,
+    )
     return current
 
 
@@ -83,7 +75,7 @@ def test_marked_guide_residual_and_provider_evaluation_counts() -> None:
     values = data.initial_values()
 
     residual = problem.residual(values, weights=FULL_WEIGHTS)
-    assert residual.shape == (TIME * POINTS * (COORDS + 2),)
+    assert residual.shape == (TIME * POINTS * (COORDS + 2) + 1,)
     assert (counters.kinematics, counters.nearest_neighbor) == (1, 1)
 
     gradient = problem.gradient(values, weights=FULL_WEIGHTS)
@@ -111,7 +103,7 @@ def test_batched_residual_and_gradient_match_three_sequential_evaluations() -> N
     batched_gradient = problem.gradient(batched_values, weights=FULL_WEIGHTS)
     assert counters.kinematics == counters.nearest_neighbor == 2
 
-    assert batched_residual.shape == (3, TIME * POINTS * (COORDS + 2))
+    assert batched_residual.shape == (3, TIME * POINTS * (COORDS + 2) + 1)
     assert batched_gradient["q"].shape == (3, TIME * COORDS)
     assert batched_gradient["log_s"].shape == (3, 1)
     for index in range(3):
@@ -197,6 +189,6 @@ def test_manual_root_to_full_phase_transition_converges() -> None:
     assert final_loss.item() < 0.01 * initial_loss.item()
     torch.testing.assert_close(values["q"], data.target_q, rtol=0.0, atol=1.5e-2)
     torch.testing.assert_close(values["log_s"], data.target_log_s, rtol=0.0, atol=1.5e-2)
-    expected_active_evaluations = 2 + root_iterations + full_iterations
+    expected_active_evaluations = 4 + root_iterations + full_iterations
     assert counters.kinematics == expected_active_evaluations
     assert counters.nearest_neighbor == expected_active_evaluations

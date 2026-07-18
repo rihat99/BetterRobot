@@ -59,6 +59,7 @@ extensions = [
     "sphinx_copybutton",
     # Standard
     "sphinx.ext.napoleon",
+    "sphinx.ext.doctest",
     "sphinx.ext.viewcode",
     "sphinx.ext.intersphinx",
     "sphinx.ext.todo",

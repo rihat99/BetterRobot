@@ -20,8 +20,8 @@ becomes a passing or failing benchmark. The second is a small set of
 avoid Python loops, frozen `Model` topology that lets `torch.compile`
 unroll cleanly, analytic Jacobians for the routines that dominate the
 hot path, and representations that avoid dense Jacobians where that contract
-is implemented. Today, named-block Adam is matrix-free, temporal LM can use
-block-banded normal storage, and explicit operator LM uses `NormalCG`.
+is implemented. Today, the `torch.optim` adapter differentiates the scalar
+objective directly and temporal LM can use block-banded normal storage.
 Undeclared problems retain the dense correctness path; these capabilities are
 not by themselves a benchmark-certified long-horizon performance claim. The
 third is a **gate-promotion ladder** — benchmarks land advisory, collect
@@ -83,8 +83,9 @@ We do **not** set targets for:
 
 Tensor kernels such as FK, residual evaluation, and analytic Jacobians
 accept `(B..., feature)` tensors and walk the robot topology **once** per
-call, regardless of `B`. Named-block Adam/LM/GN, `solve_ik`, and
-`solve_trajopt` preserve the same leading axes with per-element state. See
+call, regardless of `B`. Named-block LM/GN, the `torch.optim` adapter,
+`solve_ik`, and `solve_trajopt` preserve the same leading axes with
+per-element state. See
 {doc}`/concepts/batching_and_backends`.
 
 ### 2.2 Static topology, dynamic values
@@ -107,10 +108,9 @@ state.
   current shipping body uses autograd through the differentiable RNEA /
   ABA / CRBA passes (live, gradcheck-clean) and will switch to the
   analytic recursion in a future minor release.
-- Everything else in the legacy residual stack: unbatched central finite
-  differences as the current fallback. `JacobianStrategy.AUTO` prefers
-  analytic evaluation. Named-block `Problem` evaluation separately supports
-  analytic, `jacrev`, `jacfwd`, and finite-difference strategies.
+- Residuals without analytic blocks: tangent-space `jacrev` or `jacfwd`.
+  A plain literal selects `auto`, `analytic`, `jacrev`, `jacfwd`, or the
+  explicit finite-difference debugging strategy.
 
 **Rationale:** analytic derivatives avoid graph construction or repeated
 residual evaluations on the paths where their implementation and maintenance
@@ -158,14 +158,14 @@ end-to-end IK graph benchmark is committed. A future capture path must own
 fixed storage, warmup, invalidation, and a replay lifecycle that covers the
 required forward and backward work together.
 
-### 2.7 Current allocation and matrix-free limits
+### 2.7 Current allocation and structured limits
 
-- Named-block `Adam` differentiates `Problem.objective` through tangent
-  retractions and does not assemble a Jacobian. This is the shipped
-  matrix-free first-order path.
+- `run_first_order` differentiates `Problem.objective` through tangent
+  retractions and does not assemble a Jacobian. Any ordinary compatible
+  `torch.optim` optimizer can own the tangent-buffer updates.
 - Named-block LM/GN retain dense assembly as the correctness route. A problem
   with one declared temporal block can instead assemble block-banded normal
-  storage or use the explicit `NormalOperator`/`NormalCG` route.
+  storage.
 - Knot-based `solve_trajopt` uses route-aware named-block LM and reports the
   chosen dense or banded path. Undeclared residuals fall back to dense;
   structured routing is never inferred from numerical zeros. Manifold-safe
@@ -309,9 +309,9 @@ cache can avoid recompiling in non-cold developer or workflow runs.
 | `kinematics/jacobian.py` | Spatial Jacobian | Analytic; automatic compilation is roadmap work |
 | `dynamics/*.py` | RNEA / ABA / CRBA | Differentiable recursion; `compute_rnea_derivatives`, `compute_aba_derivatives`, and `compute_crba_derivatives` are autograd-derived |
 | `residuals/*.py` | Residual evaluation | Analytic blocks where implemented; temporal residuals declare exact knot offsets |
-| `optim/blocks/solver_adam.py` | Named-block first-order solve | Tangent objective VJP; no Jacobian assembly |
-| `optim/blocks/solver_lm.py` | Named-block LM/GN | Dense/banded/operator routing; fixed-shape update and eager public `run` |
-| `optim/solvers/*.py` | Linear solves | Dense Cholesky/LSTSQ, block-banded Cholesky, and preconditioned normal CG |
+| `optim/first_order.py` | First-order adapter | Persistent tangent buffers owned by `torch.optim` |
+| `optim/lm.py` | Named-block LM/GN | Dense/banded routing; fixed-shape update and eager public `run` |
+| `optim/solvers.py` | Linear solves | Strict dense Cholesky and block-banded Cholesky |
 | `tasks/parameterization.py` | Numerical trajectory bases | B-spline compression utility; robot-manifold integration requires a separate reviewed design |
 | `collision/*.py` | Reserved geometry, distance, decomposition, and residual surfaces | Primitive containers only; computation and performance work are not shipped |
 | `io/*.py` | One-shot parse | Not hot; readability > speed; `AssetResolver` Protocol |

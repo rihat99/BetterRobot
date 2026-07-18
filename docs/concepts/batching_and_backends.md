@@ -4,8 +4,8 @@ Tensor math uses the convention ``(B..., feature)``, where ``B...`` may be
 an empty or multi-axis batch prefix and ``feature`` is the semantic last
 axis. A single pose is ``(7,)``; a batch of one is ``(1, 7)``. FK,
 residuals, and analytic Jacobians support leading batches. Named-block
-``Problem``, Adam/LM/GN, phases, and ``solve_ik`` preserve arbitrary common
-leading axes with independent per-element state.
+``Problem``, LM/GN, the ``torch.optim`` adapter, and ``solve_ik`` preserve
+arbitrary common leading axes with independent per-element state.
 
 BetterRobot has one public tensor API and a whole-pass compute seam. The
 canonical lane is eager or caller-compiled Torch. An opt-in Warp lane may

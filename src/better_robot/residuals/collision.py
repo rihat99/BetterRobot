@@ -8,14 +8,16 @@ See ``docs/concepts/collision_and_geometry.md §6``.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Sequence
+from typing import Any
 
 import torch
 
 from ..collision.geometry import Box, Capsule, Sphere
 from ..collision.robot_collision import RobotCollision
 from ..data_model.model import Model
-from .base import Residual, ResidualState
+from .base import Residual
 
 
 class SelfCollisionResidual(Residual):
@@ -28,6 +30,7 @@ class SelfCollisionResidual(Residual):
     """
 
     name: str = "self_collision"
+    reads = ("q", "data")
 
     def __init__(
         self,
@@ -46,14 +49,8 @@ class SelfCollisionResidual(Residual):
         # public shape contract (docs/concepts/residuals_and_costs.md §10).
         self.dim = int(robot_collision.self_pairs.shape[0])
 
-    def __call__(self, state: ResidualState) -> torch.Tensor:
-        raise NotImplementedError("see docs/concepts/collision_and_geometry.md §6")
-
-    def jacobian(self, state: ResidualState) -> torch.Tensor | None:
-        """Sparse analytic Jacobian — rewrite of ``_analytic_collision_jacobian``.
-
-        See docs/concepts/collision_and_geometry.md §6.
-        """
+    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
+        del ctx
         raise NotImplementedError("see docs/concepts/collision_and_geometry.md §6")
 
 
@@ -61,6 +58,7 @@ class WorldCollisionResidual(Residual):
     """Collision residual against an external geometry set (obstacles, ground)."""
 
     name: str = "world_collision"
+    reads = ("q", "data")
 
     def __init__(
         self,
@@ -80,8 +78,6 @@ class WorldCollisionResidual(Residual):
         n_links = int(robot_collision.link_indices.shape[0]) if hasattr(robot_collision, "link_indices") else 0
         self.dim = n_links * len(self.world)
 
-    def __call__(self, state: ResidualState) -> torch.Tensor:
-        raise NotImplementedError("see docs/concepts/collision_and_geometry.md §8")
-
-    def jacobian(self, state: ResidualState) -> torch.Tensor | None:
+    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
+        del ctx
         raise NotImplementedError("see docs/concepts/collision_and_geometry.md §8")

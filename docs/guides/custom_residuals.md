@@ -12,12 +12,11 @@ the problem:
 ```python
 import torch
 
-from better_robot.optim import Problem, ResidualItem, VarSpec
+from better_robot.optim import Problem
 ```
 
-The residual itself remains structural and does not depend on those classes.
-`Problem`, `ResidualItem`, and `VarSpec` are used by the surrounding consumer
-setup; the marked residual definition below intentionally uses only `torch`.
+The residual itself remains structural and does not depend on that class. The
+marked residual definition below intentionally uses only `torch`.
 
 ## 1. Declare names, dependencies, and a static dimension
 
@@ -27,10 +26,11 @@ Give the object three attributes:
 - `reads`: a tuple of variable, external-parameter, or provider-output names;
 - `dim`: the final residual dimension, fixed for every evaluation.
 
-Implement `__call__(ctx)`. Read only the names declared in `reads`; the context
-is read-only. The result shape is `(B..., dim)`. `B...` contains independent
-batch axes. Event axes such as time, points, or joints must be reduced or
-flattened into the final `dim` axis exactly as declared.
+Implement `__call__(ctx)`. The context is read-only. `reads` describes
+Jacobian structure and should list the names the implementation consumes, but
+it is not runtime access policing. The result shape is `(B..., dim)`. `B...`
+contains independent batch axes. Event axes such as time, points, or joints
+must be reduced or flattened into the final `dim` axis exactly as declared.
 
 The slice uses a signed-distance provider with output shape
 `(B..., time, points)`. This custom residual penalizes penetration:
@@ -56,9 +56,8 @@ class PenetrationResidual:
 <!-- custom-residual-example:end -->
 
 The class deliberately needs only `torch` in its defining namespace. Register
-an instance as `ResidualItem("penetration", PenetrationResidual(T, N))`.
-The wrapper name and residual name must match; this catches accidental report
-and weight-column mismatches at problem construction.
+an instance with `problem.add_residual(PenetrationResidual(T, N))`; the item
+name defaults from the residual.
 
 Do not infer or mutate `dim` during `__call__`. Pad a variable-size observation
 set to a fixed maximum and carry a mask in the context instead.
@@ -97,13 +96,14 @@ analytic block against both forced `jacrev` and forced `jacfwd` at fp32.
 ## 4. Request shared provider outputs
 
 Put a provider output name in `reads`; do not call the expensive function from
-the residual. Providers declare `inputs` and `outputs`, form an acyclic graph,
-and run lazily at most once in one `EvaluationContext`. Three residual items
-reading the same nearest-neighbour output therefore share one pass during a
-residual, objective, gradient, or analytic-Jacobian context. AD-generated
-Jacobian blocks use fresh transform-local contexts, so the provider may run
-once for each missing `(residual, variable)` block. A zero Python weight keeps
-the item inactive and does not trigger its providers.
+the residual. Providers declare `reads` and `outputs`, and run lazily at most
+once in one `EvaluationContext`. Recursive memoization resolves provider
+dependencies; attempting to resolve a cycle raises directly. Three residual
+items reading the same nearest-neighbour output therefore share one pass
+during a residual, objective, gradient, or analytic-Jacobian context.
+AD-generated Jacobian blocks use fresh transform-local contexts, so the
+provider may run once for each missing `(residual, variable)` block. A zero
+Python weight keeps the item inactive and does not trigger its providers.
 
 Nothing may cache a context, provider result, graph tensor, tensor identity, or
 mutation version across evaluations. A second `residual()` or `gradient()` call

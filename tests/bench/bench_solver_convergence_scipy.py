@@ -21,7 +21,7 @@ import numpy as np
 import pytest
 import torch
 
-from better_robot.optim.blocks import LevenbergMarquardt, LMStatus, Problem
+from better_robot.optim import LevenbergMarquardt, LMStatus, Problem
 
 from ..optim.solver_quality_support import (
     bounded_start,

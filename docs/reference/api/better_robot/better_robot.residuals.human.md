@@ -39,12 +39,4 @@
 
 ````
 
-````{py:method} jacobian(value: better_robot.residuals.base.ResidualState | collections.abc.Mapping[str, typing.Any]) -> torch.Tensor | None
-:canonical: better_robot.residuals.human.SwingTwistLimitResidual.jacobian
-
-```{autodoc2-docstring} better_robot.residuals.human.SwingTwistLimitResidual.jacobian
-```
-
-````
-
 `````

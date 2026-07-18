@@ -76,7 +76,7 @@ class SceneSDFProvider:
             raise ValueError(f"eps must be a positive float, got {self.eps!r}")
 
     @property
-    def inputs(self) -> tuple[str, ...]:
+    def reads(self) -> tuple[str, ...]:
         base = (
             self.query_points,
             self.query_validity,

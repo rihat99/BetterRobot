@@ -214,11 +214,11 @@ registry.
 
 **Use when:** you are contributing a solver for the named-block
 `Problem`/`Values` lifecycle. There is no public generic solver protocol or
-solver registry. The concrete `Adam`, `GaussNewton`, and
-`LevenbergMarquardt` implementations are the reference contracts.
+solver registry. `GaussNewton` and `LevenbergMarquardt` are the reference
+contracts. First-order extensions normally provide a standard
+`torch.optim.Optimizer` (or factory) to `run_first_order` instead.
 
-A solver accepted by `Phase` is a dataclass with a replaceable `max_iter`
-field and this structural lifecycle:
+A custom stateful second-order solver may follow this structural lifecycle:
 
 ```python
 from dataclasses import dataclass
@@ -237,8 +237,8 @@ class CustomSolver:
 pair. State and status types are solver-specific. Implementing the lifecycle
 correctly also requires batched per-element termination, manifold retraction,
 bounds, failure isolation, and graph-lifetime tests; use the shipped solvers
-as the implementation reference. Custom solvers are passed to `Phase` or
-called directly and are never discovered by `solve_ik` or `solve_trajopt`.
+as the implementation reference. Custom solvers are called directly and are
+never discovered by `solve_ik` or `solve_trajopt`.
 
 ## 4 · Configure LM damping
 
@@ -264,8 +264,8 @@ default adapts it after accepted and rejected steps. Task
 
 ## 5 · Add a linear solver
 
-**Use when:** the problem has sparsity the default dense Cholesky
-cannot exploit (large trajopt), or you want KKT / iterative methods.
+**Use when:** the problem has a reviewed dense or block-banded solve that the
+shipped Cholesky implementation cannot provide.
 
 ```python
 # my_package/optim/solvers/dense_solve.py
@@ -285,13 +285,12 @@ class DenseSolve:
 
 Contract: one method, `solve(A, b: (B...,n), ridge: (B...,) | scalar | None)`
 returning `(B...,n)`, plus a static `supported_systems` set when the solver is
-not dense-only. The recognized system strings are `"dense"`, `"banded"`, and
-`"operator"`; `A` is respectively a tensor, `BlockBandedMatrix`, or
-`NormalOperator`. The shipped implementations are dense `Cholesky`/`LSTSQ`,
-`BandedCholesky`, and `NormalCG`. If `supported_systems` is absent, routing
-assumes dense-only. Custom solvers keep the same `b`/`ridge` semantics and
-should implement `solve_with_info` only when they return the full
-`LinearSolveResult` diagnostics contract.
+not dense-only. The recognized system strings are `"dense"` and `"banded"`;
+`A` is respectively a tensor or `BlockBandedMatrix`. The shipped
+implementations are dense `Cholesky` and `BandedCholesky`. If
+`supported_systems` is absent, routing assumes dense-only. Custom solvers keep
+the same `b`/`ridge` semantics and should implement `solve_with_info` only
+when they return the full `LinearSolveResult` diagnostics contract.
 
 ## 6 · Add a robust kernel
 

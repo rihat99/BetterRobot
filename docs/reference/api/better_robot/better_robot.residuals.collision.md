@@ -46,11 +46,12 @@ Bases: {py:obj}`better_robot.residuals.base.Residual`
 
 ````
 
-````{py:method} jacobian(state: better_robot.residuals.base.ResidualState) -> torch.Tensor | None
-:canonical: better_robot.residuals.collision.SelfCollisionResidual.jacobian
-:abstractmethod:
+````{py:attribute} reads
+:canonical: better_robot.residuals.collision.SelfCollisionResidual.reads
+:value: >
+   ('q', 'data')
 
-```{autodoc2-docstring} better_robot.residuals.collision.SelfCollisionResidual.jacobian
+```{autodoc2-docstring} better_robot.residuals.collision.SelfCollisionResidual.reads
 ```
 
 ````
@@ -76,9 +77,13 @@ Bases: {py:obj}`better_robot.residuals.base.Residual`
 
 ````
 
-````{py:method} jacobian(state: better_robot.residuals.base.ResidualState) -> torch.Tensor | None
-:canonical: better_robot.residuals.collision.WorldCollisionResidual.jacobian
-:abstractmethod:
+````{py:attribute} reads
+:canonical: better_robot.residuals.collision.WorldCollisionResidual.reads
+:value: >
+   ('q', 'data')
+
+```{autodoc2-docstring} better_robot.residuals.collision.WorldCollisionResidual.reads
+```
 
 ````
 

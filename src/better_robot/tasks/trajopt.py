@@ -21,9 +21,9 @@ from typing import Any, Literal
 import torch
 
 from ..data_model.model import Model
-from ..kinematics.jacobian_strategy import JacobianStrategy
 from ..optim import (
     Bounds,
+    JacobianStrategy,
     LevenbergMarquardt,
     LinearizationMode,
     LinearizationReason,
@@ -33,7 +33,6 @@ from ..optim import (
     RobotStateProvider,
     VarSpec,
 )
-from ..residuals.base import ResidualState
 from ..residuals.regularization import ReferenceTrajectoryResidual
 from ..residuals.smoothness import AccelerationResidual, VelocityResidual
 from ..residuals.temporal import TimeIndexedResidual
@@ -41,17 +40,15 @@ from .parameterization import KnotTrajectory
 from .trajectory import Trajectory
 
 
-class _CostResidualAdapter:
+class _ResidualAdapter:
     """Give one trajectory residual the item identity expected by ``Problem``.
 
-    Shipped trajectory residuals already accept named contexts.  Residuals
-    that do not declare ``reads`` retain a dense AD
-    fallback through a lazily assembled ``ResidualState``.  Optional analytic
-    and temporal hooks are exposed by normal attribute delegation, so their
-    absence remains structurally meaningful to ``Problem``.
+    Optional analytic and temporal hooks are exposed by normal attribute
+    delegation, so their absence remains structurally meaningful to
+    ``Problem``.
     """
 
-    def __init__(self, name: str, residual: Any, *, model: Model) -> None:
+    def __init__(self, name: str, residual: Any) -> None:
         self.name = name
         self._residual = residual
         dim = getattr(residual, "dim", None)
@@ -62,18 +59,11 @@ class _CostResidualAdapter:
             )
         self.dim = dim
         reads = getattr(residual, "reads", None)
-        self._legacy_state = not (isinstance(reads, tuple) and all(isinstance(read, str) and read for read in reads))
-        self.reads = ("q", "data") if self._legacy_state else reads
-        self._model = model
+        if not isinstance(reads, tuple) or any(not isinstance(read, str) or not read for read in reads):
+            raise TypeError(f"Residual item {name!r} must declare reads as tuple[str, ...]")
+        self.reads = reads
 
     def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        if self._legacy_state:
-            value = ResidualState(
-                model=self._model,
-                data=ctx["data"],
-                variables=ctx["q"],
-            )
-            return self._residual(value)
         return self._residual(ctx)
 
     def __getattr__(self, name: str) -> Any:
@@ -86,7 +76,9 @@ class TrajOptResult:
 
     Historical unbatched calls retain ``trajectory.q.shape == (1, T, nq)``.
     Batched calls preserve every leading batch axis and return tensor-valued
-    per-element iteration and convergence diagnostics.
+    per-element iteration and convergence diagnostics. Route metadata records
+    a requested ``auto``/``dense``/``structured`` mode and the selected
+    ``dense`` or ``banded`` implementation.
     """
 
     trajectory: Trajectory
@@ -96,7 +88,7 @@ class TrajOptResult:
     status: int | torch.Tensor
     model: Model
     linearization_requested: LinearizationMode
-    linearization_used: Literal["dense", "banded", "matrix_free"]
+    linearization_used: Literal["dense", "banded"]
     linearization_reason: LinearizationReason
     linearization_detail: str
 
@@ -197,7 +189,7 @@ def _prepare_cost_residual(
             manifold=manifold,
             time_axis=0,
         )
-        reference_spec.validate_value(prepared.q_ref, check_feasible=False)
+        reference_spec.validate_value(prepared.q_ref)
         prepared.q_ref = _hemisphere_align_robot_trajectory(prepared.q_ref, manifold)
     return prepared
 
@@ -221,24 +213,12 @@ def _prepare_residuals(
         residuals.append(
             replace(
                 item,
-                residual=_CostResidualAdapter(item.name, prepared, model=model),
+                residual=_ResidualAdapter(item.name, prepared),
             )
         )
     if not residuals:
         raise ValueError("residuals must contain at least one residual")
     return tuple(residuals)
-
-
-def _named_jacobian_strategy(
-    strategy: JacobianStrategy,
-) -> Literal["auto", "analytic", "finite_difference"]:
-    if strategy is JacobianStrategy.AUTO:
-        return "auto"
-    if strategy is JacobianStrategy.ANALYTIC:
-        return "analytic"
-    if strategy is JacobianStrategy.FINITE_DIFF:
-        return "finite_difference"
-    raise ValueError(f"Unknown jacobian_strategy {strategy!r}; expected a JacobianStrategy member")
 
 
 def _public_diagnostics(
@@ -261,7 +241,7 @@ def solve_trajopt(  # noqa: PLR0913, PLR0915 - explicit facade policy stays audi
     residuals: Sequence[ResidualItem],
     optimizer: LevenbergMarquardt | None = None,
     max_iter: int = 50,
-    jacobian_strategy: JacobianStrategy = JacobianStrategy.AUTO,
+    jacobian_strategy: JacobianStrategy = "auto",
     lower: torch.Tensor | None = None,
     upper: torch.Tensor | None = None,
     parameterization: KnotTrajectory | None = None,
@@ -295,8 +275,11 @@ def solve_trajopt(  # noqa: PLR0913, PLR0915 - explicit facade policy stays audi
             "trajectory map and cannot preserve state bounds. Robot B-spline "
             "support remains explicitly deferred; use KnotTrajectory."
         )
-    if not isinstance(jacobian_strategy, JacobianStrategy):
-        raise ValueError(f"Unknown jacobian_strategy {jacobian_strategy!r}; expected a JacobianStrategy member")
+    if jacobian_strategy not in {"auto", "analytic", "jacrev", "jacfwd", "finite_difference"}:
+        raise ValueError(
+            f"Unknown jacobian_strategy {jacobian_strategy!r}; expected auto, analytic, "
+            "jacrev, jacfwd, or finite_difference"
+        )
 
     manifold = RobotConfig(model)
     bounds = _configuration_bounds(model, initial_q_traj, manifold, lower, upper)
@@ -308,9 +291,7 @@ def solve_trajopt(  # noqa: PLR0913, PLR0915 - explicit facade policy stays audi
         time_axis=0,
     )
     start = initial_q_traj.detach().clone()
-    # Validate the manifold before projection: projection is for feasible box
-    # coordinates and must not silently repair malformed quaternions.
-    spec.validate_value(start, check_feasible=False)
+    spec.validate_value(start)
     start = _hemisphere_align_robot_trajectory(start, manifold)
     start = manifold.project(start, bounds)
 
@@ -330,15 +311,15 @@ def solve_trajopt(  # noqa: PLR0913, PLR0915 - explicit facade policy stays audi
         LevenbergMarquardt(
             max_iter=max_iter,
             linearization="auto",
-            jacobian_strategy=_named_jacobian_strategy(jacobian_strategy),
+            jacobian_strategy=jacobian_strategy,
         )
         if optimizer is None
         else optimizer
     )
-    if optimizer is not None and jacobian_strategy is not JacobianStrategy.AUTO:
+    if optimizer is not None and jacobian_strategy != "auto":
         solver = replace(
             solver,
-            jacobian_strategy=_named_jacobian_strategy(jacobian_strategy),
+            jacobian_strategy=jacobian_strategy,
         )
     decision = solver.resolve_linearization(problem)
     values, state = solver.run({"q": start}, problem)

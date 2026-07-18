@@ -10,10 +10,9 @@ from __future__ import annotations
 import pytest
 import torch
 
-from better_robot.io import load, build_model
+from better_robot.io import build_model, load
 from better_robot.io.builders.smpl_like import make_smpl_like_body
-from better_robot.data_model.joint_models import JointFreeFlyer, JointSpherical
-from better_robot.residuals.base import ResidualState
+from better_robot.io.ir import IRModel
 from better_robot.residuals.regularization import RestResidual
 
 
@@ -31,9 +30,7 @@ def test_smpl_root_joint_is_free_flyer(smpl_model):
 
 
 def test_smpl_has_23_spherical_joints(smpl_model):
-    spherical_count = sum(
-        1 for jm in smpl_model.joint_models if jm.kind == "spherical"
-    )
+    spherical_count = sum(1 for jm in smpl_model.joint_models if jm.kind == "spherical")
     assert spherical_count == 23
 
 
@@ -58,15 +55,30 @@ def test_smpl_body_names_include_pelvis(smpl_model):
 
 def test_smpl_all_joint_names_present(smpl_model):
     expected_bodies = [
-        "pelvis", "left_hip", "right_hip", "spine1",
-        "left_knee", "right_knee", "spine2",
-        "left_ankle", "right_ankle", "spine3",
-        "left_foot", "right_foot", "neck",
-        "left_collar", "right_collar", "head",
-        "left_shoulder", "right_shoulder",
-        "left_elbow", "right_elbow",
-        "left_wrist", "right_wrist",
-        "left_hand", "right_hand",
+        "pelvis",
+        "left_hip",
+        "right_hip",
+        "spine1",
+        "left_knee",
+        "right_knee",
+        "spine2",
+        "left_ankle",
+        "right_ankle",
+        "spine3",
+        "left_foot",
+        "right_foot",
+        "neck",
+        "left_collar",
+        "right_collar",
+        "head",
+        "left_shoulder",
+        "right_shoulder",
+        "left_elbow",
+        "right_elbow",
+        "left_wrist",
+        "right_wrist",
+        "left_hand",
+        "right_hand",
     ]
     for bname in expected_bodies:
         assert bname in smpl_model.body_name_to_id, f"Missing body: {bname}"
@@ -82,7 +94,6 @@ def test_smpl_topo_order_valid(smpl_model):
 
 def test_smpl_ir_directly():
     ir = make_smpl_like_body()
-    from better_robot.io.ir import IRModel
     assert isinstance(ir, IRModel)
     # 24 bodies: pelvis + 23 segments (no explicit "world" body)
     assert len(ir.bodies) == 24
@@ -106,13 +117,7 @@ def test_smpl_rest_residual_backward_is_nan_free(smpl_model):
     """RestResidual traverses one free-flyer and 23 identity SO3 logs."""
     q_rest = smpl_model.q_neutral.to(dtype=torch.float64)
     q = q_rest.detach().clone().requires_grad_(True)
-    state = ResidualState(
-        model=smpl_model,
-        data=smpl_model.create_data(dtype=torch.float64),
-        variables=q,
-    )
-
-    residual = RestResidual(smpl_model, q_rest)(state)
+    residual = RestResidual(smpl_model, q_rest)({"q": q})
     residual.square().sum().backward()
 
     assert q.grad is not None

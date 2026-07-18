@@ -34,7 +34,6 @@ REQUIRED: frozenset[str] = frozenset(
         "compute_joint_jacobians",
         "get_joint_jacobian",
         "get_frame_jacobian",
-        "JacobianStrategy",
         # dynamics
         "rnea",
         "aba",

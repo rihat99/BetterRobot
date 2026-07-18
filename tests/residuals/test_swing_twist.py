@@ -106,7 +106,6 @@ def test_named_block_tangent_ad_matches_finite_difference_and_is_sparse() -> Non
         torch.zeros_like(ad[..., first_start:second_start]),
     )
     assert torch.count_nonzero(ad[..., second_start : second_start + 3]) > 0
-    assert residual.jacobian({"q": q}) is None
 
 
 @pytest.mark.parametrize("dtype", (torch.float32, torch.float64))

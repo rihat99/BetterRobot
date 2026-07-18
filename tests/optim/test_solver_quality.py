@@ -13,7 +13,7 @@ import torch
 
 from better_robot.io import load
 from better_robot.kinematics import forward_kinematics
-from better_robot.optim.blocks import (
+from better_robot.optim import (
     GaussNewton,
     LevenbergMarquardt,
     LMStatus,

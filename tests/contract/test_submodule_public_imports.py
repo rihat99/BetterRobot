@@ -34,7 +34,6 @@ SUBMODULE_PATHS: list[tuple[str, str]] = [
     ("better_robot.spatial", "Pose"),
     # kinematics
     ("better_robot.kinematics", "ReferenceFrame"),
-    ("better_robot.kinematics", "JacobianStrategy"),
     # data_model
     ("better_robot.data_model", "KinematicsLevel"),
     # io
@@ -68,17 +67,24 @@ SUBMODULE_PATHS: list[tuple[str, str]] = [
     ("better_robot.optim", "VarSpec"),
     ("better_robot.optim", "Problem"),
     ("better_robot.optim", "ResidualItem"),
-    ("better_robot.optim", "ObjectiveItem"),
     ("better_robot.optim", "RobotStateProvider"),
     ("better_robot.optim", "ImplicitDiffConfig"),
     ("better_robot.optim", "ImplicitDifferentiationError"),
+    ("better_robot.optim", "RobustKernel"),
+    ("better_robot.optim", "L2"),
+    ("better_robot.optim", "Huber"),
+    ("better_robot.optim", "Cauchy"),
+    ("better_robot.optim", "Tukey"),
+    ("better_robot.optim", "GemanMcClure"),
+    ("better_robot.optim", "LinearSolver"),
+    ("better_robot.optim", "InformativeLinearSolver"),
+    ("better_robot.optim", "LinearSolveResult"),
+    ("better_robot.optim", "LinearSolveStatus"),
+    ("better_robot.optim", "Cholesky"),
+    ("better_robot.optim", "BandedCholesky"),
     ("better_robot.optim", "detach_values"),
-    ("better_robot.optim", "Adam"),
-    ("better_robot.optim", "AdamState"),
-    ("better_robot.optim", "AdamStatus"),
-    ("better_robot.optim", "Phase"),
-    ("better_robot.optim", "PhaseResult"),
-    ("better_robot.optim", "run_phases"),
+    ("better_robot.optim", "FirstOrderResult"),
+    ("better_robot.optim", "run_first_order"),
     # exceptions
     ("better_robot.exceptions", "StaleCacheError"),
 ]
@@ -109,15 +115,10 @@ def test_named_block_api_is_qualified_and_has_no_lie_name_collision() -> None:
         "VarSpec",
         "Problem",
         "ResidualItem",
-        "ObjectiveItem",
         "RobotStateProvider",
         "detach_values",
-        "Adam",
-        "AdamState",
-        "AdamStatus",
-        "Phase",
-        "PhaseResult",
-        "run_phases",
+        "FirstOrderResult",
+        "run_first_order",
     }
 
     assert block_names <= set(optim.__all__)

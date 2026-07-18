@@ -16,16 +16,16 @@ The five commitments that shape every other decision:
   returns Torch tensors.
 - **Batched tensor math.** FK, residuals, and analytic Jacobians accept
   `(B..., feature)`. The named-block `Problem` also evaluates independent
-  batches; named-block Adam/LM/GN, `solve_ik`, and `solve_trajopt` preserve
-  those axes with per-element solver state.
+  batches; LM/GN, the `torch.optim` adapter, `solve_ik`, and `solve_trajopt`
+  preserve those axes with per-element solver state.
 - **One code path for fixed and floating base.** A floating-base
   robot is one whose root joint is `JointFreeFlyer`. The IK solver
   does not know the difference.
 - **An explicit optimization migration.** New multi-block code uses named
   `VarSpec`s, a `Problem`, structural residuals, and evaluation-local
   providers. IK and knot trajectory optimization use that named-block stack;
-  declared temporal problems can route through block-banded or explicit
-  normal-operator solves, with dense fallback for undeclared structure.
+  declared temporal problems can route through block-banded solves, with
+  dense fallback for undeclared structure.
 - **A whole-pass compute seam that does not leak.** Torch raw passes consume
   `ModelStructure` plus `ModelValues` by default. An eligible opt-in kernel
   may replace an entire pass without changing the public `torch.Tensor`
@@ -76,13 +76,12 @@ result.frame_pose("body_panda_hand")  # (7,) SE(3) pose at the solution
 Forward kinematics; analytic Jacobians with an unbatched central-FD fallback;
 named optimization-variable blocks with Euclidean, SO(3), SE(3), and robot
 configuration manifolds; batched `Problem` evaluation with mask-eliminated
-tangent coordinates, structural residuals, scalar objective terms, and lazy
-provider DAGs; the residual library (pose / position / orientation,
+tangent coordinates, structural least-squares residuals, and lazy provider
+memos; the residual library (pose / position / orientation,
 joint position limits, rest, contact consistency, reference trajectories,
 velocity and acceleration smoothness, time-indexed residuals); named-block
-LM, GN, Adam, and functional phases; dense, block-banded,
-and normal-operator linear solvers (Cholesky, LSTSQ, BandedCholesky,
-NormalCG); pluggable robust
+LM and GN plus a first-order `torch.optim` adapter; dense and block-banded
+linear solvers (Cholesky and BandedCholesky); pluggable robust
 kernels (L2, Huber, Cauchy, Tukey, Geman–McClure); batched IK on fixed and floating-base robots;
 trajectory optimisation with knot parameterisation and automatic banded/dense
 routing (the Euclidean B-spline basis is numerical-only pending a separate

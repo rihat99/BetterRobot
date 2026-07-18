@@ -10,6 +10,7 @@ import torch
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics.forward import forward_kinematics
+from better_robot.optim import Problem, ResidualItem, RobotConfig, VarSpec
 from better_robot.residuals import (
     AccelerationResidual,
     ContactConsistencyResidual,
@@ -19,7 +20,6 @@ from better_robot.residuals import (
     VelocityResidual,
 )
 from better_robot.residuals._temporal_jacobian import dense_temporal_jacobian
-from better_robot.residuals.base import ResidualState
 from better_robot.residuals.structure import TemporalPattern
 
 
@@ -116,16 +116,6 @@ def test_smoothness_and_reference_named_blocks_match_dense_oracle(
     )
     densified = dense_temporal_jacobian(expected, temporal, horizon=5)
     torch.testing.assert_close(residual.jacobian_blocks(ctx)["q"], densified)
-    torch.testing.assert_close(residual.jacobian(ctx), densified)
-
-    for first in range(q.shape[0]):
-        for second in range(q.shape[1]):
-            state = ResidualState(
-                model=model,
-                data=forward_kinematics(model, q[first, second], compute_frames=True),
-                variables=q[first, second],
-            )
-            torch.testing.assert_close(result[first, second], residual(state))
 
 
 @pytest.mark.parametrize("kind", ("velocity", "acceleration", "reference"))
@@ -180,10 +170,9 @@ def test_time_indexed_named_mapping_slices_arbitrary_batches(two_joint_model) ->
     assert temporal[0].shape == (*q.shape[:-2], 1, 3, model.nv)
     dense = dense_temporal_jacobian(pattern, temporal, horizon=5)
     torch.testing.assert_close(residual.jacobian_blocks(ctx)["q"], dense)
-    torch.testing.assert_close(residual.jacobian(ctx), dense)
 
 
-def test_contact_named_blocks_and_transpose_match_dense(two_joint_model) -> None:
+def test_contact_named_blocks_match_dense(two_joint_model) -> None:
     model = two_joint_model
     q = _trajectory(model)
     ctx = _context(model, q)
@@ -203,12 +192,6 @@ def test_contact_named_blocks_and_transpose_match_dense(two_joint_model) -> None
     assert all(block.shape == (*q.shape[:-2], 4, 6, model.nv) for block in temporal.values())
     dense = dense_temporal_jacobian(pattern, temporal, horizon=5)
     torch.testing.assert_close(residual.jacobian_blocks(ctx)["q"], dense)
-    torch.testing.assert_close(residual.jacobian(ctx), dense)
-
-    state = ResidualState(model=model, data=ctx["data"], variables=q)
-    cotangent = torch.randn_like(result)
-    expected = (dense.mT @ cotangent.unsqueeze(-1)).squeeze(-1)
-    torch.testing.assert_close(residual.apply_jac_transpose(state, cotangent), expected)
 
 
 def test_contact_temporal_blocks_match_tangent_finite_difference(two_joint_model) -> None:
@@ -217,12 +200,7 @@ def test_contact_temporal_blocks_match_tangent_finite_difference(two_joint_model
     frames = (model.frame_id("first_tip"), model.frame_id("second_tip"))
     weights = torch.linspace(0.2, 1.0, 10, dtype=q.dtype).reshape(5, 2)
     residual = ContactConsistencyResidual(model, frames, weights, dt=0.1, weight=0.6)
-    state = ResidualState(
-        model=model,
-        data=forward_kinematics(model, q, compute_frames=True),
-        variables=q,
-    )
-    analytic = residual.jacobian(state)
+    analytic = residual.jacobian_blocks(_context(model, q))["q"]
     finite_difference = torch.zeros_like(analytic)
     eps = 1e-6
     for knot in range(5):
@@ -231,25 +209,13 @@ def test_contact_temporal_blocks_match_tangent_finite_difference(two_joint_model
             delta[knot, coordinate] = eps
             q_plus = model.integrate(q, delta)
             q_minus = model.integrate(q, -delta)
-            plus = residual(
-                ResidualState(
-                    model=model,
-                    data=forward_kinematics(model, q_plus, compute_frames=True),
-                    variables=q_plus,
-                )
-            )
-            minus = residual(
-                ResidualState(
-                    model=model,
-                    data=forward_kinematics(model, q_minus, compute_frames=True),
-                    variables=q_minus,
-                )
-            )
+            plus = residual(_context(model, q_plus))
+            minus = residual(_context(model, q_minus))
             finite_difference[:, knot * model.nv + coordinate] = (plus - minus) / (2.0 * eps)
     torch.testing.assert_close(analytic, finite_difference, rtol=2e-5, atol=2e-7)
 
 
-def test_static_horizon_validation_is_eager_and_legacy_mode_remains(two_joint_model) -> None:
+def test_static_horizon_validation_is_eager_and_required(two_joint_model) -> None:
     model = two_joint_model
     with pytest.raises(ValueError, match="at least 3"):
         VelocityResidual(model, dt=0.1, horizon=2)
@@ -270,13 +236,32 @@ def test_static_horizon_validation_is_eager_and_legacy_mode_remains(two_joint_mo
         )
 
     q = _trajectory(model, batch_shape=())
-    state = ResidualState(
-        model=model,
-        data=forward_kinematics(model, q, compute_frames=True),
-        variables=q,
-    )
-    legacy = VelocityResidual(model, dt=0.1)
-    assert legacy(state).shape == (3 * model.nv,)
-    assert legacy.dim == 3 * model.nv
     with pytest.raises(ValueError, match="horizon"):
         VelocityResidual(model, dt=0.1)(_context(model, q))
+
+
+def test_time_indexed_without_analytic_inner_falls_back_to_ad(two_joint_model) -> None:
+    model = two_joint_model
+    q = _trajectory(model, batch_shape=())
+
+    class QuadraticResidual:
+        name = "quadratic"
+        dim = 1
+        reads = ("q",)
+
+        def __call__(self, ctx):
+            return ctx["q"][..., :1].square()
+
+    residual = TimeIndexedResidual(QuadraticResidual(), 2, horizon=5)
+    problem = Problem(
+        vars=(VarSpec("q", (5, model.nq), RobotConfig(model), time_axis=0),),
+        residuals=(ResidualItem(residual.name, residual),),
+    )
+
+    auto = problem.jacobian_blocks({"q": q}, strategy="auto")[(residual.name, "q")]
+    finite_difference = problem.jacobian_blocks(
+        {"q": q},
+        strategy="finite_difference",
+        fd_eps=1e-6,
+    )[(residual.name, "q")]
+    torch.testing.assert_close(auto, finite_difference, rtol=2e-5, atol=2e-7)

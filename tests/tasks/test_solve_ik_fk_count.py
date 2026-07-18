@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import torch
 
-import better_robot.optim.blocks.providers as provider_module
+import better_robot.optim.providers as provider_module
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics.forward import forward_kinematics

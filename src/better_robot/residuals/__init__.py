@@ -1,15 +1,14 @@
 """``better_robot.residuals`` — residual classes.
 
-Every residual is a callable object with an optional analytic
-``.jacobian()``. Wrap residuals in ``ResidualItem`` objects and add them to a
-named-block ``Problem`` for optimization.
+Every residual is a callable over a named-block context. Optional analytic
+Jacobians are exposed as named ``jacobian_blocks``.
 
 See ``docs/concepts/residuals_and_costs.md``.
 """
 
 from __future__ import annotations
 
-from .base import Residual, ResidualState
+from .base import Residual
 from .chamfer import MaskedChamferResidual
 from .collision import SelfCollisionResidual, WorldCollisionResidual
 from .limits import JointAccelLimit, JointPositionLimit, JointVelocityLimit
@@ -32,7 +31,6 @@ from .scene_sdf import (
 
 __all__ = [
     "Residual",
-    "ResidualState",
     "PoseResidual",
     "PositionResidual",
     "OrientationResidual",

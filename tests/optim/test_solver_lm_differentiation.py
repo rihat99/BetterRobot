@@ -8,7 +8,7 @@ from typing import Any
 
 import torch
 
-from better_robot.optim.blocks import (
+from better_robot.optim import (
     LevenbergMarquardt,
     LMStatus,
     Problem,

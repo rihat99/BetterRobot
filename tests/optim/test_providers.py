@@ -1,4 +1,4 @@
-"""Provider-DAG caching, validation, and evaluation-lifetime contracts."""
+"""Provider memoization, validation, and evaluation-lifetime contracts."""
 
 from __future__ import annotations
 
@@ -16,7 +16,6 @@ import torch
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.optim import (
-    ObjectiveItem,
     Problem,
     ResidualItem,
     RobotStateProvider,
@@ -28,31 +27,31 @@ from better_robot.optim import (
 @dataclass
 class _CountingProvider:
     name: str = "shared"
-    inputs: tuple[str, ...] = ("x",)
+    reads: tuple[str, ...] = ("x",)
     outputs: tuple[str, ...] = ("feature",)
     multiplier: float = 2.0
     calls: int = 0
 
     def __call__(self, ctx: Mapping[str, Any]) -> dict[str, Any]:
         self.calls += 1
-        return {self.outputs[0]: ctx[self.inputs[0]] * self.multiplier}
+        return {self.outputs[0]: ctx[self.reads[0]] * self.multiplier}
 
 
 @dataclass(frozen=True)
 class _ScaleProvider:
     name: str
-    inputs: tuple[str, ...]
+    reads: tuple[str, ...]
     outputs: tuple[str, ...]
     multiplier: float = 1.0
 
     def __call__(self, ctx: Mapping[str, Any]) -> dict[str, Any]:
-        return {self.outputs[0]: ctx[self.inputs[0]] * self.multiplier}
+        return {self.outputs[0]: ctx[self.reads[0]] * self.multiplier}
 
 
 @dataclass(frozen=True)
 class _UndeclaredProviderRead:
     name: str = "bad_provider"
-    inputs: tuple[str, ...] = ("x",)
+    reads: tuple[str, ...] = ("x",)
     outputs: tuple[str, ...] = ("feature",)
 
     def __call__(self, ctx: Mapping[str, Any]) -> dict[str, Any]:
@@ -77,15 +76,6 @@ class _DataResidual:
 
     def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
         return ctx["data"].q[..., :1]
-
-
-@dataclass(frozen=True)
-class _ScalarTerm:
-    name: str
-    reads: tuple[str, ...] = ("x",)
-
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        return ctx["x"].square().sum()
 
 
 @dataclass(frozen=True)
@@ -159,20 +149,15 @@ def test_provider_cycle_error_is_deterministic_and_exact() -> None:
         _ScaleProvider("nn_pass", ("sdf",), ("nn",)),
         _ScaleProvider("sdf", ("nn",), ("sdf",)),
     )
-    expected = (
-        "provider dependency cycle: nn_pass -> sdf -> nn_pass. Providers must form a DAG over declared inputs/outputs."
-    )
-
     for _ in range(2):
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match="provider dependency cycle involving 'nn_pass'"):
             Problem(vars=(VarSpec("x", (1,)),), providers=providers)
-        assert str(exc_info.value) == expected
 
 
-def test_problem_rejects_unknown_provider_inputs_and_item_reads() -> None:
+def test_problem_rejects_unknown_provider_reads_and_item_reads() -> None:
     with pytest.raises(
         ValueError,
-        match=r"Provider 'producer' declares unknown inputs \['missing'\]",
+        match=r"Provider 'producer' declares unknown reads \['missing'\]",
     ):
         Problem(
             vars=(VarSpec("x", (1,)),),
@@ -189,15 +174,16 @@ def test_problem_rejects_unknown_provider_inputs_and_item_reads() -> None:
         )
 
 
-def test_provider_cannot_read_an_undeclared_dependency() -> None:
+def test_provider_may_read_an_undeclared_dependency() -> None:
     problem = Problem(
         vars=(VarSpec("x", (1,)), VarSpec("unrelated", (1,))),
         residuals=(ResidualItem("consumer", _TensorResidual("consumer", ("feature",))),),
         providers=(_UndeclaredProviderRead(),),
     )
 
-    with pytest.raises(KeyError, match="was not declared"):
-        problem.residual({"x": torch.ones(1), "unrelated": torch.ones(1)})
+    residual = problem.residual({"x": torch.ones(1), "unrelated": torch.tensor([3.0])})
+
+    torch.testing.assert_close(residual, torch.tensor([3.0]))
 
 
 def test_problem_rejects_context_and_item_name_collisions() -> None:
@@ -230,13 +216,6 @@ def test_problem_rejects_context_and_item_name_collisions() -> None:
             ),
         )
 
-    with pytest.raises(ValueError, match=r"residual/objective names collide: \['same'\]"):
-        Problem(
-            vars=(spec,),
-            residuals=(ResidualItem("same", _TensorResidual("same", ("x",))),),
-            objectives=(ObjectiveItem("same", _ScalarTerm("same")),),
-        )
-
 
 def _one_joint_model():
     builder = ModelBuilder("provider_arm")
@@ -264,7 +243,7 @@ def test_robot_state_provider_runs_fk_once_per_evaluation(monkeypatch: pytest.Mo
         return SimpleNamespace(q=q)
 
     monkeypatch.setattr(
-        "better_robot.optim.blocks.providers.forward_kinematics",
+        "better_robot.optim.providers.forward_kinematics",
         fake_forward_kinematics,
     )
     problem = Problem(

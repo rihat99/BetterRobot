@@ -173,8 +173,8 @@ The user-facing names already follow the conventions above:
 | `TrajOptResult` | Result of `solve_trajopt` |
 | `IKCostConfig` | User-facing knobs for the IK cost stack |
 | `OptimizerConfig` | User-facing knobs for the optimiser |
-| `LMState` / `AdamState` | Solver-specific tensor state returned by the named-block lifecycle |
-| `Phase` / `PhaseResult` | Functional sequence of named-block solver stages |
+| `LMState` | Tensor state returned by the LM/GN lifecycle |
+| `FirstOrderResult` | Detached per-element result from `run_first_order` |
 | `TrajectoryParameterization` | Protocol; concrete `KnotTrajectory`, `BSplineTrajectory` |
 
 ### 2.8 Enums replacing string literals
@@ -183,9 +183,8 @@ The user-facing names already follow the conventions above:
 |------|---------|---------|
 | `ReferenceFrame` (in `kinematics`) | Replaces `reference="..."` strings on `get_*_jacobian` | `WORLD`, `LOCAL`, `LOCAL_WORLD_ALIGNED` |
 | `KinematicsLevel` (in `data_model`) | Tracks how far FK has been computed on a `Data` | `NONE` (0), `PLACEMENTS` (1), `VELOCITIES` (2), `ACCELERATIONS` (3) |
-| `JacobianStrategy` (in `kinematics`) | Selects analytic / central FD | `ANALYTIC`, `FINITE_DIFF`, `AUTO` |
 
-All three subclass `str` (`int` for `KinematicsLevel`) so user code that
+`ReferenceFrame` subclasses `str`; `KinematicsLevel` subclasses `int`, so user code that
 still compares to a string literal continues to work.
 
 ### 2.9 Shape annotations — `_typing.py` aliases
@@ -237,8 +236,8 @@ have no pytest percentage gate.
 | **WORLD** | Spatial twist expressed in world axes and translated to the world origin. |
 | **Residual** | A differentiable function `r(model, data, …) -> (B..., dim)` — the quantity the optimiser drives toward zero. |
 | **ResidualItem** | Named residual, weight, robust kernel, and robust group size stored in a `Problem`. |
-| **Problem** | Named variables, residual/objective items, providers, and parameters evaluated in reduced tangent coordinates. |
-| **Solver lifecycle** | `init_state` / `update` / `run` methods implemented by named-block LM, GN, and Adam. |
+| **Problem** | Named variables, least-squares residual items, providers, and parameters evaluated in reduced tangent coordinates. |
+| **Solver lifecycle** | `init_state` / `update` / `run` methods implemented by named-block LM and GN. First-order methods use `run_first_order` with `torch.optim`. |
 | **bias_forces** | `C(q, q̇) q̇ + g(q)` — the generalised force present even at zero input torque. |
 | **centroidal momentum** | 6D momentum of the robot around its centre of mass. |
 | **mass matrix** | Joint-space inertia `M(q)`. |

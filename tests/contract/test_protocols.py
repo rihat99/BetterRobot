@@ -21,10 +21,7 @@ from better_robot.data_model.joint_models import (
     JointSpherical,
     JointUniverse,
 )
-from better_robot.optim.kernels import Cauchy, Huber, L2
-from better_robot.optim.kernels.base import RobustKernel
-from better_robot.optim.solvers import LSTSQ, Cholesky
-from better_robot.optim.solvers.base import LinearSolver
+from better_robot.optim import Cauchy, Cholesky, Huber, L2, LinearSolver, RobustKernel
 from better_robot.residuals.base import Residual
 from better_robot.residuals.pose import OrientationResidual, PoseResidual, PositionResidual
 from better_robot.viewer.render_modes.base import RenderMode
@@ -66,7 +63,7 @@ def test_residual_instances_satisfy_protocol() -> None:
 # ── Linear solvers ────────────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("cls", [Cholesky, LSTSQ])
+@pytest.mark.parametrize("cls", [Cholesky])
 def test_linear_solver_instances_satisfy_protocol(cls: type) -> None:
     assert isinstance(cls(), LinearSolver), cls.__name__
 

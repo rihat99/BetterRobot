@@ -74,20 +74,4 @@
 
 ````
 
-````{py:method} jacobian(value: better_robot.residuals.base.ResidualState | collections.abc.Mapping[str, typing.Any]) -> torch.Tensor | None
-:canonical: better_robot.residuals.contact.ContactConsistencyResidual.jacobian
-
-```{autodoc2-docstring} better_robot.residuals.contact.ContactConsistencyResidual.jacobian
-```
-
-````
-
-````{py:method} apply_jac_transpose(state: better_robot.residuals.base.ResidualState, r: torch.Tensor) -> torch.Tensor
-:canonical: better_robot.residuals.contact.ContactConsistencyResidual.apply_jac_transpose
-
-```{autodoc2-docstring} better_robot.residuals.contact.ContactConsistencyResidual.apply_jac_transpose
-```
-
-````
-
 `````

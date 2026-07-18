@@ -20,7 +20,6 @@ EXPECTED_CLASSES = {
     "Body",
     "Joint",
     "Trajectory",
-    "JacobianStrategy",
     "SE3",
     "ModelBuilder",
 }
@@ -119,13 +118,6 @@ def test_data_legacy_aliases_are_removed() -> None:
         "acom",
     }
     assert all(not hasattr(br.Data, name) for name in old_names)
-
-
-def test_jacobian_strategy_enum_values() -> None:
-    values = {e.value for e in br.JacobianStrategy}
-    assert values == {"analytic", "finite_diff", "auto"}
-    assert not hasattr(br.JacobianStrategy, "AUTODIFF")
-    assert not hasattr(br.JacobianStrategy, "FUNCTIONAL")
 
 
 def test_solve_ik_signature_shape() -> None:

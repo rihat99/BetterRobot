@@ -31,7 +31,6 @@ from .dynamics import (
 )
 from .io import ModelBuilder, load
 from .kinematics import (
-    JacobianStrategy,
     compute_joint_jacobians,
     forward_kinematics,
     get_frame_jacobian,
@@ -59,7 +58,6 @@ __all__ = [
     "compute_joint_jacobians",
     "get_joint_jacobian",
     "get_frame_jacobian",
-    "JacobianStrategy",
     # dynamics (5)
     "rnea",
     "aba",

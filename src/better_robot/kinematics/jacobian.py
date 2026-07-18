@@ -8,7 +8,7 @@ See ``docs/concepts/kinematics.md §3``.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
 import torch
 
@@ -22,10 +22,6 @@ from ..data_model.reduced_coordinates import (
 )
 from ..lie import se3, so3
 from ..lie.tangents import hat_so3
-from .jacobian_strategy import JacobianStrategy
-
-if TYPE_CHECKING:
-    from ..residuals.base import Residual, ResidualState
 
 ReferenceFrame = Literal["world", "local", "local_world_aligned"]
 
@@ -246,63 +242,3 @@ def get_frame_jacobian(
         return torch.cat([J_local_lin, J_local_ang], dim=-2)
     else:
         raise ValueError(f"Unsupported reference frame: {reference!r}")
-
-
-def residual_jacobian(
-    residual: "Residual",
-    state: "ResidualState",
-    *,
-    strategy: JacobianStrategy = JacobianStrategy.AUTO,
-) -> torch.Tensor:
-    """Unified residual Jacobian — ``(B..., dim, nv)``.
-
-    ``ANALYTIC`` requires a residual-provided Jacobian. ``AUTO`` first tries
-    that path and otherwise uses unbatched central finite differences, as
-    does ``FINITE_DIFF``. The fallback costs exactly ``2 * nv + 1`` residual
-    evaluations and uses epsilon ``1e-3`` for fp32 or ``1e-7`` for fp64.
-
-    This compatibility dispatcher intentionally remains analytic/finite-
-    difference. Named-block ``Problem`` evaluation provides the separate
-    ``torch.func`` ``jacrev`` and ``jacfwd`` strategies.
-
-    See docs/concepts/kinematics.md §3.
-    """
-    from ..residuals.base import ResidualState as RS
-
-    if strategy in (JacobianStrategy.ANALYTIC, JacobianStrategy.AUTO):
-        try:
-            J = residual.jacobian(state)
-            if J is not None:
-                return J
-        except NotImplementedError:
-            pass
-        if strategy == JacobianStrategy.ANALYTIC:
-            raise ValueError(f"Residual {residual.name!r} has no analytic Jacobian (strategy=ANALYTIC requires one)")
-
-    # Unbatched fallback: one base evaluation plus two evaluations per
-    # tangent dimension (2 * nv + 1 total) through model.integrate and FK.
-    model = state.model
-    q = state.variables
-
-    def _fn(v: torch.Tensor) -> torch.Tensor:
-        q_new = model.integrate(q.detach(), v)
-        from .forward import forward_kinematics
-
-        data_new = forward_kinematics(model, q_new, compute_frames=True)
-        state_new = RS(model=model, data=data_new, variables=q_new)
-        return residual(state_new)
-
-    v0 = torch.zeros(model.nv, dtype=q.dtype, device=q.device)
-    r0 = _fn(v0)
-    dim = r0.numel()
-    # Choose eps near sqrt(machine_epsilon) * characteristic_scale to balance
-    # truncation vs cancellation error in float32/64.
-    eps = 1e-3 if q.dtype == torch.float32 else 1e-7
-    J = torch.zeros(dim, model.nv, dtype=q.dtype, device=q.device)
-    for i in range(model.nv):
-        v_p = v0.clone()
-        v_p[i] += eps
-        v_m = v0.clone()
-        v_m[i] -= eps
-        J[:, i] = (_fn(v_p) - _fn(v_m)) / (2.0 * eps)
-    return J  # (dim, nv)

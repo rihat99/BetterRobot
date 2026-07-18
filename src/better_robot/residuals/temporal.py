@@ -19,7 +19,6 @@ import torch
 
 from ..data_model.data import Data
 from ._temporal_jacobian import dense_temporal_jacobian, temporal_free_indices
-from .base import ResidualState
 from .structure import TemporalPattern
 
 
@@ -114,18 +113,13 @@ class TimeIndexedResidual:
 
     def _trajectory_q(
         self,
-        value: ResidualState | Mapping[str, Any],
+        ctx: Mapping[str, Any],
     ) -> tuple[torch.Tensor, int]:
-        if isinstance(value, ResidualState):
-            q = value.variables
-        elif isinstance(value, Mapping):
-            q = value["q"]
-            if not isinstance(q, torch.Tensor):
-                raise TypeError("named-block context entry 'q' must be a torch.Tensor")
-            if self.horizon is None:
-                raise ValueError("TimeIndexedResidual requires horizon=... for named-block use")
-        else:
-            raise TypeError("TimeIndexedResidual input must be ResidualState or a named-block context")
+        q = ctx["q"]
+        if not isinstance(q, torch.Tensor):
+            raise TypeError("named-block context entry 'q' must be a torch.Tensor")
+        if self.horizon is None:
+            raise ValueError("TimeIndexedResidual requires horizon=... for named-block use")
         if q.ndim < 2:  # bench-ok: trajectory-shape contract validation
             raise ValueError(f"TimeIndexedResidual expects (B..., T, nq); got {tuple(q.shape)}")
         T = int(q.shape[-2])
@@ -135,23 +129,15 @@ class TimeIndexedResidual:
             raise IndexError(f"t_idx={self.t_idx} out of range for T={T}")
         return q, T
 
-    def _slice_state(self, state: ResidualState) -> ResidualState:
-        q, _T = self._trajectory_q(state)
-        return ResidualState(
-            model=state.model,
-            data=_slice_data(state.data, self.t_idx),
-            variables=q[..., self.t_idx, :],
-        )
-
     def _slice_input(
         self,
-        value: ResidualState | Mapping[str, Any],
-    ) -> ResidualState | Mapping[str, Any]:
-        self._trajectory_q(value)
-        return self._slice_state(value) if isinstance(value, ResidualState) else _TimeSliceContext(value, self.t_idx)
+        ctx: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        self._trajectory_q(ctx)
+        return _TimeSliceContext(ctx, self.t_idx)
 
-    def __call__(self, value: ResidualState | Mapping[str, Any]) -> torch.Tensor:
-        r = self.inner(self._slice_input(value))
+    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
+        r = self.inner(self._slice_input(ctx))
         if not isinstance(r, torch.Tensor) or r.ndim < 1 or r.shape[-1] != self.dim:
             actual = tuple(r.shape) if isinstance(r, torch.Tensor) else type(r).__name__
             raise ValueError(f"inner residual must return (..., {self.dim}), got {actual}")
@@ -170,20 +156,12 @@ class TimeIndexedResidual:
     def _inner_reduced_block(self, ctx: Mapping[str, Any]) -> torch.Tensor:
         sliced = _TimeSliceContext(ctx, self.t_idx)
         analytic = getattr(self.inner, "jacobian_blocks", None)
-        if analytic is not None:
-            blocks = analytic(sliced)
-            if set(blocks) != {"q"}:
-                raise ValueError("TimeIndexedResidual inner analytic blocks must contain exactly 'q'")
-            block = blocks["q"]
-        else:
-            block = self.inner.jacobian(sliced)
-            if block is None:
-                raise ValueError("TimeIndexedResidual inner residual has no analytic q Jacobian")
-            q = ctx["q"]
-            if not isinstance(q, torch.Tensor):
-                raise TypeError("named-block context entry 'q' must be a torch.Tensor")
-            indices = temporal_free_indices(ctx, "q", device=q.device)
-            block = block.index_select(-1, indices)
+        if not callable(analytic):
+            raise ValueError("TimeIndexedResidual inner residual has no analytic q block")
+        blocks = analytic(sliced)
+        if set(blocks) != {"q"}:
+            raise ValueError("TimeIndexedResidual inner analytic blocks must contain exactly 'q'")
+        block = blocks["q"]
         q = ctx["q"]
         if not isinstance(q, torch.Tensor):
             raise TypeError("named-block context entry 'q' must be a torch.Tensor")
@@ -200,6 +178,10 @@ class TimeIndexedResidual:
         return {0: self._inner_reduced_block(ctx).unsqueeze(-3)}
 
     def jacobian_blocks(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
+        if not callable(getattr(self.inner, "jacobian_blocks", None)):
+            # Returning no blocks lets Problem's auto/jacrev/jacfwd dispatch
+            # differentiate the wrapper itself.
+            return {}
         pattern = self.temporal_structure("q")
         if pattern is None:
             raise ValueError("TimeIndexedResidual requires horizon=... for named-block use")
@@ -210,41 +192,3 @@ class TimeIndexedResidual:
                 horizon=self.horizon,
             )
         }
-
-    def jacobian(
-        self,
-        value: ResidualState | Mapping[str, Any],
-    ) -> torch.Tensor | None:
-        q, T = self._trajectory_q(value)
-        J_inner = self.inner.jacobian(self._slice_input(value))
-        if J_inner is None:
-            return None
-        pattern = TemporalPattern(
-            rows=1,
-            row_width=self.dim,
-            row_origin=self.t_idx,
-            offsets=(0,),
-        )
-        return dense_temporal_jacobian(
-            pattern,
-            {0: J_inner.unsqueeze(-3)},
-            horizon=T,
-        )
-
-    def apply_jac_transpose(self, state: ResidualState, vec: torch.Tensor) -> torch.Tensor:
-        """Sparse ``J^T @ vec`` — only ``t_idx`` knot is non-zero.
-
-        Avoids allocating the dense ``(dim, T·nv)`` Jacobian — important
-        for long trajectories where ``T·nv`` can be tens of thousands.
-        """
-        q, T = self._trajectory_q(state)
-        sub = self._slice_state(state)
-        J_inner = self.inner.jacobian(sub)
-        if J_inner is None:
-            from .base import default_apply_jac_transpose  # noqa: PLC0415
-
-            return default_apply_jac_transpose(self, state, vec)
-        nv = state.model.nv
-        out = torch.zeros(*q.shape[:-2], T, nv, device=vec.device, dtype=vec.dtype)
-        out[..., self.t_idx, :] = (J_inner.mT @ vec.unsqueeze(-1)).squeeze(-1)
-        return out.reshape(*q.shape[:-2], T * nv)

@@ -12,36 +12,7 @@ from better_robot.io import ModelBuilder, build_model, load
 from better_robot.kinematics import forward_kinematics
 from better_robot.lie import se3
 from better_robot.optim import Problem, ResidualItem, RobotConfig, RobotStateProvider, VarSpec
-from better_robot.residuals.base import ResidualState
 from better_robot.residuals.pose import PoseResidual
-
-
-class _PandaBlockPose:
-    """Adapt the existing stateful pose residual to the block context contract."""
-
-    name = "panda_pose"
-    reads = ("q", "data")
-    dim = 6
-
-    def __init__(self, model, residual: PoseResidual) -> None:
-        self.model = model
-        self.residual = residual
-
-    def _state(self, ctx: Mapping[str, Any]) -> ResidualState:
-        return ResidualState(
-            model=self.model,
-            data=ctx["data"],
-            variables=ctx["q"],
-        )
-
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        return self.residual(self._state(ctx))
-
-    def jacobian_blocks(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
-        full = self.residual.jacobian(self._state(ctx))
-        assert full is not None
-        free = ctx.free_indices("q").to(device=full.device)
-        return {"q": full.index_select(-1, free)}
 
 
 class _PlanarOrientationResidual:
@@ -88,16 +59,18 @@ def panda_pose_case():
         data.frame_pose_world[frame_id],
         se3.exp(target_offset),
     ).detach()
-    legacy = PoseResidual(
+    residual = PoseResidual(
+        model,
         frame_id=frame_id,
         target=target,
         pos_weight=0.8,
         ori_weight=1.2,
+        name="panda_pose",
     )
-    return model, q, _PandaBlockPose(model, legacy)
+    return model, q, residual
 
 
-def _problem(model, residual: _PandaBlockPose, *, mask: torch.Tensor | None = None) -> Problem:
+def _problem(model, residual: PoseResidual, *, mask: torch.Tensor | None = None) -> Problem:
     return Problem(
         vars=(
             VarSpec(

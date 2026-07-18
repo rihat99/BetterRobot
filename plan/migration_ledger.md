@@ -33,20 +33,34 @@ public symbol; the owner resolves the consumer side.
 | `better_robot.optim.CostItem`, `better_robot.optim.cost_stack.CostItem`, `better_robot.costs.CostItem`, `better_robot.costs.stack.CostItem` | `better_robot.optim.ResidualItem`. |
 | `better_robot.optim.CostKind`, `better_robot.optim.cost_stack.CostKind`, `better_robot.costs.stack.CostKind` | No replacement; pass only the residual items that should participate in a solve. |
 | `better_robot.LeastSquaresProblem`, `better_robot.optim.LeastSquaresProblem`, `better_robot.optim.problem.LeastSquaresProblem` | `better_robot.optim.Problem` with named variables, residual items, and providers. Recorded downstream use was protocol-level. |
-| `better_robot.optim.SolverState`, `better_robot.optim.state.SolverState` | Use the concrete state returned by the selected solver, such as `LMState` or `AdamState`. |
-| `better_robot.optim.state.SolverStatus` | Use the selected solver's status enum, such as `LMStatus` or `AdamStatus`. |
+| `better_robot.optim.SolverState`, `better_robot.optim.state.SolverState` | Use the concrete result returned by the selected algorithm, such as `LMState` or `FirstOrderResult`. |
+| `better_robot.optim.state.SolverStatus` | Use `LMStatus` for LM/GN; first-order results expose a boolean `converged` tensor. |
 | `better_robot.optim.Optimizer`, `better_robot.optim.optimizers.Optimizer`, `better_robot.optim.optimizers.base.Optimizer` | No shared optimizer protocol replaces it; call a concrete named-block solver's `run(values, problem)` method. |
-| `better_robot.optim.OptimizationResult`, `better_robot.optim.optimizers.OptimizationResult`, `better_robot.optim.optimizers.base.OptimizationResult` | Use the concrete solver state returned by `run`, such as `LMState` or `AdamState`. |
+| `better_robot.optim.OptimizationResult`, `better_robot.optim.optimizers.OptimizationResult`, `better_robot.optim.optimizers.base.OptimizationResult` | Use the concrete result returned by the selected algorithm, such as `LMState` or `FirstOrderResult`. |
 | `better_robot.optim.optimizers.LevenbergMarquardt`, `better_robot.optim.optimizers.levenberg_marquardt.LevenbergMarquardt` | `better_robot.optim.LevenbergMarquardt` (`init_state` / `update` / `run`). |
 | `better_robot.optim.optimizers.GaussNewton`, `better_robot.optim.optimizers.gauss_newton.GaussNewton` | `better_robot.optim.GaussNewton` (`init_state` / `update` / `run`). Known downstream caller: BHF `tools/geometry/icp.py:58,330-332`. |
-| `better_robot.optim.optimizers.Adam`, `better_robot.optim.optimizers.adam.Adam` | `better_robot.optim.Adam` (`init_state` / `update` / `run`). |
+| `better_robot.optim.optimizers.Adam`, `better_robot.optim.optimizers.adam.Adam` | `run_first_order(..., optimizer_factory=lambda params: torch.optim.Adam(params, ...))`. |
 | `better_robot.optim.optimizers.LBFGS`, `better_robot.optim.optimizers.lbfgs.LBFGS` | `torch.optim.LBFGS` with an explicit objective closure. |
-| `better_robot.optim.optimizers.LMThenLBFGS`, `better_robot.optim.optimizers.lm_then_lbfgs.LMThenLBFGS` | Use `run_phases` for staged named-block solves; invoke `torch.optim.LBFGS` explicitly when a separate first-order stage is required. |
-| `better_robot.optim.optimizers.MultiStageOptimizer`, `better_robot.optim.optimizers.multi_stage.MultiStageOptimizer` | `better_robot.optim.run_phases`. |
-| `better_robot.optim.optimizers.OptimizerStage`, `better_robot.optim.optimizers.multi_stage.OptimizerStage` | `better_robot.optim.Phase`. |
+| `better_robot.optim.optimizers.LMThenLBFGS`, `better_robot.optim.optimizers.lm_then_lbfgs.LMThenLBFGS` | Call LM and a `torch.optim` stage sequentially, rebuilding the problem when stage weights differ. |
+| `better_robot.optim.optimizers.MultiStageOptimizer`, `better_robot.optim.optimizers.multi_stage.MultiStageOptimizer` | Call the selected solver functions sequentially in task code. |
+| `better_robot.optim.optimizers.OptimizerStage`, `better_robot.optim.optimizers.multi_stage.OptimizerStage` | No stage record replaces it; ordinary sequential calls make staging explicit. |
 | `better_robot.optim.strategies.base.DampingStrategy` | No pluggable damping protocol replaces it; configure `LevenbergMarquardt` directly. |
 | `better_robot.optim.strategies.Constant`, `better_robot.optim.strategies.constant.Constant` | `LevenbergMarquardt(fixed_damping=True, damping_parameter=...)`. |
 | `better_robot.optim.strategies.Adaptive`, `better_robot.optim.strategies.adaptive.Adaptive` | `LevenbergMarquardt(damping_parameter=...)` with its default adaptive damping. |
+| `better_robot.optim.blocks` and `better_robot.optim.blocks.*` import paths | Import the same surviving records and solvers directly from `better_robot.optim`; implementation modules are flat under `better_robot.optim.*`. |
+| `better_robot.optim.kernels.{base,cauchy,geman_mcclure,huber,l2,tukey}` import paths | Import `RobustKernel`, `Cauchy`, `GemanMcClure`, `Huber`, `L2`, or `Tukey` directly from `better_robot.optim`. |
+| `better_robot.optim.solvers.{base,banded_cholesky,cholesky}` import paths | Import the surviving solver protocols, result types, `BandedCholesky`, or `Cholesky` directly from `better_robot.optim`. |
+| `better_robot.optim.LSTSQ`, `better_robot.optim.solvers.LSTSQ`, `better_robot.optim.solvers.lstsq.LSTSQ`, and `OptimizerConfig(linear_solver="lstsq")` | Use the default SPD `Cholesky` route; call `torch.linalg.lstsq` explicitly when a separate least-squares fallback is genuinely required. |
+| Rank-deficient fallback in `Cholesky.solve` | Inputs must be SPD; use `Cholesky.solve_with_info` for per-element failure status or call `torch.linalg.lstsq` explicitly. |
+| `ObjectiveItem`, `ObjectiveTerm`, and `Problem.require_least_squares` | Express every term as a residual and add it with `Problem.add_residual`. |
+| `ResidualState`, `residual_jacobian`, and residual `.jacobian()` / transpose-apply hooks | Residuals read a named evaluation context; provide `jacobian_blocks` only when an analytic block is worthwhile. |
+| `better_robot.JacobianStrategy` and `better_robot.kinematics.JacobianStrategy` | Pass a `better_robot.optim.JacobianStrategy` string: `"auto"`, `"analytic"`, `"jacrev"`, `"jacfwd"`, or `"finite_difference"`. |
+| Provider `inputs` declarations | Rename the declaration to `reads`; outputs and lazy evaluation remain unchanged. |
+| `better_robot.optim.Adam`, `AdamState`, and `AdamStatus` | Use `run_first_order` with any `torch.optim.Optimizer`; inspect `FirstOrderResult`. |
+| `better_robot.optim.Phase`, `PhaseResult`, and `run_phases` | Call algorithms sequentially and rebuild a problem explicitly when stage weights change. |
+| `NormalCG`, `NormalOperator`, `linearization="matrix_free"`, and `LinearSystemKind` | Use automatic dense/block-banded routing, or force `linearization="dense"` / `"structured"`. |
+| `better_robot.optim.structure` | Import `BlockBandedMatrix`, `TemporalAnalysis`, and `LinearizationReason` from `better_robot.optim`; route records live with LM. |
+| `LMState.previous_linear_step`, `projected_gradient`, and `linear_solve_*` diagnostics | Inspect convergence, cost, gradients, `factorization_ok`, and status; iterative-solver warm-start diagnostics disappeared with `NormalCG`. |
 
 ## To be removed by the polish phases (agents append exact rows as they land)
 
@@ -57,7 +71,6 @@ boundary was closed (paths are in the consumer repos, unverified since
 
 | Legacy surface being deleted | Known consumer site | Replacement |
 |---|---|---|
-| `optim.kernels.cauchy.Cauchy`, `.huber.Huber` deep paths | BHF `tools/object_align/sdf_fit.py:40-41` | Same kernels at their public import path. |
 | `ResidualState` legacy evaluation protocol | BHF `scripts/motion/optimize_motion.py:211-216` | Residuals evaluated through a `Problem` context. |
 
 `Trajectory` stays public and is not scheduled for deletion.

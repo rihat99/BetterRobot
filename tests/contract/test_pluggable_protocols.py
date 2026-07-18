@@ -12,17 +12,10 @@ from __future__ import annotations
 import pytest
 import torch
 
-from better_robot.optim.kernels.base import RobustKernel
-from better_robot.optim.kernels.cauchy import Cauchy
-from better_robot.optim.kernels.huber import Huber
-from better_robot.optim.kernels.l2 import L2
-from better_robot.optim.kernels.tukey import Tukey
-from better_robot.optim.solvers.base import LinearSolver
-from better_robot.optim.solvers.cholesky import Cholesky
-from better_robot.optim.solvers.lstsq import LSTSQ
+from better_robot.optim import Cauchy, Cholesky, Huber, L2, LinearSolver, RobustKernel, Tukey
 
 
-@pytest.mark.parametrize("cls", [Cholesky, LSTSQ])
+@pytest.mark.parametrize("cls", [Cholesky])
 def test_linear_solver_protocol(cls) -> None:
     assert isinstance(cls(), LinearSolver)
 

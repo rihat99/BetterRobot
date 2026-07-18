@@ -5,8 +5,7 @@ from __future__ import annotations
 import pytest
 import torch
 
-from better_robot.optim.kernels import GemanMcClure
-from better_robot.optim.kernels.base import RobustKernel
+from better_robot.optim import GemanMcClure, RobustKernel
 
 
 def test_geman_mcclure_matches_closed_form_and_is_bounded() -> None:

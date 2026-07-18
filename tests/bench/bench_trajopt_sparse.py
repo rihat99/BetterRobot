@@ -265,12 +265,7 @@ def _build_problem(path: Literal["dense", "structured"], horizon: int) -> dict[s
             f"active envelope count changed at T={horizon}: expected {expected_active}, got {active_envelope}"
         )
 
-    keyframes = (
-        torch.linspace(0, horizon - 1, 8, dtype=torch.float64)
-        .round()
-        .to(torch.int64)
-        .tolist()
-    )
+    keyframes = torch.linspace(0, horizon - 1, 8, dtype=torch.float64).round().to(torch.int64).tolist()
     if len(set(keyframes)) != 8:
         raise AssertionError(f"keyframe indices must be unique, got {keyframes}")
     frame_ids = {name: model.frame_id(name) for name in FRAME_NAMES}
@@ -361,13 +356,12 @@ def _enum_name(enum_type: Any, value: int) -> str:
 def _run_one_solve(case: Mapping[str, Any], *, updates: int) -> dict[str, Any]:
     """Run exactly one fresh fixed-budget solve and retain small diagnostics."""
     from better_robot.optim import LMStatus  # noqa: PLC0415
-    from better_robot.optim.solvers import LinearSolveStatus  # noqa: PLC0415
 
     problem = case["problem"]
     optimizer = case["optimizer"]
     gc.collect()
     values = {"q": case["q_initial"].clone()}
-    linear_diagnostics: list[tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]] = []
+    factorization_diagnostics: list[torch.Tensor] = []
     started = time.perf_counter()
     state = optimizer.init_state(values, problem)
     for _ in range(updates):
@@ -375,31 +369,9 @@ def _run_one_solve(case: Mapping[str, Any], *, updates: int) -> dict[str, Any]:
         # References are safe: LMState is immutable and each update creates
         # fresh scalar tensors. Keeping only these tensors avoids retaining a
         # prior residual/Jacobian while adding no timed tensor operation.
-        linear_diagnostics.append(
-            (
-                state.linear_solve_status,
-                state.linear_solve_iterations,
-                state.linear_solve_residual_norm,
-                state.linear_solve_relative_residual,
-                state.factorization_ok,
-            )
-        )
+        factorization_diagnostics.append(state.factorization_ok)
     values, state = optimizer.finalize(values, state, problem)
     elapsed_seconds = time.perf_counter() - started
-
-    recorded_linear = []
-    for status, iterations, residual_norm, relative_residual, factorization_ok in linear_diagnostics:
-        status_value = int(status)
-        recorded_linear.append(
-            {
-                "status": status_value,
-                "status_name": _enum_name(LinearSolveStatus, status_value),
-                "iterations": int(iterations),
-                "residual_norm": float(residual_norm),
-                "relative_residual": float(relative_residual),
-                "factorization_ok": bool(factorization_ok),
-            }
-        )
 
     lm_status = int(state.status)
     allowed_lm = {
@@ -413,13 +385,7 @@ def _run_one_solve(case: Mapping[str, Any], *, updates: int) -> dict[str, Any]:
         & torch.isfinite(state.gradient).all()
         & torch.isfinite(state.grad_norm)
     )
-    linear_success = all(
-        diagnostic["status"] == LinearSolveStatus.SUCCESS.value
-        and diagnostic["factorization_ok"]
-        and math.isfinite(diagnostic["residual_norm"])
-        and math.isfinite(diagnostic["relative_residual"])
-        for diagnostic in recorded_linear
-    )
+    linear_success = all(bool(ok) for ok in factorization_diagnostics)
     expected_route = "dense" if case["optimizer"].linearization == "dense" else "banded"
     route_success = case["route"] == expected_route
     failure_reasons: list[str] = []
@@ -443,7 +409,7 @@ def _run_one_solve(case: Mapping[str, Any], *, updates: int) -> dict[str, Any]:
         "final_cost": float(state.cost),
         "final_residual_norm": float(torch.linalg.vector_norm(state.residual)),
         "final_gradient_norm": float(torch.linalg.vector_norm(state.gradient)),
-        "linear_solves": recorded_linear,
+        "linear_solves": [{"factorization_ok": bool(ok)} for ok in factorization_diagnostics],
     }
 
 
@@ -553,13 +519,16 @@ def _git_metadata() -> tuple[str | None, bool | None]:
             capture_output=True,
             text=True,
         ).stdout.strip()
-        dirty = subprocess.run(
-            ["git", "status", "--porcelain"],
-            cwd=_REPO_ROOT,
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout != ""
+        dirty = (
+            subprocess.run(
+                ["git", "status", "--porcelain"],
+                cwd=_REPO_ROOT,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout
+            != ""
+        )
         return commit, dirty
     except (OSError, subprocess.CalledProcessError):
         return None, None
@@ -608,7 +577,13 @@ def _definition() -> dict[str, Any]:
         "keyframes": 8,
         "frames": list(FRAME_NAMES),
         "residuals": [
-            {"name": "40 time-indexed pose targets", "weight": 1.0, "position_scale": 10.0, "orientation_scale": 2.0, "group_size": 6},
+            {
+                "name": "40 time-indexed pose targets",
+                "weight": 1.0,
+                "position_scale": 10.0,
+                "orientation_scale": 2.0,
+                "group_size": 6,
+            },
             {"name": "central velocity", "weight": 0.05, "group_size": 75},
             {"name": "acceleration", "weight": 0.005, "group_size": 75},
             {"name": "reference-to-neutral", "weight": 0.01, "group_size": 75},
@@ -660,12 +635,10 @@ def _compute_slopes(cases: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     for path in PATHS:
         successful = [case for case in cases if case.get("path") == path and case.get("status") == "SUCCESS"]
         time_points = [
-            (int(case["horizon"]), float(case["timing"]["median_seconds_per_update"]))
-            for case in successful
+            (int(case["horizon"]), float(case["timing"]["median_seconds_per_update"])) for case in successful
         ]
         memory_points = [
-            (int(case["horizon"]), float(case["memory"]["incremental_peak_rss_bytes"]))
-            for case in successful
+            (int(case["horizon"]), float(case["memory"]["incremental_peak_rss_bytes"])) for case in successful
         ]
         result[path] = {
             "successful_horizons": [horizon for horizon, _value in time_points],
@@ -705,13 +678,9 @@ def _evaluate_acceptance(
         structured_slope = slopes["structured"][metric]
         checks[f"{metric}_available"] = dense_slope is not None and structured_slope is not None
         checks[f"{metric}_margin"] = bool(
-            dense_slope is not None
-            and structured_slope is not None
-            and structured_slope + 0.15 <= dense_slope
+            dense_slope is not None and structured_slope is not None and structured_slope + 0.15 <= dense_slope
         )
-        checks[f"{metric}_structured_cap"] = bool(
-            structured_slope is not None and structured_slope <= 1.35
-        )
+        checks[f"{metric}_structured_cap"] = bool(structured_slope is not None and structured_slope <= 1.35)
     return {
         "status": "PASS" if all(checks.values()) else "FAIL",
         "checks": checks,
@@ -954,8 +923,7 @@ def _run_child(args: argparse.Namespace) -> int:
             "path": args.path[0],
             "horizon": args.horizon[0],
             "stderr": (
-                f"current virtual size {virtual_size} already meets/exceeds "
-                f"address cap {args.address_limit_bytes}"
+                f"current virtual size {virtual_size} already meets/exceeds address cap {args.address_limit_bytes}"
             ),
         }
         _write_case_output(args.case_output, payload)

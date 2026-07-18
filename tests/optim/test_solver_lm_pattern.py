@@ -11,12 +11,11 @@ import pytest
 import torch
 
 from better_robot.io import ModelBuilder, build_model
-from better_robot.optim.blocks import (
+from better_robot.optim import (
     GaussNewton,
     LevenbergMarquardt,
     LMState,
     LMStatus,
-    ObjectiveItem,
     Problem,
     ResidualItem,
     RobotConfig,
@@ -63,14 +62,6 @@ class _MatrixResidual:
 
     def jacobian_blocks(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
         return {"x": ctx["matrix"]}
-
-
-class _QuadraticObjective:
-    name = "quadratic"
-    reads = ("x",)
-
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        return ctx["x"].square().sum(dim=-1)
 
 
 class _FixedBaseConfigResidual:
@@ -373,23 +364,3 @@ def test_cholesky_failure_is_isolated_within_a_batch() -> None:
     assert torch.isfinite(values_next["x"]).all()
     assert torch.isfinite(state_next.residual).all()
     assert torch.isfinite(state_next.cost).all()
-
-
-@pytest.mark.parametrize(
-    "solver",
-    [LevenbergMarquardt(max_iter=2), GaussNewton(max_iter=2)],
-)
-def test_second_order_entry_points_reject_scalar_objectives(solver: object) -> None:
-    target = torch.tensor([0.5, -0.25])
-    problem = Problem(
-        vars=(VarSpec("x", (2,)),),
-        residuals=(ResidualItem("linear", _LinearResidual(2)),),
-        objectives=(ObjectiveItem("quadratic", _QuadraticObjective()),),
-        parameters={"target": target},
-    )
-    values = {"x": torch.zeros_like(target)}
-
-    with pytest.raises(ValueError, match="scalar objective term"):
-        solver.init_state(values, problem)
-    with pytest.raises(ValueError, match="scalar objective term"):
-        solver.run(values, problem)

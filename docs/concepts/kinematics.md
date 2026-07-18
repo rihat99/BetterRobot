@@ -8,13 +8,11 @@ analytic Jacobian above it is correlated-wrong. So the kinematics
 layer has two jobs at once — be fast and be right — and a third
 job that makes both sustainable: have only one path through.
 
-The library has exactly one FK function (`forward_kinematics`),
-exactly one Jacobian assembly function
-(`compute_joint_jacobians`), and exactly one legacy residual-Jacobian
-dispatcher (`residual_jacobian`). That dispatcher picks an analytic Jacobian or
-the central finite-difference fallback via a `JacobianStrategy` flag. The
-named-block `Problem` is a separate, shipped path with explicit `jacrev` and
-`jacfwd` strategies. This discipline prevents
+The library has exactly one FK function (`forward_kinematics`) and exactly one
+Jacobian assembly function (`compute_joint_jacobians`). Optimization residuals
+share a single named-context protocol; `Problem` selects analytic blocks,
+`jacrev`, `jacfwd`, or an explicit finite-difference debug path. This
+discipline prevents
 "fixed base" and "floating base" Jacobian variants from accreting
 back into the codebase.
 
@@ -28,7 +26,6 @@ from .jacobian  import (
     get_joint_jacobian,          # single joint, world or local
     get_frame_jacobian,          # single frame, world or local
 )
-from .jacobian_strategy import JacobianStrategy
 ```
 
 ## Forward kinematics
@@ -185,75 +182,44 @@ and angular errors that no IK solver will ever resolve. The unit test
 `tests/test_pinocchio/test_frame_jacobian_matches_pinocchio.py` pins the
 convention.
 
-## `JacobianStrategy` — one entry point, two implementations
+## Residual Jacobian selection
 
-```python
-class JacobianStrategy(str, Enum):
-    ANALYTIC    = "analytic"     # call residual.jacobian(state); error if None
-    FINITE_DIFF = "finite_diff"  # unbatched central finite differences
-    AUTO        = "auto"         # prefer ANALYTIC, fall back to FINITE_DIFF
-```
+Residual Jacobian selection belongs to `better_robot.optim.Problem`, not the
+kinematics layer. The configured value is a plain literal: `"auto"`,
+`"analytic"`, `"jacrev"`, `"jacfwd"`, or
+`"finite_difference"`. `"auto"` uses a declared `jacobian_blocks(ctx)`
+block when available and otherwise chooses forward or reverse AD from the
+residual and tangent dimensions. Finite differences remain an explicit debug
+oracle; there is no residual-state dispatcher or enum-to-string adapter.
 
-Source: `src/better_robot/kinematics/jacobian_strategy.py`.
-
-`AUTO` is the default everywhere:
-
-- Residuals that have a hand-written `.jacobian()` use it
-  (`AUTO → ANALYTIC`).
-- Residuals that return `None` from `.jacobian()` fall through to
-  central finite differences (`AUTO → FINITE_DIFF`). The fallback is
-  unbatched and costs exactly `2·nv + 1` complete residual/FK evaluations:
-  one at the base point and two per tangent coordinate. Its epsilon is
-  `1e-3` (fp32) or `1e-7` (fp64).
-- `FINITE_DIFF` selects that same fallback explicitly, which is useful for
-  validating analytic Jacobians. The removed `AUTODIFF` and `FUNCTIONAL`
-  values do not return to this legacy enum; named-block callers select the
-  shipped `jacrev` or `jacfwd` strategies on `Problem`/LM instead.
-
-```python
-def residual_jacobian(
-    residual: Residual,
-    state: ResidualState,
-    *,
-    strategy: JacobianStrategy = JacobianStrategy.AUTO,
-) -> torch.Tensor:
-    """Unified residual Jacobian. Shape: (B..., dim, state_dim).
-
-    AUTO        — call residual.jacobian(state); fall back to FINITE_DIFF if None.
-    ANALYTIC    — require residual.jacobian(state) to return a tensor.
-    FINITE_DIFF — unbatched central FD (2*nv + 1 evaluations).
-    """
-```
-
-This helper belongs to the legacy flat residual lane. Direct compatibility
-optimizers ask it for Jacobians; named-block `Problem` evaluation instead uses
-its own analytic, `jacrev`, or `jacfwd` block strategy.
-
-## Pose residual analytic Jacobian — the elegant version
+## Pose residual analytic Jacobian
 
 The pose residual is the canonical example of an analytic Jacobian
 written against the unified API:
 
 ```python
-class PoseResidual(Residual):
-    def __init__(self, *, frame_id: int, target: torch.Tensor,
-                 pos_weight: float = 1.0, ori_weight: float = 1.0) -> None: ...
+class PoseResidual:
+    name = "pose"
+    reads = ("q", "data")
+    dim = 6
 
-    def __call__(self, state: ResidualState) -> torch.Tensor:
-        T_frame = state.data.frame_pose_world[..., self.frame_id, :]
+    def __call__(self, ctx) -> torch.Tensor:
+        T_frame = ctx["data"].frame_pose_world[..., self.frame_id, :]
         T_err   = lie.se3.compose(lie.se3.inverse(self.target), T_frame)
         log_err = lie.se3.log(T_err)
         return log_err * self.weight_vec        # (B..., 6)
 
-    def jacobian(self, state: ResidualState) -> torch.Tensor:
+    def jacobian_blocks(self, ctx) -> dict[str, torch.Tensor]:
+        data = ctx["data"]
         T_err   = lie.se3.compose(lie.se3.inverse(self.target),
-                                  state.data.frame_pose_world[..., self.frame_id, :])
+                                  data.frame_pose_world[..., self.frame_id, :])
         log_err = lie.se3.log(T_err)
         Jr_inv  = lie.tangents.right_jacobian_inv_se3(log_err)        # (B..., 6, 6)
-        J_frame = get_frame_jacobian(state.model, state.data,
+        J_frame = get_frame_jacobian(self.model, data,
                                      self.frame_id,
                                      reference=ReferenceFrame.LOCAL)   # (B..., 6, nv)
-        return self.weight_mat @ Jr_inv @ J_frame                       # (B..., 6, nv)
+        J = self.weight_mat @ Jr_inv @ J_frame                          # (B..., 6, nv)
+        return {"q": J.index_select(-1, ctx.free_indices("q"))}
 ```
 
 A single formula. No fixed-vs-floating distinction — floating base is
@@ -338,7 +304,6 @@ Jacobians are sensitive to it.
 
 - {doc}`residuals_and_costs` — residual implementations, including
   the analytic Jacobian for pose / position / orientation.
-- {doc}`solver_stack` — how the optimiser feeds `JacobianStrategy`
-  through to `residual_jacobian`.
+- {doc}`solver_stack` — how `Problem` selects analytic and AD Jacobian blocks.
 - {doc}`/conventions/contracts` §3 — accuracy guarantees for the
   analytic Jacobian path.

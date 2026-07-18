@@ -9,7 +9,12 @@ import torch
 
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
-from better_robot.optim import LevenbergMarquardt, LinearizationReason, ResidualItem
+from better_robot.optim import (
+    LevenbergMarquardt,
+    LinearizationMode,
+    LinearizationReason,
+    ResidualItem,
+)
 from better_robot.residuals.regularization import ReferenceTrajectoryResidual
 from better_robot.tasks.parameterization import BSplineTrajectory
 from better_robot.tasks.trajopt import solve_trajopt
@@ -61,7 +66,7 @@ def _reference_residuals(model, reference: torch.Tensor) -> tuple[ResidualItem, 
     return (ResidualItem("reference", residual),)
 
 
-def _solve_reference(model, seed, reference, *, linearization: str, **kwargs):
+def _solve_reference(model, seed, reference, *, linearization: LinearizationMode, **kwargs):
     return solve_trajopt(
         model,
         horizon=seed.shape[-2],

@@ -12,8 +12,14 @@ import torch
 import better_robot.tasks.ik as ik_module
 from better_robot.io import ModelBuilder, build_model, load
 from better_robot.kinematics import forward_kinematics
-from better_robot.optim import Problem, ResidualItem, RobotConfig, RobotStateProvider, VarSpec
-from better_robot.residuals.base import ResidualState
+from better_robot.optim import (
+    LevenbergMarquardt,
+    Problem,
+    ResidualItem,
+    RobotConfig,
+    RobotStateProvider,
+    VarSpec,
+)
 from better_robot.residuals.limits import JointPositionLimit
 from better_robot.residuals.pose import OrientationResidual, PoseResidual, PositionResidual
 from better_robot.residuals.regularization import RestResidual
@@ -33,8 +39,8 @@ def _panda_hand(model) -> int:
     raise AssertionError("Panda hand frame is missing")
 
 
-def test_built_in_kinematic_residuals_match_legacy_state_protocol(panda) -> None:
-    """The dual-protocol port preserves residuals and analytic tangent J."""
+def test_built_in_kinematic_residuals_share_context_protocol(panda) -> None:
+    """Built-ins compose through one context protocol and analytic tangent J."""
     q = panda.q_neutral.clone()
     q_rest = q.clamp(panda.lower_pos_limit, panda.upper_pos_limit)
     q_rest[0] = 0.2
@@ -42,21 +48,7 @@ def test_built_in_kinematic_residuals_match_legacy_state_protocol(panda) -> None
     frame_id = _panda_hand(panda)
     target = target_data.frame_pose_world[frame_id].clone()
     data = forward_kinematics(panda, q, compute_frames=True)
-    state = ResidualState(model=panda, data=data, variables=q)
-
-    legacy = (
-        PoseResidual(
-            frame_id=frame_id,
-            target=target,
-            pos_weight=0.7,
-            ori_weight=1.3,
-        ),
-        PositionResidual(frame_id=frame_id, target=target, weight=0.6),
-        OrientationResidual(frame_id=frame_id, target=target, weight=0.8),
-        JointPositionLimit(panda, weight=0.4),
-        RestResidual(panda, q_rest, weight=0.2),
-    )
-    block = (
+    residuals = (
         PoseResidual(
             frame_id=frame_id,
             target=target,
@@ -88,18 +80,14 @@ def test_built_in_kinematic_residuals_match_legacy_state_protocol(panda) -> None
             ResidualItem(name, residual)
             for name, residual in zip(
                 ("pose", "position", "orientation", "limits", "rest"),
-                block,
+                residuals,
                 strict=True,
             )
         ),
         providers=(RobotStateProvider(panda),),
     )
 
-    expected_residual = torch.cat([residual(state) for residual in legacy], dim=-1)
-    expected_jacobian = torch.cat(
-        [residual.jacobian(state) for residual in legacy],
-        dim=-2,
-    )
+    expected_residual = torch.cat([residual({"q": q, "data": data}) for residual in residuals], dim=-1)
 
     torch.testing.assert_close(
         problem.residual({"q": q}),
@@ -107,12 +95,34 @@ def test_built_in_kinematic_residuals_match_legacy_state_protocol(panda) -> None
         atol=1e-6,
         rtol=1e-6,
     )
-    torch.testing.assert_close(
-        problem.dense_jacobian({"q": q}, strategy="analytic"),
-        expected_jacobian,
-        atol=1e-5,
-        rtol=1e-5,
+    jacobian = problem.dense_jacobian({"q": q}, strategy="analytic")
+    assert jacobian.shape == (problem.dim_total, panda.nv)
+    assert torch.isfinite(jacobian).all()
+
+
+def test_direct_builder_ik_auto_wires_robot_state() -> None:
+    builder = ModelBuilder("direct_builder_ik")
+    base = builder.add_body("base")
+    tip = builder.add_body("tip", mass=1.0)
+    builder.add_revolute_z(
+        "joint",
+        parent=base,
+        child=tip,
+        origin=torch.tensor([0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
+        lower=-1.0,
+        upper=1.0,
     )
+    model = build_model(builder.finalize())
+    goal = torch.tensor([0.25])
+    target = forward_kinematics(model, goal, compute_frames=True).frame_pose_world[model.frame_id("body_tip")]
+
+    robot = RobotConfig(model)
+    problem = Problem()
+    problem.add_variable("q", manifold=robot, bounds=robot.joint_bounds())
+    problem.add_residual(PoseResidual(model, frame="body_tip", target=target))
+    values, _ = LevenbergMarquardt(max_iter=30).run({"q": torch.tensor([-0.2])}, problem)
+
+    torch.testing.assert_close(values["q"], goal, atol=2e-4, rtol=2e-4)
 
 
 def test_solve_ik_path_has_no_legacy_problem_import() -> None:
@@ -301,7 +311,7 @@ def test_finite_difference_configuration_remains_supported() -> None:
         cost_cfg=IKCostConfig(limit_weight=0.0, rest_weight=0.0),
         optimizer_cfg=OptimizerConfig(
             max_iter=20,
-            jacobian_strategy=ik_module.JacobianStrategy.FINITE_DIFF,
+            jacobian_strategy="finite_difference",
         ),
     )
 

@@ -10,14 +10,12 @@ import pytest
 import torch
 
 from better_robot.optim import (
-    BlockBandedMatrix,
-    LinearizationReason,
-    NormalOperator,
     Problem,
     ResidualItem,
     TemporalPattern,
     VarSpec,
 )
+from better_robot.optim.temporal import BlockBandedMatrix, LinearizationReason
 
 
 @dataclass(frozen=True)
@@ -103,21 +101,20 @@ def test_temporal_pattern_and_time_axis_validate_static_contracts() -> None:
         TemporalPattern(2, 1, 0, ())
     with pytest.raises(TypeError, match="time_axis"):
         VarSpec("x", (3, 2), time_axis=True)
-    with pytest.raises(ValueError, match="must be 0 or None"):
+    with pytest.raises(ValueError, match="leading, separable time axis"):
         VarSpec("x", (3, 2), time_axis=1)
-    with pytest.raises(ValueError, match="non-empty event shape"):
+    with pytest.raises(ValueError, match="leading, separable time axis"):
         VarSpec("x", (), time_axis=0)
 
 
-def test_cached_analysis_keeps_zero_weight_and_distinguishes_operator_direct() -> None:
+def test_cached_analysis_keeps_zero_weight_and_requires_numeric_blocks() -> None:
     horizon = 4
     declared = _DeclaredOnlyResidual(horizon)
-    operator_problem = Problem(
+    declared_problem = Problem(
         vars=(VarSpec("x", (horizon, 2), time_axis=0),),
         residuals=(ResidualItem(declared.name, declared),),
     )
-    analysis = operator_problem.temporal_analysis
-    assert analysis.operator_eligible
+    analysis = declared_problem.temporal_analysis
     assert not analysis.direct_eligible
     assert analysis.reason is LinearizationReason.MISSING_TEMPORAL_BLOCKS
 
@@ -126,7 +123,7 @@ def test_cached_analysis_keeps_zero_weight_and_distinguishes_operator_direct() -
         vars=(VarSpec("x", (horizon, 2), time_axis=0),),
         residuals=(ResidualItem(undeclared.name, undeclared, weight=0.0),),
     )
-    assert not zero_problem.temporal_analysis.operator_eligible
+    assert not zero_problem.temporal_analysis.direct_eligible
     assert zero_problem.temporal_analysis.reason is LinearizationReason.UNDECLARED_TEMPORAL_RESIDUAL
 
 
@@ -141,7 +138,7 @@ def test_nonseparable_mask_falls_back_but_separable_mask_exposes_local_indices()
     nonseparable = separable.clone()
     nonseparable[width + 1] = True
     fallback = _problem(horizon=horizon, width=width, mask=nonseparable)
-    assert not fallback.temporal_analysis.operator_eligible
+    assert not fallback.temporal_analysis.direct_eligible
     assert fallback.temporal_analysis.reason is LinearizationReason.NONSEPARABLE_MASK
 
 
@@ -178,7 +175,7 @@ def test_structured_normal_matches_dense_jacobian_and_flat_operators(batch_shape
     torch.testing.assert_close(structured.normal.matvec(vector), structured.normal_matvec(vector))
 
 
-def test_block_banded_scaled_restricted_and_normal_operator_metadata() -> None:
+def test_block_banded_scaled_restricted_matches_dense_oracle() -> None:
     torch.manual_seed(3)
     raw = torch.randn(2, 4, 2, 3, 3)
     bands = BlockBandedMatrix(raw, bandwidth=1)
@@ -191,14 +188,3 @@ def test_block_banded_scaled_restricted_and_normal_operator_metadata() -> None:
     expected = factor.unsqueeze(-1) * bands.densify() * factor.unsqueeze(-2)
     expected = expected + torch.diag_embed(diagonal)
     torch.testing.assert_close(transformed.densify(), expected)
-
-    operator = NormalOperator(
-        size=12,
-        matvec=transformed.matvec,
-        preconditioner=lambda value: value,
-        block_shape=(4, 3),
-    )
-    vector = torch.randn(2, 12)
-    torch.testing.assert_close(operator(vector), transformed.matvec(vector))
-    with pytest.raises(ValueError, match="product must equal size"):
-        NormalOperator(size=12, matvec=lambda value: value, block_shape=(3, 3))

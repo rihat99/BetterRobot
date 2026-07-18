@@ -7,30 +7,25 @@ lazy robot-state provider, then runs a public named-block solver.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, Literal
 
 import torch
 
 from ..data_model.model import Model
 from ..kinematics.forward import forward_kinematics
-from ..kinematics.jacobian_strategy import JacobianStrategy
 from ..optim import (
-    Adam,
-    Bounds,
     GaussNewton,
+    JacobianStrategy,
     LevenbergMarquardt,
-    Phase,
     Problem,
     ResidualItem,
     RobotConfig,
     RobotStateProvider,
     VarSpec,
-    run_phases,
+    run_first_order,
 )
-from ..optim.kernels import Cauchy, Huber, L2, Tukey
-from ..optim.solvers.cholesky import Cholesky
-from ..optim.solvers.lstsq import LSTSQ
+from ..optim import Cauchy, Cholesky, Huber, L2, Tukey
 from ..residuals.limits import JointPositionLimit
 from ..residuals.pose import PoseResidual
 from ..residuals.regularization import RestResidual
@@ -49,7 +44,7 @@ _OptimizerName = Literal[
 ]
 
 _OPTIMIZER_NAMES = frozenset({"lm", "gn", "adam", "lbfgs", "lm_then_adam", "lm_then_lbfgs"})
-_LINEAR_SOLVER_NAMES = frozenset({"cholesky", "lstsq"})
+_LINEAR_SOLVER_NAMES = frozenset({"cholesky"})
 _KERNEL_NAMES = frozenset({"l2", "huber", "cauchy", "tukey"})
 _DAMPING_NAMES = frozenset({"constant", "adaptive"})
 
@@ -70,8 +65,8 @@ class IKCostConfig:
 class OptimizerConfig:
     """Named-block solver selection and hyperparameters.
 
-    ``lm_then_adam`` runs a coarse LM phase followed by a matrix-free Adam
-    phase. Batched L-BFGS is deliberately not exposed by the named-block
+    ``lm_then_adam`` runs LM followed by the ``torch.optim`` adapter. Batched
+    L-BFGS is deliberately not exposed by the named-block
     stack yet; the retained ``lbfgs`` spellings fail with an actionable error.
     Linear-solver and Jacobian settings apply to LM/GN phases; damping applies
     only to configurations with an LM phase.
@@ -79,8 +74,8 @@ class OptimizerConfig:
 
     optimizer: _OptimizerName = "lm"
     max_iter: int = 100
-    jacobian_strategy: JacobianStrategy = JacobianStrategy.AUTO
-    linear_solver: Literal["cholesky", "lstsq"] = "cholesky"
+    jacobian_strategy: JacobianStrategy = "auto"
+    linear_solver: Literal["cholesky"] = "cholesky"
     kernel: Literal["l2", "huber", "cauchy", "tukey"] = "l2"
     damping: Literal["constant", "adaptive"] = "adaptive"
     tol: float = 1e-6
@@ -107,6 +102,7 @@ class IKResult:
         frame_id = self.model.frame_id(name)
         return data.frame_pose_world[..., frame_id, :]
 
+
 def _validate_optimizer_config(config: OptimizerConfig) -> None:
     """Validate facade policy before building residuals or solver state."""
     if not isinstance(config.optimizer, str) or config.optimizer not in _OPTIMIZER_NAMES:
@@ -119,14 +115,17 @@ def _validate_optimizer_config(config: OptimizerConfig) -> None:
         raise ValueError(f"Unknown kernel {config.kernel!r}; expected one of {sorted(_KERNEL_NAMES)}")
     if not isinstance(config.damping, str) or config.damping not in _DAMPING_NAMES:
         raise ValueError(f"Unknown damping {config.damping!r}; expected one of {sorted(_DAMPING_NAMES)}")
-    if not isinstance(config.jacobian_strategy, JacobianStrategy):
-        raise ValueError(f"Unknown jacobian_strategy {config.jacobian_strategy!r}; expected a JacobianStrategy member")
+    if config.jacobian_strategy not in {"auto", "analytic", "jacrev", "jacfwd", "finite_difference"}:
+        raise ValueError(
+            f"Unknown jacobian_strategy {config.jacobian_strategy!r}; expected auto, analytic, "
+            "jacrev, jacfwd, or finite_difference"
+        )
 
     if config.optimizer == "adam":
         unused: list[str] = []
         if config.linear_solver != "cholesky":
             unused.append("linear_solver")
-        if config.jacobian_strategy is not JacobianStrategy.AUTO:
+        if config.jacobian_strategy != "auto":
             unused.append("jacobian_strategy")
         if config.damping != "adaptive":
             unused.append("damping")
@@ -143,7 +142,7 @@ def _validate_optimizer_config(config: OptimizerConfig) -> None:
 
 def _make_linear_solver(name: str):
     """Return a fresh named-block linear solver."""
-    table = {"cholesky": Cholesky, "lstsq": LSTSQ}
+    table = {"cholesky": Cholesky}
     if name not in table:
         raise ValueError(f"Unknown linear_solver {name!r}; expected one of {sorted(table)}")
     return table[name]()
@@ -155,34 +154,6 @@ def _make_robust_kernel(name: str):
     if name not in table:
         raise ValueError(f"Unknown kernel {name!r}; expected one of {sorted(table)}")
     return table[name]()
-
-
-def _solver_jacobian_strategy(
-    strategy: JacobianStrategy,
-) -> Literal["auto", "analytic", "finite_difference"]:
-    if strategy is JacobianStrategy.FINITE_DIFF:
-        return "finite_difference"
-    if strategy is JacobianStrategy.ANALYTIC:
-        return "analytic"
-    if strategy is JacobianStrategy.AUTO:
-        return "auto"
-    raise ValueError(f"Unknown jacobian_strategy {strategy!r}")
-
-
-def _configuration_bounds(
-    model: Model,
-    exemplar: torch.Tensor,
-    manifold: RobotConfig,
-) -> Bounds:
-    lower = model.lower_pos_limit.to(device=exemplar.device, dtype=exemplar.dtype)
-    upper = model.upper_pos_limit.to(device=exemplar.device, dtype=exemplar.dtype)
-    box = manifold.box_mask.to(device=exemplar.device)
-    # Quaternion/unit-circle coordinates are manifold constraints, not box
-    # coordinates. Model metadata commonly stores [-1, 1] there; the block
-    # manifold contract requires those entries to be unbounded.
-    lower = torch.where(box, lower, torch.full_like(lower, -torch.inf))
-    upper = torch.where(box, upper, torch.full_like(upper, torch.inf))
-    return Bounds(lower=lower, upper=upper)
 
 
 def _broadcast_initial_configuration(
@@ -245,6 +216,22 @@ def _public_diagnostics(
     return iterations, converged
 
 
+def _refinement_problem(problem: Problem, disabled_items: tuple[str, ...]) -> Problem:
+    known = {item.name for item in problem.residuals}
+    unknown = set(disabled_items) - known
+    if unknown:
+        raise ValueError(f"refine_disabled_items contains unknown residual names {sorted(unknown)}")
+    return Problem(
+        vars=problem.vars,
+        residuals=tuple(
+            replace(item, weight=0.0) if item.name in disabled_items else item for item in problem.residuals
+        ),
+        providers=problem.providers,
+        parameters=problem.parameters,
+        differentiable_parameters=tuple(problem.parameter_gradients),
+    )
+
+
 def solve_ik(  # noqa: PLR0915 - explicit preset assembly keeps task policy visible
     model: Model,
     targets: dict[str, torch.Tensor],
@@ -276,10 +263,9 @@ def solve_ik(  # noqa: PLR0915 - explicit preset assembly keeps task policy visi
     active_q_rest = cost_cfg.q_rest if cost_cfg.rest_weight > 0.0 else None
     start = _broadcast_initial_configuration(model, start, targets, active_q_rest)
     manifold = RobotConfig(model)
-    bounds = _configuration_bounds(model, start, manifold)
-    # Public VarSpec validation is intentionally strict; project the preset's
-    # seed first because several shipped neutral configurations lie on the
-    # wrong side of a finite joint box (notably Panda joint 4).
+    bounds = manifold.joint_bounds()
+    # The task preset starts inside its declared joint box; several shipped
+    # neutral configurations lie outside it (notably Panda joint 4).
     start = manifold.project(start, bounds)
 
     kernel = _make_robust_kernel(optimizer_cfg.kernel)
@@ -352,16 +338,17 @@ def solve_ik(  # noqa: PLR0915 - explicit preset assembly keeps task policy visi
     values = {"q": start}
 
     if optimizer_cfg.optimizer == "adam":
-        solver = Adam(
+        values, state = run_first_order(
+            values,
+            problem,
+            lambda params: torch.optim.Adam(params, lr=1e-2),
             max_iter=optimizer_cfg.max_iter,
-            tol=optimizer_cfg.tol,
+            tolerance=optimizer_cfg.tol,
         )
-        values, state = solver.run(values, problem)
         states: tuple[Any, ...] = (state,)
     else:
-        jacobian_strategy = _solver_jacobian_strategy(optimizer_cfg.jacobian_strategy)
+        jacobian_strategy = optimizer_cfg.jacobian_strategy
         common = {
-            "max_iter": optimizer_cfg.max_iter,
             "gtol": optimizer_cfg.tol,
             "linear_solver": _make_linear_solver(optimizer_cfg.linear_solver),
             "kernel": kernel,
@@ -369,40 +356,33 @@ def solve_ik(  # noqa: PLR0915 - explicit preset assembly keeps task policy visi
         }
         if optimizer_cfg.optimizer == "lm":
             solver = LevenbergMarquardt(
+                max_iter=optimizer_cfg.max_iter,
                 **common,
                 fixed_damping=optimizer_cfg.damping == "constant",
             )
             values, state = solver.run(values, problem)
             states = (state,)
         elif optimizer_cfg.optimizer == "gn":
-            solver = GaussNewton(**common)
+            solver = GaussNewton(max_iter=optimizer_cfg.max_iter, **common)
             values, state = solver.run(values, problem)
             states = (state,)
         elif optimizer_cfg.optimizer == "lm_then_adam":
             coarse_iters = optimizer_cfg.max_iter // 2
             refine_iters = optimizer_cfg.max_iter - coarse_iters
-            phase_result = run_phases(
-                problem,
+            values, coarse_state = LevenbergMarquardt(
+                max_iter=coarse_iters,
+                **common,
+                fixed_damping=optimizer_cfg.damping == "constant",
+            ).run(values, problem)
+            refinement = _refinement_problem(problem, optimizer_cfg.refine_disabled_items)
+            values, refine_state = run_first_order(
                 values,
-                (
-                    Phase(
-                        "coarse_lm",
-                        coarse_iters,
-                        LevenbergMarquardt(
-                            **common,
-                            fixed_damping=optimizer_cfg.damping == "constant",
-                        ),
-                    ),
-                    Phase(
-                        "refine_adam",
-                        refine_iters,
-                        Adam(max_iter=refine_iters, tol=optimizer_cfg.tol),
-                        weight_overrides={name: 0.0 for name in optimizer_cfg.refine_disabled_items},
-                    ),
-                ),
+                refinement,
+                lambda params: torch.optim.Adam(params, lr=1e-2),
+                max_iter=refine_iters,
+                tolerance=optimizer_cfg.tol,
             )
-            values = phase_result.values
-            states = phase_result.states
+            states = (coarse_state, refine_state)
         else:  # validated Literal plus runtime protection for untyped callers
             raise ValueError(f"Unknown optimizer {optimizer_cfg.optimizer!r}")
 

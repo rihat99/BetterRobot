@@ -15,34 +15,49 @@ from typing import Any
 
 import torch
 
+from ..data_model.data import Data
 from ..data_model.model import Model
 from ..kinematics import ReferenceFrame
 from ..kinematics.jacobian import get_frame_jacobian
 from ..lie import se3, so3
 from ..lie.tangents import right_jacobian_inv_se3, right_jacobian_inv_so3
-from .base import ResidualState, _as_residual_state
 
 
-def _get_frame_pose(state: ResidualState, frame_id: int) -> torch.Tensor:
+def _context_state(
+    ctx: Mapping[str, Any],
+    model: Model | None,
+) -> tuple[Model, torch.Tensor, Data]:
+    if model is None:
+        raise TypeError("kinematic residuals require model=... for named-context evaluation")
+    q = ctx["q"]
+    data = ctx["data"]
+    if not isinstance(q, torch.Tensor):
+        raise TypeError("named context entry 'q' must be a torch.Tensor")
+    if not isinstance(data, Data):
+        raise TypeError("named context entry 'data' must be Data")
+    return model, q, data
+
+
+def _get_frame_pose(model: Model, data: Data, frame_id: int) -> torch.Tensor:
     """Get world pose of ``frame_id`` from ``data.frame_pose_world`` or
     compute on-the-fly."""
-    if state.data.frame_pose_world is not None:
-        return state.data.frame_pose_world[..., frame_id, :]  # (B..., 7)
-    frame = state.model.frames[frame_id]
-    T_parent = state.data.joint_pose_world[..., frame.parent_joint, :]
-    T_local = state.model.values.frame_placements[..., frame_id, :]
+    if data.frame_pose_world is not None:
+        return data.frame_pose_world[..., frame_id, :]  # (B..., 7)
+    frame = model.frames[frame_id]
+    T_parent = data.joint_pose_world[..., frame.parent_joint, :]
+    T_local = model.values.frame_placements[..., frame_id, :]
     return se3.compose(T_parent, T_local)
 
 
 def _target_from_input(
-    value: ResidualState | Mapping[str, Any],
+    ctx: Mapping[str, Any],
     fallback: torch.Tensor,
     target_name: str | None,
 ) -> torch.Tensor:
-    """Resolve a declared block parameter while preserving legacy calls."""
-    if target_name is None or isinstance(value, ResidualState):
+    """Resolve a declared block parameter or use the constructor fallback."""
+    if target_name is None:
         return fallback
-    target = value[target_name]
+    target = ctx[target_name]
     if not isinstance(target, torch.Tensor):
         raise TypeError(f"named-block context entry {target_name!r} must be a tensor")
     return target
@@ -51,6 +66,24 @@ def _target_from_input(
 def _validate_target_name(target_name: str | None) -> None:
     if target_name is not None and (not isinstance(target_name, str) or not target_name):
         raise TypeError("target_name must be a non-empty string or None")
+
+
+def _resolve_frame_id(
+    model: Model | None,
+    frame: str | None,
+    frame_id: int | None,
+) -> int:
+    if frame is not None and frame_id is not None:
+        raise TypeError("provide either frame=... or frame_id=..., not both")
+    if frame is not None:
+        if not isinstance(frame, str) or not frame:
+            raise TypeError("frame must be a non-empty string")
+        if model is None:
+            raise TypeError("PoseResidual frame=... requires a model")
+        return model.frame_id(frame)
+    if isinstance(frame_id, bool) or not isinstance(frame_id, int):
+        raise TypeError("PoseResidual requires frame=... or an integer frame_id=...")
+    return frame_id
 
 
 class PoseResidual:
@@ -65,12 +98,13 @@ class PoseResidual:
 
     def __init__(
         self,
+        model: Model | None = None,
         *,
-        frame_id: int,
+        frame: str | None = None,
+        frame_id: int | None = None,
         target: torch.Tensor,
         pos_weight: float = 1.0,
         ori_weight: float = 1.0,
-        model: Model | None = None,
         name: str = "pose",
         target_name: str | None = None,
     ) -> None:
@@ -79,7 +113,7 @@ class PoseResidual:
         self.name = name
         self.target_name = target_name
         self.reads = ("q", "data", target_name) if target_name is not None else ("q", "data")
-        self.frame_id = frame_id
+        self.frame_id = _resolve_frame_id(model, frame, frame_id)
         self.target = target
         self.pos_weight = pos_weight
         self.ori_weight = ori_weight
@@ -90,35 +124,35 @@ class PoseResidual:
         )
         self.dim = 6
 
-    def __call__(self, value: ResidualState | Mapping[str, Any]) -> torch.Tensor:
-        target = _target_from_input(value, self.target, self.target_name)
-        state = _as_residual_state(value, model=self.model)
-        T_target = target.to(device=state.variables.device, dtype=state.variables.dtype)
-        T_ee = _get_frame_pose(state, self.frame_id)  # (B..., 7)
+    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
+        target = _target_from_input(ctx, self.target, self.target_name)
+        model, q, data = _context_state(ctx, self.model)
+        T_target = target.to(device=q.device, dtype=q.dtype)
+        T_ee = _get_frame_pose(model, data, self.frame_id)  # (B..., 7)
         T_err = se3.compose(se3.inverse(T_target), T_ee)  # (B..., 7)
         r = se3.log(T_err)  # (B..., 6)
         weight = self._weight.to(device=r.device, dtype=r.dtype)
         return r * weight
 
-    def jacobian(
+    def _analytic_jacobian(
         self,
-        value: ResidualState | Mapping[str, Any],
-    ) -> torch.Tensor | None:
+        ctx: Mapping[str, Any],
+    ) -> torch.Tensor:
         """Analytic Jacobian: ``Jr^{-1}(r) @ Ad(T_ee^{-1}) @ J_frame_world``.
 
         See docs/concepts/kinematics.md §5.
         """
-        target = _target_from_input(value, self.target, self.target_name)
-        state = _as_residual_state(value, model=self.model)
-        T_target = target.to(device=state.variables.device, dtype=state.variables.dtype)
-        T_ee = _get_frame_pose(state, self.frame_id)
+        target = _target_from_input(ctx, self.target, self.target_name)
+        model, q, data = _context_state(ctx, self.model)
+        T_target = target.to(device=q.device, dtype=q.dtype)
+        T_ee = _get_frame_pose(model, data, self.frame_id)
         T_err = se3.compose(se3.inverse(T_target), T_ee)
         r = se3.log(T_err)  # (B..., 6)
 
         # World-frame spatial Jacobian of the end-effector frame
         # (LOCAL_WORLD_ALIGNED convention: [v_frame_origin_world, omega_world])
         J_world = get_frame_jacobian(
-            state.model, state.data, self.frame_id, reference=ReferenceFrame.LOCAL_WORLD_ALIGNED
+            model, data, self.frame_id, reference=ReferenceFrame.LOCAL_WORLD_ALIGNED
         )  # (B..., 6, nv)
 
         # Body-frame Jacobian: just rotate both halves by R_ee^T.
@@ -147,8 +181,7 @@ class PoseResidual:
         ctx: Mapping[str, Any],
     ) -> dict[str, torch.Tensor]:
         """Return the mask-reduced analytic ``q`` block."""
-        full = self.jacobian(ctx)
-        assert full is not None
+        full = self._analytic_jacobian(ctx)
         indices = ctx.free_indices("q").to(device=full.device)
         return {"q": full.index_select(-1, indices)}
 
@@ -183,22 +216,22 @@ class PositionResidual:
         self.weight = weight
         self.dim = 3
 
-    def __call__(self, value: ResidualState | Mapping[str, Any]) -> torch.Tensor:
-        target = _target_from_input(value, self.target, self.target_name)
-        state = _as_residual_state(value, model=self.model)
-        T_target = target.to(device=state.variables.device, dtype=state.variables.dtype)
-        T_ee = _get_frame_pose(state, self.frame_id)
+    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
+        target = _target_from_input(ctx, self.target, self.target_name)
+        model, q, data = _context_state(ctx, self.model)
+        T_target = target.to(device=q.device, dtype=q.dtype)
+        T_ee = _get_frame_pose(model, data, self.frame_id)
         p_ee = T_ee[..., :3]
         p_target = T_target[..., :3]
         return (p_ee - p_target) * self.weight
 
-    def jacobian(
+    def _analytic_jacobian(
         self,
-        value: ResidualState | Mapping[str, Any],
-    ) -> torch.Tensor | None:
-        state = _as_residual_state(value, model=self.model)
+        ctx: Mapping[str, Any],
+    ) -> torch.Tensor:
+        model, _q, data = _context_state(ctx, self.model)
         J_world = get_frame_jacobian(
-            state.model, state.data, self.frame_id, reference=ReferenceFrame.LOCAL_WORLD_ALIGNED
+            model, data, self.frame_id, reference=ReferenceFrame.LOCAL_WORLD_ALIGNED
         )  # (B..., 6, nv)
         return J_world[..., :3, :] * self.weight  # (B..., 3, nv)
 
@@ -207,8 +240,7 @@ class PositionResidual:
         ctx: Mapping[str, Any],
     ) -> dict[str, torch.Tensor]:
         """Return the mask-reduced analytic ``q`` block."""
-        full = self.jacobian(ctx)
-        assert full is not None
+        full = self._analytic_jacobian(ctx)
         indices = ctx.free_indices("q").to(device=full.device)
         return {"q": full.index_select(-1, indices)}
 
@@ -242,31 +274,29 @@ class OrientationResidual:
         self.weight = weight
         self.dim = 3
 
-    def __call__(self, value: ResidualState | Mapping[str, Any]) -> torch.Tensor:
-        target = _target_from_input(value, self.target, self.target_name)
-        state = _as_residual_state(value, model=self.model)
-        T_target = target.to(device=state.variables.device, dtype=state.variables.dtype)
-        T_ee = _get_frame_pose(state, self.frame_id)
+    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
+        target = _target_from_input(ctx, self.target, self.target_name)
+        model, q, data = _context_state(ctx, self.model)
+        T_target = target.to(device=q.device, dtype=q.dtype)
+        T_ee = _get_frame_pose(model, data, self.frame_id)
         q_target = T_target[..., 3:]  # (B..., 4) quaternion
         q_ee = T_ee[..., 3:]
         r_so3 = so3.log(so3.compose(so3.inverse(q_target), q_ee))  # (B..., 3)
         return r_so3 * self.weight
 
-    def jacobian(
+    def _analytic_jacobian(
         self,
-        value: ResidualState | Mapping[str, Any],
-    ) -> torch.Tensor | None:
-        target = _target_from_input(value, self.target, self.target_name)
-        state = _as_residual_state(value, model=self.model)
-        T_target = target.to(device=state.variables.device, dtype=state.variables.dtype)
-        T_ee = _get_frame_pose(state, self.frame_id)
+        ctx: Mapping[str, Any],
+    ) -> torch.Tensor:
+        target = _target_from_input(ctx, self.target, self.target_name)
+        model, q, data = _context_state(ctx, self.model)
+        T_target = target.to(device=q.device, dtype=q.dtype)
+        T_ee = _get_frame_pose(model, data, self.frame_id)
         q_target = T_target[..., 3:]
         q_ee = T_ee[..., 3:]
         r = so3.log(so3.compose(so3.inverse(q_target), q_ee))  # (B..., 3)
 
-        J_world = get_frame_jacobian(
-            state.model, state.data, self.frame_id, reference=ReferenceFrame.LOCAL_WORLD_ALIGNED
-        )
+        J_world = get_frame_jacobian(model, data, self.frame_id, reference=ReferenceFrame.LOCAL_WORLD_ALIGNED)
         J_ang = J_world[..., 3:, :]  # angular rows (B..., 3, nv)
 
         Jr_inv = right_jacobian_inv_so3(r)  # (B..., 3, 3)
@@ -280,7 +310,6 @@ class OrientationResidual:
         ctx: Mapping[str, Any],
     ) -> dict[str, torch.Tensor]:
         """Return the mask-reduced analytic ``q`` block."""
-        full = self.jacobian(ctx)
-        assert full is not None
+        full = self._analytic_jacobian(ctx)
         indices = ctx.free_indices("q").to(device=full.device)
         return {"q": full.index_select(-1, indices)}

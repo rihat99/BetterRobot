@@ -22,7 +22,7 @@ from better_robot.data_model.joint_models import (
     JointTranslation,
 )
 from better_robot.io import ModelBuilder, build_model
-from better_robot.optim.blocks import (
+from better_robot.optim import (
     Bounds,
     LevenbergMarquardt,
     LMStatus,

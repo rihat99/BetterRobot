@@ -12,7 +12,7 @@ import torch
 from better_robot.io import ModelBuilder, build_model
 from better_robot.lie import se3, so3
 from better_robot.optim import TemporalPattern
-from better_robot.optim.blocks import (
+from better_robot.optim import (
     Bounds,
     LevenbergMarquardt,
     LMStatus,
@@ -23,7 +23,7 @@ from better_robot.optim.blocks import (
     SO3Manifold,
     VarSpec,
 )
-from better_robot.optim.blocks.implicit import (
+from better_robot.optim.implicit import (
     ImplicitDiffConfig,
     ImplicitDifferentiationError,
     attach_implicit_gradients,
@@ -292,9 +292,7 @@ def test_robot_config_checks_every_quaternion_event_for_log_branch_cut(
     model = build_model(builder.finalize(), dtype=dtype)
     manifold = RobotConfig(model)
     quaternion_slices = tuple(
-        unit_slice
-        for unit_slice in manifold.unit_coordinate_slices
-        if unit_slice.stop - unit_slice.start == 4
+        unit_slice for unit_slice in manifold.unit_coordinate_slices if unit_slice.stop - unit_slice.start == 4
     )
     assert len(quaternion_slices) == 2
 
@@ -594,13 +592,11 @@ def test_small_banded_forward_requires_explicit_dense_backward_opt_in_and_matche
     torch.testing.assert_close(banded_gradient, dense_gradient, atol=2e-10, rtol=2e-10)
 
 
-def test_matrix_free_and_large_dense_materialization_are_rejected_before_backward() -> None:
+def test_large_dense_materialization_is_rejected_before_backward() -> None:
     target = torch.zeros(3, dtype=torch.float64, requires_grad=True)
     problem = _target_problem(target)
     solver = LevenbergMarquardt(max_iter=5)
     values, state = solver.run({"x": torch.zeros_like(target)}, problem)
 
-    with pytest.raises(ValueError, match="does not materialize a matrix-free forward"):
-        attach_implicit_gradients(values, state, problem, forward_linearization="matrix_free")
     with pytest.raises(ValueError, match="configured cap is 2"):
         attach_implicit_gradients(values, state, problem, config=ImplicitDiffConfig(max_dense_tangent_dim=2))

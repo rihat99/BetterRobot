@@ -16,13 +16,13 @@ Tasks are thin facades. No Jacobian code, no solver loops, no branching for fixe
 
 ## solve_ik
 
-Assembles one bounded `RobotConfig` block, `PoseResidual` items, optional limit/rest items, and a lazy `RobotStateProvider`. Pose targets are declared differentiable `Problem.parameters`. Named-block LM/GN/Adam and `lm_then_adam` are supported; the L-BFGS spellings fail honestly. Arbitrary common leading batch axes return per-element diagnostics.
+Assembles one bounded `RobotConfig` block, `PoseResidual` items, optional limit/rest items, and evaluation-local robot state. Pose targets are declared differentiable `Problem.parameters`. Named-block LM/GN, the `torch.optim` adapter, and sequential `lm_then_adam` are supported; the L-BFGS spellings fail honestly. Arbitrary common leading batch axes return per-element diagnostics.
 
 **Single code path** — floating-base is transparent. First 7 DOF of q are base pose for free-flyer models. Solver doesn't need to know.
 
 ## solve_trajopt
 
-Adapts an explicit sequence of `ResidualItem` values into one `VarSpec("q", (T, nq), RobotConfig(model), time_axis=0)` with a lazy `RobotStateProvider`. Route-aware named-block LM chooses the banded path when every residual declares temporal blocks; forced dense remains the parity oracle and explicit `matrix_free` uses the normal-operator route. `TrajOptResult` exposes `linearization_requested`, `linearization_used`, `linearization_reason`, and `linearization_detail`. Arbitrary leading batch axes return per-element iterations, convergence, and status. Callers omit residuals they do not want to solve. `BSplineTrajectory` remains a Euclidean numerical basis utility and is rejected until a separately reviewed manifold-safe mapping exists.
+Adapts an explicit sequence of `ResidualItem` values into one `VarSpec("q", (T, nq), RobotConfig(model), time_axis=0)`. Route-aware named-block LM chooses the banded path when every residual declares numeric temporal blocks; forced dense remains the parity oracle. `TrajOptResult` exposes `linearization_requested`, `linearization_used` (`"dense"` or `"banded"`), `linearization_reason`, and `linearization_detail`. Arbitrary leading batch axes return per-element iterations, convergence, and status. Callers omit residuals they do not want to solve. `BSplineTrajectory` remains a Euclidean numerical basis utility and is rejected until a separately reviewed manifold-safe mapping exists.
 
 ## solve_contact_forces
 

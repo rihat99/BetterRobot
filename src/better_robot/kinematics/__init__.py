@@ -16,9 +16,7 @@ from .jacobian import (
     compute_joint_jacobians,
     get_frame_jacobian,
     get_joint_jacobian,
-    residual_jacobian,
 )
-from .jacobian_strategy import JacobianStrategy
 
 
 class ReferenceFrame(str, Enum):
@@ -42,7 +40,5 @@ __all__ = [
     "compute_joint_jacobians",
     "get_joint_jacobian",
     "get_frame_jacobian",
-    "residual_jacobian",
-    "JacobianStrategy",
     "ReferenceFrame",
 ]

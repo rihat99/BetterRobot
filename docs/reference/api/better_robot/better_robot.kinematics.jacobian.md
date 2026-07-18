@@ -27,10 +27,6 @@
   - ```{autodoc2-docstring} better_robot.kinematics.jacobian.get_frame_jacobian
     :summary:
     ```
-* - {py:obj}`residual_jacobian <better_robot.kinematics.jacobian.residual_jacobian>`
-  - ```{autodoc2-docstring} better_robot.kinematics.jacobian.residual_jacobian
-    :summary:
-    ```
 ````
 
 ### Data
@@ -75,12 +71,5 @@
 :canonical: better_robot.kinematics.jacobian.get_frame_jacobian
 
 ```{autodoc2-docstring} better_robot.kinematics.jacobian.get_frame_jacobian
-```
-````
-
-````{py:function} residual_jacobian(residual: better_robot.residuals.base.Residual, state: better_robot.residuals.base.ResidualState, *, strategy: better_robot.kinematics.jacobian_strategy.JacobianStrategy = JacobianStrategy.AUTO) -> torch.Tensor
-:canonical: better_robot.kinematics.jacobian.residual_jacobian
-
-```{autodoc2-docstring} better_robot.kinematics.jacobian.residual_jacobian
 ```
 ````

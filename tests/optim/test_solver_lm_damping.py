@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 import torch
 
-from better_robot.optim.blocks import (
+from better_robot.optim import (
     Bounds,
     LMStatus,
     LevenbergMarquardt,
@@ -495,6 +495,16 @@ def _linear_problem(target: torch.Tensor) -> Problem:
         residuals=(ResidualItem("linear", _LinearResidual()),),
         parameters={"target": target},
     )
+
+
+def test_initial_nonfinite_model_reaches_failed_status() -> None:
+    values, state = LevenbergMarquardt(max_iter=2).run(
+        {"x": torch.tensor([float("nan")])},
+        _linear_problem(torch.ones(1)),
+    )
+
+    assert torch.isnan(values["x"]).all()
+    assert LMStatus(int(state.status)) is LMStatus.FAILED
 
 
 def test_warm_start_retains_damping_but_refreshes_changed_target_artifacts() -> None:

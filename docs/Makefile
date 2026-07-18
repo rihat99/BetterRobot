@@ -3,6 +3,7 @@
 # Usage:
 #   make html          # build the HTML site → _build/html/
 #   make clean         # remove the build directory
+#   make doctest      # execute documentation examples
 #   make linkcheck     # validate external links
 #   make strict        # build with warnings-as-errors (nitpicky)
 #   make serve         # run a local server at http://localhost:8000
@@ -13,7 +14,7 @@ SPHINXBUILD   ?= sphinx-build
 SOURCEDIR     = .
 BUILDDIR      = _build
 
-.PHONY: help html clean linkcheck strict serve publish
+.PHONY: help html clean doctest linkcheck strict serve publish
 
 help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)
@@ -23,6 +24,9 @@ html:
 
 clean:
 	rm -rf "$(BUILDDIR)" reference/api
+
+doctest:
+	@$(SPHINXBUILD) -M doctest "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)
 
 linkcheck:
 	@$(SPHINXBUILD) -M linkcheck "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)

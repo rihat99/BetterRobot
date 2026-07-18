@@ -1,5 +1,15 @@
 # 02 — Rebuild the optimizer core
 
+> **Implementation log (2026-07-18):** T1–T7 are implemented; the flat
+> optimizer is 3,779 formatted Python lines and routes LM only through dense or banded
+> systems. Important findings: `increase_factor`, `gain_ratio`, and
+> `relative_decrease` remain algorithm/test load-bearing; the matrix-free warm
+> start and pure linear-solve diagnostics were removable. One contract update
+> outside the stated allowlist was required to remove the root
+> `JacobianStrategy` export; details and final gates are in `02_results.md`.
+> **Completed:** full gate `1415 passed, 2 skipped, 16 deselected`; contracts
+> `312 passed`; Pinocchio parity `136 passed`; HTML and doctest builds green.
+
 **Goal:** one lean, torch-extension-flavored optimization package. The target
 API and package layout are in `plan/02_architecture.md` §1 — read it first;
 this order adds the mechanics and the evidence. Everything here reshapes the
