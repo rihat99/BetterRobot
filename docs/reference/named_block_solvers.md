@@ -152,8 +152,8 @@ Per-element status enum: `RUNNING`, `CONVERGED`, `MAXITER`, or `FAILED`.
 
 Named-block LBFGS is deliberately unavailable: batching its per-element
 histories, line search, and curvature-validity/history-reset behavior is a
-dedicated later milestone. Use `Adam` for matrix-free first-order work or
-LM/GN when dense second-order assembly is appropriate.
+deferred design problem. Use `Adam` for matrix-free first-order work or LM/GN
+when dense second-order assembly is appropriate.
 
 ## Phases
 

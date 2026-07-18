@@ -11,7 +11,7 @@ accidental API.
 
 ## Implementation status
 
-| Area | Status at M1 | Evidence / limitation |
+| Area | Current status | Evidence / limitation |
 |------|--------------|-----------------------|
 | fp32/fp64 dtype preservation | Enforced on covered paths | FK and `solve_ik` have fp32/fp64 preservation tests. |
 | fp16/bf16 rejection | Enforced at the FK/pass boundary | FK and every dynamics pass that enters through FK raise `DtypeMismatchError`. Other standalone math primitives remain tensor operations. |
@@ -19,12 +19,14 @@ accidental API.
 | Deeply immutable model state | **Gap** | `Model` is a frozen dataclass, but its tensors, dictionaries, and `meta` members remain mutable. |
 | Versioned serialization | **Gap** | There is no structure/values `state_dict` API; `Model.meta` retains builder IR and resolver objects. |
 | Differentiable solve | Partial | Named-block LM/GN has an explicit dense first-order implicit mode; `run` and `solve_ik` remain detached, and structured/operator backward plus stable ModelValues/weight bindings are gaps. |
-| Warp differentiation/capture | Not yet a production contract | Promotion requires the bridge and kernel acceptance tests described below. |
+| Warp differentiation/capture | Partial, private/opt-in | Fused FK has CUDA forward/VJP and forward-capture evidence; fixed LM update groups have a private graph harness. No Warp default or public captured solver mode ships. |
 
 ## Dtype and numerics
 
 - fp32 is the primary working dtype; fp64 is supported for accuracy and
-  derivative checks. Public numerical entry points accept only these two.
+  derivative checks. FK, dynamics, and the documented solver/task paths accept
+  these two working dtypes. Standalone tensor math may follow PyTorch's dtype
+  behavior outside that validated boundary.
 - fp16 and bf16 raise `DtypeMismatchError` at the FK/pass boundary. Warp has
   no bf16 value type, and neither low dtype has a validated convergence budget.
 - Query tensors and model values must have one device and one dtype. Boundaries
@@ -58,7 +60,8 @@ is therefore never a rotation residual.
   preceding sample before any component-space filtering or parameter fitting.
 - Rest, reference-trajectory, velocity, and acceleration terms use
   `Model.difference`; they must not subtract quaternion components directly.
-  BetterHuman pose parameters follow the same rule when migrated in M4.
+  External human-pose consumers should follow the same rule; this repository
+  does not claim or require a change in a sibling package.
 - Exactly at angle `pi`, the log axis has an unavoidable sign ambiguity. With
   `qw == 0`, the current principal-log convention keeps the input sign.
   Rotation values remain valid there, but continuity and derivatives of the
@@ -253,11 +256,11 @@ zeroing is never the silent default. A future unrolled mode may differentiate
 a non-converged last iterate because it promises the trajectory derivative,
 but it must preserve the non-converged status alongside that result.
 
-### Requirements on M2 problem and solver state
+### Requirements on problem and solver state
 
 The solver state preserves the following shape and graph-lifetime properties.
-The shipped dense implicit backward consumes them; remaining M6 work must not
-weaken them:
+The shipped dense implicit backward consumes them; future work must not weaken
+them:
 
 1. Solver state is a fixed-structure, plain tensor pytree. Every per-element
    mutable field carries the full leading batch shape `B...`; a shared
@@ -292,31 +295,39 @@ Branching, mutation, `.detach()`, and custom operators are reviewed against
 this contract. Every new Warp kernel records its differentiable inputs and
 adjoint strategy next to its parity tests.
 
-## Compile lifecycle
+## Compile and graph lifecycle
 
-- Topology, joint kinds, feature widths, batch rank, lane, dtype, device,
-  layout/strides, and compile options are static specialization inputs. The
-  flattened execution size `E` is the only candidate dynamic tensor dimension;
-  if a compiler cannot keep it dynamic, `E` becomes part of the cache key.
-- A graph-cache key includes a topology fingerprint, the static inputs above,
-  BetterRobot/Torch/Warp versions, and a kernel/source hash. Cache limits are
-  bounded and observable; eviction changes latency, never results.
-- Cold compilation is part of performance reporting. The historical first FK
-  compile was about 31 seconds on one measured setup; that is evidence, not an
-  SLA. Benchmarks report cold codegen separately from warmed execution.
-- Phase changes keep tensor shapes fixed and use zero weights when semantics
-  allow it. A genuinely different residual structure uses a separately compiled
-  program rather than disguising a shape change inside a captured graph.
-- Warp CI uses an explicit disposable cache directory. Cached kernels are reused
-  only under the complete version/source key, and first-call codegen latency is
-  measured before a kernel can be called production-ready.
-- A CUDA graph is re-recorded when storage addresses, shapes/strides, dtype,
-  device, topology/layout, stream, launch geometry, or program sequence changes.
-  Changing tensor values alone does not require re-recording. Capture performs
-  no allocation, fallback, compilation, or host synchronization.
+Caller-side ``torch.compile`` specialization is owned by PyTorch. Shape,
+dtype, device, layout, static Python topology, and compile options can produce
+new graphs. BetterRobot does not currently install a package-level graph cache,
+dynamic-shape fallback policy, bounded eviction layer, or public observability
+surface. Cold compilation remains part of performance reporting, separate
+from warmed execution.
 
-The one current full-graph FK test proves only its named shape/model case. It is
-not evidence that the broader lifecycle or cache policy is implemented.
+The private experimental ``GraphExecutor`` has a narrower implemented
+lifecycle:
+
+- its explicit tensor-pytree signature includes tree/alias structure, shape,
+  stride, storage offset, dtype, device, and layout;
+- incoming storage addresses are not signature fields: values are copied into
+  graph-owned stable buffers, so a compatible tensor with new storage replays
+  without re-recording;
+- a signature or sequential caller-stream change synchronizes and re-records;
+  a changing topology, target, or configuration hidden in the callable's
+  closure is not detected and requires an explicit ``reset()``;
+- record time may reserve graph-pool storage. The captured callable must not do
+  dynamic allocation, fallback, compilation, or host synchronization during
+  replay; cloned return values are produced outside the recorded program; and
+- phase or residual-structure changes belong in explicit inputs when values
+  alone change, or in a reset/separately recorded program when the executed
+  structure changes.
+
+CUDA tests cover fixed groups of nonlinear named-block LM updates, signature
+and stream re-recording, memory stability, and mixed Torch/Warp FK. They do not
+establish a package-level cache policy, a public captured solver lifecycle,
+arbitrary custom-residual eligibility, or an end-to-end IK speed claim. Any
+future production cache must additionally key topology and source/runtime
+versions, bound and expose eviction, and preserve results across cache misses.
 
 ## Provenance gate
 

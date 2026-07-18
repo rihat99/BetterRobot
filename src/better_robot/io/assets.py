@@ -4,12 +4,12 @@ Mesh / texture references inside URDF/MJCF files are paths or
 package URIs that can only be turned into a real file once you know the
 search root. The library defers that decision to a pluggable
 :class:`AssetResolver`. The resolver is set on the ``IRModel.meta`` (and
-forwarded onto ``Model.meta["asset_resolver"]``) so the viewer and
-collision modules can find meshes after parsing without re-reading the
-URDF.
+forwarded onto ``Model.meta["asset_resolver"]``) so the viewer can find
+meshes after parsing without re-reading the URDF. Collision computation is
+currently stubbed and does not consume resolved meshes.
 
-See ``docs/concepts/parsers_and_ir.md §6`` and
-``docs/concepts/viewer.md §17``.
+See ``docs/concepts/parsers_and_ir.md`` ("Asset resolvers and their current
+consumers") and ``docs/concepts/viewer.md`` ("URDFMeshMode").
 """
 
 from __future__ import annotations

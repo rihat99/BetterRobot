@@ -1,7 +1,8 @@
 """Legacy flat-residual composition owned by :mod:`better_robot.optim`.
 
-``CostStack`` remains the composer for :class:`LeastSquaresProblem` while
-BetterRobot's legacy task paths migrate to named-block ``Problem`` instances.
+``CostStack`` remains the composer for direct-use
+:class:`LeastSquaresProblem` compatibility callers and the input container
+that ``solve_trajopt`` adapts into a named-block ``Problem``.
 The old :mod:`better_robot.costs.stack` module is an identity-preserving
 compatibility re-export; new code should import from :mod:`better_robot.optim`.
 """

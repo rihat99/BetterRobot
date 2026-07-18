@@ -4,9 +4,9 @@ The dynamics layer is where rigid-body physics meets numerical
 discipline. RNEA computes inverse dynamics (`τ = M(q) a + b(q, v) +
 g(q)`); ABA computes forward dynamics (`q̈` from `τ`); CRBA computes
 the joint-space inertia matrix `M(q)`; CCRBA computes the centroidal
-momentum matrix; the analytic derivatives — `∂τ/∂q`, `∂a/∂τ`,
-`∂M/∂q`, the centroidal-dynamics derivatives — are what make
-gradient-based DDP and iLQR cheap enough to be practical.
+momentum matrix; derivative helpers expose `∂τ/∂q`, `∂a/∂τ`, and
+`∂M/∂q` through PyTorch autograd. Analytic rigid-body derivative recursions and
+centroidal-dynamics derivatives remain future work.
 
 We kept Pinocchio's algorithm names verbatim (`rnea`, `aba`, `crba`,
 `ccrba`) because every textbook on rigid-body dynamics uses them,
@@ -18,14 +18,15 @@ every time. We replaced Pinocchio's storage shorthand
 to the reader of a dynamics formula keep their math shape; the names
 that matter only to the call site are spelled out.
 
-The Featherstone passes are live: RNEA, ABA, CRBA, CCRBA, the
-centroidal map and momentum, COM with derivatives, and the
-autograd-derived `compute_*_derivatives` functions all work and pass
-gradcheck. A handful of named symbols (`compute_minverse`,
-`compute_coriolis_matrix`, the analytic Carpentier–Mansard
-derivatives and the higher-order integrators) are stubbed
-with `NotImplementedError` and listed in {doc}`/reference/roadmap`.
-The signatures are stable; only the bodies arrive incrementally.
+The Featherstone passes are live: RNEA, ABA, CRBA, CCRBA, the centroidal map
+and momentum, COM position and velocity, and the autograd-derived
+`compute_rnea_derivatives`, `compute_aba_derivatives`, and
+`compute_crba_derivatives` helpers. The underlying differentiable passes have
+gradient coverage. `compute_centroidal_dynamics_derivatives`, COM acceleration,
+`compute_minverse`, `compute_coriolis_matrix`, and the three full-physics
+integrators (`semi_implicit_euler`, `symplectic_euler`, and `rk4`) are stubs
+that raise `NotImplementedError` and are listed in
+{doc}`/reference/roadmap`.
 
 ## Entry points
 
@@ -44,9 +45,10 @@ from .derivatives import (
 from .integrators import integrate_q, symplectic_euler, rk4, semi_implicit_euler
 ```
 
-All algorithms operate on a single `Data` object with a leading batch
-axis. Inputs and outputs are plain `torch.Tensor` with shape
-`(B..., nv)` or `(B..., nv, nv)`.
+The forward dynamics algorithms write into one caller-supplied `Data` object
+and accept arbitrary leading batch axes. Configuration inputs end in `nq`;
+generalized vectors end in `nv`; mass matrices end in `(nv, nv)`. The explicit
+derivative helpers return higher-rank Jacobians described below.
 
 ## Canonical signatures
 
@@ -115,11 +117,12 @@ def center_of_mass(
     v: Tensor | None = None,
     a: Tensor | None = None,
 ) -> Tensor:
-    """Whole-body centre of mass and its time derivatives.
+    """Whole-body centre of mass and optional velocity.
 
-    Populates ``data.com_position``, ``data.com_velocity``,
-    ``data.com_acceleration`` (each shape ``(B..., 3)``) when the
-    corresponding input is non-None.
+    Populates ``data.com_position`` and, when ``v`` is supplied,
+    ``data.com_velocity`` (each shape ``(B..., 3)``). Passing a non-None
+    ``a`` currently raises ``NotImplementedError``; COM acceleration is not
+    populated.
     """
 
 def compute_centroidal_map(model, data, q) -> Tensor:
@@ -135,35 +138,49 @@ def ccrba(model, data, q, v) -> tuple[Tensor, Tensor]:
 
 ## Derivatives
 
-These are the high-value functions in Pinocchio's `algorithm/derivatives/`
-directory and are what make analytic gradients of dynamics cheap
-enough for DDP / iLQR. Same leading-batch convention.
+These signatures mirror high-value functions in Pinocchio's
+`algorithm/derivatives/` directory. The three implemented helpers are
+autograd-derived convenience wrappers, not the future cheap analytic recursions.
 
 ```python
 def compute_rnea_derivatives(
     model, data, q, v, a, fext=None,
 ) -> tuple[Tensor, Tensor, Tensor]:
-    """Return (∂τ/∂q, ∂τ/∂v, ∂τ/∂a = M) each (B..., nv, nv)."""
+    """Return (∂τ/∂q, ∂τ/∂v, ∂τ/∂a = M).
+
+    Unbatched shapes: (nv, nq), (nv, nv), (nv, nv).
+    """
 
 def compute_aba_derivatives(
     model, data, q, v, tau, fext=None,
 ) -> tuple[Tensor, Tensor, Tensor]:
-    """Return (∂a/∂q, ∂a/∂v, ∂a/∂τ = M^{-1}) each (B..., nv, nv)."""
+    """Return (∂a/∂q, ∂a/∂v, ∂a/∂τ = M^{-1}).
+
+    Unbatched shapes: (nv, nq), (nv, nv), (nv, nv).
+    """
 
 def compute_crba_derivatives(model, data, q) -> Tensor:
-    """Return ∂M/∂q ∈ (B..., nv, nv, nv)."""
+    """Return ∂M/∂q; unbatched shape (nv, nv, nq)."""
 
 def compute_centroidal_dynamics_derivatives(model, data, q, v, a) -> ...:  # stub
     ...
 ```
 
-The current bodies of `compute_*_derivatives` use
-`torch.autograd.functional.jacobian` through the differentiable RNEA
-/ ABA / CRBA passes. This ships exact gradients to fp64 round-off
-and is what `gradcheck` runs against. The analytic Carpentier–Mansard
-recursion is future work; replacing the autograd implementations with
-the analytic forms is a drop-in change because the call sites stay
-the same.
+The three implemented derivative helpers use
+`torch.autograd.functional.jacobian` through the differentiable RNEA, ABA, and
+CRBA passes. For inputs that share batch prefix `*B`, this API retains both the
+output and input batch axes:
+
+- RNEA: `∂τ/∂q` is `(*B, nv, *B, nq)`; `∂τ/∂v` and `∂τ/∂a` are
+  `(*B, nv, *B, nv)`.
+- ABA: `∂a/∂q` is `(*B, nv, *B, nq)`; `∂a/∂v` and `∂a/∂τ` are
+  `(*B, nv, *B, nv)`.
+- CRBA: `∂M/∂q` is `(*B, nv, nv, *B, nq)`.
+
+These are full Jacobians, not collapsed batch-diagonal arrays. Call a helper per
+sample when a shape such as `(*B, nv, nq)` is required. The analytic
+Carpentier–Mansard recursions remain future work; replacing the autograd
+implementations does not require changing their public signatures.
 
 ## The `JointModel` dynamics hooks
 
@@ -192,11 +209,13 @@ class JointModel(Protocol):
         for joints whose S_J is constant in q)."""
 ```
 
-For revolute, prismatic, and free-flyer joints these are identically
-zero and the defaults apply. For spherical, anatomical, or coupled
-joints they are non-zero and the joint module overrides them. The
-test `tests/dynamics/test_rnea_coupled_joint.py` exercises the
-override on a synthetic coupled joint plus the standard kinds.
+Every currently shipped built-in joint uses these zero defaults in its local
+joint coordinates. The hooks remain for an extension whose local motion
+subspace actually depends on configuration; no in-tree joint currently supplies
+a non-zero override. Standard spherical and free-flyer RNEA behavior is checked
+against Pinocchio in
+`tests/test_pinocchio/test_rnea_advanced_joints.py`; there is no synthetic
+coupled-joint override test.
 
 ## Optimal-control action models
 
@@ -255,15 +274,16 @@ def rk4                (model, data, q, v, tau, dt, *, fext=None): ...   # stub
 per-joint `JointModel.integrate`) and is live. The full physics
 integrators wait for stable contact handling.
 
-## Forward vs backward ownership
+## Forward and derivative ownership
 
-Each algorithm owns both its forward and backward kernels.
-`rnea.forward` calls Featherstone's two-pass recursion; `rnea.backward`
-(wrapped via `torch.autograd.Function.apply`) calls
-`compute_rnea_derivatives`. The current backward path uses
-`torch.autograd.functional.jacobian` through the differentiable
-forward; the future analytic backward (Carpentier–Mansard) will
-replace it kernel-for-kernel without changing the public surface.
+``rnea`` is an ordinary differentiable Torch recursion; it does not install a
+custom ``torch.autograd.Function`` or a special ``rnea.backward`` kernel.
+Autograd records the forward operations normally. The separate
+``compute_rnea_derivatives`` helper uses
+``torch.autograd.functional.jacobian`` around that differentiable pass. A
+future analytic Carpentier–Mansard helper may replace the explicit derivative
+calculation without changing the public signature, while ordinary gradients
+through ``rnea`` remain owned by Torch autograd.
 
 ## Sharp edges
 
@@ -275,9 +295,9 @@ replace it kernel-for-kernel without changing the public surface.
   expressed at the COM, not at the root joint. CCRBA pairs it with
   the centroidal momentum.
 - **Stub guard.** Calling `compute_minverse`, `compute_coriolis_matrix`,
-  or any of the higher-order integrators (`semi_implicit_euler`,
-  `symplectic_euler`) raises `NotImplementedError` with a pointer to
-  {doc}`/reference/roadmap`.
+  `compute_centroidal_dynamics_derivatives`, any full-physics integrator
+  (`semi_implicit_euler`, `symplectic_euler`, or `rk4`), or
+  `center_of_mass(..., a=...)` raises `NotImplementedError`.
 - **Floating-base RNEA.** The first 6 columns of every joint-space
   Jacobian / mass matrix correspond to the free-flyer base when
   `model.joint_models[1] = JointFreeFlyer`. There is no "stripped"
@@ -285,8 +305,8 @@ replace it kernel-for-kernel without changing the public surface.
 
 ## Where to look next
 
-- {doc}`kinematics` — how RNEA / ABA / CRBA consume
-  `joint_pose_world` and `joint_jacobians` from `Data`.
+- {doc}`kinematics` — the shared model, joint-dispatch, and pose conventions
+  used by the dynamics recursions.
 - {doc}`/reference/roadmap` — what is currently stubbed and where.
-- {doc}`/conventions/extension` §15 — adding a muscle / actuator
+- {doc}`/conventions/extension` §14 — the deferred muscle / actuator sketch
   that contributes to joint-space torque.

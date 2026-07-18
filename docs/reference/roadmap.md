@@ -45,15 +45,17 @@ entries.
 The recursive Featherstone passes are live: `rnea`, `aba`, `crba`,
 `ccrba`, `compute_centroidal_map`, `compute_centroidal_momentum`, and
 `center_of_mass`. The autograd-derived `compute_rnea_derivatives`,
-`compute_aba_derivatives`, and `compute_crba_derivatives` work and pass
-gradcheck. The remaining pieces:
+`compute_aba_derivatives`, and `compute_crba_derivatives` are implemented.
+The underlying RNEA/ABA passes have gradcheck coverage, while derivative
+identity tests compare `∂τ/∂a` with CRBA and `∂a/∂τ` with the inverse mass
+matrix. The remaining pieces:
 
 | Symbol | File | What it needs |
 |---|---|---|
 | `compute_minverse` | `dynamics/crba.py` | Direct ABA-factorisation path that skips the explicit `crba` + `cholesky_solve`. |
 | `compute_coriolis_matrix` | `dynamics/rnea.py` | Standalone world-frame recursion for `C(q, v)`. |
 | `compute_centroidal_dynamics_derivatives` | `dynamics/derivatives.py` | Analytic recursion. The autograd path is documented as a workaround. |
-| Analytic Carpentier–Mansard derivatives | `dynamics/derivatives.py` | Replace the autograd bodies of `compute_*_derivatives` with the analytic forms. |
+| Analytic Carpentier–Mansard derivatives | `dynamics/derivatives.py` | Replace the autograd bodies of the RNEA, ABA, and CRBA derivative helpers with the analytic forms. |
 | `semi_implicit_euler`, `symplectic_euler`, `rk4` | `dynamics/integrators.py` | Bodies. `integrate_q` is live. |
 
 ## Residuals
@@ -68,6 +70,14 @@ The full residual library is live except:
 | `JointVelocityLimit.jacobian` | `residuals/limits.py` (the `__call__` works; the analytic Jacobian is missing) |
 | `JointAccelLimit` | `residuals/limits.py` |
 | `NullspaceResidual` | `residuals/regularization.py` |
+
+## Collision
+
+The exported collision dataclasses are usable only as containers.
+`distance`, the closest-point helpers, `colldist_from_sdf`, every
+`RobotCollision` constructor/query, and both collision residual evaluations
+raise `NotImplementedError`. No collision task integration or performance
+claim ships today; see {doc}`/concepts/collision_and_geometry`.
 
 ## Tasks
 
@@ -94,29 +104,36 @@ are omitted instead of shipping as importable placeholders.
 ## Compute lanes
 
 The direct Torch raw passes are live and use `ModelStructure` plus
-`ModelValues`. Warp is planned as an opt-in whole-pass optimisation, not as a
-public Protocol or process-wide selector.
+`ModelValues`. A fused Warp FK pass is live behind the explicit
+``use_warp=True`` selector. It has CUDA forward/VJP parity coverage,
+forward-only capture coverage, and forward-only benchmark evidence, but remains opt-in pending owner review of
+the Torch-recompute backward cost. Warp is not a public Protocol or
+process-wide selector.
 
-| Work item | Location |
+| Work item | Status |
 |---|---|
-| Warp FK / Jacobian / RNEA kernels and their adjoints | Beside the corresponding Torch pass |
-| Eligibility and explicit lane choice | The owning whole-pass integration boundary |
-| Forward and backward parity | Shared Torch-oracle fixtures |
+| Fused Warp FK and Torch-recompute autograd bridge | CUDA-validated, opt-in; default review pending |
+| Warp Jacobian / residual / dynamics kernels and adjoints | Not implemented |
+| Eligibility and explicit lane choice | Implemented at the FK boundary; repeat locally for each future pass |
+| Forward/backward parity | Implemented for FK; required independently for every future pass |
 
 ## Performance
 
 The hot-path lint, contract suite, and benchmark harness are in place.
-Compilation and capture remain explicit roadmap work:
+Caller-side full-graph compilation is validated for raw FK. Automatic
+compilation and broader boundaries remain roadmap work:
 
 | Symbol | File |
 |---|---|
-| `@torch.compile(fullgraph=True)` on FK / Jacobian / `CostStack` | not yet applied |
+| Automatic `@torch.compile(fullgraph=True)` on public FK / Jacobian / `CostStack` | not applied; raw FK supports explicit caller-side compilation |
 | `@cache_kernel` adaptive dispatch | not yet wired |
 | `BR_PROFILE=1` env hook | not yet wired |
 
-No capture decorator or context manager ships today. A future capture path
-must use fixed storage and record forward and backward together; its
-lifecycle belongs to the M2b/M6 solver and kernel work.
+No public capture decorator, context manager, or captured solver mode ships
+today. The private experimental ``GraphExecutor`` records and replays
+tensor-pytree callables and has CUDA tests for fixed named-block LM update
+groups and mixed Torch/Warp FK. Public solver ``run`` remains eager, and an
+end-to-end IK capture lifecycle and benchmark are still open.
 
 ## How to close an entry
 

@@ -42,15 +42,17 @@ class JacobianStrategy(str, Enum):
 ```
 
 `residual_jacobian`'s AUTO fallback is unbatched central finite differences:
-one base evaluation plus two evaluations per tangent dimension. Real
-`torch.func` strategies are scheduled for the M2 residual redesign and are
-not selectable today.
+one base evaluation plus two evaluations per tangent dimension. The legacy
+enum does not expose `torch.func` strategies. The named-block `Problem`
+surface separately supports analytic, `jacrev`, `jacfwd`, and
+finite-difference Jacobian strategies.
 
 ## FK Hot Path
 
 The Torch lane uses shared `joint_dispatch.joint_transform` and loops over
 the static `ModelStructure.topo_order` tuple, which unrolls cleanly for
-`torch.compile`. `use_warp=True` opts into the fused whole-pass prototype;
+`torch.compile`. `use_warp=True` opts into the CUDA-validated fused whole-pass
+FK lane; it remains non-default pending owner review of backward performance.
 unsupported runtime, kind, dtype, or layout cases intentionally fall back to
 the Torch raw pass. There is no per-Lie-operation or process-global compute
 selection.

@@ -3,7 +3,7 @@
 This folder is the Sphinx source tree for the BetterRobot
 documentation site. **The published site is the canonical view** —
 the markdown files here are written for it, not for direct browsing
-in GitHub.
+in GitHub: [rihat99.github.io/BetterRobot](https://rihat99.github.io/BetterRobot/).
 
 ## Build the site
 
@@ -31,6 +31,27 @@ make -C docs serve
 
 `make -C docs strict` builds with warnings-as-errors.
 `make -C docs linkcheck` validates external links.
+
+## Publish GitHub Pages
+
+Pages is a generated snapshot on the ``gh-pages`` branch. Publish from a clean,
+committed ``dev`` source revision and inspect the generated commit before the
+fast-forward push:
+
+```bash
+make -C docs strict
+git fetch origin gh-pages
+# First verify local gh-pages and origin/gh-pages name the expected old commit.
+uv run ghp-import -n -m "docs: deploy $(git rev-parse --short HEAD)" \
+  -b gh-pages docs/_build/html
+git diff --stat origin/gh-pages..gh-pages
+git push origin gh-pages:gh-pages
+```
+
+If the remote branch moved, fetch and regenerate instead of force-pushing.
+The legacy ``make -C docs publish`` target wraps ``ghp-import -p -f`` and
+therefore skips this review/fast-forward guard; use it only when that destructive
+deployment behavior is explicitly intended.
 
 ## Folder map
 

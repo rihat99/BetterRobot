@@ -64,9 +64,11 @@ Overlapping focused suites are listed separately and are not summed.
 | Documentation | HTML build succeeded; four warnings were only unreachable external intersphinx inventories in the offline environment |
 
 The full suite includes the pinocchio-parity and contract tests. CUDA tests
-were intentionally deselected: this environment exposes no usable NVIDIA
-device, so M2c makes no GPU or CUDA-graph claim. CI remains manual-only at the
-owner's request and is not cited as evidence.
+were intentionally deselected because the default agent sandbox did not expose
+the host's NVIDIA device nodes; later approved host-context M6 validation
+proved the GPU stack itself was healthy. M2c still makes no GPU or CUDA-graph
+claim. CI remains manual-only at the owner's request and is not cited as
+evidence.
 
 ## Deviations and deferred work
 

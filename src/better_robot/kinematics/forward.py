@@ -196,7 +196,7 @@ def forward_kinematics(
         otherwise.  This opt-in debug check synchronizes accelerator tensors;
         the default hot path assumes free-flyer quaternions are pre-normalized.
     use_warp : bool
-        Opt into the prototype fused Warp sweep when the optional ``warp``
+        Opt into the CUDA-validated fused Warp FK lane when the optional ``warp``
         extra, joint kinds, dtype, and layout are supported. Unsupported
         inputs transparently use the torch lane.
     Returns

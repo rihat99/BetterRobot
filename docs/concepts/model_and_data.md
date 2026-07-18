@@ -20,11 +20,13 @@ that holds both — falls apart under three pressures: GPU sharing
 (autograd graphs leak when state mutates between the forward and
 backward pass).
 
-We took the same split. `Model` is `@dataclass(frozen=True)`,
-device-polymorphic via `.to()`, and shared freely across threads,
-streams, and processes. `Data` is mutable, per-query, carries the
-leading batch axis, and contains seventeen optional tensors that are
-filled lazily as kinematics and dynamics functions need them. The
+We took the same split. `Model` is `@dataclass(frozen=True)` and
+device-polymorphic via `.to()`. That freeze is shallow: field reassignment is
+blocked, but contained tensors, dictionaries, and metadata remain mutable.
+Treat a model's contents as read-only after construction, and use `.to()` to
+make a model for another device or dtype. `Data` is mutable, per-query, carries
+the leading batch axis, and contains optional tensors that are filled lazily as
+kinematics and dynamics functions need them. The
 chapter that follows describes both in detail, including the cache
 invariant that prevents stale Jacobians from sneaking through after
 `q` changes.
@@ -132,10 +134,10 @@ zero-DOF joints may be omitted; unknown, duplicate, or missing active names
 raise `ValueError`. The external vector must use the model's public
 `nqs`/`nvs` dimensions.
 
-**`@dataclass(frozen=True)`.** No custom immutability guard, no
-`_frozen` flag. Python's dataclass freeze is enough; the discipline
-is enforced by the language. Every algorithm above this layer can
-share a `Model` across workers without copying.
+**`@dataclass(frozen=True)`.** No custom immutability guard and no `_frozen`
+flag. Python blocks field reassignment, but does not make contained tensors,
+dictionaries, or metadata deeply immutable. Algorithms rely on a read-only
+discipline for those contents; concurrent mutation is unsupported.
 
 **`body_inertias` is packed.** Each body's inertial properties are
 stored as a `(nbodies, 10)` tensor with layout
@@ -234,7 +236,7 @@ class Data:
     def require(self, level: KinematicsLevel) -> None: ...
     def invalidate(self, level: KinematicsLevel = KinematicsLevel.NONE) -> None: ...
     def joint_pose(self, joint_id: int) -> "SE3": ...
-    def frame_pose(self, name_or_id: str | int) -> "SE3": ...
+    def frame_pose(self, frame_id: int) -> "SE3": ...
 ```
 
 Source: `src/better_robot/data_model/data.py`.
@@ -265,8 +267,9 @@ and rationale.
 `KinematicsLevel` enum tracks how far the cache has been populated:
 `NONE` (just `q`), `PLACEMENTS` (FK done), `VELOCITIES` (FK + first
 derivatives), `ACCELERATIONS` (FK + first and second derivatives).
-Every kinematics / dynamics entry point calls `data.require(level)`
-and raises `StaleCacheError` if the cache is below.
+Cache consumers such as Jacobian assembly call `data.require(level)` and raise
+`StaleCacheError` if the cache is below their prerequisite. Producer passes
+such as FK and dynamics recompute their outputs and advance the level directly.
 
 ### The cache invariant — what is enforced and what is not
 
@@ -278,9 +281,9 @@ data.q = new_q                               # __setattr__ fires; downstream cac
 J = compute_joint_jacobians(model, data)     # raises StaleCacheError — must call FK first
 ```
 
-The `__setattr__` hook handles `q`, `v`, `a`, and any other declared
-input field by dropping caches above the appropriate level and
-resetting `_kinematics_level`. Functions advance the level
+The `__setattr__` hook handles reassignment of `q`, `v`, and `a` by dropping
+caches above the appropriate level and resetting `_kinematics_level`. Other
+fields, including `tau`, do not trigger this hook. Functions advance the level
 explicitly; nothing else writes to it.
 
 **Limitation: in-place tensor mutation is not detected.**
@@ -294,9 +297,9 @@ data.q.copy_(new_q)      # silently stale
 This is a Python limitation — tensor views and in-place ops bypass
 dataclass attribute machinery. The contract this layer pins is:
 
-> BetterRobot detects **reassignment** of `q`, `v`, `a`, and any
-> public input field on `Data`, and invalidates downstream caches on
-> reassignment. In-place tensor mutation of those fields is **not**
+> BetterRobot detects **reassignment** of `q`, `v`, and `a` on `Data`, and
+> invalidates downstream caches on reassignment. In-place tensor mutation of
+> those fields is **not**
 > detected; it is a documented misuse pattern.
 
 User-facing guidance, mirrored in `Data`'s docstring:
@@ -325,27 +328,29 @@ q  shape  (B..., nq)
 v  shape  (B..., nv)
 ```
 
-with per-joint slices determined by `model.idx_qs[j]` and
-`model.nqs[j]` (ditto `idx_vs`, `nvs`). The `forward_kinematics`
-implementation iterates the topo order and slices:
+with public per-joint slices determined by `model.idx_qs[j]` and
+`model.nqs[j]` (ditto `idx_vs`, `nvs`). Whole-body passes first expand reduced
+mimic coordinates, then iterate the topology using the full slice tables:
 
 ```python
-qj = q[..., idx_q : idx_q + nq_j]
-vj = v[..., idx_v : idx_v + nv_j]
-Tj = joint_models[j].joint_transform(qj)
+q_full = expand_configuration(model.structure, q)
+qj = q_full[..., model.idx_qs_full[j] : model.idx_qs_full[j] + model.nqs_full[j]]
+Tj = joint_transform(
+    model.joint_models[j], model.structure.joint_kind_codes[j],
+    model.structure.joint_axes[j], model.structure.joint_pitches[j], qj,
+)
 ```
 
-No string dispatch, no type-specific branches outside the joint
-modules themselves. A free-flyer base means the first 7 entries of
+Built-in kinds use precomputed kind codes and grouped tensor paths; custom and
+composite joints retain object dispatch fallbacks. A free-flyer base means the first 7 entries of
 `q` are the base pose `[tx, ty, tz, qx, qy, qz, qw]` and the first 6
 entries of `v` are the base twist `[vx, vy, vz, wx, wy, wz]`.
 Everything else slots in after that.
 
 ## Sharp edges
 
-- `Model.to(device, dtype)` returns a *new* Model — `Model` is
-  frozen. Sharing one `Model` across devices (CPU for diagnostics,
-  CUDA for solving) is a legitimate pattern.
+- `Model.to(device, dtype)` returns a *new* shallowly frozen Model. Keep
+  separate CPU and CUDA models rather than mutating tensor fields in place.
 - `Data` has no `.to()`. Device and dtype follow the input `q`.
 - `nq != nv` for any model with a free-flyer or spherical joint
   (free-flyer: `nq=7`, `nv=6`; spherical: `nq=4`, `nv=3`). Per-joint

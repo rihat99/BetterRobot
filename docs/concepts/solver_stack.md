@@ -363,8 +363,8 @@ class Optimizer(Protocol):
         linear_solver: "LinearSolver",
         kernel: "RobustKernel",
         strategy: "DampingStrategy",
-        scheduler: "StopScheduler" | None = None,
-    ) -> "OptimizationResult":
+        scheduler=None,
+    ) -> "SolverState":
         ...
 ```
 
@@ -374,6 +374,12 @@ Because this is a `Protocol`, any class with a matching `minimize` is
 an `Optimizer` — no inheritance required. User-provided optimisers
 (DDP, iLQR, ADMM, IPOPT) plug in without touching the library; see
 {doc}`/conventions/extension` §3.
+
+The `scheduler` keyword is retained by the legacy call shape for compatibility,
+but no stop-scheduler protocol or implementation is shipped and the built-in
+legacy optimizers currently ignore its value. Stopping is controlled by
+`max_iter` plus each optimizer's own tolerance and, for L-BFGS, line-search
+status.
 
 Built-in optimisers:
 
@@ -395,13 +401,14 @@ custom diagnostics:
 ```python
 @dataclass
 class SolverState:
-    x:             Tensor              # (B..., nx) current iterate
-    residual:      Tensor              # (B..., total_dim) r(x)
-    residual_norm: Tensor              # (B...,) raw 0.5·||r(x)||²
+    x:             Tensor              # (nx,) current iterate
+    residual:      Tensor              # (total_dim,) r(x)
+    residual_norm: Tensor              # scalar raw 0.5·||r(x)||²
     iters:         int
     damping:       float               # λ for LM; 0.0 for other solvers
     gain_ratio:    float | None = None
     status:        Literal["running", "converged", "stalled", "maxiter"] = "running"
+    history:       list[dict] = field(default_factory=list)
 
     @classmethod
     def from_problem(cls, problem: LeastSquaresProblem) -> "SolverState": ...
@@ -487,7 +494,7 @@ Source: `src/better_robot/optim/strategies/`.
 `Adaptive` is the default for LM. It starts at `1e-4`, doubles on
 reject, and halves on accept. `Constant` keeps lambda fixed. The former
 unimplemented trust-region placeholder was removed; the bounded second-order
-algorithm is implemented as part of the new M2b solver rather than a legacy
+algorithm is implemented as part of the named-block solver rather than a legacy
 damping strategy.
 
 ## IK `OptimizerConfig`
@@ -551,6 +558,7 @@ unchanged without a mutable snapshot protocol.
 
 ```python
 def minimize(self, problem, *, max_iter, linear_solver, kernel, strategy, scheduler=None):
+    # ``scheduler`` is a retained compatibility keyword; this solver ignores it.
     state = SolverState.from_problem(problem)
     state.damping = strategy.init(problem)
     cost = _robust_cost(state.residual, kernel)
@@ -596,28 +604,26 @@ when no kernel is selected. The actual implementation also records the
 gain ratio and returns `status="converged"` when its gradient tolerance
 is met.
 
-## Stop schedulers
+## Stopping behavior
 
-```python
-class StopScheduler(Protocol):
-    def should_stop(self, step: int, residual: Tensor, x: Tensor) -> bool: ...
-
-class MaxIterations(StopScheduler):     ...
-class StopOnPlateau(StopScheduler):     ...   # relative improvement
-class EarlyStopOnGradient(StopScheduler): ...
-```
+The legacy optimizers do not ship a stop-scheduler abstraction. LM,
+Gauss--Newton, and Adam terminate on their internal gradient tolerance or
+`max_iter`; L-BFGS can additionally report `status="stalled"` when its line
+search cannot find a descent step. The accepted `scheduler=` keyword is
+currently ignored and should not be used as an extension seam.
 
 ## Results
 
+Legacy optimizers return the `SolverState` described above. The deprecated
+name `OptimizationResult` is an alias to that exact class:
+
 ```python
-@dataclass
-class OptimizationResult:
-    x: Tensor
-    residual: Tensor
-    iters: int
-    converged: bool
-    history: list[dict]              # per-iter {step, loss, lam} — optional
+OptimizationResult = SolverState
 ```
+
+It is not a second dataclass or a narrower result schema. In particular,
+`residual_norm`, `damping`, `gain_ratio`, `status`, and `history` remain
+available, and `converged` is a derived property of `status`.
 
 `solve_ik` and `solve_trajopt` convert named-block tensor state to task result
 objects with scalar diagnostics for unbatched calls and per-element tensors

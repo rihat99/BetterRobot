@@ -17,14 +17,14 @@ All inputs and outputs carry a leading batch shape ``(B...,)``.
 Known limitations:
 
 * The per-joint bias acceleration ``c_J = Ṡ · v`` is dispatched through
-  ``JointModel.joint_bias_acceleration`` (added in P11-pre). It is zero
+  the optional ``JointModel.joint_bias_acceleration`` hook. It is zero
   for every current joint type because their motion subspaces are body-
   frame constant; joints with ``q``-dependent subspaces only need to
   override the hook to plug in correctly.
 * :func:`compute_coriolis_matrix` remains a stub — it requires a separate
   world-frame recursion (Pinocchio ``rnea.hxx`` §CoriolisMatrixForwardStep).
 
-See ``docs/concepts/dynamics.md §2``.
+See ``docs/concepts/dynamics.md``.
 """
 
 from __future__ import annotations
@@ -332,6 +332,6 @@ def compute_coriolis_matrix(
     §CoriolisMatrixForwardStep). Not derivable as a slice of RNEA.
     """
     raise NotImplementedError(
-        "compute_coriolis_matrix is a separate recursion; deferred to a later "
-        "dynamics milestone — see docs/concepts/dynamics.md §2."
+        "compute_coriolis_matrix is a separate recursion; see the deferred "
+        "dynamics work in docs/reference/roadmap.md."
     )

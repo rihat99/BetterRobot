@@ -6,19 +6,20 @@ be bumped (after a deliberate algorithmic change) — the result is
 committed to git as :file:`fk_reference.npz` and read by
 :mod:`tests.kinematics.test_fk_regression`.
 
-Re-running this script with the same seed and pinned versions must
-reproduce the same file bit-for-bit (modulo NumPy float printing).
+Re-running this script with the same seed and pinned versions must reproduce
+the numerical arrays. Archive bytes and the ``generated_at`` metadata may
+differ between runs.
 
 Run:
 
     uv run python tests/kinematics/_generate_fk_reference.py
 
-See ``docs/conventions/testing.md §4.5`` and
-``docs/claude_plan/accepted/12_regression_and_benchmarks.md``.
+See ``docs/conventions/testing.md §5.4``.
 """
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as _dt
 from pathlib import Path
 
@@ -34,8 +35,22 @@ N_CONFIGS = 32  # keep small — < 200 KB total
 
 def _panda():
     from robot_descriptions import panda_description
+    from better_robot.io import build_model, parse_urdf
 
-    return br.load(panda_description.URDF_PATH, dtype=torch.float64)
+    # Keep the historical oracle in full coordinates. Public Panda loading now
+    # reduces the gripper mimic target, while test_fk_regression deliberately
+    # strips that metadata to preserve this algorithm-regression fixture.
+    ir = parse_urdf(panda_description.URDF_PATH)
+    ir.joints = [
+        dataclasses.replace(
+            joint,
+            mimic_source=None,
+            mimic_multiplier=1.0,
+            mimic_offset=0.0,
+        )
+        for joint in ir.joints
+    ]
+    return build_model(ir, dtype=torch.float64)
 
 
 def _g1():
@@ -84,7 +99,7 @@ def main() -> None:
         [
             f"oracle_version={ORACLE_VERSION}",
             f"generation_seed={GENERATION_SEED}",
-            f"generated_with=better_robot.forward_kinematics(compute_frames=True)",
+            "generated_with=better_robot.forward_kinematics(compute_frames=True)",
             "fk_dtype=float64",
             f"generated_at={_dt.datetime.utcnow().strftime('%Y-%m-%d')}",
         ]

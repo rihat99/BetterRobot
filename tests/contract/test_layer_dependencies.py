@@ -18,9 +18,8 @@ PKG = "better_robot"
 # Tests live at tests/contract/<file>.py; src/ is two levels up.
 SRC = Path(__file__).resolve().parents[2] / "src" / PKG
 
-# Higher number = higher in the stack. A file at rank K may only import
-# from ranks <= K (same-rank imports from a different sub-package are also
-# disallowed — see _is_violation below).
+# Higher number = higher in the stack. A file at rank K may only import from
+# ranks <= K; equal-rank cross-package imports are allowed.
 LAYER_RANK: dict[str, int] = {
     "_typing": 1,
     "lie": 2,
@@ -43,7 +42,7 @@ def _layer_of(module_parts: tuple[str, ...]) -> str | None:
         return None
     layer = module_parts[0]
     # ``costs`` is a compatibility import path, not a separate dependency
-    # layer. Its implementation moved into ``optim`` in M2c.
+    # layer; its implementation lives in ``optim``.
     return "optim" if layer == "costs" else layer
 
 
@@ -187,7 +186,7 @@ def test_no_pypose_imports() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Viewer dependency hygiene (docs/concepts/viewer.md §17)
+# Viewer dependency hygiene (docs/concepts/viewer.md, "Dependency hygiene")
 # ---------------------------------------------------------------------------
 
 
@@ -210,7 +209,7 @@ def _check_forbidden_import(allowed_file_suffix: str, forbidden_pkg: str) -> lis
 def test_only_viser_backend_imports_viser() -> None:
     """Only ``viewer/renderers/viser_backend.py`` may import viser.
 
-    See docs/concepts/viewer.md §17.
+    See ``docs/concepts/viewer.md`` ("Dependency hygiene").
     """
     offenders = _check_forbidden_import("viser_backend.py", "viser")
     assert not offenders, "non-viser_backend files importing viser:\n  " + "\n  ".join(offenders)
@@ -219,7 +218,7 @@ def test_only_viser_backend_imports_viser() -> None:
 def test_only_offscreen_backend_imports_pyrender() -> None:
     """Only ``viewer/renderers/offscreen_backend.py`` may import pyrender.
 
-    See docs/concepts/viewer.md §17.
+    See ``docs/concepts/viewer.md`` ("Dependency hygiene").
     """
     offenders = _check_forbidden_import("offscreen_backend.py", "pyrender")
     assert not offenders, "non-offscreen_backend files importing pyrender:\n  " + "\n  ".join(offenders)
@@ -228,7 +227,7 @@ def test_only_offscreen_backend_imports_pyrender() -> None:
 def test_only_urdf_mesh_imports_trimesh() -> None:
     """Only ``viewer/render_modes/urdf_mesh.py`` may import trimesh.
 
-    See docs/concepts/viewer.md §17.
+    See ``docs/concepts/viewer.md`` ("Dependency hygiene").
     """
     offenders = _check_forbidden_import("urdf_mesh.py", "trimesh")
     assert not offenders, "non-urdf_mesh files importing trimesh:\n  " + "\n  ".join(offenders)
@@ -237,7 +236,7 @@ def test_only_urdf_mesh_imports_trimesh() -> None:
 def test_only_recorder_imports_imageio() -> None:
     """Only ``viewer/recorder.py`` may import imageio.
 
-    See docs/concepts/viewer.md §17.
+    See ``docs/concepts/viewer.md`` ("Dependency hygiene").
     """
     offenders: list[str] = []
     for path in _iter_py_files():

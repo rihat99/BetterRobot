@@ -1,7 +1,7 @@
-"""Opt-in Warp FK prototype kernels.
+"""CUDA-validated opt-in Warp FK kernels.
 
 One thread owns one execution-batch element and performs a serial
-topological sweep.  These kernels are forward-only prototypes: their
+topological sweep. These kernels are forward-only: their
 PyTorch custom-op wrapper supplies the VJP by recomputing the torch lane,
 avoiding Warp's unsafe generated adjoint for dynamic loops.
 """
@@ -18,7 +18,7 @@ def _compose_f32(a: wp.transformf, b: wp.transformf) -> wp.transformf:
     Warp's built-in transform multiplication is equivalent on unit
     quaternions, but its off-manifold derivative is not the derivative of
     ``better_robot.lie._impl.se3_compose``.  Placement tensors are public,
-    differentiable values, so the prototype must preserve that derivative as
+    differentiable values, so the fused lane must preserve that derivative as
     well as the on-manifold forward result.
     """
     a_t = wp.transform_get_translation(a)

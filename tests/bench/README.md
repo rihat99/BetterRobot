@@ -2,7 +2,8 @@
 
 Micro-benches for SE3/SO3 ops, forward kinematics, Jacobians, manifold
 integration/difference, and `solve_ik`. They are advisory — the
-bench-cpu-advisory CI job records numbers but does not gate merges.
+manual `benchmarks` workflow job records numbers but does not compare a
+blocking baseline or gate merges.
 
 ## Running
 
@@ -28,11 +29,13 @@ Use the following repository-local review procedure:
 
 1. Confirm the change is intentional (algorithm bump, dependency
    upgrade, hardware flip).
-2. Run the bench on the standard CI machine
-   (`benchmark-json=tests/bench/baseline_cpu.json`).
-3. Open a PR titled `bench-baseline: bump <reason>`, with the new
-   `baseline_cpu.json` and any hardware-named CUDA artifact if relevant.
-4. Two reviewers must approve a baseline bump.
+2. Record the exact hardware, dependency versions, source commit, affinity,
+   warmup, and timing policy. There is no designated standard CI machine yet.
+3. Run the unchanged definition and write a fresh JSON artifact with
+   `--benchmark-json=<path>` (or the standalone harness's `--output`).
+4. Review the raw samples and functional checks, then replace a committed
+   baseline only in an explicit baseline-change commit. No automated reviewer
+   count or comparison gate is configured by this repository.
 
 CUDA artifacts must name the GPU actually measured and carry the environment
 header from `definitions.md`; do not infer a self-hosted runner from a filename.
@@ -48,9 +51,9 @@ header from `definitions.md`; do not infer a self-hosted runner from a filename.
 | `bench_solve_ik.py` | One-shot Panda IK |
 | `bench_trajopt_sparse.py` | M5 dense-vs-banded CPU scaling harness with isolated subprocess RSS |
 | `test_trajopt_sparse_smoke.py` | Normal-suite T=50, one-update structured smoke |
-| `test_mem_watermark.py` | Nightly only: peak memory tracking |
+| `test_mem_watermark.py` | Explicit local/manual peak-memory tracking; not scheduled |
 | `definitions.md` | M6 hardware header, canonical matrix, timing rules, and evidence status |
-| `baseline_cpu.json` | CI-runner baseline (currently a `_status: PLACEHOLDER`; populate from one CI run before relying on the comparison gate) |
+| `baseline_cpu.json` | Legacy pytest-benchmark placeholder; no comparison gate uses it |
 | `baselines/warp_fk_cuda_rtx6000_ada_b*.json` | Measured, fresh-process M6 SMPL FK Warp-vs-compiled-Torch CUDA cases |
 | `baselines/m6_torch_filtered_smpl_b1_rtx6000_ada.json` | Filtered B=1 SMPL FK/RNEA/IK CPU/CUDA eager/compiled evidence; not the complete canonical matrix |
 | `baselines/trajopt_sparse_cpu.json` | M5 Phase-C schema/results; pending the canonical full CPU run |
@@ -59,8 +62,10 @@ header from `definitions.md`; do not infer a self-hosted runner from a filename.
 >
 > `baseline_cpu.json` ships with ``_status: "PLACEHOLDER"`` and an empty
 > ``benchmarks`` list. The
-> CI advisory job will run the suite but cannot detect regressions
-> until it is replaced with real numbers from one known-good CI run. Until
-> then, `bench-cpu-advisory`
-> records numbers but the comparison is meaningless. The first PR that
+> manual `benchmarks` workflow job will run the microbenchmarks but cannot
+> detect regressions
+> until it is replaced with real numbers from one documented, reproducible
+> measurement host. Until
+> then, the workflow records numbers but no baseline comparison occurs. The
+> first change that
 > stabilises the bench fixtures should bump it following the procedure above.

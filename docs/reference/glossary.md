@@ -24,9 +24,8 @@ replace its cryptic *storage* names with readable identifiers.
 | `oMf` | `frame_pose_world` | World-frame pose of frame *f*. |
 | `liMi` | `joint_pose_local` | Parent-frame pose of joint *i*. |
 | `nle` | `bias_forces` | Non-linear effects (gravity + Coriolis). |
-| `Ycrb` | `composite_inertia` | Composite-rigid-body inertia. |
 | `Jcrb` / `M` | `mass_matrix` | Joint-space inertia. |
-| `data.tau` | `data.joint_torques` | Generalised forces. |
+| `data.tau` | `data.tau` (kept) | Generalised forces; universal notation retained. |
 
 Algorithm names retained verbatim: `forward_kinematics`,
 `compute_joint_jacobians`, `rnea`, `aba`, `crba`, `ccrba`, `SE3`,
@@ -40,7 +39,8 @@ Algorithm names retained verbatim: `forward_kinematics`,
 | **FK** | Forward kinematics. |
 | **IR** | Intermediate representation (`IRModel` produced by parsers). |
 | **LM** | Levenberg–Marquardt (default IK solver). |
-| **LWA** | LOCAL_WORLD_ALIGNED Jacobian (the default `get_frame_jacobian` mode). |
+| **LWA** | LOCAL_WORLD_ALIGNED Jacobian: twist at the frame origin, expressed in world axes (the default `get_frame_jacobian` mode). |
+| **WORLD** | Jacobian expressed in world axes and translated to the world origin. |
 | **RNEA / ABA / CRBA** | Recursive Newton–Euler / Articulated-body / Composite-rigid-body algorithms. |
 | **SE(3) / SO(3)** | Special Euclidean / Orthogonal groups (rigid-body / rotation manifolds). |
 

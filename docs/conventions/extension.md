@@ -11,20 +11,19 @@ loop has eighteen branches because every kind of caller had its own
 special case.
 
 We took the opposite path: the core is small, and growth happens at
-**seams** — pluggable interfaces where user or contributor code joins
-without touching the core. Public plugin seams use `typing.Protocol`
-(no inheritance, no MRO surprises, no metaclass tricks) and plain-dict
-registries where discovery is needed. The internal whole-pass compute seam
-is intentionally narrower: it uses an explicit branch in the owning pass,
-not a public plugin registry. The result is that "add an IPOPT-backed optimiser",
-"register a Schur-complement linear solver", or "support a custom robot
-description format" are each isolated PRs in user packages, not
-patches to BetterRobot's solvers, parsers, or task layer.
+**seams** — structural interfaces and explicit construction points where user
+or contributor code joins without a core switch statement. Most public seams
+use `typing.Protocol` (no inheritance, MRO, or metaclass requirement). Parser
+suffix dispatch is the one shipped discovery seam with a public registration
+function. Solvers, kernels, residuals, render modes, and asset resolvers are
+passed as objects. The internal whole-pass compute seam is narrower still: it
+uses an explicit branch in the owning pass, not a public plugin registry.
 
 This document is the canonical list of seams, their contracts, and
-recipes. If you can't find your extension here, the answer is probably
-"don't subclass anything — implement the matching `Protocol` and
-register."
+recipes. If you cannot find an extension here, do not assume a registry or
+decorator exists. Implement the matching structural contract and pass the
+object explicitly, or treat the surface as contributor-only when this guide
+labels it reserved.
 
 ## 0 · Seam map
 
@@ -38,26 +37,27 @@ register."
            │                        │                       │
   ┌────────▼─────────┐     ┌────────▼────────┐     ┌────────▼────────┐
   │ Parser           │     │ Residual        │     │ Optimizer       │
-  │ (URDF, MJCF,     │     │ (explicit       │     │ (Protocol:      │
-  │  programmatic)   │     │  construction)  │     │  .minimize)     │
+  │ (register_parser │     │ (explicit       │     │ (legacy         │
+  │  suffix function)│     │  construction)  │     │  .minimize)     │
   └──────────────────┘     └─────────────────┘     └─────────────────┘
            │                        │                       │
   ┌────────▼─────────┐     ┌────────▼────────┐     ┌────────▼────────┐
   │ Joint model      │     │ Robust kernel   │     │ Linear solver   │
   │ (JointModel      │     │ (Protocol:      │     │ (Protocol:      │
-  │  Protocol)       │     │  .apply)        │     │  .solve)        │
+  │  Protocol)       │     │  .rho/.weight)  │     │  .solve)        │
   └──────────────────┘     └─────────────────┘     └─────────────────┘
            │                        │                       │
   ┌────────▼─────────┐     ┌────────▼────────┐     ┌────────▼────────┐
   │ Collision        │     │ Render mode     │     │ Whole-pass lane │
-  │ primitive        │     │ (RenderMode     │     │ (internal,      │
-  │ (@register_pair) │     │  Protocol)      │     │ explicit branch)│
+  │ pair dispatch    │     │ (RenderMode +   │     │ (internal,      │
+  │ (reserved stub)  │     │  Scene.add_mode)│     │ explicit branch)│
   └──────────────────┘     └─────────────────┘     └─────────────────┘
 ```
 
-Public plugin seams use structural typing rather than inheritance. Users ship
-those extensions as a package that registers itself on import. Whole-pass
-compute work is a contributor integration and follows §10 instead.
+Public object seams use structural typing rather than inheritance. Only a
+custom parser calls a registration function; the other examples below are
+constructed and passed directly. Whole-pass compute work is a contributor
+integration and follows §10 instead.
 
 ## 1 · Add a residual
 
@@ -79,33 +79,29 @@ point for new integrations.
 :::
 
 ```python
-# my_package/residuals/min_torque.py
+# my_package/residuals/neutral.py
 import torch
 
-class MinTorqueResidual:
-    """Penalises the joint torque needed to hold the configuration static.
+class NeutralResidual:
+    """Penalise tangent displacement from the model's neutral pose."""
 
-    dim = nv.
-    """
+    name = "neutral"
 
-    name = "min_torque"
-
-    def __init__(self, model, weight: float = 1.0):
+    def __init__(self, model):
         self.model = model
-        self.weight = weight
-
-    @property
-    def dim(self) -> int:
-        return self.model.nv
+        self.dim = model.nv
 
     def __call__(self, state) -> torch.Tensor:
-        from better_robot import rnea
-        tau = rnea(state.model, state.data, state.q, state.v, state.a)
-        return self.weight * tau
+        target = self.model.q_neutral.to(
+            device=state.variables.device,
+            dtype=state.variables.dtype,
+        )
+        return self.model.difference(target, state.variables)
 
-    # Optional — CostStack falls back to central FD if omitted.
-    def jacobian(self, state) -> torch.Tensor:
-        ...
+    # The method is part of the runtime-checkable legacy Protocol. Returning
+    # None asks AUTO to use its unbatched central-finite-difference fallback.
+    def jacobian(self, state) -> None:
+        return None
 ```
 
 Then:
@@ -113,7 +109,7 @@ Then:
 ```python
 import better_robot as br
 cost = br.CostStack()
-cost.add("min_torque", MinTorqueResidual(model, weight=0.1))
+cost.add("neutral", NeutralResidual(model), weight=0.1)
 ```
 
 Contract (`Residual` Protocol — see {doc}`/concepts/residuals_and_costs`):
@@ -123,11 +119,13 @@ Contract (`Residual` Protocol — see {doc}`/concepts/residuals_and_costs`):
 | `name` | stable class/instance name | Yes |
 | `dim` | `int` property | Yes |
 | `__call__(state) -> Tensor` | residual `(B..., dim)` | Yes |
-| `jacobian(state) -> Tensor` | `(B..., dim, nv)` | No (unbatched central-FD fallback) |
-| `sparsity() -> Tensor[bool]` | column-sparsity mask | No (assumed dense) |
+| `jacobian(state) -> Tensor or None` | `(B..., dim, nv)`, or `None` for unbatched central FD | Yes |
 
 Residuals are instantiated and added explicitly. BetterRobot does not keep a
-process-wide residual registry.
+process-wide residual registry. Put the scalar weight on `CostStack.add`; the
+stack applies that weight to both the residual and its Jacobian. The legacy
+finite-difference fallback is unbatched, which is another reason to prefer the
+named-block guide for new work.
 
 ## 2 · Add a joint type
 
@@ -135,15 +133,17 @@ process-wide residual registry.
 built-in taxonomy (coupled joints, splined motion, helical with
 non-constant pitch, etc.).
 
-Built-in joint types live under `data_model/joint_models/`; each is a
-single file that implements `JointModel`:
+Built-in joint types live under `data_model/joint_models/`; each structurally
+implements `JointModel`. The following is an **interface sketch**, not a
+complete coupled-joint implementation—the transform, subspace, and manifold
+math are specific to the joint:
 
 ```python
 # my_package/joint_models/coupled.py
-from better_robot.data_model.joint_models.base import JointModel
 import torch
 
-class JointCoupled(JointModel):
+class JointCoupled:
+    kind = "coupled"
     nq = 1
     nv = 1
 
@@ -159,59 +159,119 @@ class JointCoupled(JointModel):
         """Return the 6 × nv motion subspace matrix S(q)."""
         ...
 
+    def joint_velocity(self, q, v) -> torch.Tensor:
+        return (self.joint_motion_subspace(q) @ v.unsqueeze(-1)).squeeze(-1)
+
     def integrate(self, q, v) -> torch.Tensor: ...
     def difference(self, q0, q1) -> torch.Tensor: ...
-    def random_configuration(self, rng, lower, upper) -> torch.Tensor: ...
+    def random_configuration(self, generator, lower, upper) -> torch.Tensor: ...
+    def neutral(self) -> torch.Tensor: ...
 
-    # Dynamics hooks (default: zeros). Override for non-trivial joints.
-    def joint_bias_acceleration(self, q, v) -> torch.Tensor:           # (B..., 6)
-        ...
-    def joint_motion_subspace_derivative(self, q, v) -> torch.Tensor:  # (B..., 6, nv)
-        ...
+    # Optional dynamics hooks may be added here. When they are absent, the
+    # dynamics dispatch helpers supply zero bias/subspace derivatives.
 ```
 
-Register by passing an instance through the parser's `extensions={...}`
-kwarg, or directly in a programmatic model:
+There is no joint registry and `load` has no `extensions=` argument. The
+shipped external wiring point is the programmatic builder. It preserves the
+exact `JointModel` instance in the built model:
 
 ```python
-from better_robot.io import ModelBuilder
-mb = ModelBuilder()
-mb.add_joint(name="finger_1", kind=JointCoupled(axis=..., coupling=...))
+import torch
+
+from better_robot.io import ModelBuilder, build_model
+
+builder = ModelBuilder("coupled_finger")
+base = builder.add_body("base")
+finger = builder.add_body("finger")
+builder.add_joint(
+    "finger_1",
+    kind=JointCoupled(
+        axis=torch.tensor([0.0, 0.0, 1.0]),
+        coupling=torch.tensor([1.0]),
+    ),
+    parent=base,
+    child=finger,
+)
+model = build_model(builder.finalize())
 ```
 
 Contract (`JointModel` Protocol):
 
 | Member | Signature | Semantics |
 |--------|-----------|-----------|
+| `kind` | stable `str` | Joint discriminator preserved in the model |
 | `nq` | `int` | Config-space dim for this joint |
 | `nv` | `int` | Tangent-space dim for this joint |
+| `axis` | `Tensor` or `None` | Unit axis for axis-based joints; otherwise `None` |
 | `joint_transform(q)` | `(B..., nq) -> (B..., 7)` | Joint's own SE(3) motion |
 | `joint_motion_subspace(q)` | `(B..., nq) -> (B..., 6, nv)` | Motion subspace `S(q)` |
+| `joint_velocity(q, v)` | `(B..., nq), (B..., nv) -> (B..., 6)` | Joint-frame spatial velocity |
 | `integrate(q, v)` | `(B..., nq), (B..., nv) -> (B..., nq)` | Manifold retraction |
 | `difference(q0, q1)` | `(B..., nq), (B..., nq) -> (B..., nv)` | Manifold log |
-| `random_configuration(rng, lo, hi)` | → `(nq,)` | Sample respecting limits |
+| `random_configuration(generator, lo, hi)` | → `(nq,)` | Sample respecting limits |
+| `neutral()` | → `(nq,)` | Identity/default configuration |
 
 The FK loop calls `joint_transform`; Jacobian computation calls
-`joint_motion_subspace`. Adding a new joint is isolated to one file.
+`joint_motion_subspace`. The dynamics hooks are optional and default to zero.
+Runtime construction accepts a stable custom string `kind`, although the
+exported `JointKind` type alias enumerates built-ins and is not an open typing
+registry.
 
 ## 3 · Add an optimiser
 
-**Use when:** you want a new solver (IPOPT wrapper, DDP / iLQR, ADMM, …).
+**Use when:** you want a solver for the retained, unbatched
+`LeastSquaresProblem` contract. Named-block solvers have a different
+`Problem`/`Values` lifecycle and do not share this legacy `Optimizer` Protocol.
+
+This minimal gradient-descent implementation is runnable and shows the exact
+call signature. A production solver should add its own validation and
+diagnostics:
 
 ```python
-# my_package/optim/ddp.py
-from better_robot.optim import Optimizer, SolverState
+# my_package/optim/gradient_descent.py
+import torch
 
-class DDP:
-    def __init__(self, *, max_iter: int = 50, tol: float = 1e-6):
-        ...
+from better_robot.optim import SolverState
 
-    def minimize(self, problem) -> SolverState:
+class GradientDescent:
+    def __init__(self, *, learning_rate: float = 1e-2, tol: float = 1e-6):
+        self.learning_rate = learning_rate
+        self.tol = tol
+
+    def minimize(
+        self,
+        problem,
+        *,
+        max_iter: int = 50,
+        linear_solver=None,
+        kernel=None,
+        strategy=None,
+        scheduler=None,
+    ) -> SolverState:
+        if any(x is not None for x in (linear_solver, kernel, strategy, scheduler)):
+            raise ValueError("GradientDescent does not consume solver components")
         state = SolverState.from_problem(problem)
-        for _ in range(self.max_iter):
-            state = self._step(problem, state)
-            if state.converged(self.tol):
-                break
+        for iteration in range(max_iter):
+            jacobian = problem.jacobian(state.x)
+            gradient = jacobian.mT @ state.residual
+            if not bool(torch.isfinite(gradient).all()):
+                state.status = "stalled"
+                return state
+            if float(torch.linalg.vector_norm(gradient)) <= self.tol:
+                state.status = "converged"
+                return state
+
+            next_x = problem.step(state.x, -self.learning_rate * gradient)
+            if problem.lower is not None:
+                next_x = torch.maximum(next_x, problem.lower.to(next_x))
+            if problem.upper is not None:
+                next_x = torch.minimum(next_x, problem.upper.to(next_x))
+            state.x = next_x
+            state.residual = problem.residual(state.x)
+            state.residual_norm = 0.5 * (state.residual * state.residual).sum()
+            state.iters = iteration + 1
+
+        state.status = "maxiter"
         return state
 ```
 
@@ -220,31 +280,60 @@ Contract (`Optimizer` Protocol):
 ```python
 @runtime_checkable
 class Optimizer(Protocol):
-    def minimize(self, problem: LeastSquaresProblem) -> SolverState: ...
+    def minimize(
+        self,
+        problem: LeastSquaresProblem,
+        *,
+        max_iter: int,
+        linear_solver,
+        kernel,
+        strategy,
+        scheduler=None,
+    ) -> SolverState: ...
 ```
 
-`SolverState` carries `x`, `residual_norm`, `iters`, `converged`, and
-any solver-specific diagnostics. A `LeastSquaresProblem` is fully
-self-describing — it knows its residual, Jacobian strategy, bounds, and
-initial guess. The solver is stateless across `minimize(...)` calls.
+`SolverState` carries `x`, `residual`, `residual_norm`, `iters`, `damping`,
+`gain_ratio`, `status`, and `history`; `converged` is a read-only property
+derived from `status`. A `LeastSquaresProblem` owns its residual/Jacobian,
+bounds, initial guess, and optional manifold retraction. Custom legacy
+optimizers are instantiated and called directly; `solve_ik` and
+`solve_trajopt` do not discover them from a registry.
 
-## 4 · Add a damping strategy (LM / trust region)
+## 4 · Add a legacy LM damping strategy
 
 ```python
-# my_package/optim/strategies/dogleg.py
-from better_robot.optim.strategies import DampingStrategy
+class MultiplicativeDamping:
+    def __init__(self, initial: float = 1e-4, factor: float = 2.0):
+        self.initial = initial
+        self.factor = factor
 
-class Dogleg(DampingStrategy):
-    def initial(self) -> float: ...
-    def accept(self, prev: float, gain_ratio: float) -> float: ...
-    def reject(self, prev: float) -> float: ...
+    def init(self, problem) -> float:
+        return self.initial
+
+    def accept(self, lam: float) -> float:
+        return lam / self.factor
+
+    def reject(self, lam: float) -> float:
+        return lam * self.factor
 ```
 
 Then:
 
 ```python
-cfg = OptimizerConfig(optimizer="lm", damping=Dogleg(radius0=0.5))
+from better_robot.optim.optimizers import LevenbergMarquardt
+
+result = LevenbergMarquardt().minimize(
+    problem,
+    max_iter=50,
+    strategy=MultiplicativeDamping(),
+)
 ```
+
+The exact structural contract is `init(problem)`, `accept(lam)`, and
+`reject(lam)`. It does not receive a gain ratio. This seam belongs to the
+legacy LM optimizer; task `OptimizerConfig.damping` accepts only the shipped
+string choices, and named-block LM configures damping through its own frozen
+fields.
 
 ## 5 · Add a linear solver
 
@@ -252,22 +341,30 @@ cfg = OptimizerConfig(optimizer="lm", damping=Dogleg(radius0=0.5))
 cannot exploit (large trajopt), or you want KKT / iterative methods.
 
 ```python
-# my_package/optim/solvers/schur.py
-from better_robot.optim.solvers import LinearSolver
+# my_package/optim/solvers/dense_solve.py
+import torch
 
-class Schur(LinearSolver):
-    def solve(self, A, b, ridge=None) -> torch.Tensor:
-        """Solve (A + ridge I) x = b. Return x."""
-        ...
+class DenseSolve:
+    supported_systems = frozenset({"dense"})
+
+    def solve(self, A, b, ridge=None):
+        matrix = A
+        if ridge is not None:
+            ridge = torch.as_tensor(ridge, dtype=A.dtype, device=A.device)
+            identity = torch.eye(A.shape[-1], dtype=A.dtype, device=A.device)
+            matrix = A + ridge[..., None, None] * identity
+        return torch.linalg.solve(matrix, b.to(A.dtype)).to(b.dtype)
 ```
 
 Contract: one method, `solve(A, b: (B...,n), ridge: (B...,) | scalar | None)`
 returning `(B...,n)`, plus a static `supported_systems` set when the solver is
-not dense-only. `A` is a dense tensor, `BlockBandedMatrix`, or
+not dense-only. The recognized system strings are `"dense"`, `"banded"`, and
+`"operator"`; `A` is respectively a tensor, `BlockBandedMatrix`, or
 `NormalOperator`. The shipped implementations are dense `Cholesky`/`LSTSQ`,
-`BandedCholesky`, and `NormalCG`. Custom solvers keep the same `b`/`ridge`
-semantics and should implement `solve_with_info` only when they can provide
-per-element health diagnostics.
+`BandedCholesky`, and `NormalCG`. If `supported_systems` is absent, routing
+assumes dense-only. Custom solvers keep the same `b`/`ridge` semantics and
+should implement `solve_with_info` only when they return the full
+`LinearSolveResult` diagnostics contract.
 
 ## 6 · Add a robust kernel
 
@@ -275,9 +372,7 @@ per-element health diagnostics.
 # my_package/optim/kernels/soft_l1.py
 import torch
 
-from better_robot.optim.kernels.base import RobustKernel
-
-class SoftL1(RobustKernel):
+class SoftL1:
     def rho(self, squared_norm: torch.Tensor) -> torch.Tensor:
         """Soft-L1 objective ``sqrt(1 + s) - 1``."""
         return torch.sqrt(1.0 + squared_norm) - 1.0
@@ -291,72 +386,103 @@ LM uses `rho(s)` to accept trial steps and `weight(s)` to form the IRLS
 normal equations. Both methods preserve the input shape; built-in kernels
 use the normalized convention `weight(s) = 2·rho'(s)`.
 
-## 7 · Add a collision primitive
+## 7 · Collision pair extensions (reserved stub)
 
-```python
-# my_package/collision/ellipsoid.py
-from dataclasses import dataclass
-import torch
-from better_robot.collision.pairs import register_pair
+This is not a working external extension seam yet. Geometry value classes and
+`register_pair(type_a, type_b)` exist, but the public `distance(a, b)`
+dispatcher still raises `NotImplementedError` and does not read the pair
+table. Registration stores only the exact forward `(type_a, type_b)` key; it
+does not add a reversed entry or infer symmetry.
 
-@dataclass
-class Ellipsoid:
-    center: torch.Tensor
-    semi_axes: torch.Tensor
-    R: torch.Tensor
-
-@register_pair(Ellipsoid, "Sphere")
-def sdf_ellipsoid_sphere(a: Ellipsoid, b) -> torch.Tensor:
-    ...
-    return d                       # (B..., 1)
-```
-
-Contract: each pair is a function `(Primitive, Primitive) -> (B..., 1)`
-returning signed distance. `register_pair` keys on `(type(a), type(b))`
-and auto-registers the reversed order when symmetric.
+Until the dispatcher and built-in pair kernels ship together, keep a custom
+signed-distance function in consumer code and call it directly. A future
+contributor implementation must define the output/batching contract, wire the
+table into `distance`, and register each supported order explicitly. Do not
+publish a third-party `@register_pair` recipe as functional today.
 
 ## 8 · Add a render mode
 
 ```python
 # my_package/viewer/my_mode.py
-from better_robot.viewer import RenderMode
+class JointFrameMode:
+    name = "Joint frames"
+    description = "One coordinate frame at every joint"
 
-class MyMode(RenderMode):
-    name = "my_mode"
+    def __init__(self):
+        self.context = None
+        self.nodes = []
 
-    def is_available(self, model) -> bool: ...
-    def attach(self, ctx) -> None: ...
-    def update(self, ctx, data) -> None: ...
-    def set_visible(self, visible: bool) -> None: ...
-    def detach(self) -> None: ...
+    @classmethod
+    def is_available(cls, model, data) -> bool:
+        return data.joint_pose_world is not None
+
+    def attach(self, context, model, data) -> None:
+        self.context = context
+        for joint_id in range(model.njoints):
+            node = f"{context.namespace}/joint_{joint_id}"
+            context.backend.add_frame(node, axes_length=0.08)
+            self.nodes.append(node)
+        self.update(data)
+
+    def update(self, data) -> None:
+        assert self.context is not None
+        poses = data.joint_pose_world
+        assert poses is not None and poses.ndim == 2  # unbatched example
+        for node, pose in zip(self.nodes, poses, strict=True):
+            self.context.backend.set_transform(node, pose)
+
+    def set_visible(self, visible: bool) -> None:
+        assert self.context is not None
+        for node in self.nodes:
+            self.context.backend.set_visible(node, visible)
+
+    def detach(self) -> None:
+        assert self.context is not None
+        for node in self.nodes:
+            self.context.backend.remove(node)
+        self.nodes.clear()
+        self.context = None
 ```
 
-Register:
+Attach an instance explicitly to a scene:
 
 ```python
-from better_robot.viewer import MODE_REGISTRY
-MODE_REGISTRY["my_mode"] = MyMode
+viewer.scene().add_mode(JointFrameMode())
 ```
+
+The lifecycle signature is
+`is_available(model, data)`, `attach(context, model, data)`, `update(data)`,
+`set_visible(visible)`, and `detach()`. `description` is also required by the
+runtime-checkable Protocol. `better_robot.viewer` does not export a public
+mode registry, and `Scene.default` does not discover third-party registry
+entries; explicit `Scene.add_mode` is the supported seam.
 
 ## 9 · Add a parser format
 
 **Use when:** robot description in a format other than URDF / MJCF
 (SDF, Drake YAML, custom XML).
 
+The format conversion is necessarily format-specific, so this is a **signature
+sketch**, not a complete SDF parser:
+
 ```python
 # my_package/io/parse_sdf.py
 from better_robot.io import IRModel, register_parser
 
-@register_parser(suffix=".sdf")
 def parse_sdf(source) -> IRModel:
     ir = IRModel(...)
     ...
     return ir
+
+register_parser("sdf", parse_sdf)
 ```
 
-`better_robot.load(path)` dispatches on suffix. The parser returns an
-`IRModel`; `build_model` finalises it. See
-{doc}`/concepts/parsers_and_ir`.
+`register_parser` is a two-argument function, not a decorator. The key omits
+the leading dot because `load` strips and lowercases a path suffix before
+lookup. The registered callable receives only `source` and returns an
+`IRModel`; `load` then calls `build_model`. Registration is process-local,
+silently replaces an existing key, and takes effect only after the extension
+module is imported. See {doc}`/concepts/parsers_and_ir`.
 
 ## 10 · Add a whole-pass compute lane
 
@@ -376,43 +502,54 @@ An opt-in lane must:
 2. reject or intentionally fall back for unsupported joint kinds, devices,
    dtypes, and shapes;
 3. match the Torch raw pass on shared forward fixtures;
-4. expose a tested analytic adjoint through Torch autograd without leaking
-   optional runtime arrays;
+4. expose a tested Torch-autograd adjoint strategy—either a validated kernel
+   or an explicitly correct oracle recomputation—without leaking optional
+   runtime arrays;
 5. preserve the flat-`E` `ExecutionBatch` mapping when inputs broadcast; and
 6. keep optional imports local to the owning pass.
 
 For Warp, conversion and custom-autograd plumbing belong in that local
-integration module. Graph capture is separate roadmap work: when added, it
-must record forward and backward together and must not invent a public
-capture decorator before the solver lifecycle is capture-safe.
+integration module. The private experimental
+``better_robot.optim._graph_executor.GraphExecutor`` has CUDA replay evidence
+for fixed groups of named-block LM updates and mixed Torch/Warp FK. It is not
+a production solver caller or public API. New capture integration must keep
+forward and backward in one stable lifecycle and must not invent a public
+capture decorator before an end-to-end solver path is certified.
 
-## 11 · Registry mechanics where discovery exists
+## 11 · Discovery and explicit construction
 
-Only discovery-oriented seams keep process-local dictionaries today:
-parser suffixes, viewer render modes/renderers, and collision primitive
-pairs. Residuals are constructed and added to a `CostStack` explicitly;
-optimizers, kernels, strategies, and solvers are likewise passed as objects
-or configuration choices rather than discovered through a global table.
+Parser suffixes are the only working public discovery registry. Use
+`register_parser(suffix, fn)`; do not mutate the private `_PARSERS` dictionary.
+Residuals, optimizers, kernels, damping strategies, linear solvers, render
+modes, renderer backends, and asset resolvers are passed explicitly.
 
-**Rule:** do not add entry-point auto-discovery. A documented registry is a
-plain dictionary, and extension packages register explicitly on import. This
-keeps imports fast and failures loud. Whole-pass compute lanes never use a
-registry.
+There are internal `MODE_REGISTRY`, `RENDERER_REGISTRY`, and collision pair
+tables in the source tree, but they are not general public plugin seams:
+`Scene.default` chooses its built-ins directly, the renderer table has no
+public registration flow, and collision `distance` is still a stub. Their
+presence is not evidence that an import-time third-party registration recipe
+works.
+
+**Rule:** do not add entry-point auto-discovery or mutate an internal table in
+consumer code. Whole-pass compute lanes also never use a registry.
 
 ## 12 · Trajectory parameterisations
 
-**Use when:** you are implementing a numerical mapping between sampled values
-and a lower-dimensional basis (for example a cosine basis). The current
-Protocol owns only the numerical mapping `z ↔ q_traj`; custom robot task
+**Use when:** you are implementing a stand-alone numerical mapping between
+sampled values and a lower-dimensional basis (for example a cosine basis).
+The current Protocol owns only seed projection and expansion
+`q_traj_seed -> z -> q_traj`; custom robot task
 integration additionally needs a separately reviewed manifold retraction,
 local Jacobian, and feasible-bound contract:
 
+The class below is an **interface sketch**; its three method bodies are the
+format-specific numerical implementation:
+
 ```python
 # my_package/parameterizations/log_basis.py
-from better_robot.tasks.parameterization import TrajectoryParameterization
 import torch
 
-class LogBasisTrajectory(TrajectoryParameterization):
+class LogBasisTrajectory:
     def init(self, q_traj_seed: torch.Tensor) -> torch.Tensor: ...
     def expand(self, z: torch.Tensor, *, T: int, nq: int) -> torch.Tensor: ...
     def tangent_dim_per_step(self) -> int: ...
@@ -431,24 +568,43 @@ bucket, embedded asset bundle, in-process cache).
 
 ```python
 from pathlib import Path
-from better_robot.io.assets import AssetResolver
 
-class S3AssetResolver(AssetResolver):
-    def __init__(self, bucket: str, cache_dir: Path) -> None: ...
-    def resolve(self, uri: str, *, base_path: Path | None = None) -> Path: ...
-    def exists (self, uri: str, *, base_path: Path | None = None) -> bool: ...
+class MappingResolver:
+    def __init__(self, assets: dict[str, Path]) -> None:
+        self.assets = dict(assets)
 
-import better_robot as br
-model = br.load("robot.urdf", resolver=S3AssetResolver(...))
+    def resolve(self, uri: str) -> Path:
+        try:
+            path = self.assets[uri].resolve()
+        except KeyError as exc:
+            raise FileNotFoundError(uri) from exc
+        if not path.exists():
+            raise FileNotFoundError(path)
+        return path
+
+from better_robot.io import build_model
+from better_robot.io.parsers import parse_urdf
+
+resolver = MappingResolver({"asset://arm.stl": Path("meshes/arm.stl")})
+ir = parse_urdf("robot.urdf", resolver=resolver)
+model = build_model(ir)
 ```
+
+The exact `AssetResolver` Protocol has one method:
+`resolve(uri: str) -> Path`. Missing assets raise `FileNotFoundError`; there is
+no `exists` method or per-call `base_path` keyword. `better_robot.load` does
+not currently accept `resolver=`, so callers that need a parse-time resolver
+call `parse_urdf` or `parse_mjcf` and then `build_model` as above. The resolver
+is preserved in `model.meta` for mesh rendering.
 
 Concrete resolvers shipped in core: `FilesystemResolver`,
 `PackageResolver`, `CompositeResolver`, `CachedDownloadResolver`.
 
-## 14 · Add an actuator (e.g. muscle)
+## 14 · Actuator design (not a shipped seam)
 
-**Use when:** you have a non-rigid actuator that contributes to joint
-torque (DeGrooteFregly muscles, splined dampers, …).
+BetterRobot does not currently ship a ``Muscle`` Protocol, actuator registry,
+or ``human`` extra. The sketch below records how a future or external
+non-rigid actuator could contribute to joint torque; it is not importable API.
 
 A `Muscle` Protocol composes with `dynamics/`:
 
@@ -460,14 +616,17 @@ class Muscle(Protocol):
     def moment_arm(self, model, q) -> Tensor:      # (B..., nv)
 ```
 
-The dispatch into `rnea` / `aba` is via the existing `fext` / additive
-joint-space torque term:
-`tau += sum(muscle.compute_force(q,v,u) * muscle.moment_arm(model,q))`.
-`dynamics/` stays muscle-agnostic.
+There is no actuator dispatch hook in `rnea` or `aba`. External code can form
+generalized actuator torque as
+`sum(force(q, v, u) * moment_arm(model, q))` and add it to the `tau` passed to
+`aba`. `rnea` instead returns the generalized torque required for prescribed
+motion, so an external actuator model can compare or subtract its contribution
+afterward. The existing `fext` argument is specifically a per-body local
+spatial wrench, not a generic actuator callback.
 
-OpenSim DeGrooteFregly2016 muscles ship in the sibling
-`better_robot_human` extension package (under the `[human]` extra);
-core BetterRobot does not import `chumpy`, SMPL, or OpenSim.
+No OpenSim/DeGrooteFregly implementation or sibling
+``better_robot_human`` package is provided by this repository. Core
+BetterRobot does not import ``chumpy``, SMPL, or OpenSim.
 
 ## 15 · What is **not** pluggable (deliberately)
 
@@ -484,8 +643,9 @@ core BetterRobot does not import `chumpy`, SMPL, or OpenSim.
 Every new extension PR:
 
 1. **Uses the owning seam's explicit construction or documented registry.**
-2. **Passes the `Protocol` check** — `isinstance(instance, Protocol)`
-   is True.
+2. **Passes the `Protocol` check when that seam exposes one** — verify
+   `isinstance(instance, Protocol)` for the runtime-checkable object seams;
+   parser callables and reserved contributor sketches are not Protocols.
 3. **Ships a unit test** that exercises the happy path on a toy model
    and one failure mode (bad input, missing method).
 4. **Updates exactly one cross-cutting doc** if the extension is

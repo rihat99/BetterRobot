@@ -1,11 +1,12 @@
-"""``Model`` — frozen kinematic-tree description (Pinocchio-style).
+"""``Model`` — shallowly frozen kinematic-tree description (Pinocchio-style).
 
-``Model`` is built once, shared across workers/devices, and never mutated.
-Every tensor buffer is device/dtype polymorphic via ``.to()``. The static
-vs floating-base distinction **disappears**: a floating base is simply
+``Model`` prevents field reassignment, but contained tensors, dictionaries,
+and joint objects are not deeply immutable. Callers must treat those contents
+as read-only and use ``.to()`` to create a device/dtype-specific model. The
+static vs floating-base distinction **disappears**: a floating base is simply
 ``joint_models[1] = JointFreeFlyer``.
 
-See ``docs/concepts/model_and_data.md §2``.
+See ``docs/concepts/model_and_data.md`` ("Model — frozen topology").
 """
 
 from __future__ import annotations
@@ -29,12 +30,13 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class Model:
-    """Immutable kinematic-tree description.
+    """Shallowly frozen kinematic-tree description.
 
     Joint 0 is the universe (``parents[0] == -1``). Every other joint has
     exactly one parent joint. Bodies are 1:1 with joints: ``body[i]`` is the
     body attached to joint ``i`` via ``joint_placements[i]``. A free-flyer
-    root is just ``joint_models[1] = JointFreeFlyer``.
+    root is just ``joint_models[1] = JointFreeFlyer``. Contained mutable
+    objects must be treated as read-only by callers.
     """
 
     # ──────────── counts ────────────
@@ -128,7 +130,7 @@ class Model:
         values: "ModelValues",
         field_updates: dict[str, object] | None = None,
     ) -> "Model":
-        """Copy immutable metadata without rebuilding topology.
+        """Copy topology metadata by reference without rebuilding it.
 
         ``dataclasses.replace`` intentionally calls ``__post_init__`` and is
         therefore unsuitable for the public value-rebind hot path.
@@ -232,7 +234,7 @@ class Model:
     def to(self, device=None, dtype=None) -> "Model":
         """Return a new ``Model`` with every tensor buffer moved to the given
         device and/or dtype. Topology / names / joint models are shared by
-        reference (they are immutable).
+        reference and must be treated as read-only.
         """
         structure = self.structure.to(device=device, dtype=dtype)
         values = self.values.to(device=device, dtype=dtype)

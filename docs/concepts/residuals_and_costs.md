@@ -80,7 +80,7 @@ Live, with analytic `.jacobian()`:
 
 Live without an analytic Jacobian (their `.jacobian()` returns `None` and
 named-block `Problem` uses tangent-space `torch.func` AD; the legacy
-`CostStack` lane uses unbatched central finite differences:
+`CostStack` lane uses unbatched central finite differences):
 
 | File | Class | dim | Notes |
 |------|-------|-----|-------|
@@ -94,7 +94,7 @@ Stubs (raise `NotImplementedError`; signatures pinned):
 | `smoothness.py` | `JerkResidual` | Third-derivative smoothness |
 | `manipulability.py` | `YoshikawaResidual` | det(J Jᵀ)^½ |
 | `regularization.py` | `NullspaceResidual` | Project gradient onto null space |
-| `collision.py` | `SelfCollisionResidual`, `WorldCollisionResidual` | Live geometry; residual side stubbed |
+| `collision.py` | `SelfCollisionResidual`, `WorldCollisionResidual` | Collision primitives and residual evaluation are currently stubbed |
 | `limits.py` | `JointVelocityLimit.jacobian`, `JointAccelLimit` | `__call__` works; analytic Jacobian or full body pending |
 
 A residual with no analytic `.jacobian()` simply returns `None`; the

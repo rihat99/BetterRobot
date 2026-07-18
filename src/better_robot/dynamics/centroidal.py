@@ -13,7 +13,7 @@ Implementation strategy (Featherstone-style, no separate backward pass):
 * Transport ``F`` to the centroidal frame via
   ``A_g[:, iv_i:iv_i+nv_i] = Ad(T_{g, i})⁻ᵀ · F``.
 
-See ``docs/concepts/dynamics.md §3``.
+See ``docs/concepts/dynamics.md`` ("Centroidal").
 """
 
 from __future__ import annotations
@@ -138,17 +138,16 @@ def center_of_mass(
 ) -> torch.Tensor:
     """Whole-body center of mass. ``(B..., 3)``.
 
-    Populates ``data.com_position`` (and ``data.com_velocity`` /
-    ``data.com_acceleration`` when ``v`` / ``a`` are given via
-    :func:`compute_centroidal_momentum`).
+    Populates ``data.com_position`` and, when ``v`` is supplied,
+    ``data.com_velocity``. Acceleration input is currently unsupported and
+    raises :class:`NotImplementedError`; ``data.com_acceleration`` is not
+    populated.
 
     The function runs its own FK pass; callers do not need to populate
     ``data`` beforehand.
     """
     if a is not None:
-        raise NotImplementedError(
-            "center-of-mass acceleration is not implemented; omit a or track the centroidal-derivatives milestone"
-        )
+        raise NotImplementedError("center-of-mass acceleration is not implemented; omit a")
     query_inputs = {} if v is None else {"v": (v, (model.nv,))}
     q, prepared, _ = prepare_dynamics_inputs(
         model.structure,

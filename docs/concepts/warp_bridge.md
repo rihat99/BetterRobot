@@ -1,10 +1,11 @@
-# Torch–Warp bridge prototype
+# Torch–Warp bridge and opt-in FK lane
 
-The M1 Warp lane is an opt-in proof that the structure/value seam can drive a
-real fused pass. It is not a global backend and it is not selected for ordinary
-calls. ``forward_kinematics(..., use_warp=True)`` attempts the prototype and
+The Torch–Warp bridge is the shipped pattern for driving a fused whole pass
+from the structure/value seam. The FK implementation is CUDA-validated but
+remains opt-in: it is not a global backend and it is not selected for ordinary
+calls. ``forward_kinematics(..., use_warp=True)`` attempts the fused lane and
 falls back to the Torch raw pass when a joint kind, dtype, or layout is not
-supported.
+supported. Other Warp passes remain unimplemented.
 
 ## Functional boundary
 
@@ -24,7 +25,7 @@ autograd formula for a non-functional custom operator.
 | Warp gradient ownership | ``wp.from_torch(..., requires_grad=False)`` | Avoids deferred Warp ``.grad`` synchronization and double accumulation |
 | First-order VJP | Recompute the Torch FK table pass in the registered autograd formula | Gradcheck for q, joint placements, frame placements, and shared-value reduction |
 | Second order | Grad-enabled backward recomputes with ``create_graph=True`` | Public bridge gradgradcheck, including zero joint angle |
-| Capture | Public supported selector and direct functional forward op are CUDA-graph replayable | CUDA replay parity tests; unsupported selector fallbacks hard-error during capture |
+| Capture | Private bridge selector and direct functional forward op are CUDA-graph replayable | CUDA replay parity tests; unsupported private-selector fallbacks hard-error during capture |
 
 The registered forward formula performs its Torch-lane recomputation directly.
 A custom-op implementation executes below Torch's Autograd dispatch key, so it
@@ -64,13 +65,16 @@ forward-only wins over compiled Torch at every measured batch size. Any
 default-on decision remains an owner review because the backward path is a
 Torch recomputation and was not part of that timing.
 
-## Known prototype limits
+## Known limits
 
 - The Torch VJP currently reads immutable topology tables to the host. That is
   correct but is not suitable for a captured hot backward loop.
-- The supported public selection path and direct custom op are capture-tested.
+- The private bridge selection path and direct custom op are capture-tested.
   An otherwise-silent dtype, model, batch, or layout fallback hard-errors
   during capture instead of baking a hidden lane change into the graph.
+- The public ``forward_kinematics(..., use_warp=True)`` facade is not itself
+  exercised inside a CUDA graph, so the private bridge evidence must not be
+  described as public-facade capture certification.
 - FK CUDA graph replay has been validated for the forward op only. The
   separate internal solver harness captures nonlinear jacrev work, but the
   public solver does not yet capture an end-to-end FK/backward/iteration

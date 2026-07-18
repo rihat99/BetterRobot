@@ -2,6 +2,9 @@
 
 PyTorch-native library for robot kinematics, optimization, and visualization.
 
+Read the browser documentation at
+[rihat99.github.io/BetterRobot](https://rihat99.github.io/BetterRobot/).
+
 ## Installation
 
 Requires [uv](https://docs.astral.sh/uv/):
@@ -18,7 +21,7 @@ requirements. Install extras for the surfaces you use:
 ```bash
 uv sync --extra demos --extra viewer  # bundled examples and browser viewer
 uv sync --extra io-mjcf               # MJCF loading
-uv sync --extra warp                  # opt-in Warp FK prototype
+uv sync --extra warp                  # CUDA-validated opt-in Warp FK lane
 uv sync --extra dev                   # tests, benchmarks, docs, and lint tools
 ```
 
@@ -57,7 +60,7 @@ Floating-base robots (e.g. humanoids):
 ```python
 from robot_descriptions import g1_description
 
-model = br.load(g1_description.URDF_PATH, free_flyer=True)
+g1_model = br.load(g1_description.URDF_PATH, free_flyer=True)
 # First 7 DOF of q are the base pose [tx, ty, tz, qx, qy, qz, qw]
 ```
 
@@ -74,7 +77,7 @@ viewer = Visualizer(model, port=8080)
 viewer.update(result.q)
 
 # Draggable IK targets — returns a TargetsOverlay for polling
-overlay = viewer.add_ik_targets({"body_panda_hand": T_target}, scale=0.15)
+overlay = viewer.add_ik_targets({"body_panda_hand": T_hand}, scale=0.15)
 viewer.show(block=False)
 
 # Main-loop interactive IK
@@ -98,15 +101,16 @@ src/better_robot/
   residuals/     Pose, Position, Orientation, Limits, Rest
   costs/         CostStack
   optim/         named-block Problem evaluation plus legacy LM/GN/Adam/L-BFGS
-  tasks/         solve_ik, IKCostConfig, OptimizerConfig
+  tasks/         solve_ik, solve_trajopt, solve_contact_forces, Trajectory
   viewer/        Visualizer, Scene, render modes, overlays
   io/            URDF/MJCF loading
 ```
 
 Named variable blocks, manifolds, residual items, and provider DAGs are public
-under `better_robot.optim`. M2a provides batched evaluation for caller-owned
-loops; the existing task facades continue to use the legacy solver stack until
-their M2c migration. See
+under `better_robot.optim`. Named-block Adam/LM/GN and the `solve_ik` and
+knot-based `solve_trajopt` task facades preserve leading batch axes with
+per-element solver state. The flat solver stack remains available for direct
+compatibility callers. See
 [Write a custom block residual](docs/guides/custom_residuals.md).
 
 ## Dependencies
@@ -120,7 +124,7 @@ their M2c migration. See
 | `mujoco` | optional `io-mjcf` extra for MJCF loading |
 | `trimesh` | optional direct `meshes` extra for mesh APIs |
 | `robot_descriptions` | optional `demos` extra for Panda, G1, and other examples |
-| `warp-lang` | optional `warp` extra for the experimental fused FK lane |
+| `warp-lang` | optional `warp` extra for the CUDA-validated, opt-in fused FK lane |
 
 ## License
 

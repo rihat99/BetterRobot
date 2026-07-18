@@ -5,6 +5,24 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- **CUDA-validated opt-in Warp FK.** The fused FK lane now covers fp32/fp64,
+  fixed/free bases, branched and deep models, value batching, q/placement
+  VJPs, current-stream ordering, and forward graph replay on RTX 6000 Ada.
+  Forward-only SMPL measurements beat compiled Torch in the four committed
+  batches; the Torch-recompute backward was not timed, so no default changed.
+- **Experimental internal graph replay.** A private tensor-pytree
+  `GraphExecutor` provides eager fallback and controlled CUDA record/replay.
+  Fixed groups of nonlinear named-block LM updates and mixed Torch/Warp FK are
+  tested, but public solver `run` remains eager and no end-to-end IK capture
+  benchmark is claimed.
+- **Definition-first performance evidence.** The M6 harness defines a
+  144-selector Panda/free-Panda/SMPL matrix with isolated cold starts, raw
+  samples, memory, and provenance. Only the hardware-named Warp FK cases and a
+  filtered SMPL B=1 Torch result are measured; the complete matrix and
+  external competitor measurements remain open.
+- **Manual-only CI.** The GitHub Actions workflow remains
+  `workflow_dispatch` only by owner request. It has no hosted CUDA, automatic
+  pull-request/nightly, coverage, or blocking benchmark gate.
 - **Opt-in implicit LM/GN differentiation.** Generic named-block solvers add
   `solve(..., differentiate="implicit")` for first-order gradients to declared
   external context tensors. The backward recomputes the exact robust
@@ -52,7 +70,7 @@ The first stable release of the PyTorch-native BetterRobot stack.
   (L2 / Huber / Cauchy / Tukey), and damping strategies (Constant /
   Adaptive). Structured and iterative linear solves were not part of v0.2.0.
 - **Featherstone dynamics.** RNEA, ABA, CRBA, CCRBA, centroidal momentum,
-  centre of mass, autograd-derived `compute_*_derivatives`. Three-layer
+  centre of mass, and autograd-derived RNEA, ABA, and CRBA derivative helpers. Three-layer
   Crocoddyl-style action models for future optimal-control work.
 - **Trajectory optimisation.** `solve_trajopt` with knot parameterisation;
   manifold-aware `Trajectory.resample`. The Euclidean B-spline basis remains a

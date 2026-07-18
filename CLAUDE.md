@@ -2,10 +2,10 @@
 
 ## Project Overview
 
-PyTorch-native, GPU-ready library for robot kinematics and optimization. Pinocchio-style Model/Data architecture, PyTorch autograd throughout. Single code path for fixed-base and floating-base (free-flyer) robots.
+PyTorch-native, GPU-ready library for robot kinematics and optimization. Pinocchio-style Model/Data architecture with path-specific PyTorch autograd coverage. Single code path for fixed-base and floating-base (free-flyer) robots.
 
-**Implemented:** forward kinematics, Jacobians (analytic + central finite-difference fallback), pose/position/orientation/limits/rest/smoothness/contact-consistency/reference-trajectory residuals, CostStack, legacy LM/GN/Adam/LBFGS/MultiStage plus named-block LM/GN/Adam/phases, batched IK (fixed + floating base), knot-based trajectory optimisation with dense/banded/operator routing (`solve_trajopt`; the Euclidean B-spline basis remains a numerical utility only), dynamics (RNEA/ABA/CRBA/CCRBA, centroidal map + momentum, autograd-derived `compute_*_derivatives`), viewer V1 (Skeleton, URDFMesh, Grid, FrameAxes, Targets, ForceVectors, ViserBackend, build_joint_panel, minimal TrajectoryPlayer).
-**Stubs:** dynamic integrators (`semi_implicit_euler` / `symplectic_euler` / `rk4`), `compute_minverse`, `compute_coriolis_matrix`, analytic Carpentier–Mansard derivatives, jerk / Yoshikawa / collision / nullspace residuals, viewer COM/PathTrace/ResidualPlot overlays, `VideoRecorder`, and opt-in Warp whole-pass kernels. See `docs/reference/roadmap.md`.
+**Implemented:** forward kinematics, Jacobians (analytic + central finite-difference fallback), pose/position/orientation/limits/rest/smoothness/contact-consistency/reference-trajectory residuals, CostStack, legacy LM/GN/Adam/LBFGS/MultiStage plus named-block LM/GN/Adam/phases, batched IK (fixed + floating base), knot-based trajectory optimisation with dense/banded/operator routing (`solve_trajopt`; the Euclidean B-spline basis remains a numerical utility only), contact-force fitting, dynamics (RNEA/ABA/CRBA/CCRBA, centroidal map + momentum, and the autograd-derived `compute_rnea_derivatives`, `compute_aba_derivatives`, and `compute_crba_derivatives` helpers), viewer V1 (Skeleton, URDFMesh, Grid, FrameAxes, Targets, ForceVectors, ViserBackend, build_joint_panel, minimal TrajectoryPlayer).
+**Open work:** dynamic integrators (`semi_implicit_euler` / `symplectic_euler` / `rk4`), `compute_minverse`, `compute_coriolis_matrix`, analytic Carpentier–Mansard derivatives, jerk / Yoshikawa / collision / nullspace residuals, unshipped viewer COM/PathTrace/ResidualPlot and recording surfaces, and Warp whole-pass kernels beyond the CUDA-validated opt-in FK lane. See `docs/reference/roadmap.md`.
 
 The named-block optimization layer is also implemented: `VarSpec`/`Values`/
 `Problem`, `Euclidean`/`SO3Manifold`/`SE3Manifold`/`RobotConfig` manifolds,
@@ -43,13 +43,13 @@ src/better_robot/
   costs/            — forwarding compatibility imports for optim.cost_stack
   optim/            — legacy CostStack/LeastSquaresProblem + direct-use LM/GN/Adam/LBFGS/MultiStage;
                       named-block Problem + dense/banded/operator batched Adam/LM/GN/phases
-  tasks/            — solve_ik(), solve_trajopt(), Trajectory, KnotTrajectory, BSplineTrajectory
-  collision/        — geometry, pairs, RobotCollision (port of old capsule mode)
+  tasks/            — solve_ik(), solve_trajopt(), solve_contact_forces(), Trajectory, KnotTrajectory, BSplineTrajectory
+  collision/        — reserved geometry/pair/RobotCollision surface; current implementations are stubbed
   io/               — load(), internal IRModel, parsers (URDF/MJCF), ModelBuilder, AssetResolver + concrete resolvers
   viewer/           — Visualizer, Scene, SkeletonMode, URDFMeshMode, ForceVectorsOverlay, …
 ```
 
-**Dependency rule (never violate):** `lie → spatial → data_model → (kinematics, dynamics) → residuals → optim → tasks → viewer`. The legacy `costs` import path is part of the `optim` layer. `io` reads from `data_model` only; `collision` is parallel to `kinematics`. Enforced by `tests/contract/test_layer_dependencies.py`.
+**Dependency rule (never violate):** `lie → spatial → data_model → kinematics → dynamics → residuals → optim → tasks → viewer`, with kinematics and dynamics assigned the same contract rank so their current one-way reuse (`dynamics` imports raw FK helpers) is permitted. The legacy `costs` import path is part of the `optim` layer. `io` reads from `data_model` only; `collision` is parallel to `kinematics`. Enforced by `tests/contract/test_layer_dependencies.py`.
 
 The compute seam is whole-pass: `ModelStructure` provides validated static/device topology, `ModelValues` provides the tensor pytree, and raw Torch passes are the default correctness lane. An optional Warp kernel is selected explicitly at the FK/RNEA-style integration point only after eligibility and parity checks. Warp is not a library layer and does not replace individual Lie operations.
 
@@ -62,11 +62,12 @@ The compute seam is whole-pass: `ModelStructure` provides validated static/devic
 | Quaternion | `[qx, qy, qz, qw]` | scalar last |
 | Spatial Jacobian rows | `[v_lin (3), omega (3)]` | linear block first |
 
-SE3/SO3 ops live in `lie/_impl.py` (pure Torch, P10-D). Every other module uses the `lie/se3.py` / `lie/so3.py` functional facades, which call that implementation directly. PyPose is no longer a dependency, and there is no runtime compute registry.
+SE3/SO3 ops live in `lie/_impl.py` as direct pure-Torch formulas. Other modules use the `lie/se3.py` / `lie/so3.py` functional facades, which call that implementation directly. PyPose is no longer a dependency, and there is no runtime compute registry.
 
 ## Jacobian Conventions
 
-`get_frame_jacobian` returns the **LOCAL_WORLD_ALIGNED** Jacobian:
+`get_frame_jacobian` defaults to the **LOCAL_WORLD_ALIGNED** Jacobian; callers
+can also request `WORLD` or `LOCAL`:
 - Linear rows: velocity of the frame origin expressed in world frame
 - Angular rows: angular velocity in world frame
 
@@ -84,7 +85,7 @@ J_local = se3.adjoint_inv(T_ee) @ J_world
 
 ## Autodiff / Finite-Diff Note
 
-`residual_jacobian` uses central finite differences as the AUTO fallback when no analytic Jacobian is registered. The pure-Torch Lie implementation has clean autograd, so `torch.autograd.functional.jacobian` works correctly — FD is kept because it's robust across joint kinds and matches analytic Jacobians to numerical noise. FD eps: `1e-3` for float32, `1e-7` for float64.
+`residual_jacobian` uses central finite differences as the AUTO fallback when no analytic Jacobian is registered. FD is retained as the independent legacy fallback across joint kinds. Its epsilons are `1e-3` for float32 and `1e-7` for float64.
 
 That paragraph describes the **legacy** residual path. The named-block
 `Problem` uses analytic blocks or real `torch.func.jacrev`/`jacfwd`; finite
@@ -105,7 +106,7 @@ model = br.load("g1.urdf", free_flyer=True)        # floating-base
 
 # Forward kinematics
 data = br.forward_kinematics(model, q)             # (nq,) or (B, nq)
-data = br.forward_kinematics(model, q, compute_frames=True)  # also fills oMf
+data = br.forward_kinematics(model, q, compute_frames=True)  # also fills frame_pose_world
 
 # Jacobians
 br.compute_joint_jacobians(model, data)            # fills data.joint_jacobians
@@ -150,7 +151,7 @@ result = solve_ik(
 
 ```python
 model.nq          # configuration space dimension
-model.nv          # tangent space dimension (= nq for revolute; 6 for free-flyer)
+model.nv          # tangent-space dimension (a free-flyer contributes nq=7, nv=6)
 model.njoints     # number of joints (including universe joint 0)
 model.nbodies     # number of bodies
 model.nframes     # number of frames
@@ -172,9 +173,10 @@ These notes describe `optim.optimizers.LevenbergMarquardt`, not the public
 named-block `optim.LevenbergMarquardt`. The named-block solver uses
 `init_state`/pure `update`/`finalize` or detached `run`, keeps one tensor status
 and damping value per batch element, applies grouped robust kernels, and uses
-projected-gradient KKT termination for supported state-space bounds. Its
-`update` is capture-ready by construction; only the M6 CUDA replay test may
-call it capture-certified.
+projected-gradient KKT termination for supported state-space bounds. Fixed
+groups of named-block LM updates are capture-certified by the private M6
+`GraphExecutor` CUDA harness. That evidence does not certify public `run`,
+Adam, end-to-end IK, or an arbitrary custom residual.
 
 ## Batching Rules
 
@@ -200,8 +202,8 @@ caches never survive an evaluation.
 ## torch.compile Friendliness
 
 - Loops over `model.topo_order` are static (unroll cleanly)
-- No Python branching on tensor values
-- No `.item()` calls in hot paths
+- Watched hot paths keep tensor decisions tensorized
+- No unexempted `.item()` calls in the contract-linted hot paths
 - Joint-type dispatch at compile time (tuple lookup, not tensor operation)
 - Named-block LM `update` is fixed-shape and sync-free; `init_state` owns static
   validation and eager `run` may sync once per iteration for early exit
@@ -215,7 +217,7 @@ uv run pytest tests/ -v   # all tests must pass
 Tests use real Panda URDF via `robot_descriptions`. No mocking of FK or URDF parsing.
 `tests/contract/test_layer_dependencies.py` enforces the dependency DAG via AST parsing.
 `tests/contract/test_public_api.py` enforces the required top-level core and duplicate-free `__all__`
-(24 required symbols, including `SE3` and `ModelBuilder`). `tests/contract/` carries the rest of
+(25 required symbols, including `SE3` and `ModelBuilder`). `tests/contract/` carries the rest of
 the AST + structural contract suite (cache invariants, optional
-imports, no-legacy-strings, hot-path lint, deprecations,
+imports, no-legacy-strings, hot-path lint,
 pluggable Protocols, solver state, naming, docstrings, submodule reachability).

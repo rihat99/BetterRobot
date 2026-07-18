@@ -1,9 +1,10 @@
 """``Residual`` protocol and ``ResidualState`` struct.
 
 Every residual is a **callable object** — not a plain function — so it can
-optionally own an analytic ``.jacobian()``. The current fallback is central
-finite differences in ``kinematics.jacobian.residual_jacobian``; real
-``torch.func`` fallback is scheduled for M2.
+optionally own an analytic ``.jacobian()``. The legacy fallback is central
+finite differences in ``kinematics.jacobian.residual_jacobian``. Named-block
+``Problem`` evaluation separately provides ``torch.func``
+Jacobian strategies; this legacy dispatcher remains analytic/finite-difference.
 
 Legacy trajectory residuals can also implement
 ``apply_jac_transpose(state, vec) -> Tensor`` to compute ``J^T @ vec`` through
@@ -11,8 +12,8 @@ Legacy trajectory residuals can also implement
 gradient path; it is retained only for the matrix-free contract tests. The
 default implementation builds the dense Jacobian and multiplies.
 
-See ``docs/concepts/residuals_and_costs.md §2`` and
-``docs/concepts/kinematics.md §3``.
+See ``docs/concepts/residuals_and_costs.md`` ("The Residual Protocol") and
+``docs/concepts/kinematics.md`` ("The unified Jacobian dispatch").
 """
 
 from __future__ import annotations
@@ -115,9 +116,9 @@ class Residual(Protocol):
 def default_apply_jac_transpose(residual: Residual, state: ResidualState, vec: torch.Tensor) -> torch.Tensor:
     """Default ``apply_jac_transpose`` — materialise ``J`` and multiply.
 
-    Concrete residuals override the bound method when they have block
-    structure (banded smoothness, sparse collisions) that can be exploited
-    without forming the dense Jacobian.
+    Concrete residuals override the bound method when they have structure,
+    such as banded smoothness or contact terms, that can be exploited without
+    forming the dense Jacobian.
 
     Parameters
     ----------

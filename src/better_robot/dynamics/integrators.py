@@ -1,10 +1,10 @@
 """Time integrators over the state manifold.
 
 ``integrate_q`` is implementable today (it uses only ``Model.integrate``
-and therefore the per-joint ``JointModel.integrate`` routines). The
-dynamics integrators wait on ``aba``.
+and therefore the per-joint ``JointModel.integrate`` routines). The dynamics
+integrator entry points remain reserved and are currently unsupported.
 
-See ``docs/concepts/dynamics.md §8``.
+See ``docs/concepts/dynamics.md`` ("Integrators").
 """
 
 from __future__ import annotations
@@ -55,11 +55,8 @@ def semi_implicit_euler(
     *,
     fext: torch.Tensor | None = None,
 ):
-    """Semi-implicit Euler: ``v_{k+1} = v_k + dt * aba(...)``, ``q_{k+1} = q_k ⊕ dt * v_{k+1}``.
-
-    TODO(milestone D4+). See docs/concepts/dynamics.md §8.
-    """
-    raise NotImplementedError("TODO(milestone D4+) — see docs/concepts/dynamics.md §8")
+    """Reserved semi-implicit Euler entry point; currently unsupported."""
+    raise NotImplementedError("semi_implicit_euler is not implemented")
 
 
 def symplectic_euler(
@@ -72,11 +69,8 @@ def symplectic_euler(
     *,
     fext: torch.Tensor | None = None,
 ):
-    """Symplectic Euler variant.
-
-    TODO(milestone D4+). See docs/concepts/dynamics.md §8.
-    """
-    raise NotImplementedError("TODO(milestone D4+) — see docs/concepts/dynamics.md §8")
+    """Reserved symplectic Euler entry point; currently unsupported."""
+    raise NotImplementedError("symplectic_euler is not implemented")
 
 
 def rk4(
@@ -89,8 +83,5 @@ def rk4(
     *,
     fext: torch.Tensor | None = None,
 ):
-    """4th-order Runge-Kutta over the state manifold.
-
-    TODO(milestone D4+). See docs/concepts/dynamics.md §8.
-    """
-    raise NotImplementedError("TODO(milestone D4+) — see docs/concepts/dynamics.md §8")
+    """Reserved fourth-order Runge-Kutta entry point; currently unsupported."""
+    raise NotImplementedError("rk4 is not implemented")

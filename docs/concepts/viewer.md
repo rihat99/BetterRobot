@@ -206,9 +206,9 @@ viewer.add_ik_targets({end_effector: target_pose}, on_change=on_move)
 viewer.show()
 ```
 
-Each target is always rendered as a frame triad. On the interactive backend,
-dragging its transform control updates the target dictionary and calls
-`on_change`.
+On the interactive backend, the draggable transform control is itself the
+target visual; dragging it updates the target dictionary and calls
+`on_change`. A non-interactive backend renders a static frame triad instead.
 
 ## Trajectory playback
 

@@ -1,5 +1,11 @@
 # Inverse kinematics on Panda
 
+This walkthrough uses Panda from the optional examples package:
+
+```bash
+python -m pip install '.[demos]'  # from the BetterRobot source checkout
+```
+
 ```python
 import torch
 import better_robot as br
@@ -16,9 +22,11 @@ print(result.q)
 print(result.frame_pose("body_panda_hand"))
 ```
 
-`solve_ik` returns an `IKResult` with the converged `q`, a `fk()`
-helper that re-runs FK at the solution, and a `frame_pose(name)`
-shortcut.
+`solve_ik` returns an `IKResult` with the final `q` and convergence
+diagnostics, a `fk()` helper that re-runs FK at that point, and a
+`frame_pose(name)` shortcut. Check `result.converged`; exhausting the iteration
+budget still returns the final candidate rather than relabelling it as a
+solution.
 
 ## Choosing the optimiser
 
@@ -34,7 +42,11 @@ result = br.solve_ik(
 ```
 
 Levenberg–Marquardt is the default. Switch to `"gn"` for plain
-Gauss–Newton, `"adam"` for first-order, or `"lbfgs"` for quasi-Newton.
+Gauss–Newton, `"adam"` for first-order, or `"lm_then_adam"` for a two-stage
+LM seed followed by Adam refinement. The retained `"lbfgs"` and
+`"lm_then_lbfgs"` spellings raise an actionable error: the named-block task
+facade does not yet provide batched per-element L-BFGS histories and line
+searches.
 
 ## Robust kernels
 

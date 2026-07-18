@@ -8,10 +8,12 @@ and uses **one code path** for fixed-base and floating-base robots.
 
 The five commitments that shape every other decision:
 
-- **PyTorch on the hot path.** Forward kinematics, Jacobians,
-  residuals, costs, and solver iterates all participate in autograd.
-  No `AutoDiffXd` scalar to switch into, no JAX mode flag, no C
-  extension that breaks the gradient graph.
+- **A PyTorch tensor surface on the hot path.** Eager Lie maps, kinematics,
+  dynamics, residuals, costs, and named-block problem evaluation have
+  path-specific autograd coverage. Task facades return detached results; small
+  generic LM/GN problems can explicitly request the documented dense
+  first-order implicit backward. The optional Warp FK lane still takes and
+  returns Torch tensors.
 - **Batched tensor math.** FK, residuals, and analytic Jacobians accept
   `(B..., feature)`. The named-block `Problem` also evaluates independent
   batches; named-block Adam/LM/GN, `solve_ik`, and `solve_trajopt` preserve
@@ -32,6 +34,15 @@ The five commitments that shape every other decision:
 
 A minimal example — load a Panda URDF, solve IK to a target pose,
 read back the joint solution:
+
+```bash
+git clone --branch dev https://github.com/rihat99/BetterRobot.git
+cd BetterRobot
+python -m pip install '.[demos]'
+```
+
+The `demos` extra supplies `robot_descriptions`; it is not part of the core
+installation.
 
 <!-- front-page-example:start -->
 ```python
@@ -72,15 +83,21 @@ velocity and acceleration smoothness, time-indexed residuals); `CostStack`;
 LM, GN, Adam, L-BFGS, and multi-stage optimizers; dense, block-banded,
 and normal-operator linear solvers (Cholesky, LSTSQ, BandedCholesky,
 NormalCG); pluggable robust
-kernels (L2, Huber, Cauchy, Tukey) and damping strategies (Constant,
+kernels (L2, Huber, Cauchy, Tukey, Geman–McClure) and damping strategies (Constant,
 Adaptive); batched IK on fixed and floating-base robots;
 trajectory optimisation with knot parameterisation and automatic banded/dense
 routing (the Euclidean B-spline basis is numerical-only pending a separate
-robot-manifold design);
+robot-manifold design); floating-base contact-force fitting; opt-in dense
+first-order implicit differentiation for eligible generic named-block LM/GN
+problems;
 Featherstone dynamics (RNEA / ABA / CRBA / CCRBA), centroidal
-momentum, and autograd-derived `compute_*_derivatives`; URDF and MJCF parsers; a programmatic
+momentum, and the autograd-derived `compute_rnea_derivatives`,
+`compute_aba_derivatives`, and `compute_crba_derivatives` helpers; URDF and MJCF parsers; a programmatic
 `ModelBuilder`; a viewer with skeleton / URDF-mesh render modes,
-draggable IK target gizmos, and trajectory playback.
+draggable IK target gizmos, and trajectory playback; and a CUDA-validated,
+explicitly selected fused Warp FK lane whose VJP recomputes the Torch oracle.
+Private CUDA graph tests cover fixed groups of named-block LM updates; public
+solver drivers remain eager.
 
 A small set of named symbols are deliberately stubbed and listed in
 {doc}`reference/roadmap`. They have the correct signatures and raise
@@ -142,7 +159,6 @@ reference/index
 :caption: Project Links
 
 GitHub <https://github.com/rihat99/BetterRobot>
-PyPI <https://pypi.org/project/better-robot/>
 ```
 
 ## Indices and tables

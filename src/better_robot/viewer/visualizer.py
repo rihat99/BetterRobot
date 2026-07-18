@@ -131,8 +131,8 @@ class Visualizer:
         """Attach a ``Trajectory`` and return a ``TrajectoryPlayer``.
 
         Callers drive playback via ``player.show_frame(k)`` or
-        ``player.play(fps=...)``. No richer transport controls in V1 —
-        see ``docs/concepts/viewer.md §10.3``.
+        ``player.play(fps=...)``. No richer transport controls are exposed;
+        see ``docs/concepts/viewer.md`` ("Trajectory playback").
         """
         from .trajectory_player import TrajectoryPlayer
 
@@ -176,10 +176,10 @@ class Visualizer:
 
         Drops a ``TargetsOverlay`` onto the active scene using the same
         ``Scene.add_mode`` lifecycle as any other render mode. Each
-        target renders as a frame triad; interactive backends (viser)
-        additionally get a draggable transform control, so the user
-        can drag the gizmo in the browser. On every drag, ``on_change``
-        fires with the updated ``{frame_name: pose_7vec}`` dict.
+        target renders as a draggable transform control on interactive
+        backends (viser). Non-interactive backends instead render a static
+        frame triad. On every drag, ``on_change`` fires with the updated
+        ``{frame_name: pose_7vec}`` dict.
 
         Typical interactive-IK loop::
 

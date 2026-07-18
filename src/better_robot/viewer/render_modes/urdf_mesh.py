@@ -2,7 +2,7 @@
 
 ``trimesh`` is imported lazily here and ONLY here.
 
-See ``docs/concepts/viewer.md §4.2`` and ``§17``.
+See ``docs/concepts/viewer.md`` ("Render modes" and "Dependency hygiene").
 """
 
 from __future__ import annotations
@@ -105,15 +105,16 @@ class URDFMeshMode:
     Visual primitives (``<box>``, ``<cylinder>``, ``<sphere>``,
     ``<capsule>``) are tessellated via trimesh.  Mesh files (``.obj``,
     ``.dae``, ``.stl``) are loaded with trimesh too.  Non-loadable meshes
-    are skipped with a warning.
+    are skipped silently.
 
     Asset resolution. Mesh URIs in ``IRGeom.params["path"]`` are routed
     through ``model.meta["asset_resolver"]`` when present (set by the
-    URDF parser per ``docs/concepts/parsers_and_ir.md §6``). The constructor
-    also accepts an explicit ``resolver=`` override — useful when the
-    caller wants a different search root than the parse-time one. When
-    no resolver is available the raw path is used directly, preserving
-    the legacy yourdfpy ``_filename_handler`` flow.
+    URDF parser; see ``docs/concepts/parsers_and_ir.md`` ("Asset resolvers
+    and their current consumers"). The constructor also accepts an explicit
+    ``resolver=`` override — useful when the caller wants a different search
+    root than the parse-time one. When no resolver is available the raw path
+    is used directly, preserving the legacy yourdfpy ``_filename_handler``
+    flow.
     """
 
     name = "URDF mesh"

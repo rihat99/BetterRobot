@@ -6,9 +6,10 @@ A robotics library that is "correct but slow" is a teaching tool, not a
 production dependency. Inverse kinematics for an interactive viewer
 needs to close the loop in milliseconds; trajectory optimisation for a
 humanoid needs to fit a 200-knot horizon in a single GPU's memory; the
-benchmarks that prove either one of those keeps shipping have to run in
-finite CI time. Performance is therefore not a nice-to-have add-on —
-it is a contract the library has to defend on every PR.
+benchmarks that prove either one of those keeps shipping have to remain
+finite and reproducible. Performance is therefore not a nice-to-have add-on.
+The targets below guide review, but the current manual-only workflow does not
+enforce them on every pull request.
 
 We defend it with three things working together. The first is a set of
 **budgets** — concrete latency and memory targets that say "FK on a
@@ -23,10 +24,9 @@ is implemented. Today, named-block Adam is matrix-free, temporal LM can use
 block-banded normal storage, and explicit operator LM uses `NormalCG`.
 Undeclared problems retain the dense correctness path; these capabilities are
 not by themselves a benchmark-certified long-horizon performance claim. The
-third is a
-**gate-promotion ladder** — benchmarks land
-advisory, collect signal, and only flip to blocking once their variance
-is low enough that flipping does not produce flaky CI.
+third is a **gate-promotion ladder** — benchmarks land advisory, collect
+signal, and may flip to blocking only after their variance is low enough. No
+performance gate is currently promoted.
 
 When another doc seems to imply a different perf rule, this one wins.
 The targets here are the contract; the techniques here are how the
@@ -38,13 +38,13 @@ contract is met; the lint rules are the discipline that keeps it met.
 
 | Operation | Target (RTX 4090 / L40) | Notes |
 |-----------|-------------------------|-------|
-| `forward_kinematics(model, q)` | **≤ 150 µs** per call, `B=1` | Topological walk over 7 joints |
+| `forward_kinematics(model, q)` | **≤ 150 µs** per call, `B=1` | Locked Panda model: `nq=nv=8`, `njoints=14` |
 | `forward_kinematics(model, q)` | **≤ 250 µs** per call, `B=1024` | Batched; cost is mostly launch overhead |
 | `compute_joint_jacobians(model, data)` | **≤ 300 µs** per call, `B=1` | Analytic, world frame |
 | `get_frame_jacobian(model, data, fid)` | **≤ 50 µs** per call | Cache hit — pure gather + rotate |
 | `solve_ik(model, targets, max_iter=30)` | **≤ 8 ms** per call, `B=1` | 30 LM iterations, pose cost only |
 
-Humanoid (G1, 36 DoF, floating-base):
+Humanoid (locked G1, `nq=36`, `nv=35`, floating-base):
 
 | Operation | Target | Notes |
 |-----------|--------|-------|
@@ -66,7 +66,7 @@ do not let it rot.
 | Quantity | Target |
 |----------|--------|
 | `Model` (tensors only) for Panda | ≤ 50 KiB |
-| `Data` for `B=1024, njoints=8` | ≤ 5 MiB |
+| `Data` for `B=1024, njoints=14` | ≤ 5 MiB |
 | Batched IK working set, `B=1024` | ≤ 200 MiB (tracked target; not yet benchmark-certified) |
 
 ### 1.4 Non-targets
@@ -108,12 +108,15 @@ state.
   current shipping body uses autograd through the differentiable RNEA /
   ABA / CRBA passes (live, gradcheck-clean) and will switch to the
   analytic recursion in a future minor release.
-- Everything else: unbatched central finite differences as the current
-  fallback. `JacobianStrategy.AUTO` prefers analytic evaluation; real
-  `torch.func` strategies are scheduled for M2.
+- Everything else in the legacy residual stack: unbatched central finite
+  differences as the current fallback. `JacobianStrategy.AUTO` prefers
+  analytic evaluation. Named-block `Problem` evaluation separately supports
+  analytic, `jacrev`, `jacfwd`, and finite-difference strategies.
 
-**Rationale:** analytic derivatives are 3–10× faster than autodiff for
-rigid-body routines and 100× faster than finite differences.
+**Rationale:** analytic derivatives avoid graph construction or repeated
+residual evaluations on the paths where their implementation and maintenance
+cost is justified. Any numerical speed ratio still requires the committed
+benchmark definition and host evidence.
 
 ### 2.4 Kernel fusion (torch.compile boundary)
 
@@ -204,26 +207,34 @@ at the pass boundary. The Torch raw pass remains the default and correctness
 oracle.
 
 Each kernel requires explicit eligibility checks and forward/backward parity.
-A custom autograd wrapper owns the analytic adjoint; optional runtime array
-types never cross the public boundary. The optional import stays beside the
-pass that uses it. Until a pass satisfies those requirements it remains an
-opt-in prototype, and ordinary public calls continue down the Torch lane.
+A custom autograd wrapper owns the declared adjoint strategy; that may be a
+hand-written kernel or, as in the current FK lane, a Torch-oracle recomputation.
+Optional runtime array types never cross the public boundary. The optional
+import stays beside the pass that uses it. The fused FK pass satisfies the current CUDA correctness
+matrix and remains opt-in because its Torch-recompute backward cost was not
+measured and no owner default-on decision was made. Future Warp passes remain
+prototypes until they independently satisfy the same requirements. Ordinary
+public calls continue down the Torch lane.
 
 ## 3 · Performance anti-patterns (forbidden)
 
-These patterns ship with a failing CI check. Each has a linter rule.
+The table below lists the checks actually implemented by
+`tests/contract/test_hot_path_lint.py`. They run whenever the contract suite is
+run, including the manual full workflow job. There is no automatic
+pull-request trigger today.
 
-| Pattern | Rule | Bad | Good |
-|---------|------|-----|------|
-| Branching on `tensor.dim()` | `forbid-dim-branch` | `if x.dim()==2: ... else: ...` | Rely on leading-batch convention; `batch_shape = x.shape[:-1]` |
-| `.item()` / `.cpu()` in hot path | `forbid-sync` | `if loss.item() < tol` | `if (loss < tol).all()` after graph-wide reduce |
-| Per-joint `.to(device, dtype)` | `forbid-redundant-to` | `for j: S_j.to(device, dtype)` | Move once during `Model.to(...)` and cache |
-| `torch.zeros` in solver iteration | `forbid-hot-alloc` | `for k in range(N): torch.zeros(...)` | Allocate in `create_data` / `SolverState`, reset in place |
-| Python `if` on tensor value | `forbid-tensor-cond` | `if data.mass_matrix.det() > 0: ...` | Use `torch.where` or assert as contract |
-| `torch.cat` inside a fused region | `prefer-stack` | `cat([a, b, c])` (allocates view) | `stack` + reshape where shapes match |
+| Checked pattern | Bad | Required response |
+|---|---|---|
+| `.item()` / `.cpu()` | `loss.item()` inside a watched hot path | Keep the decision tensorized, or move a necessary host decision to a documented eager boundary with `# bench-ok: <reason>`. |
+| Proven tensor conversion through `float` / `bool` (and `int` in named-block solver files) | `bool(done_tensor)` | Keep solver state in tensors; reasoned eager/static-boundary exemptions are explicit. |
+| Per-call `.new_tensor(...)` | `q.new_tensor([0, 1])` | Reuse an existing tensor or construct/hoist static data outside the hot call. |
+| Torch allocation inside a Python loop | `for ...: torch.zeros(...)` | Hoist or preallocate; named-block initialization has its narrow documented exemption. |
+| Rank branch through `.dim()` | `if x.dim() == 2: ...` | Follow the leading-batch convention instead of maintaining rank-specific paths. |
 
-The linter lives in `tests/contract/test_hot_path_lint.py` (AST walks
-the `kinematics/` and `optim/` trees).
+The linter watches ``kinematics/``, ``dynamics/``, legacy
+``optim/optimizers/``, ``residuals/``, ``lie/``, and the two named-block solver
+files listed in the test. It does not claim a general all-``optim/`` walk or
+rules for arbitrary tensor conditionals, `.to()`, or `torch.cat`.
 
 ## 4 · Measurement — how we know
 
@@ -250,7 +261,7 @@ collected enough signal:
 
 | Gate | Initial mode | Promotion criterion |
 |------|--------------|---------------------|
-| Contract bundle (correctness, DAG, hot-path lint, mypy strict, cache invariants, optional imports) | Blocking from day 1 | — |
+| Contract bundle (correctness, DAG, hot-path lint, cache invariants, optional imports) | Required local/manual verification | Automatic triggering remains an owner decision |
 | CPU bench | Manual advisory; placeholder comparison baseline | Two release cycles of stable runner variance < 5% |
 | CUDA bench | Manual host-context evidence | One cycle of stable self-hosted-runner data |
 | `mem_watermark` | Test definition present; no scheduled gate | Promoted at v1 release |
@@ -262,20 +273,20 @@ before runner stability is measured produce flaky CI that gets muted; the
 ladder is the discipline that prevents that. The workflow remains
 manual-only by owner request.
 
-Baseline is bumped only when:
-
-- A performance PR improves the number (new lower bound), or
-- A hardware change is announced and all budgets re-measured.
+A baseline replacement is an explicit reviewed change with the complete
+measurement environment and raw evidence. The placeholder is not silently
+updated by automation.
 
 ### 4.3 Profiling (opt-in)
 
-The proposed `BR_PROFILE=1` profiler/NVTX hook is not wired yet. Use
-`torch.profiler` directly until that M1 roadmap item lands.
+The proposed `BR_PROFILE=1` profiler/NVTX hook is not wired. Use
+`torch.profiler` directly.
 
 ### 4.4 Memory watermark
 
-A blocking CUDA memory-watermark benchmark is not present yet. The budgets
-in §1.3 remain targets until that benchmark and CI gate land.
+`tests/bench/test_mem_watermark.py` provides an explicit measurement, but no
+blocking or scheduled CUDA memory gate exists. The budgets in §1.3 remain
+targets until reproducible evidence and a promoted gate land.
 
 ## 5 · Compile / JIT lifecycle
 
@@ -288,20 +299,18 @@ currently gated.
 
 ### 5.2 Recompile triggers
 
-For caller-compiled kernels, recompilation can happen when:
-
-- `B` (the batch prefix) changes across queries → compile per shape.
-  Mitigated by the shape-specialisation cache; if the user cycles
-  through many batch sizes we fall back to dynamic shapes (slower, no
-  recompile).
-- `dtype` / `device` changes → new cache entry.
-- `Model` topology changes → never, because `Model` is frozen.
+For caller-compiled kernels, PyTorch may specialize or recompile when shape,
+dtype, device, tensor layout, static Python topology, or compile options
+change. BetterRobot does not add a package-level shape cache or automatic
+dynamic-shape fallback. A frozen `Model` prevents accidental mutation; using a
+different topology can still produce a different compiled graph.
 
 ### 5.3 Cache location
 
-`TORCHINDUCTOR_CACHE_DIR` (default
-`~/.cache/torch_inductor/better_robot`). For CI, set to a persistent
-path to avoid re-compiling across jobs.
+Set `TORCHINDUCTOR_CACHE_DIR` when a run needs an explicit cache location.
+BetterRobot does not install a project-specific default. Canonical cold-start
+measurements use a fresh per-case directory; a manually configured persistent
+cache can avoid recompiling in non-cold developer or workflow runs.
 
 ## 6 · Per-module performance ownership
 
@@ -314,15 +323,15 @@ path to avoid re-compiling across jobs.
 | `spatial/` | 6D operators | Dataclass wrappers; no branching |
 | `kinematics/forward.py` | FK topo walk and lane boundary | Torch raw pass unrolls on static topology; whole-pass kernels stay local |
 | `kinematics/jacobian.py` | Spatial Jacobian | Analytic; automatic compilation is roadmap work |
-| `dynamics/*.py` | RNEA / ABA / CRBA | Analytic derivatives; compile-friendly recursion |
+| `dynamics/*.py` | RNEA / ABA / CRBA | Differentiable recursion; `compute_rnea_derivatives`, `compute_aba_derivatives`, and `compute_crba_derivatives` are autograd-derived |
 | `residuals/*.py` | Residual evaluation | Analytic blocks where implemented; temporal residuals declare exact knot offsets |
 | `optim/cost_stack.py` | Legacy concatenation | Fresh `torch.cat` assembly; no persistent flat buffer |
-| `optim/blocks/solver_adam.py` | Named-block first-order solve | Tangent objective VJP; no Jacobian assembly; CUDA replay certification deferred to M6 |
-| `optim/blocks/solver_lm.py` | Named-block LM/GN | Dense/banded/operator routing with fixed-shape tensor state; CUDA replay certification deferred to M6 |
+| `optim/blocks/solver_adam.py` | Named-block first-order solve | Tangent objective VJP; no Jacobian assembly; no CUDA replay certification |
+| `optim/blocks/solver_lm.py` | Named-block LM/GN | Dense/banded/operator routing; fixed update groups have private GraphExecutor CUDA replay tests, while public `run` remains eager |
 | `optim/optimizers/*.py` | Legacy flat solver loops | Dense Jacobian path, including legacy Adam/L-BFGS; eager and single-problem |
 | `optim/solvers/*.py` | Linear solves | Dense Cholesky/LSTSQ, block-banded Cholesky, and preconditioned normal CG |
 | `tasks/parameterization.py` | Numerical trajectory bases | B-spline compression utility; robot-manifold integration requires a separate reviewed design |
-| `collision/*.py` | Geometry primitives and roadmap residuals | Stable-shape/sparsity contracts; solver integration is not yet shipped |
+| `collision/*.py` | Reserved geometry, distance, decomposition, and residual surfaces | Primitive containers only; computation and performance work are not shipped |
 | `io/*.py` | One-shot parse | Not hot; readability > speed; `AssetResolver` Protocol |
 | `viewer/*.py` | Scene updates | 60 fps budget |
 
@@ -334,7 +343,8 @@ Every PR that claims "perf" answers all of these in the description:
 2. Is the change portable across GPU generations, or RTX-specific?
 3. Does it introduce recompilation when batch or dtype cycles?
 4. Is the memory watermark unchanged or better?
-5. Does `pytest tests/bench/` pass with the new baseline?
+5. Does the relevant benchmark definition pass, and does its artifact record
+   the complete environment? (No blocking comparison baseline exists today.)
 6. Is there a new lint rule needed to keep the win?
 
 If any answer is "don't know," the PR is not ready.

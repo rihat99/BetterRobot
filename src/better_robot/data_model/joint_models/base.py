@@ -1,11 +1,12 @@
 """``JointModel`` protocol — the interface every concrete joint implements.
 
-A ``JointModel`` is a **stateless dispatch object** with a compile-time
-``nq``/``nv``. It does not store per-joint runtime data — that lives on
-``Model`` via ``joint_placements``, ``idx_q``, ``idx_v``. Implementations are
-pure functions that operate on slices of the full ``(q, v)`` tensors.
+A ``JointModel`` is a dispatch object with fixed ``nq``/``nv`` and may carry
+static joint configuration such as an axis or helical pitch. It does not store
+per-query configuration or velocity: ``q``/``v`` live in query tensors and
+``Data``, while topology, placements, and slice indices live on ``Model``.
+Implementations operate on the corresponding slices of the full tensors.
 
-See ``docs/concepts/joints_bodies_frames.md §4``.
+See ``docs/concepts/joints_bodies_frames.md`` ("The JointModel Protocol").
 """
 
 from __future__ import annotations

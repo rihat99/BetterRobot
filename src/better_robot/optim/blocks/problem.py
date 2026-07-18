@@ -1,4 +1,4 @@
-"""Named-block evaluation protocol, AD Jacobians, and dense v1 assembly.
+"""Named-block evaluation protocol, AD Jacobians, and linearization assembly.
 
 Residuals and objective terms are structural/duck-typed: authoring one needs
 no import from :mod:`better_robot.optim`. Residuals declare a static ``dim``
@@ -19,10 +19,11 @@ Gradient/objective              one VJP through tangent retraction
 Explicit ``finite_difference``  central FD debug path only
 ==============================  ==============================================
 
-Dense assembly is deliberately v1: variables define deterministic column
-offsets and residual items define row offsets. A trajectory is one dense block.
-Symbolic sparsity, banded solvers, and Schur elimination belong to M5; preserved
-legacy semantics live in ``plan/design_notes/residual_sparsity.md``.
+Variables define deterministic column offsets and residual items define row
+offsets. Dense assembly remains the general oracle. Problems whose temporal
+declarations satisfy the supported contract can additionally assemble a
+block-banded normal form or expose a matrix-free normal operator; unsupported
+structures route back to dense evaluation with an explicit reason.
 """
 
 from __future__ import annotations

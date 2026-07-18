@@ -92,7 +92,7 @@ def adjoint_inv(t)       -> torch.Tensor:   # faster than inv(adjoint(...))
 def from_matrix(m)       -> torch.Tensor:   # (..., 4, 4) → (..., 7)
 def to_matrix(t)         -> torch.Tensor:   # (..., 7) → (..., 4, 4)
 def from_axis_angle(axis, angle): ...
-def from_translation(disp): ...
+def from_translation(axis, disp): ...  # translation by scalar/vector disp along axis
 def normalize(t)         -> torch.Tensor:   # re-project onto SE(3)
 
 # src/better_robot/lie/so3.py
@@ -147,18 +147,22 @@ SE(3) left-Jacobian has a similar singularity. Both are handled with
 
 ```python
 # Sketch — see src/better_robot/lie/_impl.py
-b = torch.where(theta2 < EPS,
-                0.5 - theta2 / 24.0,                # Taylor lead at θ → 0
-                (1.0 - cos_theta) / theta2)
-c = torch.where(theta2 < EPS,
+use_taylor = theta2 < EPS
+theta2_safe = torch.where(use_taylor, torch.ones_like(theta2), theta2)
+theta = theta2_safe.sqrt()
+b = torch.where(use_taylor,
+                0.5 - theta2 / 24.0,
+                (1.0 - torch.cos(theta)) / theta2_safe)
+c = torch.where(use_taylor,
                 1.0/6.0 - theta2 / 120.0,
-                (theta - sin_theta) / theta3)
+                (theta - torch.sin(theta)) / (theta * theta2_safe))
 ```
 
 The Taylor leads are checked explicitly by
-`tests/lie/test_singularities.py` at `θ ∈ {0, π/2, π − 1e-6}`.
-Autograd flows smoothly through the `torch.where` because both
-branches return finite, differentiable values.
+`tests/lie/test_torch_backend_singularities.py` at
+`θ ∈ {0, π/2, π − 1e-6}` and with first-/second-order checks at zero and
+`1e-9`. The full-formula branch receives a safe dummy denominator in the Taylor
+region because `torch.where` evaluates both branches during backward.
 
 ## Quaternion double cover
 
@@ -172,21 +176,24 @@ the sign whenever `qw < 0`:
 q = torch.where((q[..., 3:4] < 0), -q, q)
 ```
 
-The `log ∘ exp` round-trip is the identity modulo numerical noise,
-and `assert_close_manifold` (see {doc}`/conventions/testing`) compares
-on the manifold rather than element-wise.
+The `log ∘ exp` round-trip is the identity modulo numerical noise. Quaternion
+storage must be compared modulo sign: compare rotation matrices, or compare the
+norm of a relative SO(3) logarithm. BetterRobot does not expose an
+`assert_close_manifold` helper.
 
-## Numerical guarantees
+## Numerical evidence
 
-| Routine | Guaranteed accuracy |
-|---------|---------------------|
-| `se3.exp(log(T))` | `‖Δ‖ < 1e-6` (fp32), `< 1e-12` (fp64) |
-| Analytic FK Jacobian vs. `jacrev` | `‖ΔJ‖_F < 1e-4` (fp32), `< 1e-10` (fp64) |
-| Long-chain FK (30 joints) | 1 ulp of a well-conditioned product of SE(3)s |
+Typed SO(3)/SE(3) round-trip tests use ``1e-6`` in fp32 and ``1e-12``
+in fp64 on their committed random fixtures. The focused fp64 gradcheck module
+covers SO(3) exp/log and SE(3) exp/log/inverse/compose/act with
+``atol=1e-6, rtol=1e-5``; singularity tests separately cover zero, ``1e-9``,
+and the principal-log boundary. See
+``tests/lie/test_torch_backend_gradcheck.py`` and
+``tests/lie/test_torch_backend_singularities.py``.
 
-The direct Torch implementation passes `torch.autograd.gradcheck` at fp64
-with `atol=1e-8, rtol=1e-6` on randomised unit-quaternion inputs for
-every public op. See `tests/lie/test_torch_backend_gradcheck.py`.
+Those are test-specific observations, not a universal guarantee for every
+public wrapper or an arbitrary long FK chain. Kinematics/Pinocchio tolerances
+are documented with their own tests.
 
 ## Typed value classes — `lie/types.py`
 
@@ -255,12 +262,13 @@ p_world    = T_world_ee @ p_local       # SE3 @ tensor[..., 3] → tensor[..., 3
 xi         = T_world_ee.log()           # SE3 → tangent
 ```
 
-Hot paths still call the functional `lie.se3.*` API directly on raw
-tensors — boxing every entry of a `(B..., njoints, 7)` tensor into an
-`SE3` instance would defeat batching. The convention is: storage on
-`Model` and `Data` is the raw tensor; user-facing accessors
-(`Data.frame_pose("name")`, `IKResult.frame_pose("name")`) return the
-typed wrapper; functions accept either.
+Hot paths still call the functional `lie.se3.*` API directly on raw tensors —
+boxing every entry of a `(B..., njoints, 7)` tensor into an `SE3` instance
+would defeat batching. Storage on `Model` and `Data` is raw. The typed
+`Data.frame_pose(frame_id)` accessor returns `SE3`, while
+`IKResult.frame_pose(name)` returns the raw `(..., 7)` tensor used by task
+callers. Functional `lie.se3.*` operations accept raw tensors; use the typed
+wrapper's methods when working with `SE3` objects.
 
 The deliberately-omitted operators are worth naming:
 

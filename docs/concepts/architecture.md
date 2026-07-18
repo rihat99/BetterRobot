@@ -7,15 +7,13 @@ backwards. The DAG is enforced by
 file in `src/` and fails on any import that violates the order.
 
 ```
-io ─────────────┐
-                ▼
-tasks → optim → residuals → kinematics ↴
-                              │         dynamics ↴
-                              ▼                   ▼
-                             data_model ──── spatial ──── lie
-                                  │
-                                  └── ModelStructure + ModelValues
-                                      feed whole-pass Torch or opt-in kernels
+tasks → optim → residuals ─┬→ dynamics → kinematics ─┐
+                           └───────────→ kinematics  │
+io ───────────────────────────────────→ data_model ←┘
+                                              ↓
+                                           spatial → lie
+
+ModelStructure + ModelValues feed whole-pass Torch or opt-in kernels.
 ```
 
 ## Why the layers fall out this way
@@ -35,16 +33,16 @@ topology as Python tuples and device tables, while `ModelValues` carries the
 differentiable tensor pytree. Torch raw passes and eligible opt-in kernels
 consume that shared contract.
 
-`kinematics/` and `dynamics/` are siblings: both work on `Model` plus
-`Data`, neither imports the other. A whole-pass kernel lives beside its Torch
-counterpart in the owning package; it is not a new dependency layer. Forward kinematics and Jacobians
-do not need to know about RNEA; RNEA does not need to know about
-Jacobian assembly. Splitting them apart is what lets a user build
-purely kinematic IK without dragging dynamics code through compile.
+`kinematics/` and `dynamics/` have the same contract rank and both work on
+`Model` plus `Data`. The current dependency is one-way: dynamics reuses raw FK
+and validation helpers from kinematics, while kinematics does not import
+dynamics. A whole-pass kernel lives beside its Torch counterpart in the owning
+package; it is not a new dependency layer. Purely kinematic IK therefore does
+not pull dynamics into its import or compile path.
 
-The optimization layer currently contains two contracts during the M2
-migration. The legacy path keeps `residuals/` as functions of `(model, data,
-variables)`, composes them in `optim/CostStack`, and hands a
+The optimization layer retains two contracts. The direct-compatibility path
+keeps `residuals/` as functions of `(model, data, variables)`, composes them in
+`optim/CostStack`, and hands a
 `LeastSquaresProblem` to an optimizer. The old `better_robot.costs` import path
 is a forwarding compatibility package, not a dependency layer. The named-block
 path lives in `optim/blocks/`: a `Problem` owns `VarSpec`s, structural residual
@@ -64,25 +62,26 @@ named-block problems use the named-block solvers' `run` methods.
 `io/` and `viewer/` sit alongside the main spine, not above it. `io/`
 reads from `data_model/` only — the URDF parser does not invoke
 kinematics. `viewer/` is at the very top: nothing imports from it.
-That sequencing is what allows `import better_robot` to skip viser,
-trimesh, mujoco, and yourdfpy (the viewer + parsers are the only
-paths that pull them, and they are gated by extras).
+That sequencing is what allows `import better_robot` to skip importing viser,
+trimesh, mujoco, and yourdfpy. Viewer, direct mesh, and MJCF support are gated
+by extras; the core URDF dependency is still imported lazily at the parser
+boundary.
 
 ## The dependency rule, in code
 
 ```
-lie → spatial → data_model → (kinematics, dynamics) → residuals → optim → tasks
-                                                       ↑                                  │
-                                                       └── collision ─────────────────────┘
+tasks → optim → residuals → dynamics → kinematics → data_model → spatial → lie
+                  ├────────────────→ kinematics
+                  └→ collision ────────────────────→ data_model
 io → data_model          (io reads nothing from optim or tasks)
 viewer → tasks           (topmost; no-one imports from viewer)
 ```
 
-Stated differently: when you sit in any module under `src/`, you may
-look down and across at modules in lower or earlier layers; you may
-never look up. The contract test parses each file's imports and
-fails the build with the offending file and line number if the rule
-breaks.
+Stated differently: when you sit in any module under `src/`, you may look down
+to a lower-ranked layer. Equal-rank cross-package imports are also allowed;
+that is how dynamics reuses kinematics today. You may never import a
+higher-ranked layer. The contract test parses each file's imports and fails
+with the offending file and line number if that rule breaks.
 
 ## What each layer owns
 
@@ -95,9 +94,9 @@ breaks.
 | `dynamics` | RNEA / ABA / CRBA / centroidal algorithms and local whole-pass kernels | `residuals` / above |
 | `residuals` | Pure residual functions | `optim` / `tasks` / `io` / `viewer` |
 | `optim` | Named-block `Problem` evaluation plus legacy `CostStack` / `LeastSquaresProblem`, optimizers, linear solvers, kernels, and damping | `tasks` / `io` / `viewer` |
-| `collision` | Geometry, SDF pairs | `tasks` / `io` / `viewer` |
+| `collision` | Reserved primitive, pair-dispatch, and robot-decomposition surfaces (computation is stubbed) | `tasks` / `io` / `viewer` |
 | `io` | Parsers, IR, builders | `tasks` / `viewer` |
-| `tasks` | `solve_ik`, `solve_trajopt`, and trajectory types | `viewer` |
+| `tasks` | `solve_ik`, `solve_trajopt`, `solve_contact_forces`, and trajectory types | `viewer` |
 | `viewer` | viser bindings | — |
 
 ## The package layout
@@ -157,7 +156,6 @@ src/better_robot/
 │   ├── manipulability.py
 │   ├── collision.py
 │   ├── regularization.py
-│   ├── reference_trajectory.py
 │   └── contact.py
 │
 ├── optim/
@@ -168,7 +166,7 @@ src/better_robot/
 │   ├── state.py                   # SolverState
 │   ├── optimizers/                # LM / GN / Adam / LBFGS / MultiStage
 │   ├── solvers/                   # Cholesky / LSTSQ / BandedCholesky / NormalCG
-│   ├── kernels/                   # L2 / Huber / Cauchy / Tukey
+│   ├── kernels/                   # L2 / Huber / Cauchy / Tukey / GemanMcClure
 │   └── strategies/                # legacy Constant / Adaptive
 │
 ├── costs/                         # forwarding compatibility package
@@ -177,6 +175,7 @@ src/better_robot/
 ├── tasks/
 │   ├── ik.py                      # solve_ik
 │   ├── trajopt.py                 # solve_trajopt
+│   ├── contact_forces.py          # solve_contact_forces
 │   ├── smoothing.py               # quaternion / SE3 kernel smoothing
 │   ├── trajectory.py              # Trajectory dataclass
 │   └── parameterization.py        # Knot / BSpline
@@ -224,8 +223,8 @@ __all__ = [
     "rnea", "aba", "crba", "center_of_mass", "compute_centroidal_map",
     # optim (2)
     "CostStack", "LeastSquaresProblem",
-    # tasks (3)
-    "solve_ik", "solve_trajopt", "Trajectory",
+    # tasks (4)
+    "solve_ik", "solve_trajopt", "solve_contact_forces", "Trajectory",
 ]
 ```
 
@@ -265,15 +264,12 @@ paths so a refactor cannot silently move them.
 
 ## Extension seams
 
-Growth happens at `Protocol`-shaped seams — every place a user might
-want to plug in their own implementation is documented as a
-structural type. The complete catalogue (residuals, joints,
-optimisers, robust kernels, damping strategies, linear solvers,
-collision primitives, render modes, parsers, trajectory
-parameterisations, asset resolvers, actuators) lives in
-{doc}`/conventions/extension`. Core layers import only the Protocol,
-not concrete classes; this keeps the DAG stable as the extension set
-grows.
+Growth uses several explicit seams. Residuals, joints, optimizers, linear
+solvers, render modes, trajectory parameterizations, and asset resolvers have
+structural or class contracts; parser discovery is a suffix registry plus
+loader function. Collision and actuator surfaces are reserved sketches rather
+than usable third-party seams. The exact live and deferred catalogue lives in
+{doc}`/conventions/extension`.
 
 Whole-pass compute lanes are the deliberate exception: they are internal
 performance integrations selected by an explicit branch in the owning pass,
@@ -288,9 +284,10 @@ not a public plugin Protocol or process-wide registry.
 - **`data_model/joint_models/` one-file-per-joint.** Adding a new
   joint kind is an isolated change. See
   {doc}`joints_bodies_frames`.
-- **Two Jacobian boundaries with different jobs.** The legacy task solver calls
-  the unified kinematics Jacobian dispatch, which selects an analytic Jacobian
-  or the unbatched central-finite-difference fallback. Named-block `Problem`
+- **Two Jacobian boundaries with different jobs.** Direct flat compatibility
+  callers use the unified residual Jacobian dispatch, which selects an
+  analytic Jacobian or the unbatched central-finite-difference fallback.
+  Named-block `Problem`
   evaluation instead assembles per-residual, per-variable tangent blocks and
   uses `torch.func` forward/reverse AD when an analytic block is absent. See
   {doc}`kinematics` and {doc}`solver_stack`.

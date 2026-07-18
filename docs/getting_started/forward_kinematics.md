@@ -3,6 +3,12 @@
 A working forward-kinematics call on the Franka Panda in under five
 minutes.
 
+This walkthrough loads Panda from the optional examples package:
+
+```bash
+python -m pip install '.[demos]'  # from the BetterRobot source checkout
+```
+
 ## Load the robot
 
 ```python
@@ -14,8 +20,9 @@ model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
 print(model.nq, model.nv, model.njoints)
 ```
 
-`Model` is a frozen dataclass — it owns the kinematic tree, joint
-limits, and per-body inertial properties. It does not own a workspace.
+`Model` is a shallowly frozen dataclass, treated as read-only after
+construction. It owns the kinematic tree, joint limits, and per-body inertial
+properties; it does not own a workspace.
 See {doc}`/concepts/model_and_data` for the *why*.
 
 ## Compute forward kinematics

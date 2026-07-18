@@ -1,8 +1,8 @@
 """Batched named-block Gauss--Newton and Levenberg--Marquardt solvers.
 
-The update is pure, fixed-shape, and tensor-branching only.  It is
-capture-ready by construction under the M2 checklist; capture-*certification*
-belongs to M6's CUDA capture/replay parity test.
+The update is pure, fixed-shape, and tensor-branching only. Private
+``GraphExecutor`` CUDA tests cover capture/replay parity for fixed groups of
+these updates; the public ``run`` driver remains eager.
 
 Bounds use projected active-set LM with a projected-gradient safeguard.  The
 normal system is restricted before solving, the gain ratio uses the tangent
@@ -58,8 +58,8 @@ class LMState(NamedTuple):
     ``converged`` means that an element has satisfied either the unconstrained
     or bound-constrained KKT test.  Inspect ``status`` to distinguish those
     two successful terminal cases.  ``implicit_valid`` records structural
-    forward eligibility only; M6 owns the actual backward-system validity
-    check and implicit differentiation implementation.
+    terminal eligibility; implicit attachment separately validates and solves
+    the backward system.
     """
 
     residual: torch.Tensor
@@ -530,14 +530,14 @@ def _terminal_status(model: _LinearizedLeastSquares, gtol: float) -> torch.Tenso
 
 @dataclass(frozen=True)
 class LevenbergMarquardt:
-    """Batched projected active-set LM over M2a ``Problem``/``Values``.
+    """Batched projected active-set LM over named-block ``Problem``/``Values``.
 
     Hyperparameters are frozen.  All mutable per-element quantities live in
     :class:`LMState`.  ``update`` preserves a possible explicit unrolled
     oracle; ``run`` is the detached default driver and performs at most one
     host-side terminal check per iteration. It is capture-ready by
-    construction under the M2 checklist and capture-certified only by M6's
-    CUDA capture/replay parity test. ``block_step_limits`` optionally caps the
+    construction; private ``GraphExecutor`` CUDA tests cover fixed update
+    groups, while the public driver remains eager. ``block_step_limits`` optionally caps the
     physical tangent norm of named variable blocks before every retraction;
     state-space bounds remain the responsibility of :class:`VarSpec`.
     """

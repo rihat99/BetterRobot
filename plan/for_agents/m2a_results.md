@@ -48,8 +48,10 @@ The owner confirmed both evidence-gated decisions:
 | Lock and source hygiene | `uv lock --check`, scoped Ruff, and `git diff --check` pass |
 | Documentation | offline warnings-as-errors HTML build passes; no generated `optim.blocks` pages |
 
-No GPU result is claimed: CUDA is unavailable on this host, and both CUDA
-tests were skipped. Online nitpicky docs remain blocked by four unavailable
+No GPU result is claimed for this historical run: the default agent sandbox
+did not expose the host's NVIDIA device nodes, so both CUDA tests skipped.
+Later approved host-context M6 validation proved the GPU stack itself was
+healthy. Online nitpicky docs remain blocked by four unavailable
 external inventories and the pre-existing unresolved external-reference
 baseline; the new guide and ordinary strict offline build are clean.
 

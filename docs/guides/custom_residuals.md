@@ -167,10 +167,12 @@ when autodiff supplies a block, its transformed residual/provider path must
 also satisfy them.
 
 A non-eligible residual is still supported by the detached eager `run` loop;
-it simply must not be placed in a future captured driver. The M2b update's
-hot-path lint and a CPU `torch.compile(fullgraph=True)` smoke test catch common
-graph breaks, but neither proves CUDA graph safety. M6 owns certification via
-warmup plus actual capture/replay parity, including any custom-kernel adjoints.
+it simply must not be placed in a captured driver. The hot-path lint and a CPU
+`torch.compile(fullgraph=True)` smoke test catch common graph breaks, but
+neither proves CUDA graph safety. M6 added a private reusable
+`GraphExecutor` harness and CUDA replay evidence for fixed LM update groups;
+each custom residual still needs warmup plus actual capture/replay parity,
+including any custom-kernel adjoints. The public solver loop remains eager.
 
 ## Verification checklist
 

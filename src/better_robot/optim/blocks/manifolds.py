@@ -3,7 +3,7 @@
 There are two different kinds of bounds and they must never be conflated.
 ``Bounds`` in this module constrain *state/configuration* coordinates and are
 enforced after retraction.  Trust regions and step clamps constrain tangent
-coordinates and belong to solvers (M2b); no tangent-space box is accepted here.
+coordinates and belong to solvers; no tangent-space box is accepted here.
 
 SO(3), SE(3), and robot configurations use the repository's local/right
 perturbation convention: ``x ⊕ dv = x * exp(dv)``.
@@ -101,7 +101,8 @@ class Euclidean:
 _GROUP_BOUNDS_ERROR = (
     "{kind} variable blocks have no meaningful global box bound — neither in "
     "state space nor in tangent space. Express rotation limits as residuals "
-    "(rotation prior / swing-twist, roadmap M3), or use RobotConfig with joint "
+    "(for example JointRotationPrior or SwingTwistLimitResidual), or use "
+    "RobotConfig with joint "
     "limits. Got bounds={bounds!r} on VarSpec {name!r}."
 )
 

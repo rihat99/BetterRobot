@@ -10,11 +10,11 @@ job that makes both sustainable: have only one path through.
 
 The library has exactly one FK function (`forward_kinematics`),
 exactly one Jacobian assembly function
-(`compute_joint_jacobians`), and exactly one residual-Jacobian
-dispatcher (`residual_jacobian`). The dispatcher picks an analytic
-Jacobian or the current central finite-difference fallback via a
-`JacobianStrategy` flag. Real `torch.func` strategies are scheduled for
-the M2 residual redesign and are not selectable today. This discipline prevents
+(`compute_joint_jacobians`), and exactly one legacy residual-Jacobian
+dispatcher (`residual_jacobian`). That dispatcher picks an analytic Jacobian or
+the central finite-difference fallback via a `JacobianStrategy` flag. The
+named-block `Problem` is a separate, shipped path with explicit `jacrev` and
+`jacfwd` strategies. This discipline prevents
 "fixed base" and "floating base" Jacobian variants from accreting
 back into the codebase.
 
@@ -63,11 +63,15 @@ def forward_kinematics_raw(
     values: ModelValues,
     q: torch.Tensor,
 ) -> tuple[Tensor, Tensor]:
+    q_full = expand_configuration(structure, q)
     world = [None] * structure.njoints
     local = [None] * structure.njoints
 
     for j in structure.topo_order:
-        qj = q[..., structure.idx_qs[j] : structure.idx_qs[j] + structure.nqs[j]]
+        qj = q_full[
+            ...,
+            structure.idx_qs_full[j] : structure.idx_qs_full[j] + structure.nqs_full[j],
+        ]
         Tj = joint_transform(
             structure.joint_models[j],
             structure.joint_kind_codes[j],
@@ -101,7 +105,8 @@ Properties of this FK:
 `forward_kinematics_raw`.
 
 The public wrapper takes `use_warp=True` as an explicit whole-pass opt-in.
-The prototype first checks eligibility and falls back to the Torch raw pass
+The CUDA-validated opt-in lane first checks eligibility and falls back to the
+Torch raw pass
 when the optional runtime or input layout is unsupported. There is no
 per-Lie-operation dispatch or process-wide selector.
 
@@ -177,7 +182,7 @@ referenced at the world origin) to a body Jacobian; it is wrong for
 LWA, where the angular and linear parts are already decoupled at the
 frame origin. Getting this wrong produces correlation between linear
 and angular errors that no IK solver will ever resolve. The unit test
-`tests/kinematics/test_jacobian_reference_frames.py` pins the
+`tests/test_pinocchio/test_frame_jacobian_matches_pinocchio.py` pins the
 convention.
 
 ## `JacobianStrategy` — one entry point, two implementations
@@ -202,7 +207,8 @@ Source: `src/better_robot/kinematics/jacobian_strategy.py`.
   `1e-3` (fp32) or `1e-7` (fp64).
 - `FINITE_DIFF` selects that same fallback explicitly, which is useful for
   validating analytic Jacobians. The removed `AUTODIFF` and `FUNCTIONAL`
-  values are re-added only when real `torch.func` implementations land in M2.
+  values do not return to this legacy enum; named-block callers select the
+  shipped `jacrev` or `jacfwd` strategies on `Problem`/LM instead.
 
 ```python
 def residual_jacobian(
@@ -219,7 +225,9 @@ def residual_jacobian(
     """
 ```
 
-The solver in `optim/` never writes Jacobian code — it asks this function.
+This helper belongs to the legacy flat residual lane. Direct compatibility
+optimizers ask it for Jacobians; named-block `Problem` evaluation instead uses
+its own analytic, `jacrev`, or `jacfwd` block strategy.
 
 ## Pose residual analytic Jacobian — the elegant version
 
@@ -278,9 +286,10 @@ the right entry point.
 
 ## Cache invariants
 
-Every kinematics entry point calls `data.require(level)` and raises
-`StaleCacheError` if the cache is below the required level. See
-{doc}`model_and_data` for the invariant.
+Kinematics cache consumers call `data.require(level)` and raise
+`StaleCacheError` if the cache is below the required level. Producer passes,
+including `forward_kinematics`, recompute their outputs and advance the level.
+See {doc}`model_and_data` for the invariant.
 
 ```python
 data = forward_kinematics(model, q)            # _kinematics_level = PLACEMENTS
@@ -293,11 +302,13 @@ J = compute_joint_jacobians(model, data)       # raises StaleCacheError — must
 
 ## Device and dtype
 
-`forward_kinematics_raw` produces output on the same device and dtype as
-`q`. `Data` inherits both. Device compatibility is validated at the pass
-boundary; floating-point structure/value tables are cast to the working
-dtype once before the topology loop. Mixed precision is outside the
-supported numerical contract because analytic Jacobians are sensitive to it.
+`forward_kinematics_raw` produces output on the same device and dtype as the
+validated inputs. At the public boundary, `q` must be `float32` or `float64`
+and must exactly match the model values' device and dtype; mismatches raise
+`DeviceMismatchError` or `DtypeMismatchError` rather than being cast
+implicitly. `Data` created by the pass inherits that device and dtype. Mixed
+precision is outside the supported numerical contract because analytic
+Jacobians are sensitive to it.
 
 ## What gets shipped
 

@@ -1,45 +1,32 @@
 # Parsers and the IR
 
-A robot description format (URDF, MJCF, a Python builder) is not the
-same thing as a `Model`. The format is whatever the asset authoring
-tool happened to produce; the `Model` is the frozen, typed, batched,
-device-polymorphic object the rest of BetterRobot builds on. The
-glue between them is the `io/` layer.
+URDF, MJCF, and programmatic construction all meet at an in-process
+intermediate representation, `IRModel`.  Format-specific code produces the
+IR; {py:func}`better_robot.io.build_model` sorts and validates its topology,
+selects joint implementations, packs tensors, and returns a frozen
+`better_robot.Model`.
 
-The temptation, every time a new format request comes in, is to add
-"parse this format" to whatever class loads URDFs. That path leads to
-a `Robot` class that knows about every XML dialect, every mesh
-loader, every package-path convention. The first time you want to
-load a robot from a non-XML source — a programmatic builder, a
-generated SMPL-like body, a JSON description from a research paper —
-you discover the parser is the entry point and there is no clean way
-to extend it.
+The IR is a build boundary, not a persistence format.  Its serialized or
+pickled shape has no compatibility guarantee; re-parse the source description
+after an upgrade.
 
-We solved this by making the format-specific parsers all converge on
-the same intermediate representation: an internal `IRModel` dataclass.
-Every parser produces an `IRModel`; one factory —
-`build_model()` — turns any `IRModel` into a frozen `Model`.
-Adding a new format is one parser file plus a registration; the
-factory does not need to change. URDF and MJCF live as siblings; a
-programmatic builder lives next to them; a generated SMPL skeleton
-lives in `io/builders/`.
+## Loading a model
 
-## The single entry point
+The normal entry point is `better_robot.load`:
 
 ```python
 import better_robot as br
 
-model = br.load("robot.urdf")                   # URDF
-model = br.load("robot.xml", format="mjcf")     # MJCF
-model = br.load(urdf_obj)                       # already-parsed yourdfpy.URDF
-model = br.load(build_fn)                       # programmatic builder (callable)
+urdf_model = br.load("robot.urdf")
+mjcf_model = br.load("robot.xml")       # .xml maps to the MJCF parser
+floating = br.load("robot.urdf", free_flyer=True)
 ```
 
-`br.load` is a thin suffix / type dispatcher:
+Its current signature is:
 
 ```python
 def load(
-    source: str | Path | yourdfpy.URDF | Callable[[], "IRModel"],
+    source: str | Path | Any | Callable[[], IRModel],
     *,
     format: Literal["auto", "urdf", "mjcf", "builder"] = "auto",
     root_joint: JointModel | None = None,
@@ -50,64 +37,78 @@ def load(
 ) -> Model: ...
 ```
 
-Source: `src/better_robot/io/__init__.py`.
+For paths, `format="auto"` lowercases the suffix without its leading dot and
+looks it up in the parser registry.  The built-in keys are `"urdf"`, `"mjcf"`,
+and `"xml"`.  A `yourdfpy.URDF` object is also accepted.  A non-path callable
+is called with no arguments and must return an `IRModel`:
 
-The three arguments worth knowing:
+```python
+def make_ir() -> IRModel:
+    builder = ModelBuilder("arm")
+    # fill builder ...
+    return builder.finalize()
 
-- **`free_flyer=True`** is shorthand for
-  `root_joint=JointFreeFlyer()`. It is what turns a fixed-base URDF
-  into a floating-base robot. This single argument eliminates the
-  entire "fixed vs floating base" code path elsewhere.
-- **`root_joint`** lets you replace the default root with any
-  `JointModel`. Most users want `JointFixed` (the default) or
-  `JointFreeFlyer`; advanced users can plug in a custom joint kind
-  for things like an underactuated rolling base.
-- **`preserve_joint_order=True`** uses a stable Kahn topological sort so an
-  already-topological source keeps its joint and q/v slice order. The default
-  remains the historical DFS layout for Pinocchio-compatible indexing. If an
-  established external order differs, `Model.q_permutation` provides the
-  vectorized trailing-dimension gather.
+model = br.load(make_ir)
+```
+
+Callable detection happens before the `format` hint, so callers should use a
+callable directly rather than rely on `format="builder"` for a path.
+
+`free_flyer=True` supplies `JointFreeFlyer()` only when `root_joint` is not
+already provided.  `preserve_joint_order=True` selects the stable Kahn
+topological sort; the default remains the historical DFS body traversal.
+Already-topological input keeps its source order under the stable path, while
+non-topological input is repaired deterministically.  `Model.q_permutation`
+can describe the resulting source-to-model coordinate gather.
+
+`load` does **not** have a `resolver=` parameter.  Use the direct parser plus
+`build_model` when a custom asset resolver is required; see
+{ref}`asset-resolver-behavior`.
 
 ## The intermediate representation
+
+The dataclasses in `src/better_robot/io/ir.py` have these fields:
 
 ```python
 @dataclass
 class IRJoint:
     name: str
     parent_body: str
-    child_body:  str
-    kind: str                              # "revolute" | "prismatic" | "fixed" | "ball" | "free" | ...
+    child_body: str
+    kind: str
     axis: torch.Tensor | None = None
-    origin: torch.Tensor                   # (7,) SE3 in parent body frame
+    origin: torch.Tensor = field(default_factory=lambda: torch.zeros(7))
     lower: float | None = None
     upper: float | None = None
     velocity_limit: float | None = None
-    effort_limit:   float | None = None
+    effort_limit: float | None = None
     mimic_source: str | None = None
     mimic_multiplier: float = 1.0
     mimic_offset: float = 0.0
+    pitch: float = 0.0
+    joint_model: JointModel | None = None
+
+@dataclass
+class IRGeom:
+    kind: str
+    params: dict
+    origin: torch.Tensor
+    rgba: tuple[float, float, float, float] | None = None
 
 @dataclass
 class IRBody:
     name: str
     mass: float = 0.0
-    com: torch.Tensor                      # (3,)
-    inertia: torch.Tensor                  # (3, 3) symmetric
-    visual_geoms:    list[IRGeom]
-    collision_geoms: list[IRGeom]
-
-@dataclass
-class IRGeom:
-    kind: str                              # "sphere" | "box" | "capsule" | "cylinder" | "mesh"
-    params: dict
-    origin: torch.Tensor                   # (7,) SE3 in body frame
-    rgba: tuple[float, float, float, float] | None = None
+    com: torch.Tensor = field(default_factory=lambda: torch.zeros(3))
+    inertia: torch.Tensor = field(default_factory=lambda: torch.zeros(3, 3))
+    visual_geoms: list[IRGeom] = field(default_factory=list)
+    collision_geoms: list[IRGeom] = field(default_factory=list)
 
 @dataclass
 class IRFrame:
     name: str
     parent_body: str
-    placement: torch.Tensor                # (7,) SE3 in parent body frame
+    placement: torch.Tensor
     frame_type: str = "op"
 
 @dataclass
@@ -115,24 +116,22 @@ class IRModel:
     name: str
     bodies: list[IRBody]
     joints: list[IRJoint]
-    frames: list[IRFrame]
-    root_body: str
-    gravity: torch.Tensor                  # (6,) world spatial acceleration
-    meta: dict                             # transit slot for parser hints (e.g. asset_resolver)
+    frames: list[IRFrame] = field(default_factory=list)
+    root_body: str = ""
+    gravity: torch.Tensor = field(
+        default_factory=lambda: torch.tensor(
+            [0.0, 0.0, -9.81, 0.0, 0.0, 0.0]
+        )
+    )
+    meta: dict = field(default_factory=dict)
 ```
 
-Source: `src/better_robot/io/ir.py`.
+The default gravity tensor is `[0, 0, -9.81, 0, 0, 0]`.  `joint_model` is a
+programmatic-builder payload; file parsers leave it as `None`.  The IR list
+order need not be topological because ordering and coordinate offsets are
+assigned by `build_model`.
 
-The IR is **flat** and **ordered-unconstrained**. Topological sort,
-`idx_q` / `idx_v` assignment, mimic resolution, joint-kind dispatch
-to concrete `JointModel` instances — none of that lives in the IR.
-`build_model()` derives all of it.
-
-The IR is an in-process parser/build boundary, not a persistence format.
-BetterRobot does not promise compatibility for pickled or independently
-serialized `IRModel` instances; re-parse the source asset after an upgrade.
-
-## `build_model` — the IR → `Model` factory
+## `build_model`
 
 ```python
 def build_model(
@@ -142,259 +141,242 @@ def build_model(
     preserve_joint_order: bool = False,
     device: torch.device | None = None,
     dtype: torch.dtype = torch.float32,
-) -> Model:
-    """Consume an IRModel and return a frozen Model."""
+) -> Model: ...
 ```
 
-Source: `src/better_robot/io/build_model.py`.
+The factory:
 
-Responsibilities, in order:
+1. identifies an explicit `parent_body="world"` root edge or inserts a
+   synthetic fixed root joint;
+2. sorts regular joints by DFS or the opt-in stable Kahn path;
+3. maps each `IRJoint.kind` (or its programmatic `joint_model`) to a concrete
+   `JointModel`;
+4. builds full and public `q`/`v` layouts, including affine reduction for
+   supported scalar mimic joints;
+5. packs placements, limits, inertias, gravity, and the mimic maps;
+6. creates `body_<name>` frames and appends explicit `IRFrame` entries;
+7. checks the packed topology/layout invariants; and
+8. returns a frozen `Model`, with the source IR in `model.meta["ir"]` and
+   entries from `ir.meta` copied alongside it.
 
-1. Replace the root body's parent joint with `root_joint` if supplied
-   (default: `JointFixed`).
-2. Resolve mimic edges to `mimic_source` / `mimic_multiplier` /
-   `mimic_offset` arrays (the gather trick from
-   {doc}`joints_bodies_frames`).
-3. Topologically sort joints so parents precede children. DFS remains the
-   default; ``preserve_joint_order=True`` selects a stable Kahn sort that
-   retains valid source order and stably repairs non-topological input.
-4. Assign `idx_q` / `idx_v` by accumulating per-joint dimensions.
-5. Select concrete `JointModel` instances based on `IRJoint.kind`
-   plus `axis`. `kind="revolute", axis=[1,0,0]` becomes `JointRX()`;
-   `kind="revolute", axis=[0.5, 0.5, 0]` becomes
-   `JointRevoluteUnaligned(axis=[0.5, 0.5, 0])`.
-6. Pack per-joint numeric buffers (`joint_placements`,
-   `lower_pos_limit`, `upper_pos_limit`, `velocity_limit`,
-   `effort_limit`).
-7. Pack per-body inertias into the 10-vector representation.
-8. Build the frame list (default `body_<name>` frames per body, plus
-   anything user-supplied in `ir.frames`).
-9. Build name → id dicts.
-10. Return `Model(frozen=True)`.
+Structural errors such as disconnected topology, multiple world-root edges,
+unknown joint kinds, invalid mimic references, or mimic cycles raise
+`IRError` or a more specific documented validation error.  Missing URDF
+inertial data is **not** one of those errors: the URDF parser initializes
+missing mass, COM, and inertia values to zero without a warning, and
+`build_model` accepts those zero values.  It also uses a zero inertia row when
+an expected IR body record is absent.
 
-`build_model` is strict about violating invariants: missing inertia
-on a non-root body, cycles in the joint graph, a mimic source that
-does not exist, or an unknown joint `kind` all raise `IRError` at
-build time. It is permissive where the format itself is ambiguous —
-URDF joints without a `<limit>` on a revolute become unbounded; URDF
-continuous joints get a sentinel `"continuous"` kind; missing masses
-become zero with a warning.
+## URDF parsing
 
-## The URDF parser
+The direct parser signature is:
 
 ```python
-def parse_urdf(source: str | Path | "yourdfpy.URDF") -> IRModel:
-    """Parse a URDF file or yourdfpy object into an IRModel."""
+def parse_urdf(
+    source: str | Path | Any,
+    *,
+    resolver: AssetResolver | None = None,
+) -> IRModel: ...
 ```
 
-Source: `src/better_robot/io/parsers/urdf.py`.
+`source` may be a path or an already-loaded `yourdfpy.URDF` object.  The
+parser emits one `IRBody` for each entry in `urdf.link_map` and one `IRJoint`
+for each entry in `urdf.joint_map`.  It records joint axes, origins, limits,
+and mimic metadata.  URDF `continuous` remains `kind="continuous"` in the IR
+and becomes a `JointRevoluteUnbounded` during `build_model`.
 
-Key points:
+Sphere, box, cylinder, capsule, and mesh visual/collision elements are copied
+to `IRGeom` metadata.  Mesh files are not loaded by this parser.  When
+available, the `yourdfpy` object's own filename handler may rewrite its mesh
+path before it is stored.
 
-- Emits exactly one `IRBody` per URDF `<link>` and exactly one
-  `IRJoint` per `<joint>`. Bodies without mass get zero inertia.
-- URDF `"continuous"` becomes `JointRevoluteUnbounded` at the
-  `build_model` step; at IR level it is just `kind="continuous"`.
-- `<mimic>` tags become `mimic_source` / `mult` / `off` fields;
-  `build_model` resolves them to indices.
-- Visual / collision meshes go into `IRBody.visual_geoms` /
-  `collision_geoms` as `IRGeom("mesh", {"path": ..., "scale": ...})`.
-  The parser does not load meshes — that is the collision layer's
-  job.
-- `yourdfpy` is a lazy import — pulled in only when `parse_urdf` is
-  actually called. A user who never parses a URDF never pays the
-  cost.
+`yourdfpy` is imported when `parse_urdf` runs (and by `load` while checking
+whether a non-callable source is a `yourdfpy.URDF`).  A missing dependency at
+the direct parser boundary is reported as `BackendNotAvailableError`.
 
-## The MJCF parser
+## MJCF parsing
+
+The direct parser signature is:
 
 ```python
-def parse_mjcf(source: str | Path) -> IRModel: ...
+def parse_mjcf(
+    source: str | Path,
+    *,
+    resolver: AssetResolver | None = None,
+) -> IRModel: ...
 ```
 
-Source: `src/better_robot/io/parsers/mjcf.py`.
+It uses `mujoco.MjSpec.from_file` and imports `mujoco` only when the parser is
+called.  The current lowering covers bodies; hinge, slide, ball, and free
+joints; sites as operational frames; and sphere, capsule, cylinder, and box
+collision metadata.  A non-root body with no explicit joint receives a fixed
+joint.
 
-MJCF has strictly more expressive joint syntax than URDF (ball
-joints, slider, hinge, free, composite joints, sites), so the MJCF
-parser fills more of the IR than the URDF parser:
+MJCF mesh, plane, height-field, and ellipsoid geometry, visual geometry,
+tendons, and actuators are not lowered.  Multiple MJCF joints on one body are
+not combined into a composite joint; the emitted parallel edges are rejected
+later by the tree builder.  This is a current parser limitation, not supported
+composite-joint behavior.
 
-- `<joint type="ball">` → `IRJoint(kind="spherical")`
-- `<joint type="free">` → `IRJoint(kind="free_flyer")`
-- `<joint type="hinge" axis="1 0 0">` → `IRJoint(kind="revolute",
-  axis=[1,0,0])`
-- `<site>` → `IRFrame(frame_type="op")`
-- `<body>` without `<joint>` children → `IRJoint(kind="fixed")`
+## Programmatic construction
 
-MJCF is a first-class input, not a second-class afterthought —
-mjlab's lesson, which we took to heart. Dependency: `mujoco.MjSpec`,
-imported lazily — pulled in only when `parse_mjcf` is actually called.
-
-## The programmatic builder
-
-The third path: the robot is produced by a Python function, not an
-XML file.
+`better_robot.io.ModelBuilder` is the fluent IR builder.  This is a
+minimal complete example using the actual tensor-valued placement API:
 
 ```python
-class ModelBuilder:
-    """Fluent, imperative builder that emits an IRModel.
+import torch
+from better_robot.io import ModelBuilder, build_model
 
-    Prefer the named ``add_*`` helpers below. The catch-all
-    ``add_joint(kind=JointModel-instance)`` is kept for advanced uses
-    (custom joint kinds registered via the JointModel extension seam).
+identity = torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
 
-    Example:
-        b = ModelBuilder("my_arm")
-        base  = b.add_body("base", mass=0.0)
-        link1 = b.add_body("link1", mass=1.2, inertia=diag([...]))
-        b.add_revolute_z(name="joint1", parent=base, child=link1,
-                         origin=SE3.from_translation([0, 0, 0.1]),
-                         lower=-pi, upper=pi)
-        ir = b.finalize()
-    """
-
-    def __init__(self, name: str) -> None: ...
-    def add_body(self, name: str, *, mass: float = 0.0,
-                 com: torch.Tensor = ..., inertia: torch.Tensor = ...) -> str: ...
-
-    # Named joint helpers (the documented API)
-    def add_fixed(self, name, parent, child, *, origin=None) -> str: ...
-    def add_revolute(self, name, parent, child, axis, **kw) -> str: ...
-    def add_revolute_x(self, name, parent, child, **kw) -> str: ...
-    def add_revolute_y(self, name, parent, child, **kw) -> str: ...
-    def add_revolute_z(self, name, parent, child, **kw) -> str: ...
-    def add_prismatic_x(self, name, parent, child, **kw) -> str: ...
-    def add_prismatic_y(self, name, parent, child, **kw) -> str: ...
-    def add_prismatic_z(self, name, parent, child, **kw) -> str: ...
-    def add_spherical(self, name, parent, child, **kw) -> str: ...
-    def add_planar   (self, name, parent, child, **kw) -> str: ...
-    def add_free_flyer_root(self, name, child, **kw) -> str: ...
-    def add_helical(self, name, parent, child, axis, pitch, **kw) -> str: ...
-
-    # Catch-all for custom joint kinds (JointModel instances only)
-    def add_joint(self, *, name, parent, child,
-                  kind: "JointModel",
-                  origin=None, lower=None, upper=None, ...) -> str: ...
-
-    def add_frame(self, name, *, parent_body, placement, frame_type="op") -> str: ...
-    def add_collision_geom(self, body, kind, params, origin) -> None: ...
-
-    def finalize(self) -> IRModel: ...
+builder = ModelBuilder("one_link")
+base = builder.add_body("base")
+tip = builder.add_body("tip", mass=1.2, inertia=torch.eye(3))
+builder.add_revolute_z(
+    "joint",
+    parent=base,
+    child=tip,
+    origin=identity,
+    lower=-3.14,
+    upper=3.14,
+)
+model = build_model(builder.finalize())
 ```
 
-Source: `src/better_robot/io/parsers/programmatic.py`.
-
-`ModelBuilder` is the entry point for any "robot defined in Python"
-case — a researcher generating a robot with parameterised geometry,
-a sample SMPL-like body, a humanoid built from joint primitives.
-`add_joint(kind=...)` accepts a `JointModel` *instance*, not a
-string; this rules out the historical mismatch where
-`add_joint(kind="revolute_z", ...)` and
-`IRJoint(kind="revolute", axis=(0,0,1))` produced different things.
-The named helpers (`add_revolute_z`, `add_free_flyer_root`, …) are the
-documented API; passing a string to `add_joint` raises a typed error
-pointing at the named form.
-
-`br.load(build_fn)` works by calling `build_fn()`, which constructs a
-`ModelBuilder`, fills it in, and returns the finalised `IRModel`.
-`br.load` then runs `build_model()` on it.
-
-### Example: SMPL-like body
+The public methods and their current signatures are:
 
 ```python
-def make_smpl_like_body(height: float = 1.75, mass: float = 70.0,
-                       *, shape_params=None) -> IRModel:
-    """Build an SMPL-skeleton-topology IRModel with fixed shape parameters.
+ModelBuilder(name: str)
 
-    NOT an SMPL loader — constructs a kinematic tree with the same
-    24-joint topology as SMPL (pelvis as free-flyer root, plus 23 ball
-    joints), with body dimensions derived from the shape parameters.
-    """
-    b = ModelBuilder("smpl_body")
-    pelvis = b.add_body("pelvis", mass=...)
-    b.add_free_flyer_root("root", child=pelvis, origin=SE3_identity())
-    # ... left_hip, right_hip, spine, ... all JointSpherical
-    return b.finalize()
+add_body(name, *, mass=0.0, com=None, inertia=None) -> str
+add_frame(name, *, parent_body, placement, frame_type="op") -> str
+add_collision_geom(body, kind, params, origin) -> None
+
+add_revolute(name, *, parent, child, axis, origin=None,
+             lower=None, upper=None, velocity_limit=None,
+             effort_limit=None, unbounded=False, mimic_source=None,
+             mimic_multiplier=1.0, mimic_offset=0.0) -> str
+add_revolute_x(name, **kwargs) -> str
+add_revolute_y(name, **kwargs) -> str
+add_revolute_z(name, **kwargs) -> str
+
+add_prismatic(name, *, parent, child, axis, origin=None,
+              lower=None, upper=None, velocity_limit=None,
+              effort_limit=None) -> str
+add_prismatic_x(name, **kwargs) -> str
+add_prismatic_y(name, **kwargs) -> str
+add_prismatic_z(name, **kwargs) -> str
+
+add_spherical(name, *, parent, child, origin=None) -> str
+add_planar(name, *, parent, child, origin=None) -> str
+add_helical(name, *, parent, child, axis, pitch, origin=None,
+            lower=None, upper=None) -> str
+add_free_flyer_root(name="free_flyer", *, child, origin=None) -> str
+add_fixed(name, *, parent, child, origin=None) -> str
+
+add_joint(name, *, kind=None, parent, child, origin=None, axis=None,
+          lower=None, upper=None, velocity_limit=None, effort_limit=None,
+          mimic_source=None, mimic_multiplier=1.0,
+          mimic_offset=0.0) -> str
+finalize() -> IRModel
 ```
 
-Source: `src/better_robot/io/builders/smpl_like.py`. This demonstrates
-that the data model is expressive enough to host an SMPL-skeleton
-body without introducing any SMPL-specific code in core. The
-SMPL-and-muscle extension lives in the sibling
-`better_robot_human` package under the `[human]` extra.
+The axis-specific helpers forward their keyword arguments to the generic
+revolute or prismatic method.  The catch-all `add_joint` requires
+`kind=<JointModel instance>`; strings and `None` raise `TypeError`.
+`add_collision_geom` records IR metadata only and does not make collision
+queries operational.  `finalize` requires exactly one root-body candidate;
+the deeper topology and joint validation occurs in `build_model`.
 
-## Asset resolution — the `AssetResolver` Protocol
+`better_robot.io.builders` also exports array-driven kinematic-tree builders
+and `make_smpl_like_body` / `make_smpl_like_model`.  The SMPL-like helpers
+construct a 24-joint topology but are not SMPL mesh, pose, or shape loaders.
+`joint_offsets` and explicit per-body inertial arguments affect construction;
+the currently accepted `shape_params` argument is not read by the
+implementation.
 
-URDF and MJCF mesh paths come in three flavours: absolute filesystem
-paths, relative paths against the URDF directory, and ROS-style
-`package://<pkg>/<path>` URLs that need a package map. Hand-rolling
-that logic in every parser, viewer, and collision-mesh loader is
-the historical pain point. The Protocol:
+(asset-resolver-behavior)=
+## Asset resolvers and their current consumers
+
+The runtime-checkable Protocol in `src/better_robot/io/assets.py` has one
+method:
 
 ```python
+@runtime_checkable
 class AssetResolver(Protocol):
-    """Resolve a mesh / asset URI to a local file path.
-
-    Parsers and visualisers should use a resolver instead of hand-rolling
-    path logic. The resolver may consult a package map, a base directory,
-    an embedded asset bundle, or a downloader cache.
-    """
-    def resolve(self, uri: str, *, base_path: Path | None = None) -> Path: ...
-    def exists (self, uri: str, *, base_path: Path | None = None) -> bool: ...
+    def resolve(self, uri: str) -> Path: ...
 ```
 
-Source: `src/better_robot/io/assets.py`.
+There is no `exists` method and no per-call `base_path` keyword.  A failed
+resolution is represented by `FileNotFoundError`.
 
-Concrete resolvers shipped in core (no heavy dependencies):
+| Resolver | Constructor and behavior |
+|----------|--------------------------|
+| `FilesystemResolver` | `FilesystemResolver(base_path)` resolves a path against that fixed directory and rejects URI schemes. |
+| `PackageResolver` | `PackageResolver(packages)` resolves `package://<name>/<path>` through the explicit mapping. |
+| `CompositeResolver` | `CompositeResolver(resolvers)` tries children in order until one does not raise `FileNotFoundError`. |
+| `CachedDownloadResolver` | `CachedDownloadResolver(cache_dir)` creates the caller-selected cache directory and downloads `http(s)` URLs by their final path component. No default cache directory is supplied. |
 
-| Resolver | Use |
-|----------|-----|
-| `FilesystemResolver` | absolute paths + paths relative to a base dir; the default for `parse_urdf` / `parse_mjcf` |
-| `PackageResolver`    | `package://<pkg>/<path>` translation; takes a `{pkg: root}` map |
-| `CompositeResolver`  | tries children in order; returns the first hit |
-| `CachedDownloadResolver` | for `robot_descriptions`-style packages; downloads to `~/.cache/better_robot/assets/` |
+The direct URDF and MJCF parsers accept `resolver=`.  For a path source they
+construct `FilesystemResolver(Path(source).parent)` when none is supplied.
+The parser stores that object in `ir.meta["asset_resolver"]`; `build_model`
+copies it to `model.meta["asset_resolver"]`.
 
-Parsers accept `resolver=...`; if omitted, they build a
-`FilesystemResolver` rooted at the source's directory. The resolver
-that was used at parse time is stored on `model.meta["asset_resolver"]`
-so downstream consumers (the viewer, collision mesh loaders) inherit
-it. See {doc}`viewer` for the integration.
-
-## Registration and dispatch
+The parsers do not call `resolver.resolve` while lowering geometry.  The
+implemented downstream consumer is `URDFMeshMode` in the viewer: it consults
+the stored resolver for mesh paths and falls back to the raw path if resolution
+fails.  The collision package does not currently consume parser geometry or
+asset resolvers.  To install a custom resolver, bypass `load`:
 
 ```python
-# src/better_robot/io/__init__.py
-_PARSERS: dict[str, Callable[..., IRModel]] = {
-    "urdf": parse_urdf,
-    "mjcf": parse_mjcf,
-}
+from better_robot.io import build_model
+from better_robot.io.parsers import parse_urdf
 
-def register_parser(suffix: str, fn: Callable[..., IRModel]) -> None:
-    """Register a new format parser at runtime."""
-    _PARSERS[suffix] = fn
+ir = parse_urdf("robot.urdf", resolver=my_resolver)
+model = build_model(ir)
 ```
 
-Adding SDF support, Drake YAML support, or a custom JSON description
-format is a single-file extension that registers a parser via the
-seam in {doc}`/conventions/extension` §9. The IR shape does not
-change; `build_model` does not change; existing tests do not break.
+## Runtime parser registration
+
+Registration is a function call, not a decorator:
+
+```python
+def register_parser(
+    suffix: str,
+    fn: Callable[..., IRModel],
+) -> None: ...
+```
+
+Keys must match the lowercase suffix **without** a leading dot:
+
+```python
+from better_robot.io import register_parser
+
+def parse_sdf(source) -> IRModel:
+    ...
+
+register_parser("sdf", parse_sdf)
+model = br.load("robot.sdf")
+```
+
+This extends automatic suffix dispatch at runtime.  The static `format` type
+annotation still lists only `auto`, `urdf`, `mjcf`, and `builder`, so custom
+formats are most naturally selected by their registered path suffix.
 
 ## Sharp edges
 
-- **Parsers stay at the boundary.** `yourdfpy` and `mujoco` are only
-  imported inside `io/parsers/urdf.py` and `io/parsers/mjcf.py` — never
-  from the kinematics, dynamics, or optim layers. The contract test
-  `test_optional_imports.py` enforces this on every PR. The discipline
-  keeps `import better_robot` light and the layered DAG honest.
-- **Meshes are not loaded by parsers.** The IR carries the URI;
-  loading happens in `viewer/` and `collision/`. Both go through the
-  `AssetResolver`.
-- **IR is not a persistence contract.** Re-parse source descriptions after
-  upgrading BetterRobot instead of caching serialized `IRModel` objects.
+- `IRJoint.origin` defaults to seven zeros, not an identity quaternion.  The
+  shipped parsers and `ModelBuilder` helpers normally provide an explicit
+  identity pose when no source origin exists.
+- Missing URDF inertial fields become zeros silently.
+- `load` cannot forward parser-specific options such as `resolver=`.
+- Parser-emitted collision geometry is metadata only while the collision
+  computation surface remains reserved; see {doc}`collision_and_geometry`.
+- Re-parse source descriptions instead of persisting the IR across versions.
 
 ## Where to look next
 
-- {doc}`model_and_data` — what `build_model` produces and how the
-  consumer side reads from it.
-- {doc}`/conventions/extension` §9 — recipe for adding a new parser
-  format.
-- {doc}`/conventions/extension` §13 — recipe for a custom asset
-  resolver.
+- {doc}`model_and_data` — the frozen model and mutable data/cache split.
+- {doc}`/conventions/extension` §9 — runtime parser registration.
+- {doc}`/conventions/extension` §13 — custom resolver construction.
+- {doc}`viewer` — the implemented parser-geometry consumer.

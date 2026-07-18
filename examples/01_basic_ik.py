@@ -16,7 +16,7 @@ from robot_descriptions import panda_description
 
 # Bent-elbow "ready" pose — away from singularities.
 PANDA_READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4,
-               0.0, math.pi / 2, math.pi / 4, 0.04, 0.04]
+               0.0, math.pi / 2, math.pi / 4, 0.04]
 
 EE_FRAME = "body_panda_hand"
 COST = IKCostConfig(limit_weight=0.1, rest_weight=0.001)

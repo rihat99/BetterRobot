@@ -1,12 +1,12 @@
 """Linear-system representations and the pluggable solver protocols.
 
-The stable public seam remains ``solve(A, b, ridge=None) -> Tensor``. M5 adds
-structured and matrix-free system representations without making diagnostics
+The stable public seam remains ``solve(A, b, ridge=None) -> Tensor``.
+Structured and matrix-free system representations do not make diagnostics
 or warm starts mandatory for existing third-party solvers. Implementations
 that can report per-element health may additionally satisfy
 ``InformativeLinearSolver``.
 
-See ``docs/concepts/solver_stack.md §5`` and ``docs/conventions/extension.md §5``.
+See ``docs/concepts/solver_stack.md`` and ``docs/conventions/extension.md``.
 """
 
 from __future__ import annotations

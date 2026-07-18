@@ -3,7 +3,7 @@
 ## Two supported call shapes
 
 Legacy residuals accept `ResidualState(model, data, variables)` and may expose
-an analytic `jacobian(state)`. Current optimization tasks use M2 named-block
+an analytic `jacobian(state)`. Current optimization tasks use the named-block
 `Problem`: a residual is a callable over an evaluation-local mapping, declares
 `reads`, returns `(..., dim)` rows, and may implement
 `jacobian_blocks(ctx) -> dict[var_name, Tensor]`. Do not introduce a third
@@ -60,8 +60,8 @@ Robust kernels live on `optim.ResidualItem`, not inside residual math. Use
   reference-trajectory terms.
 - `smoothness.py`, `temporal.py`: trajectory differences and time indexing.
 - `contact.py`: contact-consistency residual.
-- `collision.py`: collision residual placeholders pending the evidence-gated
-  M4 port-or-cut decision; do not partially implement this path.
+- `collision.py`: collision residual placeholders explicitly deferred; do not
+  partially implement this path without a new reviewed scope.
 
 ## Author checklist
 

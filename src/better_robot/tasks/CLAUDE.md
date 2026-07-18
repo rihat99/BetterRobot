@@ -22,7 +22,7 @@ Assembles one bounded `RobotConfig` block, `PoseResidual` items, optional limit/
 
 ## solve_trajopt
 
-Adapts active soft `CostStack` items into one `VarSpec("q", (T, nq), RobotConfig(model), time_axis=0)` with a lazy `RobotStateProvider`. Route-aware named-block LM chooses the banded path when every residual declares temporal blocks; forced dense remains the parity oracle and explicit `matrix_free` uses the normal-operator route. `TrajOptResult` exposes `linearization_requested`, `linearization_used`, `linearization_reason`, and `linearization_detail`. Arbitrary leading batch axes return per-element iterations, convergence, and status. Legacy optimizer objects and constraint-kind items fail actionably. `BSplineTrajectory` remains a Euclidean numerical basis utility and is rejected until a separately reviewed manifold-safe mapping exists; M5 does not promise to enable it.
+Adapts active soft `CostStack` items into one `VarSpec("q", (T, nq), RobotConfig(model), time_axis=0)` with a lazy `RobotStateProvider`. Route-aware named-block LM chooses the banded path when every residual declares temporal blocks; forced dense remains the parity oracle and explicit `matrix_free` uses the normal-operator route. `TrajOptResult` exposes `linearization_requested`, `linearization_used`, `linearization_reason`, and `linearization_detail`. Arbitrary leading batch axes return per-element iterations, convergence, and status. Legacy optimizer objects and constraint-kind items fail actionably. `BSplineTrajectory` remains a Euclidean numerical basis utility and is rejected until a separately reviewed manifold-safe mapping exists.
 
 ## solve_contact_forces
 
@@ -40,7 +40,7 @@ Gravity is a task argument; do not mutate or replace the caller's model.
 
 - `with_batch_dims(n)` — view with `n` leading singleton dims
 - `slice(t_start, t_end)` — sub-trajectory by time range
-- `resample(new_t, kind="linear"|"sclerp")` — manifold-aware quaternion resampling on indices `[3:7]` when `kind="sclerp"`
+- `resample(new_t, kind="linear"|"sclerp")` — quaternion SLERP only on the fixed `[3:7]` block when `kind="sclerp"`; all other coordinates stay linear
 - `downsample(factor)` — every Nth sample along the time axis
 - `to_data(model)` — batched `Data` with FK populated, batch dim = T·B
 - `smooth_trajectory(traj, kernel, kind="auto"|"so3"|"se3")` — batched manifold kernel mean via SLERP / ScLERP

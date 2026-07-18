@@ -261,8 +261,9 @@ def residual_jacobian(
     does ``FINITE_DIFF``. The fallback costs exactly ``2 * nv + 1`` residual
     evaluations and uses epsilon ``1e-3`` for fp32 or ``1e-7`` for fp64.
 
-    A real ``torch.func`` fallback is scheduled with the M2 residual
-    redesign; the solver never writes Jacobian code itself.
+    This compatibility dispatcher intentionally remains analytic/finite-
+    difference. Named-block ``Problem`` evaluation provides the separate
+    ``torch.func`` ``jacrev`` and ``jacfwd`` strategies.
 
     See docs/concepts/kinematics.md §3.
     """

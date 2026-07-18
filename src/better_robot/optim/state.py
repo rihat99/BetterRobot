@@ -1,15 +1,15 @@
-"""``SolverState`` — shared iteration record passed through every optimiser.
+"""``SolverState`` — iteration record for the legacy flat optimiser stack.
 
-Docs: ``docs/concepts/solver_stack.md §5``. The same struct serves as:
+Docs: ``docs/concepts/solver_stack.md`` ("Legacy solver stack" and
+"SolverState"). Within that compatibility stack, the same struct serves as:
 
 1. the **iteration state** mutated by :meth:`Optimizer.minimize` each step;
 2. the **terminal return value** of :meth:`Optimizer.minimize`;
 3. the **contract** observed by damping strategies, linear solvers, and
-   downstream consumers such as ``tasks.ik.solve_ik``.
+   direct legacy-stack consumers.
 
-Having one struct avoids the mjwarp "pass tensors everywhere and keep
-them in sync" trap and makes it easy for a consumer to assert
-``isinstance(result, SolverState)``.
+Named-block solvers and task facades use their own block-specific state types;
+they do not return this class.
 """
 
 from __future__ import annotations
@@ -91,8 +91,8 @@ class SolverState:
         r0 = problem.residual(x0)
         if r0.dim() > 1:
             raise NotImplementedError(
-                "Batched residuals are not supported by the optimizer stack; "
-                "see roadmap milestone M2b."
+                "Batched residuals are not supported by the legacy optimizer "
+                "stack; use the named-block Problem/Values solvers."
             )
         return cls(
             x=x0,

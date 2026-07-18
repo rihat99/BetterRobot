@@ -47,7 +47,7 @@ version = ".".join(_release.split(".")[:2])
 
 # ── Extensions ─────────────────────────────────────────────────────────
 extensions = [
-    # Markdown source. ``myst_nb`` is in [docs] for future executable-
+    # Markdown source. ``myst_nb`` is in [dev] for future executable-
     # notebook tutorials; it is not loaded here because we have no
     # ``.ipynb`` files yet and double-loading with ``myst_parser`` errors
     # on duplicate config registration.
@@ -141,7 +141,7 @@ html_last_updated_fmt = ""
 html_theme_options = {
     "path_to_docs": "docs/",
     "repository_url": "https://github.com/rihat99/BetterRobot",
-    "repository_branch": "main",
+    "repository_branch": "dev",
     "use_repository_button": True,
     "use_issues_button": True,
     "use_edit_page_button": True,
@@ -156,12 +156,6 @@ html_theme_options = {
             "name": "GitHub",
             "url": "https://github.com/rihat99/BetterRobot",
             "icon": "fa-brands fa-square-github",
-            "type": "fontawesome",
-        },
-        {
-            "name": "PyPI",
-            "url": "https://pypi.org/project/better-robot/",
-            "icon": "fa-brands fa-python",
             "type": "fontawesome",
         },
     ],
@@ -200,8 +194,8 @@ copybutton_prompt_is_regexp = True
 todo_include_todos = True
 add_module_names = False
 
-# CI builds enable strict mode with -W. Set BR_DOCS_NITPICKY=1 locally to
-# match.
+# The manual workflow runs ``make html``. Maintainers use ``make strict`` for
+# warnings-as-errors plus nitpicky references before publishing.
 nitpicky = bool(int(os.environ.get("BR_DOCS_NITPICKY", "0")))
 nitpick_ignore = [
     # Optional deps that aren't always installed.

@@ -16,7 +16,8 @@ Box bounds are enforced by projecting every trial point onto
 algorithm: acceptance is a bare objective comparison, with no active set,
 projected-gradient test, or KKT termination. A run limited by active bounds
 can therefore stall with residual error and terminate as ``"maxiter"``.
-Active-set LM or a reflective trust region is planned for M2b.
+Use the named-block LM solver when projected active-set/KKT bound handling is
+required; this legacy compatibility optimizer intentionally retains clipping.
 
 Returns a :class:`~better_robot.optim.state.SolverState` whose
 ``status`` is ``"converged"`` when the gradient norm drops below ``tol``

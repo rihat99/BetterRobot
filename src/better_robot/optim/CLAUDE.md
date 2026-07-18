@@ -51,7 +51,7 @@ projection-only solver behavior; it is not the named-block `Bounds` contract.
 
 A block residual declares `name`, positive static `dim`, `reads`, and
 `__call__(ctx) -> Tensor` with shape `(B..., dim)`. `ResidualItem.weight` is
-applied during M2a evaluation. Optional `jacobian_blocks(ctx)` entries are keyed
+applied during named-block evaluation. Optional `jacobian_blocks(ctx)` entries are keyed
 by variable name and must already use mask-reduced tangent columns.
 
 `ResidualItem.kernel` and `ResidualItem.group_size` are validated by `Problem`.
@@ -196,7 +196,7 @@ final-point KKT evaluation also passes.
 hyperparameters are frozen Python configuration. `update` must stay
 fixed-shape, sync-free, input-pure, and tensor-branching only. Public/static
 validation belongs to `init_state`; the eager `run` boundary may perform one
-all-terminal host check per iteration. M6's internal experimental
+all-terminal host check per iteration. The internal experimental
 `GraphExecutor` CUDA harness certifies fixed groups of `update` calls,
 including nonlinear jacrev work, resize, and mixed Torch/Warp replay. It is
 not exported as public API. `run` itself remains eager and has no end-to-end
@@ -229,7 +229,7 @@ LeastSquaresProblem  ->  Optimizer  ->  LinearSolver
   named-block LM routing, not by legacy optimizer loops.
 - Legacy damping: `Constant` and `Adaptive`; no placeholder strategies are
   exported.
-- Kernels: `L2`, `Huber`, `Cauchy`, and `Tukey` with the legacy row-wise IRLS
+- Kernels: `L2`, `Huber`, `Cauchy`, `Tukey`, and `GemanMcClure` with the legacy row-wise IRLS
   convention.
 
 Legacy LM projects trial points to `lower/upper`, does not clamp the initial

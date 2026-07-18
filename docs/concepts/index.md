@@ -45,11 +45,11 @@ to the chapters it depends on and the ones that depend on it.
 | {doc}`lie_and_spatial` | SE(3) / SO(3) ops, the spatial-algebra value types, why we do not subclass `torch.Tensor`. |
 | {doc}`parsers_and_ir` | URDF / MJCF / programmatic builder all converging on a single intermediate representation. |
 | {doc}`kinematics` | Forward kinematics and the unified Jacobian dispatch. |
-| {doc}`dynamics` | RNEA, ABA, CRBA, the centroidal map, and the action-model framework. |
-| {doc}`residuals_and_costs` | The legacy residual library plus `CostStack`, retained while tasks migrate. |
+| {doc}`dynamics` | RNEA, ABA, CRBA, the centroidal map, and rigid-body state manifolds. |
+| {doc}`residuals_and_costs` | The legacy residual library plus `CostStack`, retained for direct compatibility callers. |
 | {doc}`solver_stack` | Named-block `Problem` evaluation and the coexisting `LeastSquaresProblem` solver stack. |
 | {doc}`tasks` | `solve_ik`, `solve_trajopt`, `Trajectory`. |
-| {doc}`collision_and_geometry` | Geometry primitives, pair dispatch, `RobotCollision`. |
+| {doc}`collision_and_geometry` | Reserved collision containers and the currently stubbed distance, decomposition, and residual surfaces. |
 | {doc}`batching_and_backends` | Tensor/device conventions, the structure/value seam, and whole-pass compute lanes. |
-| {doc}`warp_bridge` | The functional Torch–Warp prototype boundary, gradient ownership, and FK decision record. |
+| {doc}`warp_bridge` | The functional Torch–Warp boundary, gradient ownership, and CUDA-validated opt-in FK decision record. |
 | {doc}`viewer` | The viser-backed visualisation layer. |

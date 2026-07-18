@@ -1,4 +1,4 @@
-# Tasks — IK, Trajectory Optimisation, Retargeting
+# Tasks — IK and Trajectory Optimisation
 
 `tasks/` is the thin user-facing translation from a robot request to the
 optimization substrate. There is no Jacobian code or fixed-vs-floating branch
@@ -73,7 +73,8 @@ def solve_ik(model, targets, *, initial_q=None, cost_cfg=None,
 
 Pose targets and the enabled rest target are declared `Problem.parameters` and
 are read by name from the residual context. This keeps their differentiation
-role explicit for M6; no tensor-identity inference is used. `RestResidual`
+role explicit for the generic LM/GN implicit-solve boundary; no tensor-identity
+inference is used. The `solve_ik` facade itself remains detached. `RestResidual`
 reads the latter through `target_name="target_rest"`. Built-in pose, limit, and
 rest residuals retain their legacy `ResidualState` call shape for direct
 compatibility callers while implementing the named-block protocol used by the
@@ -115,7 +116,8 @@ The iteration budget is split evenly between the stages. Entries named in
 L-BFGS is deliberately deferred because batching requires per-element history,
 line search, and curvature-reset semantics; `"lbfgs"` and
 `"lm_then_lbfgs"` fail with an actionable error. Collision is not wired into
-`solve_ik`; collision residuals remain M4 work.
+`solve_ik`; its collision residuals remain stubbed and task integration is
+explicitly deferred.
 
 ### Batched IK
 
@@ -130,7 +132,7 @@ same facade.
 ## `Trajectory`
 
 ```python
-@dataclass(frozen=True)
+@dataclass
 class Trajectory:
     """A discrete-time motion plan, with optional batching.
 
@@ -145,44 +147,57 @@ class Trajectory:
     v:        torch.Tensor | None = None  # (*B, T, nv)
     a:        torch.Tensor | None = None
     tau:      torch.Tensor | None = None  # (*B, T, nv) controls
-    extras:   dict
-    metadata: dict
+    extras:   dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    model_id: int = -1                   # legacy viewer alias
 
     def __post_init__(self) -> None: ...
     @property
     def batch_shape(self) -> tuple[int, ...]: ...
     @property
     def num_knots(self) -> int: ...
-    def with_batch_dims(self, ndim: int) -> "Trajectory": ...
+    def with_batch_dims(self, n: int = 1) -> "Trajectory": ...
     @property
-    def duration(self) -> torch.Tensor: ...
-    def slice(self, start_idx: int, end_idx: int) -> "Trajectory": ...
-    def resample(self, t_new: torch.Tensor, *, kind: str = "linear") -> "Trajectory":
-        """Manifold-aware: kind ∈ {'linear', 'cubic', 'sclerp'}.
-        q interpolates SE(3) / SO(3) blocks via sclerp; v/a follow
-        the chain rule. Raw quaternion lerp is wrong and is not exposed."""
+    def horizon(self) -> int: ...
+    @property
+    def batch_size(self) -> int: ...
+    def slice(self, t_start: float, t_end: float) -> "Trajectory": ...
+    def resample(
+        self,
+        new_t: torch.Tensor,
+        *,
+        kind: Literal["linear", "sclerp"] = "linear",
+    ) -> "Trajectory": ...
     def downsample(self, factor: int) -> "Trajectory": ...
-    def to_data(self, model: "Model", knot_idx: int | slice | None = None) -> "Data": ...
-    @staticmethod
-    def stack(*trajectories: "Trajectory") -> "Trajectory": ...
+    def to_data(self, model: "Model") -> "Data": ...
 ```
 
 Source: `src/better_robot/tasks/trajectory.py`.
 
-The two key behaviours are:
+The key behaviours are:
 
-- **Manifold-aware resampling.** SO(3) blocks of `q` interpolate via
-  spherical linear interpolation (sclerp); raw quaternion lerp would
-  produce non-unit quaternions and is not exposed.
+- **Two explicit resampling modes.** `kind="linear"` interpolates every
+  coordinate. `kind="sclerp"` assumes that `q[..., :7]` is one SE(3)-style
+  block `[xyz, qx, qy, qz, qw]`: translation and all remaining coordinates
+  stay linear, while only `q[..., 3:7]` uses quaternion SLERP. Optional
+  `v`, `a`, and `tau` are linearly interpolated in both modes; no chain-rule
+  reconstruction is performed. This mode does not discover additional SO(3)
+  blocks from a `Model`.
+- **Time-based slicing.** `slice(t_start, t_end)` selects the inclusive time
+  interval, not array indices. Slicing and resampling use the first batch
+  element as the reference time grid.
 - **Optional batching.** Algorithms that need a concrete batch axis
   call `traj.with_batch_dims(1)` or read `traj.batch_shape` to
   normalise. `B = 1` is *not* forced for unbatched input — other
   public APIs already accept arbitrary leading shapes including the
   empty prefix.
-- **Pose smoothing.** `smooth_trajectory(traj, kernel, kind="so3"|"se3")`
+- **Vectorised materialisation.** `to_data(model)` flattens all batch and time
+  samples into one FK batch and computes frame placements.
+- **Pose smoothing.** `smooth_trajectory(traj, kernel, kind="auto"|"so3"|"se3")`
   applies an odd-length box, Gaussian, or other non-negative kernel using
   iterative SLERP / ScLERP means. Batch and time windows are vectorised;
-  quaternion signs are hemisphere-aligned before smoothing. Only `q` changes.
+  quaternion signs are hemisphere-aligned before smoothing. `"auto"` selects
+  SO(3) for a 4-vector and SE(3) for a 7-vector. Only `q` changes.
 
 ## Inverse contact-force fitting
 
@@ -216,7 +231,7 @@ the model.
 
 `ContactForceResult` returns fitted world forces, local external wrenches,
 generalized forces, final residual/cost, and per-batch solver status. This task
-uses the Torch dynamics lane; Warp dynamics remain an M6 concern.
+uses the Torch dynamics lane; Warp dynamics kernels remain unimplemented.
 
 ## Trajectory optimisation
 
@@ -312,8 +327,7 @@ only `KnotTrajectory` pending a separate reviewed design.
 
 ## Examples
 
-The shipped examples under `BetterRobot/examples/` are imported from
-`tests/examples/test_examples.py` so they cannot bit-rot:
+The shipped examples under `examples/` demonstrate the main task facades:
 
 | File | What it demonstrates |
 |------|----------------------|
@@ -322,8 +336,9 @@ The shipped examples under `BetterRobot/examples/` are imported from
 | `04_smpl_like_body.py` | Builder DSL constructs an SMPL-like body and runs FK |
 | `05_panda_trajopt.py` | Reach-and-hold trajectory optimisation |
 
-Each script has a `main()` that the example tests can call headlessly
-(`viser` skipped on CI).
+Each script has a `main()` entry point. The documentation front-page example is
+mechanically executed; the interactive scripts require the `demos` and
+`viewer` extras.
 
 ## API stability
 
@@ -350,9 +365,9 @@ without a release note, but the internals may iterate.
   URDFs such as Panda whose neutral joint 4 lies outside its declared box.
   Direct named-block callers remain responsible for supplying a feasible
   initial `Values` mapping.
-- **Free-flyer Jacobian shape.** For G1 (`nv = 42`), a single-frame
-  Jacobian is `(B..., 6, 42)`. The first 6 columns are the base
-  block. Slice if you need only the actuated subspace.
+- **Free-flyer Jacobian shape.** For the locked G1 fixture (`nq = 36`,
+  `nv = 35`), a single-frame Jacobian is `(B..., 6, 35)`. The first 6 columns
+  are the base block. Slice if you need only the actuated subspace.
 - **Non-knot robot trajopt is rejected.** `BSplineTrajectory` is a Euclidean
   numerical basis, not a manifold-aware robot parameterisation. Use
   `KnotTrajectory` until a reviewed spline-on-manifold mapping supplies the
@@ -361,9 +376,10 @@ without a release note, but the internals may iterate.
   accepts active `CostStack` items of kind `"soft"`; constraint-kind items
   and legacy flat optimizer objects fail with migration guidance. Results
   report requested/used linearization, reason/detail, and per-batch LM status.
-- **`Trajectory.resample` uses sclerp for SO(3).** Raw quaternion
-  lerp would produce non-unit quaternions and is intentionally not
-  exposed.
+- **`Trajectory.resample(..., kind="sclerp")` has one fixed pose layout.**
+  It applies quaternion SLERP only to indices `3:7`; other coordinates and
+  optional derivative/control arrays use linear interpolation. Use
+  `kind="linear"` only when coordinate-wise interpolation is valid.
 
 ## Where to look next
 

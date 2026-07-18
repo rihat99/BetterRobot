@@ -13,7 +13,7 @@ canonical lane is eager or caller-compiled Torch. An opt-in Warp lane may
 replace an entire pass such as FK or RNEA when that pass has a validated
 kernel and adjoint. Lane choice is not exposed on individual Lie operations,
 and there is no process-wide compute selector or generic compute object.
-Where a prototype exists, a pass-specific flag such as
+Where an opt-in lane exists, a pass-specific flag such as
 ``forward_kinematics(..., use_warp=True)`` opts into that whole pass. Public
 calls continue to take and return ``torch.Tensor`` objects.
 
@@ -110,8 +110,9 @@ if outputs is None:
 ```
 
 ``forward_kinematics(..., use_warp=True)`` is the current pass-specific
-opt-in. The Torch lane is the correctness oracle and default. The Warp FK
-prototype checks its supported joint kinds, device, dtype, and layout before
+opt-in. The Torch lane is the correctness oracle and default. The
+CUDA-validated opt-in Warp FK lane checks its supported joint kinds, device,
+dtype, and layout before
 running. Unsupported inputs intentionally fall back at that whole-pass
 boundary; individual math operations never switch lanes mid-pass.
 

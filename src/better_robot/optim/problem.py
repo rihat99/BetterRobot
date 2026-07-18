@@ -4,10 +4,10 @@ Holds a ``CostStack``, a ``state_factory`` that wraps raw ``x`` into a
 ``ResidualState``, initial ``x0``, and optional box bounds. The solvers in
 ``optim/optimizers/`` own the iteration strategy.
 
-The current solver stopgap memoizes one graph-free ``ResidualState`` by
+The legacy compatibility lane memoizes one graph-free ``ResidualState`` by
 tensor identity and mutation version, allowing residual and Jacobian calls
-at the same iterate to share FK. M2a replaces this with an evaluation-local
-provider context.
+at the same iterate to share FK. Named-block ``Problem`` evaluation instead
+uses an evaluation-local provider context.
 
 See ``docs/concepts/solver_stack.md §4``.
 """
@@ -79,14 +79,14 @@ class LeastSquaresProblem:
     def _state_at(self, x: torch.Tensor) -> ResidualState:
         """Build or reuse the evaluation state for this exact tensor iterate.
 
-        This one-entry memo is an M1 stopgap: solver loops pass an accepted
+        This legacy one-entry memo lets solver loops pass an accepted
         trial tensor back as the next iterate, so its residual and Jacobian
         can share FK. Identity plus PyTorch's version counter prevents stale
         reuse after in-place mutation. States carrying autograd graphs are
         never retained, which keeps independent backward passes independent.
 
-        TODO(M2a): replace this mutable memo with the evaluation-local
-        ``RobotStateProvider`` context.
+        New integrations should use named-block ``Problem`` and its
+        evaluation-local provider context instead of extending this cache.
         """
         version = self._tensor_version(x)
         grad_enabled = torch.is_grad_enabled()

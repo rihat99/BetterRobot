@@ -1,9 +1,9 @@
 """``better_robot.tasks`` — task facades and trajectory utilities.
 
 Optimisation entry points are short facades that pick frames by name,
-builds a cost stack out of residuals, wraps it in a
-``LeastSquaresProblem``, calls an optimiser, and returns a clean result.
-Trajectory helpers remain plain, differentiable tensor operations.
+assemble named ``Problem`` / ``VarSpec`` blocks with residual items and lazy
+providers, run a named-block solver over a values mapping, and return a clean
+task result. Trajectory helpers remain plain, differentiable tensor operations.
 
 No Jacobian code, no solver loops, no fixed-vs-floating base branching
 lives here — that all belongs one layer down.

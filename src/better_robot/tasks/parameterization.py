@@ -5,10 +5,9 @@ variable ``z`` to a full ``(T, nq)`` trajectory and back. ``KnotTrajectory``
 is the identity (``z`` *is* the trajectory). ``BSplineTrajectory`` is a
 low-level Euclidean basis/compression utility.  It is not a manifold-safe
 robot trajectory parameterisation and ``solve_trajopt`` rejects it until the
-M5 trajectory work supplies matching retraction, Jacobian, and bound semantics.
+missing retraction, Jacobian, and bound semantics are implemented.
 
-See ``docs/concepts/tasks.md §3`` and
-``docs/claude_plan/accepted/16_optim_wiring_and_matrix_free.md``.
+See ``docs/concepts/tasks.md §3``.
 """
 
 from __future__ import annotations
@@ -71,8 +70,9 @@ class BSplineTrajectory:
     This class linearly mixes every coordinate.  It does not understand robot
     manifolds, so interpolating quaternion configuration entries can produce
     non-unit values.  It is retained for Euclidean numerical basis work only;
-    :func:`better_robot.tasks.solve_trajopt` rejects it pending the
-    manifold-safe trajectory implementation in roadmap milestone M5.
+    :func:`better_robot.tasks.solve_trajopt` rejects it. Only
+    :class:`KnotTrajectory` currently has the required manifold-safe solver
+    semantics.
 
     See ``docs/concepts/tasks.md §3``.
     """

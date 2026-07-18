@@ -1,4 +1,4 @@
-"""Functional torch↔Warp bridge for the opt-in fused FK prototype.
+"""Functional torch↔Warp bridge for the CUDA-validated opt-in fused FK lane.
 
 The custom op owns fresh torch outputs and launches Warp on torch's current
 CUDA stream. The active autograd wrapper recomputes the VJP through the raw
@@ -255,10 +255,10 @@ def try_warp_forward_kinematics(  # noqa: PLR0911
     values: ModelValues,
     q: torch.Tensor,
 ) -> WarpFKResult | None:
-    """Run the opt-in prototype, or return ``None`` for torch fallback."""
+    """Run the opt-in Warp lane, or return ``None`` for torch fallback."""
 
     if structure.has_mimic:
-        # The frozen prototype ABI consumes one public q slice per concrete
+        # The frozen Warp ABI consumes one public q slice per concrete
         # joint. Reduced mimic coordinates deliberately stay on the torch lane
         # until a dedicated full-space expansion kernel is validated.
         _raise_capture_fallback(

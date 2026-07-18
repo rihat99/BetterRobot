@@ -187,7 +187,8 @@ class Trajectory:
         for joint-space trajectories. ``kind="sclerp"`` interprets the
         first 7 components of ``q`` as an SE3 pose ``[xyz, qx, qy, qz, qw]``
         and uses spherical-linear interpolation for the orientation block,
-        plain linear for the rest. Manifold-aware.
+        plain linear for the rest. It does not discover other manifold blocks
+        from a robot model.
 
         See ``docs/concepts/tasks.md §2``.
         """

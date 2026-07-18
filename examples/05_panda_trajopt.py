@@ -25,7 +25,7 @@ import torch
 
 import better_robot as br
 from better_robot.costs.stack import CostStack
-from better_robot.optim.optimizers.levenberg_marquardt import LevenbergMarquardt
+from better_robot.optim import LevenbergMarquardt
 from better_robot.residuals import (
     AccelerationResidual,
     JointPositionLimit,
@@ -36,7 +36,7 @@ from better_robot.tasks.trajopt import solve_trajopt
 
 PANDA_READY = [
     0.0, -math.pi / 4, 0.0, -3 * math.pi / 4,
-    0.0, math.pi / 2, math.pi / 4, 0.04, 0.04,
+    0.0, math.pi / 2, math.pi / 4, 0.04,
 ]
 EE_FRAME = "body_panda_hand"
 
@@ -122,7 +122,7 @@ def main() -> None:
         dt=DT,
         initial_q_traj=q_init,
         cost_stack=stack,
-        optimizer=LevenbergMarquardt(tol=1e-7),
+        optimizer=LevenbergMarquardt(gtol=1e-7),
         max_iter=50,
     )
     solve_time = time.perf_counter() - t0

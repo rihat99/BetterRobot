@@ -7,8 +7,8 @@ performs a host-side all-terminal check. The default driver detaches values and
 state between iterations.
 
 Batched LBFGS is intentionally not implemented. Per-element histories, line
-search, and curvature-validity/history-reset rules require a dedicated later
-milestone; use this first-order solver or named-block LM/GN instead.
+search, and curvature-validity/history-reset rules remain deferred; use this
+first-order solver or named-block LM/GN instead.
 """
 
 from __future__ import annotations

@@ -67,7 +67,7 @@ class VarSpec:
                 raise TypeError(f"VarSpec {self.name!r} time_axis must be an int or None")
             if self.time_axis != 0:
                 raise ValueError(
-                    f"VarSpec {self.name!r} M5 time_axis must be 0 or None; "
+                    f"VarSpec {self.name!r} time_axis must be 0 or None; "
                     "transpose the event layout so time is leading"
                 )
             if not self.shape:
