@@ -17,6 +17,7 @@ from better_robot.io.build_model import build_model
 from better_robot.kinematics.forward import forward_kinematics, forward_kinematics_raw
 from better_robot.kinematics.jacobian import (
     compute_joint_jacobians,
+    frame_jacobian_raw,
     get_frame_jacobian,
     joint_jacobians_raw,
 )
@@ -99,6 +100,43 @@ def test_joint_jacobians_raw_matches_workspace_pass(arm):
     compute_joint_jacobians(arm, data)
 
     torch.testing.assert_close(raw_result.joint_jacobians, data.joint_jacobians)
+
+
+@pytest.mark.parametrize("reference", ("world", "local_world_aligned", "local"))
+def test_frame_jacobian_raw_matches_workspace_pass(arm, reference):
+    q = arm.q_neutral
+    frame_id = arm.frame_id("body_link1")
+    fk_result = forward_kinematics_raw(arm.structure, arm.values, q)
+    actual = frame_jacobian_raw(
+        arm.structure,
+        arm.values,
+        q,
+        fk_result.joint_pose_world,
+        frame_id,
+        reference=reference,
+    )
+    data = forward_kinematics(arm, q)
+    compute_joint_jacobians(arm, data)
+    expected = get_frame_jacobian(arm, data, frame_id, reference=reference)
+    torch.testing.assert_close(actual, expected)
+
+
+def test_frame_jacobian_raw_compiles_fullgraph(arm):
+    q = arm.q_neutral.expand(2, -1).clone()
+    poses = forward_kinematics_raw(arm.structure, arm.values, q).joint_pose_world
+    frame_id = arm.frame_id("body_link1")
+
+    def evaluate(q_value, joint_poses):
+        return frame_jacobian_raw(
+            arm.structure,
+            arm.values,
+            q_value,
+            joint_poses,
+            frame_id,
+        )
+
+    compiled = torch.compile(evaluate, fullgraph=True, backend="eager")
+    torch.testing.assert_close(compiled(q, poses), evaluate(q, poses))
 
 
 def test_get_frame_jacobian_shape(arm):

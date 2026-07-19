@@ -143,8 +143,8 @@ The shipped residuals cover these roles:
 | Padded point sets | `MaskedChamferResidual`, `SceneSDFState` and its penetration, attraction, and clearance residuals |
 | Spherical-joint limits | `SwingTwistLimitResidual` |
 
-`JerkResidual` and `NullspaceResidual` are explicit placeholders that raise
-`NotImplementedError`; they are not live behavior.
+Every residual listed above is live. Unimplemented residual ideas are omitted
+from the API until their mathematical and temporal contracts are defined.
 
 Residual weights live on the `Residual` itself. A Python numeric zero skips
 that residual. Tensor weights remain graph-visible and may vary over the

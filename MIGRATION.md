@@ -91,3 +91,13 @@ surface changed again.
 | `run_first_order`, `FirstOrderResult`, and the first-order `OptimizerFactory` alias | Use `TorchOptimizer(problem, torch.optim.OptimizerSubclass, ...)`. |
 | `autograd.tangent_grad`, `autograd.perturb_values`, `Problem.external_parameters`, and `better_robot.optim.autograd` | Use `Variable.retract`, `Problem.gradient`, and graph-carrying static variables (`trainable=False`). |
 | Scattered private `_broadcast_weight` helpers | Implement row scaling once with `ScaleWeight`, `DiagonalWeight`, or another `Weight`. |
+
+## Removed by the core truth pass
+
+| Removed surface | Replacement |
+|---|---|
+| `better_robot.residuals.JerkResidual` and `better_robot.residuals.smoothness.JerkResidual` | No jerk residual ships; use `AccelerationResidual` when second-order smoothness is sufficient. |
+| `better_robot.residuals.NullspaceResidual` and `better_robot.residuals.regularization.NullspaceResidual` | No direct replacement ships; use `RestResidual` for configuration-space posture regularization. |
+| The `ContactConsistencyResidual(..., angular=...)` parameter | Contact consistency currently covers Cartesian linear velocity only. |
+| `ModelValues.execution_batch_shape` | No public replacement is needed; execution batching is derived internally after model-value validation. |
+| Tuple/`NamedTuple` behavior of `CCRBAResult` | Use the frozen dataclass fields `.centroidal_map` and `.momentum`; tuple unpacking is removed. |

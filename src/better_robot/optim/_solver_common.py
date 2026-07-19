@@ -1,4 +1,4 @@
-"""Small tensor utilities shared by the named-block solvers."""
+"""Small tensor utilities shared by LM and implicit differentiation."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ def _batch_shape(values: _TensorValues, problem: Problem) -> tuple[int, ...]:
     """Infer leading solve-batch axes from the first variable block."""
     variable = problem.vars[0]
     value = values[variable.name]
-    return tuple(value.shape[: value.ndim - len(variable.shape)])
+    return variable.batch_shape_of(value)
 
 
 def _blend_values(mask: torch.Tensor, yes: _TensorValues, no: _TensorValues) -> _TensorValues:

@@ -13,6 +13,7 @@ from .forward import (
 )
 from .jacobian import (
     compute_joint_jacobians,
+    frame_jacobian_raw,
     get_frame_jacobian,
     get_joint_jacobian,
     joint_jacobians_raw,
@@ -25,6 +26,7 @@ __all__ = [
     "update_frame_placements",
     "compute_joint_jacobians",
     "joint_jacobians_raw",
+    "frame_jacobian_raw",
     "get_joint_jacobian",
     "get_frame_jacobian",
 ]

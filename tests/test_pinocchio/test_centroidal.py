@@ -30,7 +30,7 @@ from better_robot.dynamics import compute_centroidal_map, compute_centroidal_mom
 
 def _panda(dtype=torch.float64):
     pytest.importorskip("robot_descriptions")
-    from robot_descriptions import panda_description
+    from robot_descriptions import panda_description  # noqa: PLC0415
 
     return br.load(panda_description.URDF_PATH, dtype=dtype)
 
@@ -56,7 +56,7 @@ def test_hg_linear_equals_mass_times_vcom():
         center_of_mass(model, q, v=v, data=data)
         assert data.com_velocity is not None
         v_com = data.com_velocity
-        _, h_g = ccrba(model, q, v)
+        h_g = ccrba(model, q, v).momentum
         torch.testing.assert_close(h_g[:3], total_mass * v_com, rtol=1e-10, atol=1e-10)
 
 
@@ -82,7 +82,7 @@ def test_zero_velocity_gives_zero_momentum():
     for i in range(qs.shape[0]):
         q = qs[i]
         zero_v = torch.zeros(model.nv, dtype=torch.float64)
-        _, h_g = ccrba(model, q, zero_v)
+        h_g = ccrba(model, q, zero_v).momentum
         torch.testing.assert_close(
             h_g,
             torch.zeros(6, dtype=torch.float64),
@@ -94,7 +94,7 @@ def test_zero_velocity_gives_zero_momentum():
 def test_centroidal_g1_free_flyer():
     """G1 free-flyer: a unit base translation produces ``total_mass · ê_x`` linear momentum."""
     pytest.importorskip("robot_descriptions")
-    from robot_descriptions import g1_description
+    from robot_descriptions import g1_description  # noqa: PLC0415
 
     model = br.load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
     q = model.q_neutral.clone()
@@ -102,7 +102,7 @@ def test_centroidal_g1_free_flyer():
     v = torch.zeros(model.nv, dtype=torch.float64)
     v[0] = 1.0
 
-    _, h_g = ccrba(model, q, v)
+    h_g = ccrba(model, q, v).momentum
     total_mass = sum(model.body_inertias[i, 0].item() for i in range(model.njoints))
     torch.testing.assert_close(
         h_g[0],

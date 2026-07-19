@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from abc import abstractmethod
 from collections.abc import Mapping
 import math
 from numbers import Real
@@ -50,8 +51,9 @@ class _SmoothnessResidual(Residual):
     def temporal_structure(self, variable: _RobotTrajectory | str) -> TemporalPattern | None:
         return TemporalPattern(self.horizon - 2, self.model.nv, 1, self._offsets) if matches(variable, self.q) else None
 
+    @abstractmethod
     def _row_scale(self) -> float:
-        raise NotImplementedError
+        """Return this finite-difference stencil's row scale."""
 
     def temporal_jacobian_blocks(self, variable: _RobotTrajectory | str) -> Mapping[int, torch.Tensor]:
         if not matches(variable, self.q):
@@ -122,27 +124,4 @@ class AccelerationResidual(_SmoothnessResidual):
         return acceleration.reshape(*q.shape[:-2], self.dim)
 
 
-class JerkResidual(Residual):
-    """Unimplemented third-derivative placeholder on a trajectory variable."""
-
-    def __init__(
-        self,
-        q: _RobotTrajectory,
-        *,
-        dt: Real,
-        weight: Weight | Real | torch.Tensor = 1.0,
-        name: str = "jerk",
-    ) -> None:
-        _value, horizon = _trajectory(q, type(self).__name__)
-        if horizon < 4:
-            raise ValueError(f"JerkResidual needs at least 4 timesteps, got T={horizon}")
-        self.q = q
-        self.model = q.model
-        self.dt = _validate_dt(dt, type(self).__name__)
-        super().__init__(q, dim=(horizon - 3) * q.model.nv, weight=weight, name=name)
-
-    def error(self) -> torch.Tensor:
-        raise NotImplementedError("jerk residual not implemented — use AccelerationResidual instead")
-
-
-__all__ = ["AccelerationResidual", "JerkResidual", "VelocityResidual"]
+__all__ = ["AccelerationResidual", "VelocityResidual"]

@@ -401,7 +401,7 @@ def _attach_implicit_gradients(
 ) -> _TensorValues:
     """Attach an exact first-order implicit backward to terminal values."""
     if not isinstance(problem, Problem):
-        raise TypeError("problem must be a named-block Problem")
+        raise TypeError("problem must be a Problem")
     if not problem.residuals:
         raise ValueError("implicit differentiation requires at least one residual vector")
     resolved_config = ImplicitDiffConfig() if config is None else config

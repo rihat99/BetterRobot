@@ -18,6 +18,7 @@ from ..data_model.data import Data
 from ..data_model.execution_batch import broadcast_to_execution_batch
 from ..data_model.model import Model
 from ..data_model.model_structure import ModelStructure
+from ..data_model.model_values import ModelValues
 from ..data_model.reduced_coordinates import (
     expand_configuration,
     reduce_jacobian,
@@ -101,6 +102,58 @@ def joint_jacobians_raw(
     return JointJacobiansResult(joint_jacobians=reduce_jacobian(structure, J))
 
 
+def frame_jacobian_raw(
+    structure: ModelStructure,
+    values: ModelValues,
+    q: torch.Tensor,
+    joint_pose_world: torch.Tensor,
+    frame_id: int,
+    *,
+    reference: _ReferenceFrame = "local_world_aligned",
+    joint_jacobians: torch.Tensor | None = None,
+) -> torch.Tensor:
+    """Return one frame Jacobian without reading or mutating :class:`Data`.
+
+    ``joint_pose_world`` normally comes from :func:`forward_kinematics_raw`.
+    Supplying a compatible ``joint_jacobians`` tensor reuses an existing
+    :func:`joint_jacobians_raw` result; otherwise this pass computes it.
+    """
+    batch = tuple(joint_pose_world.shape[:-2])
+    q = broadcast_to_execution_batch(q, batch, (structure.nq,), name="q")
+    if joint_jacobians is None:
+        joint_jacobians = joint_jacobians_raw(structure, q, joint_pose_world).joint_jacobians
+
+    parent_index = structure.frame_parent_joints[frame_id : frame_id + 1]
+    J_parent = torch.index_select(joint_jacobians, -3, parent_index).squeeze(-3)
+    T_local = broadcast_to_execution_batch(
+        values.frame_placements[..., frame_id, :],
+        batch,
+        (7,),
+        name="frame_placements row",
+    )
+    T_parent = torch.index_select(joint_pose_world, -2, parent_index).squeeze(-2)
+    T_frame = se3.compose(T_parent, T_local)
+
+    if reference == "world":
+        return J_parent
+
+    hat_position = hat_so3(T_frame[..., :3])
+    linear = J_parent[..., :3, :] - torch.matmul(hat_position, J_parent[..., 3:, :])
+    aligned = torch.cat((linear, J_parent[..., 3:, :]), dim=-2)
+    if reference == "local_world_aligned":
+        return aligned
+    if reference == "local":
+        rotation = so3.to_matrix(T_frame[..., 3:])
+        return torch.cat(
+            (
+                torch.matmul(rotation.mT, aligned[..., :3, :]),
+                torch.matmul(rotation.mT, aligned[..., 3:, :]),
+            ),
+            dim=-2,
+        )
+    raise ValueError(f"Unsupported reference frame: {reference!r}")
+
+
 def compute_joint_jacobians(model: Model, data: Data) -> Data:
     """Populate ``data.joint_jacobians`` with the spatial Jacobian of every joint.
 
@@ -175,84 +228,12 @@ def get_frame_jacobian(
     data.require(KinematicsLevel.PLACEMENTS)
     assert data.joint_pose_world is not None, "call forward_kinematics before get_frame_jacobian"
 
-    frame = model.frames[frame_id]
-    parent_joint = frame.parent_joint
-    joint_pose_world = data.joint_pose_world
-    batch = tuple(joint_pose_world.shape[:-2])
-    q = broadcast_to_execution_batch(
+    return frame_jacobian_raw(
+        model.structure,
+        model.values,
         data.q,
-        batch,
-        (model.nq,),
-        name="data.q",
+        data.joint_pose_world,
+        frame_id,
+        reference=reference,
+        joint_jacobians=data.joint_jacobians,
     )
-    device, dtype = q.device, q.dtype
-
-    # -- Build the parent joint's world-frame Jacobian --
-    # This is the WORLD Jacobian of the parent joint (velocity at world origin).
-    # Use data.joint_jacobians if already computed; otherwise compute directly.
-    if data.joint_jacobians is not None:
-        J_parent = data.joint_jacobians[..., parent_joint, :, :]  # (B..., 6, nv)
-    else:
-        q_full = expand_configuration(model.structure, q)
-        J_parent_full = torch.zeros(*batch, 6, model.nv_full, device=device, dtype=dtype)
-        support = model.get_support(parent_joint)
-        for j in support:
-            nv_j = model.nvs_full[j]
-            v_j = model.idx_vs_full[j]
-            if nv_j == 0:
-                continue
-            T_j = joint_pose_world[..., j, :]
-            p_j = T_j[..., :3]
-            R_j = so3.to_matrix(T_j[..., 3:])
-            hat_p = hat_so3(p_j)
-
-            nq_j = model.nqs_full[j]
-            q_j = q_full[..., model.idx_qs_full[j] : model.idx_qs_full[j] + nq_j]
-            S_local = model.joint_models[j].joint_motion_subspace(q_j)
-            S_local = S_local.to(device=device, dtype=dtype)
-
-            S_lin = S_local[..., :3, :]
-            S_ang = S_local[..., 3:, :]
-
-            R_S_ang = torch.matmul(R_j, S_ang)
-            R_S_lin = torch.matmul(R_j, S_lin)
-            hat_p_R_S_ang = torch.matmul(hat_p, R_S_ang)
-
-            J_parent_full[..., :3, v_j : v_j + nv_j] = R_S_lin + hat_p_R_S_ang
-            J_parent_full[..., 3:, v_j : v_j + nv_j] = R_S_ang
-        J_parent = reduce_jacobian(model.structure, J_parent_full)
-
-    # -- Compute the frame's world pose (needed for LWA and LOCAL adjustments) --
-    T_local = broadcast_to_execution_batch(
-        model.values.frame_placements[..., frame_id, :],
-        batch,
-        (7,),
-        name="frame_placements row",
-    )
-    T_parent = joint_pose_world[..., parent_joint, :]
-    T_frame = se3.compose(T_parent, T_local)  # (B..., 7) world frame pose
-    p_frame = T_frame[..., :3]  # (B..., 3) world position
-
-    if reference == "world":
-        # Spatial velocity at world origin: frame's WORLD Jacobian equals its
-        # parent joint's (rigid attachment). Pose-offset does not affect it.
-        return J_parent
-
-    # Both LWA and LOCAL start from LWA: linear rows = velocity of the frame
-    # origin in world frame. v_at_pf = v_at_world_origin + ω × p_f
-    #                               = J_parent_lin - hat(p_f) @ J_parent_ang.
-    hat_pf = hat_so3(p_frame)  # (B..., 3, 3)
-    J_lwa_lin = J_parent[..., :3, :] - torch.matmul(hat_pf, J_parent[..., 3:, :])
-    J_lwa = torch.cat([J_lwa_lin, J_parent[..., 3:, :]], dim=-2)  # (B..., 6, nv)
-
-    if reference == "local_world_aligned":
-        return J_lwa
-    elif reference == "local":
-        # Body-frame Jacobian: rotate the LWA rows by R_frame^T.
-        # Do NOT apply full Ad(T_frame^{-1}) — that would subtract hat(p) twice.
-        R_frame = so3.to_matrix(T_frame[..., 3:])  # (B..., 3, 3)
-        J_local_lin = torch.matmul(R_frame.mT, J_lwa[..., :3, :])
-        J_local_ang = torch.matmul(R_frame.mT, J_lwa[..., 3:, :])
-        return torch.cat([J_local_lin, J_local_ang], dim=-2)
-    else:
-        raise ValueError(f"Unsupported reference frame: {reference!r}")

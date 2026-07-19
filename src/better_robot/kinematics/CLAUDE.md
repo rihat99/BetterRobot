@@ -6,6 +6,7 @@
 - `forward_kinematics_raw(structure, values, q)` — pure Torch pass returning a named `FKResult`
 - `frame_placements_raw(structure, values, joint_pose_world)` — pure frame-table pass returning a named result
 - `joint_jacobians_raw(structure, q, joint_pose_world)` — sequencing-free Jacobian pass returning a named result
+- `frame_jacobian_raw(structure, values, q, joint_pose_world, frame_id, reference=..., joint_jacobians=None)` — pure one-frame Jacobian extraction with optional reuse of an existing joint-Jacobian pass
 - `update_frame_placements(model, data)` — fills `frame_pose_world` from existing `joint_pose_world`
 - `compute_joint_jacobians(model, data)` — fills `data.joint_jacobians` for all joints
 - `get_frame_jacobian(model, data, frame_id, reference=...)` — extracts `(B..., 6, nv)` for one frame
@@ -36,7 +37,7 @@ J_local = torch.cat([R_ee.mT @ J_world[..., :3, :], R_ee.mT @ J_world[..., 3:, :
 
 ## Residual Jacobian Strategy
 
-Kinematics owns no residual-Jacobian dispatcher. Named-block `Problem` accepts
+Kinematics owns no residual-Jacobian dispatcher. Object-referenced `Problem` accepts
 the literal strategies `"auto"`, `"analytic"`, `"jacrev"`, `"jacfwd"`, and
 `"finite_difference"`; finite differences remain an explicit debug oracle.
 

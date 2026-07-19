@@ -27,10 +27,6 @@
   - ```{autodoc2-docstring} better_robot.residuals.regularization.ReferenceTrajectoryResidual
     :summary:
     ```
-* - {py:obj}`NullspaceResidual <better_robot.residuals.regularization.NullspaceResidual>`
-  - ```{autodoc2-docstring} better_robot.residuals.regularization.NullspaceResidual
-    :summary:
-    ```
 ````
 
 ### API
@@ -101,22 +97,6 @@ Bases: {py:obj}`better_robot.residuals.base.Residual`
 
 ````{py:method} jacobian() -> tuple[torch.Tensor, ...]
 :canonical: better_robot.residuals.regularization.ReferenceTrajectoryResidual.jacobian
-
-````
-
-`````
-
-`````{py:class} NullspaceResidual(q: better_robot.residuals._variables.RobotVariableLike, q_rest: torch.Tensor | better_robot.residuals._variables.VariableLike, *, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, name: str = 'nullspace')
-:canonical: better_robot.residuals.regularization.NullspaceResidual
-
-Bases: {py:obj}`better_robot.residuals.base.Residual`
-
-```{autodoc2-docstring} better_robot.residuals.regularization.NullspaceResidual
-```
-
-````{py:method} error() -> torch.Tensor
-:canonical: better_robot.residuals.regularization.NullspaceResidual.error
-:abstractmethod:
 
 ````
 

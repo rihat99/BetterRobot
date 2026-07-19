@@ -50,6 +50,12 @@ consume the structure/value pair and trust that attachment boundary. This is
 also useful for functional differentiation: a raw pass takes all of its tensor
 inputs explicitly instead of closing over a mutable workspace.
 
+Spatial inertia matrices are derived from the current packed
+`ModelValues.body_inertias` tensor on every dynamics pass. `ModelValues` does
+not carry an independently replaceable spatial-inertia cache, so functional
+updates such as `dataclasses.replace` cannot retain stale physics or sever the
+gradient route to replacement inertias.
+
 ## Raw passes return values
 
 Tensor-only passes return frozen result records. For example:

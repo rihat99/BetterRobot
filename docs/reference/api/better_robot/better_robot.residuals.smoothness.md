@@ -23,10 +23,6 @@
   - ```{autodoc2-docstring} better_robot.residuals.smoothness.AccelerationResidual
     :summary:
     ```
-* - {py:obj}`JerkResidual <better_robot.residuals.smoothness.JerkResidual>`
-  - ```{autodoc2-docstring} better_robot.residuals.smoothness.JerkResidual
-    :summary:
-    ```
 ````
 
 ### API
@@ -56,22 +52,6 @@ Bases: {py:obj}`better_robot.residuals.smoothness._SmoothnessResidual`
 
 ````{py:method} error() -> torch.Tensor
 :canonical: better_robot.residuals.smoothness.AccelerationResidual.error
-
-````
-
-`````
-
-`````{py:class} JerkResidual(q: better_robot.residuals._variables.RobotVariableLike, *, dt: numbers.Real, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, name: str = 'jerk')
-:canonical: better_robot.residuals.smoothness.JerkResidual
-
-Bases: {py:obj}`better_robot.residuals.base.Residual`
-
-```{autodoc2-docstring} better_robot.residuals.smoothness.JerkResidual
-```
-
-````{py:method} error() -> torch.Tensor
-:canonical: better_robot.residuals.smoothness.JerkResidual.error
-:abstractmethod:
 
 ````
 

@@ -98,13 +98,12 @@ def test_to_preserves_rebound_frame_table_and_integer_structure_dtypes() -> None
     torch.testing.assert_close(moved.values.frame_placements, frames.double())
 
 
-def test_static_inertia_cache_is_reused_but_rebound_inertias_are_live() -> None:
+def test_rebound_inertias_are_derived_live() -> None:
     model = _model(dtype=torch.float64)
-    assert model.values.spatial_inertias() is model.values.body_inertias_6x6
+    assert model.values.spatial_inertias() is not model.values.spatial_inertias()
 
     delta = torch.zeros_like(model.values.body_inertias, requires_grad=True)
     rebound = model.with_values(body_inertias=model.values.body_inertias + delta)
-    assert rebound.values.body_inertias_6x6 is None
     first = rebound.values.spatial_inertias()
     second = rebound.values.spatial_inertias()
     assert first is not second

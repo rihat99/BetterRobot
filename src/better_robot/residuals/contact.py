@@ -35,11 +35,8 @@ class ContactConsistencyResidual(Residual):
         dt: float,
         weight: Weight | Real | torch.Tensor = 1.0,
         kernel: object | None = None,
-        angular: bool = False,
         name: str = "contact_consistency",
     ) -> None:
-        if angular:
-            raise NotImplementedError("angular contact-consistency is an expansion hook; not implemented in v1")
         q, state = robot_state(q_or_state)
         if q.time_axis != 0 or len(q.shape) != 2:
             raise ValueError("ContactConsistencyResidual q must declare time_axis=0")

@@ -58,7 +58,6 @@ class ModelValues:
     mimic_multiplier: torch.Tensor
     mimic_offset: torch.Tensor
     q_neutral: torch.Tensor
-    body_inertias_6x6: torch.Tensor | None = None
 
     def validate(self, structure: "ModelStructure") -> None:
         """Validate the three batch-bearing v1 value tables.
@@ -83,16 +82,6 @@ class ModelValues:
                 dtype=exemplar.dtype,
                 device=exemplar.device,
             )
-
-    def execution_batch_shape(
-        self,
-        structure: "ModelStructure",
-        q: torch.Tensor,
-    ) -> tuple[int, ...]:
-        """Return ``broadcast(q, joint/body/frame value tables)``."""
-
-        self.validate(structure)
-        return self._execution_batch_shape(q)
 
     def _execution_batch_shape(self, q: torch.Tensor) -> tuple[int, ...]:
         """Return the execution batch after the caller validates the values."""
@@ -127,7 +116,6 @@ class ModelValues:
             )
         else:
             frames = model.joint_placements.new_empty((0, 7))
-        cached_inertias = None if model.body_inertias.requires_grad else packed_inertias_to_6x6(model.body_inertias)
         return cls(
             joint_placements=model.joint_placements,
             body_inertias=model.body_inertias,
@@ -144,14 +132,11 @@ class ModelValues:
             mimic_multiplier=model.mimic_multiplier,
             mimic_offset=model.mimic_offset,
             q_neutral=model.q_neutral,
-            body_inertias_6x6=cached_inertias,
         )
 
     def spatial_inertias(self) -> torch.Tensor:
-        """Return cached static inertias or derive live parametric inertias once."""
+        """Derive spatial inertias from the current packed body inertias."""
 
-        if self.body_inertias_6x6 is not None:
-            return self.body_inertias_6x6
         return packed_inertias_to_6x6(self.body_inertias)
 
     def to(
@@ -188,7 +173,6 @@ class ModelValues:
         context: tuple[str, ...],
     ) -> "ModelValues":
         values: dict[str, Any] = dict(zip(context, leaves))
-        values.setdefault("body_inertias_6x6", None)
         return cls(**values)
 
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
+
 import pytest
 import torch
 
@@ -50,14 +52,15 @@ def _inertia_batch(model, batch_shape: tuple[int, ...]) -> torch.Tensor:
     return inertias
 
 
-def test_ccrba_returns_named_tuple_compatible_fields() -> None:
+def test_ccrba_returns_frozen_dataclass_fields() -> None:
     model = _model()
     result = ccrba(model, model.q_neutral, torch.zeros(model.nv, dtype=model.q_neutral.dtype))
-    centroidal_map, momentum = result
 
     assert isinstance(result, CCRBAResult)
-    assert result.centroidal_map is centroidal_map
-    assert result.momentum is momentum
+    assert result.centroidal_map.shape == (6, model.nv)
+    assert result.momentum.shape == (6,)
+    with pytest.raises(FrozenInstanceError):
+        result.momentum = torch.zeros_like(result.momentum)
 
 
 @pytest.mark.parametrize("batch_shape", ((3,), (2, 2)))
@@ -76,12 +79,12 @@ def test_batched_inertias_match_scalar_dynamics_loop(
         tau = rnea(current_model, q, v, a)
         mass = crba(current_model, q)
         ddq = aba(current_model, q, v, tau)
-        centroidal_map, momentum = ccrba(
+        centroidal = ccrba(
             current_model,
             q,
             v,
         )
-        return tau, mass, ddq, centroidal_map, momentum
+        return tau, mass, ddq, centroidal.centroidal_map, centroidal.momentum
 
     value_batch_loop_oracle(
         lambda: evaluate(rebound),

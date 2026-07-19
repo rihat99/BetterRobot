@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 import torch
 from torch.utils import _pytree
 
+from better_robot.data_model.model_values import packed_inertias_to_6x6
 from better_robot.io import load
 from better_robot.io.builders.smpl_like import make_smpl_like_body
 
@@ -62,16 +65,16 @@ def test_model_values_is_tensor_pytree_and_frames_move(model):
     assert moved.structure.parents_tensor.dtype == torch.int32
 
 
-def test_static_spatial_inertia_cache_matches_live_derivation(model):
-    cached = model.values.spatial_inertias()
-    live_values = model.values.__class__(
-        **{
-            **model.values.__dict__,
-            "body_inertias": model.values.body_inertias.detach().clone().requires_grad_(True),
-            "body_inertias_6x6": None,
-        }
-    )
-    live = live_values.spatial_inertias()
-    torch.testing.assert_close(cached, live)
-    live.square().sum().backward()
-    assert live_values.body_inertias.grad is not None
+def test_dataclasses_replace_keeps_spatial_inertia_physics_and_gradients_live(model):
+    replacement = model.values.body_inertias.detach().clone()
+    replacement[..., 0] = replacement[..., 0] + 0.25
+    replacement.requires_grad_()
+    replaced = dataclasses.replace(model.values, body_inertias=replacement)
+
+    spatial = replaced.spatial_inertias()
+    torch.testing.assert_close(spatial, packed_inertias_to_6x6(replacement))
+    assert not torch.equal(spatial, model.values.spatial_inertias())
+
+    gradient = torch.autograd.grad(spatial.square().sum(), replacement)[0]
+    assert torch.isfinite(gradient).all()
+    assert torch.count_nonzero(gradient) > 0

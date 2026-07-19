@@ -185,13 +185,11 @@ class Model:
         frame_values = checked(
             "frame_placements", frame_placements, values.frame_placements, (self.nframes, 7), normalize_pose=True
         )
-        inertia_cache = values.body_inertias_6x6 if inertias is values.body_inertias else None
         rebound = dataclasses.replace(
             values,
             joint_placements=placements,
             body_inertias=inertias,
             frame_placements=frame_values,
-            body_inertias_6x6=inertia_cache,
         )
         # Validate value-to-value broadcasting now; the query batch is added
         # at evaluation time.

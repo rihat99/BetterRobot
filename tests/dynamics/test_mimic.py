@@ -69,10 +69,18 @@ def test_rnea_crba_centroidal_and_aba_use_one_reduced_map() -> None:
     expected_mass = expansion.mT @ mass_full @ expansion
     torch.testing.assert_close(mass, expected_mass, rtol=1e-11, atol=1e-11)
 
-    centroidal, momentum = ccrba(constrained, q, v)
-    centroidal_full, _ = ccrba(full, q_full, v_full)
-    torch.testing.assert_close(centroidal, centroidal_full @ expansion, rtol=1e-11, atol=1e-11)
-    torch.testing.assert_close(momentum, (centroidal @ v.unsqueeze(-1)).squeeze(-1))
+    centroidal = ccrba(constrained, q, v)
+    centroidal_full = ccrba(full, q_full, v_full)
+    torch.testing.assert_close(
+        centroidal.centroidal_map,
+        centroidal_full.centroidal_map @ expansion,
+        rtol=1e-11,
+        atol=1e-11,
+    )
+    torch.testing.assert_close(
+        centroidal.momentum,
+        (centroidal.centroidal_map @ v.unsqueeze(-1)).squeeze(-1),
+    )
 
     ddq = aba(constrained, q, v, tau)
     torch.testing.assert_close(ddq, acceleration, rtol=1e-10, atol=1e-10)

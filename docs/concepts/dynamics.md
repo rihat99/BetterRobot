@@ -77,8 +77,7 @@ h_g = A_g(q)\,v.
 
 `compute_centroidal_map` returns `A_g`, and
 `compute_centroidal_momentum` returns `h_g`. `ccrba` computes both and returns
-`CCRBAResult` with fields `centroidal_map` and `momentum`; the result can also
-be unpacked as a two-tuple.
+a frozen `CCRBAResult` dataclass with fields `centroidal_map` and `momentum`.
 
 `center_of_mass` returns position and can populate velocity when `v` is
 provided. Center-of-mass acceleration is not implemented; passing `a` reaches

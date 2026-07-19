@@ -9,8 +9,6 @@ from better_robot.io import ModelBuilder, build_model
 from better_robot.optim import RobotVariable, Variable
 from better_robot.residuals import (
     AccelerationResidual,
-    JerkResidual,
-    NullspaceResidual,
     ReferenceTrajectoryResidual,
     RestResidual,
     VelocityResidual,
@@ -90,14 +88,3 @@ def test_rest_residual_reads_static_reference_object(model) -> None:
     torch.testing.assert_close(residual.error(), tangent, atol=1e-12, rtol=1e-12)
     torch.testing.assert_close(residual.weighted_error(), tangent * 0.5, atol=1e-12, rtol=1e-12)
     assert residual.jacobian()[0].shape == (model.nv, q.free_dim)
-
-
-def test_deletion_owned_placeholders_are_v2_residuals(model) -> None:
-    trajectory = _trajectory(model)
-    point = RobotVariable(model, model.q_neutral, name="point")
-    rest = Variable(model.q_neutral.clone(), name="rest", trainable=False)
-
-    with pytest.raises(NotImplementedError, match="jerk residual"):
-        JerkResidual(trajectory, dt=0.1).error()
-    with pytest.raises(NotImplementedError, match="nullspace residual"):
-        NullspaceResidual(point, rest).error()

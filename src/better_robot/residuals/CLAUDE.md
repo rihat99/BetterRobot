@@ -59,8 +59,8 @@ projection kernels such as Geman–McClure.
 
 - `pose.py`: pose, position, and orientation targets using `RobotState`.
 - `limits.py`, `human.py`: joint and swing/twist limits.
-- `regularization.py`: rest, spherical-joint prior, nullspace placeholder, and
-  reference-trajectory terms.
+- `regularization.py`: rest, spherical-joint prior, and reference-trajectory
+  terms.
 - `smoothness.py`, `temporal.py`: trajectory differences and time indexing.
 - `contact.py`: contact-consistency residual.
 - Collision residuals are not exported; the separate collision package remains

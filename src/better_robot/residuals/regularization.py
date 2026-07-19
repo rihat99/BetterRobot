@@ -172,25 +172,4 @@ class ReferenceTrajectoryResidual(Residual):
         return dense_temporal_residual(self, self.q, self.horizon)
 
 
-class NullspaceResidual(Residual):
-    """Unimplemented nullspace regularization placeholder."""
-
-    def __init__(
-        self,
-        q: _RobotVariable,
-        q_rest: torch.Tensor | _Variable,
-        *,
-        weight: Weight | Real | torch.Tensor = 1.0,
-        name: str = "nullspace",
-    ) -> None:
-        require_robot(q, type(self).__name__, temporal=False)
-        _initial, targets = static_value(q_rest, name="q_rest")
-        self.q = q
-        self.q_rest = q_rest
-        super().__init__(q, *targets, dim=q.model.nv, weight=weight, name=name)
-
-    def error(self) -> torch.Tensor:
-        raise NotImplementedError("nullspace residual is not implemented")
-
-
-__all__ = ["JointRotationPrior", "NullspaceResidual", "ReferenceTrajectoryResidual", "RestResidual"]
+__all__ = ["JointRotationPrior", "ReferenceTrajectoryResidual", "RestResidual"]

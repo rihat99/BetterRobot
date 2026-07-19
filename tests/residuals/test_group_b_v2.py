@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import inspect
 import math
 
-import pytest
 import torch
 
 from better_robot.io import build_model
@@ -319,5 +319,4 @@ def test_contact_value_and_analytic_rows_match_tangent_finite_difference() -> No
     analytic = problem.dense_jacobian(strategy="analytic")
     finite_difference = problem.dense_jacobian(strategy="finite_difference")
     torch.testing.assert_close(analytic, finite_difference, rtol=2e-5, atol=2e-7)
-    with pytest.raises(NotImplementedError, match="angular"):
-        ContactConsistencyResidual(q, frames, contacts, dt=0.1, angular=True)
+    assert "angular" not in inspect.signature(ContactConsistencyResidual).parameters

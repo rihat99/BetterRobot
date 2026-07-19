@@ -132,8 +132,6 @@
 `````{py:class} CCRBAResult
 :canonical: better_robot.dynamics.centroidal.CCRBAResult
 
-Bases: {py:obj}`typing.NamedTuple`
-
 ```{autodoc2-docstring} better_robot.dynamics.centroidal.CCRBAResult
 ```
 

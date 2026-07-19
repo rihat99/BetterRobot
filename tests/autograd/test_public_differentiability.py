@@ -11,6 +11,7 @@ import better_robot as br
 from better_robot.dynamics import aba_raw, ccrba_raw, crba_raw, rnea_raw
 from better_robot.kinematics import (
     compute_joint_jacobians,
+    frame_jacobian_raw,
     forward_kinematics_raw,
     frame_placements_raw,
     get_frame_jacobian,
@@ -105,6 +106,22 @@ def test_joint_jacobians_raw_reaches_q_and_model_values(panda) -> None:
     _assert_gradients(result.joint_jacobians, q, placements)
 
 
+def test_frame_jacobian_raw_reaches_q_and_model_values(panda) -> None:
+    q = _configuration(panda).requires_grad_()
+    model, joint_placements = _placement_model(panda)
+    frame_placements = torch.zeros_like(model.values.frame_placements, requires_grad=True)
+    model = model.with_values(frame_placements=model.values.frame_placements + frame_placements)
+    fk = forward_kinematics_raw(model.structure, model.values, q)
+    jacobian = frame_jacobian_raw(
+        model.structure,
+        model.values,
+        q,
+        fk.joint_pose_world,
+        _hand_frame(model),
+    )
+    _assert_gradients(jacobian, q, joint_placements, frame_placements)
+
+
 def _dynamics_inputs(model) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     velocity = torch.linspace(0.03, 0.15, model.nv, dtype=model.values.q_neutral.dtype)
     acceleration = torch.linspace(-0.07, 0.11, model.nv, dtype=velocity.dtype)
@@ -125,8 +142,8 @@ def _crba(model, q, _velocity, _acceleration, _torque) -> torch.Tensor:
 
 
 def _ccrba(model, q, velocity, _acceleration, _torque) -> torch.Tensor:
-    centroidal_map, momentum = br.dynamics.ccrba(model, q, velocity)
-    return _flatten(centroidal_map, momentum)
+    result = br.dynamics.ccrba(model, q, velocity)
+    return _flatten(result.centroidal_map, result.momentum)
 
 
 def _centroidal_map(model, q, _velocity, _acceleration, _torque) -> torch.Tensor:

@@ -28,8 +28,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Public functions validate tensor shape, dtype, and device once. Model values
   are checked when attached to a model instead of during every kinematics or
   dynamics call, and public input errors now use consistent wording.
-- `ccrba` now returns `CCRBAResult`, which names the centroidal map and
-  momentum while retaining tuple unpacking.
+- `ccrba` now returns a frozen `CCRBAResult` dataclass with named centroidal-map
+  and momentum fields; tuple unpacking is removed.
 - The former optimization object hierarchy and import paths were removed,
   including `CostStack`, `CostItem`, `CostKind`, `LeastSquaresProblem`,
   `Optimizer`, `OptimizationResult`, `SolverState`, `SolverStatus`, the custom
@@ -54,6 +54,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   residuals, and `JointAccelLimit`) were removed. Their supported alternatives
   are listed in the
   [migration details](https://github.com/rihat99/BetterRobot/blob/dev/plan/migration_ledger.md).
+- Raise-only jerk and nullspace residual exports, the unsupported angular
+  contact-consistency option, and the unused public model-value batch-shape
+  wrapper were removed. Supported alternatives are recorded in the
+  [migration details](https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md).
 - The unused `ReferenceFrame` enum was replaced by the literal frame strings
   accepted by the Jacobian API; see the
   [migration details](https://github.com/rihat99/BetterRobot/blob/dev/plan/migration_ledger.md).

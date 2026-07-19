@@ -20,9 +20,6 @@ entries.
 - `src/better_robot/collision/robot_collision.py`
 - `src/better_robot/dynamics/centroidal.py`
 - `src/better_robot/io/build_model.py`
-- `src/better_robot/residuals/contact.py`
-- `src/better_robot/residuals/regularization.py`
-- `src/better_robot/residuals/smoothness.py`
 - `src/better_robot/spatial/force.py`
 - `src/better_robot/tasks/ik.py`
 - `src/better_robot/tasks/trajopt.py`
@@ -53,15 +50,10 @@ offset.
 
 ## Residuals
 
-These residual features remain unfinished:
-
-- angular contact consistency;
-- `NullspaceResidual`; and
-- `JerkResidual`.
-
-Use linear contact consistency, explicit regularization, and
-`AccelerationResidual` for the supported cases. See
-{doc}`/concepts/residuals_costs_and_solvers`.
+Every exported residual is live. Third-derivative smoothness, task-space
+nullspace regularization, and angular contact consistency remain future
+design work rather than placeholder API. See
+{doc}`/concepts/residuals_costs_and_solvers` for the supported families.
 
 ## Tasks
 

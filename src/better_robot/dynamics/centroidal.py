@@ -19,7 +19,6 @@ See ``docs/concepts/dynamics.md`` ("Centroidal").
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import NamedTuple
 
 import torch
 
@@ -65,7 +64,8 @@ class CentroidalResult:
     joint_pose_local: torch.Tensor
 
 
-class CCRBAResult(NamedTuple):
+@dataclass(frozen=True)
+class CCRBAResult:
     """Named public return from :func:`ccrba`."""
 
     centroidal_map: torch.Tensor
@@ -217,8 +217,7 @@ def ccrba(
 ) -> CCRBAResult:
     """Return named ``centroidal_map`` and ``momentum`` tensors.
 
-    The result remains tuple-unpackable and the matching fields are populated
-    on ``data`` when supplied.
+    The matching fields are populated on ``data`` when supplied.
     """
     centroidal_map, momentum = _ccrba_impl(model, q, v=v, data=data)
     assert momentum is not None

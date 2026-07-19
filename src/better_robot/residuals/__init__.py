@@ -10,9 +10,9 @@ from .human import SwingTwistLimitResidual
 from .pose import OrientationResidual, PoseResidual, PositionResidual
 from .projection import ProjectionResidual
 from .contact import ContactConsistencyResidual
-from .regularization import JointRotationPrior, NullspaceResidual, ReferenceTrajectoryResidual, RestResidual
+from .regularization import JointRotationPrior, ReferenceTrajectoryResidual, RestResidual
 from .temporal import TimeIndexedResidual
-from .smoothness import AccelerationResidual, JerkResidual, VelocityResidual
+from .smoothness import AccelerationResidual, VelocityResidual
 from .structure import TemporalPattern
 from .scene_sdf import (
     SceneAttractionResidual,
@@ -46,12 +46,10 @@ __all__ = [
     "SwingTwistLimitResidual",
     "RestResidual",
     "JointRotationPrior",
-    "NullspaceResidual",
     "ReferenceTrajectoryResidual",
     "ContactConsistencyResidual",
     "TimeIndexedResidual",
     "VelocityResidual",
     "AccelerationResidual",
-    "JerkResidual",
     "TemporalPattern",
 ]

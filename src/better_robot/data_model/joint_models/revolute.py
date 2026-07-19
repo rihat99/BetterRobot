@@ -8,6 +8,7 @@ See ``docs/concepts/joints_bodies_frames.md §5``.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import ClassVar
 
 import torch
 
@@ -69,98 +70,66 @@ _AXIS_Y = torch.tensor([0.0, 1.0, 0.0])
 _AXIS_Z = torch.tensor([0.0, 0.0, 1.0])
 
 
+class _Revolute:
+    _joint_axis: ClassVar[torch.Tensor]
+
+    def _axis_for_ops(self):
+        return self._joint_axis
+
+    def joint_transform(self, q_slice):
+        return _revolute_transform(self._axis_for_ops(), q_slice)
+
+    def joint_motion_subspace(self, q_slice):
+        return _revolute_subspace(self._axis_for_ops(), q_slice)
+
+    def joint_velocity(self, q_slice, v_slice):
+        return _revolute_velocity(self._axis_for_ops(), q_slice, v_slice)
+
+    def integrate(self, q_slice, v_slice):
+        return _revolute_integrate(q_slice, v_slice)
+
+    def difference(self, q0_slice, q1_slice):
+        return _revolute_difference(q0_slice, q1_slice)
+
+    def random_configuration(self, generator, lower, upper):
+        return _revolute_random(generator, lower, upper)
+
+    def neutral(self):
+        return torch.zeros(1)
+
+
 @dataclass(frozen=True)
-class JointRX:
+class JointRX(_Revolute):
     kind: str = "revolute_rx"
     nq: int = 1
     nv: int = 1
     axis: torch.Tensor | None = None
-
-    def joint_transform(self, q_slice):
-        return _revolute_transform(_AXIS_X, q_slice)
-
-    def joint_motion_subspace(self, q_slice):
-        return _revolute_subspace(_AXIS_X, q_slice)
-
-    def joint_velocity(self, q_slice, v_slice):
-        return _revolute_velocity(_AXIS_X, q_slice, v_slice)
-
-    def integrate(self, q_slice, v_slice):
-        return _revolute_integrate(q_slice, v_slice)
-
-    def difference(self, q0_slice, q1_slice):
-        return _revolute_difference(q0_slice, q1_slice)
-
-    def random_configuration(self, generator, lower, upper):
-        return _revolute_random(generator, lower, upper)
-
-    def neutral(self):
-        return torch.zeros(1)
+    _joint_axis: ClassVar[torch.Tensor] = _AXIS_X
 
 
 @dataclass(frozen=True)
-class JointRY:
+class JointRY(_Revolute):
     kind: str = "revolute_ry"
     nq: int = 1
     nv: int = 1
     axis: torch.Tensor | None = None
-
-    def joint_transform(self, q_slice):
-        return _revolute_transform(_AXIS_Y, q_slice)
-
-    def joint_motion_subspace(self, q_slice):
-        return _revolute_subspace(_AXIS_Y, q_slice)
-
-    def joint_velocity(self, q_slice, v_slice):
-        return _revolute_velocity(_AXIS_Y, q_slice, v_slice)
-
-    def integrate(self, q_slice, v_slice):
-        return _revolute_integrate(q_slice, v_slice)
-
-    def difference(self, q0_slice, q1_slice):
-        return _revolute_difference(q0_slice, q1_slice)
-
-    def random_configuration(self, generator, lower, upper):
-        return _revolute_random(generator, lower, upper)
-
-    def neutral(self):
-        return torch.zeros(1)
+    _joint_axis: ClassVar[torch.Tensor] = _AXIS_Y
 
 
 @dataclass(frozen=True)
-class JointRZ:
+class JointRZ(_Revolute):
     kind: str = "revolute_rz"
     nq: int = 1
     nv: int = 1
     axis: torch.Tensor | None = None
-
-    def joint_transform(self, q_slice):
-        return _revolute_transform(_AXIS_Z, q_slice)
-
-    def joint_motion_subspace(self, q_slice):
-        return _revolute_subspace(_AXIS_Z, q_slice)
-
-    def joint_velocity(self, q_slice, v_slice):
-        return _revolute_velocity(_AXIS_Z, q_slice, v_slice)
-
-    def integrate(self, q_slice, v_slice):
-        return _revolute_integrate(q_slice, v_slice)
-
-    def difference(self, q0_slice, q1_slice):
-        return _revolute_difference(q0_slice, q1_slice)
-
-    def random_configuration(self, generator, lower, upper):
-        return _revolute_random(generator, lower, upper)
-
-    def neutral(self):
-        return torch.zeros(1)
+    _joint_axis: ClassVar[torch.Tensor] = _AXIS_Z
 
 
 # ──────────────────────────── unaligned ────────────────────────────
 
 
 @dataclass(frozen=True)
-class JointRevoluteUnaligned:
+class JointRevoluteUnaligned(_Revolute):
     """Revolute joint with an arbitrary 3-vector axis."""
 
     axis: torch.Tensor = field(default_factory=lambda: torch.tensor([1.0, 0.0, 0.0]))
@@ -168,26 +137,8 @@ class JointRevoluteUnaligned:
     nq: int = 1
     nv: int = 1
 
-    def joint_transform(self, q_slice):
-        return _revolute_transform(self.axis, q_slice)
-
-    def joint_motion_subspace(self, q_slice):
-        return _revolute_subspace(self.axis, q_slice)
-
-    def joint_velocity(self, q_slice, v_slice):
-        return _revolute_velocity(self.axis, q_slice, v_slice)
-
-    def integrate(self, q_slice, v_slice):
-        return _revolute_integrate(q_slice, v_slice)
-
-    def difference(self, q0_slice, q1_slice):
-        return _revolute_difference(q0_slice, q1_slice)
-
-    def random_configuration(self, generator, lower, upper):
-        return _revolute_random(generator, lower, upper)
-
-    def neutral(self):
-        return torch.zeros(1)
+    def _axis_for_ops(self):
+        return self.axis
 
 
 # ──────────────────────────── unbounded ────────────────────────────

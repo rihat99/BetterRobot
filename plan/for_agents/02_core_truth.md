@@ -1,5 +1,10 @@
 # 02 — Core truth and LEGO fixes
 
+> **Implementation log (2026-07-19):** Complete: `1579 passed, 2 skipped,
+> 15 deselected`; parity `135 passed`; contracts `353 passed`; Python source
+> is down 132 lines. Deleting the stale inertia cache cost 0.482% at `B=1`
+> and 0.425% at `B=256`; raw frame Jacobians pass fullgraph compilation.
+
 **Goal:** close the gaps the 2026-07-19 verification found outside `optim/`:
 exported classes that only raise, a dead wrapper, copy-paste the polish round
 half-finished, one genuinely dangerous cache footgun, and the one missing raw

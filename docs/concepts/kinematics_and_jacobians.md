@@ -197,6 +197,7 @@ The tensor-only functions return frozen result records:
 - `forward_kinematics_raw` returns world and local joint placements.
 - `frame_placements_raw` returns world frame placements.
 - `joint_jacobians_raw` returns all joint Jacobians.
+- `frame_jacobian_raw` returns one frame Jacobian in the requested reference frame.
 
 These functions do not mutate `Data`, which makes them convenient inside a
 larger differentiable function. Public wrappers validate call inputs and fill
