@@ -38,6 +38,8 @@
 `````{py:class} JointPX
 :canonical: better_robot.data_model.joint_models.prismatic.JointPX
 
+Bases: {py:obj}`better_robot.data_model.joint_models.prismatic._Prismatic`
+
 ```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPX
 ```
 
@@ -85,66 +87,12 @@
 
 ````
 
-````{py:method} joint_transform(q_slice)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPX.joint_transform
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPX.joint_transform
-```
-
-````
-
-````{py:method} joint_motion_subspace(q_slice)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPX.joint_motion_subspace
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPX.joint_motion_subspace
-```
-
-````
-
-````{py:method} joint_velocity(q_slice, v_slice)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPX.joint_velocity
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPX.joint_velocity
-```
-
-````
-
-````{py:method} integrate(q_slice, v_slice)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPX.integrate
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPX.integrate
-```
-
-````
-
-````{py:method} difference(q0_slice, q1_slice)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPX.difference
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPX.difference
-```
-
-````
-
-````{py:method} random_configuration(generator, lower, upper)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPX.random_configuration
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPX.random_configuration
-```
-
-````
-
-````{py:method} neutral()
-:canonical: better_robot.data_model.joint_models.prismatic.JointPX.neutral
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPX.neutral
-```
-
-````
-
 `````
 
 `````{py:class} JointPY
 :canonical: better_robot.data_model.joint_models.prismatic.JointPY
+
+Bases: {py:obj}`better_robot.data_model.joint_models.prismatic._Prismatic`
 
 ```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPY
 ```
@@ -193,66 +141,12 @@
 
 ````
 
-````{py:method} joint_transform(q_slice)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPY.joint_transform
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPY.joint_transform
-```
-
-````
-
-````{py:method} joint_motion_subspace(q_slice)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPY.joint_motion_subspace
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPY.joint_motion_subspace
-```
-
-````
-
-````{py:method} joint_velocity(q_slice, v_slice)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPY.joint_velocity
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPY.joint_velocity
-```
-
-````
-
-````{py:method} integrate(q_slice, v_slice)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPY.integrate
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPY.integrate
-```
-
-````
-
-````{py:method} difference(q0_slice, q1_slice)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPY.difference
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPY.difference
-```
-
-````
-
-````{py:method} random_configuration(generator, lower, upper)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPY.random_configuration
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPY.random_configuration
-```
-
-````
-
-````{py:method} neutral()
-:canonical: better_robot.data_model.joint_models.prismatic.JointPY.neutral
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPY.neutral
-```
-
-````
-
 `````
 
 `````{py:class} JointPZ
 :canonical: better_robot.data_model.joint_models.prismatic.JointPZ
+
+Bases: {py:obj}`better_robot.data_model.joint_models.prismatic._Prismatic`
 
 ```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPZ
 ```
@@ -301,66 +195,12 @@
 
 ````
 
-````{py:method} joint_transform(q_slice)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPZ.joint_transform
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPZ.joint_transform
-```
-
-````
-
-````{py:method} joint_motion_subspace(q_slice)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPZ.joint_motion_subspace
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPZ.joint_motion_subspace
-```
-
-````
-
-````{py:method} joint_velocity(q_slice, v_slice)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPZ.joint_velocity
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPZ.joint_velocity
-```
-
-````
-
-````{py:method} integrate(q_slice, v_slice)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPZ.integrate
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPZ.integrate
-```
-
-````
-
-````{py:method} difference(q0_slice, q1_slice)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPZ.difference
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPZ.difference
-```
-
-````
-
-````{py:method} random_configuration(generator, lower, upper)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPZ.random_configuration
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPZ.random_configuration
-```
-
-````
-
-````{py:method} neutral()
-:canonical: better_robot.data_model.joint_models.prismatic.JointPZ.neutral
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPZ.neutral
-```
-
-````
-
 `````
 
 `````{py:class} JointPrismaticUnaligned
 :canonical: better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned
+
+Bases: {py:obj}`better_robot.data_model.joint_models.prismatic._Prismatic`
 
 ```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned
 ```
@@ -405,62 +245,6 @@
    1
 
 ```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.nv
-```
-
-````
-
-````{py:method} joint_transform(q_slice)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.joint_transform
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.joint_transform
-```
-
-````
-
-````{py:method} joint_motion_subspace(q_slice)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.joint_motion_subspace
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.joint_motion_subspace
-```
-
-````
-
-````{py:method} joint_velocity(q_slice, v_slice)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.joint_velocity
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.joint_velocity
-```
-
-````
-
-````{py:method} integrate(q_slice, v_slice)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.integrate
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.integrate
-```
-
-````
-
-````{py:method} difference(q0_slice, q1_slice)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.difference
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.difference
-```
-
-````
-
-````{py:method} random_configuration(generator, lower, upper)
-:canonical: better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.random_configuration
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.random_configuration
-```
-
-````
-
-````{py:method} neutral()
-:canonical: better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.neutral
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.neutral
 ```
 
 ````

@@ -1,309 +1,160 @@
 # Architecture
 
-The library is organised as a strict layered DAG. Arrows point from a
-dependent layer to the one it depends on; nothing ever points
-backwards. The DAG is enforced by
-`tests/contract/test_layer_dependencies.py`, which AST-walks every
-file in `src/` and fails on any import that violates the order.
+BetterRobot is split into layers that answer different questions. The lower
+layers know mathematics and robot structure. The upper layers compose those
+pieces into estimation tasks. Imports point downward, so a low-level tensor
+operation never needs to know which solver or viewer called it.
 
-```
-tasks → optim → residuals ─┬→ dynamics → kinematics ─┐
-                           └───────────→ kinematics  │
-io ───────────────────────────────────→ data_model ←┘
-                                              ↓
-                                           spatial → lie
+The dependency shape is:
 
-ModelStructure + ModelValues feed whole-pass Torch or opt-in kernels.
-```
-
-## Why the layers fall out this way
-
-The starting point is the math: everything above the `lie/` layer
-needs to manipulate SE(3) and SO(3) elements. So `lie/` sits at the
-bottom and provides direct Torch tensor operations. `spatial/` builds on
-`lie/` to add the 6D value types
-(`Motion`, `Force`, `Inertia`) that dynamics needs.
-
-Above the math, the `data_model/` layer holds the Pinocchio-style
-`Model` (frozen topology) and `Data` (mutable workspace). It depends
-on `spatial/` because body inertias live there, and on `lie/` because
-joint placements are SE(3) elements. It depends on nothing higher.
-The same layer owns the whole-pass seam: `ModelStructure` mirrors static
-topology as Python tuples and device tables, while `ModelValues` carries the
-differentiable tensor pytree. Torch raw passes and eligible opt-in kernels
-consume that shared contract.
-
-`kinematics/` and `dynamics/` have the same contract rank and both work on
-`Model` plus `Data`. The current dependency is one-way: dynamics reuses raw FK
-and validation helpers from kinematics, while kinematics does not import
-dynamics. A whole-pass kernel lives beside its Torch counterpart in the owning
-package; it is not a new dependency layer. Purely kinematic IK therefore does
-not pull dynamics into its import or compile path.
-
-The optimization layer retains two contracts. The direct-compatibility path
-keeps `residuals/` as functions of `(model, data, variables)`, composes them in
-`optim/CostStack`, and hands a
-`LeastSquaresProblem` to an optimizer. The old `better_robot.costs` import path
-is a forwarding compatibility package, not a dependency layer. The named-block
-path lives in `optim/blocks/`: a `Problem` owns `VarSpec`s, structural residual
-items, scalar objective items, and a provider DAG. Providers may reach directly
-to lower layers such as kinematics, while user residuals consume only the
-read-only context names they declare. Residual-owned `TemporalPattern` values
-remain below `optim`; the optimizer consumes them to build block-banded or
-operator representations without creating a reverse dependency.
-
-`tasks/` is the topmost user-facing facade. `solve_ik` builds a named-block
-`Problem` with a `RobotConfig` variable and provider-backed built-in
-residuals. `solve_trajopt` adapts active soft `CostStack` items into one
-time-annotated `RobotConfig` block and uses route-aware named-block LM. Legacy
-callers may still invoke an optimizer's `minimize` method directly;
-named-block problems use the named-block solvers' `run` methods.
-
-`io/` and `viewer/` sit alongside the main spine, not above it. `io/`
-reads from `data_model/` only — the URDF parser does not invoke
-kinematics. `viewer/` is at the very top: nothing imports from it.
-That sequencing is what allows `import better_robot` to skip importing viser,
-trimesh, mujoco, and yourdfpy. Viewer, direct mesh, and MJCF support are gated
-by extras; the core URDF dependency is still imported lazily at the parser
-boundary.
-
-## The dependency rule, in code
-
-```
-tasks → optim → residuals → dynamics → kinematics → data_model → spatial → lie
-                  ├────────────────→ kinematics
-                  └→ collision ────────────────────→ data_model
-io → data_model          (io reads nothing from optim or tasks)
-viewer → tasks           (topmost; no-one imports from viewer)
+```text
+viewer
+  |
+tasks
+  |
+optim
+  |
+residuals
+  |
+io   kinematics   dynamics   collision
+ \       |           |          /
+          data_model
+              |
+           spatial
+              |
+             lie
 ```
 
-Stated differently: when you sit in any module under `src/`, you may look down
-to a lower-ranked layer. Equal-rank cross-package imports are also allowed;
-that is how dynamics reuses kinematics today. You may never import a
-higher-ranked layer. The contract test parses each file's imports and fails
-with the offending file and line number if that rule breaks.
+Packages on the same row have the same architectural rank, although most use
+fewer dependencies than the rule permits. A contract test parses imports under
+`src/better_robot` and reports any upward edge.
 
-## What each layer owns
+## Start with the mathematical floor
 
-| Layer | Owns | Forbidden imports |
-|-------|------|-------------------|
-| `lie` | Direct Torch SE3 / SO3 ops, typed `SE3` / `SO3` / `Pose` wrappers | anything above itself |
-| `spatial` | `Motion`, `Force`, `Inertia` value types | anything above `lie` |
-| `data_model` | `Model`, `Data`, `JointModel`s, structure/value/execution seam | `kinematics` / `dynamics` / above |
-| `kinematics` | FK, frame updates, Jacobians, local whole-pass kernels | `dynamics` / `residuals` / above |
-| `dynamics` | RNEA / ABA / CRBA / centroidal algorithms and local whole-pass kernels | `residuals` / above |
-| `residuals` | Pure residual functions | `optim` / `tasks` / `io` / `viewer` |
-| `optim` | Named-block `Problem` evaluation plus legacy `CostStack` / `LeastSquaresProblem`, optimizers, linear solvers, kernels, and damping | `tasks` / `io` / `viewer` |
-| `collision` | Reserved primitive, pair-dispatch, and robot-decomposition surfaces (computation is stubbed) | `tasks` / `io` / `viewer` |
-| `io` | Parsers, IR, builders | `tasks` / `viewer` |
-| `tasks` | `solve_ik`, `solve_trajopt`, `solve_contact_forces`, and trajectory types | `viewer` |
-| `viewer` | viser bindings | — |
+`lie` contains direct Torch functions for rotations and rigid transforms.
+They take and return tensors, so autograd, batching, and compilation can see
+the operations without an object-dispatch layer.
 
-## The package layout
+`spatial` builds the six-dimensional motion, force, and inertia operations
+used by rigid-body dynamics. It depends on the pose conventions in `lie`, but
+it has no reason to know about a robot model or an optimizer.
 
-```
-src/better_robot/
-├── __init__.py                    # small top-level convenience API
-├── _typing.py                     # jaxtyping-style shape annotations
-│
-├── lie/                           # SE3 / SO3 functional + typed wrappers
-│   ├── alignment.py                 # weighted batched Umeyama fit
-│   ├── se3.py
-│   ├── so3.py
-│   ├── tangents.py                # Jr / Jl, hat / vee, BCH helpers
-│   ├── types.py                   # SE3 / SO3 / Pose dataclasses (around tensors)
-│   └── _impl.py                   # direct pure-Torch implementation
-│
-├── spatial/                       # 6D value types
-│   ├── motion.py
-│   ├── force.py
-│   ├── inertia.py
-│   ├── symmetric3.py
-│   └── ops.py                     # ad, Ad, cross, act
-│
-├── data_model/                    # Model / Data / Joints / Bodies / Frames
-│   ├── model.py
-│   ├── data.py
-│   ├── model_structure.py         # immutable Python + device topology mirrors
-│   ├── model_values.py            # differentiable tensor pytree
-│   ├── execution_batch.py         # flat-E broadcast ABI for whole-pass kernels
-│   ├── joint_dispatch.py          # shared built-in joint-kind dispatch
-│   ├── joint.py
-│   ├── joint_models/              # one file per joint family
-│   ├── frame.py
-│   ├── body.py
-│   └── topology.py
-│
-├── kinematics/
-│   ├── forward.py                 # forward_kinematics, update_frame_placements
-│   ├── jacobian.py                # compute_joint_jacobians, get_joint/frame_jacobian
-│   └── jacobian_strategy.py       # JacobianStrategy enum
-│
-├── dynamics/
-│   ├── rnea.py
-│   ├── aba.py
-│   ├── crba.py
-│   ├── centroidal.py
-│   ├── derivatives.py
-│   ├── state_manifold.py
-│   └── integrators.py
-│
-├── residuals/                     # residual classes composed explicitly
-│   ├── pose.py                    # PoseResidual / PositionResidual / OrientationResidual
-│   ├── limits.py
-│   ├── smoothness.py              # temporal velocity / acceleration
-│   ├── structure.py               # optimizer-independent TemporalPattern
-│   ├── manipulability.py
-│   ├── collision.py
-│   ├── regularization.py
-│   └── contact.py
-│
-├── optim/
-│   ├── cost_stack.py              # legacy flat-residual CostStack
-│   ├── problem.py                 # LeastSquaresProblem
-│   ├── blocks/                    # named Problem / VarSpec / manifolds / temporal assembly
-│   ├── structure.py               # bands, normal operators, route decisions
-│   ├── state.py                   # SolverState
-│   ├── optimizers/                # LM / GN / Adam / LBFGS / MultiStage
-│   ├── solvers/                   # Cholesky / LSTSQ / BandedCholesky / NormalCG
-│   ├── kernels/                   # L2 / Huber / Cauchy / Tukey / GemanMcClure
-│   └── strategies/                # legacy Constant / Adaptive
-│
-├── costs/                         # forwarding compatibility package
-│   └── stack.py                   # re-exports optim.cost_stack identities
-│
-├── tasks/
-│   ├── ik.py                      # solve_ik
-│   ├── trajopt.py                 # solve_trajopt
-│   ├── contact_forces.py          # solve_contact_forces
-│   ├── smoothing.py               # quaternion / SE3 kernel smoothing
-│   ├── trajectory.py              # Trajectory dataclass
-│   └── parameterization.py        # Knot / BSpline
-│
-├── collision/
-│   ├── geometry.py
-│   ├── pairs.py
-│   ├── robot_collision.py
-│   └── closest_pts.py
-│
-├── io/
-│   ├── ir.py                      # internal IRModel dataclasses
-│   ├── build_model.py             # IR → Model factory
-│   ├── parsers/                   # urdf, mjcf, programmatic
-│   ├── builders/                  # smpl_like example
-│   └── assets.py                  # AssetResolver Protocol
-│
-├── viewer/
-│   ├── visualizer.py
-│   ├── scene.py
-│   ├── trajectory_player.py
-│   ├── render_modes/
-│   ├── overlays/
-│   └── renderers/
+These packages are intentionally small in responsibility. Changing a solver
+must not change how an SE(3) exponential is computed. The choice to keep Lie
+operations functional is recorded in {ref}`decision-functional-lie`.
+
+## Robot identity and query state
+
+`data_model` owns the robot itself. A `Model` holds topology, joint kinds,
+fixed placements, limits, inertias, and name-to-index tables. A `Data` object
+holds results for one execution batch: poses, velocities, Jacobians, and other
+quantities produced by algorithms.
+
+The split lets many queries share one model without sharing mutable results.
+It also gives autograd a stable set of input tensors. See
+{doc}`model_and_data` and {ref}`decision-model-data`.
+
+Model construction has a separate boundary. `io` parses URDF, MJCF, or a
+programmatic builder into one intermediate representation, then
+`build_model` validates and packs it. Format-specific choices stop there;
+kinematics does not contain URDF cases. See {doc}`parsers_and_ir` and
+{ref}`decision-one-ir`.
+
+## Algorithms consume the same model
+
+`kinematics` computes joint and frame poses and their Jacobians. `dynamics`
+computes inverse dynamics, forward dynamics, inertia matrices, centroidal
+quantities, and related derivatives. Both use the same joint taxonomy and the
+same configuration/tangent conventions.
+
+The two packages sit at the same conceptual level. Dynamics may reuse a raw
+kinematics pass, but kinematics does not import dynamics. A caller that only
+needs poses therefore does not pull the dynamics implementation into its
+execution path.
+
+`collision` currently contains geometry containers and explicit placeholders
+for capabilities that do not yet ship. Keeping it beside the robot algorithms
+prevents an unfinished geometry surface from leaking into optimization.
+
+## Residuals describe errors; optimization combines them
+
+`residuals` turns a context into fixed-size error rows. A pose residual, for
+example, reads frame placements and compares one frame with a target. The
+package may use kinematics or dynamics concepts, but it does not import the
+optimizer that will consume its output.
+
+`optim` owns variables, manifolds, bounds, residual composition, robust
+losses, Jacobian selection, and solvers. A `Problem` can optimize several
+named variables, each with its own event shape and manifold. Providers place
+shared work such as forward kinematics into one evaluation context so several
+residuals can reuse it.
+
+This direction is important: residual code describes the error, while the
+problem decides how to differentiate, weight, and solve it. The resulting
+least-squares model is explained in {doc}`residuals_costs_and_solvers`.
+
+## Tasks are recipes, not a second solver stack
+
+`tasks` contains convenient policies for common outcomes. `solve_ik` builds a
+one-configuration robot problem. `solve_trajopt` builds a trajectory problem
+with temporal structure. Both use the same `Problem` and solver classes that
+direct callers use.
+
+A task may choose default residuals, weights, bounds, and stopping settings.
+It does not define a parallel optimization protocol. This keeps a simple call
+simple without making advanced callers leave the supported path.
+
+## The viewer stays at the edge
+
+`viewer` translates model and trajectory data into interactive or offscreen
+rendering. Nothing in the computational core imports it. Optional packages
+such as `viser`, `pyrender`, and mesh loaders are imported only at their
+integration boundaries, so `import better_robot` does not require a rendering
+environment.
+
+The same rule applies to optional acceleration. A fused implementation lives
+beside the pass it accelerates and keeps tensors at the public boundary. It
+does not become another architectural layer. See {doc}`the_compute_seam` and
+{ref}`decision-whole-pass`.
+
+## Two flows through the layers
+
+A forward-kinematics call follows a short path:
+
+```text
+q + Model -> kinematics pass -> Data with joint/frame poses
 ```
 
-## The public API contract
+An inverse-kinematics call composes more layers:
 
-The top-level `better_robot.__init__` exports a deliberately small set of
-common entry points:
-
-```python
-__all__ = [
-    # data_model (5)
-    "Model", "Data", "Frame", "Joint", "Body",
-    # io (2)
-    "load", "ModelBuilder",
-    # lie (1)
-    "SE3",
-    # kinematics (6)
-    "forward_kinematics", "update_frame_placements",
-    "compute_joint_jacobians", "get_joint_jacobian", "get_frame_jacobian",
-    "JacobianStrategy",
-    # dynamics (5)
-    "rnea", "aba", "crba", "center_of_mass", "compute_centroidal_map",
-    # optim (2)
-    "CostStack", "LeastSquaresProblem",
-    # tasks (4)
-    "solve_ik", "solve_trajopt", "solve_contact_forces", "Trajectory",
-]
+```text
+targets -> task recipe -> Problem -> residual evaluation
+                               -> kinematics provider -> poses
+                               -> Jacobians and LM step -> new q
 ```
 
-The set is not frozen before 1.0. The contract test pins a required core,
-checks every listed symbol resolves, and rejects duplicate entries without
-turning the current symbol count into an API promise. Promotion remains
-evidence-driven: a symbol earns top-level status when examples show that the
-qualified path is unnecessary friction.
+The second flow still bottoms out in the same kinematics functions as the
+first. That is the practical benefit of the dependency rule: high-level
+features compose the core instead of copying it.
 
-Submodule-only public symbols are reachable from their qualified
-import path and covered by the same contract suite, even though they
-are not in the top-level `__all__`:
+## What enforces the boundary
 
-```python
-from better_robot.lie         import SO3, Pose
-from better_robot.spatial     import Motion, Force, Inertia, Symmetric3
-from better_robot.kinematics  import ReferenceFrame
-from better_robot.optim.state import SolverState
-from better_robot.tasks.ik    import IKResult, IKCostConfig, OptimizerConfig
+Architecture is checked in code, not only described here:
 
-from better_robot.optim import (
-    Bounds, Euclidean, SO3Manifold, SE3Manifold, RobotConfig,
-    Values, VarSpec, Problem, ResidualItem, ObjectiveItem, TemporalPattern,
-    BlockBandedMatrix, NormalOperator, LinearizationDecision,
-    RobotStateProvider, detach_values,
-)
-```
+- `tests/contract/test_layer_dependencies.py` rejects upward imports.
+- Public-import tests pin the supported package surface.
+- Optional-dependency tests import the core without viewer or kernel extras.
+- Cache tests ensure algorithms do not read `Data` at an insufficient
+  computation level.
+- Whole-pass parity tests compare any accelerated lane with the Torch
+  reference.
 
-The manifold suffixes are part of the contract: `better_robot.SE3` and
-`better_robot.lie.SE3` are typed Lie-group pose wrappers, whereas
-`better_robot.optim.SE3Manifold` is a retraction/difference policy for a
-variable block. The block construction names stay qualified under
-`better_robot.optim`; they are not added to the root `better_robot.__all__`.
+These checks leave room to extend a layer while keeping its direction clear.
 
-`tests/contract/test_submodule_public_imports.py` enforces those
-paths so a refactor cannot silently move them.
+## Where to continue
 
-## Extension seams
-
-Growth uses several explicit seams. Residuals, joints, optimizers, linear
-solvers, render modes, trajectory parameterizations, and asset resolvers have
-structural or class contracts; parser discovery is a suffix registry plus
-loader function. Collision and actuator surfaces are reserved sketches rather
-than usable third-party seams. The exact live and deferred catalogue lives in
-{doc}`/conventions/extension`.
-
-Whole-pass compute lanes are the deliberate exception: they are internal
-performance integrations selected by an explicit branch in the owning pass,
-not a public plugin Protocol or process-wide registry.
-
-## Why this shape works
-
-- **`lie` + `spatial` split.** `lie/` is the algebraic machinery;
-  `spatial/` is the 6D value-type layer that dynamics consumes.
-  Mirrors Pinocchio's separation of `liegroups.hpp` from
-  `spatial/`.
-- **`data_model/joint_models/` one-file-per-joint.** Adding a new
-  joint kind is an isolated change. See
-  {doc}`joints_bodies_frames`.
-- **Two Jacobian boundaries with different jobs.** Direct flat compatibility
-  callers use the unified residual Jacobian dispatch, which selects an
-  analytic Jacobian or the unbatched central-finite-difference fallback.
-  Named-block `Problem`
-  evaluation instead assembles per-residual, per-variable tangent blocks and
-  uses `torch.func` forward/reverse AD when an analytic block is absent. See
-  {doc}`kinematics` and {doc}`solver_stack`.
-- **Residuals never reach into solvers.** Legacy built-ins live above
-  kinematics and compose through optimizer-owned `CostStack`. Named-block
-  residuals are structural consumers of declared context names;
-  evaluation-local providers own shared FK or other expensive lower-layer
-  work. Both routes preserve the downward dependency rule while they coexist.
-  `tasks/` remains the top user-facing facade.
-- **`io` and `viewer` siblings of `tasks`, not ancestors.** `load()`
-  never constructs a `Task`; it returns a `Model`. The viewer is
-  outside the spine because nothing should depend on it.
-
-## Where to look next
-
-The remaining chapters walk down the spine starting from the user
-side: {doc}`model_and_data` is what `load` returns, {doc}`kinematics`
-is the first thing most users call, and {doc}`tasks` is what most
-production code actually uses.
+- {doc}`model_and_data` follows `Model` and `Data` through a query.
+- {doc}`kinematics_and_jacobians` explains the most common algorithm flow.
+- {doc}`residuals_costs_and_solvers` shows how residuals become an
+  optimization problem.
+- {doc}`the_compute_seam` explains reference and fused whole-pass execution.

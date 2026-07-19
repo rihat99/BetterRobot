@@ -1,110 +1,90 @@
 # Packaging
 
-> **Status:** normative.
-> Pins the install surface and the SemVer scope per-symbol once we
-> reach 1.0.
+`pyproject.toml` is the source of truth for versions, dependencies, and
+extras. This page explains how to change that surface without making optional
+integrations part of every installation.
 
-The core install is deliberately small. It provides tensor algorithms and URDF
-loading; integrations with heavyweight or specialised runtimes are explicit
-extras. The source of truth is `[project.dependencies]` and
-`[project.optional-dependencies]` in `pyproject.toml`. This page explains that
-surface but must not invent dependencies that are absent there.
+## Install surfaces
 
-## 1 · Dependencies
+The core installation contains the tensor algorithms and URDF loader:
 
-Core (always installed):
-
-| Package | Purpose |
-|---------|---------|
-| `torch>=2.4` | tensors, autograd, and the eager Torch compute lane |
-| `numpy>=2.0` | interop and reference math |
+| Dependency | Purpose |
+|---|---|
+| `torch>=2.4` | tensors and automatic differentiation |
+| `numpy>=2.0` | array interchange and reference calculations |
 | `yourdfpy>=0.0.14` | URDF parsing |
 
-`yourdfpy` currently requires ``trimesh[easy]`` directly, so ``trimesh`` is
-present transitively in a core environment. That does not make BetterRobot's
-mesh-facing surface part of the core contract.
+Optional features have named extras:
 
-Optional runtime extras:
+| Extra | Main dependency | Purpose |
+|---|---|---|
+| `viewer` | `viser` | browser viewer |
+| `io-mjcf` | `mujoco` | MJCF loading |
+| `meshes` | `trimesh` | direct mesh APIs |
+| `demos` | `robot_descriptions` | example robot assets |
+| `warp` | `warp-lang` | opt-in fused FK on supported CUDA systems |
+| `dev` | test, docs, lint, type, and benchmark tools | repository development |
 
-| Extra | Dependency | Purpose |
-|-------|------------|---------|
-| `[viewer]` | `viser` | Browser-based visualisation |
-| `[io-mjcf]` | `mujoco` | MJCF loading |
-| `[meshes]` | `trimesh` | Direct mesh APIs |
-| `[demos]` | `robot_descriptions` | Panda, G1, and other example assets |
-| `[warp]` | `warp-lang` | CUDA-validated opt-in fused FK lane |
+`yourdfpy` currently brings in `trimesh` itself. That transitive install
+does not make BetterRobot's mesh APIs part of the core contract.
 
-`[dev]`: `pytest`, `pytest-cov`, `pytest-xdist`, `pytest-benchmark`,
-`scipy`, `hypothesis`, `pin` (Pinocchio reference oracle), `pyperf`, the
-Sphinx docs stack (`sphinx`, `myst-parser`, `myst-nb`,
-`sphinx-book-theme`, `sphinx-design`, `sphinx-autodoc2`,
-`sphinx-copybutton`, `sphinxcontrib-bibtex`, `sphinx-tabs`, `ghp-import`), plus
-`ruff`, `pyright`, `mypy`, `pre-commit`, `jaxtyping`.
+## Adding a dependency
 
-## 2 · Adding a dependency
+Put a dependency in the smallest surface that needs it:
 
-If you can implement the feature with what is already installed, do that. Add a
-dependency to the smallest surface that needs it: core only when ordinary
-runtime use cannot work without it, a named extra for an optional integration,
-or `[dev]` for contributor tooling. Regenerate `uv.lock`, verify a core-only
-installation, and test that importing `better_robot` does not eagerly import an
-optional runtime.
+- core, only when ordinary library use cannot work without it;
+- a named extra, when the feature is optional; or
+- `dev`, when only contributors need it.
 
-## 3 · SemVer pre / post 1.0
+Then regenerate `uv.lock`, test a core-only installation, and check that
+`import better_robot` does not import an optional runtime.
 
-Until 1.0 every minor bump may break. Once 1.0 is cut:
+Optional imports stay near the function that uses them. Importing the package
+must not require a viewer, MJCF parser, example asset package, or Warp.
 
-- **Major** — removing a public symbol; changing
-  `[tx, ty, tz, qx, qy, qz, qw]` ordering; changing the layered DAG;
-  changing a Protocol's required members.
-- **Minor** — adding a public symbol; renaming with a deprecation
-  shim; tightening (never loosening) a numerical tolerance.
-- **Patch** — bug fixes; perf improvements within tolerance.
+## Versions
 
-`tests/contract/test_public_api.py` pins the required core symbols, their
-resolution and docstrings, and the absence of duplicate exports; it does not
-freeze a symbol count while the project is pre-1.0. Once the 1.0 surface is
-frozen, removals follow the SemVer policy above. The per-symbol stability tier
-is in {doc}`contracts` §7.3.
+The package version appears in two places that must agree:
 
-## 4 · Deprecation mechanism
+- `project.version` in `pyproject.toml`;
+- `__version__` in `src/better_robot/_version.py`.
 
-```python
-import warnings
-warnings.warn(
-    "Old API is deprecated; use new API. Will be removed in vX.Y.",
-    DeprecationWarning,
-    stacklevel=2,
-)
-```
+BetterRobot is below 1.0. A minor release may still reshape the public API,
+but the release notes must say what changed and what callers should use
+instead.
 
-Once a compatibility shim is intentionally introduced, it gets:
+After 1.0:
 
-- A `DeprecationWarning` with the replacement and the removal version.
-- An entry in `CHANGELOG.md` under the current release.
-- A test that the warning fires under `pytest.warns()`.
+| Release | Appropriate change |
+|---|---|
+| major | remove or rename a stable symbol; change pose storage; change a required protocol member |
+| minor | add a compatible public feature |
+| patch | fix a bug or improve speed within the documented numerical contract |
 
-The shim is removed in the named version. There is currently no generic
-`test_deprecations.py` harness and no package-wide environment flag that turns
-deprecation warnings into errors; a change that introduces either must add the
-implementation and tests before this document claims it. Pre-1.0 removals that
-land without a shim are recorded explicitly in the changelog and the removed-
-surface migration ledgers.
+The stability table in {doc}`contracts` says which surfaces become bound by
+that promise.
 
-## 5 · `__version__`
+## Removing or replacing an API
 
-```python
-# src/better_robot/_version.py
-__version__ = "0.2.0"
-```
+Before 1.0, remove unused surfaces cleanly. Do not leave a second
+implementation, forwarding wrapper, or warning-only alias unless the release
+itself explicitly promises a transition period. Record the replacement in the
+changelog.
 
-Imported in `__init__.py`. Single source of truth that tests read; kept
-in step with `pyproject.toml::project.version`.
+After 1.0, a compatibility period is a release decision. If one is chosen, it
+needs a `DeprecationWarning`, a removal version, a focused warning test, and
+a changelog entry.
 
-## 6 · Cross-references
+## Release checklist
 
-- {doc}`contracts` §7 — SemVer scope and deprecation policy.
-- {doc}`naming` §5 — the rename schedule this operationalises.
-- {doc}`testing` §5.4 and §7 — regression oracles and benchmark evidence.
-- {doc}`extension` §2 — the joint extension seam; §14 is only a future
-  actuator-design sketch.
+1. Update the version sources and the Unreleased changelog section.
+2. Run the full supported test suite and strict documentation build.
+3. Verify `uv lock --check`.
+4. Build the wheel and source archive in a clean environment.
+5. Test the wheel once with core dependencies only and once with the relevant
+   extras.
+6. Check third-party notices against {doc}`source_and_license`.
+
+Public exports are checked by `tests/contract/test_public_api.py`. The test
+requires the documented core to resolve and rejects duplicate exports; it
+does not freeze an exact symbol count before 1.0.

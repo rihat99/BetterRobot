@@ -7,26 +7,21 @@
 :allowtitles:
 ```
 
-## Subpackages
-
-```{toctree}
-:titlesonly:
-:maxdepth: 3
-
-better_robot.optim.strategies
-better_robot.optim.optimizers
-better_robot.optim.kernels
-better_robot.optim.solvers
-```
-
 ## Submodules
 
 ```{toctree}
 :titlesonly:
 :maxdepth: 1
 
-better_robot.optim.cost_stack
-better_robot.optim.state
+better_robot.optim.implicit
+better_robot.optim.temporal
+better_robot.optim.manifolds
+better_robot.optim.solvers
+better_robot.optim.autograd
 better_robot.optim.problem
-better_robot.optim.structure
+better_robot.optim.providers
+better_robot.optim.kernels
+better_robot.optim.variables
+better_robot.optim.first_order
+better_robot.optim.lm
 ```

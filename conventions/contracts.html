@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Contracts &amp; Validation &#8212; BetterRobot</title>
+    <title>Contracts &#8212; BetterRobot</title>
   
   
   
@@ -52,12 +52,12 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'conventions/contracts';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Engineering Contract" href="engineering.html" />
-    <link rel="prev" title="Testing" href="testing.html" />
+    <link rel="next" title="Extension points" href="extension.html" />
+    <link rel="prev" title="Naming" href="naming.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 18, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
   </head>
   
   
@@ -159,41 +159,44 @@
 </button></div>
         <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
     <div class="bd-toc-item navbar-nav active">
-        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get started</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../getting_started/index.html">Getting started</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/installation.html">Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/forward_kinematics.html">Forward kinematics on Panda</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/inverse_kinematics.html">Inverse kinematics on Panda</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/floating_base.html">Floating-base IK on the G1 humanoid</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/01_robot_model.html">Meet the robot model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/02_forward_kinematics.html">Forward kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/03_inverse_kinematics.html">Inverse kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/04_floating_base.html">Floating-base robots</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/05_batched_gpu.html">Batching and the GPU</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">How-to guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../guides/custom_residual.html">Write a custom residual</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/load_a_robot.html">Load a robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/visualize.html">Visualize a robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/differentiate_through_kinematics.html">Differentiate through kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/own_your_optimization_loop.html">Own your optimization loop</a></li>
 </ul>
 </details></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Concepts</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../concepts/index.html">Concepts</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/vision.html">Vision</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/why_betterrobot.html">Why BetterRobot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/design_decisions.html">Design decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/architecture.html">Architecture</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/model_and_data.html">Model and Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/joints_bodies_frames.html">Joints, Bodies, and Frames</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/lie_and_spatial.html">Lie Groups and Spatial Algebra</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/parsers_and_ir.html">Parsers and the IR</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/kinematics.html">Kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/joints_bodies_frames.html">Joints, bodies, and frames</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/residuals_and_costs.html">Residuals and Costs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/solver_stack.html">Named-Block Evaluation and the Legacy Solver Stack</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/tasks.html">Tasks — IK and Trajectory Optimisation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/collision_and_geometry.html">Collision and Geometry</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/batching_and_backends.html">Batching and Compute Lanes</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/warp_bridge.html">Torch–Warp bridge and opt-in FK lane</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/the_compute_seam.html">The Compute Seam</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/viewer.html">Viewer</a></li>
-</ul>
-</details></li>
-</ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Guides</span></p>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1 has-children"><a class="reference internal" href="../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../guides/custom_residuals.html">Write a custom block residual</a></li>
 </ul>
 </details></li>
 </ul>
@@ -201,14 +204,13 @@
 <ul class="current nav bd-sidenav">
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="index.html">Conventions</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="naming.html">Naming</a></li>
-<li class="toctree-l2"><a class="reference internal" href="performance.html">Performance</a></li>
-<li class="toctree-l2"><a class="reference internal" href="extension.html">Extension Points</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">Contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extension.html">Extension points</a></li>
 <li class="toctree-l2"><a class="reference internal" href="testing.html">Testing</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">Contracts &amp; Validation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="engineering.html">Engineering Contract</a></li>
-<li class="toctree-l2"><a class="reference internal" href="source_and_license.html">Source and License Decision Memo</a></li>
-<li class="toctree-l2"><a class="reference internal" href="style.html">Coding Style</a></li>
+<li class="toctree-l2"><a class="reference internal" href="performance.html">Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="style.html">Coding style</a></li>
 <li class="toctree-l2"><a class="reference internal" href="packaging.html">Packaging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="source_and_license.html">Source and license</a></li>
 </ul>
 </details></li>
 </ul>
@@ -243,8 +245,6 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.human.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.human</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.manipulability.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.manipulability</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.collision</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
@@ -280,18 +280,17 @@
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.strategies.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.strategies</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.implicit.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.implicit</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.cost_stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.cost_stack</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.state.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.state</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.structure</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.stack</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -313,7 +312,6 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian_strategy.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian_strategy</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.forward.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.forward</span></code></a></li>
 </ul>
 </details></li>
@@ -335,16 +333,13 @@
 <li class="toctree-l3"><a class="reference internal" href="../reference/api/better_robot/better_robot.exceptions.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.exceptions</span></code></a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/named_block_solvers.html">Named-block solver API</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/changelog.html">Changelog</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/roadmap.html">Roadmap</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/m1_removed_symbols.html">M1 removed surfaces</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/m3_removed_symbols.html">M3.5 removed surfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/collision_and_geometry.html">Collision and geometry status</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/roadmap.html">Roadmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/changelog.html">Changelog</a></li>
 </ul>
 </details></li>
 </ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Project Links</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/rihat99/BetterRobot">GitHub</a></li>
 </ul>
@@ -546,7 +541,7 @@
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>Contracts & Validation</h1>
+    <h1>Contracts</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -556,33 +551,19 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#input-contracts">1 · Input contracts</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tensor-shapes">1.1 Tensor shapes</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#device-dtype">1.2 Device &amp; dtype</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#quaternion-se-3-inputs">1.3 Quaternion / SE(3) inputs</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#joint-limits">1.4 Joint limits</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#model-well-formedness">1.5 Model well-formedness</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#error-taxonomy">2 · Error taxonomy</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#numerical-behavior-and-evidence">3 · Numerical behavior and evidence</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#determinism">3.1 Determinism</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#accuracy">3.2 Accuracy</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#singularities">3.3 Singularities</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#batched-broadcasting">3.4 Batched broadcasting</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#mutability-rules">4 · Mutability rules</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#autograd-rules">5 · Autograd rules</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#threading-concurrency">6 · Threading &amp; concurrency</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#backwards-compatibility-policy">7 · Backwards compatibility policy</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#semver-scope">7.1 SemVer scope</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#deprecation-mechanism">7.2 Deprecation mechanism</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#stability-tier-per-symbol">7.3 Stability tier per symbol</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#logging">8 · Logging</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#assumptions-summary-the-one-page-contract">9 · Assumptions summary (the one-page contract)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tensor-shapes-and-batching">Tensor shapes and batching</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#devices-and-dtypes">Devices and dtypes</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pose-and-tangent-storage">Pose and tangent storage</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#joint-limits">Joint limits</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#model-consistency">Model consistency</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#state-ownership">State ownership</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#numerical-behavior">Numerical behavior</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#automatic-differentiation">Automatic differentiation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#compilation-and-capture">Compilation and capture</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#serialization">Serialization</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#exceptions">Exceptions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#api-stability">API stability</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#caller-checklist">Caller checklist</a></li>
 </ul>
             </nav>
         </div>
@@ -594,441 +575,258 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="contracts-validation">
-<h1>Contracts &amp; Validation<a class="headerlink" href="#contracts-validation" title="Link to this heading">#</a></h1>
-<blockquote>
-<div><p><strong>Status:</strong> normative. Describes the library’s input contracts,
-numerical evidence boundaries, and error-handling policy.</p>
-</div></blockquote>
-<p>Other docs describe <em>what</em> the library does. This one describes the
-<strong>rules every public function must honour</strong> and <strong>what the user must
-give in return</strong>. Contracts pin the responsibility boundary: with one,
-“my IK is wrong” splits cleanly into “you passed me a non-unit
-quaternion” and “the library has a bug.” Without one, every public
-function eventually grows ambiguous defensive checks because nobody is
-sure who is responsible for which input shape — and the call site
-slowly accrues noise that exists to defend against scenarios that
-should not happen.</p>
-<p>We picked a small set of explicit rules instead. The target policy validates
-inputs <strong>at the boundary</strong> with named exceptions and trusts internal callers.
-Where the current code does not yet enforce a rule, this document names the
-gap instead of claiming the exception already fires. Cache levels are tracked
-with <code class="docutils literal notranslate"><span class="pre">KinematicsLevel</span></code>; the SE(3) layout is a stable convention.</p>
-<p>The benefit shows up everywhere downstream. The hot-path lint can
-forbid <code class="docutils literal notranslate"><span class="pre">.item()</span></code> because contracts already pin shapes. The solver can
-skip “is <code class="docutils literal notranslate"><span class="pre">q</span></code> the right shape?” because the entry point already
-checked. Documentation can read like prose because the rules live
-here, not scattered through every function.</p>
-<section id="input-contracts">
-<h2>1 · Input contracts<a class="headerlink" href="#input-contracts" title="Link to this heading">#</a></h2>
-<section id="tensor-shapes">
-<h3>1.1 Tensor shapes<a class="headerlink" href="#tensor-shapes" title="Link to this heading">#</a></h3>
-<p>Supported batched tensor routines use <code class="docutils literal notranslate"><span class="pre">(B...,</span> <span class="pre">feature)</span></code>, where <code class="docutils literal notranslate"><span class="pre">B...</span></code> is zero
-or more leading batch axes and the trailing axes carry the documented event
-(for example <code class="docutils literal notranslate"><span class="pre">nq</span></code> or <code class="docutils literal notranslate"><span class="pre">(njoints,</span> <span class="pre">7)</span></code>). APIs with multiple tensor inputs
-state which leading batches participate in broadcasting. See
-<a class="reference internal" href="../concepts/batching_and_backends.html"><span class="doc">Batching and Compute Lanes</span></a> for the full shape table.</p>
-<p><strong>What we promise:</strong></p>
+  <section id="contracts">
+<h1>Contracts<a class="headerlink" href="#contracts" title="Link to this heading">#</a></h1>
+<p>This page draws the line between a caller’s responsibility and the library’s.
+Public boundaries check tensor structure once and raise a useful error. The
+math below those boundaries trusts the checked inputs.</p>
+<section id="tensor-shapes-and-batching">
+<h2>Tensor shapes and batching<a class="headerlink" href="#tensor-shapes-and-batching" title="Link to this heading">#</a></h2>
+<p>A supported batched tensor uses <code class="docutils literal notranslate"><span class="pre">(B...,</span> <span class="pre">event)</span></code>:</p>
 <ul class="simple">
-<li><p>A documented batched return preserves the resolved execution batch of the
-inputs that participate in that operation.</p></li>
-<li><p>We never drop a leading batch axis (<code class="docutils literal notranslate"><span class="pre">B=1</span></code> stays <code class="docutils literal notranslate"><span class="pre">(1,</span> <span class="pre">…)</span></code>).</p></li>
-<li><p>We do not add a leading batch axis unless that surface explicitly documents
-a normalized representation. The current unbatched <code class="docutils literal notranslate"><span class="pre">solve_trajopt</span></code> result
-retains its historical <code class="docutils literal notranslate"><span class="pre">(1,</span> <span class="pre">T,</span> <span class="pre">nq)</span></code> <code class="docutils literal notranslate"><span class="pre">Trajectory</span></code> shape, and
-<code class="docutils literal notranslate"><span class="pre">Trajectory.with_batch_dims</span></code> adds axes by explicit request.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">B...</span></code> is any number of leading batch axes;</p></li>
+<li><p>the trailing event axes describe one robot quantity.</p></li>
 </ul>
-<p><strong>What we expect:</strong></p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">q</span></code> has shape <code class="docutils literal notranslate"><span class="pre">(B...,</span> <span class="pre">nq)</span></code>; <code class="docutils literal notranslate"><span class="pre">v</span></code> / <code class="docutils literal notranslate"><span class="pre">a</span></code> / <code class="docutils literal notranslate"><span class="pre">tau</span></code> have <code class="docutils literal notranslate"><span class="pre">(B...,</span> <span class="pre">nv)</span></code>.</p></li>
-<li><p>Broadcast follows the boundary’s documented right-aligned PyTorch rules;
-incompatible shapes raise. Contiguity is not a universal public
-requirement: direct Torch paths accept supported strided tensors, while an
-opt-in kernel may reject eligibility and fall back.</p></li>
-</ul>
+<p>Common events are <code class="docutils literal notranslate"><span class="pre">(nq,)</span></code> for a configuration, <code class="docutils literal notranslate"><span class="pre">(nv,)</span></code> for a tangent or
+generalized force, <code class="docutils literal notranslate"><span class="pre">(7,)</span></code> for a pose, and <code class="docutils literal notranslate"><span class="pre">(6,</span> <span class="pre">nv)</span></code> for a spatial
+Jacobian.</p>
+<p>When several inputs participate in a call, their leading axes follow
+right-aligned PyTorch broadcasting. The return keeps the resolved batch.
+A size-one batch remains a batch; BetterRobot does not silently squeeze it.
+See <a class="reference internal" href="../concepts/the_compute_seam.html"><span class="doc">The Compute Seam</span></a> for the execution model.</p>
 </section>
-<section id="device-dtype">
-<h3>1.2 Device &amp; dtype<a class="headerlink" href="#device-dtype" title="Link to this heading">#</a></h3>
+<section id="devices-and-dtypes">
+<h2>Devices and dtypes<a class="headerlink" href="#devices-and-dtypes" title="Link to this heading">#</a></h2>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">Model.to(device,</span> <span class="pre">dtype)</span></code> returns a new <code class="docutils literal notranslate"><span class="pre">Model</span></code> with all tensor
-buffers moved.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">Data</span></code> inherits device / dtype from the input <code class="docutils literal notranslate"><span class="pre">q</span></code>. Calling
-<code class="docutils literal notranslate"><span class="pre">forward_kinematics(model,</span> <span class="pre">q)</span></code> with <code class="docutils literal notranslate"><span class="pre">q.device</span> <span class="pre">!=</span> <span class="pre">model.device</span></code>
-raises <code class="docutils literal notranslate"><span class="pre">DeviceMismatchError</span></code>.</p></li>
-<li><p>fp32 is primary and fp64 is supported. Supported paths preserve the
-working input dtype; see <a class="reference internal" href="engineering.html"><span class="doc">Engineering Contract</span></a> for accumulation, TF32,
-and tolerance policy.</p></li>
-<li><p>fp16 and bf16 are outside the supported contract. Cast up before the
-call. FK and dynamics passes reject them with <code class="docutils literal notranslate"><span class="pre">DtypeMismatchError</span></code>.</p></li>
-<li><p>A model/query dtype mismatch raises <code class="docutils literal notranslate"><span class="pre">DtypeMismatchError</span></code> before FK or a
-dynamics pass begins; cast the query or move the model explicitly.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Model.to(device,</span> <span class="pre">dtype)</span></code> returns a moved copy.</p></li>
+<li><p>Query tensors and model values must share a device and floating dtype.</p></li>
+<li><p>The validated kinematics and dynamics paths support <code class="docutils literal notranslate"><span class="pre">torch.float32</span></code> and
+<code class="docutils literal notranslate"><span class="pre">torch.float64</span></code>.</p></li>
+<li><p>Those paths reject <code class="docutils literal notranslate"><span class="pre">torch.float16</span></code> and <code class="docutils literal notranslate"><span class="pre">torch.bfloat16</span></code>.</p></li>
+<li><p>A public operation does not silently move or cast one side to match the
+other.</p></li>
 </ul>
+<p>Supported floating results preserve the working input dtype. If an algorithm
+ever needs a wider internal reduction, that exception must be documented and
+tested.</p>
+<p>BetterRobot does not change PyTorch’s process-wide TF32 or deterministic
+settings. A caller that enables them owns the accuracy and reproducibility
+check for that workload.</p>
 </section>
-<section id="quaternion-se-3-inputs">
-<h3>1.3 Quaternion / SE(3) inputs<a class="headerlink" href="#quaternion-se-3-inputs" title="Link to this heading">#</a></h3>
-<ul class="simple">
-<li><p>Quaternion format is <strong><code class="docutils literal notranslate"><span class="pre">[qx,</span> <span class="pre">qy,</span> <span class="pre">qz,</span> <span class="pre">qw]</span></code></strong> (scalar last). Every
-function accepting an SE(3) pose reads it as <code class="docutils literal notranslate"><span class="pre">[tx,</span> <span class="pre">ty,</span> <span class="pre">tz,</span> <span class="pre">qx,</span> <span class="pre">qy,</span> <span class="pre">qz,</span> <span class="pre">qw]</span></code>.</p></li>
-<li><p>Quaternions are assumed unit-norm on input; FK does not normalize them.
-<code class="docutils literal notranslate"><span class="pre">forward_kinematics(...,</span> <span class="pre">check_quaternion_norm=True)</span></code> enables an opt-in
-boundary check for free-flyer configurations. The check synchronizes
-accelerator tensors and is therefore disabled on the default hot path.</p></li>
-<li><p>With that diagnostic enabled, a norm outside <code class="docutils literal notranslate"><span class="pre">[0.9,</span> <span class="pre">1.1]</span></code> raises
-<code class="docutils literal notranslate"><span class="pre">QuaternionNormError</span></code>. Normalize configurations before calling FK.</p></li>
-</ul>
+<section id="pose-and-tangent-storage">
+<h2>Pose and tangent storage<a class="headerlink" href="#pose-and-tangent-storage" title="Link to this heading">#</a></h2>
+<p>Every quaternion is scalar-last:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>rotation     [qx, qy, qz, qw]
+SE(3) pose   [tx, ty, tz, qx, qy, qz, qw]
+twist        [vx, vy, vz, wx, wy, wz]
+</pre></div>
+</div>
+<p>Angles are radians and public physical quantities use SI units.</p>
+<p>Input quaternions are expected to have unit norm. FK does not normalize them
+by default. For free-flyer diagnostics,
+<code class="docutils literal notranslate"><span class="pre">forward_kinematics(...,</span> <span class="pre">check_quaternion_norm=True)</span></code> checks the norm and
+raises <code class="docutils literal notranslate"><span class="pre">QuaternionNormError</span></code> outside <code class="docutils literal notranslate"><span class="pre">[0.9,</span> <span class="pre">1.1]</span></code>. The optional check can
+synchronize accelerator work, so it is not part of the normal hot path.</p>
+<p>A quaternion and its negation represent the same rotation. Rotation tests and
+residuals compare relative rotations, not raw quaternion components. The
+SO(3) logarithm uses a principal branch. At an angle of exactly pi the chosen
+axis has an unavoidable sign ambiguity, so the tangent derivative is not
+guaranteed there.</p>
 </section>
 <section id="joint-limits">
-<h3>1.4 Joint limits<a class="headerlink" href="#joint-limits" title="Link to this heading">#</a></h3>
+<h2>Joint limits<a class="headerlink" href="#joint-limits" title="Link to this heading">#</a></h2>
+<p>FK accepts configurations outside the model’s position limits. It computes
+the pose represented by the input; it is not a feasibility checker.</p>
+<p><code class="docutils literal notranslate"><span class="pre">solve_ik</span></code> gives its robot variable hard position bounds.
+<code class="docutils literal notranslate"><span class="pre">IKCostConfig.limit_weight</span></code> controls an additional soft residual, not those
+hard bounds. Continuous revolute joints use infinite limits. Quaternion
+coordinates live on a manifold and do not have meaningful rectangular
+bounds; use an orientation residual to constrain them.</p>
+</section>
+<section id="model-consistency">
+<h2>Model consistency<a class="headerlink" href="#model-consistency" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">build_model</span></code> validates topology once. Among other checks:</p>
 <ul class="simple">
-<li><p>FK accepts configurations outside <code class="docutils literal notranslate"><span class="pre">model.lower_pos_limit</span></code> /
-<code class="docutils literal notranslate"><span class="pre">model.upper_pos_limit</span></code>. The <code class="docutils literal notranslate"><span class="pre">solve_ik</span></code> facade always supplies hard
-position bounds to its named-block variable and projects within them;
-<code class="docutils literal notranslate"><span class="pre">IKCostConfig.limit_weight</span></code> controls only the additional soft limit
-residual. Direct solver/problem callers own whatever bounds they declare.</p></li>
-<li><p>Continuous revolute joints (kind <code class="docutils literal notranslate"><span class="pre">revolute_unbounded</span></code>) have <code class="docutils literal notranslate"><span class="pre">±inf</span></code>
-limits — wrapping is the user’s responsibility if they care.</p></li>
-<li><p>Free-flyer: the four quaternion components live on the sphere; the
-library treats them as a free manifold (no rectangular bounds). To
-constrain orientation, use an <code class="docutils literal notranslate"><span class="pre">OrientationResidual</span></code> with a target
-pose and a large weight, not a limit.</p></li>
+<li><p>joint zero is the universe and has parent <code class="docutils literal notranslate"><span class="pre">-1</span></code>;</p></li>
+<li><p>each later parent precedes its child;</p></li>
+<li><p>joint widths add up to <code class="docutils literal notranslate"><span class="pre">nq</span></code> and <code class="docutils literal notranslate"><span class="pre">nv</span></code>;</p></li>
+<li><p>public and full-coordinate slice tables are consistent; and</p></li>
+<li><p>structure tables agree with model-value table sizes.</p></li>
 </ul>
+<p>Malformed input raises <code class="docutils literal notranslate"><span class="pre">ModelInconsistencyError</span></code> while building the model,
+not during every query.</p>
 </section>
-<section id="model-well-formedness">
-<h3>1.5 Model well-formedness<a class="headerlink" href="#model-well-formedness" title="Link to this heading">#</a></h3>
-<p>After <code class="docutils literal notranslate"><span class="pre">build_model</span></code>:</p>
+<section id="state-ownership">
+<h2>State ownership<a class="headerlink" href="#state-ownership" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Object</p></th>
+<th class="head"><p>Ownership rule</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ModelStructure</span></code></p></td>
+<td><p>immutable topology; safe to share</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ModelValues</span></code></p></td>
+<td><p>treat tensor storage as read-only after attachment</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Model</span></code></p></td>
+<td><p>shallowly frozen; contained tensors and metadata are not deeply frozen</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Data</span></code></p></td>
+<td><p>mutable cache for one evaluation; do not share across concurrent evaluations</p></td>
+</tr>
+<tr class="row-even"><td><p>solver state and histories</p></td>
+<td><p>belong to one solve; carry the returned state forward</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">IKResult</span></code> and <code class="docutils literal notranslate"><span class="pre">Trajectory</span></code></p></td>
+<td><p>caller-owned dataclasses containing tensors</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Data.require(level)</span></code> raises <code class="docutils literal notranslate"><span class="pre">StaleCacheError</span></code> when a caller asks for a
+result that has not been computed. Run the required kinematic pass and keep
+the returned <code class="docutils literal notranslate"><span class="pre">Data</span></code>.</p>
+<p>BetterRobot never changes <code class="docutils literal notranslate"><span class="pre">torch.set_num_threads</span></code>. CUDA work uses the
+caller’s current PyTorch stream. The optional Warp FK path bridges that stream
+rather than choosing a separate default stream.</p>
+<p>For accelerator multiprocessing, use <code class="docutils literal notranslate"><span class="pre">spawn</span></code> and initialize each child
+independently. Sharing mutable <code class="docutils literal notranslate"><span class="pre">Data</span></code>, solver objects, streams, or captured
+graphs between processes is unsupported.</p>
+</section>
+<section id="numerical-behavior">
+<h2>Numerical behavior<a class="headerlink" href="#numerical-behavior" title="Link to this heading">#</a></h2>
+<p>BetterRobot promises results within the routine- and dtype-specific
+tolerances exercised by its tests. It does not promise bitwise equality
+across devices, compiler choices, dependency versions, or CUDA streams.</p>
+<p>Small-angle Lie formulas use stable series branches. Dense Cholesky reports a
+failed factorization to the solver instead of hiding a rank-deficient fallback.
+LM can then increase damping for the affected batch element.</p>
+<p>Regression and parity evidence records its model, dtype, device, inputs, and
+tolerances. One tight fp64 FK test is not a universal error bound for every
+robot or chain length.</p>
+</section>
+<section id="automatic-differentiation">
+<h2>Automatic differentiation<a class="headerlink" href="#automatic-differentiation" title="Link to this heading">#</a></h2>
+<p>Differentiability is a property of a path, not of the package name.</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">parents[0]</span> <span class="pre">==</span> <span class="pre">-1</span></code> (joint 0 is the universe).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">parents[i]</span> <span class="pre">&lt;</span> <span class="pre">i</span></code> for <code class="docutils literal notranslate"><span class="pre">i</span> <span class="pre">&gt;</span> <span class="pre">0</span></code> (topologically sorted).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">sum(nqs)</span> <span class="pre">==</span> <span class="pre">nq</span></code>, <code class="docutils literal notranslate"><span class="pre">sum(nvs)</span> <span class="pre">==</span> <span class="pre">nv</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">idx_qs[i]</span> <span class="pre">+</span> <span class="pre">nqs[i]</span> <span class="pre">==</span> <span class="pre">idx_qs[i+1]</span></code> (contiguous slicing).</p></li>
+<li><p>Torch Lie functions, FK, and the main rigid-body passes have focused
+first-order tests.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Problem</span></code> can form analytic, <code class="docutils literal notranslate"><span class="pre">jacrev</span></code>, <code class="docutils literal notranslate"><span class="pre">jacfwd</span></code>, or explicit
+finite-difference Jacobians.</p></li>
+<li><p>A custom residual or provider preserves gradients only if its implementation
+does so and its tests prove that claim.</p></li>
+<li><p>Second derivatives are promised only for paths with a focused
+<code class="docutils literal notranslate"><span class="pre">gradgradcheck</span></code>.</p></li>
 </ul>
-<p>Violations raise <code class="docutils literal notranslate"><span class="pre">ModelInconsistencyError</span></code> at build time — never at
-query time.</p>
+<p>Task helpers return detached results by default. <code class="docutils literal notranslate"><span class="pre">solve_ik</span></code> can opt into its
+guarded implicit path with <code class="docutils literal notranslate"><span class="pre">differentiable=True</span></code>. The generic
+<code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.run</span></code> and <code class="docutils literal notranslate"><span class="pre">GaussNewton.run</span></code> loops remain detached.</p>
+<p>For a small eligible problem,
+<code class="docutils literal notranslate"><span class="pre">solve(...,</span> <span class="pre">differentiate=&quot;implicit&quot;)</span></code> attaches a guarded first-order
+backward at the final optimum. It differentiates with respect to declared
+external tensor parameters, not the initial guess or solver settings. Invalid
+terminal states, unstable active bounds, nonsmooth robust points, quaternion
+branch cuts, oversize systems, and singular backward systems raise
+<code class="docutils literal notranslate"><span class="pre">ImplicitDifferentiationError</span></code> instead of returning a guessed gradient.</p>
+<p>Optimized values, external tensor parameters, and static configuration are
+three different roles. A tensor has one role in a solve. The API never infers
+that role from <code class="docutils literal notranslate"><span class="pre">requires_grad</span></code> alone.</p>
 </section>
+<section id="compilation-and-capture">
+<h2>Compilation and capture<a class="headerlink" href="#compilation-and-capture" title="Link to this heading">#</a></h2>
+<p>Callers may compile compatible raw functions with <code class="docutils literal notranslate"><span class="pre">torch.compile</span></code>.
+Specialization belongs to PyTorch and may depend on shape, dtype, device,
+layout, static topology, and compiler options. BetterRobot does not install a
+package-wide graph cache or dynamic-shape policy.</p>
+<p>No public captured solver driver ships. Experimental CUDA graph use must own
+stable storage, warmup, invalidation, replay parity, and both forward and
+backward work.</p>
 </section>
-<section id="error-taxonomy">
-<h2>2 · Error taxonomy<a class="headerlink" href="#error-taxonomy" title="Link to this heading">#</a></h2>
-<p>The library raises a small set of typed exceptions. Each has a single
-responsible layer and a documented remediation.</p>
+<section id="serialization">
+<h2>Serialization<a class="headerlink" href="#serialization" title="Link to this heading">#</a></h2>
+<p>There is no stable <code class="docutils literal notranslate"><span class="pre">Model.state_dict</span></code> or versioned checkpoint format yet.
+Persist the source robot description and any explicit tensor parameters.</p>
+<p>Do not advertise <code class="docutils literal notranslate"><span class="pre">torch.save(model)</span></code> as a portable or trusted checkpoint.
+<code class="docutils literal notranslate"><span class="pre">Model.meta</span></code> may contain builder objects, asset resolvers, callables, and
+environment-specific paths. Evaluation caches, compiled programs, streams,
+and solver histories are not model state.</p>
+</section>
+<section id="exceptions">
+<h2>Exceptions<a class="headerlink" href="#exceptions" title="Link to this heading">#</a></h2>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Exception</p></th>
-<th class="head"><p>Raised in</p></th>
 <th class="head"><p>Meaning</p></th>
-<th class="head"><p>Remediation</p></th>
 </tr>
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ModelInconsistencyError</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">io.build_model</span></code></p></td>
-<td><p>Parsed IR violates topology invariants</p></td>
-<td><p>Fix the URDF / MJCF or the programmatic builder</p></td>
+<td><p>parsed or built topology is inconsistent</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">DeviceMismatchError</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">kinematics</span></code>, <code class="docutils literal notranslate"><span class="pre">dynamics</span></code>, <code class="docutils literal notranslate"><span class="pre">optim</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">q.device</span> <span class="pre">!=</span> <span class="pre">model.device</span></code></p></td>
-<td><p>Call <code class="docutils literal notranslate"><span class="pre">model.to(q.device)</span></code> or vice versa</p></td>
+<td><p>tensors that must interact are on different devices</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">DtypeMismatchError</span></code></p></td>
-<td><p>as above</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">q.dtype</span></code> incompatible with <code class="docutils literal notranslate"><span class="pre">model.dtype</span></code></p></td>
-<td><p>Cast one side; see §1.2</p></td>
+<td><p>a tensor has an unsupported or mismatched dtype</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">QuaternionNormError</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">kinematics</span></code> opt-in debug check</p></td>
-<td><p>Free-flyer quaternion norm outside <code class="docutils literal notranslate"><span class="pre">[0.9,</span> <span class="pre">1.1]</span></code></p></td>
-<td><p>Normalise before passing or enable the check only while debugging</p></td>
+<td><p>the optional free-flyer norm check failed</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ShapeError</span></code></p></td>
-<td><p>Validated tensor/model boundaries</p></td>
-<td><p>Wrong trailing event or incompatible batch shape</p></td>
-<td><p>Match that API’s published shape</p></td>
+<td><p>a tensor has the wrong event shape or incompatible batch</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">StaleCacheError</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">kinematics</span></code>, <code class="docutils literal notranslate"><span class="pre">dynamics</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Data._kinematics_level</span></code> below the requested cached result</p></td>
-<td><p>Run <code class="docutils literal notranslate"><span class="pre">forward_kinematics(model,</span> <span class="pre">q,</span> <span class="pre">...)</span></code>, retain the returned <code class="docutils literal notranslate"><span class="pre">Data</span></code>, and advance the required cache before reading it</p></td>
+<td><p>requested <code class="docutils literal notranslate"><span class="pre">Data</span></code> was not computed to the required level</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ConvergenceError</span></code></p></td>
-<td><p>Defined for caller policy; not raised by current task solvers</p></td>
-<td><p>A caller chooses to promote a non-converged returned status</p></td>
-<td><p>Inspect the result/state before optionally raising</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BackendNotAvailableError</span></code></p></td>
+<td><p>an optional integration dependency is unavailable</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">UnsupportedJointError</span></code></p></td>
-<td><p>Defined compatibility type; no current production raise site</p></td>
-<td><p>Reserved for an unsupported joint boundary</p></td>
-<td><p>Current parsers/builders normally raise their direct validation error</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ConvergenceError</span></code></p></td>
+<td><p>available for callers that promote a returned failure status</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SingularityWarning</span></code> <em>(warning, not error)</em></p></td>
-<td><p>Defined warning type; not emitted automatically</p></td>
-<td><p>Reserved for an explicitly diagnosed singularity</p></td>
-<td><p>Inspect solver/factorization status instead of expecting a warning</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">UnsupportedJointError</span></code></p></td>
+<td><p>reserved compatibility error for an unsupported joint</p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p><strong>Rule of thumb:</strong></p>
+<p><code class="docutils literal notranslate"><span class="pre">SingularityWarning</span></code> is a warning type, not an exception, and is not emitted
+automatically today. Public code may use <code class="docutils literal notranslate"><span class="pre">TypeError</span></code> or <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> for a
+boundary that has no more specific BetterRobot exception.</p>
+<p>Error messages name the input, the rule, and the received value. Internal
+impossibilities use assertions; user mistakes do not.</p>
+</section>
+<section id="api-stability">
+<h2>API stability<a class="headerlink" href="#api-stability" title="Link to this heading">#</a></h2>
+<p>Before 1.0, minor releases may change the public surface. Release notes must
+state replacements plainly. The pose layout, tensor batch convention, and
+current public behavior remain deliberate contracts even during that period.</p>
+<p>After 1.0, these surfaces are intended to be stable:</p>
 <ul class="simple">
-<li><p>Library-internal invariants should never raise — they should
-<code class="docutils literal notranslate"><span class="pre">assert</span></code> and fail loudly. Use <code class="docutils literal notranslate"><span class="pre">assert</span></code> for those.</p></li>
-<li><p>Validated user-facing boundaries use the most specific BetterRobot exception
-already defined for that condition, or a direct <code class="docutils literal notranslate"><span class="pre">TypeError</span></code>/<code class="docutils literal notranslate"><span class="pre">ValueError</span></code>
-where no typed exception is wired. The table does not claim every public
-function validates every target-policy rule yet.</p></li>
+<li><p>the root public API and documented qualified imports;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Model</span></code>, <code class="docutils literal notranslate"><span class="pre">Data</span></code>, and their public fields;</p></li>
+<li><p>the pose and tangent layouts;</p></li>
+<li><p>required members of public protocols; and</p></li>
+<li><p>the package dependency direction.</p></li>
 </ul>
+<p>Collision computation and some viewer surfaces remain experimental. See
+<a class="reference internal" href="packaging.html"><span class="doc">Packaging</span></a> for release rules.</p>
 </section>
-<section id="numerical-behavior-and-evidence">
-<h2>3 · Numerical behavior and evidence<a class="headerlink" href="#numerical-behavior-and-evidence" title="Link to this heading">#</a></h2>
-<section id="determinism">
-<h3>3.1 Determinism<a class="headerlink" href="#determinism" title="Link to this heading">#</a></h3>
-<ul class="simple">
-<li><p>BetterRobot does not enable <code class="docutils literal notranslate"><span class="pre">torch.use_deterministic_algorithms</span></code> or change
-process-global backend flags. Pure eager calls have no internal RNG, but
-bitwise reproducibility across devices, CUDA streams, compiler choices, or
-dependency versions is not promised.</p></li>
-<li><p>Benchmark and regression evidence records the environment, inputs, and
-tolerances it actually tested. A caller requiring PyTorch deterministic mode
-must configure and validate it for that workload.</p></li>
-</ul>
-</section>
-<section id="accuracy">
-<h3>3.2 Accuracy<a class="headerlink" href="#accuracy" title="Link to this heading">#</a></h3>
-<p>There is no single library-wide accuracy budget. Lie round trips, analytic
-Jacobians, Pinocchio parity, frozen FK output, and solver convergence each use
-routine- and dtype-specific tolerances in their named tests. The committed
-fp64 FK oracle is checked at <code class="docutils literal notranslate"><span class="pre">atol=rtol=1e-10</span></code>; that does not imply a
-universal ULP guarantee for arbitrary long chains. Numerical tests live under
-<code class="docutils literal notranslate"><span class="pre">tests/lie/</span></code>, <code class="docutils literal notranslate"><span class="pre">tests/kinematics/</span></code>, <code class="docutils literal notranslate"><span class="pre">tests/test_pinocchio/</span></code>, and the
-relevant residual/solver directories.</p>
-</section>
-<section id="singularities">
-<h3>3.3 Singularities<a class="headerlink" href="#singularities" title="Link to this heading">#</a></h3>
-<ul class="simple">
-<li><p>SO(3)/SE(3) formulas use safe Taylor branches near zero. At the absolute-pi
-principal-log cut, the rotation remains valid but the chosen tangent’s sign
-and derivative are not continuous.</p></li>
-<li><p>Dense Cholesky uses <code class="docutils literal notranslate"><span class="pre">torch.linalg.cholesky_ex</span></code> rather than relying on a
-thrown <code class="docutils literal notranslate"><span class="pre">LinAlgError</span></code>. Direct <code class="docutils literal notranslate"><span class="pre">Cholesky.solve</span></code> has an LSTSQ fallback;
-named-block <code class="docutils literal notranslate"><span class="pre">solve_with_info</span></code> returns a zero step and per-element failure
-status when factorization is unhealthy. Solvers return diagnostics instead
-of converting this path into <code class="docutils literal notranslate"><span class="pre">ConvergenceError</span></code> automatically.</p></li>
-</ul>
-</section>
-<section id="batched-broadcasting">
-<h3>3.4 Batched broadcasting<a class="headerlink" href="#batched-broadcasting" title="Link to this heading">#</a></h3>
-<p>Where two inputs have different leading batch shapes, supported boundaries use
-documented right-aligned PyTorch broadcasting and raise on incompatible event
-or batch shapes. BetterRobot has no <code class="docutils literal notranslate"><span class="pre">BR_WARN_BROADCAST</span></code> hook and emits no
-automatic broadcast-size warning.</p>
-</section>
-</section>
-<section id="mutability-rules">
-<h2>4 · Mutability rules<a class="headerlink" href="#mutability-rules" title="Link to this heading">#</a></h2>
-<div class="pst-scrollable-table-container"><table class="table">
-<thead>
-<tr class="row-odd"><th class="head"><p>Object</p></th>
-<th class="head"><p>Mutable?</p></th>
-<th class="head"><p>Notes</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Model</span></code></p></td>
-<td><p>Shallowly frozen</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">&#64;dataclass(frozen=True)</span></code> prevents field reassignment, but contained tensors/dicts remain mutable. Treat them as read-only; deep immutability remains an engineering gap.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Data</span></code></p></td>
-<td><p>Yes</p></td>
-<td><p>Mutated by kinematics / dynamics. Thread-local — do not share across threads without copying.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">IKResult</span></code></p></td>
-<td><p>Yes</p></td>
-<td><p>Plain dataclass containing tensors. Treat it as caller-owned result state; no immutability or view guarantee is promised.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Trajectory</span></code></p></td>
-<td><p>Yes</p></td>
-<td><p>Plain dataclass; <code class="docutils literal notranslate"><span class="pre">slice</span></code> and <code class="docutils literal notranslate"><span class="pre">resample</span></code> return new instances, but fields and contained tensors are not frozen.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CostStack</span></code></p></td>
-<td><p>Yes</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">.add(...)</span></code>, <code class="docutils literal notranslate"><span class="pre">.remove(...)</span></code>, <code class="docutils literal notranslate"><span class="pre">.set_weight(...)</span></code>, and <code class="docutils literal notranslate"><span class="pre">.set_active(...)</span></code> are the supported mutation methods; its <code class="docutils literal notranslate"><span class="pre">items</span></code> mapping contains mutable <code class="docutils literal notranslate"><span class="pre">CostItem</span></code> values.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code></p></td>
-<td><p>Yes</p></td>
-<td><p>Plain compatibility dataclass. Re-build or isolate it per solve instead of mutating shared state concurrently.</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>Do not infer deep immutability from a dataclass wrapper. Share model state only
-under the read-only discipline in <a class="reference internal" href="engineering.html"><span class="doc">Engineering Contract</span></a>; keep mutable data,
-problems, stacks, results, and trajectories evaluation-local unless the caller
-provides its own synchronization.</p>
-</section>
-<section id="autograd-rules">
-<h2>5 · Autograd rules<a class="headerlink" href="#autograd-rules" title="Link to this heading">#</a></h2>
-<ul class="simple">
-<li><p>Autograd guarantees are path- and input-specific. Eager Torch Lie/FK and
-named dynamics paths have gradient tests; that does not make every public
-function differentiable. The complete matrix is in <a class="reference internal" href="engineering.html"><span class="doc">Engineering Contract</span></a>.</p></li>
-<li><p>The current <code class="docutils literal notranslate"><span class="pre">solve_ik</span></code> detaches its initial iterate and has no
-differentiable-solve guarantee.</p></li>
-<li><p>Legacy <code class="docutils literal notranslate"><span class="pre">residual_jacobian(...,</span> <span class="pre">strategy=ANALYTIC)</span></code> uses the residual’s
-<code class="docutils literal notranslate"><span class="pre">.jacobian()</span></code> method. <code class="docutils literal notranslate"><span class="pre">strategy=AUTO</span></code> prefers analytic and falls back to
-unbatched central finite differences at a cost of <code class="docutils literal notranslate"><span class="pre">2·nv</span> <span class="pre">+</span> <span class="pre">1</span></code> residual
-evaluations. The named-block <code class="docutils literal notranslate"><span class="pre">Problem</span></code> API separately supports analytic,
-<code class="docutils literal notranslate"><span class="pre">jacrev</span></code>, <code class="docutils literal notranslate"><span class="pre">jacfwd</span></code>, and finite-difference strategies.</p></li>
-<li><p><strong>Forbidden</strong>: in-place mutation of a tensor currently on the
-autograd tape. The library uses functional-style ops throughout;
-contributions must too.</p></li>
-</ul>
-</section>
-<section id="threading-concurrency">
-<h2>6 · Threading &amp; concurrency<a class="headerlink" href="#threading-concurrency" title="Link to this heading">#</a></h2>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">Model</span></code> may be shared only while every contained tensor and dictionary
-is treated as read-only. The current frozen dataclass is not deeply
-immutable.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">Data</span></code> is mutable ⇒ one <code class="docutils literal notranslate"><span class="pre">Data</span></code> per thread. Use <code class="docutils literal notranslate"><span class="pre">data.clone()</span></code> for
-fork points.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">CostStack</span></code> is mutable; one per optimisation problem. Parallelising
-over problems requires a fresh stack per thread.</p></li>
-<li><p>The library does not call <code class="docutils literal notranslate"><span class="pre">torch.set_num_threads</span></code> internally; it
-inherits the user’s setting.</p></li>
-</ul>
-<p>CUDA-stream and multiprocessing rules live in <a class="reference internal" href="engineering.html"><span class="doc">Engineering Contract</span></a>.</p>
-</section>
-<section id="backwards-compatibility-policy">
-<h2>7 · Backwards compatibility policy<a class="headerlink" href="#backwards-compatibility-policy" title="Link to this heading">#</a></h2>
-<section id="semver-scope">
-<h3>7.1 SemVer scope<a class="headerlink" href="#semver-scope" title="Link to this heading">#</a></h3>
-<p>Before 1.0, minor releases may change the public surface. Contract tests pin
-a required core and reject duplicate or unresolvable exports without freezing
-the current symbol count. Once 1.0 is released, a <strong>major bump</strong> is required
-to change:</p>
-<ul class="simple">
-<li><p>A stable public symbol named in this section.</p></li>
-<li><p>The SE(3) quaternion layout (<code class="docutils literal notranslate"><span class="pre">[tx,</span> <span class="pre">ty,</span> <span class="pre">tz,</span> <span class="pre">qx,</span> <span class="pre">qy,</span> <span class="pre">qz,</span> <span class="pre">qw]</span></code>).</p></li>
-<li><p>The <code class="docutils literal notranslate"><span class="pre">Model</span></code> / <code class="docutils literal notranslate"><span class="pre">Data</span></code> dataclass fields (additive is allowed in
-minor; rename is major unless part of a documented migration
-window).</p></li>
-<li><p>The DAG (a new edge in <a class="reference internal" href="../concepts/architecture.html"><span class="doc">Architecture</span></a>).</p></li>
-</ul>
-<p>The complete release / deprecation discipline lives in <a class="reference internal" href="packaging.html"><span class="doc">Packaging</span></a>.
-This file pins the contract; that file pins the operational mechanism
-(extras, version source, release process, CI gating).</p>
-<p>A <strong>minor bump</strong> may:</p>
-<ul class="simple">
-<li><p>Add a new public symbol, joint kind, residual, solver.</p></li>
-<li><p>Rename a storage field with one release of deprecation shim (see
-<a class="reference internal" href="naming.html"><span class="doc">Naming</span></a>).</p></li>
-<li><p>Tighten a numerical tolerance (never loosen without a major bump).</p></li>
-</ul>
-<p>A <strong>patch bump</strong> is bug fixes; performance improvements that do not
-change numerical output beyond tolerance.</p>
-</section>
-<section id="deprecation-mechanism">
-<h3>7.2 Deprecation mechanism<a class="headerlink" href="#deprecation-mechanism" title="Link to this heading">#</a></h3>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
-<span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-    <span class="s2">&quot;The &#39;old_name&#39; API is deprecated; use &#39;new_name&#39;. &quot;</span>
-    <span class="s2">&quot;Will be removed in vX.Y.&quot;</span><span class="p">,</span>
-    <span class="ne">DeprecationWarning</span><span class="p">,</span>
-    <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-<p>Deprecation warnings follow Python/pytest’s standard filter configuration.
-BetterRobot does not install a <code class="docutils literal notranslate"><span class="pre">BR_STRICT</span></code> warning promotion hook, and the
-manual CI workflow does not promote deprecations to errors. A change that adds
-a shim should add a focused warning test and removal version.</p>
-</section>
-<section id="stability-tier-per-symbol">
-<h3>7.3 Stability tier per symbol<a class="headerlink" href="#stability-tier-per-symbol" title="Link to this heading">#</a></h3>
-<div class="pst-scrollable-table-container"><table class="table">
-<thead>
-<tr class="row-odd"><th class="head"><p>Tier</p></th>
-<th class="head"><p>Meaning</p></th>
-<th class="head"><p>Examples</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>Stable</p></td>
-<td><p>SemVer-bound; major bump to remove or rename</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Model</span></code>, <code class="docutils literal notranslate"><span class="pre">Data</span></code>, <code class="docutils literal notranslate"><span class="pre">forward_kinematics</span></code>, <code class="docutils literal notranslate"><span class="pre">solve_ik</span></code>, <code class="docutils literal notranslate"><span class="pre">SE3</span></code>, <code class="docutils literal notranslate"><span class="pre">ModelBuilder</span></code>, <code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code>, <code class="docutils literal notranslate"><span class="pre">Trajectory</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p>Stable (Protocol)</p></td>
-<td><p>Extending the protocol (adding methods) is a major bump; using existing methods is stable</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">JointModel</span></code>, <code class="docutils literal notranslate"><span class="pre">Residual</span></code>, <code class="docutils literal notranslate"><span class="pre">Optimizer</span></code>, <code class="docutils literal notranslate"><span class="pre">LinearSolver</span></code>, <code class="docutils literal notranslate"><span class="pre">RobustKernel</span></code>, <code class="docutils literal notranslate"><span class="pre">DampingStrategy</span></code>, <code class="docutils literal notranslate"><span class="pre">TrajectoryParameterization</span></code>, <code class="docutils literal notranslate"><span class="pre">AssetResolver</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p>Experimental</p></td>
-<td><p>May change in minor releases with a deprecation warning</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">solve_trajopt</span></code>, <code class="docutils literal notranslate"><span class="pre">compute_centroidal_map</span></code>, <code class="docutils literal notranslate"><span class="pre">BSplineTrajectory</span></code>, <code class="docutils literal notranslate"><span class="pre">MultiStageOptimizer</span></code></p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="pst-scrollable-table-container"><table class="table">
-<thead>
-<tr class="row-odd"><th class="head"><p>Module</p></th>
-<th class="head"><p>Stability</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">lie/</span></code>, <code class="docutils literal notranslate"><span class="pre">spatial/</span></code></p></td>
-<td><p>Stable from v1. Changes require major bump.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">data_model/</span></code></p></td>
-<td><p>Stable from v1. Field renames follow §7.1 deprecation.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kinematics/</span></code>, <code class="docutils literal notranslate"><span class="pre">dynamics/</span></code></p></td>
-<td><p>Stable from v1.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">residuals/</span></code>, <code class="docutils literal notranslate"><span class="pre">costs/</span></code>, <code class="docutils literal notranslate"><span class="pre">optim/</span></code></p></td>
-<td><p>Stable from v1 — Protocol signatures are frozen.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">tasks/</span></code></p></td>
-<td><p>Stable from v1 for IK; <code class="docutils literal notranslate"><span class="pre">solve_trajopt</span></code> is experimental. <code class="docutils literal notranslate"><span class="pre">TrajectoryParameterization</span></code> Protocol is stable.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">collision/</span></code></p></td>
-<td><p>Experimental.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">viewer/</span></code></p></td>
-<td><p>Experimental. The <code class="docutils literal notranslate"><span class="pre">RendererBackend</span></code> protocol refers only to scene rendering and is stable; concrete modes may iterate.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">io/</span></code> (URDF / MJCF)</p></td>
-<td><p>Stable. Parser edge cases may iterate in patch releases. <code class="docutils literal notranslate"><span class="pre">AssetResolver</span></code> Protocol stable.</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>Experimental means: no SemVer guarantee, but the signatures will not
-wander without a release note.</p>
-</section>
-</section>
-<section id="logging">
-<h2>8 · Logging<a class="headerlink" href="#logging" title="Link to this heading">#</a></h2>
-<p>No package-level <code class="docutils literal notranslate"><span class="pre">better_robot.logger</span></code> or automatic model-load,
-compile-registry, or fallback logging surface ships today.
-<code class="docutils literal notranslate"><span class="pre">SingularityWarning</span></code> is the current dedicated warning class; there is no
-<code class="docutils literal notranslate"><span class="pre">BroadcastWarning</span></code>. Library code should avoid unsolicited <code class="docutils literal notranslate"><span class="pre">print</span></code> calls.
-Any new diagnostics need a scoped standard-library logger or explicit return
-field plus tests and documentation before callers rely on them.</p>
-</section>
-<section id="assumptions-summary-the-one-page-contract">
-<h2>9 · Assumptions summary (the one-page contract)<a class="headerlink" href="#assumptions-summary-the-one-page-contract" title="Link to this heading">#</a></h2>
-<p>These rules define the supported behavior described above:</p>
+<section id="caller-checklist">
+<h2>Caller checklist<a class="headerlink" href="#caller-checklist" title="Link to this heading">#</a></h2>
 <ol class="arabic simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">q.shape</span> <span class="pre">==</span> <span class="pre">(B...,</span> <span class="pre">nq)</span></code>; <code class="docutils literal notranslate"><span class="pre">v</span> <span class="pre">/</span> <span class="pre">a</span> <span class="pre">/</span> <span class="pre">tau.shape</span> <span class="pre">==</span> <span class="pre">(B...,</span> <span class="pre">nv)</span></code>.</p></li>
-<li><p>Quaternions scalar-last, unit-norm on entry (tolerance 10%).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">q.device</span> <span class="pre">==</span> <span class="pre">model.device</span></code>, <code class="docutils literal notranslate"><span class="pre">q.dtype</span> <span class="pre">in</span> <span class="pre">{fp32,</span> <span class="pre">fp64}</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">Model</span></code> is built once; do not mutate.</p></li>
-<li><p>FK does not enforce position limits. <code class="docutils literal notranslate"><span class="pre">solve_ik</span></code> always supplies hard
-bounds; <code class="docutils literal notranslate"><span class="pre">limit_weight</span></code> only adds/removes its soft limit residual.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">Data</span></code> is per-thread.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">CostStack</span></code>, <code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code> are per-optimisation.</p></li>
+<li><p>Give <code class="docutils literal notranslate"><span class="pre">q</span></code> shape <code class="docutils literal notranslate"><span class="pre">(B...,</span> <span class="pre">nq)</span></code> and tangent quantities
+<code class="docutils literal notranslate"><span class="pre">(B...,</span> <span class="pre">nv)</span></code>.</p></li>
+<li><p>Match the model’s device and use fp32 or fp64.</p></li>
+<li><p>Use scalar-last unit quaternions.</p></li>
+<li><p>Treat model contents as read-only.</p></li>
+<li><p>Keep mutable caches and solver state local to one evaluation.</p></li>
+<li><p>Inspect returned convergence status instead of assuming every solve
+succeeded.</p></li>
 </ol>
-<p>Break any of these and the library will do something, but we make no
-promise about what.</p>
 </section>
 </section>
 
@@ -1044,20 +842,20 @@ promise about what.</p>
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="testing.html"
+       href="naming.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Testing</p>
+        <p class="prev-next-title">Naming</p>
       </div>
     </a>
     <a class="right-next"
-       href="engineering.html"
+       href="extension.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Engineering Contract</p>
+        <p class="prev-next-title">Extension points</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -1079,33 +877,19 @@ promise about what.</p>
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#input-contracts">1 · Input contracts</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tensor-shapes">1.1 Tensor shapes</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#device-dtype">1.2 Device &amp; dtype</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#quaternion-se-3-inputs">1.3 Quaternion / SE(3) inputs</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#joint-limits">1.4 Joint limits</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#model-well-formedness">1.5 Model well-formedness</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#error-taxonomy">2 · Error taxonomy</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#numerical-behavior-and-evidence">3 · Numerical behavior and evidence</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#determinism">3.1 Determinism</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#accuracy">3.2 Accuracy</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#singularities">3.3 Singularities</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#batched-broadcasting">3.4 Batched broadcasting</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#mutability-rules">4 · Mutability rules</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#autograd-rules">5 · Autograd rules</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#threading-concurrency">6 · Threading &amp; concurrency</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#backwards-compatibility-policy">7 · Backwards compatibility policy</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#semver-scope">7.1 SemVer scope</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#deprecation-mechanism">7.2 Deprecation mechanism</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#stability-tier-per-symbol">7.3 Stability tier per symbol</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#logging">8 · Logging</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#assumptions-summary-the-one-page-contract">9 · Assumptions summary (the one-page contract)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tensor-shapes-and-batching">Tensor shapes and batching</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#devices-and-dtypes">Devices and dtypes</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pose-and-tangent-storage">Pose and tangent storage</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#joint-limits">Joint limits</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#model-consistency">Model consistency</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#state-ownership">State ownership</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#numerical-behavior">Numerical behavior</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#automatic-differentiation">Automatic differentiation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#compilation-and-capture">Compilation and capture</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#serialization">Serialization</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#exceptions">Exceptions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#api-stability">API stability</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#caller-checklist">Caller checklist</a></li>
 </ul>
   </nav></div>
 
@@ -1139,7 +923,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 18, 2026.
+  Last updated on Jul 19, 2026.
   <br/>
 </p>
   </div>

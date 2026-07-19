@@ -1,15 +1,11 @@
 # Roadmap
 
-BetterRobot ships a kinematics + optimisation stack with a number of
-deliberately unfinished extension points and fail-fast capability guards.
-The inventory below is the canonical list of Python source files that contain
-an explicit `raise NotImplementedError`. It is machine-checked against the
-source tree; the later tables provide human-oriented detail for the main
-planned capabilities.
+This page lists public or importable operations that still raise
+`NotImplementedError`. The file list is checked against the source tree.
 
-The inventory is file-level because one file can contain several related
-raise sites. Absence from it means only that a file has no explicit
-`NotImplementedError`, not that every conceivable capability is implemented.
+The inventory is file-level: one file may contain several unfinished
+operations. A file's absence means only that it has no explicit raise of that
+type. It does not promise every imaginable feature in that area.
 
 ## Complete explicit-raise inventory
 
@@ -23,16 +19,8 @@ entries.
 - `src/better_robot/collision/pairs.py`
 - `src/better_robot/collision/robot_collision.py`
 - `src/better_robot/dynamics/centroidal.py`
-- `src/better_robot/dynamics/crba.py`
-- `src/better_robot/dynamics/derivatives.py`
-- `src/better_robot/dynamics/integrators.py`
-- `src/better_robot/dynamics/rnea.py`
 - `src/better_robot/io/build_model.py`
-- `src/better_robot/optim/state.py`
-- `src/better_robot/residuals/collision.py`
 - `src/better_robot/residuals/contact.py`
-- `src/better_robot/residuals/limits.py`
-- `src/better_robot/residuals/manipulability.py`
 - `src/better_robot/residuals/regularization.py`
 - `src/better_robot/residuals/smoothness.py`
 - `src/better_robot/spatial/force.py`
@@ -40,108 +28,75 @@ entries.
 - `src/better_robot/tasks/trajopt.py`
 <!-- not-implemented-inventory:end -->
 
-## Dynamics
+## Collision
 
-The recursive Featherstone passes are live: `rnea`, `aba`, `crba`,
-`ccrba`, `compute_centroidal_map`, `compute_centroidal_momentum`, and
-`center_of_mass`. The autograd-derived `compute_rnea_derivatives`,
-`compute_aba_derivatives`, and `compute_crba_derivatives` are implemented.
-The underlying RNEA/ABA passes have gradcheck coverage, while derivative
-identity tests compare `∂τ/∂a` with CRBA and `∂a/∂τ` with the inverse mass
-matrix. The remaining pieces:
+Collision primitives are usable as tensor containers. Distance evaluation,
+closest-point helpers, robot decomposition, collision penalties, and
+collision-aware tasks are unfinished. See
+{doc}`collision_and_geometry` for the exact boundary.
 
-| Symbol | File | What it needs |
-|---|---|---|
-| `compute_minverse` | `dynamics/crba.py` | Direct ABA-factorisation path that skips the explicit `crba` + `cholesky_solve`. |
-| `compute_coriolis_matrix` | `dynamics/rnea.py` | Standalone world-frame recursion for `C(q, v)`. |
-| `compute_centroidal_dynamics_derivatives` | `dynamics/derivatives.py` | Analytic recursion. The autograd path is documented as a workaround. |
-| Analytic Carpentier–Mansard derivatives | `dynamics/derivatives.py` | Replace the autograd bodies of the RNEA, ABA, and CRBA derivative helpers with the analytic forms. |
-| `semi_implicit_euler`, `symplectic_euler`, `rk4` | `dynamics/integrators.py` | Bodies. `integrate_q` is live. |
+## Dynamics and spatial algebra
+
+`center_of_mass` computes position and, when velocity is supplied, velocity.
+Passing acceleration is not supported.
+
+`Force.cross_motion` raises because that operation is not a standard spatial
+primitive. Use the documented motion/force cross operation instead.
+
+## Model building
+
+A mimic relationship needs the concrete motion type of its target, such as a
+revolute, prismatic, or helical joint. A direct zero-width `mimic` joint
+kind does not contain enough motion information and is rejected. Use a
+supported scalar joint together with the mimic source, multiplier, and
+offset.
 
 ## Residuals
 
-The full residual library is live except:
+These residual features remain unfinished:
 
-| Symbol | File |
-|---|---|
-| `JerkResidual` | `residuals/smoothness.py` |
-| `YoshikawaResidual` | `residuals/manipulability.py` |
-| `SelfCollisionResidual`, `WorldCollisionResidual` | `residuals/collision.py` |
-| `JointVelocityLimit.jacobian` | `residuals/limits.py` (the `__call__` works; the analytic Jacobian is missing) |
-| `JointAccelLimit` | `residuals/limits.py` |
-| `NullspaceResidual` | `residuals/regularization.py` |
+- angular contact consistency;
+- `NullspaceResidual`; and
+- `JerkResidual`.
 
-## Collision
-
-The exported collision dataclasses are usable only as containers.
-`distance`, the closest-point helpers, `colldist_from_sdf`, every
-`RobotCollision` constructor/query, and both collision residual evaluations
-raise `NotImplementedError`. No collision task integration or performance
-claim ships today; see {doc}`/concepts/collision_and_geometry`.
+Use linear contact consistency, explicit regularization, and
+`AccelerationResidual` for the supported cases. See
+{doc}`/concepts/residuals_costs_and_solvers`.
 
 ## Tasks
 
-`solve_ik` and knot-based `solve_trajopt` are live on named blocks. Temporal
-residuals declare `TemporalPattern` support; automatic LM uses block-banded
-assembly when directly eligible and otherwise records a dense fallback.
-Explicit matrix-free routing uses `NormalOperator`/`NormalCG`.
-`BSplineTrajectory` remains a Euclidean numerical basis utility: M5 did not
-make it a robot-manifold map, and robot use stays rejected pending a separate
-reviewed interpolation/retraction and bound contract. Schur elimination for a
-temporal block plus shared variables is likewise deferred until a second
-production caller exists. The former retargeting placeholder was removed; see
-{doc}`m1_removed_symbols`.
+`solve_ik` does not expose L-BFGS because its batched line-search and history
+semantics are not implemented. Use LM, Gauss--Newton, Adam, or the supported
+LM-then-Adam sequence.
 
-## Viewer
+`solve_trajopt` accepts `KnotTrajectory`. `BSplineTrajectory` remains a
+Euclidean numerical utility; component interpolation is not a manifold-safe
+robot trajectory and cannot enforce robot state bounds correctly.
 
-The live viewer surface consists of `Visualizer`, `Scene`,
-`SkeletonMode`, `URDFMeshMode`, the grid, frame-axes, target, and force-vector
-overlays, `PrimitiveHandle`, `ViserBackend`, `MockBackend`,
-`build_joint_panel`, and integer-frame `TrajectoryPlayer` playback. The
-viewer currently has no explicit-raise roadmap entries: unsupported surfaces
-are omitted instead of shipping as importable placeholders.
+`solve_contact_forces` applies each fitted force at the selected joint origin
+as `[force, torque=0]`. It does not model an arbitrary offset contact point;
+an offset `r` would contribute the additional moment `r × force`.
 
-## Compute lanes
+## What is implemented
 
-The direct Torch raw passes are live and use `ModelStructure` plus
-`ModelValues`. A fused Warp FK pass is live behind the explicit
-``use_warp=True`` selector. It has CUDA forward/VJP parity coverage,
-forward-only capture coverage, and forward-only benchmark evidence, but remains opt-in pending owner review of
-the Torch-recompute backward cost. Warp is not a public Protocol or
-process-wide selector.
+The following nearby surfaces are live:
 
-| Work item | Status |
-|---|---|
-| Fused Warp FK and Torch-recompute autograd bridge | CUDA-validated, opt-in; default review pending |
-| Warp Jacobian / residual / dynamics kernels and adjoints | Not implemented |
-| Eligibility and explicit lane choice | Implemented at the FK boundary; repeat locally for each future pass |
-| Forward/backward parity | Implemented for FK; required independently for every future pass |
+- FK, frame placement, analytic spatial Jacobians, and batched execution;
+- RNEA, ABA, CRBA, CCRBA, centroidal momentum, and center-of-mass position;
+- variable-based least-squares problems, LM, Gauss--Newton, a
+  `torch.optim` adapter, and dense or declared temporal linearization;
+- fixed-base and floating-base IK;
+- knot-based trajectory optimization; and
+- URDF, MJCF, and programmatic model construction.
 
-## Performance
+The generated {doc}`api/better_robot/better_robot` reference is the exact
+signature source.
 
-The hot-path lint, contract suite, and benchmark harness are in place.
-Caller-side full-graph compilation is validated for raw FK. Automatic
-compilation and broader boundaries remain roadmap work:
+## Finishing an entry
 
-| Symbol | File |
-|---|---|
-| Automatic `@torch.compile(fullgraph=True)` on public FK / Jacobian / `CostStack` | not applied; raw FK supports explicit caller-side compilation |
-| `@cache_kernel` adaptive dispatch | not yet wired |
-| `BR_PROFILE=1` env hook | not yet wired |
-
-No public capture decorator, context manager, or captured solver mode ships
-today. The private experimental ``GraphExecutor`` records and replays
-tensor-pytree callables and has CUDA tests for fixed named-block LM update
-groups and mixed Torch/Warp FK. Public solver ``run`` remains eager, and an
-end-to-end IK capture lifecycle and benchmark are still open.
-
-## How to close an entry
-
-1. Read the relevant chapter in [`concepts/`](../concepts/index.md) and
-   the matching extension recipe in
-   [`conventions/extension.md`](../conventions/extension.md).
-2. Implement the body. Keep the existing public signature.
-3. Add tests under the matching folder in `tests/`. The contract
-   tier in [`conventions/testing.md`](../conventions/testing.md)
-   tells you which tests must accompany a public symbol.
-4. Move the entry to `CHANGELOG.md` under the landing release.
+1. Define the public shape, dtype, device, batching, and gradient behavior.
+2. Implement the operation without changing an unrelated signature.
+3. Add focused success, failure, and parity tests.
+4. Remove the explicit raise and its file from the marker block in the same
+   patch.
+5. Update the relevant concept, reference page, and changelog.

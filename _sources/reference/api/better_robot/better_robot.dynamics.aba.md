@@ -109,7 +109,7 @@
 ```
 ````
 
-````{py:function} aba(model: better_robot.data_model.model.Model, data: better_robot.data_model.data.Data, q: torch.Tensor, v: torch.Tensor, tau: torch.Tensor, *, fext: torch.Tensor | None = None) -> torch.Tensor
+````{py:function} aba(model: better_robot.data_model.model.Model, q: torch.Tensor, v: torch.Tensor, tau: torch.Tensor, *, fext: torch.Tensor | None = None, data: better_robot.data_model.data.Data | None = None) -> torch.Tensor
 :canonical: better_robot.dynamics.aba.aba
 
 ```{autodoc2-docstring} better_robot.dynamics.aba.aba

@@ -1,16 +1,21 @@
 # Getting started
 
-Five-minute walkthroughs that get a working solution on the screen.
-Read in order — each builds on the previous.
+These tutorials start with a robot description and end with a thousand
+kinematics queries in one call. Read them in order if BetterRobot is new to
+you; each page introduces one idea and leaves the implementation details for
+the concept chapters.
 
 ```{toctree}
 :maxdepth: 1
 
 installation
-forward_kinematics
-inverse_kinematics
-floating_base
+01_robot_model
+02_forward_kinematics
+03_inverse_kinematics
+04_floating_base
+05_batched_gpu
 ```
 
-After these, see {doc}`/concepts/index` for the *why* behind the
-architecture, or {doc}`/reference/index` to look up a specific symbol.
+After these tutorials, use {doc}`/guides/index` for task-focused recipes,
+{doc}`/concepts/index` for design explanations, or {doc}`/reference/index` to
+look up a symbol.

@@ -52,12 +52,12 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'reference/api/better_robot/better_robot.residuals.contact';</script>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
-    <link rel="next" title="better_robot.residuals.manipulability" href="better_robot.residuals.manipulability.html" />
+    <link rel="next" title="better_robot.residuals.chamfer" href="better_robot.residuals.chamfer.html" />
     <link rel="prev" title="better_robot.residuals.projection" href="better_robot.residuals.projection.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 18, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
   </head>
   
   
@@ -159,41 +159,44 @@
 </button></div>
         <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
     <div class="bd-toc-item navbar-nav active">
-        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get started</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../getting_started/index.html">Getting started</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../getting_started/installation.html">Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/forward_kinematics.html">Forward kinematics on Panda</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/inverse_kinematics.html">Inverse kinematics on Panda</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/floating_base.html">Floating-base IK on the G1 humanoid</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/01_robot_model.html">Meet the robot model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/02_forward_kinematics.html">Forward kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/03_inverse_kinematics.html">Inverse kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/04_floating_base.html">Floating-base robots</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/05_batched_gpu.html">Batching and the GPU</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">How-to guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/custom_residual.html">Write a custom residual</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/load_a_robot.html">Load a robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/visualize.html">Visualize a robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/differentiate_through_kinematics.html">Differentiate through kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/own_your_optimization_loop.html">Own your optimization loop</a></li>
 </ul>
 </details></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Concepts</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../concepts/index.html">Concepts</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/vision.html">Vision</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/why_betterrobot.html">Why BetterRobot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/design_decisions.html">Design decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/architecture.html">Architecture</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/model_and_data.html">Model and Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/joints_bodies_frames.html">Joints, Bodies, and Frames</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Lie Groups and Spatial Algebra</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the IR</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics.html">Kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/joints_bodies_frames.html">Joints, bodies, and frames</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_and_costs.html">Residuals and Costs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/solver_stack.html">Named-Block Evaluation and the Legacy Solver Stack</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/tasks.html">Tasks — IK and Trajectory Optimisation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/collision_and_geometry.html">Collision and Geometry</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/batching_and_backends.html">Batching and Compute Lanes</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/warp_bridge.html">Torch–Warp bridge and opt-in FK lane</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/the_compute_seam.html">The Compute Seam</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
-</ul>
-</details></li>
-</ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Guides</span></p>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1 has-children"><a class="reference internal" href="../../../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../guides/custom_residuals.html">Write a custom block residual</a></li>
 </ul>
 </details></li>
 </ul>
@@ -201,14 +204,13 @@
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../conventions/index.html">Conventions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/naming.html">Naming</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/performance.html">Performance</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/extension.html">Extension Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/contracts.html">Contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/extension.html">Extension points</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/testing.html">Testing</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/contracts.html">Contracts &amp; Validation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/engineering.html">Engineering Contract</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/source_and_license.html">Source and License Decision Memo</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/style.html">Coding Style</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/performance.html">Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/style.html">Coding style</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/packaging.html">Packaging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/source_and_license.html">Source and license</a></li>
 </ul>
 </details></li>
 </ul>
@@ -243,8 +245,6 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.human.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.human</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4 current active"><a class="current reference internal" href="#"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.manipulability.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.manipulability</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.collision</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
@@ -280,18 +280,17 @@
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="better_robot.optim.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.strategies.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.strategies</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.implicit.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.implicit</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.cost_stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.cost_stack</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.state.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.state</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.structure</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="better_robot.costs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.costs.stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.stack</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -313,7 +312,6 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="better_robot.kinematics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.kinematics.jacobian.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.kinematics.jacobian_strategy.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian_strategy</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.kinematics.forward.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.forward</span></code></a></li>
 </ul>
 </details></li>
@@ -335,16 +333,13 @@
 <li class="toctree-l3"><a class="reference internal" href="better_robot.exceptions.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.exceptions</span></code></a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="../../named_block_solvers.html">Named-block solver API</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../changelog.html">Changelog</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../roadmap.html">Roadmap</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../m1_removed_symbols.html">M1 removed surfaces</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../m3_removed_symbols.html">M3.5 removed surfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../glossary.html">Glossary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../collision_and_geometry.html">Collision and geometry status</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../roadmap.html">Roadmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../changelog.html">Changelog</a></li>
 </ul>
 </details></li>
 </ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Project Links</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/rihat99/BetterRobot">GitHub</a></li>
 </ul>
@@ -565,8 +560,6 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.contact.ContactConsistencyResidual.temporal_structure"><code class="docutils literal notranslate"><span class="pre">ContactConsistencyResidual.temporal_structure()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.contact.ContactConsistencyResidual.temporal_jacobian_blocks"><code class="docutils literal notranslate"><span class="pre">ContactConsistencyResidual.temporal_jacobian_blocks()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.contact.ContactConsistencyResidual.jacobian_blocks"><code class="docutils literal notranslate"><span class="pre">ContactConsistencyResidual.jacobian_blocks()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.contact.ContactConsistencyResidual.jacobian"><code class="docutils literal notranslate"><span class="pre">ContactConsistencyResidual.jacobian()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.contact.ContactConsistencyResidual.apply_jac_transpose"><code class="docutils literal notranslate"><span class="pre">ContactConsistencyResidual.apply_jac_transpose()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -591,14 +584,15 @@
 penalises the per-frame linear velocity of each contact frame — measured
 as the world-frame displacement of the frame origin between consecutive
 timesteps. This is exactly the linear part of the frame’s
-<code class="docutils literal notranslate"><span class="pre">LOCAL_WORLD_ALIGNED</span></code> spatial velocity (see <code class="docutils literal notranslate"><span class="pre">docs/concepts/kinematics.md</span> <span class="pre">§3</span></code>):</p>
+<code class="docutils literal notranslate"><span class="pre">LOCAL_WORLD_ALIGNED</span></code> spatial velocity (see
+<code class="docutils literal notranslate"><span class="pre">docs/concepts/kinematics_and_jacobians.md</span></code>):</p>
 <div class="highlight-none notranslate"><div class="highlight"><pre><span></span>r_{t,k,:3} = c_{t,k} * (p_k(q_{t+1}) - p_k(q_t)) / dt
 </pre></div>
 </div>
 <p>where <code class="docutils literal notranslate"><span class="pre">p_k(q)</span> <span class="pre">=</span> <span class="pre">data.frame_pose_world[t,</span> <span class="pre">frame_ids[k],</span> <span class="pre">:3]</span></code>.</p>
 <p>Output dim: <code class="docutils literal notranslate"><span class="pre">3</span> <span class="pre">*</span> <span class="pre">K</span> <span class="pre">*</span> <span class="pre">(T</span> <span class="pre">-</span> <span class="pre">1)</span></code> — linear only in v1. The <code class="docutils literal notranslate"><span class="pre">angular</span></code> flag
 is reserved as an expansion hook.</p>
-<p>See <code class="docutils literal notranslate"><span class="pre">docs/concepts/residuals_and_costs.md</span> <span class="pre">§2</span></code>.</p>
+<p>See <code class="docutils literal notranslate"><span class="pre">docs/concepts/residuals_costs_and_solvers.md</span></code>.</p>
 <section id="module-contents">
 <h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading">#</a></h2>
 <section id="classes">
@@ -645,28 +639,6 @@ is reserved as an expansion hook.</p>
 <span class="sig-name descname"><span class="pre">jacobian_blocks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://trimesh.org/trimesh.typed.html#trimesh.typed.Mapping" title="(in trimesh)"><span class="pre">collections.abc.Mapping</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/better_robot/residuals/contact.html#ContactConsistencyResidual.jacobian_blocks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.contact.ContactConsistencyResidual.jacobian_blocks" title="Link to this definition">#</a></dt>
 <dd></dd></dl>
 
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.residuals.contact.ContactConsistencyResidual.jacobian">
-<span class="sig-name descname"><span class="pre">jacobian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.residuals.base.html#better_robot.residuals.base.ResidualState" title="better_robot.residuals.base.ResidualState"><span class="pre">better_robot.residuals.base.ResidualState</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://trimesh.org/trimesh.typed.html#trimesh.typed.Mapping" title="(in trimesh)"><span class="pre">collections.abc.Mapping</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/residuals/contact.html#ContactConsistencyResidual.jacobian"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.contact.ContactConsistencyResidual.jacobian" title="Link to this definition">#</a></dt>
-<dd><p>Analytic Jacobian via <code class="docutils literal notranslate"><span class="pre">get_frame_jacobian</span></code> (LOCAL_WORLD_ALIGNED).</p>
-<p>The linear rows of the LWA frame Jacobian at <code class="docutils literal notranslate"><span class="pre">q_t</span></code> exactly equal
-<code class="docutils literal notranslate"><span class="pre">d</span> <span class="pre">p_k(q_t)</span> <span class="pre">/</span> <span class="pre">d</span> <span class="pre">q_t</span></code> (as a tangent-space derivative), so the
-residual Jacobian is tridiagonal per contact frame:</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>∂r_{t,k} / ∂q_t     = -w_pair_{t,k} * J_k_LWA_lin(q_t) / dt
-∂r_{t,k} / ∂q_{t+1} = +w_pair_{t,k} * J_k_LWA_lin(q_{t+1}) / dt
-</pre></div>
-</div>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.residuals.contact.ContactConsistencyResidual.apply_jac_transpose">
-<span class="sig-name descname"><span class="pre">apply_jac_transpose</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.residuals.base.html#better_robot.residuals.base.ResidualState" title="better_robot.residuals.base.ResidualState"><span class="pre">better_robot.residuals.base.ResidualState</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">r</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/residuals/contact.html#ContactConsistencyResidual.apply_jac_transpose"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.contact.ContactConsistencyResidual.apply_jac_transpose" title="Link to this definition">#</a></dt>
-<dd><p><code class="docutils literal notranslate"><span class="pre">J^T</span> <span class="pre">&#64;</span> <span class="pre">r</span></code> without materialising the dense Jacobian — O(K·T·nv²).</p>
-<p>For each frame <code class="docutils literal notranslate"><span class="pre">k</span></code> and timestep <code class="docutils literal notranslate"><span class="pre">t</span></code>, applies the transpose of
-the 3×nv LWA linear Jacobian block to the corresponding 3-vector
-slice of <code class="docutils literal notranslate"><span class="pre">r</span></code>.</p>
-</dd></dl>
-
 </dd></dl>
 
 </section>
@@ -694,11 +666,11 @@ slice of <code class="docutils literal notranslate"><span class="pre">r</span></
       </div>
     </a>
     <a class="right-next"
-       href="better_robot.residuals.manipulability.html"
+       href="better_robot.residuals.chamfer.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.manipulability</span></code></p>
+        <p class="prev-next-title"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -729,8 +701,6 @@ slice of <code class="docutils literal notranslate"><span class="pre">r</span></
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.contact.ContactConsistencyResidual.temporal_structure"><code class="docutils literal notranslate"><span class="pre">ContactConsistencyResidual.temporal_structure()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.contact.ContactConsistencyResidual.temporal_jacobian_blocks"><code class="docutils literal notranslate"><span class="pre">ContactConsistencyResidual.temporal_jacobian_blocks()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.contact.ContactConsistencyResidual.jacobian_blocks"><code class="docutils literal notranslate"><span class="pre">ContactConsistencyResidual.jacobian_blocks()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.contact.ContactConsistencyResidual.jacobian"><code class="docutils literal notranslate"><span class="pre">ContactConsistencyResidual.jacobian()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.contact.ContactConsistencyResidual.apply_jac_transpose"><code class="docutils literal notranslate"><span class="pre">ContactConsistencyResidual.apply_jac_transpose()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -770,7 +740,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 18, 2026.
+  Last updated on Jul 19, 2026.
   <br/>
 </p>
   </div>

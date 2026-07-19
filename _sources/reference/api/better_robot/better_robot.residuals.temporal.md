@@ -53,20 +53,4 @@
 
 ````
 
-````{py:method} jacobian(value: better_robot.residuals.base.ResidualState | collections.abc.Mapping[str, typing.Any]) -> torch.Tensor | None
-:canonical: better_robot.residuals.temporal.TimeIndexedResidual.jacobian
-
-```{autodoc2-docstring} better_robot.residuals.temporal.TimeIndexedResidual.jacobian
-```
-
-````
-
-````{py:method} apply_jac_transpose(state: better_robot.residuals.base.ResidualState, vec: torch.Tensor) -> torch.Tensor
-:canonical: better_robot.residuals.temporal.TimeIndexedResidual.apply_jac_transpose
-
-```{autodoc2-docstring} better_robot.residuals.temporal.TimeIndexedResidual.apply_jac_transpose
-```
-
-````
-
 `````

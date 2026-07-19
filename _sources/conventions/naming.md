@@ -1,296 +1,136 @@
 # Naming
 
-> **Status:** normative for public storage names and vocabulary. The contract
-> test checks deprecated `data.<old_name>` attribute accesses in
-> `src/better_robot/`; short mathematical locals remain valid.
+Public names should tell a reader what a value means without requiring a
+translation table. BetterRobot keeps the short symbols that robotics papers
+use everywhere, such as `q`, `v`, `rnea`, and `SE3`. Storage fields and
+ordinary functions use descriptive English.
 
-Names are the smallest decisions a library makes and the ones users
-interact with most. A field called `oMi` saves three keystrokes and
-costs every reader a context switch into Pinocchio's `aMb` notation.
-Multiply that across a 5,000-line library, a docs site, every code
-review, and every Stack Overflow answer that gets pasted into a new
-project, and you can feel why Pinocchio's storage names became a tax on
-adoption rather than a feature for experts.
+The contract test in `tests/contract/test_naming.py` checks removed
+Pinocchio-style `Data` attributes. This page defines the broader convention
+that reviewers apply to new code.
 
-We kept the parts of Pinocchio's vocabulary that are universal in the
-literature — `rnea`, `aba`, `crba`, `SE3`, `Motion`, `Force`, `Inertia`
-— because every textbook on rigid-body dynamics uses them, and renaming
-those would force readers to look up the equivalence every time they
-opened a paper. We replaced everything *not* universal — every storage
-field, every dataclass attribute, every user-facing tensor — with a
-self-describing identifier. `oMi` becomes `joint_pose_world`. `nle`
-becomes `bias_forces`. `Ag` becomes `centroidal_momentum_matrix`. None
-of those expansions cost speed; all of them make the call site
-self-documenting.
+## Storage fields
 
-The storage-name migration is enforced by `tests/contract/test_naming.py`,
-which scans `src/better_robot/` for accesses to deprecated
-`data.<old_name>` attributes. The rest of this document records the public
-vocabulary; it is broader than the deliberately narrow mechanical test.
+Use `<entity>_<quantity>_<frame>` when all three parts matter:
 
-## 1 · Convention
+| Part | Examples |
+|---|---|
+| entity | `joint`, `frame`, `body`, `com` |
+| quantity | `pose`, `velocity`, `acceleration`, `jacobian`, `momentum` |
+| frame | `world`, `local`, `body` |
 
-### 1.1 Storage names
+`joint_velocity_world` therefore means the velocity of each joint expressed
+in world axes. Omit a part only when it would repeat information already fixed
+by the type or API.
 
-> *Storage fields (attributes on `Data`, `Model`, `IKResult`, etc.) are
-> self-documenting nouns. Abbreviations are forbidden except for universally
-> standardised math notation.*
+## Functions
 
-The pattern is **`<entity>_<quantity>_<frame>`**:
+| Kind | Rule | Examples |
+|---|---|---|
+| Published algorithm | keep the conventional lowercase acronym | `rnea`, `aba`, `crba`, `ccrba` |
+| Compute | form or fill a result | `compute_joint_jacobians`, `compute_centroidal_map` |
+| Get | read a cheap derived value | `get_frame_jacobian` |
+| Update | fill a specific cache after an earlier pass | `update_frame_placements` |
+| User task | use a plain action phrase | `forward_kinematics`, `solve_ik`, `solve_trajopt` |
 
-| Part | Meaning | Examples |
-|------|---------|----------|
-| `<entity>` | What the tensor is about | `joint`, `frame`, `body`, `com`, `link` |
-| `<quantity>` | The physical quantity | `pose`, `velocity`, `acceleration`, `inertia`, `jacobian`, `momentum` |
-| `<frame>` | The coordinate frame it is expressed in | `world`, `local`, `body`, `com` |
+Boolean names start with `is_`, `has_`, or `should_`. Avoid abbreviations
+that are not standard in the field.
 
-Read left to right: `joint_velocity_world` ≡ "the velocity of each
-joint, expressed in the world frame." No glossary required.
+## Mathematical names that stay short
 
-### 1.2 Function names
+| Name | Meaning |
+|---|---|
+| `q` | generalized configuration |
+| `v` | generalized velocity |
+| `a` | generalized acceleration |
+| `tau` | generalized force or torque |
+| `nq`, `nv` | configuration and tangent dimensions |
+| `SE3`, `SO3` | rigid transforms and rotations |
+| `exp`, `log`, `hat`, `vee` | standard Lie-group operations |
+| `Jr`, `Jl` | right and left Jacobians in equations and tight internal math |
 
-> *Functions named after published algorithms keep their canonical acronym
-> (lowercased, snake_case). Functions named by what they compute use full
-> English verb phrases.*
+Public functions prefer descriptive forms such as
+`right_jacobian_se3`. Short equation symbols remain useful as local
+variables.
 
-| Style | Rule | Example |
-|-------|------|---------|
-| Algorithm acronym | Use the acronym from the paper or textbook | `rnea`, `aba`, `crba`, `ccrba` |
-| Compute verb | `compute_<noun>` returns a new tensor and may fill `Data` | `compute_joint_jacobians`, `compute_centroidal_map` |
-| Get verb | `get_<noun>` reads from `Data`, cheap, no allocation | `get_joint_jacobian`, `get_frame_jacobian` |
-| Update verb | `update_<noun>` writes one field of `Data` in place | `update_frame_placements` |
-| Top-level façade | English imperative, no prefix | `forward_kinematics`, `solve_ik`, `solve_trajopt` |
+## Public storage names
 
-### 1.3 Math notation that stays
+### Kinematics
 
-Some symbols are so universal in rigid-body and Lie-group literature
-that renaming costs more than it adds. These keep their symbols:
-
-| Symbol | Meaning | Why we keep it |
-|--------|---------|----------------|
-| `q` | generalised configuration | Featherstone, Siciliano, Pinocchio |
-| `v` | generalised velocity (= `dq/dt` for Euclidean joints) | Same |
-| `a` | generalised acceleration | Same |
-| `tau` | generalised torque/force | Same |
-| `nq` | config-space dim | Same |
-| `nv` | tangent-space dim | Same |
-| `SE3` / `SO3` | Lie groups | Universal |
-| `Jr`, `Jl`, `Jr_inv`, `Jl_inv` | equation notation for right/left Jacobians of `exp` | Chirikjian, Barfoot |
-| `hat`, `vee` | isomorphisms 𝔰𝔬(3)↔ℝ³, 𝔰𝔢(3)↔ℝ⁶ | Standard |
-| `ad`, `Ad` | adjoint (algebra / group) | Distinguish in docstrings |
-| `exp`, `log` | group exp and log | Universal |
-
-**Rule of thumb:** if the symbol appears identically in Featherstone's
-*Rigid Body Dynamics Algorithms* or Siciliano's *Robotics: Modelling,
-Planning and Control*, keep it. Otherwise, expand it.
-
-## 2 · Rename table
-
-### 2.1 Per-joint kinematic state (`Data`)
-
-| Old (Pinocchio) | New (BetterRobot) | Notes |
-|-----|-----|-------|
-| `liMi` | `joint_pose_local` | Joint placement in parent-joint frame. `(B..., njoints, 7)` |
-| `oMi` | `joint_pose_world` | Joint placement in world frame. `(B..., njoints, 7)` |
-| `oMf` | `frame_pose_world` | Frame placement in world frame. `(B..., nframes, 7)` |
-| `v_joint` | `joint_velocity_local` | Joint twist in joint-local frame. `(B..., njoints, 6)` |
-| `ov` | `joint_velocity_world` | Joint twist in world frame. `(B..., njoints, 6)` |
+| Pinocchio name | BetterRobot name | Shape |
+|---|---|---|
+| `liMi` | `joint_pose_local` | `(B..., njoints, 7)` |
+| `oMi` | `joint_pose_world` | `(B..., njoints, 7)` |
+| `oMf` | `frame_pose_world` | `(B..., nframes, 7)` |
+| `v_joint` | `joint_velocity_local` | `(B..., njoints, 6)` |
+| `ov` | `joint_velocity_world` | `(B..., njoints, 6)` |
 | `a_joint` | `joint_acceleration_local` | `(B..., njoints, 6)` |
 | `oa` | `joint_acceleration_world` | `(B..., njoints, 6)` |
+| `J` | `joint_jacobians` | `(B..., njoints, 6, nv)` |
+| `dJ` | `joint_jacobians_dot` | `(B..., njoints, 6, nv)` |
 
-### 2.2 Jacobians (`Data`)
+### Dynamics and centroidal quantities
 
-| Old | New | Notes |
-|-----|-----|-------|
-| `J` | `joint_jacobians` | Full stack of per-joint spatial Jacobians. `(B..., njoints, 6, nv)` |
-| `dJ` | `joint_jacobians_dot` | Time derivative. `(B..., njoints, 6, nv)` |
-
-### 2.3 Dynamics (`Data`)
-
-| Old | New | Notes |
-|-----|-----|-------|
+| Pinocchio name | BetterRobot name | Shape |
+|---|---|---|
 | `M` | `mass_matrix` | `(B..., nv, nv)` |
 | `C` | `coriolis_matrix` | `(B..., nv, nv)` |
 | `g` | `gravity_torque` | `(B..., nv)` |
-| `nle` | `bias_forces` | `C(q,v)·v + g(q)`. "Bias" is the canonical Featherstone term. `(B..., nv)` |
-| `ddq` | `ddq` (kept) | `q̈`. Universal math notation. `(B..., nv)` |
-
-### 2.4 Centroidal (`Data`)
-
-| Old | New | Notes |
-|-----|-----|-------|
+| `nle` | `bias_forces` | `(B..., nv)` |
 | `Ag` | `centroidal_momentum_matrix` | `(B..., 6, nv)` |
 | `hg` | `centroidal_momentum` | `(B..., 6)` |
 | `com` | `com_position` | `(B..., 3)` |
 | `vcom` | `com_velocity` | `(B..., 3)` |
 | `acom` | `com_acceleration` | `(B..., 3)` |
 
-### 2.5 Model topology (`Model`)
+`ddq` remains available because it is standard notation for generalized
+acceleration.
 
-`Model` attributes are already readable. The two contractions that stay:
+## Model dimensions and indices
 
-| Name | Meaning | Keep because |
-|------|---------|--------------|
-| `nq`, `nv`, `njoints`, `nbodies`, `nframes` | dimensions | Every rigid-body text uses these |
-| `idx_qs`, `idx_vs` | per-joint start indices into `q` / `v` | The verbose alternative (`q_start_indices`) is worse and the name is documented |
+`nq`, `nv`, `njoints`, `nbodies`, and `nframes` are familiar
+robotics dimensions. `idx_qs` and `idx_vs` are the per-joint start indices
+for slices of `q` and `v`. Other model fields, such as
+`joint_placements`, `body_inertias`, `lower_pos_limit`, and
+`topo_order`, are written out.
 
-Everything else on `Model` (`joint_placements`, `body_inertias`,
-`lower_pos_limit`, `topo_order`, `parents`, `children`, `subtrees`,
-`supports`) is already self-documenting.
+## Shapes in annotations and docstrings
 
-### 2.6 Lie / spatial layer
+`better_robot._typing` contains readable aliases such as `ConfigTensor`,
+`VelocityTensor`, `SE3Tensor`, `FramePoseStack`, and
+`JointJacobian`. They help type checkers and readers; runtime shape checks
+still happen at public boundaries.
 
-Lie-algebra symbols such as `Jr`, `hat`, `vee`, `ad`, `Ad`, `exp`, and
-`log` remain useful in equations. Public functions use descriptive,
-group-qualified names:
+Every public tensor parameter also states its event shape in the docstring:
 
-```python
-from better_robot.lie.tangents import right_jacobian_se3
-
-J = right_jacobian_se3(xi)
+```text
+def get_frame_jacobian(
+    model: Model,
+    data: Data,
+    frame_id: int,
+) -> torch.Tensor:
+    """Return a Jacobian with shape ``(B..., 6, nv)``."""
 ```
 
-Internal implementations and equations may still use the short form in tight
-algebraic blocks; the public API exposes descriptive names from
-`better_robot.lie.tangents`:
+Use `B...` for any leading execution batch. Name units and coordinate frames
+next to the shape.
 
-```python
-from better_robot.lie.tangents import (
-    right_jacobian_inv_se3,
-    right_jacobian_inv_so3,
-    right_jacobian_se3,
-    right_jacobian_so3,
-)
-```
+## Closed choices
 
-### 2.7 Optim / Tasks
+Use a `Literal` or enum when a public string has a fixed set of meanings.
+For example, Jacobian references are `"world"`, `"local"`, and
+`"local_world_aligned"`. `KinematicsLevel` records which kinematic caches
+are ready.
 
-The user-facing names already follow the conventions above:
+Do not add a free-form string when a typed choice already exists.
 
-| Name | Purpose |
-|----------|---------|
-| `IKResult` | Result of `solve_ik` |
-| `TrajOptResult` | Result of `solve_trajopt` |
-| `IKCostConfig` | User-facing knobs for the IK cost stack |
-| `OptimizerConfig` | User-facing knobs for the optimiser |
-| `SolverState` | Per-iteration state shared between `Optimizer`, `DampingStrategy`, `LinearSolver` |
-| `OptimizerStage` / `MultiStageOptimizer` | Composite of stages |
-| `TrajectoryParameterization` | Protocol; concrete `KnotTrajectory`, `BSplineTrajectory` |
+## Review checklist
 
-### 2.8 Enums replacing string literals
+When adding a public name:
 
-| Enum | Purpose | Members |
-|------|---------|---------|
-| `ReferenceFrame` (in `kinematics`) | Replaces `reference="..."` strings on `get_*_jacobian` | `WORLD`, `LOCAL`, `LOCAL_WORLD_ALIGNED` |
-| `KinematicsLevel` (in `data_model`) | Tracks how far FK has been computed on a `Data` | `NONE` (0), `PLACEMENTS` (1), `VELOCITIES` (2), `ACCELERATIONS` (3) |
-| `JacobianStrategy` (in `kinematics`) | Selects analytic / central FD | `ANALYTIC`, `FINITE_DIFF`, `AUTO` |
-
-All three subclass `str` (`int` for `KinematicsLevel`) so user code that
-still compares to a string literal continues to work.
-
-### 2.9 Shape annotations — `_typing.py` aliases
-
-Public functions use `jaxtyping`-style annotations. The canonical
-aliases live in `src/better_robot/_typing.py`:
-
-```python
-from jaxtyping import Float, Int
-from torch import Tensor
-
-# Single SE3 / SO3 storage tensors
-SE3Tensor       = Float[Tensor, "*B 7"]
-SO3Tensor       = Float[Tensor, "*B 4"]
-Quaternion      = Float[Tensor, "*B 4"]      # (qx, qy, qz, qw)
-TangentSE3      = Float[Tensor, "*B 6"]
-TangentSO3      = Float[Tensor, "*B 3"]
-# Per-joint and per-frame stacks
-JointPoseStack  = Float[Tensor, "*B njoints 7"]
-FramePoseStack  = Float[Tensor, "*B nframes 7"]
-# Configurations and tangents
-ConfigTensor    = Float[Tensor, "*B nq"]
-VelocityTensor  = Float[Tensor, "*B nv"]
-# Jacobians
-JointJacobian      = Float[Tensor, "*B 6 nv"]
-JointJacobianStack = Float[Tensor, "*B njoints 6 nv"]
-```
-
-These aliases remain the required authoring convention. M3.5 removed the old
-coverage-ratio probe because it made no assertion; shape annotations currently
-have no pytest percentage gate.
-
-## 3 · Glossary
-
-| Term | Meaning |
-|------|---------|
-| **Model** | Shallowly frozen kinematic tree: field reassignment is blocked, but contained tensors and metadata are not deeply immutable. Treat it as read-only across queries and use `.to(device, dtype)` to create a moved copy. |
-| **Data** | Mutable per-query workspace. Holds `q`, lazy kinematic/dynamic caches. One per batch × time evaluation. |
-| **Frame** | Any named coordinate frame on the robot — joint frames, body frames, user-declared operational frames. |
-| **Joint** | A single degree of articulation. "Joint 0" is always the universe (world). |
-| **Body** | A rigid link entry. Bodies are 1:1 with joints, including the zero-inertia universe placeholder at index 0; inertial properties live in `body_inertias`, while `joint_placements` stores parent-to-joint transforms. |
-| **joint_pose_local** | SE(3) transform from a joint's parent joint to itself. |
-| **joint_pose_world** | SE(3) transform from world origin to a joint. |
-| **frame_pose_world** | SE(3) transform from world origin to a frame. |
-| **joint_velocity_world** | 6D twist of each joint, linear first, in world axes. |
-| **spatial Jacobian** | 6 × nv Jacobian relating `v` to twist; `linear rows | angular rows`. |
-| **body-frame Jacobian** | Spatial Jacobian with the origin's twist re-expressed in the body's axes. |
-| **LOCAL_WORLD_ALIGNED** | Twist at the frame origin with both linear and angular components expressed in world axes. Default for `get_frame_jacobian`. |
-| **WORLD** | Spatial twist expressed in world axes and translated to the world origin. |
-| **Residual** | A differentiable function `r(model, data, …) -> (B..., dim)` — the quantity the optimiser drives toward zero. |
-| **CostStack** | Weighted concatenation of residuals; returns a single flat residual vector. |
-| **LeastSquaresProblem** | `(cost_stack, x0, bounds, jacobian_strategy)` — a fully specified optimisation problem. |
-| **Optimizer** | A `Protocol` that minimises a `LeastSquaresProblem` (LM, GN, Adam, LBFGS, …). |
-| **bias_forces** | `C(q, q̇) q̇ + g(q)` — the generalised force present even at zero input torque. |
-| **centroidal momentum** | 6D momentum of the robot around its centre of mass. |
-| **mass matrix** | Joint-space inertia `M(q)`. |
-| **coriolis matrix** | `C(q, q̇)` such that `C(q, q̇) q̇` is the Coriolis/centrifugal torque. |
-| **gravity torque** | `g(q)` — joint-space generalised gravity. |
-| **Capsule** | Sphere-swept-line data container reserved for the collision API; collision queries are not yet implemented. |
-| **Gizmo** | Draggable SE(3) widget in the viewer used to set IK targets. |
-
-## 4 · Renames at a glance
-
-```
-Pinocchio           ->  BetterRobot
-─────────────────────────────────────────────────────────
-oMi                 ->  joint_pose_world
-oMf                 ->  frame_pose_world
-liMi                ->  joint_pose_local
-ov                  ->  joint_velocity_world
-oa                  ->  joint_acceleration_world
-v_joint             ->  joint_velocity_local
-a_joint             ->  joint_acceleration_local
-M                   ->  mass_matrix
-C                   ->  coriolis_matrix
-g                   ->  gravity_torque
-nle                 ->  bias_forces
-Ag                  ->  centroidal_momentum_matrix
-hg                  ->  centroidal_momentum
-com                 ->  com_position
-vcom                ->  com_velocity
-acom                ->  com_acceleration
-J                   ->  joint_jacobians
-dJ                  ->  joint_jacobians_dot
-```
-
-## 5 · Enforcement
-
-`tests/contract/test_naming.py` scans `src/better_robot/` for deprecated
-`data.<old_name>` attribute accesses and fails if one slips in. The check is
-deliberately scoped: universal mathematical locals, prose, and unrelated
-attributes are not rejected by this contract.
-
-## 6 · For contributors
-
-When you add a new field to `Data`, a new attribute to `Model`, or a
-new tensor that a user will read:
-
-1. **Read §1.** Pick a name that follows `<entity>_<quantity>_<frame>`
-   or the function-naming patterns.
-2. **Check §1.3.** If the quantity has a universal math symbol, use it
-   as a variable *inside* a function but expose the verbose name in any
-   public-facing docstring or attribute.
-3. **Add to §3.** Any genuinely new concept gets one row in the
-   glossary.
-4. **If the name is cryptic, it is wrong.** The reviewer's first
-   question will be "what does this mean?" — if the answer is not
-   obvious from the identifier, rename before merging.
+1. Prefer a descriptive noun or verb phrase.
+2. Keep a short symbol only when it is common in robotics literature.
+3. State shape, units, and frame for tensor values.
+4. Add a new user-facing term to {doc}`/reference/glossary`.
+5. Update `tests/contract/test_naming.py` if a removed storage attribute must
+   stay absent.

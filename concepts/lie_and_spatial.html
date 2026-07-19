@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Lie Groups and Spatial Algebra &#8212; BetterRobot</title>
+    <title>Rotations, Poses, and Spatial Motion &#8212; BetterRobot</title>
   
   
   
@@ -52,12 +52,12 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'concepts/lie_and_spatial';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Parsers and the IR" href="parsers_and_ir.html" />
-    <link rel="prev" title="Joints, Bodies, and Frames" href="joints_bodies_frames.html" />
+    <link rel="next" title="Kinematics and Jacobians" href="kinematics_and_jacobians.html" />
+    <link rel="prev" title="Joints, bodies, and frames" href="joints_bodies_frames.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 18, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
   </head>
   
   
@@ -159,41 +159,44 @@
 </button></div>
         <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
     <div class="bd-toc-item navbar-nav active">
-        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get started</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../getting_started/index.html">Getting started</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/installation.html">Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/forward_kinematics.html">Forward kinematics on Panda</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/inverse_kinematics.html">Inverse kinematics on Panda</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/floating_base.html">Floating-base IK on the G1 humanoid</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/01_robot_model.html">Meet the robot model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/02_forward_kinematics.html">Forward kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/03_inverse_kinematics.html">Inverse kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/04_floating_base.html">Floating-base robots</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/05_batched_gpu.html">Batching and the GPU</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">How-to guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../guides/custom_residual.html">Write a custom residual</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/load_a_robot.html">Load a robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/visualize.html">Visualize a robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/differentiate_through_kinematics.html">Differentiate through kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/own_your_optimization_loop.html">Own your optimization loop</a></li>
 </ul>
 </details></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Concepts</span></p>
 <ul class="current nav bd-sidenav">
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="index.html">Concepts</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="vision.html">Vision</a></li>
+<li class="toctree-l2"><a class="reference internal" href="why_betterrobot.html">Why BetterRobot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="design_decisions.html">Design decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="architecture.html">Architecture</a></li>
 <li class="toctree-l2"><a class="reference internal" href="model_and_data.html">Model and Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="joints_bodies_frames.html">Joints, Bodies, and Frames</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">Lie Groups and Spatial Algebra</a></li>
-<li class="toctree-l2"><a class="reference internal" href="parsers_and_ir.html">Parsers and the IR</a></li>
-<li class="toctree-l2"><a class="reference internal" href="kinematics.html">Kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="joints_bodies_frames.html">Joints, bodies, and frames</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">Rotations, Poses, and Spatial Motion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="residuals_and_costs.html">Residuals and Costs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="solver_stack.html">Named-Block Evaluation and the Legacy Solver Stack</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tasks.html">Tasks — IK and Trajectory Optimisation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="collision_and_geometry.html">Collision and Geometry</a></li>
-<li class="toctree-l2"><a class="reference internal" href="batching_and_backends.html">Batching and Compute Lanes</a></li>
-<li class="toctree-l2"><a class="reference internal" href="warp_bridge.html">Torch–Warp bridge and opt-in FK lane</a></li>
+<li class="toctree-l2"><a class="reference internal" href="residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="the_compute_seam.html">The Compute Seam</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="viewer.html">Viewer</a></li>
-</ul>
-</details></li>
-</ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Guides</span></p>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1 has-children"><a class="reference internal" href="../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../guides/custom_residuals.html">Write a custom block residual</a></li>
 </ul>
 </details></li>
 </ul>
@@ -201,14 +204,13 @@
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../conventions/index.html">Conventions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../conventions/naming.html">Naming</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../conventions/performance.html">Performance</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../conventions/extension.html">Extension Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/contracts.html">Contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/extension.html">Extension points</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../conventions/testing.html">Testing</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../conventions/contracts.html">Contracts &amp; Validation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../conventions/engineering.html">Engineering Contract</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../conventions/source_and_license.html">Source and License Decision Memo</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../conventions/style.html">Coding Style</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/performance.html">Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/style.html">Coding style</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../conventions/packaging.html">Packaging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/source_and_license.html">Source and license</a></li>
 </ul>
 </details></li>
 </ul>
@@ -243,8 +245,6 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.human.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.human</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.manipulability.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.manipulability</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.collision</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
@@ -280,18 +280,17 @@
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.strategies.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.strategies</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.implicit.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.implicit</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.cost_stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.cost_stack</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.state.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.state</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.structure</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.stack</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -313,7 +312,6 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian_strategy.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian_strategy</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.forward.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.forward</span></code></a></li>
 </ul>
 </details></li>
@@ -335,16 +333,13 @@
 <li class="toctree-l3"><a class="reference internal" href="../reference/api/better_robot/better_robot.exceptions.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.exceptions</span></code></a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/named_block_solvers.html">Named-block solver API</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/changelog.html">Changelog</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/roadmap.html">Roadmap</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/m1_removed_symbols.html">M1 removed surfaces</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/m3_removed_symbols.html">M3.5 removed surfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/collision_and_geometry.html">Collision and geometry status</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/roadmap.html">Roadmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/changelog.html">Changelog</a></li>
 </ul>
 </details></li>
 </ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Project Links</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/rihat99/BetterRobot">GitHub</a></li>
 </ul>
@@ -546,7 +541,7 @@
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>Lie Groups and Spatial Algebra</h1>
+    <h1>Rotations, Poses, and Spatial Motion</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -556,17 +551,17 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#storage-convention">Storage convention</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-functional-api">The functional API</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#interchange-and-point-set-alignment">Interchange and point-set alignment</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#singularity-handling">Singularity handling</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#quaternion-double-cover">Quaternion double cover</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#numerical-evidence">Numerical evidence</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#typed-value-classes-lie-types-py">Typed value classes — <code class="docutils literal notranslate"><span class="pre">lie/types.py</span></code></a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#spatial-value-types-spatial">Spatial value types — <code class="docutils literal notranslate"><span class="pre">spatial/</span></code></a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#why-the-split-lie-is-functional-spatial-adds-wrappers">Why the split — <code class="docutils literal notranslate"><span class="pre">lie/</span></code> is functional, <code class="docutils literal notranslate"><span class="pre">spatial/</span></code> adds wrappers</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sharp-edges">Sharp edges</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#where-to-look-next">Where to look next</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#a-rotation-quaternion-in-plain-words">A rotation quaternion in plain words</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#a-pose-and-se-3">A pose and SE(3)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tangents-and-twists">Tangents and twists</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#storage-conventions">Storage conventions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#functional-lie-operations">Functional Lie operations</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#exponential-and-logarithm-jacobians">Exponential and logarithm Jacobians</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#singularities-and-numerical-branches">Singularities and numerical branches</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#spatial-motion-force-and-inertia">Spatial motion, force, and inertia</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#matrices-alignment-and-typed-views">Matrices, alignment, and typed views</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#practical-rules">Practical rules</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#where-to-continue">Where to continue</a></li>
 </ul>
             </nav>
         </div>
@@ -578,393 +573,245 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="lie-groups-and-spatial-algebra">
-<h1>Lie Groups and Spatial Algebra<a class="headerlink" href="#lie-groups-and-spatial-algebra" title="Link to this heading">#</a></h1>
-<p>The math layer is the foundation everything else stands on. Forward
-kinematics composes SE(3) elements; pose residuals subtract them on
-the manifold; dynamics computes spatial accelerations and wrenches;
-the trajectory parameterisations retract through SE(3) and SO(3) for
-free-flyer and spherical joints. If the math layer is wrong, every
-algorithm above it is wrong in correlated ways that are very hard to
-debug.</p>
-<p>We had three choices to make. The first was the storage layout: how
-do you spell an SE(3) pose? The second was whether to subclass
-<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code> (PyTorch’s <code class="docutils literal notranslate"><span class="pre">__torch_function__</span></code> hook lets you) or to
-keep the math layer purely functional. The third was whether to
-depend on an external Lie library (PyPose was the obvious candidate)
-or to implement the kernels from scratch. Each of those came with a
-specific cost we wanted to avoid.</p>
-<p>The storage layout is now fixed library-wide: <code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">7)</span></code> for SE(3)
-with the order <code class="docutils literal notranslate"><span class="pre">[tx,</span> <span class="pre">ty,</span> <span class="pre">tz,</span> <span class="pre">qx,</span> <span class="pre">qy,</span> <span class="pre">qz,</span> <span class="pre">qw]</span></code> — translation first,
-scalar quaternion <strong>last</strong>. Tangent vectors are <code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">6)</span></code> with
-<code class="docutils literal notranslate"><span class="pre">[vx,</span> <span class="pre">vy,</span> <span class="pre">vz,</span> <span class="pre">wx,</span> <span class="pre">wy,</span> <span class="pre">wz]</span></code> — linear block first. SO(3) quaternions
-are <code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">4)</span></code> with the same scalar-last convention. Spatial
-Jacobians are <code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">6,</span> <span class="pre">nv)</span></code> with linear rows on top of angular rows.
-None of these are negotiable; they are baked into every public
-function and into <code class="docutils literal notranslate"><span class="pre">tests/contract/test_no_legacy_strings.py</span></code>. The
-order matches what you read in Pinocchio’s source and most modern
-robotics libraries; the scalar-last convention matches PyPose’s
-native layout, which made the early prototype easy and stayed because
-it composes cleanly with the rest.</p>
-<p>The second choice was about subclassing. PyTorch’s
-<code class="docutils literal notranslate"><span class="pre">__torch_function__</span></code> mechanism lets you define a <code class="docutils literal notranslate"><span class="pre">class</span> <span class="pre">SE3(Tensor)</span></code>
-that reuses the tensor machinery (<code class="docutils literal notranslate"><span class="pre">+</span></code>, <code class="docutils literal notranslate"><span class="pre">*</span></code>, <code class="docutils literal notranslate"><span class="pre">&#64;</span></code>, slicing, autograd)
-and overrides specific operations. PyPose did exactly that. It works
-beautifully for two months and then starts producing subtle bugs
-that are very expensive to diagnose: gradient overrides that fire
-in unexpected places, autograd graphs that surgery themselves when a
-subclass slips through a <code class="docutils literal notranslate"><span class="pre">torch.cat</span></code>, <code class="docutils literal notranslate"><span class="pre">__torch_function__</span></code> dispatch
-that interacts oddly with <code class="docutils literal notranslate"><span class="pre">torch.compile</span></code>. We do not subclass
-<code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>. The typed wrappers (<code class="docutils literal notranslate"><span class="pre">SE3</span></code>, <code class="docutils literal notranslate"><span class="pre">SO3</span></code>, <code class="docutils literal notranslate"><span class="pre">Pose</span></code>, <code class="docutils literal notranslate"><span class="pre">Motion</span></code>,
-<code class="docutils literal notranslate"><span class="pre">Force</span></code>, <code class="docutils literal notranslate"><span class="pre">Inertia</span></code>) are frozen <code class="docutils literal notranslate"><span class="pre">&#64;dataclass</span></code>es around a tensor; their
-operations route through the functional <code class="docutils literal notranslate"><span class="pre">lie.se3.*</span></code> / <code class="docutils literal notranslate"><span class="pre">lie.so3.*</span></code>
-API; autograd, <code class="docutils literal notranslate"><span class="pre">vmap</span></code>, and <code class="docutils literal notranslate"><span class="pre">torch.compile</span></code> see plain tensors and do
-the right thing.</p>
-<p>The third choice was about dependencies. The early prototype used
-PyPose for SE(3) ops, and it was the right call at the time —
-re-deriving Barfoot’s SE(3) Taylor expansions from the textbook is
-not a task you want during a project’s first month. Once the
-prototype was working, two issues came up that pushed us off the
-PyPose path. First, PyPose subclasses <code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>, which is the
-exact pattern we did not want to expose at our boundaries; routing
-PyPose calls through the functional facade meant we were already
-re-wrapping every operation. Second, PyPose’s <code class="docutils literal notranslate"><span class="pre">Log</span></code> had an autograd
-issue that forced our residual Jacobian path to use central finite
-differences as the default — slow, and a tax on every iteration. The
-direct Torch implementation (<code class="docutils literal notranslate"><span class="pre">lie/_impl.py</span></code>) replaced PyPose; it is
-gradcheck-clean by construction and has no external dependencies.</p>
-<section id="storage-convention">
-<h2>Storage convention<a class="headerlink" href="#storage-convention" title="Link to this heading">#</a></h2>
+  <section id="rotations-poses-and-spatial-motion">
+<h1>Rotations, Poses, and Spatial Motion<a class="headerlink" href="#rotations-poses-and-spatial-motion" title="Link to this heading">#</a></h1>
+<p>Robot motion is not ordinary vector addition. A position can be shifted by a
+three-dimensional vector, but an orientation lives on a curved space: adding
+two sets of angles does not, in general, compose two rotations. BetterRobot
+uses Lie groups to represent that geometry while keeping the implementation in
+ordinary Torch tensors.</p>
+<p>This chapter starts with the picture behind the terms. The storage and API
+details come afterward.</p>
+<section id="a-rotation-quaternion-in-plain-words">
+<h2>A rotation quaternion in plain words<a class="headerlink" href="#a-rotation-quaternion-in-plain-words" title="Link to this heading">#</a></h2>
+<p>A three-dimensional rotation has three degrees of freedom. BetterRobot stores
+it as a <strong>unit quaternion</strong> with four numbers:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[qx, qy, qz, qw]
+</pre></div>
+</div>
+<p>The extra number is constrained by <code class="docutils literal notranslate"><span class="pre">qx²</span> <span class="pre">+</span> <span class="pre">qy²</span> <span class="pre">+</span> <span class="pre">qz²</span> <span class="pre">+</span> <span class="pre">qw²</span> <span class="pre">=</span> <span class="pre">1</span></code>, so it does
+not add a fourth degree of freedom. Quaternions avoid the gimbal lock of Euler
+angles and compose rotations efficiently. They also have a double cover:
+<code class="docutils literal notranslate"><span class="pre">q</span></code> and <code class="docutils literal notranslate"><span class="pre">-q</span></code> describe the same physical rotation.</p>
+<p>The set of all three-dimensional rotations is called <strong>SO(3)</strong>. The name is
+less important than the rule: values on SO(3) must be composed and compared as
+rotations, not treated as unconstrained four-vectors.</p>
+<p>For a gentle introduction, see Lynch and Park’s
+<a class="reference external" href="https://hades.mech.northwestern.edu/index.php/Modern_Robotics">Modern Robotics</a>
+and Joan Solà’s
+<a class="reference external" href="https://arxiv.org/abs/1711.02508">quaternion notes</a>.</p>
+</section>
+<section id="a-pose-and-se-3">
+<h2>A pose and SE(3)<a class="headerlink" href="#a-pose-and-se-3" title="Link to this heading">#</a></h2>
+<p>A rigid-body pose combines a translation and a rotation. The set of all such
+poses is called <strong>SE(3)</strong>. BetterRobot stores one pose as seven numbers:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[tx, ty, tz, qx, qy, qz, qw]
+</pre></div>
+</div>
+<p>If <code class="docutils literal notranslate"><span class="pre">T_world_tool</span></code> is a pose, it answers both “where is the tool origin?” and
+“how are the tool axes oriented?” Pose composition follows frames: composing
+<code class="docutils literal notranslate"><span class="pre">T_world_parent</span></code> with <code class="docutils literal notranslate"><span class="pre">T_parent_child</span></code> produces <code class="docutils literal notranslate"><span class="pre">T_world_child</span></code>.</p>
+<p>SO(3) and SE(3) are Lie groups. In practical robotics language, that means
+they have two useful views:</p>
+<ul class="simple">
+<li><p>a curved value space for complete rotations or poses; and</p></li>
+<li><p>a flat local space for small changes around one value.</p></li>
+</ul>
+<p>Solà, Deray, and Atchuthan’s
+<a class="reference external" href="https://arxiv.org/abs/1812.01537">micro Lie theory</a> develops this connection
+with robotics examples and formula tables.</p>
+</section>
+<section id="tangents-and-twists">
+<h2>Tangents and twists<a class="headerlink" href="#tangents-and-twists" title="Link to this heading">#</a></h2>
+<p>A <strong>tangent</strong> is a small local change expressed in a flat vector space. An
+SO(3) tangent has three angular components. An SE(3) tangent has six
+components: three linear and three angular. A motion tangent is often called a
+<strong>twist</strong>.</p>
+<p>BetterRobot stores an SE(3) tangent as:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[vx, vy, vz, wx, wy, wz]
+</pre></div>
+</div>
+<p>The exponential map <code class="docutils literal notranslate"><span class="pre">exp</span></code> turns a tangent into a rotation or pose change. The
+logarithm <code class="docutils literal notranslate"><span class="pre">log</span></code> turns a nearby rotation or pose back into a tangent. An
+optimizer uses the same idea through a retraction: compute a step in the flat
+tangent space, then move the configuration back onto its manifold.</p>
+<p>This explains why a free-flyer has <code class="docutils literal notranslate"><span class="pre">nq=7</span></code> but <code class="docutils literal notranslate"><span class="pre">nv=6</span></code>. Its pose needs seven
+stored numbers because rotation uses a quaternion. Its local motion still has
+only six degrees of freedom. BetterRobot uses <code class="docutils literal notranslate"><span class="pre">nq</span></code> for stored configuration
+width and <code class="docutils literal notranslate"><span class="pre">nv</span></code> for tangent or velocity width throughout the library.</p>
+</section>
+<section id="storage-conventions">
+<h2>Storage conventions<a class="headerlink" href="#storage-conventions" title="Link to this heading">#</a></h2>
+<p>The layouts are fixed:</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Object</p></th>
-<th class="head"><p>Storage</p></th>
-<th class="head"><p>Layout</p></th>
+<th class="head"><p>Shape</p></th>
+<th class="head"><p>Last-axis order</p></th>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>SE(3) pose</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">7)</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">[tx,</span> <span class="pre">ty,</span> <span class="pre">tz,</span> <span class="pre">qx,</span> <span class="pre">qy,</span> <span class="pre">qz,</span> <span class="pre">qw]</span></code> (scalar last)</p></td>
-</tr>
-<tr class="row-odd"><td><p>se(3) tangent</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">6)</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">[vx,</span> <span class="pre">vy,</span> <span class="pre">vz,</span> <span class="pre">wx,</span> <span class="pre">wy,</span> <span class="pre">wz]</span></code> (linear first)</p></td>
-</tr>
 <tr class="row-even"><td><p>SO(3) quaternion</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">4)</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">[qx,</span> <span class="pre">qy,</span> <span class="pre">qz,</span> <span class="pre">qw]</span></code> (scalar last)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[qx,</span> <span class="pre">qy,</span> <span class="pre">qz,</span> <span class="pre">qw]</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>so(3) tangent</p></td>
+<tr class="row-odd"><td><p>SO(3) tangent</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">3)</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">[wx,</span> <span class="pre">wy,</span> <span class="pre">wz]</span></code></p></td>
 </tr>
+<tr class="row-even"><td><p>SE(3) pose</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">7)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[tx,</span> <span class="pre">ty,</span> <span class="pre">tz,</span> <span class="pre">qx,</span> <span class="pre">qy,</span> <span class="pre">qz,</span> <span class="pre">qw]</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>SE(3) tangent or twist</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">6)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[vx,</span> <span class="pre">vy,</span> <span class="pre">vz,</span> <span class="pre">wx,</span> <span class="pre">wy,</span> <span class="pre">wz]</span></code></p></td>
+</tr>
 <tr class="row-even"><td><p>Spatial Jacobian</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">6,</span> <span class="pre">nv)</span></code></p></td>
-<td><p>rows <code class="docutils literal notranslate"><span class="pre">[v_lin</span> <span class="pre">(3);</span> <span class="pre">ω</span> <span class="pre">(3)]</span></code></p></td>
+<td><p>linear rows, then angular rows</p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>These are repeated in <a class="reference internal" href="../conventions/contracts.html"><span class="doc">Contracts &amp; Validation</span></a> and
-<a class="reference internal" href="../conventions/style.html"><span class="doc">Coding Style</span></a>. There is no point in the codebase where a
-different convention is allowed — <code class="docutils literal notranslate"><span class="pre">tests/contract/test_no_legacy_strings.py</span></code>
-prevents it.</p>
+<p>Quaternion scalars are last; spatial linear components come first. These are
+ecosystem choices rather than mathematical necessities. The alternatives and
+interchange argument are recorded in <a class="reference internal" href="design_decisions.html#decision-pose-layout"><span class="std std-ref">Quaternions scalar-last, tangents linear-first</span></a>.</p>
+<p>Euler angles are an interchange format, not internal storage.
+<code class="docutils literal notranslate"><span class="pre">so3.from_euler</span></code> and <code class="docutils literal notranslate"><span class="pre">so3.to_euler</span></code> use active roll, pitch, yaw rotations with
+<code class="docutils literal notranslate"><span class="pre">R</span> <span class="pre">=</span> <span class="pre">Rz(yaw)</span> <span class="pre">&#64;</span> <span class="pre">Ry(pitch)</span> <span class="pre">&#64;</span> <span class="pre">Rx(roll)</span></code>. Euler angles necessarily become
+ambiguous at pitch <code class="docutils literal notranslate"><span class="pre">+/-</span> <span class="pre">pi/2</span></code>.</p>
 </section>
-<section id="the-functional-api">
-<h2>The functional API<a class="headerlink" href="#the-functional-api" title="Link to this heading">#</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">lie/</span></code> is purely functional. <code class="docutils literal notranslate"><span class="pre">lie/se3.py</span></code>, <code class="docutils literal notranslate"><span class="pre">lie/so3.py</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">lie/tangents.py</span></code> are modules of free functions that take and return
-plain <code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>s.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># src/better_robot/lie/se3.py</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">identity</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">batch_shape</span><span class="o">=</span><span class="p">(),</span> <span class="n">device</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">compose</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>        <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>   <span class="c1"># (..., 7), (..., 7) → (..., 7)</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">inverse</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>           <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>   <span class="c1"># (..., 7) → (..., 7)</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">log</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>               <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>   <span class="c1"># (..., 7) → (..., 6)</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">exp</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>               <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>   <span class="c1"># (..., 6) → (..., 7)</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">act</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">p</span><span class="p">)</span>            <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>   <span class="c1"># (..., 7), (..., 3) → (..., 3)</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">adjoint</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>           <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>   <span class="c1"># (..., 7) → (..., 6, 6)</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">adjoint_inv</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>       <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>   <span class="c1"># faster than inv(adjoint(...))</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">from_matrix</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>       <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>   <span class="c1"># (..., 4, 4) → (..., 7)</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">to_matrix</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>         <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>   <span class="c1"># (..., 7) → (..., 4, 4)</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">from_axis_angle</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="n">angle</span><span class="p">):</span> <span class="o">...</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">from_translation</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="n">disp</span><span class="p">):</span> <span class="o">...</span>  <span class="c1"># translation by scalar/vector disp along axis</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">normalize</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>         <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>   <span class="c1"># re-project onto SE(3)</span>
+<section id="functional-lie-operations">
+<h2>Functional Lie operations<a class="headerlink" href="#functional-lie-operations" title="Link to this heading">#</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">better_robot.lie.se3</span></code> and <code class="docutils literal notranslate"><span class="pre">better_robot.lie.so3</span></code> modules contain free
+functions over <code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code> values:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.lie</span><span class="w"> </span><span class="kn">import</span> <span class="n">se3</span><span class="p">,</span> <span class="n">so3</span>
 
-<span class="c1"># src/better_robot/lie/so3.py</span>
-<span class="n">identity</span><span class="p">,</span> <span class="n">compose</span><span class="p">,</span> <span class="n">inverse</span><span class="p">,</span> <span class="n">log</span><span class="p">,</span> <span class="n">exp</span><span class="p">,</span> <span class="n">act</span><span class="p">,</span> <span class="n">adjoint</span><span class="p">,</span>
-<span class="n">from_euler</span><span class="p">,</span> <span class="n">to_euler</span><span class="p">,</span> <span class="n">from_matrix</span><span class="p">,</span> <span class="n">to_matrix</span><span class="p">,</span> <span class="n">from_axis_angle</span><span class="p">,</span> <span class="n">normalize</span>
+<span class="n">T_a</span> <span class="o">=</span> <span class="n">se3</span><span class="o">.</span><span class="n">identity</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="n">T_b</span> <span class="o">=</span> <span class="n">se3</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">))</span>
+<span class="n">T_ab</span> <span class="o">=</span> <span class="n">se3</span><span class="o">.</span><span class="n">compose</span><span class="p">(</span><span class="n">T_a</span><span class="p">,</span> <span class="n">T_b</span><span class="p">)</span>
+<span class="n">T_ba</span> <span class="o">=</span> <span class="n">se3</span><span class="o">.</span><span class="n">inverse</span><span class="p">(</span><span class="n">T_ab</span><span class="p">)</span>
+<span class="n">points_b</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="n">points_a</span> <span class="o">=</span> <span class="n">se3</span><span class="o">.</span><span class="n">act</span><span class="p">(</span><span class="n">T_ab</span><span class="p">,</span> <span class="n">points_b</span><span class="p">)</span>
 
-<span class="c1"># src/better_robot/lie/alignment.py</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">umeyama</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">estimate_scale</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span> <span class="o">...</span>
+<span class="n">xi</span> <span class="o">=</span> <span class="n">se3</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">T_ab</span><span class="p">)</span>
+<span class="n">T_again</span> <span class="o">=</span> <span class="n">se3</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">xi</span><span class="p">)</span>
 
-<span class="c1"># src/better_robot/lie/tangents.py — right / left Jacobians of exp</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">right_jacobian_so3</span><span class="p">(</span><span class="n">omega</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>    <span class="c1"># Jr(ω), (..., 3) → (..., 3, 3)</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">right_jacobian_inv_so3</span><span class="p">(</span><span class="n">omega</span><span class="p">):</span> <span class="o">...</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">left_jacobian_so3</span><span class="p">(</span><span class="n">omega</span><span class="p">):</span> <span class="o">...</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">left_jacobian_inv_so3</span><span class="p">(</span><span class="n">omega</span><span class="p">):</span> <span class="o">...</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">right_jacobian_se3</span><span class="p">(</span><span class="n">xi</span><span class="p">)</span>    <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>    <span class="c1"># Jr(ξ), (..., 6) → (..., 6, 6)</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">right_jacobian_inv_se3</span><span class="p">(</span><span class="n">xi</span><span class="p">):</span> <span class="o">...</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">left_jacobian_se3</span><span class="p">(</span><span class="n">xi</span><span class="p">):</span>     <span class="o">...</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">left_jacobian_inv_se3</span><span class="p">(</span><span class="n">xi</span><span class="p">):</span> <span class="o">...</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">hat_se3</span><span class="p">(</span><span class="n">xi</span><span class="p">):</span> <span class="o">...</span>   <span class="c1"># (..., 6) → (..., 4, 4)</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">vee_se3</span><span class="p">(</span><span class="n">X</span><span class="p">):</span>  <span class="o">...</span>   <span class="c1"># (..., 4, 4) → (..., 6)</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">hat_so3</span><span class="p">(</span><span class="n">w</span><span class="p">):</span>  <span class="o">...</span>   <span class="c1"># (..., 3) → (..., 3, 3)</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">vee_so3</span><span class="p">(</span><span class="n">W</span><span class="p">):</span>  <span class="o">...</span>   <span class="c1"># (..., 3, 3) → (..., 3)</span>
+<span class="n">R</span> <span class="o">=</span> <span class="n">so3</span><span class="o">.</span><span class="n">to_matrix</span><span class="p">(</span><span class="n">T_ab</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">3</span><span class="p">:])</span>
+<span class="n">q</span> <span class="o">=</span> <span class="n">so3</span><span class="o">.</span><span class="n">from_matrix</span><span class="p">(</span><span class="n">R</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Every function calls the direct Torch implementation in <code class="docutils literal notranslate"><span class="pre">lie/_impl.py</span></code>,
-which uses Barfoot’s closed forms. There is no runtime dispatch in this
-layer. An optional kernel optimisation belongs at a complete FK/RNEA-style
-pass described in <a class="reference internal" href="batching_and_backends.html"><span class="doc">Batching and Compute Lanes</span></a>; it does not replace an
-individual Lie primitive.</p>
+<p>The main operations are <code class="docutils literal notranslate"><span class="pre">identity</span></code>, <code class="docutils literal notranslate"><span class="pre">compose</span></code>, <code class="docutils literal notranslate"><span class="pre">inverse</span></code>, <code class="docutils literal notranslate"><span class="pre">act</span></code>, <code class="docutils literal notranslate"><span class="pre">exp</span></code>,
+<code class="docutils literal notranslate"><span class="pre">log</span></code>, <code class="docutils literal notranslate"><span class="pre">normalize</span></code>, <code class="docutils literal notranslate"><span class="pre">from_matrix</span></code>, and <code class="docutils literal notranslate"><span class="pre">to_matrix</span></code>. They broadcast leading
+batch axes and preserve dtype and device.</p>
+<p>The implementation does not subclass <code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>. Optional typed wrappers
+such as <code class="docutils literal notranslate"><span class="pre">SE3</span></code>, <code class="docutils literal notranslate"><span class="pre">SO3</span></code>, and <code class="docutils literal notranslate"><span class="pre">Pose</span></code> contain a tensor and delegate to the same
+functions. Core algorithms store raw tensors on <code class="docutils literal notranslate"><span class="pre">Model</span></code> and <code class="docutils literal notranslate"><span class="pre">Data</span></code>, which
+keeps autograd, <code class="docutils literal notranslate"><span class="pre">torch.func</span></code>, and <code class="docutils literal notranslate"><span class="pre">torch.compile</span></code> on a direct Torch graph.
+See <a class="reference internal" href="design_decisions.html#decision-functional-lie"><span class="std std-ref">Functional Lie operations, not tensor subclasses</span></a> for why this was chosen over tensor
+subclasses and per-operation dispatch.</p>
 </section>
-<section id="interchange-and-point-set-alignment">
-<h2>Interchange and point-set alignment<a class="headerlink" href="#interchange-and-point-set-alignment" title="Link to this heading">#</a></h2>
-<p>Euler interchange uses one fixed active convention: inputs are
-<code class="docutils literal notranslate"><span class="pre">[roll,</span> <span class="pre">pitch,</span> <span class="pre">yaw]</span></code>, applied extrinsically about XYZ, so
-<code class="docutils literal notranslate"><span class="pre">R</span> <span class="pre">=</span> <span class="pre">Rz(yaw)</span> <span class="pre">&#64;</span> <span class="pre">Ry(pitch)</span> <span class="pre">&#64;</span> <span class="pre">Rx(roll)</span></code>. <code class="docutils literal notranslate"><span class="pre">so3.from_euler</span></code> returns the frozen
-scalar-last quaternion layout and <code class="docutils literal notranslate"><span class="pre">so3.to_euler</span></code> returns its principal branch;
-roll and yaw are necessarily ambiguous at pitch <code class="docutils literal notranslate"><span class="pre">+/-</span> <span class="pre">pi/2</span></code>.</p>
-<p><code class="docutils literal notranslate"><span class="pre">se3.from_matrix</span></code> and <code class="docutils literal notranslate"><span class="pre">se3.to_matrix</span></code> bridge homogeneous <code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">4,</span> <span class="pre">4)</span></code>
-matrices and <code class="docutils literal notranslate"><span class="pre">[tx,</span> <span class="pre">ty,</span> <span class="pre">tz,</span> <span class="pre">qx,</span> <span class="pre">qy,</span> <span class="pre">qz,</span> <span class="pre">qw]</span></code> tensors without changing that
-layout. For point clouds, <code class="docutils literal notranslate"><span class="pre">lie.umeyama(source,</span> <span class="pre">target,</span> <span class="pre">weights)</span></code> fits batched
-3D similarity transforms and returns <code class="docutils literal notranslate"><span class="pre">(scale,</span> <span class="pre">rotation,</span> <span class="pre">translation)</span></code>. Its SVD
-correction always returns a proper rotation with determinant <code class="docutils literal notranslate"><span class="pre">+1</span></code>.</p>
-</section>
-<section id="singularity-handling">
-<h2>Singularity handling<a class="headerlink" href="#singularity-handling" title="Link to this heading">#</a></h2>
-<p>The exp / log maps on SO(3) have a removable singularity at θ = 0
-(the rotation matrix is the identity, the formula divides by sin(θ),
-and a Taylor expansion around 0 is needed for stable gradients). The
-SE(3) left-Jacobian has a similar singularity. Both are handled with
-<code class="docutils literal notranslate"><span class="pre">torch.where</span></code> against a <code class="docutils literal notranslate"><span class="pre">θ²</span></code> cutoff:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Sketch — see src/better_robot/lie/_impl.py</span>
-<span class="n">use_taylor</span> <span class="o">=</span> <span class="n">theta2</span> <span class="o">&lt;</span> <span class="n">EPS</span>
-<span class="n">theta2_safe</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">use_taylor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">theta2</span><span class="p">),</span> <span class="n">theta2</span><span class="p">)</span>
-<span class="n">theta</span> <span class="o">=</span> <span class="n">theta2_safe</span><span class="o">.</span><span class="n">sqrt</span><span class="p">()</span>
-<span class="n">b</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">use_taylor</span><span class="p">,</span>
-                <span class="mf">0.5</span> <span class="o">-</span> <span class="n">theta2</span> <span class="o">/</span> <span class="mf">24.0</span><span class="p">,</span>
-                <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">torch</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">))</span> <span class="o">/</span> <span class="n">theta2_safe</span><span class="p">)</span>
-<span class="n">c</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">use_taylor</span><span class="p">,</span>
-                <span class="mf">1.0</span><span class="o">/</span><span class="mf">6.0</span> <span class="o">-</span> <span class="n">theta2</span> <span class="o">/</span> <span class="mf">120.0</span><span class="p">,</span>
-                <span class="p">(</span><span class="n">theta</span> <span class="o">-</span> <span class="n">torch</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="n">theta</span> <span class="o">*</span> <span class="n">theta2_safe</span><span class="p">))</span>
+<section id="exponential-and-logarithm-jacobians">
+<h2>Exponential and logarithm Jacobians<a class="headerlink" href="#exponential-and-logarithm-jacobians" title="Link to this heading">#</a></h2>
+<p>Differentiating <code class="docutils literal notranslate"><span class="pre">exp</span></code> and <code class="docutils literal notranslate"><span class="pre">log</span></code> on a curved group introduces left and right
+Jacobians. BetterRobot exposes these in <code class="docutils literal notranslate"><span class="pre">better_robot.lie.tangents</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.lie</span><span class="w"> </span><span class="kn">import</span> <span class="n">tangents</span>
+
+<span class="n">xi</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="n">Jr</span> <span class="o">=</span> <span class="n">tangents</span><span class="o">.</span><span class="n">right_jacobian_se3</span><span class="p">(</span><span class="n">xi</span><span class="p">)</span>
+<span class="n">Jr_inv</span> <span class="o">=</span> <span class="n">tangents</span><span class="o">.</span><span class="n">right_jacobian_inv_se3</span><span class="p">(</span><span class="n">xi</span><span class="p">)</span>
+<span class="n">Jl</span> <span class="o">=</span> <span class="n">tangents</span><span class="o">.</span><span class="n">left_jacobian_se3</span><span class="p">(</span><span class="n">xi</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>The Taylor leads are checked explicitly by
-<code class="docutils literal notranslate"><span class="pre">tests/lie/test_torch_backend_singularities.py</span></code> at
-<code class="docutils literal notranslate"><span class="pre">θ</span> <span class="pre">∈</span> <span class="pre">{0,</span> <span class="pre">π/2,</span> <span class="pre">π</span> <span class="pre">−</span> <span class="pre">1e-6}</span></code> and with first-/second-order checks at zero and
-<code class="docutils literal notranslate"><span class="pre">1e-9</span></code>. The full-formula branch receives a safe dummy denominator in the Taylor
-region because <code class="docutils literal notranslate"><span class="pre">torch.where</span></code> evaluates both branches during backward.</p>
+<p>These are not robot frame Jacobians. They describe how a perturbation passes
+through a Lie-group exponential or logarithm. A pose residual composes them
+with a frame Jacobian; <a class="reference internal" href="kinematics_and_jacobians.html"><span class="doc">Kinematics and Jacobians</span></a> shows that example.</p>
 </section>
-<section id="quaternion-double-cover">
-<h2>Quaternion double cover<a class="headerlink" href="#quaternion-double-cover" title="Link to this heading">#</a></h2>
-<p>A unit quaternion <code class="docutils literal notranslate"><span class="pre">q</span></code> and <code class="docutils literal notranslate"><span class="pre">-q</span></code> represent the same rotation. The naive
-implementation of <code class="docutils literal notranslate"><span class="pre">so3.log(q)</span></code> returns different tangents for the two
-representations, which breaks gradient flow at the seam. The
-direct implementation folds the two halves of the cover by flipping
-the sign whenever <code class="docutils literal notranslate"><span class="pre">qw</span> <span class="pre">&lt;</span> <span class="pre">0</span></code>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">q</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">q</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">3</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">),</span> <span class="o">-</span><span class="n">q</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>The <code class="docutils literal notranslate"><span class="pre">log</span> <span class="pre">∘</span> <span class="pre">exp</span></code> round-trip is the identity modulo numerical noise. Quaternion
-storage must be compared modulo sign: compare rotation matrices, or compare the
-norm of a relative SO(3) logarithm. BetterRobot does not expose an
-<code class="docutils literal notranslate"><span class="pre">assert_close_manifold</span></code> helper.</p>
+<section id="singularities-and-numerical-branches">
+<h2>Singularities and numerical branches<a class="headerlink" href="#singularities-and-numerical-branches" title="Link to this heading">#</a></h2>
+<p>Closed-form SO(3) and SE(3) formulas contain ratios that appear to divide by
+zero near a zero rotation. The mathematical limit is well defined, so the
+implementation uses Taylor series in that region. Both branches receive safe
+denominators because <code class="docutils literal notranslate"><span class="pre">torch.where</span></code> may evaluate their gradients even when one
+branch is not selected.</p>
+<p>Near a rotation of pi, the principal logarithm has a branch boundary. The two
+quaternion signs are first folded to a common hemisphere, but no representation
+can make the principal logarithm smooth across every possible rotation.
+Optimization code should keep adjacent trajectory quaternions on a consistent
+hemisphere and avoid comparing quaternion storage directly.</p>
+<p>For equality, compare rotation matrices or use the norm of a relative
+SO(3) logarithm. <code class="docutils literal notranslate"><span class="pre">torch.testing.assert_close(q1,</span> <span class="pre">q2)</span></code> is not a physical
+rotation comparison because <code class="docutils literal notranslate"><span class="pre">q</span></code> and <code class="docutils literal notranslate"><span class="pre">-q</span></code> are equivalent.</p>
 </section>
-<section id="numerical-evidence">
-<h2>Numerical evidence<a class="headerlink" href="#numerical-evidence" title="Link to this heading">#</a></h2>
-<p>Typed SO(3)/SE(3) round-trip tests use <code class="docutils literal notranslate"><span class="pre">1e-6</span></code> in fp32 and <code class="docutils literal notranslate"><span class="pre">1e-12</span></code>
-in fp64 on their committed random fixtures. The focused fp64 gradcheck module
-covers SO(3) exp/log and SE(3) exp/log/inverse/compose/act with
-<code class="docutils literal notranslate"><span class="pre">atol=1e-6,</span> <span class="pre">rtol=1e-5</span></code>; singularity tests separately cover zero, <code class="docutils literal notranslate"><span class="pre">1e-9</span></code>,
-and the principal-log boundary. See
-<code class="docutils literal notranslate"><span class="pre">tests/lie/test_torch_backend_gradcheck.py</span></code> and
-<code class="docutils literal notranslate"><span class="pre">tests/lie/test_torch_backend_singularities.py</span></code>.</p>
-<p>Those are test-specific observations, not a universal guarantee for every
-public wrapper or an arbitrary long FK chain. Kinematics/Pinocchio tolerances
-are documented with their own tests.</p>
-</section>
-<section id="typed-value-classes-lie-types-py">
-<h2>Typed value classes — <code class="docutils literal notranslate"><span class="pre">lie/types.py</span></code><a class="headerlink" href="#typed-value-classes-lie-types-py" title="Link to this heading">#</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">lie/</span></code> is functional. <code class="docutils literal notranslate"><span class="pre">lie/types.py</span></code> adds typed <code class="docutils literal notranslate"><span class="pre">SE3</span></code>, <code class="docutils literal notranslate"><span class="pre">SO3</span></code>, <code class="docutils literal notranslate"><span class="pre">Pose</span></code>
-dataclasses on top — frozen <code class="docutils literal notranslate"><span class="pre">&#64;dataclass</span></code>es around a <code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>,
-<strong>not</strong> subclasses of one. They expose the functional API as named
-methods plus a single unambiguous operator (<code class="docutils literal notranslate"><span class="pre">&#64;</span></code>):</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">SE3</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Rigid transform in SE(3), stored as (..., 7) [tx, ty, tz, qx, qy, qz, qw].</span>
-
-<span class="sd">    The ``tensor`` attribute is a plain torch.Tensor — autograd, vmap,</span>
-<span class="sd">    and torch.compile see a tensor, not a custom subclass. All</span>
-<span class="sd">    operations route through the functional lie.se3.* API.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">tensor</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
-
-    <span class="nd">@classmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">identity</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">batch_shape</span><span class="o">=</span><span class="p">(),</span> <span class="n">device</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SE3&quot;</span><span class="p">:</span> <span class="o">...</span>
-    <span class="nd">@classmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">from_translation</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SE3&quot;</span><span class="p">:</span> <span class="o">...</span>
-    <span class="nd">@classmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">from_rotation</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">r</span><span class="p">:</span> <span class="s2">&quot;SO3&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SE3&quot;</span><span class="p">:</span> <span class="o">...</span>
-    <span class="nd">@classmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">from_axis_angle</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">angle</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SE3&quot;</span><span class="p">:</span> <span class="o">...</span>
-    <span class="nd">@classmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">from_matrix</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">m</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SE3&quot;</span><span class="p">:</span> <span class="o">...</span>
-    <span class="nd">@classmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">exp</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">xi</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SE3&quot;</span><span class="p">:</span> <span class="o">...</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">translation</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span>     <span class="c1"># (..., 3)</span>
-    <span class="nd">@property</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">rotation</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SO3&quot;</span><span class="p">:</span> <span class="o">...</span>
-    <span class="nd">@property</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">batch_shape</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span> <span class="o">...</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">compose</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="s2">&quot;SE3&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SE3&quot;</span><span class="p">:</span> <span class="o">...</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">inverse</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SE3&quot;</span><span class="p">:</span> <span class="o">...</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">log</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span>             <span class="c1"># (..., 6)</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">adjoint</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span>         <span class="c1"># (..., 6, 6)</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">to_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span>       <span class="c1"># (..., 4, 4)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">act_point</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">act_motion</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">m</span><span class="p">:</span> <span class="s2">&quot;Motion&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Motion&quot;</span><span class="p">:</span> <span class="o">...</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">act_force</span> <span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">:</span> <span class="s2">&quot;Force&quot;</span><span class="p">)</span>  <span class="o">-&gt;</span> <span class="s2">&quot;Force&quot;</span><span class="p">:</span>  <span class="o">...</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">act_inertia</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">I</span><span class="p">:</span> <span class="s2">&quot;Inertia&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Inertia&quot;</span><span class="p">:</span> <span class="o">...</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="fm">__matmul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
-        <span class="c1"># SE3 @ SE3   → compose</span>
-        <span class="c1"># SE3 @ (..., 3) → act_point</span>
-        <span class="o">...</span>
-</pre></div>
-</div>
-<p>Source: <code class="docutils literal notranslate"><span class="pre">src/better_robot/lie/types.py</span></code>. <code class="docutils literal notranslate"><span class="pre">SO3</span></code> mirrors at <code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">4)</span></code>.
-<code class="docutils literal notranslate"><span class="pre">Pose</span></code> is an alias for <code class="docutils literal notranslate"><span class="pre">SE3</span></code>.</p>
-<p>The typed wrappers exist so that user-facing call sites read like the
-math:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">T_world_ee</span> <span class="o">=</span> <span class="n">T_world_arm</span> <span class="o">@</span> <span class="n">T_arm_ee</span>     <span class="c1"># SE3 @ SE3 → SE3</span>
-<span class="n">p_world</span>    <span class="o">=</span> <span class="n">T_world_ee</span> <span class="o">@</span> <span class="n">p_local</span>       <span class="c1"># SE3 @ tensor[..., 3] → tensor[..., 3]</span>
-<span class="n">xi</span>         <span class="o">=</span> <span class="n">T_world_ee</span><span class="o">.</span><span class="n">log</span><span class="p">()</span>           <span class="c1"># SE3 → tangent</span>
-</pre></div>
-</div>
-<p>Hot paths still call the functional <code class="docutils literal notranslate"><span class="pre">lie.se3.*</span></code> API directly on raw tensors —
-boxing every entry of a <code class="docutils literal notranslate"><span class="pre">(B...,</span> <span class="pre">njoints,</span> <span class="pre">7)</span></code> tensor into an <code class="docutils literal notranslate"><span class="pre">SE3</span></code> instance
-would defeat batching. Storage on <code class="docutils literal notranslate"><span class="pre">Model</span></code> and <code class="docutils literal notranslate"><span class="pre">Data</span></code> is raw. The typed
-<code class="docutils literal notranslate"><span class="pre">Data.frame_pose(frame_id)</span></code> accessor returns <code class="docutils literal notranslate"><span class="pre">SE3</span></code>, while
-<code class="docutils literal notranslate"><span class="pre">IKResult.frame_pose(name)</span></code> returns the raw <code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">7)</span></code> tensor used by task
-callers. Functional <code class="docutils literal notranslate"><span class="pre">lie.se3.*</span></code> operations accept raw tensors; use the typed
-wrapper’s methods when working with <code class="docutils literal notranslate"><span class="pre">SE3</span></code> objects.</p>
-<p>The deliberately-omitted operators are worth naming:</p>
+<section id="spatial-motion-force-and-inertia">
+<h2>Spatial motion, force, and inertia<a class="headerlink" href="#spatial-motion-force-and-inertia" title="Link to this heading">#</a></h2>
+<p>Spatial algebra packages a rigid body’s linear and angular quantities into
+six-dimensional objects:</p>
 <ul class="simple">
-<li><p><strong>No <code class="docutils literal notranslate"><span class="pre">__mul__</span></code>.</strong> PyTorch’s <code class="docutils literal notranslate"><span class="pre">*</span></code> is element-wise multiplication on
-the underlying tensor, which would yield a leafwise scale of the
-pose — mathematical garbage. Composing two SE(3)s is <code class="docutils literal notranslate"><span class="pre">T1</span> <span class="pre">&#64;</span> <span class="pre">T2</span></code>, not
-<code class="docutils literal notranslate"><span class="pre">T1</span> <span class="pre">*</span> <span class="pre">T2</span></code>.</p></li>
-<li><p><strong>No <code class="docutils literal notranslate"><span class="pre">__invert__</span></code> (<code class="docutils literal notranslate"><span class="pre">~T</span></code>).</strong> Sigil-overloaded inverse is unreadable;
-<code class="docutils literal notranslate"><span class="pre">T.inverse()</span></code> is one extra character and obviously correct.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Motion</span></code> stores linear and angular velocity or acceleration.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Force</span></code> stores force and torque.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Inertia</span></code> stores mass, center of mass, and rotational inertia as one
+operator from motion to force.</p></li>
+</ul>
+<p>The wrappers validate their event shapes and provide operations whose meaning
+is unambiguous. A motion can act on another motion through the spatial cross
+product; its dual action on a force uses the corresponding force cross
+operator. An inertia multiplies a motion to produce a force.</p>
+<p>The convention is always linear first. This matches the rest of BetterRobot’s
+Jacobians and avoids a reorder at every dynamics boundary. Roy Featherstone’s
+<a class="reference external" href="https://royfeatherstone.org/">spatial-vector resources</a> are the primary
+reference for the six-dimensional algebra and the dynamics algorithms built
+on it.</p>
+</section>
+<section id="matrices-alignment-and-typed-views">
+<h2>Matrices, alignment, and typed views<a class="headerlink" href="#matrices-alignment-and-typed-views" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">se3.from_matrix</span></code> and <code class="docutils literal notranslate"><span class="pre">se3.to_matrix</span></code> convert homogeneous <code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">4,</span> <span class="pre">4)</span></code>
+matrices without changing the scalar-last pose convention. The Umeyama helper
+fits a batched similarity transform between point sets:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.lie</span><span class="w"> </span><span class="kn">import</span> <span class="n">umeyama</span>
+
+<span class="n">source</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span>
+    <span class="p">[[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]],</span>
+    <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">target</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">source</span> <span class="o">+</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="n">weights</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="n">scale</span><span class="p">,</span> <span class="n">rotation</span><span class="p">,</span> <span class="n">translation</span> <span class="o">=</span> <span class="n">umeyama</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">weights</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The fitted rotation is proper: its determinant is <code class="docutils literal notranslate"><span class="pre">+1</span></code>. This is a data
+alignment helper, not a replacement for pose composition.</p>
+<p>Typed wrappers are useful at application boundaries where <code class="docutils literal notranslate"><span class="pre">SE3</span></code> conveys more
+meaning than “tensor ending in seven.” Raw algorithm storage remains tensor
+based so thousands of poses do not become thousands of Python objects.</p>
+</section>
+<section id="practical-rules">
+<h2>Practical rules<a class="headerlink" href="#practical-rules" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p>Normalize quaternions before they enter a long computation. Public FK can
+optionally diagnose clearly invalid free-flyer norms, but it does not
+normalize every call.</p></li>
+<li><p>Do not add or linearly interpolate quaternion components. Use SO(3)
+composition, logarithms, or spherical interpolation.</p></li>
+<li><p>Keep frame direction in the variable name: <code class="docutils literal notranslate"><span class="pre">T_world_tool</span></code> is easier to use
+correctly than <code class="docutils literal notranslate"><span class="pre">pose</span></code>.</p></li>
+<li><p>Remember that <code class="docutils literal notranslate"><span class="pre">nq</span></code> is storage width and <code class="docutils literal notranslate"><span class="pre">nv</span></code> is tangent width.</p></li>
+<li><p>Do not confuse Lie exponential Jacobians with robot frame Jacobians.</p></li>
 </ul>
 </section>
-<section id="spatial-value-types-spatial">
-<h2>Spatial value types — <code class="docutils literal notranslate"><span class="pre">spatial/</span></code><a class="headerlink" href="#spatial-value-types-spatial" title="Link to this heading">#</a></h2>
-<p>The 6D value types that dynamics consumes:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">Motion</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;6D twist: linear + angular velocity. Stored as (..., 6) [vx, vy, vz, wx, wy, wz].&quot;&quot;&quot;</span>
-    <span class="n">data</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
-
-    <span class="nd">@classmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">zero</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">batch_shape</span><span class="o">=</span><span class="p">(),</span> <span class="n">device</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Motion&quot;</span><span class="p">:</span> <span class="o">...</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">linear</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>  <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span>     <span class="c1"># (..., 3)</span>
-    <span class="nd">@property</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">angular</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span>     <span class="c1"># (..., 3)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">cross_motion</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="s2">&quot;Motion&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Motion&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Motion × Motion (spatial acceleration cross). Featherstone eq. (2.30).&quot;&quot;&quot;</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">cross_force</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="s2">&quot;Force&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Force&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Motion × Force (the ad* operator). Featherstone eq. (2.31).&quot;&quot;&quot;</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">se3_action</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">T</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Motion&quot;</span><span class="p">:</span> <span class="o">...</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">compose</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="s2">&quot;Motion&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Motion&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise sum (valid because Motion is a vector space).&quot;&quot;&quot;</span>
-</pre></div>
-</div>
-<p>Source: <code class="docutils literal notranslate"><span class="pre">src/better_robot/spatial/</span></code>.</p>
-<p>Two design choices stand out.</p>
-<p><strong>Operators are explicit.</strong> <code class="docutils literal notranslate"><span class="pre">+</span></code>, <code class="docutils literal notranslate"><span class="pre">-</span></code>, and <code class="docutils literal notranslate"><span class="pre">__neg__</span></code> are safe (Motion
-is a vector space) and implemented. <code class="docutils literal notranslate"><span class="pre">__mul__</span></code> is <strong>not</strong> implemented
-because it is ambiguous between leafwise scale and cross-product —
-the same footgun as on <code class="docutils literal notranslate"><span class="pre">SE3</span></code>. Users call <code class="docutils literal notranslate"><span class="pre">.cross_motion(...)</span></code>,
-<code class="docutils literal notranslate"><span class="pre">.cross_force(...)</span></code>, <code class="docutils literal notranslate"><span class="pre">.se3_action(...)</span></code> by name.</p>
-<p><strong><code class="docutils literal notranslate"><span class="pre">Force.cross_motion</span></code> raises <code class="docutils literal notranslate"><span class="pre">NotImplementedError</span></code> on purpose.</strong>
-<code class="docutils literal notranslate"><span class="pre">Force</span> <span class="pre">×</span> <span class="pre">Motion</span></code> is not a standard spatial-algebra operation. The
-dual that exists is <code class="docutils literal notranslate"><span class="pre">Motion.cross_force</span></code>, which is the <code class="docutils literal notranslate"><span class="pre">ad*</span></code> operator
-from Featherstone eq. (2.31). Adding a <code class="docutils literal notranslate"><span class="pre">Force.cross_motion</span></code> for
-“symmetry” would teach users a non-textbook algebra. The error
-message names the standard dual:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>NotImplementedError:
-    Force × Motion is not a standard spatial-algebra operation.
-    The dual that exists is Motion.cross_force(force) → Force,
-    which is the `ad*` operator (Featherstone eq. 2.31).
-</pre></div>
-</div>
-<p><code class="docutils literal notranslate"><span class="pre">Inertia</span></code> is the third value type — a typed view over a packed
-<code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">10)</span></code> tensor with layout
-<code class="docutils literal notranslate"><span class="pre">[mass,</span> <span class="pre">cx,</span> <span class="pre">cy,</span> <span class="pre">cz,</span> <span class="pre">Ixx,</span> <span class="pre">Iyy,</span> <span class="pre">Izz,</span> <span class="pre">Ixy,</span> <span class="pre">Ixz,</span> <span class="pre">Iyz]</span></code>. Factories
-(<code class="docutils literal notranslate"><span class="pre">from_sphere</span></code>, <code class="docutils literal notranslate"><span class="pre">from_box</span></code>, <code class="docutils literal notranslate"><span class="pre">from_capsule</span></code>, <code class="docutils literal notranslate"><span class="pre">from_ellipsoid</span></code>,
-<code class="docutils literal notranslate"><span class="pre">from_mass_com_matrix</span></code>) exist for the common cases. <code class="docutils literal notranslate"><span class="pre">from_mesh</span></code> performs
-batched, differentiable signed-tetrahedron integration over a closed,
-consistently wound triangle surface; it accepts either global winding and
-keeps gradients to vertices and uniform density entirely in Torch. Methods accept
-the typed wrapper or the raw tensor; methods that return an inertia
-return the typed wrapper.</p>
-</section>
-<section id="why-the-split-lie-is-functional-spatial-adds-wrappers">
-<h2>Why the split — <code class="docutils literal notranslate"><span class="pre">lie/</span></code> is functional, <code class="docutils literal notranslate"><span class="pre">spatial/</span></code> adds wrappers<a class="headerlink" href="#why-the-split-lie-is-functional-spatial-adds-wrappers" title="Link to this heading">#</a></h2>
-<p>Pinocchio’s <code class="docutils literal notranslate"><span class="pre">SE3</span></code> class with overloaded <code class="docutils literal notranslate"><span class="pre">operator*</span></code> (across <code class="docutils literal notranslate"><span class="pre">SE3</span></code>,
-<code class="docutils literal notranslate"><span class="pre">Motion</span></code>, <code class="docutils literal notranslate"><span class="pre">Force</span></code>, <code class="docutils literal notranslate"><span class="pre">Inertia</span></code>) is elegant in C++ but turns into
-footguns in Python:</p>
+<section id="where-to-continue">
+<h2>Where to continue<a class="headerlink" href="#where-to-continue" title="Link to this heading">#</a></h2>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">Tensor.__mul__</span></code> ambiguity (the brax lesson).</p></li>
-<li><p>Hidden autograd graph surgery when value types wrap a <code class="docutils literal notranslate"><span class="pre">torch.Tensor</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">__torch_function__</span></code> subclass drift on tensor subclasses (the
-PyPose lesson).</p></li>
-</ul>
-<p>So <code class="docutils literal notranslate"><span class="pre">lie/</span></code> stays functional over plain tensors — direct, autograd-clean, and
-<code class="docutils literal notranslate"><span class="pre">torch.compile</span></code>-friendly. <code class="docutils literal notranslate"><span class="pre">spatial/</span></code>
-provides shallow value-type wrappers with explicit named methods for
-code that reads cleaner with them (notably <code class="docutils literal notranslate"><span class="pre">dynamics/</span></code>). Kinematics
-works directly on tensors; dynamics uses <code class="docutils literal notranslate"><span class="pre">Motion</span></code> / <code class="docutils literal notranslate"><span class="pre">Force</span></code> / <code class="docutils literal notranslate"><span class="pre">Inertia</span></code>
-for readability.</p>
-</section>
-<section id="sharp-edges">
-<h2>Sharp edges<a class="headerlink" href="#sharp-edges" title="Link to this heading">#</a></h2>
-<ul class="simple">
-<li><p>Quaternions are scalar-last <code class="docutils literal notranslate"><span class="pre">[qx,</span> <span class="pre">qy,</span> <span class="pre">qz,</span> <span class="pre">qw]</span></code>. Code that expects
-scalar-first will silently produce wrong rotations; the contract
-test <code class="docutils literal notranslate"><span class="pre">test_no_legacy_strings.py</span></code> catches the literal in <code class="docutils literal notranslate"><span class="pre">src/</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">lie.se3.log</span></code> returns a 6-vector with <strong>linear first</strong>, not angular
-first. If you compute <code class="docutils literal notranslate"><span class="pre">xi</span> <span class="pre">=</span> <span class="pre">T.log()</span></code> and pull out the angular part,
-it is <code class="docutils literal notranslate"><span class="pre">xi[...,</span> <span class="pre">3:6]</span></code>, not <code class="docutils literal notranslate"><span class="pre">xi[...,</span> <span class="pre">:3]</span></code>.</p></li>
-<li><p>Storage on <code class="docutils literal notranslate"><span class="pre">Model</span></code> and <code class="docutils literal notranslate"><span class="pre">Data</span></code> is raw tensors, not <code class="docutils literal notranslate"><span class="pre">SE3</span></code> instances.
-Boxing every entry of <code class="docutils literal notranslate"><span class="pre">(B...,</span> <span class="pre">njoints,</span> <span class="pre">7)</span></code> would be unreasonable;
-the typed wrapper is for user-facing call sites only.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">gradcheck</span></code> for the math layer runs at fp64. fp32 is the production
-default but the gradient correctness proofs use fp64 to avoid the
-numerical noise.</p></li>
-</ul>
-</section>
-<section id="where-to-look-next">
-<h2>Where to look next<a class="headerlink" href="#where-to-look-next" title="Link to this heading">#</a></h2>
-<ul class="simple">
-<li><p><a class="reference internal" href="kinematics.html"><span class="doc">Kinematics</span></a> — how the FK loop calls <code class="docutils literal notranslate"><span class="pre">lie.se3.compose</span></code> for
-every joint in <code class="docutils literal notranslate"><span class="pre">topo_order</span></code>.</p></li>
-<li><p><a class="reference internal" href="batching_and_backends.html"><span class="doc">Batching and Compute Lanes</span></a> — the structure/value seam and explicit
-whole-pass compute lanes.</p></li>
-<li><p><a class="reference internal" href="../conventions/contracts.html"><span class="doc">Contracts &amp; Validation</span></a> §1.3 — the quaternion-norm input
-contract.</p></li>
+<li><p><a class="reference internal" href="joints_bodies_frames.html"><span class="doc">Joints, bodies, and frames</span></a> applies these manifolds to every joint kind.</p></li>
+<li><p><a class="reference internal" href="kinematics_and_jacobians.html"><span class="doc">Kinematics and Jacobians</span></a> composes joint transforms and explains robot
+Jacobians.</p></li>
+<li><p><a class="reference internal" href="dynamics.html"><span class="doc">Dynamics</span></a> uses spatial motion, force, and inertia.</p></li>
+<li><p><a class="reference internal" href="the_compute_seam.html"><span class="doc">The Compute Seam</span></a> explains how the tensor functions participate in a
+whole-pass implementation.</p></li>
 </ul>
 </section>
 </section>
@@ -986,15 +833,15 @@ contract.</p></li>
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Joints, Bodies, and Frames</p>
+        <p class="prev-next-title">Joints, bodies, and frames</p>
       </div>
     </a>
     <a class="right-next"
-       href="parsers_and_ir.html"
+       href="kinematics_and_jacobians.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Parsers and the IR</p>
+        <p class="prev-next-title">Kinematics and Jacobians</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -1016,17 +863,17 @@ contract.</p></li>
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#storage-convention">Storage convention</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-functional-api">The functional API</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#interchange-and-point-set-alignment">Interchange and point-set alignment</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#singularity-handling">Singularity handling</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#quaternion-double-cover">Quaternion double cover</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#numerical-evidence">Numerical evidence</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#typed-value-classes-lie-types-py">Typed value classes — <code class="docutils literal notranslate"><span class="pre">lie/types.py</span></code></a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#spatial-value-types-spatial">Spatial value types — <code class="docutils literal notranslate"><span class="pre">spatial/</span></code></a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#why-the-split-lie-is-functional-spatial-adds-wrappers">Why the split — <code class="docutils literal notranslate"><span class="pre">lie/</span></code> is functional, <code class="docutils literal notranslate"><span class="pre">spatial/</span></code> adds wrappers</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sharp-edges">Sharp edges</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#where-to-look-next">Where to look next</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#a-rotation-quaternion-in-plain-words">A rotation quaternion in plain words</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#a-pose-and-se-3">A pose and SE(3)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tangents-and-twists">Tangents and twists</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#storage-conventions">Storage conventions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#functional-lie-operations">Functional Lie operations</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#exponential-and-logarithm-jacobians">Exponential and logarithm Jacobians</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#singularities-and-numerical-branches">Singularities and numerical branches</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#spatial-motion-force-and-inertia">Spatial motion, force, and inertia</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#matrices-alignment-and-typed-views">Matrices, alignment, and typed views</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#practical-rules">Practical rules</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#where-to-continue">Where to continue</a></li>
 </ul>
   </nav></div>
 
@@ -1060,7 +907,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 18, 2026.
+  Last updated on Jul 19, 2026.
   <br/>
 </p>
   </div>

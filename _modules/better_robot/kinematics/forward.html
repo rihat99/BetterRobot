@@ -54,7 +54,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 18, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
   </head>
   
   
@@ -158,41 +158,44 @@
 </button></div>
         <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
     <div class="bd-toc-item navbar-nav active">
-        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get started</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../getting_started/index.html">Getting started</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../getting_started/installation.html">Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/forward_kinematics.html">Forward kinematics on Panda</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/inverse_kinematics.html">Inverse kinematics on Panda</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/floating_base.html">Floating-base IK on the G1 humanoid</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/01_robot_model.html">Meet the robot model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/02_forward_kinematics.html">Forward kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/03_inverse_kinematics.html">Inverse kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/04_floating_base.html">Floating-base robots</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/05_batched_gpu.html">Batching and the GPU</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">How-to guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/custom_residual.html">Write a custom residual</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/load_a_robot.html">Load a robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/visualize.html">Visualize a robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/differentiate_through_kinematics.html">Differentiate through kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/own_your_optimization_loop.html">Own your optimization loop</a></li>
 </ul>
 </details></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Concepts</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../concepts/index.html">Concepts</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/vision.html">Vision</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/why_betterrobot.html">Why BetterRobot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/design_decisions.html">Design decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/architecture.html">Architecture</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/model_and_data.html">Model and Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/joints_bodies_frames.html">Joints, Bodies, and Frames</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Lie Groups and Spatial Algebra</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the IR</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics.html">Kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/joints_bodies_frames.html">Joints, bodies, and frames</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_and_costs.html">Residuals and Costs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/solver_stack.html">Named-Block Evaluation and the Legacy Solver Stack</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/tasks.html">Tasks — IK and Trajectory Optimisation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/collision_and_geometry.html">Collision and Geometry</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/batching_and_backends.html">Batching and Compute Lanes</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/warp_bridge.html">Torch–Warp bridge and opt-in FK lane</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/the_compute_seam.html">The Compute Seam</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
-</ul>
-</details></li>
-</ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Guides</span></p>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1 has-children"><a class="reference internal" href="../../../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../guides/custom_residuals.html">Write a custom block residual</a></li>
 </ul>
 </details></li>
 </ul>
@@ -200,14 +203,13 @@
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../conventions/index.html">Conventions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/naming.html">Naming</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/performance.html">Performance</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/extension.html">Extension Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/contracts.html">Contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/extension.html">Extension points</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/testing.html">Testing</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/contracts.html">Contracts &amp; Validation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/engineering.html">Engineering Contract</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/source_and_license.html">Source and License Decision Memo</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/style.html">Coding Style</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/performance.html">Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/style.html">Coding style</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/packaging.html">Packaging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/source_and_license.html">Source and license</a></li>
 </ul>
 </details></li>
 </ul>
@@ -242,8 +244,6 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.human.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.human</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.manipulability.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.manipulability</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.collision</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
@@ -279,18 +279,17 @@
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.strategies.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.strategies</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.implicit.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.implicit</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.cost_stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.cost_stack</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.state.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.state</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.structure</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.costs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.costs.stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.stack</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -312,7 +311,6 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.kinematics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.kinematics.jacobian.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.kinematics.jacobian_strategy.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian_strategy</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.kinematics.forward.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.forward</span></code></a></li>
 </ul>
 </details></li>
@@ -334,16 +332,13 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.exceptions.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.exceptions</span></code></a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../reference/named_block_solvers.html">Named-block solver API</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../reference/changelog.html">Changelog</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../reference/roadmap.html">Roadmap</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../reference/m1_removed_symbols.html">M1 removed surfaces</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../reference/m3_removed_symbols.html">M3.5 removed surfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../reference/glossary.html">Glossary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/collision_and_geometry.html">Collision and geometry status</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/roadmap.html">Roadmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/changelog.html">Changelog</a></li>
 </ul>
 </details></li>
 </ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Project Links</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/rihat99/BetterRobot">GitHub</a></li>
 </ul>
@@ -500,10 +495,12 @@
 <span class="sd">``model.topo_order`` and calls ``joint_models[j].joint_transform``. A</span>
 <span class="sd">free-flyer root is not a special case — it&#39;s the joint at index 1.</span>
 
-<span class="sd">See ``docs/concepts/kinematics.md §2``.</span>
+<span class="sd">See ``docs/concepts/kinematics_and_jacobians.md``.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 
@@ -529,6 +526,27 @@
 <span class="n">_QUAT_NORM_TOL</span> <span class="o">=</span> <span class="mf">0.1</span>
 
 
+<div class="viewcode-block" id="FKResult">
+<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.kinematics.forward.html#better_robot.kinematics.forward.FKResult">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">FKResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fresh world- and parent-frame joint placements from raw FK.&quot;&quot;&quot;</span>
+
+    <span class="n">joint_pose_world</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
+    <span class="n">joint_pose_local</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span></div>
+
+
+
+<div class="viewcode-block" id="FramePlacementsResult">
+<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.kinematics.forward.html#better_robot.kinematics.forward.FramePlacementsResult">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">FramePlacementsResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fresh world-frame placements from :func:`frame_placements_raw`.&quot;&quot;&quot;</span>
+
+    <span class="n">frame_pose_world</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span></div>
+
+
+
 <span class="k">def</span><span class="w"> </span><span class="nf">_validate_q</span><span class="p">(</span>
     <span class="n">structure</span><span class="p">:</span> <span class="n">ModelStructure</span><span class="p">,</span>
     <span class="n">values</span><span class="p">:</span> <span class="n">ModelValues</span><span class="p">,</span>
@@ -547,7 +565,6 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">q</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">q</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">structure</span><span class="o">.</span><span class="n">nq</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">ShapeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;q has shape </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2">; expected trailing size model.nq=</span><span class="si">{</span><span class="n">structure</span><span class="o">.</span><span class="n">nq</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="n">values</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">q</span><span class="o">.</span><span class="n">dtype</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">):</span>
         <span class="k">raise</span> <span class="n">DtypeMismatchError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;q.dtype=</span><span class="si">{</span><span class="n">q</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2"> is unsupported; use torch.float32 or torch.float64&quot;</span><span class="p">)</span>
     <span class="n">model_dtype</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">joint_placements</span><span class="o">.</span><span class="n">dtype</span>
@@ -588,8 +605,8 @@
     <span class="n">structure</span><span class="p">:</span> <span class="n">ModelStructure</span><span class="p">,</span>
     <span class="n">values</span><span class="p">:</span> <span class="n">ModelValues</span><span class="p">,</span>
     <span class="n">q</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Tensor-only FK primitive — returns world/local joint placements.</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FKResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Tensor-only FK primitive returning named world/local placements.</span>
 
 <span class="sd">    Autograd-safe: uses list accumulation + ``torch.stack`` instead of</span>
 <span class="sd">    in-place writes so the backward pass can trace through every SE3</span>
@@ -603,10 +620,11 @@
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
-<span class="sd">    joint_pose_world : (B..., njoints, 7)</span>
-<span class="sd">        World-frame joint placements (the quantity historically called ``oMi``).</span>
-<span class="sd">    joint_pose_local : (B..., njoints, 7)</span>
-<span class="sd">        Parent-frame joint placements (``liMi``).</span>
+<span class="sd">    FKResult</span>
+<span class="sd">        ``joint_pose_world`` has shape ``(B..., njoints, 7)`` and contains</span>
+<span class="sd">        world-frame joint placements (the quantity historically called</span>
+<span class="sd">        ``oMi``). ``joint_pose_local`` has the same shape and contains</span>
+<span class="sd">        parent-frame joint placements (``liMi``).</span>
 
 <span class="sd">    Notes</span>
 <span class="sd">    -----</span>
@@ -616,7 +634,7 @@
 <span class="sd">    :func:`forward_kinematics` with ``check_quaternion_norm=True`` to run the</span>
 <span class="sd">    opt-in debug check before calling this hot-path primitive.</span>
 
-<span class="sd">    See docs/concepts/kinematics.md §6 and docs/conventions/naming.md for the rename.</span>
+<span class="sd">    See docs/concepts/kinematics_and_jacobians.md and docs/conventions/naming.md.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">batch_shape</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">_execution_batch_shape</span><span class="p">(</span><span class="n">q</span><span class="p">)</span>
     <span class="n">q</span> <span class="o">=</span> <span class="n">broadcast_to_execution_batch</span><span class="p">(</span>
@@ -665,7 +683,10 @@
     <span class="n">stack_dim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">batch_shape</span><span class="p">)</span>
     <span class="n">joint_pose_world</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">world_list</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="n">stack_dim</span><span class="p">)</span>  <span class="c1"># (B..., njoints, 7)</span>
     <span class="n">joint_pose_local</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">local_list</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="n">stack_dim</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">joint_pose_world</span><span class="p">,</span> <span class="n">joint_pose_local</span></div>
+    <span class="k">return</span> <span class="n">FKResult</span><span class="p">(</span>
+        <span class="n">joint_pose_world</span><span class="o">=</span><span class="n">joint_pose_world</span><span class="p">,</span>
+        <span class="n">joint_pose_local</span><span class="o">=</span><span class="n">joint_pose_local</span><span class="p">,</span>
+    <span class="p">)</span></div>
 
 
 
@@ -705,7 +726,7 @@
 <span class="sd">        ``Data`` with ``joint_pose_local`` and ``joint_pose_world`` populated</span>
 <span class="sd">        (and ``frame_pose_world`` if ``compute_frames=True``).</span>
 
-<span class="sd">    See docs/concepts/kinematics.md §2.</span>
+<span class="sd">    See docs/concepts/kinematics_and_jacobians.md.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">q_or_data</span><span class="p">,</span> <span class="n">Data</span><span class="p">):</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">q_or_data</span>
@@ -743,7 +764,9 @@
         <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
             <span class="n">warp_result</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="k">if</span> <span class="n">warp_result</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">joint_pose_world</span><span class="p">,</span> <span class="n">joint_pose_local</span> <span class="o">=</span> <span class="n">forward_kinematics_raw</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
+        <span class="n">fk_result</span> <span class="o">=</span> <span class="n">forward_kinematics_raw</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
+        <span class="n">joint_pose_world</span> <span class="o">=</span> <span class="n">fk_result</span><span class="o">.</span><span class="n">joint_pose_world</span>
+        <span class="n">joint_pose_local</span> <span class="o">=</span> <span class="n">fk_result</span><span class="o">.</span><span class="n">joint_pose_local</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">joint_pose_world</span><span class="p">,</span> <span class="n">joint_pose_local</span> <span class="o">=</span> <span class="n">warp_result</span><span class="o">.</span><span class="n">world</span><span class="p">,</span> <span class="n">warp_result</span><span class="o">.</span><span class="n">local</span>
     <span class="n">data</span><span class="o">.</span><span class="n">joint_pose_world</span> <span class="o">=</span> <span class="n">joint_pose_world</span>
@@ -757,7 +780,7 @@
             <span class="n">model</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span>
             <span class="n">model</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
             <span class="n">joint_pose_world</span><span class="p">,</span>
-        <span class="p">)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">frame_pose_world</span>
 
     <span class="k">return</span> <span class="n">data</span></div>
 
@@ -772,13 +795,16 @@
 <span class="sd">    Requires ``data.joint_pose_world`` to be populated (call</span>
 <span class="sd">    :func:`forward_kinematics` first).</span>
 
-<span class="sd">    See docs/concepts/kinematics.md §2.</span>
+<span class="sd">    See docs/concepts/kinematics_and_jacobians.md.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">joint_pose_world</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">joint_pose_world</span>
     <span class="k">assert</span> <span class="n">joint_pose_world</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;call forward_kinematics before update_frame_placements&quot;</span>
 
-    <span class="n">model</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">structure</span><span class="p">)</span>
-    <span class="n">data</span><span class="o">.</span><span class="n">frame_pose_world</span> <span class="o">=</span> <span class="n">frame_placements_raw</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">joint_pose_world</span><span class="p">)</span>
+    <span class="n">data</span><span class="o">.</span><span class="n">frame_pose_world</span> <span class="o">=</span> <span class="n">frame_placements_raw</span><span class="p">(</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+        <span class="n">joint_pose_world</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">frame_pose_world</span>
     <span class="k">return</span> <span class="n">data</span></div>
 
 
@@ -789,7 +815,7 @@
     <span class="n">structure</span><span class="p">:</span> <span class="n">ModelStructure</span><span class="p">,</span>
     <span class="n">values</span><span class="p">:</span> <span class="n">ModelValues</span><span class="p">,</span>
     <span class="n">joint_pose_world</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FramePlacementsResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Place frames from prevalidated structure/value tensors.&quot;&quot;&quot;</span>
 
     <span class="n">batch_shape</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">joint_pose_world</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
@@ -801,7 +827,7 @@
         <span class="p">(</span><span class="n">structure</span><span class="o">.</span><span class="n">nframes</span><span class="p">,</span> <span class="mi">7</span><span class="p">),</span>
         <span class="n">name</span><span class="o">=</span><span class="s2">&quot;frame_placements&quot;</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="k">return</span> <span class="n">se3</span><span class="o">.</span><span class="n">compose</span><span class="p">(</span><span class="n">parent_poses</span><span class="p">,</span> <span class="n">local</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">FramePlacementsResult</span><span class="p">(</span><span class="n">frame_pose_world</span><span class="o">=</span><span class="n">se3</span><span class="o">.</span><span class="n">compose</span><span class="p">(</span><span class="n">parent_poses</span><span class="p">,</span> <span class="n">local</span><span class="p">))</span></div>
 
 </pre></div>
 
@@ -850,7 +876,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 18, 2026.
+  Last updated on Jul 19, 2026.
   <br/>
 </p>
   </div>

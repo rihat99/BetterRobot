@@ -23,10 +23,6 @@
   - ```{autodoc2-docstring} better_robot.residuals.limits.JointVelocityLimit
     :summary:
     ```
-* - {py:obj}`JointAccelLimit <better_robot.residuals.limits.JointAccelLimit>`
-  - ```{autodoc2-docstring} better_robot.residuals.limits.JointAccelLimit
-    :summary:
-    ```
 ````
 
 ### API
@@ -58,14 +54,6 @@
 
 ````
 
-````{py:method} jacobian(value: better_robot.residuals.base.ResidualState | collections.abc.Mapping[str, typing.Any]) -> torch.Tensor | None
-:canonical: better_robot.residuals.limits.JointPositionLimit.jacobian
-
-```{autodoc2-docstring} better_robot.residuals.limits.JointPositionLimit.jacobian
-```
-
-````
-
 ````{py:method} jacobian_blocks(ctx: collections.abc.Mapping[str, typing.Any]) -> dict[str, torch.Tensor]
 :canonical: better_robot.residuals.limits.JointPositionLimit.jacobian_blocks
 
@@ -93,39 +81,12 @@
 
 ````
 
-````{py:method} jacobian(state: better_robot.residuals.base.ResidualState) -> torch.Tensor | None
-:canonical: better_robot.residuals.limits.JointVelocityLimit.jacobian
-:abstractmethod:
-
-```{autodoc2-docstring} better_robot.residuals.limits.JointVelocityLimit.jacobian
-```
-
-````
-
-`````
-
-`````{py:class} JointAccelLimit(model: better_robot.data_model.model.Model, *, weight: float = 1.0)
-:canonical: better_robot.residuals.limits.JointAccelLimit
-
-```{autodoc2-docstring} better_robot.residuals.limits.JointAccelLimit
-```
-
-````{py:attribute} name
-:canonical: better_robot.residuals.limits.JointAccelLimit.name
-:type: str
+````{py:attribute} reads
+:canonical: better_robot.residuals.limits.JointVelocityLimit.reads
 :value: >
-   'joint_accel_limit'
+   ('q', 'data')
 
-```{autodoc2-docstring} better_robot.residuals.limits.JointAccelLimit.name
-```
-
-````
-
-````{py:method} jacobian(state: better_robot.residuals.base.ResidualState) -> torch.Tensor | None
-:canonical: better_robot.residuals.limits.JointAccelLimit.jacobian
-:abstractmethod:
-
-```{autodoc2-docstring} better_robot.residuals.limits.JointAccelLimit.jacobian
+```{autodoc2-docstring} better_robot.residuals.limits.JointVelocityLimit.reads
 ```
 
 ````

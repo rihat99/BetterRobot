@@ -49,15 +49,16 @@
     <script src="../_static/copybutton.js?v=c57da192"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'concepts/dynamics';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Residuals and Costs" href="residuals_and_costs.html" />
-    <link rel="prev" title="Kinematics" href="kinematics.html" />
+    <link rel="next" title="Residuals, Costs, and Solvers" href="residuals_costs_and_solvers.html" />
+    <link rel="prev" title="Kinematics and Jacobians" href="kinematics_and_jacobians.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 18, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
   </head>
   
   
@@ -159,41 +160,44 @@
 </button></div>
         <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
     <div class="bd-toc-item navbar-nav active">
-        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get started</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../getting_started/index.html">Getting started</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/installation.html">Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/forward_kinematics.html">Forward kinematics on Panda</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/inverse_kinematics.html">Inverse kinematics on Panda</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/floating_base.html">Floating-base IK on the G1 humanoid</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/01_robot_model.html">Meet the robot model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/02_forward_kinematics.html">Forward kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/03_inverse_kinematics.html">Inverse kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/04_floating_base.html">Floating-base robots</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/05_batched_gpu.html">Batching and the GPU</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">How-to guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../guides/custom_residual.html">Write a custom residual</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/load_a_robot.html">Load a robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/visualize.html">Visualize a robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/differentiate_through_kinematics.html">Differentiate through kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/own_your_optimization_loop.html">Own your optimization loop</a></li>
 </ul>
 </details></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Concepts</span></p>
 <ul class="current nav bd-sidenav">
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="index.html">Concepts</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="vision.html">Vision</a></li>
+<li class="toctree-l2"><a class="reference internal" href="why_betterrobot.html">Why BetterRobot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="design_decisions.html">Design decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="architecture.html">Architecture</a></li>
 <li class="toctree-l2"><a class="reference internal" href="model_and_data.html">Model and Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="joints_bodies_frames.html">Joints, Bodies, and Frames</a></li>
-<li class="toctree-l2"><a class="reference internal" href="lie_and_spatial.html">Lie Groups and Spatial Algebra</a></li>
-<li class="toctree-l2"><a class="reference internal" href="parsers_and_ir.html">Parsers and the IR</a></li>
-<li class="toctree-l2"><a class="reference internal" href="kinematics.html">Kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="joints_bodies_frames.html">Joints, bodies, and frames</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="residuals_and_costs.html">Residuals and Costs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="solver_stack.html">Named-Block Evaluation and the Legacy Solver Stack</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tasks.html">Tasks — IK and Trajectory Optimisation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="collision_and_geometry.html">Collision and Geometry</a></li>
-<li class="toctree-l2"><a class="reference internal" href="batching_and_backends.html">Batching and Compute Lanes</a></li>
-<li class="toctree-l2"><a class="reference internal" href="warp_bridge.html">Torch–Warp bridge and opt-in FK lane</a></li>
+<li class="toctree-l2"><a class="reference internal" href="residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="the_compute_seam.html">The Compute Seam</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="viewer.html">Viewer</a></li>
-</ul>
-</details></li>
-</ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Guides</span></p>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1 has-children"><a class="reference internal" href="../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../guides/custom_residuals.html">Write a custom block residual</a></li>
 </ul>
 </details></li>
 </ul>
@@ -201,14 +205,13 @@
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../conventions/index.html">Conventions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../conventions/naming.html">Naming</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../conventions/performance.html">Performance</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../conventions/extension.html">Extension Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/contracts.html">Contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/extension.html">Extension points</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../conventions/testing.html">Testing</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../conventions/contracts.html">Contracts &amp; Validation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../conventions/engineering.html">Engineering Contract</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../conventions/source_and_license.html">Source and License Decision Memo</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../conventions/style.html">Coding Style</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/performance.html">Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/style.html">Coding style</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../conventions/packaging.html">Packaging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/source_and_license.html">Source and license</a></li>
 </ul>
 </details></li>
 </ul>
@@ -243,8 +246,6 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.human.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.human</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.manipulability.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.manipulability</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.collision</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
@@ -280,18 +281,17 @@
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.strategies.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.strategies</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.implicit.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.implicit</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.cost_stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.cost_stack</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.state.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.state</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.structure</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.stack</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -313,7 +313,6 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian_strategy.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian_strategy</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.forward.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.forward</span></code></a></li>
 </ul>
 </details></li>
@@ -335,16 +334,13 @@
 <li class="toctree-l3"><a class="reference internal" href="../reference/api/better_robot/better_robot.exceptions.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.exceptions</span></code></a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/named_block_solvers.html">Named-block solver API</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/changelog.html">Changelog</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/roadmap.html">Roadmap</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/m1_removed_symbols.html">M1 removed surfaces</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/m3_removed_symbols.html">M3.5 removed surfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/collision_and_geometry.html">Collision and geometry status</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/roadmap.html">Roadmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/changelog.html">Changelog</a></li>
 </ul>
 </details></li>
 </ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Project Links</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/rihat99/BetterRobot">GitHub</a></li>
 </ul>
@@ -556,17 +552,12 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#entry-points">Entry points</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#canonical-signatures">Canonical signatures</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#centroidal">Centroidal</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#derivatives">Derivatives</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-jointmodel-dynamics-hooks">The <code class="docutils literal notranslate"><span class="pre">JointModel</span></code> dynamics hooks</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optimal-control-action-models">Optimal-control action models</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#statemanifold-the-crocoddyl-lesson"><code class="docutils literal notranslate"><span class="pre">StateManifold</span></code> — the Crocoddyl lesson</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#integrators">Integrators</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#forward-and-derivative-ownership">Forward and derivative ownership</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sharp-edges">Sharp edges</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#where-to-look-next">Where to look next</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-three-central-equations">The three central equations</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#return-values-and-workspaces">Return values and workspaces</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#centroidal-quantities">Centroidal quantities</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#differentiation">Differentiation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configuration-integration-is-not-simulation">Configuration integration is not simulation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#numerical-anchors">Numerical anchors</a></li>
 </ul>
             </nav>
         </div>
@@ -580,308 +571,107 @@
                   
   <section id="dynamics">
 <h1>Dynamics<a class="headerlink" href="#dynamics" title="Link to this heading">#</a></h1>
-<p>The dynamics layer is where rigid-body physics meets numerical
-discipline. RNEA computes inverse dynamics (<code class="docutils literal notranslate"><span class="pre">τ</span> <span class="pre">=</span> <span class="pre">M(q)</span> <span class="pre">a</span> <span class="pre">+</span> <span class="pre">b(q,</span> <span class="pre">v)</span> <span class="pre">+</span> <span class="pre">g(q)</span></code>); ABA computes forward dynamics (<code class="docutils literal notranslate"><span class="pre">q̈</span></code> from <code class="docutils literal notranslate"><span class="pre">τ</span></code>); CRBA computes
-the joint-space inertia matrix <code class="docutils literal notranslate"><span class="pre">M(q)</span></code>; CCRBA computes the centroidal
-momentum matrix; derivative helpers expose <code class="docutils literal notranslate"><span class="pre">∂τ/∂q</span></code>, <code class="docutils literal notranslate"><span class="pre">∂a/∂τ</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">∂M/∂q</span></code> through PyTorch autograd. Analytic rigid-body derivative recursions and
-centroidal-dynamics derivatives remain future work.</p>
-<p>We kept Pinocchio’s algorithm names verbatim (<code class="docutils literal notranslate"><span class="pre">rnea</span></code>, <code class="docutils literal notranslate"><span class="pre">aba</span></code>, <code class="docutils literal notranslate"><span class="pre">crba</span></code>,
-<code class="docutils literal notranslate"><span class="pre">ccrba</span></code>) because every textbook on rigid-body dynamics uses them,
-and renaming them would force readers to look up the equivalence
-every time. We replaced Pinocchio’s storage shorthand
-(<code class="docutils literal notranslate"><span class="pre">oMi</span></code>, <code class="docutils literal notranslate"><span class="pre">oMf</span></code>, <code class="docutils literal notranslate"><span class="pre">liMi</span></code>, <code class="docutils literal notranslate"><span class="pre">nle</span></code>, <code class="docutils literal notranslate"><span class="pre">Ag</span></code>) with self-describing identifiers
-(<code class="docutils literal notranslate"><span class="pre">joint_pose_world</span></code>, <code class="docutils literal notranslate"><span class="pre">frame_pose_world</span></code>, <code class="docutils literal notranslate"><span class="pre">joint_pose_local</span></code>,
-<code class="docutils literal notranslate"><span class="pre">bias_forces</span></code>, <code class="docutils literal notranslate"><span class="pre">centroidal_momentum_matrix</span></code>). The names that matter
-to the reader of a dynamics formula keep their math shape; the names
-that matter only to the call site are spelled out.</p>
-<p>The Featherstone passes are live: RNEA, ABA, CRBA, CCRBA, the centroidal map
-and momentum, COM position and velocity, and the autograd-derived
+<p>Kinematics describes motion without asking what caused it. Dynamics connects
+that motion to mass and force. BetterRobot implements the standard recursive
+rigid-body algorithms from Featherstone and keeps their familiar names:</p>
+<ul class="simple">
+<li><p><strong>RNEA</strong> is inverse dynamics: given position, velocity, and acceleration,
+compute the required joint torque.</p></li>
+<li><p><strong>ABA</strong> is forward dynamics: given position, velocity, and joint torque,
+compute joint acceleration.</p></li>
+<li><p><strong>CRBA</strong> computes the joint-space mass matrix.</p></li>
+<li><p><strong>CCRBA</strong> computes the centroidal momentum map and momentum.</p></li>
+</ul>
+<p>The names are terse because they are the names used in textbooks and other
+robotics libraries. Result fields use descriptive names such as
+<code class="docutils literal notranslate"><span class="pre">mass_matrix</span></code>, <code class="docutils literal notranslate"><span class="pre">bias_forces</span></code>, and <code class="docutils literal notranslate"><span class="pre">centroidal_momentum</span></code>.</p>
+<p>For a detailed derivation, see Featherstone’s
+<a class="reference external" href="https://royfeatherstone.org/spatial/v2/">Rigid Body Dynamics Algorithms</a>
+or Pinocchio’s
+<a class="reference external" href="https://docs.ros.org/en/rolling/p/pinocchio/">algorithm documentation</a>.</p>
+<section id="the-three-central-equations">
+<h2>The three central equations<a class="headerlink" href="#the-three-central-equations" title="Link to this heading">#</a></h2>
+<p>Inverse dynamics evaluates</p>
+<div class="math notranslate nohighlight">
+\[\tau = M(q)\,a + b(q, v),\]</div>
+<p>where <code class="docutils literal notranslate"><span class="pre">M(q)</span></code> is the mass matrix and <code class="docutils literal notranslate"><span class="pre">b(q,</span> <span class="pre">v)</span></code> contains Coriolis,
+centrifugal, and gravity effects. <code class="docutils literal notranslate"><span class="pre">rnea(model,</span> <span class="pre">q,</span> <span class="pre">v,</span> <span class="pre">a)</span></code> returns <code class="docutils literal notranslate"><span class="pre">tau</span></code>.
+External joint wrenches can be supplied with <code class="docutils literal notranslate"><span class="pre">fext=</span></code>.</p>
+<p>Forward dynamics solves the same relationship for acceleration:</p>
+<div class="math notranslate nohighlight">
+\[a = M(q)^{-1}\left(\tau - b(q, v)\right).\]</div>
+<p><code class="docutils literal notranslate"><span class="pre">aba(model,</span> <span class="pre">q,</span> <span class="pre">v,</span> <span class="pre">tau)</span></code> computes it without explicitly forming and inverting
+the mass matrix. Use <code class="docutils literal notranslate"><span class="pre">crba(model,</span> <span class="pre">q)</span></code> when the matrix itself is the desired
+quantity.</p>
+<p><code class="docutils literal notranslate"><span class="pre">bias_forces(model,</span> <span class="pre">q,</span> <span class="pre">v)</span></code> returns <code class="docutils literal notranslate"><span class="pre">b(q,</span> <span class="pre">v)</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">compute_generalized_gravity(model,</span> <span class="pre">q)</span></code> returns its gravity-only part. There
+is no separate public Coriolis matrix because most callers need its product
+with velocity, not the matrix.</p>
+</section>
+<section id="return-values-and-workspaces">
+<h2>Return values and workspaces<a class="headerlink" href="#return-values-and-workspaces" title="Link to this heading">#</a></h2>
+<p>Public dynamics functions return their main tensor. They allocate temporary
+workspace internally. Pass <code class="docutils literal notranslate"><span class="pre">data=some_data</span></code> when later work also needs the
+intermediate poses, velocities, or named result fields; the exact object you
+provide is populated.</p>
+<p>Tensor shapes follow the same leading-batch rule as kinematics:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>q                                  (batch..., nq)
+v, a, tau, bias                    (batch..., nv)
+mass matrix                        (batch..., nv, nv)
+external joint wrenches            (batch..., njoints, 6)
+</pre></div>
+</div>
+<p>External wrenches are expressed in each joint’s local coordinates. Check a
+function’s API reference before mixing quantities from different frames.</p>
+</section>
+<section id="centroidal-quantities">
+<h2>Centroidal quantities<a class="headerlink" href="#centroidal-quantities" title="Link to this heading">#</a></h2>
+<p>The centroidal momentum map <code class="docutils literal notranslate"><span class="pre">A_g(q)</span></code> relates joint velocity to the robot’s
+total spatial momentum about its center of mass:</p>
+<div class="math notranslate nohighlight">
+\[h_g = A_g(q)\,v.\]</div>
+<p><code class="docutils literal notranslate"><span class="pre">compute_centroidal_map</span></code> returns <code class="docutils literal notranslate"><span class="pre">A_g</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">compute_centroidal_momentum</span></code> returns <code class="docutils literal notranslate"><span class="pre">h_g</span></code>. <code class="docutils literal notranslate"><span class="pre">ccrba</span></code> computes both and returns
+<code class="docutils literal notranslate"><span class="pre">CCRBAResult</span></code> with fields <code class="docutils literal notranslate"><span class="pre">centroidal_map</span></code> and <code class="docutils literal notranslate"><span class="pre">momentum</span></code>; the result can also
+be unpacked as a two-tuple.</p>
+<p><code class="docutils literal notranslate"><span class="pre">center_of_mass</span></code> returns position and can populate velocity when <code class="docutils literal notranslate"><span class="pre">v</span></code> is
+provided. Center-of-mass acceleration is not implemented; passing <code class="docutils literal notranslate"><span class="pre">a</span></code> reaches
+an explicit guard listed in the <a class="reference internal" href="../reference/roadmap.html"><span class="doc">Roadmap</span></a>.</p>
+</section>
+<section id="differentiation">
+<h2>Differentiation<a class="headerlink" href="#differentiation" title="Link to this heading">#</a></h2>
+<p>RNEA, ABA, CRBA, and CCRBA are written with differentiable PyTorch operations.
+Ordinary <code class="docutils literal notranslate"><span class="pre">loss.backward()</span></code> therefore differentiates through the calculation.
+The public raw variants accept <code class="docutils literal notranslate"><span class="pre">ModelStructure</span></code> and <code class="docutils literal notranslate"><span class="pre">ModelValues</span></code>, which also
+lets gradients flow to model parameters.</p>
+<p>Three convenience functions form complete Jacobians with PyTorch autograd:
 <code class="docutils literal notranslate"><span class="pre">compute_rnea_derivatives</span></code>, <code class="docutils literal notranslate"><span class="pre">compute_aba_derivatives</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">compute_crba_derivatives</span></code> helpers. The underlying differentiable passes have
-gradient coverage. <code class="docutils literal notranslate"><span class="pre">compute_centroidal_dynamics_derivatives</span></code>, COM acceleration,
-<code class="docutils literal notranslate"><span class="pre">compute_minverse</span></code>, <code class="docutils literal notranslate"><span class="pre">compute_coriolis_matrix</span></code>, and the three full-physics
-integrators (<code class="docutils literal notranslate"><span class="pre">semi_implicit_euler</span></code>, <code class="docutils literal notranslate"><span class="pre">symplectic_euler</span></code>, and <code class="docutils literal notranslate"><span class="pre">rk4</span></code>) are stubs
-that raise <code class="docutils literal notranslate"><span class="pre">NotImplementedError</span></code> and are listed in
-<a class="reference internal" href="../reference/roadmap.html"><span class="doc">Roadmap</span></a>.</p>
-<section id="entry-points">
-<h2>Entry points<a class="headerlink" href="#entry-points" title="Link to this heading">#</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># src/better_robot/dynamics/__init__.py</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.rnea</span><span class="w">        </span><span class="kn">import</span> <span class="n">rnea</span><span class="p">,</span> <span class="n">bias_forces</span><span class="p">,</span> <span class="n">compute_generalized_gravity</span><span class="p">,</span> <span class="n">compute_coriolis_matrix</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.aba</span><span class="w">         </span><span class="kn">import</span> <span class="n">aba</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.crba</span><span class="w">        </span><span class="kn">import</span> <span class="n">crba</span><span class="p">,</span> <span class="n">compute_minverse</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.centroidal</span><span class="w">  </span><span class="kn">import</span> <span class="n">center_of_mass</span><span class="p">,</span> <span class="n">compute_centroidal_map</span><span class="p">,</span> <span class="n">compute_centroidal_momentum</span><span class="p">,</span> <span class="n">ccrba</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.derivatives</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-    <span class="n">compute_rnea_derivatives</span><span class="p">,</span>
-    <span class="n">compute_aba_derivatives</span><span class="p">,</span>
-    <span class="n">compute_crba_derivatives</span><span class="p">,</span>
-    <span class="n">compute_centroidal_dynamics_derivatives</span><span class="p">,</span>
-<span class="p">)</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.integrators</span><span class="w"> </span><span class="kn">import</span> <span class="n">integrate_q</span><span class="p">,</span> <span class="n">symplectic_euler</span><span class="p">,</span> <span class="n">rk4</span><span class="p">,</span> <span class="n">semi_implicit_euler</span>
-</pre></div>
-</div>
-<p>The forward dynamics algorithms write into one caller-supplied <code class="docutils literal notranslate"><span class="pre">Data</span></code> object
-and accept arbitrary leading batch axes. Configuration inputs end in <code class="docutils literal notranslate"><span class="pre">nq</span></code>;
-generalized vectors end in <code class="docutils literal notranslate"><span class="pre">nv</span></code>; mass matrices end in <code class="docutils literal notranslate"><span class="pre">(nv,</span> <span class="pre">nv)</span></code>. The explicit
-derivative helpers return higher-rank Jacobians described below.</p>
+<code class="docutils literal notranslate"><span class="pre">compute_crba_derivatives</span></code>. With batched inputs, their outputs retain both the
+output and input batch axes. Apply them per sample if you want only the
+batch-diagonal blocks.</p>
+<p>These helpers favor clarity over the specialized analytic derivative
+recursions found in some C++ libraries. Replacing their implementation later
+does not require changing their public signatures.</p>
 </section>
-<section id="canonical-signatures">
-<h2>Canonical signatures<a class="headerlink" href="#canonical-signatures" title="Link to this heading">#</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">rnea</span><span class="p">(</span>
-    <span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span>
-    <span class="n">data</span><span class="p">:</span> <span class="n">Data</span><span class="p">,</span>
-    <span class="n">q</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span>           <span class="c1"># (B..., nq)</span>
-    <span class="n">v</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span>           <span class="c1"># (B..., nv)</span>
-    <span class="n">a</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span>           <span class="c1"># (B..., nv)</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">fext</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>   <span class="c1"># (B..., njoints, 6) external wrenches per joint, local frame</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>             <span class="c1"># (B..., nv)</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Inverse dynamics: τ = M(q) a + b(q, v) + g(q) − Jᵀ fext.</span>
-
-<span class="sd">    Two-pass Featherstone: forward (velocities, accelerations), then</span>
-<span class="sd">    backward (forces, joint torques). Populates ``data.tau``,</span>
-<span class="sd">    ``data.joint_pose_world``, ``data.v``, ``data.a``.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">aba</span><span class="p">(</span>
-    <span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span>
-    <span class="n">data</span><span class="p">:</span> <span class="n">Data</span><span class="p">,</span>
-    <span class="n">q</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span>
-    <span class="n">v</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span>
-    <span class="n">tau</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">fext</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>             <span class="c1"># (B..., nv)</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Forward dynamics via Articulated Body Algorithm.</span>
-
-<span class="sd">    Returns ``q̈ = M(q)^{-1}(τ − b(q, v) − g(q) + Jᵀ fext)``.</span>
-<span class="sd">    Populates ``data.ddq``.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">crba</span><span class="p">(</span>
-    <span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span>
-    <span class="n">data</span><span class="p">:</span> <span class="n">Data</span><span class="p">,</span>
-    <span class="n">q</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>             <span class="c1"># (B..., nv, nv)</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Composite Rigid Body Algorithm — joint-space inertia M(q).</span>
-<span class="sd">    Populates ``data.mass_matrix``.&quot;&quot;&quot;</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">bias_forces</span><span class="p">(</span>
-    <span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span>
-    <span class="n">data</span><span class="p">:</span> <span class="n">Data</span><span class="p">,</span>
-    <span class="n">q</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span>
-    <span class="n">v</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>             <span class="c1"># (B..., nv)</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Bias forces (a.k.a. non-linear effects): C(q, v) v + g(q).</span>
-<span class="sd">    Populates ``data.bias_forces``. Specialised path that avoids the</span>
-<span class="sd">    mass-matrix multiply.&quot;&quot;&quot;</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">compute_generalized_gravity</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>    <span class="c1"># (B..., nv)</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">compute_coriolis_matrix</span>    <span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>  <span class="c1"># (B..., nv, nv) — stub</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">compute_minverse</span>           <span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>     <span class="c1"># (B..., nv, nv) — stub</span>
-</pre></div>
-</div>
+<section id="configuration-integration-is-not-simulation">
+<h2>Configuration integration is not simulation<a class="headerlink" href="#configuration-integration-is-not-simulation" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">integrate_q(model,</span> <span class="pre">q,</span> <span class="pre">v,</span> <span class="pre">dt)</span></code> applies the manifold-aware step
+<code class="docutils literal notranslate"><span class="pre">model.integrate(q,</span> <span class="pre">dt</span> <span class="pre">*</span> <span class="pre">v)</span></code>. It updates a configuration geometrically; it
+does not calculate forces, resolve contact, or advance a simulated world.</p>
+<p>BetterRobot deliberately stops at analysis and optimization. A simulator
+must decide how contacts, actuators, constraints, and time stepping interact.
+See <a class="reference internal" href="design_decisions.html#decision-analysis-only"><span class="std std-ref">Analysis and optimization, not simulation</span></a> for why that is a separate product.</p>
 </section>
-<section id="centroidal">
-<h2>Centroidal<a class="headerlink" href="#centroidal" title="Link to this heading">#</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">center_of_mass</span><span class="p">(</span>
-    <span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span>
-    <span class="n">data</span><span class="p">:</span> <span class="n">Data</span><span class="p">,</span>
-    <span class="n">q</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span>
-    <span class="n">v</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">a</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Whole-body centre of mass and optional velocity.</span>
-
-<span class="sd">    Populates ``data.com_position`` and, when ``v`` is supplied,</span>
-<span class="sd">    ``data.com_velocity`` (each shape ``(B..., 3)``). Passing a non-None</span>
-<span class="sd">    ``a`` currently raises ``NotImplementedError``; COM acceleration is not</span>
-<span class="sd">    populated.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">compute_centroidal_map</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Centroidal momentum matrix A_g(q) ∈ (B..., 6, nv).</span>
-<span class="sd">    Populates ``data.centroidal_momentum_matrix``.&quot;&quot;&quot;</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">compute_centroidal_momentum</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;h_g = A_g(q) v ∈ (B..., 6). Populates ``data.centroidal_momentum``.&quot;&quot;&quot;</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">ccrba</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Centroidal CRBA — returns (A_g, h_g).&quot;&quot;&quot;</span>
-</pre></div>
-</div>
-</section>
-<section id="derivatives">
-<h2>Derivatives<a class="headerlink" href="#derivatives" title="Link to this heading">#</a></h2>
-<p>These signatures mirror high-value functions in Pinocchio’s
-<code class="docutils literal notranslate"><span class="pre">algorithm/derivatives/</span></code> directory. The three implemented helpers are
-autograd-derived convenience wrappers, not the future cheap analytic recursions.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">compute_rnea_derivatives</span><span class="p">(</span>
-    <span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">fext</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return (∂τ/∂q, ∂τ/∂v, ∂τ/∂a = M).</span>
-
-<span class="sd">    Unbatched shapes: (nv, nq), (nv, nv), (nv, nv).</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">compute_aba_derivatives</span><span class="p">(</span>
-    <span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">tau</span><span class="p">,</span> <span class="n">fext</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return (∂a/∂q, ∂a/∂v, ∂a/∂τ = M^{-1}).</span>
-
-<span class="sd">    Unbatched shapes: (nv, nq), (nv, nv), (nv, nv).</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">compute_crba_derivatives</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return ∂M/∂q; unbatched shape (nv, nv, nq).&quot;&quot;&quot;</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">compute_centroidal_dynamics_derivatives</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">a</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="o">...</span><span class="p">:</span>  <span class="c1"># stub</span>
-    <span class="o">...</span>
-</pre></div>
-</div>
-<p>The three implemented derivative helpers use
-<code class="docutils literal notranslate"><span class="pre">torch.autograd.functional.jacobian</span></code> through the differentiable RNEA, ABA, and
-CRBA passes. For inputs that share batch prefix <code class="docutils literal notranslate"><span class="pre">*B</span></code>, this API retains both the
-output and input batch axes:</p>
-<ul class="simple">
-<li><p>RNEA: <code class="docutils literal notranslate"><span class="pre">∂τ/∂q</span></code> is <code class="docutils literal notranslate"><span class="pre">(*B,</span> <span class="pre">nv,</span> <span class="pre">*B,</span> <span class="pre">nq)</span></code>; <code class="docutils literal notranslate"><span class="pre">∂τ/∂v</span></code> and <code class="docutils literal notranslate"><span class="pre">∂τ/∂a</span></code> are
-<code class="docutils literal notranslate"><span class="pre">(*B,</span> <span class="pre">nv,</span> <span class="pre">*B,</span> <span class="pre">nv)</span></code>.</p></li>
-<li><p>ABA: <code class="docutils literal notranslate"><span class="pre">∂a/∂q</span></code> is <code class="docutils literal notranslate"><span class="pre">(*B,</span> <span class="pre">nv,</span> <span class="pre">*B,</span> <span class="pre">nq)</span></code>; <code class="docutils literal notranslate"><span class="pre">∂a/∂v</span></code> and <code class="docutils literal notranslate"><span class="pre">∂a/∂τ</span></code> are
-<code class="docutils literal notranslate"><span class="pre">(*B,</span> <span class="pre">nv,</span> <span class="pre">*B,</span> <span class="pre">nv)</span></code>.</p></li>
-<li><p>CRBA: <code class="docutils literal notranslate"><span class="pre">∂M/∂q</span></code> is <code class="docutils literal notranslate"><span class="pre">(*B,</span> <span class="pre">nv,</span> <span class="pre">nv,</span> <span class="pre">*B,</span> <span class="pre">nq)</span></code>.</p></li>
-</ul>
-<p>These are full Jacobians, not collapsed batch-diagonal arrays. Call a helper per
-sample when a shape such as <code class="docutils literal notranslate"><span class="pre">(*B,</span> <span class="pre">nv,</span> <span class="pre">nq)</span></code> is required. The analytic
-Carpentier–Mansard recursions remain future work; replacing the autograd
-implementations does not require changing their public signatures.</p>
-</section>
-<section id="the-jointmodel-dynamics-hooks">
-<h2>The <code class="docutils literal notranslate"><span class="pre">JointModel</span></code> dynamics hooks<a class="headerlink" href="#the-jointmodel-dynamics-hooks" title="Link to this heading">#</a></h2>
-<p>The kinematic Protocol covered in <a class="reference internal" href="joints_bodies_frames.html"><span class="doc">Joints, Bodies, and Frames</span></a> carries
-two additional methods that RNEA needs:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">JointModel</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
-    <span class="c1"># ... existing kinematic surface ...</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">joint_bias_acceleration</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">q_slice</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-        <span class="n">v_slice</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>                 <span class="c1"># (B..., 6) c_J</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Joint&#39;s spatial bias acceleration in its own frame.</span>
-<span class="sd">        Default implementation returns zeros — correct for revolute,</span>
-<span class="sd">        prismatic, and free-flyer joints.&quot;&quot;&quot;</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">joint_motion_subspace_derivative</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">q_slice</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-        <span class="n">v_slice</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>                 <span class="c1"># (B..., 6, nv_j) Ṡ_J</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Derivative of the motion subspace. Default: zeros (correct</span>
-<span class="sd">        for joints whose S_J is constant in q).&quot;&quot;&quot;</span>
-</pre></div>
-</div>
-<p>Every currently shipped built-in joint uses these zero defaults in its local
-joint coordinates. The hooks remain for an extension whose local motion
-subspace actually depends on configuration; no in-tree joint currently supplies
-a non-zero override. Standard spherical and free-flyer RNEA behavior is checked
-against Pinocchio in
-<code class="docutils literal notranslate"><span class="pre">tests/test_pinocchio/test_rnea_advanced_joints.py</span></code>; there is no synthetic
-coupled-joint override test.</p>
-</section>
-<section id="optimal-control-action-models">
-<h2>Optimal-control action models<a class="headerlink" href="#optimal-control-action-models" title="Link to this heading">#</a></h2>
-<p>The earlier Crocoddyl-style action-model skeletons were removed because they
-had no internal or consumer callers and their calculation bodies were not
-implemented. A future DDP/iLQR milestone should introduce this surface with
-an executable contract instead of reviving the old signatures implicitly.</p>
-</section>
-<section id="statemanifold-the-crocoddyl-lesson">
-<h2><code class="docutils literal notranslate"><span class="pre">StateManifold</span></code> — the Crocoddyl lesson<a class="headerlink" href="#statemanifold-the-crocoddyl-lesson" title="Link to this heading">#</a></h2>
-<p>The state of a rigid-body system is <code class="docutils literal notranslate"><span class="pre">(q,</span> <span class="pre">v)</span></code> where <code class="docutils literal notranslate"><span class="pre">q</span></code> lives on a
-manifold (SE(3) × SO(3) × ℝ^k for a free-flyer robot). Crocoddyl
-handles this with a <code class="docutils literal notranslate"><span class="pre">StateAbstractTpl</span></code> that provides <code class="docutils literal notranslate"><span class="pre">integrate</span></code>,
-<code class="docutils literal notranslate"><span class="pre">diff</span></code>, <code class="docutils literal notranslate"><span class="pre">Jintegrate</span></code>, <code class="docutils literal notranslate"><span class="pre">Jdiff</span></code> on the state manifold. We adopt the
-same pattern:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">StateMultibody</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;State manifold of a rigid-body system.</span>
-
-<span class="sd">    Total configuration = (q, v).</span>
-<span class="sd">    nx  = nq + nv       (representation dim)</span>
-<span class="sd">    ndx = 2 * nv        (tangent dim)</span>
-
-<span class="sd">    Uses model.integrate / model.difference internally — which</span>
-<span class="sd">    themselves dispatch through the per-joint JointModel implementations.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">):</span> <span class="o">...</span>
-    <span class="n">nx</span><span class="p">:</span> <span class="nb">int</span>
-    <span class="n">ndx</span><span class="p">:</span> <span class="nb">int</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">zero</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">integrate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">dx</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">diff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x0</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">x1</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">jacobian_integrate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">dx</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">]:</span> <span class="o">...</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">jacobian_diff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">x1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">]:</span> <span class="o">...</span>
-</pre></div>
-</div>
-<p><code class="docutils literal notranslate"><span class="pre">StateMultibody</span></code> defers to the per-joint <code class="docutils literal notranslate"><span class="pre">JointModel.integrate</span></code> /
-<code class="docutils literal notranslate"><span class="pre">JointModel.difference</span></code> routines — the dispatch table that already
-covers free-flyer and spherical retraction is what makes the state
-manifold cheap to assemble.</p>
-</section>
-<section id="integrators">
-<h2>Integrators<a class="headerlink" href="#integrators" title="Link to this heading">#</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">integrate_q</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span> <span class="n">q</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">v</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">dt</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Retract q by dt * v via model.integrate (a.k.a. q ⊕ dt*v).&quot;&quot;&quot;</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">semi_implicit_euler</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">tau</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">fext</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span> <span class="o">...</span>   <span class="c1"># stub</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">symplectic_euler</span>   <span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">tau</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">fext</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span> <span class="o">...</span>   <span class="c1"># stub</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">rk4</span>                <span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">tau</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">fext</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span> <span class="o">...</span>   <span class="c1"># stub</span>
-</pre></div>
-</div>
-<p><code class="docutils literal notranslate"><span class="pre">integrate_q</span></code> is implementable purely with kinematic machinery (the
-per-joint <code class="docutils literal notranslate"><span class="pre">JointModel.integrate</span></code>) and is live. The full physics
-integrators wait for stable contact handling.</p>
-</section>
-<section id="forward-and-derivative-ownership">
-<h2>Forward and derivative ownership<a class="headerlink" href="#forward-and-derivative-ownership" title="Link to this heading">#</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">rnea</span></code> is an ordinary differentiable Torch recursion; it does not install a
-custom <code class="docutils literal notranslate"><span class="pre">torch.autograd.Function</span></code> or a special <code class="docutils literal notranslate"><span class="pre">rnea.backward</span></code> kernel.
-Autograd records the forward operations normally. The separate
-<code class="docutils literal notranslate"><span class="pre">compute_rnea_derivatives</span></code> helper uses
-<code class="docutils literal notranslate"><span class="pre">torch.autograd.functional.jacobian</span></code> around that differentiable pass. A
-future analytic Carpentier–Mansard helper may replace the explicit derivative
-calculation without changing the public signature, while ordinary gradients
-through <code class="docutils literal notranslate"><span class="pre">rnea</span></code> remain owned by Torch autograd.</p>
-</section>
-<section id="sharp-edges">
-<h2>Sharp edges<a class="headerlink" href="#sharp-edges" title="Link to this heading">#</a></h2>
-<ul class="simple">
-<li><p><strong>Naming.</strong> <code class="docutils literal notranslate"><span class="pre">Data</span></code> fields are <code class="docutils literal notranslate"><span class="pre">mass_matrix</span></code>, <code class="docutils literal notranslate"><span class="pre">bias_forces</span></code>,
-<code class="docutils literal notranslate"><span class="pre">centroidal_momentum_matrix</span></code>, <code class="docutils literal notranslate"><span class="pre">com_position</span></code> — not <code class="docutils literal notranslate"><span class="pre">M</span></code>, <code class="docutils literal notranslate"><span class="pre">nle</span></code>,
-<code class="docutils literal notranslate"><span class="pre">Ag</span></code>, <code class="docutils literal notranslate"><span class="pre">com</span></code>. The <a class="reference internal" href="../conventions/naming.html"><span class="doc">Naming</span></a> table has the full
-rename.</p></li>
-<li><p><strong>Centroidal frame.</strong> <code class="docutils literal notranslate"><span class="pre">compute_centroidal_map</span></code> returns a Jacobian
-expressed at the COM, not at the root joint. CCRBA pairs it with
-the centroidal momentum.</p></li>
-<li><p><strong>Stub guard.</strong> Calling <code class="docutils literal notranslate"><span class="pre">compute_minverse</span></code>, <code class="docutils literal notranslate"><span class="pre">compute_coriolis_matrix</span></code>,
-<code class="docutils literal notranslate"><span class="pre">compute_centroidal_dynamics_derivatives</span></code>, any full-physics integrator
-(<code class="docutils literal notranslate"><span class="pre">semi_implicit_euler</span></code>, <code class="docutils literal notranslate"><span class="pre">symplectic_euler</span></code>, or <code class="docutils literal notranslate"><span class="pre">rk4</span></code>), or
-<code class="docutils literal notranslate"><span class="pre">center_of_mass(...,</span> <span class="pre">a=...)</span></code> raises <code class="docutils literal notranslate"><span class="pre">NotImplementedError</span></code>.</p></li>
-<li><p><strong>Floating-base RNEA.</strong> The first 6 columns of every joint-space
-Jacobian / mass matrix correspond to the free-flyer base when
-<code class="docutils literal notranslate"><span class="pre">model.joint_models[1]</span> <span class="pre">=</span> <span class="pre">JointFreeFlyer</span></code>. There is no “stripped”
-variant for the actuated subspace — slice the array if you need it.</p></li>
-</ul>
-</section>
-<section id="where-to-look-next">
-<h2>Where to look next<a class="headerlink" href="#where-to-look-next" title="Link to this heading">#</a></h2>
-<ul class="simple">
-<li><p><a class="reference internal" href="kinematics.html"><span class="doc">Kinematics</span></a> — the shared model, joint-dispatch, and pose conventions
-used by the dynamics recursions.</p></li>
-<li><p><a class="reference internal" href="../reference/roadmap.html"><span class="doc">Roadmap</span></a> — what is currently stubbed and where.</p></li>
-<li><p><a class="reference internal" href="../conventions/extension.html"><span class="doc">Extension Points</span></a> §14 — the deferred muscle / actuator sketch
-that contributes to joint-space torque.</p></li>
-</ul>
+<section id="numerical-anchors">
+<h2>Numerical anchors<a class="headerlink" href="#numerical-anchors" title="Link to this heading">#</a></h2>
+<p>Parity tests compare the recursive algorithms with Pinocchio across fixed and
+floating bases, several joint families, batches, external forces, and both
+common floating dtypes. Autograd tests cover gradients through the public and
+raw passes. Those tests, rather than a second implementation, are the
+correctness anchor.</p>
+<p>Read <a class="reference internal" href="kinematics_and_jacobians.html"><span class="doc">Kinematics and Jacobians</span></a> for the poses and frames used inside the
+recursions, or <a class="reference internal" href="residuals_costs_and_solvers.html"><span class="doc">Residuals, Costs, and Solvers</span></a> for using dynamics inside an
+estimation problem.</p>
 </section>
 </section>
 
@@ -897,20 +687,20 @@ that contributes to joint-space torque.</p></li>
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="kinematics.html"
+       href="kinematics_and_jacobians.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Kinematics</p>
+        <p class="prev-next-title">Kinematics and Jacobians</p>
       </div>
     </a>
     <a class="right-next"
-       href="residuals_and_costs.html"
+       href="residuals_costs_and_solvers.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Residuals and Costs</p>
+        <p class="prev-next-title">Residuals, Costs, and Solvers</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -932,17 +722,12 @@ that contributes to joint-space torque.</p></li>
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#entry-points">Entry points</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#canonical-signatures">Canonical signatures</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#centroidal">Centroidal</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#derivatives">Derivatives</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-jointmodel-dynamics-hooks">The <code class="docutils literal notranslate"><span class="pre">JointModel</span></code> dynamics hooks</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optimal-control-action-models">Optimal-control action models</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#statemanifold-the-crocoddyl-lesson"><code class="docutils literal notranslate"><span class="pre">StateManifold</span></code> — the Crocoddyl lesson</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#integrators">Integrators</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#forward-and-derivative-ownership">Forward and derivative ownership</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sharp-edges">Sharp edges</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#where-to-look-next">Where to look next</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-three-central-equations">The three central equations</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#return-values-and-workspaces">Return values and workspaces</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#centroidal-quantities">Centroidal quantities</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#differentiation">Differentiation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configuration-integration-is-not-simulation">Configuration integration is not simulation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#numerical-anchors">Numerical anchors</a></li>
 </ul>
   </nav></div>
 
@@ -976,7 +761,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 18, 2026.
+  Last updated on Jul 19, 2026.
   <br/>
 </p>
   </div>

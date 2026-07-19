@@ -27,10 +27,6 @@
   - ```{autodoc2-docstring} better_robot.dynamics.derivatives.compute_crba_derivatives
     :summary:
     ```
-* - {py:obj}`compute_centroidal_dynamics_derivatives <better_robot.dynamics.derivatives.compute_centroidal_dynamics_derivatives>`
-  - ```{autodoc2-docstring} better_robot.dynamics.derivatives.compute_centroidal_dynamics_derivatives
-    :summary:
-    ```
 ````
 
 ### API
@@ -53,12 +49,5 @@
 :canonical: better_robot.dynamics.derivatives.compute_crba_derivatives
 
 ```{autodoc2-docstring} better_robot.dynamics.derivatives.compute_crba_derivatives
-```
-````
-
-````{py:function} compute_centroidal_dynamics_derivatives(model: better_robot.data_model.model.Model, data: better_robot.data_model.data.Data, q: torch.Tensor, v: torch.Tensor, a: torch.Tensor)
-:canonical: better_robot.dynamics.derivatives.compute_centroidal_dynamics_derivatives
-
-```{autodoc2-docstring} better_robot.dynamics.derivatives.compute_centroidal_dynamics_derivatives
 ```
 ````

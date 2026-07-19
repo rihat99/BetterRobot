@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Parsers and the IR &#8212; BetterRobot</title>
+    <title>Parsers and the intermediate representation &#8212; BetterRobot</title>
   
   
   
@@ -52,12 +52,12 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'concepts/parsers_and_ir';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Kinematics" href="kinematics.html" />
-    <link rel="prev" title="Lie Groups and Spatial Algebra" href="lie_and_spatial.html" />
+    <link rel="next" title="Viewer" href="viewer.html" />
+    <link rel="prev" title="The Compute Seam" href="the_compute_seam.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 18, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
   </head>
   
   
@@ -159,41 +159,44 @@
 </button></div>
         <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
     <div class="bd-toc-item navbar-nav active">
-        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get started</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../getting_started/index.html">Getting started</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/installation.html">Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/forward_kinematics.html">Forward kinematics on Panda</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/inverse_kinematics.html">Inverse kinematics on Panda</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/floating_base.html">Floating-base IK on the G1 humanoid</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/01_robot_model.html">Meet the robot model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/02_forward_kinematics.html">Forward kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/03_inverse_kinematics.html">Inverse kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/04_floating_base.html">Floating-base robots</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/05_batched_gpu.html">Batching and the GPU</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">How-to guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../guides/custom_residual.html">Write a custom residual</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/load_a_robot.html">Load a robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/visualize.html">Visualize a robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/differentiate_through_kinematics.html">Differentiate through kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/own_your_optimization_loop.html">Own your optimization loop</a></li>
 </ul>
 </details></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Concepts</span></p>
 <ul class="current nav bd-sidenav">
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="index.html">Concepts</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="vision.html">Vision</a></li>
+<li class="toctree-l2"><a class="reference internal" href="why_betterrobot.html">Why BetterRobot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="design_decisions.html">Design decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="architecture.html">Architecture</a></li>
 <li class="toctree-l2"><a class="reference internal" href="model_and_data.html">Model and Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="joints_bodies_frames.html">Joints, Bodies, and Frames</a></li>
-<li class="toctree-l2"><a class="reference internal" href="lie_and_spatial.html">Lie Groups and Spatial Algebra</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">Parsers and the IR</a></li>
-<li class="toctree-l2"><a class="reference internal" href="kinematics.html">Kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="joints_bodies_frames.html">Joints, bodies, and frames</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="residuals_and_costs.html">Residuals and Costs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="solver_stack.html">Named-Block Evaluation and the Legacy Solver Stack</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tasks.html">Tasks — IK and Trajectory Optimisation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="collision_and_geometry.html">Collision and Geometry</a></li>
-<li class="toctree-l2"><a class="reference internal" href="batching_and_backends.html">Batching and Compute Lanes</a></li>
-<li class="toctree-l2"><a class="reference internal" href="warp_bridge.html">Torch–Warp bridge and opt-in FK lane</a></li>
+<li class="toctree-l2"><a class="reference internal" href="residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="the_compute_seam.html">The Compute Seam</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="viewer.html">Viewer</a></li>
-</ul>
-</details></li>
-</ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Guides</span></p>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1 has-children"><a class="reference internal" href="../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../guides/custom_residuals.html">Write a custom block residual</a></li>
 </ul>
 </details></li>
 </ul>
@@ -201,14 +204,13 @@
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../conventions/index.html">Conventions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../conventions/naming.html">Naming</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../conventions/performance.html">Performance</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../conventions/extension.html">Extension Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/contracts.html">Contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/extension.html">Extension points</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../conventions/testing.html">Testing</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../conventions/contracts.html">Contracts &amp; Validation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../conventions/engineering.html">Engineering Contract</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../conventions/source_and_license.html">Source and License Decision Memo</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../conventions/style.html">Coding Style</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/performance.html">Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/style.html">Coding style</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../conventions/packaging.html">Packaging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/source_and_license.html">Source and license</a></li>
 </ul>
 </details></li>
 </ul>
@@ -243,8 +245,6 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.human.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.human</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.manipulability.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.manipulability</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.collision</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
@@ -280,18 +280,17 @@
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.strategies.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.strategies</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.implicit.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.implicit</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.cost_stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.cost_stack</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.state.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.state</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.structure</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.stack</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -313,7 +312,6 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian_strategy.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian_strategy</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.forward.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.forward</span></code></a></li>
 </ul>
 </details></li>
@@ -335,16 +333,13 @@
 <li class="toctree-l3"><a class="reference internal" href="../reference/api/better_robot/better_robot.exceptions.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.exceptions</span></code></a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/named_block_solvers.html">Named-block solver API</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/changelog.html">Changelog</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/roadmap.html">Roadmap</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/m1_removed_symbols.html">M1 removed surfaces</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/m3_removed_symbols.html">M3.5 removed surfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/collision_and_geometry.html">Collision and geometry status</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/roadmap.html">Roadmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/changelog.html">Changelog</a></li>
 </ul>
 </details></li>
 </ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Project Links</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/rihat99/BetterRobot">GitHub</a></li>
 </ul>
@@ -546,7 +541,7 @@
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>Parsers and the IR</h1>
+    <h1>Parsers and the intermediate representation</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -556,16 +551,11 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#loading-a-model">Loading a model</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-intermediate-representation">The intermediate representation</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#build-model"><code class="docutils literal notranslate"><span class="pre">build_model</span></code></a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#urdf-parsing">URDF parsing</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#mjcf-parsing">MJCF parsing</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#programmatic-construction">Programmatic construction</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#asset-resolvers-and-their-current-consumers">Asset resolvers and their current consumers</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#runtime-parser-registration">Runtime parser registration</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sharp-edges">Sharp edges</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#where-to-look-next">Where to look next</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-the-ir-contains">What the IR contains</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parsing-and-building-have-different-jobs">Parsing and building have different jobs</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-loading-surface">The loading surface</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#assets-stay-separate-from-topology">Assets stay separate from topology</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#extension-boundary">Extension boundary</a></li>
 </ul>
             </nav>
         </div>
@@ -577,372 +567,81 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="parsers-and-the-ir">
-<h1>Parsers and the IR<a class="headerlink" href="#parsers-and-the-ir" title="Link to this heading">#</a></h1>
-<p>URDF, MJCF, and programmatic construction all meet at an in-process
-intermediate representation, <code class="docutils literal notranslate"><span class="pre">IRModel</span></code>.  Format-specific code produces the
-IR; <a class="reference internal" href="../reference/api/better_robot/better_robot.io.build_model.html#module-better_robot.io.build_model" title="better_robot.io.build_model"><code class="xref py py-func docutils literal notranslate"><span class="pre">better_robot.io.build_model()</span></code></a> sorts and validates its topology,
-selects joint implementations, packs tensors, and returns a frozen
-<code class="docutils literal notranslate"><span class="pre">better_robot.Model</span></code>.</p>
-<p>The IR is a build boundary, not a persistence format.  Its serialized or
-pickled shape has no compatibility guarantee; re-parse the source description
-after an upgrade.</p>
-<section id="loading-a-model">
-<h2>Loading a model<a class="headerlink" href="#loading-a-model" title="Link to this heading">#</a></h2>
-<p>The normal entry point is <code class="docutils literal notranslate"><span class="pre">better_robot.load</span></code>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">better_robot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">br</span>
-
-<span class="n">urdf_model</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;robot.urdf&quot;</span><span class="p">)</span>
-<span class="n">mjcf_model</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;robot.xml&quot;</span><span class="p">)</span>       <span class="c1"># .xml maps to the MJCF parser</span>
-<span class="n">floating</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;robot.urdf&quot;</span><span class="p">,</span> <span class="n">free_flyer</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+  <section id="parsers-and-the-intermediate-representation">
+<h1>Parsers and the intermediate representation<a class="headerlink" href="#parsers-and-the-intermediate-representation" title="Link to this heading">#</a></h1>
+<p>A URDF file, an MJCF file, and a robot assembled in Python describe the same
+kind of object in different languages. BetterRobot converts all three to one
+small intermediate representation, then builds and validates a <code class="docutils literal notranslate"><span class="pre">Model</span></code> in one
+place.</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>URDF parser ─┐
+MJCF parser ─┼─&gt; IRModel ─&gt; build_model ─&gt; Model
+Python builder┘
 </pre></div>
 </div>
-<p>Its current signature is:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span>
-    <span class="n">source</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span> <span class="o">|</span> <span class="n">Any</span> <span class="o">|</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="n">IRModel</span><span class="p">],</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="nb">format</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span> <span class="s2">&quot;urdf&quot;</span><span class="p">,</span> <span class="s2">&quot;mjcf&quot;</span><span class="p">,</span> <span class="s2">&quot;builder&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;auto&quot;</span><span class="p">,</span>
-    <span class="n">root_joint</span><span class="p">:</span> <span class="n">JointModel</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">free_flyer</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="n">preserve_joint_order</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="n">device</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">dtype</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Model</span><span class="p">:</span> <span class="o">...</span>
-</pre></div>
-</div>
-<p>For paths, <code class="docutils literal notranslate"><span class="pre">format=&quot;auto&quot;</span></code> lowercases the suffix without its leading dot and
-looks it up in the parser registry.  The built-in keys are <code class="docutils literal notranslate"><span class="pre">&quot;urdf&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;mjcf&quot;</span></code>,
-and <code class="docutils literal notranslate"><span class="pre">&quot;xml&quot;</span></code>.  A <code class="docutils literal notranslate"><span class="pre">yourdfpy.URDF</span></code> object is also accepted.  A non-path callable
-is called with no arguments and must return an <code class="docutils literal notranslate"><span class="pre">IRModel</span></code>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">make_ir</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">IRModel</span><span class="p">:</span>
-    <span class="n">builder</span> <span class="o">=</span> <span class="n">ModelBuilder</span><span class="p">(</span><span class="s2">&quot;arm&quot;</span><span class="p">)</span>
-    <span class="c1"># fill builder ...</span>
-    <span class="k">return</span> <span class="n">builder</span><span class="o">.</span><span class="n">finalize</span><span class="p">()</span>
-
-<span class="n">model</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">make_ir</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>Callable detection happens before the <code class="docutils literal notranslate"><span class="pre">format</span></code> hint, so callers should use a
-callable directly rather than rely on <code class="docutils literal notranslate"><span class="pre">format=&quot;builder&quot;</span></code> for a path.</p>
-<p><code class="docutils literal notranslate"><span class="pre">free_flyer=True</span></code> supplies <code class="docutils literal notranslate"><span class="pre">JointFreeFlyer()</span></code> only when <code class="docutils literal notranslate"><span class="pre">root_joint</span></code> is not
-already provided.  <code class="docutils literal notranslate"><span class="pre">preserve_joint_order=True</span></code> selects the stable Kahn
-topological sort; the default remains the historical DFS body traversal.
-Already-topological input keeps its source order under the stable path, while
-non-topological input is repaired deterministically.  <code class="docutils literal notranslate"><span class="pre">Model.q_permutation</span></code>
-can describe the resulting source-to-model coordinate gather.</p>
-<p><code class="docutils literal notranslate"><span class="pre">load</span></code> does <strong>not</strong> have a <code class="docutils literal notranslate"><span class="pre">resolver=</span></code> parameter.  Use the direct parser plus
-<code class="docutils literal notranslate"><span class="pre">build_model</span></code> when a custom asset resolver is required; see
-<a class="reference internal" href="#asset-resolver-behavior"><span class="std std-ref">Asset resolvers and their current consumers</span></a>.</p>
+<p>Without that middle form, every parser would need its own rules for topology,
+joint indices, limits, inertias, mimic reduction, frames, and device tensors.
+Those implementations would eventually disagree. The IR makes parsers
+responsible for reading formats and makes <code class="docutils literal notranslate"><span class="pre">build_model</span></code> responsible for robot
+semantics. See <a class="reference internal" href="design_decisions.html#decision-one-ir"><span class="std std-ref">One model-building IR, not parser-specific models</span></a> for the trade-off.</p>
+<section id="what-the-ir-contains">
+<h2>What the IR contains<a class="headerlink" href="#what-the-ir-contains" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">IRModel</span></code> contains lists of <code class="docutils literal notranslate"><span class="pre">IRBody</span></code>, <code class="docutils literal notranslate"><span class="pre">IRJoint</span></code>, and <code class="docutils literal notranslate"><span class="pre">IRFrame</span></code> records.
+Geometry records preserve visual and collision metadata for later consumers.
+The records use clear physical values: parent and child body names, joint
+kind and axis, pose, limits, mass, center of mass, and inertia.</p>
+<p>The IR is a build boundary, not a storage format. Its Python dataclasses may
+change as loaders improve. Save the original robot description and parse it
+again after an upgrade instead of pickling an <code class="docutils literal notranslate"><span class="pre">IRModel</span></code>.</p>
 </section>
-<section id="the-intermediate-representation">
-<h2>The intermediate representation<a class="headerlink" href="#the-intermediate-representation" title="Link to this heading">#</a></h2>
-<p>The dataclasses in <code class="docutils literal notranslate"><span class="pre">src/better_robot/io/ir.py</span></code> have these fields:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@dataclass</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">IRJoint</span><span class="p">:</span>
-    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">parent_body</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">child_body</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">kind</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">axis</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">origin</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">7</span><span class="p">))</span>
-    <span class="n">lower</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">upper</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">velocity_limit</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">effort_limit</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">mimic_source</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">mimic_multiplier</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span>
-    <span class="n">mimic_offset</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
-    <span class="n">pitch</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
-    <span class="n">joint_model</span><span class="p">:</span> <span class="n">JointModel</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-
-<span class="nd">@dataclass</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">IRGeom</span><span class="p">:</span>
-    <span class="n">kind</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span>
-    <span class="n">origin</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
-    <span class="n">rgba</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-
-<span class="nd">@dataclass</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">IRBody</span><span class="p">:</span>
-    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">mass</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
-    <span class="n">com</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
-    <span class="n">inertia</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
-    <span class="n">visual_geoms</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">IRGeom</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
-    <span class="n">collision_geoms</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">IRGeom</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
-
-<span class="nd">@dataclass</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">IRFrame</span><span class="p">:</span>
-    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">parent_body</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">placement</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
-    <span class="n">frame_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;op&quot;</span>
-
-<span class="nd">@dataclass</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">IRModel</span><span class="p">:</span>
-    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">bodies</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">IRBody</span><span class="p">]</span>
-    <span class="n">joints</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">IRJoint</span><span class="p">]</span>
-    <span class="n">frames</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">IRFrame</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
-    <span class="n">root_body</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
-    <span class="n">gravity</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span>
-        <span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span>
-            <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">9.81</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]</span>
-        <span class="p">)</span>
-    <span class="p">)</span>
-    <span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>The default gravity tensor is <code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">0,</span> <span class="pre">-9.81,</span> <span class="pre">0,</span> <span class="pre">0,</span> <span class="pre">0]</span></code>.  <code class="docutils literal notranslate"><span class="pre">joint_model</span></code> is a
-programmatic-builder payload; file parsers leave it as <code class="docutils literal notranslate"><span class="pre">None</span></code>.  The IR list
-order need not be topological because ordering and coordinate offsets are
-assigned by <code class="docutils literal notranslate"><span class="pre">build_model</span></code>.</p>
-</section>
-<section id="build-model">
-<h2><code class="docutils literal notranslate"><span class="pre">build_model</span></code><a class="headerlink" href="#build-model" title="Link to this heading">#</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">build_model</span><span class="p">(</span>
-    <span class="n">ir</span><span class="p">:</span> <span class="n">IRModel</span><span class="p">,</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">root_joint</span><span class="p">:</span> <span class="n">JointModel</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">preserve_joint_order</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="n">device</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">dtype</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Model</span><span class="p">:</span> <span class="o">...</span>
-</pre></div>
-</div>
-<p>The factory:</p>
-<ol class="arabic simple">
-<li><p>identifies an explicit <code class="docutils literal notranslate"><span class="pre">parent_body=&quot;world&quot;</span></code> root edge or inserts a
-synthetic fixed root joint;</p></li>
-<li><p>sorts regular joints by DFS or the opt-in stable Kahn path;</p></li>
-<li><p>maps each <code class="docutils literal notranslate"><span class="pre">IRJoint.kind</span></code> (or its programmatic <code class="docutils literal notranslate"><span class="pre">joint_model</span></code>) to a concrete
-<code class="docutils literal notranslate"><span class="pre">JointModel</span></code>;</p></li>
-<li><p>builds full and public <code class="docutils literal notranslate"><span class="pre">q</span></code>/<code class="docutils literal notranslate"><span class="pre">v</span></code> layouts, including affine reduction for
-supported scalar mimic joints;</p></li>
-<li><p>packs placements, limits, inertias, gravity, and the mimic maps;</p></li>
-<li><p>creates <code class="docutils literal notranslate"><span class="pre">body_&lt;name&gt;</span></code> frames and appends explicit <code class="docutils literal notranslate"><span class="pre">IRFrame</span></code> entries;</p></li>
-<li><p>checks the packed topology/layout invariants; and</p></li>
-<li><p>returns a frozen <code class="docutils literal notranslate"><span class="pre">Model</span></code>, with the source IR in <code class="docutils literal notranslate"><span class="pre">model.meta[&quot;ir&quot;]</span></code> and
-entries from <code class="docutils literal notranslate"><span class="pre">ir.meta</span></code> copied alongside it.</p></li>
-</ol>
-<p>Structural errors such as disconnected topology, multiple world-root edges,
-unknown joint kinds, invalid mimic references, or mimic cycles raise
-<code class="docutils literal notranslate"><span class="pre">IRError</span></code> or a more specific documented validation error.  Missing URDF
-inertial data is <strong>not</strong> one of those errors: the URDF parser initializes
-missing mass, COM, and inertia values to zero without a warning, and
-<code class="docutils literal notranslate"><span class="pre">build_model</span></code> accepts those zero values.  It also uses a zero inertia row when
-an expected IR body record is absent.</p>
-</section>
-<section id="urdf-parsing">
-<h2>URDF parsing<a class="headerlink" href="#urdf-parsing" title="Link to this heading">#</a></h2>
-<p>The direct parser signature is:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">parse_urdf</span><span class="p">(</span>
-    <span class="n">source</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span> <span class="o">|</span> <span class="n">Any</span><span class="p">,</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">resolver</span><span class="p">:</span> <span class="n">AssetResolver</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">IRModel</span><span class="p">:</span> <span class="o">...</span>
-</pre></div>
-</div>
-<p><code class="docutils literal notranslate"><span class="pre">source</span></code> may be a path or an already-loaded <code class="docutils literal notranslate"><span class="pre">yourdfpy.URDF</span></code> object.  The
-parser emits one <code class="docutils literal notranslate"><span class="pre">IRBody</span></code> for each entry in <code class="docutils literal notranslate"><span class="pre">urdf.link_map</span></code> and one <code class="docutils literal notranslate"><span class="pre">IRJoint</span></code>
-for each entry in <code class="docutils literal notranslate"><span class="pre">urdf.joint_map</span></code>.  It records joint axes, origins, limits,
-and mimic metadata.  URDF <code class="docutils literal notranslate"><span class="pre">continuous</span></code> remains <code class="docutils literal notranslate"><span class="pre">kind=&quot;continuous&quot;</span></code> in the IR
-and becomes a <code class="docutils literal notranslate"><span class="pre">JointRevoluteUnbounded</span></code> during <code class="docutils literal notranslate"><span class="pre">build_model</span></code>.</p>
-<p>Sphere, box, cylinder, capsule, and mesh visual/collision elements are copied
-to <code class="docutils literal notranslate"><span class="pre">IRGeom</span></code> metadata.  Mesh files are not loaded by this parser.  When
-available, the <code class="docutils literal notranslate"><span class="pre">yourdfpy</span></code> object’s own filename handler may rewrite its mesh
-path before it is stored.</p>
-<p><code class="docutils literal notranslate"><span class="pre">yourdfpy</span></code> is imported when <code class="docutils literal notranslate"><span class="pre">parse_urdf</span></code> runs (and by <code class="docutils literal notranslate"><span class="pre">load</span></code> while checking
-whether a non-callable source is a <code class="docutils literal notranslate"><span class="pre">yourdfpy.URDF</span></code>).  A missing dependency at
-the direct parser boundary is reported as <code class="docutils literal notranslate"><span class="pre">BackendNotAvailableError</span></code>.</p>
-</section>
-<section id="mjcf-parsing">
-<h2>MJCF parsing<a class="headerlink" href="#mjcf-parsing" title="Link to this heading">#</a></h2>
-<p>The direct parser signature is:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">parse_mjcf</span><span class="p">(</span>
-    <span class="n">source</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">,</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">resolver</span><span class="p">:</span> <span class="n">AssetResolver</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">IRModel</span><span class="p">:</span> <span class="o">...</span>
-</pre></div>
-</div>
-<p>It uses <code class="docutils literal notranslate"><span class="pre">mujoco.MjSpec.from_file</span></code> and imports <code class="docutils literal notranslate"><span class="pre">mujoco</span></code> only when the parser is
-called.  The current lowering covers bodies; hinge, slide, ball, and free
-joints; sites as operational frames; and sphere, capsule, cylinder, and box
-collision metadata.  A non-root body with no explicit joint receives a fixed
-joint.</p>
-<p>MJCF mesh, plane, height-field, and ellipsoid geometry, visual geometry,
-tendons, and actuators are not lowered.  Multiple MJCF joints on one body are
-not combined into a composite joint; the emitted parallel edges are rejected
-later by the tree builder.  This is a current parser limitation, not supported
-composite-joint behavior.</p>
-</section>
-<section id="programmatic-construction">
-<h2>Programmatic construction<a class="headerlink" href="#programmatic-construction" title="Link to this heading">#</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">better_robot.io.ModelBuilder</span></code> is the fluent IR builder.  This is a
-minimal complete example using the actual tensor-valued placement API:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModelBuilder</span><span class="p">,</span> <span class="n">build_model</span>
-
-<span class="n">identity</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">])</span>
-
-<span class="n">builder</span> <span class="o">=</span> <span class="n">ModelBuilder</span><span class="p">(</span><span class="s2">&quot;one_link&quot;</span><span class="p">)</span>
-<span class="n">base</span> <span class="o">=</span> <span class="n">builder</span><span class="o">.</span><span class="n">add_body</span><span class="p">(</span><span class="s2">&quot;base&quot;</span><span class="p">)</span>
-<span class="n">tip</span> <span class="o">=</span> <span class="n">builder</span><span class="o">.</span><span class="n">add_body</span><span class="p">(</span><span class="s2">&quot;tip&quot;</span><span class="p">,</span> <span class="n">mass</span><span class="o">=</span><span class="mf">1.2</span><span class="p">,</span> <span class="n">inertia</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
-<span class="n">builder</span><span class="o">.</span><span class="n">add_revolute_z</span><span class="p">(</span>
-    <span class="s2">&quot;joint&quot;</span><span class="p">,</span>
-    <span class="n">parent</span><span class="o">=</span><span class="n">base</span><span class="p">,</span>
-    <span class="n">child</span><span class="o">=</span><span class="n">tip</span><span class="p">,</span>
-    <span class="n">origin</span><span class="o">=</span><span class="n">identity</span><span class="p">,</span>
-    <span class="n">lower</span><span class="o">=-</span><span class="mf">3.14</span><span class="p">,</span>
-    <span class="n">upper</span><span class="o">=</span><span class="mf">3.14</span><span class="p">,</span>
-<span class="p">)</span>
-<span class="n">model</span> <span class="o">=</span> <span class="n">build_model</span><span class="p">(</span><span class="n">builder</span><span class="o">.</span><span class="n">finalize</span><span class="p">())</span>
-</pre></div>
-</div>
-<p>The public methods and their current signatures are:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ModelBuilder</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span>
-
-<span class="n">add_body</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">mass</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">com</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inertia</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
-<span class="n">add_frame</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">parent_body</span><span class="p">,</span> <span class="n">placement</span><span class="p">,</span> <span class="n">frame_type</span><span class="o">=</span><span class="s2">&quot;op&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
-<span class="n">add_collision_geom</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">kind</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">origin</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
-
-<span class="n">add_revolute</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">parent</span><span class="p">,</span> <span class="n">child</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-             <span class="n">lower</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">upper</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">velocity_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-             <span class="n">effort_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">unbounded</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mimic_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-             <span class="n">mimic_multiplier</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">mimic_offset</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
-<span class="n">add_revolute_x</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
-<span class="n">add_revolute_y</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
-<span class="n">add_revolute_z</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
-
-<span class="n">add_prismatic</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">parent</span><span class="p">,</span> <span class="n">child</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-              <span class="n">lower</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">upper</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">velocity_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-              <span class="n">effort_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
-<span class="n">add_prismatic_x</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
-<span class="n">add_prismatic_y</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
-<span class="n">add_prismatic_z</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
-
-<span class="n">add_spherical</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">parent</span><span class="p">,</span> <span class="n">child</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
-<span class="n">add_planar</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">parent</span><span class="p">,</span> <span class="n">child</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
-<span class="n">add_helical</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">parent</span><span class="p">,</span> <span class="n">child</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">pitch</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">lower</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">upper</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
-<span class="n">add_free_flyer_root</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;free_flyer&quot;</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">child</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
-<span class="n">add_fixed</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">parent</span><span class="p">,</span> <span class="n">child</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
-
-<span class="n">add_joint</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parent</span><span class="p">,</span> <span class="n">child</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-          <span class="n">lower</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">upper</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">velocity_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">effort_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-          <span class="n">mimic_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mimic_multiplier</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
-          <span class="n">mimic_offset</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
-<span class="n">finalize</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">IRModel</span>
-</pre></div>
-</div>
-<p>The axis-specific helpers forward their keyword arguments to the generic
-revolute or prismatic method.  The catch-all <code class="docutils literal notranslate"><span class="pre">add_joint</span></code> requires
-<code class="docutils literal notranslate"><span class="pre">kind=&lt;JointModel</span> <span class="pre">instance&gt;</span></code>; strings and <code class="docutils literal notranslate"><span class="pre">None</span></code> raise <code class="docutils literal notranslate"><span class="pre">TypeError</span></code>.
-<code class="docutils literal notranslate"><span class="pre">add_collision_geom</span></code> records IR metadata only and does not make collision
-queries operational.  <code class="docutils literal notranslate"><span class="pre">finalize</span></code> requires exactly one root-body candidate;
-the deeper topology and joint validation occurs in <code class="docutils literal notranslate"><span class="pre">build_model</span></code>.</p>
-<p><code class="docutils literal notranslate"><span class="pre">better_robot.io.builders</span></code> also exports array-driven kinematic-tree builders
-and <code class="docutils literal notranslate"><span class="pre">make_smpl_like_body</span></code> / <code class="docutils literal notranslate"><span class="pre">make_smpl_like_model</span></code>.  The SMPL-like helpers
-construct a 24-joint topology but are not SMPL mesh, pose, or shape loaders.
-<code class="docutils literal notranslate"><span class="pre">joint_offsets</span></code> and explicit per-body inertial arguments affect construction;
-the currently accepted <code class="docutils literal notranslate"><span class="pre">shape_params</span></code> argument is not read by the
-implementation.</p>
-</section>
-<section id="asset-resolvers-and-their-current-consumers">
-<span id="asset-resolver-behavior"></span><h2>Asset resolvers and their current consumers<a class="headerlink" href="#asset-resolvers-and-their-current-consumers" title="Link to this heading">#</a></h2>
-<p>The runtime-checkable Protocol in <code class="docutils literal notranslate"><span class="pre">src/better_robot/io/assets.py</span></code> has one
-method:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@runtime_checkable</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">AssetResolver</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">resolve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uri</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span> <span class="o">...</span>
-</pre></div>
-</div>
-<p>There is no <code class="docutils literal notranslate"><span class="pre">exists</span></code> method and no per-call <code class="docutils literal notranslate"><span class="pre">base_path</span></code> keyword.  A failed
-resolution is represented by <code class="docutils literal notranslate"><span class="pre">FileNotFoundError</span></code>.</p>
-<div class="pst-scrollable-table-container"><table class="table">
-<thead>
-<tr class="row-odd"><th class="head"><p>Resolver</p></th>
-<th class="head"><p>Constructor and behavior</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">FilesystemResolver</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">FilesystemResolver(base_path)</span></code> resolves a path against that fixed directory and rejects URI schemes.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">PackageResolver</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">PackageResolver(packages)</span></code> resolves <code class="docutils literal notranslate"><span class="pre">package://&lt;name&gt;/&lt;path&gt;</span></code> through the explicit mapping.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CompositeResolver</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">CompositeResolver(resolvers)</span></code> tries children in order until one does not raise <code class="docutils literal notranslate"><span class="pre">FileNotFoundError</span></code>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CachedDownloadResolver</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">CachedDownloadResolver(cache_dir)</span></code> creates the caller-selected cache directory and downloads <code class="docutils literal notranslate"><span class="pre">http(s)</span></code> URLs by their final path component. No default cache directory is supplied.</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>The direct URDF and MJCF parsers accept <code class="docutils literal notranslate"><span class="pre">resolver=</span></code>.  For a path source they
-construct <code class="docutils literal notranslate"><span class="pre">FilesystemResolver(Path(source).parent)</span></code> when none is supplied.
-The parser stores that object in <code class="docutils literal notranslate"><span class="pre">ir.meta[&quot;asset_resolver&quot;]</span></code>; <code class="docutils literal notranslate"><span class="pre">build_model</span></code>
-copies it to <code class="docutils literal notranslate"><span class="pre">model.meta[&quot;asset_resolver&quot;]</span></code>.</p>
-<p>The parsers do not call <code class="docutils literal notranslate"><span class="pre">resolver.resolve</span></code> while lowering geometry.  The
-implemented downstream consumer is <code class="docutils literal notranslate"><span class="pre">URDFMeshMode</span></code> in the viewer: it consults
-the stored resolver for mesh paths and falls back to the raw path if resolution
-fails.  The collision package does not currently consume parser geometry or
-asset resolvers.  To install a custom resolver, bypass <code class="docutils literal notranslate"><span class="pre">load</span></code>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_model</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.io.parsers</span><span class="w"> </span><span class="kn">import</span> <span class="n">parse_urdf</span>
-
-<span class="n">ir</span> <span class="o">=</span> <span class="n">parse_urdf</span><span class="p">(</span><span class="s2">&quot;robot.urdf&quot;</span><span class="p">,</span> <span class="n">resolver</span><span class="o">=</span><span class="n">my_resolver</span><span class="p">)</span>
-<span class="n">model</span> <span class="o">=</span> <span class="n">build_model</span><span class="p">(</span><span class="n">ir</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="runtime-parser-registration">
-<h2>Runtime parser registration<a class="headerlink" href="#runtime-parser-registration" title="Link to this heading">#</a></h2>
-<p>Registration is a function call, not a decorator:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">register_parser</span><span class="p">(</span>
-    <span class="n">suffix</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">IRModel</span><span class="p">],</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
-</pre></div>
-</div>
-<p>Keys must match the lowercase suffix <strong>without</strong> a leading dot:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">register_parser</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">parse_sdf</span><span class="p">(</span><span class="n">source</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">IRModel</span><span class="p">:</span>
-    <span class="o">...</span>
-
-<span class="n">register_parser</span><span class="p">(</span><span class="s2">&quot;sdf&quot;</span><span class="p">,</span> <span class="n">parse_sdf</span><span class="p">)</span>
-<span class="n">model</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;robot.sdf&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>This extends automatic suffix dispatch at runtime.  The static <code class="docutils literal notranslate"><span class="pre">format</span></code> type
-annotation still lists only <code class="docutils literal notranslate"><span class="pre">auto</span></code>, <code class="docutils literal notranslate"><span class="pre">urdf</span></code>, <code class="docutils literal notranslate"><span class="pre">mjcf</span></code>, and <code class="docutils literal notranslate"><span class="pre">builder</span></code>, so custom
-formats are most naturally selected by their registered path suffix.</p>
-</section>
-<section id="sharp-edges">
-<h2>Sharp edges<a class="headerlink" href="#sharp-edges" title="Link to this heading">#</a></h2>
+<section id="parsing-and-building-have-different-jobs">
+<h2>Parsing and building have different jobs<a class="headerlink" href="#parsing-and-building-have-different-jobs" title="Link to this heading">#</a></h2>
+<p>A parser must:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">IRJoint.origin</span></code> defaults to seven zeros, not an identity quaternion.  The
-shipped parsers and <code class="docutils literal notranslate"><span class="pre">ModelBuilder</span></code> helpers normally provide an explicit
-identity pose when no source origin exists.</p></li>
-<li><p>Missing URDF inertial fields become zeros silently.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">load</span></code> cannot forward parser-specific options such as <code class="docutils literal notranslate"><span class="pre">resolver=</span></code>.</p></li>
-<li><p>Parser-emitted collision geometry is metadata only while the collision
-computation surface remains reserved; see <a class="reference internal" href="collision_and_geometry.html"><span class="doc">Collision and Geometry</span></a>.</p></li>
-<li><p>Re-parse source descriptions instead of persisting the IR across versions.</p></li>
+<li><p>interpret the source format’s coordinate and naming rules;</p></li>
+<li><p>turn every source transform into BetterRobot’s scalar-last pose layout;</p></li>
+<li><p>retain useful visual, collision, mimic, and limit metadata; and</p></li>
+<li><p>report malformed source data with the source element’s name.</p></li>
 </ul>
-</section>
-<section id="where-to-look-next">
-<h2>Where to look next<a class="headerlink" href="#where-to-look-next" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">build_model</span></code> then:</p>
 <ul class="simple">
-<li><p><a class="reference internal" href="model_and_data.html"><span class="doc">Model and Data</span></a> — the frozen model and mutable data/cache split.</p></li>
-<li><p><a class="reference internal" href="../conventions/extension.html"><span class="doc">Extension Points</span></a> §9 — runtime parser registration.</p></li>
-<li><p><a class="reference internal" href="../conventions/extension.html"><span class="doc">Extension Points</span></a> §13 — custom resolver construction.</p></li>
-<li><p><a class="reference internal" href="viewer.html"><span class="doc">Viewer</span></a> — the implemented parser-geometry consumer.</p></li>
+<li><p>validates that the body/joint graph is a tree;</p></li>
+<li><p>chooses concrete joint models;</p></li>
+<li><p>establishes stable topological and coordinate order;</p></li>
+<li><p>builds reduced-coordinate maps for mimic joints;</p></li>
+<li><p>packs model tensors on the requested device and dtype; and</p></li>
+<li><p>attaches frames, inertias, limits, and source metadata.</p></li>
 </ul>
+<p>This division also lets tests feed synthetic IR directly to model building,
+without first inventing a temporary XML file.</p>
+</section>
+<section id="the-loading-surface">
+<h2>The loading surface<a class="headerlink" href="#the-loading-surface" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">better_robot.load</span></code> is the ordinary entry point. It selects the URDF or MJCF
+parser from a path suffix and then calls the shared builder. <code class="docutils literal notranslate"><span class="pre">free_flyer=True</span></code>
+adds a free-flyer root; <code class="docutils literal notranslate"><span class="pre">root_joint=</span></code> provides a more explicit choice.</p>
+<p><code class="docutils literal notranslate"><span class="pre">ModelBuilder</span></code> offers the same destination for a model created in Python.
+Direct <code class="docutils literal notranslate"><span class="pre">parse_urdf</span></code>, <code class="docutils literal notranslate"><span class="pre">parse_mjcf</span></code>, and <code class="docutils literal notranslate"><span class="pre">build_model</span></code> calls remain available
+under <code class="docutils literal notranslate"><span class="pre">better_robot.io</span></code> when a caller needs parser-specific options.</p>
+<p>The step-by-step recipes are in <a class="reference internal" href="../guides/load_a_robot.html"><span class="doc">Load a robot</span></a>.</p>
+</section>
+<section id="assets-stay-separate-from-topology">
+<h2>Assets stay separate from topology<a class="headerlink" href="#assets-stay-separate-from-topology" title="Link to this heading">#</a></h2>
+<p>URDF and MJCF descriptions often refer to mesh files by relative, package, or
+cached-download paths. Asset resolvers turn those references into local paths.
+They do not change kinematic topology, and the model can still be used for
+kinematics when visual assets are unavailable.</p>
+<p>The viewer consumes visual geometry and its resolver. Collision metadata is
+retained, but collision computation remains an incomplete capability described
+in <a class="reference internal" href="../reference/collision_and_geometry.html"><span class="doc">Collision and geometry status</span></a>.</p>
+</section>
+<section id="extension-boundary">
+<h2>Extension boundary<a class="headerlink" href="#extension-boundary" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">register_parser(suffix,</span> <span class="pre">function)</span></code> can add suffix-based loading at runtime.
+The function returns an <code class="docutils literal notranslate"><span class="pre">IRModel</span></code>; it does not bypass shared validation. This
+keeps a new file format small and makes its resulting robot obey the same
+contracts as built-in formats.</p>
+<p>Read <a class="reference internal" href="model_and_data.html"><span class="doc">Model and Data</span></a> for the built object, or <a class="reference internal" href="viewer.html"><span class="doc">Viewer</span></a> for the
+consumer of visual geometry.</p>
 </section>
 </section>
 
@@ -958,20 +657,20 @@ computation surface remains reserved; see <a class="reference internal" href="co
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="lie_and_spatial.html"
+       href="the_compute_seam.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Lie Groups and Spatial Algebra</p>
+        <p class="prev-next-title">The Compute Seam</p>
       </div>
     </a>
     <a class="right-next"
-       href="kinematics.html"
+       href="viewer.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Kinematics</p>
+        <p class="prev-next-title">Viewer</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -993,16 +692,11 @@ computation surface remains reserved; see <a class="reference internal" href="co
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#loading-a-model">Loading a model</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-intermediate-representation">The intermediate representation</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#build-model"><code class="docutils literal notranslate"><span class="pre">build_model</span></code></a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#urdf-parsing">URDF parsing</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#mjcf-parsing">MJCF parsing</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#programmatic-construction">Programmatic construction</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#asset-resolvers-and-their-current-consumers">Asset resolvers and their current consumers</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#runtime-parser-registration">Runtime parser registration</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sharp-edges">Sharp edges</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#where-to-look-next">Where to look next</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-the-ir-contains">What the IR contains</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parsing-and-building-have-different-jobs">Parsing and building have different jobs</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-loading-surface">The loading surface</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#assets-stay-separate-from-topology">Assets stay separate from topology</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#extension-boundary">Extension boundary</a></li>
 </ul>
   </nav></div>
 
@@ -1036,7 +730,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 18, 2026.
+  Last updated on Jul 19, 2026.
   <br/>
 </p>
   </div>

@@ -1,0 +1,856 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Design decisions &#8212; BetterRobot</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=17638015" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=06af8975"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=c57da192"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'concepts/design_decisions';</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Architecture" href="architecture.html" />
+    <link rel="prev" title="Why BetterRobot" href="why_betterrobot.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.2" />
+    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">BetterRobot</p>
+  
+</a></div>
+        <div class="sidebar-primary-item"><ul class="navbar-icon-links"
+    aria-label="Quick Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/rihat99/BetterRobot" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../getting_started/index.html">Getting started</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/01_robot_model.html">Meet the robot model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/02_forward_kinematics.html">Forward kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/03_inverse_kinematics.html">Inverse kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/04_floating_base.html">Floating-base robots</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/05_batched_gpu.html">Batching and the GPU</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">How-to guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../guides/custom_residual.html">Write a custom residual</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/load_a_robot.html">Load a robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/visualize.html">Visualize a robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/differentiate_through_kinematics.html">Differentiate through kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/own_your_optimization_loop.html">Own your optimization loop</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Concepts</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="index.html">Concepts</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="why_betterrobot.html">Why BetterRobot</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">Design decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture.html">Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model_and_data.html">Model and Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="joints_bodies_frames.html">Joints, bodies, and frames</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dynamics.html">Dynamics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="the_compute_seam.html">The Compute Seam</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parsers_and_ir.html">Parsers and the intermediate representation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="viewer.html">Viewer</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Conventions</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../conventions/index.html">Conventions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/naming.html">Naming</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/contracts.html">Contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/extension.html">Extension points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/testing.html">Testing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/performance.html">Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/style.html">Coding style</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/packaging.html">Packaging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conventions/source_and_license.html">Source and license</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../reference/index.html">Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.builders.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io.builders</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.parsers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io.parsers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.ir.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io.ir</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.assets.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io.assets</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.io.build_model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.io.build_model</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.renderers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.renderers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.render_modes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.render_modes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.overlays.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.overlays</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.trajectory_player.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.trajectory_player</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.visualizer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.visualizer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.panels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.panels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.primitive.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.primitive</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.scene.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.scene</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.helpers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.helpers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.viewer.themes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.themes</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.temporal</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.base.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.base</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.human.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.human</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.scene_sdf.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.scene_sdf</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.pose.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.pose</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.smoothness.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.smoothness</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.motion.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial.motion</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.ops.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial.ops</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.symmetric3.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial.symmetric3</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.inertia.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial.inertia</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.spatial.force.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.spatial.force</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.collision</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.collision.geometry.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.collision.geometry</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.collision.pairs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.collision.pairs</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.collision.closest_pts.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.collision.closest_pts</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.collision.robot_collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.collision.robot_collision</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.integrators.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.integrators</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.crba.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.crba</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.rnea.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.rnea</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.aba.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.aba</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.centroidal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.centroidal</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.state_manifold.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.state_manifold</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.dynamics.derivatives.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.derivatives</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.implicit.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.implicit</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.ik.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.ik</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.parameterization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.parameterization</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.trajectory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajectory</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.trajopt.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajopt</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.smoothing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.smoothing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.contact_forces.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.contact_forces</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.so3.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.so3</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.se3.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.se3</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.types.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.types</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.tangents.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.tangents</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.lie.alignment.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.lie.alignment</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.forward.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.forward</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.joint_models.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint_models</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.execution_batch.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.execution_batch</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.body.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.body</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.model_values.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model_values</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.reduced_coordinates.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.reduced_coordinates</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.joint.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.frame.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.frame</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.topology.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.topology</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.model_structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model_structure</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.model.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.model</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.data.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.data</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.data_model.joint_dispatch.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.data_model.joint_dispatch</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/better_robot/better_robot.exceptions.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.exceptions</span></code></a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/collision_and_geometry.html">Collision and geometry status</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/roadmap.html">Roadmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/changelog.html">Changelog</a></li>
+</ul>
+</details></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference external" href="https://github.com/rihat99/BetterRobot">GitHub</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/rihat99/BetterRobot" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/rihat99/BetterRobot/edit/dev/docs/concepts/design_decisions.md" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/rihat99/BetterRobot/issues/new?title=Issue%20on%20page%20%2Fconcepts/design_decisions.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/concepts/design_decisions.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Design decisions</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pytorch-native-not-bindings-and-not-jax">PyTorch-native, not bindings and not JAX</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#functional-lie-operations-not-tensor-subclasses">Functional Lie operations, not tensor subclasses</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-model-data-split">The Model / Data split</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#one-model-building-ir-not-parser-specific-models">One model-building IR, not parser-specific models</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#batched-by-default">Batched by default</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#one-code-path-for-fixed-and-floating-base">One code path for fixed and floating base</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#whole-pass-functions-not-per-operation-dispatch">Whole-pass functions, not per-operation dispatch</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#warp-for-kernels-not-hand-written-cuda">Warp for kernels, not hand-written CUDA</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#our-own-levenbergmarquardt-not-our-own-adam">Our own Levenberg–Marquardt, not our own Adam</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#residual-least-squares-not-arbitrary-scalar-objectives">Residual least squares, not arbitrary scalar objectives</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optimization-over-named-variable-blocks-not-one-flat-vector">Optimization over named variable blocks, not one flat vector</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#quaternions-scalar-last-tangents-linear-first">Quaternions scalar-last, tangents linear-first</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#jacobians-default-to-local-world-aligned">Jacobians default to LOCAL_WORLD_ALIGNED</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#analysis-and-optimization-not-simulation">Analysis and optimization, not simulation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-these-decisions-cost">What these decisions cost</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="design-decisions">
+<h1>Design decisions<a class="headerlink" href="#design-decisions" title="Link to this heading">#</a></h1>
+<p>A library is an accumulation of decisions, and most libraries hide them. This page states
+BetterRobot’s load-bearing decisions openly: what we chose, what we rejected, and why. Each section
+names the alternative we said no to, because a decision without its alternative is just an
+assertion.</p>
+<p>If you disagree with one of these, this page should at least tell you whether we considered your
+option and what it would have cost.</p>
+<section id="pytorch-native-not-bindings-and-not-jax">
+<span id="decision-pytorch-native"></span><h2>PyTorch-native, not bindings and not JAX<a class="headerlink" href="#pytorch-native-not-bindings-and-not-jax" title="Link to this heading">#</a></h2>
+<p>The classical way to build a fast robotics library is a C++ core with Python bindings — Pinocchio
+is the outstanding example. We chose pure Python on PyTorch tensors instead, for one dominant
+reason: <strong>autograd is the substrate of everything we do.</strong> Fitting articulated models to
+observations, differentiating kinematics inside a training loop, computing solver derivatives —
+all of it needs gradients through the library, not just around it. With a C++ core, every
+derivative you want is a derivative someone had to hand-write and bind. With PyTorch, every
+operation composes with every other differentiable operation the ecosystem has — including your
+neural network.</p>
+<p>JAX would have offered the same, and libraries like MJX and Pyroki prove it works. We chose
+PyTorch because the surrounding ecosystem we interoperate with (vision models, human body models,
+learned priors) lives overwhelmingly in PyTorch, and crossing the JAX–PyTorch boundary in a hot
+loop costs more than either framework’s advantages are worth.</p>
+<p>The honest cost: eager PyTorch is slow at short serial loops, and a kinematic-tree sweep is
+exactly that. We pay that cost deliberately and buy it back in two ways — <code class="docutils literal notranslate"><span class="pre">torch.compile</span></code> on the
+reference implementations, and the current opt-in fused FK lane where it helps (see below).</p>
+</section>
+<section id="functional-lie-operations-not-tensor-subclasses">
+<span id="decision-functional-lie"></span><h2>Functional Lie operations, not tensor subclasses<a class="headerlink" href="#functional-lie-operations-not-tensor-subclasses" title="Link to this heading">#</a></h2>
+<p>Rotations, poses, twists, and wrenches use ordinary tensors plus explicit functions. A tensor
+subclass could carry a semantic tag, but it would complicate interoperability, compilation, and
+serialization at nearly every boundary. The functional API keeps conventions visible while
+letting Lie operations compose directly with the rest of PyTorch.</p>
+</section>
+<section id="the-model-data-split">
+<span id="decision-model-data"></span><h2>The Model / Data split<a class="headerlink" href="#the-model-data-split" title="Link to this heading">#</a></h2>
+<p>Borrowed from Pinocchio, deliberately. <code class="docutils literal notranslate"><span class="pre">Model</span></code> is shallowly frozen structure — topology, joint
+types, index maps, and tensors that callers treat as read-only. <code class="docutils literal notranslate"><span class="pre">Data</span></code> is a per-query workspace
+of results. The alternative — one mutable <code class="docutils literal notranslate"><span class="pre">Robot</span></code> object
+that holds both — collapses the moment you want the same robot evaluated at a thousand
+configurations on a GPU, or two threads asking different questions of one model, or gradients
+flowing through results while the structure stays constant. Splitting identity from state is what
+makes batching, sharing, and differentiation compatible with each other.
+<a class="reference internal" href="model_and_data.html"><span class="doc">Model and Data</span></a> develops this in depth.</p>
+</section>
+<section id="one-model-building-ir-not-parser-specific-models">
+<span id="decision-one-ir"></span><h2>One model-building IR, not parser-specific models<a class="headerlink" href="#one-model-building-ir-not-parser-specific-models" title="Link to this heading">#</a></h2>
+<p>URDF, MJCF, and the programmatic <code class="docutils literal notranslate"><span class="pre">ModelBuilder</span></code> all produce the same <code class="docutils literal notranslate"><span class="pre">IRModel</span></code>, and one
+<code class="docutils literal notranslate"><span class="pre">build_model()</span></code> path validates and lowers it into a <code class="docutils literal notranslate"><span class="pre">Model</span></code>. Keeping parser details out of the
+compute model gives every input format the same joint semantics, indexing rules, and validation.
+Adding a format therefore means translating into the IR, not adding another model family.</p>
+</section>
+<section id="batched-by-default">
+<span id="decision-batched"></span><h2>Batched by default<a class="headerlink" href="#batched-by-default" title="Link to this heading">#</a></h2>
+<p>The documented tensor APIs accept leading batch axes <code class="docutils literal notranslate"><span class="pre">(B...,</span> <span class="pre">feature)</span></code>. This looks like a style
+choice and is actually the performance model: the Python loop in a pass runs over the robot’s
+<em>topology</em> (a fixed tuple, unrolled by <code class="docutils literal notranslate"><span class="pre">torch.compile</span></code>), never over the batch. One robot or a
+thousand robots is the same Python work. A library that is batch-aware in some functions and
+scalar-only in others ends up writing every algorithm twice; we refused that fork from the start.</p>
+</section>
+<section id="one-code-path-for-fixed-and-floating-base">
+<span id="decision-unified-base"></span><h2>One code path for fixed and floating base<a class="headerlink" href="#one-code-path-for-fixed-and-floating-base" title="Link to this heading">#</a></h2>
+<p>A floating-base robot is a robot whose first joint is a free-flyer (<code class="docutils literal notranslate"><span class="pre">nq=7</span></code>, <code class="docutils literal notranslate"><span class="pre">nv=6</span></code>). That is the
+entire difference. There is no floating-base flag, no parallel <code class="docutils literal notranslate"><span class="pre">_floating</span></code> solver family, no
+special base-pose argument. Libraries that split the two cases pay for the split in every
+operation forever; unifying them means humanoid IK and manipulator IK are literally the same call.</p>
+</section>
+<section id="whole-pass-functions-not-per-operation-dispatch">
+<span id="decision-whole-pass"></span><h2>Whole-pass functions, not per-operation dispatch<a class="headerlink" href="#whole-pass-functions-not-per-operation-dispatch" title="Link to this heading">#</a></h2>
+<p>BetterRobot once had a <code class="docutils literal notranslate"><span class="pre">backends/</span></code> protocol layer that dispatched each small Lie operation through
+an interface, in the hope of swapping implementations later. We deleted it. Per-operation
+dispatch has the wrong granularity for acceleration: no GPU kernel worth writing replaces a single
+quaternion multiply. The unit of architecture is the <strong>whole pass</strong> — the FK sweep, RNEA, a
+residual with its Jacobian — as a plain function: tensors in, tensors out. A pass has a reference
+PyTorch implementation (the correctness oracle, the CPU path, the second-order-gradient path) and
+may have a fused kernel implementation behind the same signature, selected by an explicit
+argument at the call site. No registries, no protocols, no hidden global state.</p>
+</section>
+<section id="warp-for-kernels-not-hand-written-cuda">
+<span id="decision-warp-kernels"></span><h2>Warp for kernels, not hand-written CUDA<a class="headerlink" href="#warp-for-kernels-not-hand-written-cuda" title="Link to this heading">#</a></h2>
+<p>Where a pass earns a GPU kernel, we write it in
+<a class="reference external" href="https://nvidia.github.io/warp/stable/index.html">NVIDIA Warp</a> — a Python-syntax kernel language —
+and not in raw CUDA. Raw CUDA can win specialized benchmarks, but it would create a second source
+language and a much larger maintenance surface. We accept that measured performance trade and buy
+back distance with kernel fusion and graph capture. The other boundary we hold: kernels are whole
+passes, never per-op. PyTorch is the truth; Warp is the speed.</p>
+</section>
+<section id="our-own-levenbergmarquardt-not-our-own-adam">
+<span id="decision-own-lm"></span><h2>Our own Levenberg–Marquardt, not our own Adam<a class="headerlink" href="#our-own-levenbergmarquardt-not-our-own-adam" title="Link to this heading">#</a></h2>
+<p>Nonlinear least squares on manifolds is the library’s core competence. When this solver stack was
+chosen, we found no maintained PyTorch-native implementation that combined what robotics
+estimation needs: batched independent problems with per-problem damping and convergence,
+manifold-aware steps, robust kernels, and honest treatment of joint limits. So LM and
+Gauss–Newton are ours, and we own their numerics — adaptive damping, iteratively reweighted
+robust losses, bound handling — as a responsibility, not an implementation detail.</p>
+<p>First-order methods are the opposite case: <code class="docutils literal notranslate"><span class="pre">torch.optim</span></code> already ships excellent Adam and friends,
+battle-tested by the entire deep-learning world. Reimplementing them inside a robotics library adds
+code without adding value. Our job there is only the thin manifold layer that first-order steps
+need — compute gradients in tangent space, retract steps back onto the manifold — and to stay out
+of the way.</p>
+</section>
+<section id="residual-least-squares-not-arbitrary-scalar-objectives">
+<span id="decision-residual-problems"></span><h2>Residual least squares, not arbitrary scalar objectives<a class="headerlink" href="#residual-least-squares-not-arbitrary-scalar-objectives" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">Problem</span></code> is deliberately residual-valued: providers return error vectors, and least-squares
+solvers use their Jacobians and block structure. That surface makes robust losses, diagnostics,
+and Gauss–Newton structure explicit. Arbitrary scalar objectives remain possible in ordinary
+PyTorch, but they belong with <code class="docutils literal notranslate"><span class="pre">torch.optim</span></code> rather than being disguised as least squares.</p>
+</section>
+<section id="optimization-over-named-variable-blocks-not-one-flat-vector">
+<span id="decision-variable-blocks"></span><h2>Optimization over named variable blocks, not one flat vector<a class="headerlink" href="#optimization-over-named-variable-blocks-not-one-flat-vector" title="Link to this heading">#</a></h2>
+<p>Real estimation problems optimize heterogeneous things jointly: joint configurations, object
+poses, shape parameters, camera intrinsics, contact forces. An optimizer hardwired to a single
+flat <code class="docutils literal notranslate"><span class="pre">q</span></code> vector forces every consumer to invent its own packing/unpacking layer — which is
+exactly how hand-rolled optimization code proliferates. So the problem surface is a set of <em>named
+variable blocks</em>, each with its own manifold, bounds, and mask, and residuals declare which blocks
+they read. IK is then just a problem with one block; a body-fitting pipeline is a problem with
+five. Same solver, no packing code.</p>
+</section>
+<section id="quaternions-scalar-last-tangents-linear-first">
+<span id="decision-pose-layout"></span><h2>Quaternions scalar-last, tangents linear-first<a class="headerlink" href="#quaternions-scalar-last-tangents-linear-first" title="Link to this heading">#</a></h2>
+<p>Every SE(3) pose is <code class="docutils literal notranslate"><span class="pre">[tx,</span> <span class="pre">ty,</span> <span class="pre">tz,</span> <span class="pre">qx,</span> <span class="pre">qy,</span> <span class="pre">qz,</span> <span class="pre">qw]</span></code> — quaternion scalar <strong>last</strong> — and every
+tangent/velocity is <code class="docutils literal notranslate"><span class="pre">[linear(3),</span> <span class="pre">angular(3)]</span></code>. Both are ecosystem alignments: scalar-last matches
+SciPy, ROS, Eigen’s coefficient/storage order, and Pinocchio (MuJoCo is the notable scalar-first
+holdout), and linear-first matches Pinocchio’s motion-vector convention. Within one process you can pass poses between
+BetterRobot, SciPy, and ROS tooling without a reorder. There is no deep mathematical argument for
+either order — which is precisely why we align with the largest neighborhood and then never,
+ever deviate. Conventions only help when they are absolute.</p>
+</section>
+<section id="jacobians-default-to-local-world-aligned">
+<span id="decision-jacobian-frame"></span><h2>Jacobians default to LOCAL_WORLD_ALIGNED<a class="headerlink" href="#jacobians-default-to-local-world-aligned" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">get_frame_jacobian</span></code> answers, by default, the question users actually ask: “how does the world
+position and world orientation of this frame change with the joints?” That is the
+local-world-aligned convention — linear rows are the world-frame velocity of the frame origin.
+The classical alternatives (<code class="docutils literal notranslate"><span class="pre">WORLD</span></code>: velocity measured at the world origin; <code class="docutils literal notranslate"><span class="pre">LOCAL</span></code>: everything
+in the body frame) are available by argument. The default was chosen for the common case, and the
+frame details are documented in <a class="reference internal" href="kinematics_and_jacobians.html"><span class="doc">Kinematics and Jacobians</span></a>: converting
+<code class="docutils literal notranslate"><span class="pre">LOCAL_WORLD_ALIGNED</span></code> to <code class="docutils literal notranslate"><span class="pre">LOCAL</span></code> uses a rotation-only block transform, while converting <code class="docutils literal notranslate"><span class="pre">WORLD</span></code>
+to <code class="docutils literal notranslate"><span class="pre">LOCAL</span></code> also shifts the reference point and therefore uses the full adjoint.</p>
+</section>
+<section id="analysis-and-optimization-not-simulation">
+<span id="decision-analysis-only"></span><h2>Analysis and optimization, not simulation<a class="headerlink" href="#analysis-and-optimization-not-simulation" title="Link to this heading">#</a></h2>
+<p>BetterRobot computes kinematics, dynamics quantities, and solutions to optimization problems. It
+does not ship a physics simulator: no contact solver, no integrator loop marching a world forward
+in time. That fence is deliberate — simulation is a different product with different correctness
+criteria, and excellent ones exist (MuJoCo, Drake, Isaac). BetterRobot is the layer you use to
+<em>analyze</em> and <em>fit</em>; if you need to simulate, pair it with a simulator.</p>
+</section>
+<section id="what-these-decisions-cost">
+<h2>What these decisions cost<a class="headerlink" href="#what-these-decisions-cost" title="Link to this heading">#</a></h2>
+<p>Honesty requires the bill, not just the benefits: pure PyTorch means eager CPU tree sweeps are
+slower than Pinocchio’s C++ and always will be; batching-by-default makes some single-robot code
+carry an extra dimension in its head; refusing hand-written CUDA leaves measured throughput on
+the table against specialized engines; owning LM numerics means we maintain solver code that a
+wrapper library would not. We consider every one of these a good trade. When one stops being
+good, the decision — and this page — changes.</p>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="why_betterrobot.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Why BetterRobot</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="architecture.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Architecture</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pytorch-native-not-bindings-and-not-jax">PyTorch-native, not bindings and not JAX</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#functional-lie-operations-not-tensor-subclasses">Functional Lie operations, not tensor subclasses</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-model-data-split">The Model / Data split</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#one-model-building-ir-not-parser-specific-models">One model-building IR, not parser-specific models</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#batched-by-default">Batched by default</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#one-code-path-for-fixed-and-floating-base">One code path for fixed and floating base</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#whole-pass-functions-not-per-operation-dispatch">Whole-pass functions, not per-operation dispatch</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#warp-for-kernels-not-hand-written-cuda">Warp for kernels, not hand-written CUDA</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#our-own-levenbergmarquardt-not-our-own-adam">Our own Levenberg–Marquardt, not our own Adam</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#residual-least-squares-not-arbitrary-scalar-objectives">Residual least squares, not arbitrary scalar objectives</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optimization-over-named-variable-blocks-not-one-flat-vector">Optimization over named variable blocks, not one flat vector</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#quaternions-scalar-last-tangents-linear-first">Quaternions scalar-last, tangents linear-first</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#jacobians-default-to-local-world-aligned">Jacobians default to LOCAL_WORLD_ALIGNED</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#analysis-and-optimization-not-simulation">Analysis and optimization, not simulation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-these-decisions-cost">What these decisions cost</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By BetterRobot contributors
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright BetterRobot contributors.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    <p class="last-updated">
+  Last updated on Jul 19, 2026.
+  <br/>
+</p>
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

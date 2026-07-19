@@ -147,9 +147,9 @@
 
 ````{py:attribute} jacobian_strategy
 :canonical: better_robot.tasks.ik.OptimizerConfig.jacobian_strategy
-:type: better_robot.kinematics.jacobian_strategy.JacobianStrategy
+:type: better_robot.optim.JacobianStrategy
 :value: >
-   None
+   'auto'
 
 ```{autodoc2-docstring} better_robot.tasks.ik.OptimizerConfig.jacobian_strategy
 ```
@@ -158,7 +158,7 @@
 
 ````{py:attribute} linear_solver
 :canonical: better_robot.tasks.ik.OptimizerConfig.linear_solver
-:type: typing.Literal[cholesky, lstsq]
+:type: typing.Literal[cholesky]
 :value: >
    'cholesky'
 
@@ -292,7 +292,7 @@
 
 `````
 
-````{py:function} solve_ik(model: better_robot.data_model.model.Model, targets: dict[str, torch.Tensor], *, initial_q: torch.Tensor | None = None, cost_cfg: better_robot.tasks.ik.IKCostConfig | None = None, optimizer_cfg: better_robot.tasks.ik.OptimizerConfig | None = None) -> better_robot.tasks.ik.IKResult
+````{py:function} solve_ik(model: better_robot.data_model.model.Model, targets: dict[str, torch.Tensor], *, initial_q: torch.Tensor | None = None, cost_cfg: better_robot.tasks.ik.IKCostConfig | None = None, optimizer_cfg: better_robot.tasks.ik.OptimizerConfig | None = None, differentiable: bool = False) -> better_robot.tasks.ik.IKResult
 :canonical: better_robot.tasks.ik.solve_ik
 
 ```{autodoc2-docstring} better_robot.tasks.ik.solve_ik

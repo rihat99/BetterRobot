@@ -62,14 +62,6 @@
 
 ````
 
-````{py:method} jacobian(value: better_robot.residuals.base.ResidualState | collections.abc.Mapping[str, typing.Any]) -> torch.Tensor | None
-:canonical: better_robot.residuals.regularization.RestResidual.jacobian
-
-```{autodoc2-docstring} better_robot.residuals.regularization.RestResidual.jacobian
-```
-
-````
-
 ````{py:method} jacobian_blocks(ctx: collections.abc.Mapping[str, typing.Any]) -> dict[str, torch.Tensor]
 :canonical: better_robot.residuals.regularization.RestResidual.jacobian_blocks
 
@@ -92,14 +84,6 @@
    ('q',)
 
 ```{autodoc2-docstring} better_robot.residuals.regularization.JointRotationPrior.reads
-```
-
-````
-
-````{py:method} jacobian(value: better_robot.residuals.base.ResidualState | collections.abc.Mapping[str, typing.Any]) -> torch.Tensor | None
-:canonical: better_robot.residuals.regularization.JointRotationPrior.jacobian
-
-```{autodoc2-docstring} better_robot.residuals.regularization.JointRotationPrior.jacobian
 ```
 
 ````
@@ -157,22 +141,6 @@
 
 ````
 
-````{py:method} jacobian(value: better_robot.residuals.base.ResidualState | collections.abc.Mapping[str, typing.Any]) -> torch.Tensor | None
-:canonical: better_robot.residuals.regularization.ReferenceTrajectoryResidual.jacobian
-
-```{autodoc2-docstring} better_robot.residuals.regularization.ReferenceTrajectoryResidual.jacobian
-```
-
-````
-
-````{py:method} apply_jac_transpose(state: better_robot.residuals.base.ResidualState, r: torch.Tensor) -> torch.Tensor
-:canonical: better_robot.residuals.regularization.ReferenceTrajectoryResidual.apply_jac_transpose
-
-```{autodoc2-docstring} better_robot.residuals.regularization.ReferenceTrajectoryResidual.apply_jac_transpose
-```
-
-````
-
 `````
 
 `````{py:class} NullspaceResidual(q_rest: torch.Tensor, *, weight: float = 1.0)
@@ -192,11 +160,12 @@
 
 ````
 
-````{py:method} jacobian(state: better_robot.residuals.base.ResidualState) -> torch.Tensor | None
-:canonical: better_robot.residuals.regularization.NullspaceResidual.jacobian
-:abstractmethod:
+````{py:attribute} reads
+:canonical: better_robot.residuals.regularization.NullspaceResidual.reads
+:value: >
+   ('q',)
 
-```{autodoc2-docstring} better_robot.residuals.regularization.NullspaceResidual.jacobian
+```{autodoc2-docstring} better_robot.residuals.regularization.NullspaceResidual.reads
 ```
 
 ````

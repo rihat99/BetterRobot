@@ -54,7 +54,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 18, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
   </head>
   
   
@@ -158,41 +158,44 @@
 </button></div>
         <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
     <div class="bd-toc-item navbar-nav active">
-        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get started</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../getting_started/index.html">Getting started</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../getting_started/installation.html">Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/forward_kinematics.html">Forward kinematics on Panda</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/inverse_kinematics.html">Inverse kinematics on Panda</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/floating_base.html">Floating-base IK on the G1 humanoid</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/01_robot_model.html">Meet the robot model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/02_forward_kinematics.html">Forward kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/03_inverse_kinematics.html">Inverse kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/04_floating_base.html">Floating-base robots</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/05_batched_gpu.html">Batching and the GPU</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">How-to guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/custom_residual.html">Write a custom residual</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/load_a_robot.html">Load a robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/visualize.html">Visualize a robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/differentiate_through_kinematics.html">Differentiate through kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/own_your_optimization_loop.html">Own your optimization loop</a></li>
 </ul>
 </details></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Concepts</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../concepts/index.html">Concepts</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/vision.html">Vision</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/why_betterrobot.html">Why BetterRobot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/design_decisions.html">Design decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/architecture.html">Architecture</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/model_and_data.html">Model and Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/joints_bodies_frames.html">Joints, Bodies, and Frames</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Lie Groups and Spatial Algebra</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the IR</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics.html">Kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/joints_bodies_frames.html">Joints, bodies, and frames</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_and_costs.html">Residuals and Costs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/solver_stack.html">Named-Block Evaluation and the Legacy Solver Stack</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/tasks.html">Tasks — IK and Trajectory Optimisation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/collision_and_geometry.html">Collision and Geometry</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/batching_and_backends.html">Batching and Compute Lanes</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/warp_bridge.html">Torch–Warp bridge and opt-in FK lane</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/the_compute_seam.html">The Compute Seam</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
-</ul>
-</details></li>
-</ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Guides</span></p>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1 has-children"><a class="reference internal" href="../../../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../guides/custom_residuals.html">Write a custom block residual</a></li>
 </ul>
 </details></li>
 </ul>
@@ -200,14 +203,13 @@
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../conventions/index.html">Conventions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/naming.html">Naming</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/performance.html">Performance</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/extension.html">Extension Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/contracts.html">Contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/extension.html">Extension points</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/testing.html">Testing</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/contracts.html">Contracts &amp; Validation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/engineering.html">Engineering Contract</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/source_and_license.html">Source and License Decision Memo</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/style.html">Coding Style</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/performance.html">Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/style.html">Coding style</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/packaging.html">Packaging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/source_and_license.html">Source and license</a></li>
 </ul>
 </details></li>
 </ul>
@@ -242,8 +244,6 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.human.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.human</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.manipulability.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.manipulability</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.collision</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
@@ -279,18 +279,17 @@
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.strategies.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.strategies</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.implicit.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.implicit</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.cost_stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.cost_stack</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.state.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.state</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.structure</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.costs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.costs.stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.stack</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -312,7 +311,6 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.kinematics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.kinematics.jacobian.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.kinematics.jacobian_strategy.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian_strategy</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.kinematics.forward.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.forward</span></code></a></li>
 </ul>
 </details></li>
@@ -334,16 +332,13 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.exceptions.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.exceptions</span></code></a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../reference/named_block_solvers.html">Named-block solver API</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../reference/changelog.html">Changelog</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../reference/roadmap.html">Roadmap</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../reference/m1_removed_symbols.html">M1 removed surfaces</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../reference/m3_removed_symbols.html">M3.5 removed surfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../reference/glossary.html">Glossary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/collision_and_geometry.html">Collision and geometry status</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/roadmap.html">Roadmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/changelog.html">Changelog</a></li>
 </ul>
 </details></li>
 </ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Project Links</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/rihat99/BetterRobot">GitHub</a></li>
 </ul>
@@ -502,30 +497,26 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">replace</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Literal</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">.._validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_tensor</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Model</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..kinematics.forward</span><span class="w"> </span><span class="kn">import</span> <span class="n">forward_kinematics</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">..kinematics.jacobian_strategy</span><span class="w"> </span><span class="kn">import</span> <span class="n">JacobianStrategy</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..optim</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-    <span class="n">Adam</span><span class="p">,</span>
-    <span class="n">Bounds</span><span class="p">,</span>
     <span class="n">GaussNewton</span><span class="p">,</span>
+    <span class="n">JacobianStrategy</span><span class="p">,</span>
     <span class="n">LevenbergMarquardt</span><span class="p">,</span>
-    <span class="n">Phase</span><span class="p">,</span>
     <span class="n">Problem</span><span class="p">,</span>
     <span class="n">ResidualItem</span><span class="p">,</span>
     <span class="n">RobotConfig</span><span class="p">,</span>
     <span class="n">RobotStateProvider</span><span class="p">,</span>
     <span class="n">VarSpec</span><span class="p">,</span>
-    <span class="n">run_phases</span><span class="p">,</span>
+    <span class="n">run_first_order</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">..optim.kernels</span><span class="w"> </span><span class="kn">import</span> <span class="n">Cauchy</span><span class="p">,</span> <span class="n">Huber</span><span class="p">,</span> <span class="n">L2</span><span class="p">,</span> <span class="n">Tukey</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">..optim.solvers.cholesky</span><span class="w"> </span><span class="kn">import</span> <span class="n">Cholesky</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">..optim.solvers.lstsq</span><span class="w"> </span><span class="kn">import</span> <span class="n">LSTSQ</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..optim</span><span class="w"> </span><span class="kn">import</span> <span class="n">Cauchy</span><span class="p">,</span> <span class="n">Cholesky</span><span class="p">,</span> <span class="n">Huber</span><span class="p">,</span> <span class="n">L2</span><span class="p">,</span> <span class="n">Tukey</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..residuals.limits</span><span class="w"> </span><span class="kn">import</span> <span class="n">JointPositionLimit</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..residuals.pose</span><span class="w"> </span><span class="kn">import</span> <span class="n">PoseResidual</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..residuals.regularization</span><span class="w"> </span><span class="kn">import</span> <span class="n">RestResidual</span>
@@ -534,19 +525,22 @@
     <span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Data</span>
 
 
-<span class="n">_OptimizerName</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span>
-    <span class="s2">&quot;lm&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;gn&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;adam&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;lbfgs&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;lm_then_adam&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;lm_then_lbfgs&quot;</span><span class="p">,</span>
-<span class="p">]</span>
+<span class="n">_OptimizerName</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;lm&quot;</span><span class="p">,</span> <span class="s2">&quot;gn&quot;</span><span class="p">,</span> <span class="s2">&quot;adam&quot;</span><span class="p">,</span> <span class="s2">&quot;lbfgs&quot;</span><span class="p">,</span> <span class="s2">&quot;lm_then_adam&quot;</span><span class="p">,</span> <span class="s2">&quot;lm_then_lbfgs&quot;</span><span class="p">]</span>
 
 <span class="n">_OPTIMIZER_NAMES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="s2">&quot;lm&quot;</span><span class="p">,</span> <span class="s2">&quot;gn&quot;</span><span class="p">,</span> <span class="s2">&quot;adam&quot;</span><span class="p">,</span> <span class="s2">&quot;lbfgs&quot;</span><span class="p">,</span> <span class="s2">&quot;lm_then_adam&quot;</span><span class="p">,</span> <span class="s2">&quot;lm_then_lbfgs&quot;</span><span class="p">})</span>
-<span class="n">_LINEAR_SOLVER_NAMES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="s2">&quot;cholesky&quot;</span><span class="p">,</span> <span class="s2">&quot;lstsq&quot;</span><span class="p">})</span>
-<span class="n">_KERNEL_NAMES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="s2">&quot;l2&quot;</span><span class="p">,</span> <span class="s2">&quot;huber&quot;</span><span class="p">,</span> <span class="s2">&quot;cauchy&quot;</span><span class="p">,</span> <span class="s2">&quot;tukey&quot;</span><span class="p">})</span>
+<span class="n">_LINEAR_SOLVERS</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;cholesky&quot;</span><span class="p">:</span> <span class="n">Cholesky</span><span class="p">}</span>
+<span class="n">_KERNELS</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;l2&quot;</span><span class="p">:</span> <span class="n">L2</span><span class="p">,</span> <span class="s2">&quot;huber&quot;</span><span class="p">:</span> <span class="n">Huber</span><span class="p">,</span> <span class="s2">&quot;cauchy&quot;</span><span class="p">:</span> <span class="n">Cauchy</span><span class="p">,</span> <span class="s2">&quot;tukey&quot;</span><span class="p">:</span> <span class="n">Tukey</span><span class="p">}</span>
+<span class="n">_LINEAR_SOLVER_NAMES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span><span class="n">_LINEAR_SOLVERS</span><span class="p">)</span>
+<span class="n">_KERNEL_NAMES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span><span class="n">_KERNELS</span><span class="p">)</span>
 <span class="n">_DAMPING_NAMES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span> <span class="s2">&quot;adaptive&quot;</span><span class="p">})</span>
+<span class="n">_JACOBIAN_STRATEGIES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span> <span class="s2">&quot;analytic&quot;</span><span class="p">,</span> <span class="s2">&quot;jacrev&quot;</span><span class="p">,</span> <span class="s2">&quot;jacfwd&quot;</span><span class="p">,</span> <span class="s2">&quot;finite_difference&quot;</span><span class="p">})</span>
+<span class="n">_CONFIG_CHOICES</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="p">(</span><span class="s2">&quot;optimizer&quot;</span><span class="p">,</span> <span class="n">_OPTIMIZER_NAMES</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;linear_solver&quot;</span><span class="p">,</span> <span class="n">_LINEAR_SOLVER_NAMES</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;kernel&quot;</span><span class="p">,</span> <span class="n">_KERNEL_NAMES</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;damping&quot;</span><span class="p">,</span> <span class="n">_DAMPING_NAMES</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;jacobian_strategy&quot;</span><span class="p">,</span> <span class="n">_JACOBIAN_STRATEGIES</span><span class="p">),</span>
+<span class="p">)</span>
 
 
 <div class="viewcode-block" id="IKCostConfig">
@@ -570,8 +564,8 @@
 <span class="k">class</span><span class="w"> </span><span class="nc">OptimizerConfig</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Named-block solver selection and hyperparameters.</span>
 
-<span class="sd">    ``lm_then_adam`` runs a coarse LM phase followed by a matrix-free Adam</span>
-<span class="sd">    phase. Batched L-BFGS is deliberately not exposed by the named-block</span>
+<span class="sd">    ``lm_then_adam`` runs LM followed by the ``torch.optim`` adapter. Batched</span>
+<span class="sd">    L-BFGS is deliberately not exposed by the named-block</span>
 <span class="sd">    stack yet; the retained ``lbfgs`` spellings fail with an actionable error.</span>
 <span class="sd">    Linear-solver and Jacobian settings apply to LM/GN phases; damping applies</span>
 <span class="sd">    only to configurations with an LM phase.</span>
@@ -579,8 +573,8 @@
 
     <span class="n">optimizer</span><span class="p">:</span> <span class="n">_OptimizerName</span> <span class="o">=</span> <span class="s2">&quot;lm&quot;</span>
     <span class="n">max_iter</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span>
-    <span class="n">jacobian_strategy</span><span class="p">:</span> <span class="n">JacobianStrategy</span> <span class="o">=</span> <span class="n">JacobianStrategy</span><span class="o">.</span><span class="n">AUTO</span>
-    <span class="n">linear_solver</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;cholesky&quot;</span><span class="p">,</span> <span class="s2">&quot;lstsq&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;cholesky&quot;</span>
+    <span class="n">jacobian_strategy</span><span class="p">:</span> <span class="n">JacobianStrategy</span> <span class="o">=</span> <span class="s2">&quot;auto&quot;</span>
+    <span class="n">linear_solver</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;cholesky&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;cholesky&quot;</span>
     <span class="n">kernel</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;l2&quot;</span><span class="p">,</span> <span class="s2">&quot;huber&quot;</span><span class="p">,</span> <span class="s2">&quot;cauchy&quot;</span><span class="p">,</span> <span class="s2">&quot;tukey&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;l2&quot;</span>
     <span class="n">damping</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span> <span class="s2">&quot;adaptive&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;adaptive&quot;</span>
     <span class="n">tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-6</span>
@@ -617,34 +611,30 @@
 </div>
 
 
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_validate_choices</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">OptimizerConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">allowed</span> <span class="ow">in</span> <span class="n">_CONFIG_CHOICES</span><span class="p">:</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="n">value</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">allowed</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">value</span><span class="si">!r}</span><span class="s2">; expected one of </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">allowed</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_reject_unused</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">OptimizerConfig</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">defaults</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="o">...</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">==</span> <span class="n">optimizer</span><span class="p">:</span>
+        <span class="n">unused</span> <span class="o">=</span> <span class="p">[</span><span class="n">name</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">default</span> <span class="ow">in</span> <span class="n">defaults</span> <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span> <span class="o">!=</span> <span class="n">default</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">unused</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;optimizer=</span><span class="si">{</span><span class="n">optimizer</span><span class="si">!r}</span><span class="s2"> does not use </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">unused</span><span class="p">)</span><span class="si">}</span><span class="s2">; leave these fields at their defaults&quot;</span>
+            <span class="p">)</span>
+
+
 <span class="k">def</span><span class="w"> </span><span class="nf">_validate_optimizer_config</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">OptimizerConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Validate facade policy before building residuals or solver state.&quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">optimizer</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">optimizer</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_OPTIMIZER_NAMES</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown optimizer </span><span class="si">{</span><span class="n">config</span><span class="o">.</span><span class="n">optimizer</span><span class="si">!r}</span><span class="s2">; expected one of </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">_OPTIMIZER_NAMES</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">linear_solver</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">linear_solver</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_LINEAR_SOLVER_NAMES</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;Unknown linear_solver </span><span class="si">{</span><span class="n">config</span><span class="o">.</span><span class="n">linear_solver</span><span class="si">!r}</span><span class="s2">; expected one of </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">_LINEAR_SOLVER_NAMES</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">kernel</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">kernel</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_KERNEL_NAMES</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown kernel </span><span class="si">{</span><span class="n">config</span><span class="o">.</span><span class="n">kernel</span><span class="si">!r}</span><span class="s2">; expected one of </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">_KERNEL_NAMES</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">damping</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">damping</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_DAMPING_NAMES</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown damping </span><span class="si">{</span><span class="n">config</span><span class="o">.</span><span class="n">damping</span><span class="si">!r}</span><span class="s2">; expected one of </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">_DAMPING_NAMES</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">jacobian_strategy</span><span class="p">,</span> <span class="n">JacobianStrategy</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown jacobian_strategy </span><span class="si">{</span><span class="n">config</span><span class="o">.</span><span class="n">jacobian_strategy</span><span class="si">!r}</span><span class="s2">; expected a JacobianStrategy member&quot;</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">==</span> <span class="s2">&quot;adam&quot;</span><span class="p">:</span>
-        <span class="n">unused</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">linear_solver</span> <span class="o">!=</span> <span class="s2">&quot;cholesky&quot;</span><span class="p">:</span>
-            <span class="n">unused</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;linear_solver&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">jacobian_strategy</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">JacobianStrategy</span><span class="o">.</span><span class="n">AUTO</span><span class="p">:</span>
-            <span class="n">unused</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;jacobian_strategy&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">damping</span> <span class="o">!=</span> <span class="s2">&quot;adaptive&quot;</span><span class="p">:</span>
-            <span class="n">unused</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;damping&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">unused</span><span class="p">:</span>
-            <span class="n">fields</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">unused</span><span class="p">)</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;optimizer=&#39;adam&#39; does not use </span><span class="si">{</span><span class="n">fields</span><span class="si">}</span><span class="s2">; leave these fields at their defaults&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">==</span> <span class="s2">&quot;gn&quot;</span> <span class="ow">and</span> <span class="n">config</span><span class="o">.</span><span class="n">damping</span> <span class="o">!=</span> <span class="s2">&quot;adaptive&quot;</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;optimizer=&#39;gn&#39; does not use damping; leave this field at its default&quot;</span><span class="p">)</span>
+    <span class="n">_validate_choices</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+    <span class="n">_reject_unused</span><span class="p">(</span>
+        <span class="n">config</span><span class="p">,</span> <span class="s2">&quot;adam&quot;</span><span class="p">,</span> <span class="p">((</span><span class="s2">&quot;linear_solver&quot;</span><span class="p">,</span> <span class="s2">&quot;cholesky&quot;</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;jacobian_strategy&quot;</span><span class="p">,</span> <span class="s2">&quot;auto&quot;</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;damping&quot;</span><span class="p">,</span> <span class="s2">&quot;adaptive&quot;</span><span class="p">))</span>
+    <span class="p">)</span>
+    <span class="n">_reject_unused</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="s2">&quot;gn&quot;</span><span class="p">,</span> <span class="p">((</span><span class="s2">&quot;damping&quot;</span><span class="p">,</span> <span class="s2">&quot;adaptive&quot;</span><span class="p">),))</span>
     <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">refine_disabled_items</span> <span class="ow">and</span> <span class="n">config</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">!=</span> <span class="s2">&quot;lm_then_adam&quot;</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
             <span class="s2">&quot;refine_disabled_items is only used by optimizer=&#39;lm_then_adam&#39;; leave it empty for other optimizers&quot;</span>
@@ -653,46 +643,16 @@
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_make_linear_solver</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a fresh named-block linear solver.&quot;&quot;&quot;</span>
-    <span class="n">table</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;cholesky&quot;</span><span class="p">:</span> <span class="n">Cholesky</span><span class="p">,</span> <span class="s2">&quot;lstsq&quot;</span><span class="p">:</span> <span class="n">LSTSQ</span><span class="p">}</span>
-    <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">table</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown linear_solver </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2">; expected one of </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">table</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">table</span><span class="p">[</span><span class="n">name</span><span class="p">]()</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_LINEAR_SOLVERS</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown linear_solver </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2">; expected one of </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">_LINEAR_SOLVERS</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_LINEAR_SOLVERS</span><span class="p">[</span><span class="n">name</span><span class="p">]()</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_make_robust_kernel</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a fresh robust kernel, including the explicit L2 kernel.&quot;&quot;&quot;</span>
-    <span class="n">table</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;l2&quot;</span><span class="p">:</span> <span class="n">L2</span><span class="p">,</span> <span class="s2">&quot;huber&quot;</span><span class="p">:</span> <span class="n">Huber</span><span class="p">,</span> <span class="s2">&quot;cauchy&quot;</span><span class="p">:</span> <span class="n">Cauchy</span><span class="p">,</span> <span class="s2">&quot;tukey&quot;</span><span class="p">:</span> <span class="n">Tukey</span><span class="p">}</span>
-    <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">table</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown kernel </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2">; expected one of </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">table</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">table</span><span class="p">[</span><span class="n">name</span><span class="p">]()</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_solver_jacobian_strategy</span><span class="p">(</span>
-    <span class="n">strategy</span><span class="p">:</span> <span class="n">JacobianStrategy</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span> <span class="s2">&quot;analytic&quot;</span><span class="p">,</span> <span class="s2">&quot;finite_difference&quot;</span><span class="p">]:</span>
-    <span class="k">if</span> <span class="n">strategy</span> <span class="ow">is</span> <span class="n">JacobianStrategy</span><span class="o">.</span><span class="n">FINITE_DIFF</span><span class="p">:</span>
-        <span class="k">return</span> <span class="s2">&quot;finite_difference&quot;</span>
-    <span class="k">if</span> <span class="n">strategy</span> <span class="ow">is</span> <span class="n">JacobianStrategy</span><span class="o">.</span><span class="n">ANALYTIC</span><span class="p">:</span>
-        <span class="k">return</span> <span class="s2">&quot;analytic&quot;</span>
-    <span class="k">if</span> <span class="n">strategy</span> <span class="ow">is</span> <span class="n">JacobianStrategy</span><span class="o">.</span><span class="n">AUTO</span><span class="p">:</span>
-        <span class="k">return</span> <span class="s2">&quot;auto&quot;</span>
-    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown jacobian_strategy </span><span class="si">{</span><span class="n">strategy</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_configuration_bounds</span><span class="p">(</span>
-    <span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span>
-    <span class="n">exemplar</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-    <span class="n">manifold</span><span class="p">:</span> <span class="n">RobotConfig</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Bounds</span><span class="p">:</span>
-    <span class="n">lower</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">lower_pos_limit</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="n">exemplar</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">exemplar</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
-    <span class="n">upper</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">upper_pos_limit</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="n">exemplar</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">exemplar</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
-    <span class="n">box</span> <span class="o">=</span> <span class="n">manifold</span><span class="o">.</span><span class="n">box_mask</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="n">exemplar</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-    <span class="c1"># Quaternion/unit-circle coordinates are manifold constraints, not box</span>
-    <span class="c1"># coordinates. Model metadata commonly stores [-1, 1] there; the block</span>
-    <span class="c1"># manifold contract requires those entries to be unbounded.</span>
-    <span class="n">lower</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">box</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">lower</span><span class="p">,</span> <span class="o">-</span><span class="n">torch</span><span class="o">.</span><span class="n">inf</span><span class="p">))</span>
-    <span class="n">upper</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">box</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">upper</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">inf</span><span class="p">))</span>
-    <span class="k">return</span> <span class="n">Bounds</span><span class="p">(</span><span class="n">lower</span><span class="o">=</span><span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="o">=</span><span class="n">upper</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_KERNELS</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown kernel </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2">; expected one of </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">_KERNELS</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_KERNELS</span><span class="p">[</span><span class="n">name</span><span class="p">]()</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_broadcast_initial_configuration</span><span class="p">(</span>
@@ -701,30 +661,26 @@
     <span class="n">targets</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
     <span class="n">q_rest</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">initial_q</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">initial_q</span><span class="o">.</span><span class="n">is_floating_point</span><span class="p">():</span>
-        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;initial_q must be a floating torch.Tensor&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">initial_q</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">initial_q</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">model</span><span class="o">.</span><span class="n">nq</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;initial_q must end in model.nq=</span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="n">nq</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">initial_q</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="n">batch_shapes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">initial_q</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])]</span>
-    <span class="k">for</span> <span class="n">frame_name</span><span class="p">,</span> <span class="n">target</span> <span class="ow">in</span> <span class="n">targets</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">target</span><span class="o">.</span><span class="n">is_floating_point</span><span class="p">():</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;target for frame </span><span class="si">{</span><span class="n">frame_name</span><span class="si">!r}</span><span class="s2"> must be a floating tensor&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">target</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">target</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">7</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;target for frame </span><span class="si">{</span><span class="n">frame_name</span><span class="si">!r}</span><span class="s2"> must end in SE3 shape (7,), got </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="n">batch_shapes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+    <span class="n">tensors</span> <span class="o">=</span> <span class="p">[</span><span class="n">check_tensor</span><span class="p">(</span><span class="s2">&quot;initial_q&quot;</span><span class="p">,</span> <span class="n">initial_q</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">nq</span><span class="p">,),</span> <span class="n">floating</span><span class="o">=</span><span class="kc">True</span><span class="p">)]</span>
+    <span class="n">tensors</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+        <span class="n">check_tensor</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;target for frame </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">7</span><span class="p">,),</span> <span class="n">floating</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">target</span> <span class="ow">in</span> <span class="n">targets</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+    <span class="p">)</span>
     <span class="k">if</span> <span class="n">q_rest</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">q_rest</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">q_rest</span><span class="o">.</span><span class="n">is_floating_point</span><span class="p">():</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;IKCostConfig.q_rest must be a floating torch.Tensor&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">q_rest</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">q_rest</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">model</span><span class="o">.</span><span class="n">nq</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;IKCostConfig.q_rest must end in model.nq=</span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="n">nq</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">q_rest</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="n">batch_shapes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">q_rest</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="n">tensors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">check_tensor</span><span class="p">(</span><span class="s2">&quot;IKCostConfig.q_rest&quot;</span><span class="p">,</span> <span class="n">q_rest</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">nq</span><span class="p">,),</span> <span class="n">floating</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+
+    <span class="n">batch_shape</span> <span class="o">=</span> <span class="n">_ik_batch_shape</span><span class="p">(</span><span class="n">tensors</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="n">initial_q</span><span class="p">,</span> <span class="p">(</span><span class="o">*</span><span class="n">batch_shape</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">nq</span><span class="p">))</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_ik_batch_shape</span><span class="p">(</span><span class="n">tensors</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Size</span><span class="p">:</span>
+    <span class="n">batch_shapes</span> <span class="o">=</span> <span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="k">for</span> <span class="n">tensor</span> <span class="ow">in</span> <span class="n">tensors</span><span class="p">]</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="n">batch_shape</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">broadcast_shapes</span><span class="p">(</span><span class="o">*</span><span class="n">batch_shapes</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">broadcast_shapes</span><span class="p">(</span><span class="o">*</span><span class="n">batch_shapes</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">RuntimeError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
             <span class="sa">f</span><span class="s2">&quot;initial_q, target, and q_rest leading batch shapes must broadcast; got </span><span class="si">{</span><span class="n">batch_shapes</span><span class="si">}</span><span class="s2">&quot;</span>
         <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
-    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="n">initial_q</span><span class="p">,</span> <span class="p">(</span><span class="o">*</span><span class="n">batch_shape</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">nq</span><span class="p">))</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_state_iterations</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
@@ -755,15 +711,32 @@
     <span class="k">return</span> <span class="n">iterations</span><span class="p">,</span> <span class="n">converged</span>
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">_refinement_problem</span><span class="p">(</span><span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">,</span> <span class="n">disabled_items</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Problem</span><span class="p">:</span>
+    <span class="n">known</span> <span class="o">=</span> <span class="p">{</span><span class="n">item</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">problem</span><span class="o">.</span><span class="n">residuals</span><span class="p">}</span>
+    <span class="n">unknown</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">disabled_items</span><span class="p">)</span> <span class="o">-</span> <span class="n">known</span>
+    <span class="k">if</span> <span class="n">unknown</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;refine_disabled_items contains unknown residual names </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">unknown</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Problem</span><span class="p">(</span>
+        <span class="nb">vars</span><span class="o">=</span><span class="n">problem</span><span class="o">.</span><span class="n">vars</span><span class="p">,</span>
+        <span class="n">residuals</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span>
+            <span class="n">replace</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span> <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="n">disabled_items</span> <span class="k">else</span> <span class="n">item</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">problem</span><span class="o">.</span><span class="n">residuals</span>
+        <span class="p">),</span>
+        <span class="n">providers</span><span class="o">=</span><span class="n">problem</span><span class="o">.</span><span class="n">providers</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="n">problem</span><span class="o">.</span><span class="n">parameters</span><span class="p">,</span>
+        <span class="n">differentiable_parameters</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">problem</span><span class="o">.</span><span class="n">parameter_gradients</span><span class="p">),</span>
+    <span class="p">)</span>
+
+
 <div class="viewcode-block" id="solve_ik">
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.tasks.ik.html#better_robot.tasks.ik.solve_ik">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">solve_ik</span><span class="p">(</span>  <span class="c1"># noqa: PLR0915 - explicit preset assembly keeps task policy visible</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">solve_ik</span><span class="p">(</span>  <span class="c1"># noqa: PLR0912, PLR0915 - explicit preset assembly keeps task policy visible</span>
     <span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span>
     <span class="n">targets</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">initial_q</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">cost_cfg</span><span class="p">:</span> <span class="n">IKCostConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">optimizer_cfg</span><span class="p">:</span> <span class="n">OptimizerConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">differentiable</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">IKResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Solve one or an arbitrary leading batch of frame-target IK problems.</span>
 
@@ -771,12 +744,21 @@
 <span class="sd">    ``initial_q`` may be ``(nq,)`` or ``(B..., nq)`` and is broadcast with all</span>
 <span class="sd">    target batches. Per-element convergence and iteration tensors are returned</span>
 <span class="sd">    for batched calls; unbatched diagnostics remain Python scalars.</span>
+
+<span class="sd">    ``differentiable=True`` requires the LM optimizer and attaches a first-order</span>
+<span class="sd">    implicit backward from ``result.q`` to graph-carrying targets. The backward</span>
+<span class="sd">    assumes a converged, locally smooth optimum with a stable active set and</span>
+<span class="sd">    raises the implicit solver&#39;s eligibility error when those conditions fail.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">differentiable</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;differentiable must be a bool&quot;</span><span class="p">)</span>
     <span class="n">cost_cfg</span> <span class="o">=</span> <span class="n">cost_cfg</span> <span class="k">if</span> <span class="n">cost_cfg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">IKCostConfig</span><span class="p">()</span>
     <span class="n">optimizer_cfg</span> <span class="o">=</span> <span class="n">optimizer_cfg</span> <span class="k">if</span> <span class="n">optimizer_cfg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">OptimizerConfig</span><span class="p">()</span>
     <span class="n">_validate_optimizer_config</span><span class="p">(</span><span class="n">optimizer_cfg</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">targets</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;targets must be a dict mapping frame names to SE3 tensors&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">differentiable</span> <span class="ow">and</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">!=</span> <span class="s2">&quot;lm&quot;</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;differentiable=True requires optimizer_cfg.optimizer=&#39;lm&#39;&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">optimizer</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;lbfgs&quot;</span><span class="p">,</span> <span class="s2">&quot;lm_then_lbfgs&quot;</span><span class="p">}:</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
             <span class="s2">&quot;Batched named-block L-BFGS is deferred because per-element line &quot;</span>
@@ -788,10 +770,9 @@
     <span class="n">active_q_rest</span> <span class="o">=</span> <span class="n">cost_cfg</span><span class="o">.</span><span class="n">q_rest</span> <span class="k">if</span> <span class="n">cost_cfg</span><span class="o">.</span><span class="n">rest_weight</span> <span class="o">&gt;</span> <span class="mf">0.0</span> <span class="k">else</span> <span class="kc">None</span>
     <span class="n">start</span> <span class="o">=</span> <span class="n">_broadcast_initial_configuration</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">targets</span><span class="p">,</span> <span class="n">active_q_rest</span><span class="p">)</span>
     <span class="n">manifold</span> <span class="o">=</span> <span class="n">RobotConfig</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
-    <span class="n">bounds</span> <span class="o">=</span> <span class="n">_configuration_bounds</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">manifold</span><span class="p">)</span>
-    <span class="c1"># Public VarSpec validation is intentionally strict; project the preset&#39;s</span>
-    <span class="c1"># seed first because several shipped neutral configurations lie on the</span>
-    <span class="c1"># wrong side of a finite joint box (notably Panda joint 4).</span>
+    <span class="n">bounds</span> <span class="o">=</span> <span class="n">manifold</span><span class="o">.</span><span class="n">joint_bounds</span><span class="p">()</span>
+    <span class="c1"># The task preset starts inside its declared joint box; several shipped</span>
+    <span class="c1"># neutral configurations lie outside it (notably Panda joint 4).</span>
     <span class="n">start</span> <span class="o">=</span> <span class="n">manifold</span><span class="o">.</span><span class="n">project</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">bounds</span><span class="p">)</span>
 
     <span class="n">kernel</span> <span class="o">=</span> <span class="n">_make_robust_kernel</span><span class="p">(</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">kernel</span><span class="p">)</span>
@@ -864,16 +845,17 @@
     <span class="n">values</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;q&quot;</span><span class="p">:</span> <span class="n">start</span><span class="p">}</span>
 
     <span class="k">if</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">==</span> <span class="s2">&quot;adam&quot;</span><span class="p">:</span>
-        <span class="n">solver</span> <span class="o">=</span> <span class="n">Adam</span><span class="p">(</span>
+        <span class="n">values</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="n">run_first_order</span><span class="p">(</span>
+            <span class="n">values</span><span class="p">,</span>
+            <span class="n">problem</span><span class="p">,</span>
+            <span class="k">lambda</span> <span class="n">params</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">1e-2</span><span class="p">),</span>
             <span class="n">max_iter</span><span class="o">=</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">max_iter</span><span class="p">,</span>
-            <span class="n">tol</span><span class="o">=</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">tol</span><span class="p">,</span>
+            <span class="n">tolerance</span><span class="o">=</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">tol</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">values</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="n">solver</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
         <span class="n">states</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">state</span><span class="p">,)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">jacobian_strategy</span> <span class="o">=</span> <span class="n">_solver_jacobian_strategy</span><span class="p">(</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">jacobian_strategy</span><span class="p">)</span>
+        <span class="n">jacobian_strategy</span> <span class="o">=</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">jacobian_strategy</span>
         <span class="n">common</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s2">&quot;max_iter&quot;</span><span class="p">:</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">max_iter</span><span class="p">,</span>
             <span class="s2">&quot;gtol&quot;</span><span class="p">:</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">tol</span><span class="p">,</span>
             <span class="s2">&quot;linear_solver&quot;</span><span class="p">:</span> <span class="n">_make_linear_solver</span><span class="p">(</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">linear_solver</span><span class="p">),</span>
             <span class="s2">&quot;kernel&quot;</span><span class="p">:</span> <span class="n">kernel</span><span class="p">,</span>
@@ -881,43 +863,36 @@
         <span class="p">}</span>
         <span class="k">if</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">==</span> <span class="s2">&quot;lm&quot;</span><span class="p">:</span>
             <span class="n">solver</span> <span class="o">=</span> <span class="n">LevenbergMarquardt</span><span class="p">(</span>
+                <span class="n">max_iter</span><span class="o">=</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">max_iter</span><span class="p">,</span>
                 <span class="o">**</span><span class="n">common</span><span class="p">,</span>
                 <span class="n">fixed_damping</span><span class="o">=</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">damping</span> <span class="o">==</span> <span class="s2">&quot;constant&quot;</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="n">values</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="n">solver</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">differentiable</span><span class="p">:</span>
+                <span class="n">values</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="n">solver</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">problem</span><span class="p">,</span> <span class="n">differentiate</span><span class="o">=</span><span class="s2">&quot;implicit&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">values</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="n">solver</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
             <span class="n">states</span> <span class="o">=</span> <span class="p">(</span><span class="n">state</span><span class="p">,)</span>
         <span class="k">elif</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">==</span> <span class="s2">&quot;gn&quot;</span><span class="p">:</span>
-            <span class="n">solver</span> <span class="o">=</span> <span class="n">GaussNewton</span><span class="p">(</span><span class="o">**</span><span class="n">common</span><span class="p">)</span>
+            <span class="n">solver</span> <span class="o">=</span> <span class="n">GaussNewton</span><span class="p">(</span><span class="n">max_iter</span><span class="o">=</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">max_iter</span><span class="p">,</span> <span class="o">**</span><span class="n">common</span><span class="p">)</span>
             <span class="n">values</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="n">solver</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
             <span class="n">states</span> <span class="o">=</span> <span class="p">(</span><span class="n">state</span><span class="p">,)</span>
-        <span class="k">elif</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">==</span> <span class="s2">&quot;lm_then_adam&quot;</span><span class="p">:</span>
+        <span class="k">else</span><span class="p">:</span>  <span class="c1"># only lm_then_adam remains after boundary validation</span>
             <span class="n">coarse_iters</span> <span class="o">=</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">max_iter</span> <span class="o">//</span> <span class="mi">2</span>
             <span class="n">refine_iters</span> <span class="o">=</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">max_iter</span> <span class="o">-</span> <span class="n">coarse_iters</span>
-            <span class="n">phase_result</span> <span class="o">=</span> <span class="n">run_phases</span><span class="p">(</span>
-                <span class="n">problem</span><span class="p">,</span>
+            <span class="n">values</span><span class="p">,</span> <span class="n">coarse_state</span> <span class="o">=</span> <span class="n">LevenbergMarquardt</span><span class="p">(</span>
+                <span class="n">max_iter</span><span class="o">=</span><span class="n">coarse_iters</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">common</span><span class="p">,</span>
+                <span class="n">fixed_damping</span><span class="o">=</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">damping</span> <span class="o">==</span> <span class="s2">&quot;constant&quot;</span><span class="p">,</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
+            <span class="n">refinement</span> <span class="o">=</span> <span class="n">_refinement_problem</span><span class="p">(</span><span class="n">problem</span><span class="p">,</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">refine_disabled_items</span><span class="p">)</span>
+            <span class="n">values</span><span class="p">,</span> <span class="n">refine_state</span> <span class="o">=</span> <span class="n">run_first_order</span><span class="p">(</span>
                 <span class="n">values</span><span class="p">,</span>
-                <span class="p">(</span>
-                    <span class="n">Phase</span><span class="p">(</span>
-                        <span class="s2">&quot;coarse_lm&quot;</span><span class="p">,</span>
-                        <span class="n">coarse_iters</span><span class="p">,</span>
-                        <span class="n">LevenbergMarquardt</span><span class="p">(</span>
-                            <span class="o">**</span><span class="n">common</span><span class="p">,</span>
-                            <span class="n">fixed_damping</span><span class="o">=</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">damping</span> <span class="o">==</span> <span class="s2">&quot;constant&quot;</span><span class="p">,</span>
-                        <span class="p">),</span>
-                    <span class="p">),</span>
-                    <span class="n">Phase</span><span class="p">(</span>
-                        <span class="s2">&quot;refine_adam&quot;</span><span class="p">,</span>
-                        <span class="n">refine_iters</span><span class="p">,</span>
-                        <span class="n">Adam</span><span class="p">(</span><span class="n">max_iter</span><span class="o">=</span><span class="n">refine_iters</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">tol</span><span class="p">),</span>
-                        <span class="n">weight_overrides</span><span class="o">=</span><span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="mf">0.0</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">refine_disabled_items</span><span class="p">},</span>
-                    <span class="p">),</span>
-                <span class="p">),</span>
+                <span class="n">refinement</span><span class="p">,</span>
+                <span class="k">lambda</span> <span class="n">params</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">1e-2</span><span class="p">),</span>
+                <span class="n">max_iter</span><span class="o">=</span><span class="n">refine_iters</span><span class="p">,</span>
+                <span class="n">tolerance</span><span class="o">=</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">tol</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="n">values</span> <span class="o">=</span> <span class="n">phase_result</span><span class="o">.</span><span class="n">values</span>
-            <span class="n">states</span> <span class="o">=</span> <span class="n">phase_result</span><span class="o">.</span><span class="n">states</span>
-        <span class="k">else</span><span class="p">:</span>  <span class="c1"># validated Literal plus runtime protection for untyped callers</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown optimizer </span><span class="si">{</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">optimizer</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
-
+            <span class="n">states</span> <span class="o">=</span> <span class="p">(</span><span class="n">coarse_state</span><span class="p">,</span> <span class="n">refine_state</span><span class="p">)</span>
     <span class="n">iterations</span><span class="p">,</span> <span class="n">converged</span> <span class="o">=</span> <span class="n">_public_diagnostics</span><span class="p">(</span><span class="n">states</span><span class="p">,</span> <span class="n">values</span><span class="p">[</span><span class="s2">&quot;q&quot;</span><span class="p">])</span>
     <span class="k">return</span> <span class="n">IKResult</span><span class="p">(</span>
         <span class="n">q</span><span class="o">=</span><span class="n">values</span><span class="p">[</span><span class="s2">&quot;q&quot;</span><span class="p">],</span>
@@ -974,7 +949,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 18, 2026.
+  Last updated on Jul 19, 2026.
   <br/>
 </p>
   </div>

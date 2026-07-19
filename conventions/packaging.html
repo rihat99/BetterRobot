@@ -52,12 +52,12 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'conventions/packaging';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Reference" href="../reference/index.html" />
-    <link rel="prev" title="Coding Style" href="style.html" />
+    <link rel="next" title="Source and license" href="source_and_license.html" />
+    <link rel="prev" title="Coding style" href="style.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 18, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
   </head>
   
   
@@ -159,41 +159,44 @@
 </button></div>
         <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
     <div class="bd-toc-item navbar-nav active">
-        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get started</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../getting_started/index.html">Getting started</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/installation.html">Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/forward_kinematics.html">Forward kinematics on Panda</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/inverse_kinematics.html">Inverse kinematics on Panda</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/floating_base.html">Floating-base IK on the G1 humanoid</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/01_robot_model.html">Meet the robot model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/02_forward_kinematics.html">Forward kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/03_inverse_kinematics.html">Inverse kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/04_floating_base.html">Floating-base robots</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/05_batched_gpu.html">Batching and the GPU</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">How-to guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../guides/custom_residual.html">Write a custom residual</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/load_a_robot.html">Load a robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/visualize.html">Visualize a robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/differentiate_through_kinematics.html">Differentiate through kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/own_your_optimization_loop.html">Own your optimization loop</a></li>
 </ul>
 </details></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Concepts</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../concepts/index.html">Concepts</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/vision.html">Vision</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/why_betterrobot.html">Why BetterRobot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/design_decisions.html">Design decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/architecture.html">Architecture</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/model_and_data.html">Model and Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/joints_bodies_frames.html">Joints, Bodies, and Frames</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/lie_and_spatial.html">Lie Groups and Spatial Algebra</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/parsers_and_ir.html">Parsers and the IR</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/kinematics.html">Kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/joints_bodies_frames.html">Joints, bodies, and frames</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/residuals_and_costs.html">Residuals and Costs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/solver_stack.html">Named-Block Evaluation and the Legacy Solver Stack</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/tasks.html">Tasks — IK and Trajectory Optimisation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/collision_and_geometry.html">Collision and Geometry</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/batching_and_backends.html">Batching and Compute Lanes</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/warp_bridge.html">Torch–Warp bridge and opt-in FK lane</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/the_compute_seam.html">The Compute Seam</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/viewer.html">Viewer</a></li>
-</ul>
-</details></li>
-</ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Guides</span></p>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1 has-children"><a class="reference internal" href="../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../guides/custom_residuals.html">Write a custom block residual</a></li>
 </ul>
 </details></li>
 </ul>
@@ -201,14 +204,13 @@
 <ul class="current nav bd-sidenav">
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="index.html">Conventions</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="naming.html">Naming</a></li>
-<li class="toctree-l2"><a class="reference internal" href="performance.html">Performance</a></li>
-<li class="toctree-l2"><a class="reference internal" href="extension.html">Extension Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contracts.html">Contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extension.html">Extension points</a></li>
 <li class="toctree-l2"><a class="reference internal" href="testing.html">Testing</a></li>
-<li class="toctree-l2"><a class="reference internal" href="contracts.html">Contracts &amp; Validation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="engineering.html">Engineering Contract</a></li>
-<li class="toctree-l2"><a class="reference internal" href="source_and_license.html">Source and License Decision Memo</a></li>
-<li class="toctree-l2"><a class="reference internal" href="style.html">Coding Style</a></li>
+<li class="toctree-l2"><a class="reference internal" href="performance.html">Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="style.html">Coding style</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">Packaging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="source_and_license.html">Source and license</a></li>
 </ul>
 </details></li>
 </ul>
@@ -243,8 +245,6 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.human.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.human</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.manipulability.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.manipulability</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.collision</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
@@ -280,18 +280,17 @@
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.strategies.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.strategies</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.implicit.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.implicit</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.cost_stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.cost_stack</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.state.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.state</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.structure</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.costs.stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.stack</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -313,7 +312,6 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.jacobian_strategy.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian_strategy</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.kinematics.forward.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.forward</span></code></a></li>
 </ul>
 </details></li>
@@ -335,16 +333,13 @@
 <li class="toctree-l3"><a class="reference internal" href="../reference/api/better_robot/better_robot.exceptions.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.exceptions</span></code></a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/named_block_solvers.html">Named-block solver API</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/changelog.html">Changelog</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/roadmap.html">Roadmap</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/m1_removed_symbols.html">M1 removed surfaces</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../reference/m3_removed_symbols.html">M3.5 removed surfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/collision_and_geometry.html">Collision and geometry status</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/roadmap.html">Roadmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/changelog.html">Changelog</a></li>
 </ul>
 </details></li>
 </ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Project Links</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/rihat99/BetterRobot">GitHub</a></li>
 </ul>
@@ -556,12 +551,11 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dependencies">1 · Dependencies</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#adding-a-dependency">2 · Adding a dependency</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#semver-pre-post-1-0">3 · SemVer pre / post 1.0</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#deprecation-mechanism">4 · Deprecation mechanism</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version">5 · <code class="docutils literal notranslate"><span class="pre">__version__</span></code></a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cross-references">6 · Cross-references</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#install-surfaces">Install surfaces</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#adding-a-dependency">Adding a dependency</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#versions">Versions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#removing-or-replacing-an-api">Removing or replacing an API</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#release-checklist">Release checklist</a></li>
 </ul>
             </nav>
         </div>
@@ -575,31 +569,24 @@
                   
   <section id="packaging">
 <h1>Packaging<a class="headerlink" href="#packaging" title="Link to this heading">#</a></h1>
-<blockquote>
-<div><p><strong>Status:</strong> normative.
-Pins the install surface and the SemVer scope per-symbol once we
-reach 1.0.</p>
-</div></blockquote>
-<p>The core install is deliberately small. It provides tensor algorithms and URDF
-loading; integrations with heavyweight or specialised runtimes are explicit
-extras. The source of truth is <code class="docutils literal notranslate"><span class="pre">[project.dependencies]</span></code> and
-<code class="docutils literal notranslate"><span class="pre">[project.optional-dependencies]</span></code> in <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code>. This page explains that
-surface but must not invent dependencies that are absent there.</p>
-<section id="dependencies">
-<h2>1 · Dependencies<a class="headerlink" href="#dependencies" title="Link to this heading">#</a></h2>
-<p>Core (always installed):</p>
+<p><code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> is the source of truth for versions, dependencies, and
+extras. This page explains how to change that surface without making optional
+integrations part of every installation.</p>
+<section id="install-surfaces">
+<h2>Install surfaces<a class="headerlink" href="#install-surfaces" title="Link to this heading">#</a></h2>
+<p>The core installation contains the tensor algorithms and URDF loader:</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
-<tr class="row-odd"><th class="head"><p>Package</p></th>
+<tr class="row-odd"><th class="head"><p>Dependency</p></th>
 <th class="head"><p>Purpose</p></th>
 </tr>
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">torch&gt;=2.4</span></code></p></td>
-<td><p>tensors, autograd, and the eager Torch compute lane</p></td>
+<td><p>tensors and automatic differentiation</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">numpy&gt;=2.0</span></code></p></td>
-<td><p>interop and reference math</p></td>
+<td><p>array interchange and reference calculations</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">yourdfpy&gt;=0.0.14</span></code></p></td>
 <td><p>URDF parsing</p></td>
@@ -607,115 +594,115 @@ surface but must not invent dependencies that are absent there.</p>
 </tbody>
 </table>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">yourdfpy</span></code> currently requires <code class="docutils literal notranslate"><span class="pre">trimesh[easy]</span></code> directly, so <code class="docutils literal notranslate"><span class="pre">trimesh</span></code> is
-present transitively in a core environment. That does not make BetterRobot’s
-mesh-facing surface part of the core contract.</p>
-<p>Optional runtime extras:</p>
+<p>Optional features have named extras:</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Extra</p></th>
-<th class="head"><p>Dependency</p></th>
+<th class="head"><p>Main dependency</p></th>
 <th class="head"><p>Purpose</p></th>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">[viewer]</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">viewer</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">viser</span></code></p></td>
-<td><p>Browser-based visualisation</p></td>
+<td><p>browser viewer</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">[io-mjcf]</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">io-mjcf</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">mujoco</span></code></p></td>
 <td><p>MJCF loading</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">[meshes]</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">meshes</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">trimesh</span></code></p></td>
-<td><p>Direct mesh APIs</p></td>
+<td><p>direct mesh APIs</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">[demos]</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">demos</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">robot_descriptions</span></code></p></td>
-<td><p>Panda, G1, and other example assets</p></td>
+<td><p>example robot assets</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">[warp]</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">warp</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">warp-lang</span></code></p></td>
-<td><p>CUDA-validated opt-in fused FK lane</p></td>
+<td><p>opt-in fused FK on supported CUDA systems</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">dev</span></code></p></td>
+<td><p>test, docs, lint, type, and benchmark tools</p></td>
+<td><p>repository development</p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">[dev]</span></code>: <code class="docutils literal notranslate"><span class="pre">pytest</span></code>, <code class="docutils literal notranslate"><span class="pre">pytest-cov</span></code>, <code class="docutils literal notranslate"><span class="pre">pytest-xdist</span></code>, <code class="docutils literal notranslate"><span class="pre">pytest-benchmark</span></code>,
-<code class="docutils literal notranslate"><span class="pre">scipy</span></code>, <code class="docutils literal notranslate"><span class="pre">hypothesis</span></code>, <code class="docutils literal notranslate"><span class="pre">pin</span></code> (Pinocchio reference oracle), <code class="docutils literal notranslate"><span class="pre">pyperf</span></code>, the
-Sphinx docs stack (<code class="docutils literal notranslate"><span class="pre">sphinx</span></code>, <code class="docutils literal notranslate"><span class="pre">myst-parser</span></code>, <code class="docutils literal notranslate"><span class="pre">myst-nb</span></code>,
-<code class="docutils literal notranslate"><span class="pre">sphinx-book-theme</span></code>, <code class="docutils literal notranslate"><span class="pre">sphinx-design</span></code>, <code class="docutils literal notranslate"><span class="pre">sphinx-autodoc2</span></code>,
-<code class="docutils literal notranslate"><span class="pre">sphinx-copybutton</span></code>, <code class="docutils literal notranslate"><span class="pre">sphinxcontrib-bibtex</span></code>, <code class="docutils literal notranslate"><span class="pre">sphinx-tabs</span></code>, <code class="docutils literal notranslate"><span class="pre">ghp-import</span></code>), plus
-<code class="docutils literal notranslate"><span class="pre">ruff</span></code>, <code class="docutils literal notranslate"><span class="pre">pyright</span></code>, <code class="docutils literal notranslate"><span class="pre">mypy</span></code>, <code class="docutils literal notranslate"><span class="pre">pre-commit</span></code>, <code class="docutils literal notranslate"><span class="pre">jaxtyping</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">yourdfpy</span></code> currently brings in <code class="docutils literal notranslate"><span class="pre">trimesh</span></code> itself. That transitive install
+does not make BetterRobot’s mesh APIs part of the core contract.</p>
 </section>
 <section id="adding-a-dependency">
-<h2>2 · Adding a dependency<a class="headerlink" href="#adding-a-dependency" title="Link to this heading">#</a></h2>
-<p>If you can implement the feature with what is already installed, do that. Add a
-dependency to the smallest surface that needs it: core only when ordinary
-runtime use cannot work without it, a named extra for an optional integration,
-or <code class="docutils literal notranslate"><span class="pre">[dev]</span></code> for contributor tooling. Regenerate <code class="docutils literal notranslate"><span class="pre">uv.lock</span></code>, verify a core-only
-installation, and test that importing <code class="docutils literal notranslate"><span class="pre">better_robot</span></code> does not eagerly import an
-optional runtime.</p>
-</section>
-<section id="semver-pre-post-1-0">
-<h2>3 · SemVer pre / post 1.0<a class="headerlink" href="#semver-pre-post-1-0" title="Link to this heading">#</a></h2>
-<p>Until 1.0 every minor bump may break. Once 1.0 is cut:</p>
+<h2>Adding a dependency<a class="headerlink" href="#adding-a-dependency" title="Link to this heading">#</a></h2>
+<p>Put a dependency in the smallest surface that needs it:</p>
 <ul class="simple">
-<li><p><strong>Major</strong> — removing a public symbol; changing
-<code class="docutils literal notranslate"><span class="pre">[tx,</span> <span class="pre">ty,</span> <span class="pre">tz,</span> <span class="pre">qx,</span> <span class="pre">qy,</span> <span class="pre">qz,</span> <span class="pre">qw]</span></code> ordering; changing the layered DAG;
-changing a Protocol’s required members.</p></li>
-<li><p><strong>Minor</strong> — adding a public symbol; renaming with a deprecation
-shim; tightening (never loosening) a numerical tolerance.</p></li>
-<li><p><strong>Patch</strong> — bug fixes; perf improvements within tolerance.</p></li>
+<li><p>core, only when ordinary library use cannot work without it;</p></li>
+<li><p>a named extra, when the feature is optional; or</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dev</span></code>, when only contributors need it.</p></li>
 </ul>
-<p><code class="docutils literal notranslate"><span class="pre">tests/contract/test_public_api.py</span></code> pins the required core symbols, their
-resolution and docstrings, and the absence of duplicate exports; it does not
-freeze a symbol count while the project is pre-1.0. Once the 1.0 surface is
-frozen, removals follow the SemVer policy above. The per-symbol stability tier
-is in <a class="reference internal" href="contracts.html"><span class="doc">Contracts &amp; Validation</span></a> §7.3.</p>
+<p>Then regenerate <code class="docutils literal notranslate"><span class="pre">uv.lock</span></code>, test a core-only installation, and check that
+<code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">better_robot</span></code> does not import an optional runtime.</p>
+<p>Optional imports stay near the function that uses them. Importing the package
+must not require a viewer, MJCF parser, example asset package, or Warp.</p>
 </section>
-<section id="deprecation-mechanism">
-<h2>4 · Deprecation mechanism<a class="headerlink" href="#deprecation-mechanism" title="Link to this heading">#</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
-<span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-    <span class="s2">&quot;Old API is deprecated; use new API. Will be removed in vX.Y.&quot;</span><span class="p">,</span>
-    <span class="ne">DeprecationWarning</span><span class="p">,</span>
-    <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-<span class="p">)</span>
-</pre></div>
+<section id="versions">
+<h2>Versions<a class="headerlink" href="#versions" title="Link to this heading">#</a></h2>
+<p>The package version appears in two places that must agree:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">project.version</span></code> in <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code>;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">__version__</span></code> in <code class="docutils literal notranslate"><span class="pre">src/better_robot/_version.py</span></code>.</p></li>
+</ul>
+<p>BetterRobot is below 1.0. A minor release may still reshape the public API,
+but the release notes must say what changed and what callers should use
+instead.</p>
+<p>After 1.0:</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Release</p></th>
+<th class="head"><p>Appropriate change</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>major</p></td>
+<td><p>remove or rename a stable symbol; change pose storage; change a required protocol member</p></td>
+</tr>
+<tr class="row-odd"><td><p>minor</p></td>
+<td><p>add a compatible public feature</p></td>
+</tr>
+<tr class="row-even"><td><p>patch</p></td>
+<td><p>fix a bug or improve speed within the documented numerical contract</p></td>
+</tr>
+</tbody>
+</table>
 </div>
-<p>Once a compatibility shim is intentionally introduced, it gets:</p>
-<ul class="simple">
-<li><p>A <code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code> with the replacement and the removal version.</p></li>
-<li><p>An entry in <code class="docutils literal notranslate"><span class="pre">CHANGELOG.md</span></code> under the current release.</p></li>
-<li><p>A test that the warning fires under <code class="docutils literal notranslate"><span class="pre">pytest.warns()</span></code>.</p></li>
-</ul>
-<p>The shim is removed in the named version. There is currently no generic
-<code class="docutils literal notranslate"><span class="pre">test_deprecations.py</span></code> harness and no package-wide environment flag that turns
-deprecation warnings into errors; a change that introduces either must add the
-implementation and tests before this document claims it. Pre-1.0 removals that
-land without a shim are recorded explicitly in the changelog and the removed-
-surface migration ledgers.</p>
+<p>The stability table in <a class="reference internal" href="contracts.html"><span class="doc">Contracts</span></a> says which surfaces become bound by
+that promise.</p>
 </section>
-<section id="version">
-<h2>5 · <code class="docutils literal notranslate"><span class="pre">__version__</span></code><a class="headerlink" href="#version" title="Link to this heading">#</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># src/better_robot/_version.py</span>
-<span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;0.2.0&quot;</span>
-</pre></div>
-</div>
-<p>Imported in <code class="docutils literal notranslate"><span class="pre">__init__.py</span></code>. Single source of truth that tests read; kept
-in step with <code class="docutils literal notranslate"><span class="pre">pyproject.toml::project.version</span></code>.</p>
+<section id="removing-or-replacing-an-api">
+<h2>Removing or replacing an API<a class="headerlink" href="#removing-or-replacing-an-api" title="Link to this heading">#</a></h2>
+<p>Before 1.0, remove unused surfaces cleanly. Do not leave a second
+implementation, forwarding wrapper, or warning-only alias unless the release
+itself explicitly promises a transition period. Record the replacement in the
+changelog.</p>
+<p>After 1.0, a compatibility period is a release decision. If one is chosen, it
+needs a <code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code>, a removal version, a focused warning test, and
+a changelog entry.</p>
 </section>
-<section id="cross-references">
-<h2>6 · Cross-references<a class="headerlink" href="#cross-references" title="Link to this heading">#</a></h2>
-<ul class="simple">
-<li><p><a class="reference internal" href="contracts.html"><span class="doc">Contracts &amp; Validation</span></a> §7 — SemVer scope and deprecation policy.</p></li>
-<li><p><a class="reference internal" href="naming.html"><span class="doc">Naming</span></a> §5 — the rename schedule this operationalises.</p></li>
-<li><p><a class="reference internal" href="testing.html"><span class="doc">Testing</span></a> §5.4 and §7 — regression oracles and benchmark evidence.</p></li>
-<li><p><a class="reference internal" href="extension.html"><span class="doc">Extension Points</span></a> §2 — the joint extension seam; §14 is only a future
-actuator-design sketch.</p></li>
-</ul>
+<section id="release-checklist">
+<h2>Release checklist<a class="headerlink" href="#release-checklist" title="Link to this heading">#</a></h2>
+<ol class="arabic simple">
+<li><p>Update the version sources and the Unreleased changelog section.</p></li>
+<li><p>Run the full supported test suite and strict documentation build.</p></li>
+<li><p>Verify <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">lock</span> <span class="pre">--check</span></code>.</p></li>
+<li><p>Build the wheel and source archive in a clean environment.</p></li>
+<li><p>Test the wheel once with core dependencies only and once with the relevant
+extras.</p></li>
+<li><p>Check third-party notices against <a class="reference internal" href="source_and_license.html"><span class="doc">Source and license</span></a>.</p></li>
+</ol>
+<p>Public exports are checked by <code class="docutils literal notranslate"><span class="pre">tests/contract/test_public_api.py</span></code>. The test
+requires the documented core to resolve and rejects duplicate exports; it
+does not freeze an exact symbol count before 1.0.</p>
 </section>
 </section>
 
@@ -736,15 +723,15 @@ actuator-design sketch.</p></li>
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Coding Style</p>
+        <p class="prev-next-title">Coding style</p>
       </div>
     </a>
     <a class="right-next"
-       href="../reference/index.html"
+       href="source_and_license.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Reference</p>
+        <p class="prev-next-title">Source and license</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -766,12 +753,11 @@ actuator-design sketch.</p></li>
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dependencies">1 · Dependencies</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#adding-a-dependency">2 · Adding a dependency</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#semver-pre-post-1-0">3 · SemVer pre / post 1.0</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#deprecation-mechanism">4 · Deprecation mechanism</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version">5 · <code class="docutils literal notranslate"><span class="pre">__version__</span></code></a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cross-references">6 · Cross-references</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#install-surfaces">Install surfaces</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#adding-a-dependency">Adding a dependency</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#versions">Versions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#removing-or-replacing-an-api">Removing or replacing an API</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#release-checklist">Release checklist</a></li>
 </ul>
   </nav></div>
 
@@ -805,7 +791,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 18, 2026.
+  Last updated on Jul 19, 2026.
   <br/>
 </p>
   </div>

@@ -1,6 +1,6 @@
 # Changelog
 
-The full engineering changelog is maintained under ``docs/`` in
+The release changelog is maintained under ``docs/`` in
 [`docs/CHANGELOG.md`](https://github.com/rihat99/BetterRobot/blob/dev/docs/CHANGELOG.md)
 and is included verbatim below.
 

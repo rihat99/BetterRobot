@@ -54,7 +54,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 18, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
   </head>
   
   
@@ -158,41 +158,44 @@
 </button></div>
         <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
     <div class="bd-toc-item navbar-nav active">
-        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get started</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../getting_started/index.html">Getting started</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../getting_started/installation.html">Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/forward_kinematics.html">Forward kinematics on Panda</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/inverse_kinematics.html">Inverse kinematics on Panda</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/floating_base.html">Floating-base IK on the G1 humanoid</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/01_robot_model.html">Meet the robot model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/02_forward_kinematics.html">Forward kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/03_inverse_kinematics.html">Inverse kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/04_floating_base.html">Floating-base robots</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/05_batched_gpu.html">Batching and the GPU</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">How-to guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/custom_residual.html">Write a custom residual</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/load_a_robot.html">Load a robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/visualize.html">Visualize a robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/differentiate_through_kinematics.html">Differentiate through kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/own_your_optimization_loop.html">Own your optimization loop</a></li>
 </ul>
 </details></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Concepts</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../concepts/index.html">Concepts</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/vision.html">Vision</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/why_betterrobot.html">Why BetterRobot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/design_decisions.html">Design decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/architecture.html">Architecture</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/model_and_data.html">Model and Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/joints_bodies_frames.html">Joints, Bodies, and Frames</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Lie Groups and Spatial Algebra</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the IR</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics.html">Kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/joints_bodies_frames.html">Joints, bodies, and frames</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_and_costs.html">Residuals and Costs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/solver_stack.html">Named-Block Evaluation and the Legacy Solver Stack</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/tasks.html">Tasks — IK and Trajectory Optimisation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/collision_and_geometry.html">Collision and Geometry</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/batching_and_backends.html">Batching and Compute Lanes</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/warp_bridge.html">Torch–Warp bridge and opt-in FK lane</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/the_compute_seam.html">The Compute Seam</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
-</ul>
-</details></li>
-</ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Guides</span></p>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1 has-children"><a class="reference internal" href="../../../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../guides/custom_residuals.html">Write a custom block residual</a></li>
 </ul>
 </details></li>
 </ul>
@@ -200,14 +203,13 @@
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../conventions/index.html">Conventions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/naming.html">Naming</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/performance.html">Performance</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/extension.html">Extension Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/contracts.html">Contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/extension.html">Extension points</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/testing.html">Testing</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/contracts.html">Contracts &amp; Validation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/engineering.html">Engineering Contract</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/source_and_license.html">Source and License Decision Memo</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/style.html">Coding Style</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/performance.html">Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/style.html">Coding style</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/packaging.html">Packaging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/source_and_license.html">Source and license</a></li>
 </ul>
 </details></li>
 </ul>
@@ -242,8 +244,6 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.human.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.human</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.manipulability.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.manipulability</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.collision</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
@@ -279,18 +279,17 @@
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.strategies.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.strategies</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.implicit.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.implicit</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.cost_stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.cost_stack</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.state.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.state</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.structure</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.costs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.costs.stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.stack</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -312,7 +311,6 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.kinematics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.kinematics.jacobian.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.kinematics.jacobian_strategy.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian_strategy</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.kinematics.forward.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.forward</span></code></a></li>
 </ul>
 </details></li>
@@ -334,16 +332,13 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.exceptions.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.exceptions</span></code></a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../reference/named_block_solvers.html">Named-block solver API</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../reference/changelog.html">Changelog</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../reference/roadmap.html">Roadmap</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../reference/m1_removed_symbols.html">M1 removed surfaces</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../reference/m3_removed_symbols.html">M3.5 removed surfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../reference/glossary.html">Glossary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/collision_and_geometry.html">Collision and geometry status</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/roadmap.html">Roadmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/changelog.html">Changelog</a></li>
 </ul>
 </details></li>
 </ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Project Links</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/rihat99/BetterRobot">GitHub</a></li>
 </ul>
@@ -493,161 +488,36 @@
                 <article class="bd-article">
                   
   <h1>Source code for better_robot.residuals.base</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;``Residual`` protocol and ``ResidualState`` struct.</span>
-
-<span class="sd">Every residual is a **callable object** — not a plain function — so it can</span>
-<span class="sd">optionally own an analytic ``.jacobian()``. The legacy fallback is central</span>
-<span class="sd">finite differences in ``kinematics.jacobian.residual_jacobian``. Named-block</span>
-<span class="sd">``Problem`` evaluation separately provides ``torch.func``</span>
-<span class="sd">Jacobian strategies; this legacy dispatcher remains analytic/finite-difference.</span>
-
-<span class="sd">Legacy trajectory residuals can also implement</span>
-<span class="sd">``apply_jac_transpose(state, vec) -&gt; Tensor`` to compute ``J^T @ vec`` through</span>
-<span class="sd">``LeastSquaresProblem.gradient``. No production solver or task calls that</span>
-<span class="sd">gradient path; it is retained only for the matrix-free contract tests. The</span>
-<span class="sd">default implementation builds the dense Jacobian and multiplies.</span>
-
-<span class="sd">See ``docs/concepts/residuals_and_costs.md`` (&quot;The Residual Protocol&quot;) and</span>
-<span class="sd">``docs/concepts/kinematics.md`` (&quot;The unified Jacobian dispatch&quot;).</span>
-<span class="sd">&quot;&quot;&quot;</span>
+<span></span><span class="sd">&quot;&quot;&quot;The evaluation-context ``Residual`` protocol.&quot;&quot;&quot;</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mapping</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Protocol</span><span class="p">,</span> <span class="n">runtime_checkable</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Data</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Model</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.._validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_tensor</span>
 
 
-<div class="viewcode-block" id="ResidualState">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.ResidualState">[docs]</a>
-<span class="nd">@dataclass</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">ResidualState</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Thin struct passed to every residual.</span>
-
-<span class="sd">    Attributes</span>
-<span class="sd">    ----------</span>
-<span class="sd">    model : Model</span>
-<span class="sd">        Immutable Model.</span>
-<span class="sd">    data : Data</span>
-<span class="sd">        Per-query ``Data`` whose ``joint_pose_world`` (and</span>
-<span class="sd">        ``frame_pose_world`` for frame-based residuals) are populated.</span>
-<span class="sd">    variables : torch.Tensor</span>
-<span class="sd">        Flat optimisation variable tensor ``(B..., nx)``.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="n">model</span><span class="p">:</span> <span class="n">Model</span>
-    <span class="n">data</span><span class="p">:</span> <span class="n">Data</span>
-    <span class="n">variables</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span></div>
-
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_as_residual_state</span><span class="p">(</span>
-    <span class="n">value</span><span class="p">:</span> <span class="n">ResidualState</span> <span class="o">|</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">model</span><span class="p">:</span> <span class="n">Model</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ResidualState</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Normalize legacy state and named-block context inputs.</span>
-
-<span class="sd">    The built-in kinematic residuals keep their ``ResidualState`` call shape</span>
-<span class="sd">    for the legacy trajectory stack while also implementing the structural</span>
-<span class="sd">    named-block protocol. New block problems provide ``q`` and the lazy</span>
-<span class="sd">    ``RobotStateProvider`` output ``data`` through a read-only mapping.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">ResidualState</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">value</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;kinematic residual input must be ResidualState or a named-block context&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">model</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;this residual needs model=... when used with a named-block Problem&quot;</span><span class="p">)</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">q</span> <span class="o">=</span> <span class="n">value</span><span class="p">[</span><span class="s2">&quot;q&quot;</span><span class="p">]</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="n">value</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">]</span>
-    <span class="k">except</span> <span class="ne">KeyError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s2">&quot;named-block kinematic residuals require reads=(&#39;q&#39;, &#39;data&#39;)&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;named-block context entry &#39;q&#39; must be a torch.Tensor&quot;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">ResidualState</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">variables</span><span class="o">=</span><span class="n">q</span><span class="p">)</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_residual_model_q</span><span class="p">(</span>
-    <span class="n">value</span><span class="p">:</span> <span class="n">ResidualState</span> <span class="o">|</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Model</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Read only model/configuration for residuals that do not require FK.&quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">ResidualState</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">variables</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;kinematic residual input must be ResidualState or a named-block context&quot;</span><span class="p">)</span>
-    <span class="n">q</span> <span class="o">=</span> <span class="n">value</span><span class="p">[</span><span class="s2">&quot;q&quot;</span><span class="p">]</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;named-block context entry &#39;q&#39; must be a torch.Tensor&quot;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">model</span><span class="p">,</span> <span class="n">q</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_configuration</span><span class="p">(</span><span class="n">ctx</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the configuration tensor from a residual evaluation context.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">check_tensor</span><span class="p">(</span><span class="s2">&quot;q&quot;</span><span class="p">,</span> <span class="n">ctx</span><span class="p">[</span><span class="s2">&quot;q&quot;</span><span class="p">])</span>
 
 
 <div class="viewcode-block" id="Residual">
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.Residual">[docs]</a>
 <span class="nd">@runtime_checkable</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">Residual</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Protocol every residual class implements.</span>
-
-<span class="sd">    Marked ``@runtime_checkable`` so the extension-seam docs can advertise</span>
-<span class="sd">    ``isinstance(obj, Residual)`` as a valid contract check (docs/conventions/extension.md §1).</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Callable residual over a declared evaluation context.&quot;&quot;&quot;</span>
 
     <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">reads</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">ResidualState</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the residual vector of shape ``(B..., dim)``.&quot;&quot;&quot;</span>
-        <span class="o">...</span>
-
-<div class="viewcode-block" id="Residual.jacobian">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.Residual.jacobian">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">jacobian</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">ResidualState</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return an analytic Jacobian of shape ``(B..., dim, nx)``, or</span>
-<span class="sd">        ``None`` to fall back to central finite differences.&quot;&quot;&quot;</span>
         <span class="o">...</span></div>
-</div>
-
-
-
-<div class="viewcode-block" id="default_apply_jac_transpose">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.default_apply_jac_transpose">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">default_apply_jac_transpose</span><span class="p">(</span><span class="n">residual</span><span class="p">:</span> <span class="n">Residual</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">ResidualState</span><span class="p">,</span> <span class="n">vec</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Default ``apply_jac_transpose`` — materialise ``J`` and multiply.</span>
-
-<span class="sd">    Concrete residuals override the bound method when they have structure,</span>
-<span class="sd">    such as banded smoothness or contact terms, that can be exploited without</span>
-<span class="sd">    forming the dense Jacobian.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    residual</span>
-<span class="sd">        Any residual implementing the :class:`Residual` protocol.</span>
-<span class="sd">    state</span>
-<span class="sd">        The current :class:`ResidualState`.</span>
-<span class="sd">    vec</span>
-<span class="sd">        Tensor with shape ``(..., dim)`` — the same shape the residual</span>
-<span class="sd">        returns.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    torch.Tensor</span>
-<span class="sd">        ``J^T @ vec`` with shape ``(..., nv)``.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1"># Keep this lazy: kinematics.jacobian&#39;s legacy finite-difference helper</span>
-    <span class="c1"># imports ResidualState at call time, so a top-level edge would make the</span>
-    <span class="c1"># compatibility protocol&#39;s import cycle eager.</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">..kinematics.jacobian</span><span class="w"> </span><span class="kn">import</span> <span class="n">residual_jacobian</span>  <span class="c1"># noqa: PLC0415</span>
-
-    <span class="n">J</span> <span class="o">=</span> <span class="n">residual_jacobian</span><span class="p">(</span><span class="n">residual</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>  <span class="c1"># (..., dim, nv)</span>
-    <span class="k">return</span> <span class="n">J</span><span class="o">.</span><span class="n">mT</span> <span class="o">@</span> <span class="n">vec</span></div>
 
 </pre></div>
 
@@ -696,7 +566,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 18, 2026.
+  Last updated on Jul 19, 2026.
   <br/>
 </p>
   </div>

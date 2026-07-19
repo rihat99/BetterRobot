@@ -57,7 +57,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 18, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
   </head>
   
   
@@ -159,41 +159,44 @@
 </button></div>
         <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
     <div class="bd-toc-item navbar-nav active">
-        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get started</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../getting_started/index.html">Getting started</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../getting_started/installation.html">Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/forward_kinematics.html">Forward kinematics on Panda</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/inverse_kinematics.html">Inverse kinematics on Panda</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/floating_base.html">Floating-base IK on the G1 humanoid</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/01_robot_model.html">Meet the robot model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/02_forward_kinematics.html">Forward kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/03_inverse_kinematics.html">Inverse kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/04_floating_base.html">Floating-base robots</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/05_batched_gpu.html">Batching and the GPU</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">How-to guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/custom_residual.html">Write a custom residual</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/load_a_robot.html">Load a robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/visualize.html">Visualize a robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/differentiate_through_kinematics.html">Differentiate through kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../guides/own_your_optimization_loop.html">Own your optimization loop</a></li>
 </ul>
 </details></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Concepts</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../concepts/index.html">Concepts</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/vision.html">Vision</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/why_betterrobot.html">Why BetterRobot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/design_decisions.html">Design decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/architecture.html">Architecture</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/model_and_data.html">Model and Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/joints_bodies_frames.html">Joints, Bodies, and Frames</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Lie Groups and Spatial Algebra</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the IR</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics.html">Kinematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/joints_bodies_frames.html">Joints, bodies, and frames</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_and_costs.html">Residuals and Costs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/solver_stack.html">Named-Block Evaluation and the Legacy Solver Stack</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/tasks.html">Tasks — IK and Trajectory Optimisation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/collision_and_geometry.html">Collision and Geometry</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/batching_and_backends.html">Batching and Compute Lanes</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/warp_bridge.html">Torch–Warp bridge and opt-in FK lane</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/the_compute_seam.html">The Compute Seam</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
-</ul>
-</details></li>
-</ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Guides</span></p>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1 has-children"><a class="reference internal" href="../../../guides/index.html">How-to guides</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../guides/custom_residuals.html">Write a custom block residual</a></li>
 </ul>
 </details></li>
 </ul>
@@ -201,14 +204,13 @@
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../conventions/index.html">Conventions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/naming.html">Naming</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/performance.html">Performance</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/extension.html">Extension Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/contracts.html">Contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/extension.html">Extension points</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/testing.html">Testing</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/contracts.html">Contracts &amp; Validation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/engineering.html">Engineering Contract</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/source_and_license.html">Source and License Decision Memo</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../conventions/style.html">Coding Style</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/performance.html">Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/style.html">Coding style</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../conventions/packaging.html">Packaging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../conventions/source_and_license.html">Source and license</a></li>
 </ul>
 </details></li>
 </ul>
@@ -243,8 +245,6 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.human.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.human</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.manipulability.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.manipulability</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.collision.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.collision</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
@@ -280,18 +280,17 @@
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="better_robot.optim.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.strategies.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.strategies</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.implicit.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.implicit</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.cost_stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.cost_stack</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.state.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.state</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.structure</span></code></a></li>
-</ul>
-</details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="better_robot.costs.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.costs.stack.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.costs.stack</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -313,7 +312,6 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="better_robot.kinematics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.kinematics.jacobian.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.kinematics.jacobian_strategy.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.jacobian_strategy</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.kinematics.forward.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.kinematics.forward</span></code></a></li>
 </ul>
 </details></li>
@@ -335,16 +333,13 @@
 <li class="toctree-l3"><a class="reference internal" href="better_robot.exceptions.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.exceptions</span></code></a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="../../named_block_solvers.html">Named-block solver API</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../changelog.html">Changelog</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../roadmap.html">Roadmap</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../m1_removed_symbols.html">M1 removed surfaces</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../m3_removed_symbols.html">M3.5 removed surfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../glossary.html">Glossary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../collision_and_geometry.html">Collision and geometry status</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../roadmap.html">Roadmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../changelog.html">Changelog</a></li>
 </ul>
 </details></li>
 </ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Project Links</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/rihat99/BetterRobot">GitHub</a></li>
 </ul>
@@ -564,13 +559,6 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPX.nq"><code class="docutils literal notranslate"><span class="pre">JointPX.nq</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPX.nv"><code class="docutils literal notranslate"><span class="pre">JointPX.nv</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPX.axis"><code class="docutils literal notranslate"><span class="pre">JointPX.axis</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPX.joint_transform"><code class="docutils literal notranslate"><span class="pre">JointPX.joint_transform()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPX.joint_motion_subspace"><code class="docutils literal notranslate"><span class="pre">JointPX.joint_motion_subspace()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPX.joint_velocity"><code class="docutils literal notranslate"><span class="pre">JointPX.joint_velocity()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPX.integrate"><code class="docutils literal notranslate"><span class="pre">JointPX.integrate()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPX.difference"><code class="docutils literal notranslate"><span class="pre">JointPX.difference()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPX.random_configuration"><code class="docutils literal notranslate"><span class="pre">JointPX.random_configuration()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPX.neutral"><code class="docutils literal notranslate"><span class="pre">JointPX.neutral()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPY"><code class="docutils literal notranslate"><span class="pre">JointPY</span></code></a><ul class="nav section-nav flex-column">
@@ -578,13 +566,6 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPY.nq"><code class="docutils literal notranslate"><span class="pre">JointPY.nq</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPY.nv"><code class="docutils literal notranslate"><span class="pre">JointPY.nv</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPY.axis"><code class="docutils literal notranslate"><span class="pre">JointPY.axis</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPY.joint_transform"><code class="docutils literal notranslate"><span class="pre">JointPY.joint_transform()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPY.joint_motion_subspace"><code class="docutils literal notranslate"><span class="pre">JointPY.joint_motion_subspace()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPY.joint_velocity"><code class="docutils literal notranslate"><span class="pre">JointPY.joint_velocity()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPY.integrate"><code class="docutils literal notranslate"><span class="pre">JointPY.integrate()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPY.difference"><code class="docutils literal notranslate"><span class="pre">JointPY.difference()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPY.random_configuration"><code class="docutils literal notranslate"><span class="pre">JointPY.random_configuration()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPY.neutral"><code class="docutils literal notranslate"><span class="pre">JointPY.neutral()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPZ"><code class="docutils literal notranslate"><span class="pre">JointPZ</span></code></a><ul class="nav section-nav flex-column">
@@ -592,13 +573,6 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPZ.nq"><code class="docutils literal notranslate"><span class="pre">JointPZ.nq</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPZ.nv"><code class="docutils literal notranslate"><span class="pre">JointPZ.nv</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPZ.axis"><code class="docutils literal notranslate"><span class="pre">JointPZ.axis</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPZ.joint_transform"><code class="docutils literal notranslate"><span class="pre">JointPZ.joint_transform()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPZ.joint_motion_subspace"><code class="docutils literal notranslate"><span class="pre">JointPZ.joint_motion_subspace()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPZ.joint_velocity"><code class="docutils literal notranslate"><span class="pre">JointPZ.joint_velocity()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPZ.integrate"><code class="docutils literal notranslate"><span class="pre">JointPZ.integrate()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPZ.difference"><code class="docutils literal notranslate"><span class="pre">JointPZ.difference()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPZ.random_configuration"><code class="docutils literal notranslate"><span class="pre">JointPZ.random_configuration()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPZ.neutral"><code class="docutils literal notranslate"><span class="pre">JointPZ.neutral()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned"><code class="docutils literal notranslate"><span class="pre">JointPrismaticUnaligned</span></code></a><ul class="nav section-nav flex-column">
@@ -606,13 +580,6 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.kind"><code class="docutils literal notranslate"><span class="pre">JointPrismaticUnaligned.kind</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.nq"><code class="docutils literal notranslate"><span class="pre">JointPrismaticUnaligned.nq</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.nv"><code class="docutils literal notranslate"><span class="pre">JointPrismaticUnaligned.nv</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.joint_transform"><code class="docutils literal notranslate"><span class="pre">JointPrismaticUnaligned.joint_transform()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.joint_motion_subspace"><code class="docutils literal notranslate"><span class="pre">JointPrismaticUnaligned.joint_motion_subspace()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.joint_velocity"><code class="docutils literal notranslate"><span class="pre">JointPrismaticUnaligned.joint_velocity()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.integrate"><code class="docutils literal notranslate"><span class="pre">JointPrismaticUnaligned.integrate()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.difference"><code class="docutils literal notranslate"><span class="pre">JointPrismaticUnaligned.difference()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.random_configuration"><code class="docutils literal notranslate"><span class="pre">JointPrismaticUnaligned.random_configuration()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.neutral"><code class="docutils literal notranslate"><span class="pre">JointPrismaticUnaligned.neutral()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -662,7 +629,8 @@ and unaligned <code class="docutils literal notranslate"><span class="pre">Joint
 <dl class="py class">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPX">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">JointPX</span></span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPX"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPX" title="Link to this definition">#</a></dt>
-<dd><dl class="py attribute">
+<dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.data_model.joint_models.prismatic._Prismatic</span></code></p>
+<dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPX.kind">
 <span class="sig-name descname"><span class="pre">kind</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPX.kind" title="Link to this definition">#</a></dt>
 <dd><p>‘prismatic_px’</p>
@@ -686,47 +654,13 @@ and unaligned <code class="docutils literal notranslate"><span class="pre">Joint
 <dd><p>None</p>
 </dd></dl>
 
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPX.joint_transform">
-<span class="sig-name descname"><span class="pre">joint_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPX.joint_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPX.joint_transform" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPX.joint_motion_subspace">
-<span class="sig-name descname"><span class="pre">joint_motion_subspace</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPX.joint_motion_subspace"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPX.joint_motion_subspace" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPX.joint_velocity">
-<span class="sig-name descname"><span class="pre">joint_velocity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPX.joint_velocity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPX.joint_velocity" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPX.integrate">
-<span class="sig-name descname"><span class="pre">integrate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPX.integrate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPX.integrate" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPX.difference">
-<span class="sig-name descname"><span class="pre">difference</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q0_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q1_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPX.difference"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPX.difference" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPX.random_configuration">
-<span class="sig-name descname"><span class="pre">random_configuration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">generator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lower</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upper</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPX.random_configuration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPX.random_configuration" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPX.neutral">
-<span class="sig-name descname"><span class="pre">neutral</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPX.neutral"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPX.neutral" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
 </dd></dl>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPY">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">JointPY</span></span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPY"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPY" title="Link to this definition">#</a></dt>
-<dd><dl class="py attribute">
+<dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.data_model.joint_models.prismatic._Prismatic</span></code></p>
+<dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPY.kind">
 <span class="sig-name descname"><span class="pre">kind</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPY.kind" title="Link to this definition">#</a></dt>
 <dd><p>‘prismatic_py’</p>
@@ -750,47 +684,13 @@ and unaligned <code class="docutils literal notranslate"><span class="pre">Joint
 <dd><p>None</p>
 </dd></dl>
 
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPY.joint_transform">
-<span class="sig-name descname"><span class="pre">joint_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPY.joint_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPY.joint_transform" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPY.joint_motion_subspace">
-<span class="sig-name descname"><span class="pre">joint_motion_subspace</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPY.joint_motion_subspace"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPY.joint_motion_subspace" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPY.joint_velocity">
-<span class="sig-name descname"><span class="pre">joint_velocity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPY.joint_velocity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPY.joint_velocity" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPY.integrate">
-<span class="sig-name descname"><span class="pre">integrate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPY.integrate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPY.integrate" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPY.difference">
-<span class="sig-name descname"><span class="pre">difference</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q0_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q1_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPY.difference"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPY.difference" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPY.random_configuration">
-<span class="sig-name descname"><span class="pre">random_configuration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">generator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lower</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upper</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPY.random_configuration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPY.random_configuration" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPY.neutral">
-<span class="sig-name descname"><span class="pre">neutral</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPY.neutral"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPY.neutral" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
 </dd></dl>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPZ">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">JointPZ</span></span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPZ"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPZ" title="Link to this definition">#</a></dt>
-<dd><dl class="py attribute">
+<dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.data_model.joint_models.prismatic._Prismatic</span></code></p>
+<dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPZ.kind">
 <span class="sig-name descname"><span class="pre">kind</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPZ.kind" title="Link to this definition">#</a></dt>
 <dd><p>‘prismatic_pz’</p>
@@ -814,47 +714,13 @@ and unaligned <code class="docutils literal notranslate"><span class="pre">Joint
 <dd><p>None</p>
 </dd></dl>
 
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPZ.joint_transform">
-<span class="sig-name descname"><span class="pre">joint_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPZ.joint_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPZ.joint_transform" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPZ.joint_motion_subspace">
-<span class="sig-name descname"><span class="pre">joint_motion_subspace</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPZ.joint_motion_subspace"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPZ.joint_motion_subspace" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPZ.joint_velocity">
-<span class="sig-name descname"><span class="pre">joint_velocity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPZ.joint_velocity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPZ.joint_velocity" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPZ.integrate">
-<span class="sig-name descname"><span class="pre">integrate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPZ.integrate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPZ.integrate" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPZ.difference">
-<span class="sig-name descname"><span class="pre">difference</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q0_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q1_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPZ.difference"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPZ.difference" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPZ.random_configuration">
-<span class="sig-name descname"><span class="pre">random_configuration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">generator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lower</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upper</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPZ.random_configuration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPZ.random_configuration" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPZ.neutral">
-<span class="sig-name descname"><span class="pre">neutral</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPZ.neutral"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPZ.neutral" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
 </dd></dl>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">JointPrismaticUnaligned</span></span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPrismaticUnaligned"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned" title="Link to this definition">#</a></dt>
-<dd><p>Prismatic joint with an arbitrary 3-vector axis.</p>
+<dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.data_model.joint_models.prismatic._Prismatic</span></code></p>
+<p>Prismatic joint with an arbitrary 3-vector axis.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.axis">
 <span class="sig-name descname"><span class="pre">axis</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.axis" title="Link to this definition">#</a></dt>
@@ -878,41 +744,6 @@ and unaligned <code class="docutils literal notranslate"><span class="pre">Joint
 <span class="sig-name descname"><span class="pre">nv</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.nv" title="Link to this definition">#</a></dt>
 <dd><p>1</p>
 </dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.joint_transform">
-<span class="sig-name descname"><span class="pre">joint_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPrismaticUnaligned.joint_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.joint_transform" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.joint_motion_subspace">
-<span class="sig-name descname"><span class="pre">joint_motion_subspace</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPrismaticUnaligned.joint_motion_subspace"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.joint_motion_subspace" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.joint_velocity">
-<span class="sig-name descname"><span class="pre">joint_velocity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPrismaticUnaligned.joint_velocity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.joint_velocity" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.integrate">
-<span class="sig-name descname"><span class="pre">integrate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPrismaticUnaligned.integrate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.integrate" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.difference">
-<span class="sig-name descname"><span class="pre">difference</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q0_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q1_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPrismaticUnaligned.difference"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.difference" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.random_configuration">
-<span class="sig-name descname"><span class="pre">random_configuration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">generator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lower</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upper</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPrismaticUnaligned.random_configuration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.random_configuration" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.neutral">
-<span class="sig-name descname"><span class="pre">neutral</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/prismatic.html#JointPrismaticUnaligned.neutral"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.neutral" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
 
 </dd></dl>
 
@@ -975,13 +806,6 @@ and unaligned <code class="docutils literal notranslate"><span class="pre">Joint
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPX.nq"><code class="docutils literal notranslate"><span class="pre">JointPX.nq</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPX.nv"><code class="docutils literal notranslate"><span class="pre">JointPX.nv</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPX.axis"><code class="docutils literal notranslate"><span class="pre">JointPX.axis</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPX.joint_transform"><code class="docutils literal notranslate"><span class="pre">JointPX.joint_transform()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPX.joint_motion_subspace"><code class="docutils literal notranslate"><span class="pre">JointPX.joint_motion_subspace()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPX.joint_velocity"><code class="docutils literal notranslate"><span class="pre">JointPX.joint_velocity()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPX.integrate"><code class="docutils literal notranslate"><span class="pre">JointPX.integrate()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPX.difference"><code class="docutils literal notranslate"><span class="pre">JointPX.difference()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPX.random_configuration"><code class="docutils literal notranslate"><span class="pre">JointPX.random_configuration()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPX.neutral"><code class="docutils literal notranslate"><span class="pre">JointPX.neutral()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPY"><code class="docutils literal notranslate"><span class="pre">JointPY</span></code></a><ul class="nav section-nav flex-column">
@@ -989,13 +813,6 @@ and unaligned <code class="docutils literal notranslate"><span class="pre">Joint
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPY.nq"><code class="docutils literal notranslate"><span class="pre">JointPY.nq</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPY.nv"><code class="docutils literal notranslate"><span class="pre">JointPY.nv</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPY.axis"><code class="docutils literal notranslate"><span class="pre">JointPY.axis</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPY.joint_transform"><code class="docutils literal notranslate"><span class="pre">JointPY.joint_transform()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPY.joint_motion_subspace"><code class="docutils literal notranslate"><span class="pre">JointPY.joint_motion_subspace()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPY.joint_velocity"><code class="docutils literal notranslate"><span class="pre">JointPY.joint_velocity()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPY.integrate"><code class="docutils literal notranslate"><span class="pre">JointPY.integrate()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPY.difference"><code class="docutils literal notranslate"><span class="pre">JointPY.difference()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPY.random_configuration"><code class="docutils literal notranslate"><span class="pre">JointPY.random_configuration()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPY.neutral"><code class="docutils literal notranslate"><span class="pre">JointPY.neutral()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPZ"><code class="docutils literal notranslate"><span class="pre">JointPZ</span></code></a><ul class="nav section-nav flex-column">
@@ -1003,13 +820,6 @@ and unaligned <code class="docutils literal notranslate"><span class="pre">Joint
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPZ.nq"><code class="docutils literal notranslate"><span class="pre">JointPZ.nq</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPZ.nv"><code class="docutils literal notranslate"><span class="pre">JointPZ.nv</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPZ.axis"><code class="docutils literal notranslate"><span class="pre">JointPZ.axis</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPZ.joint_transform"><code class="docutils literal notranslate"><span class="pre">JointPZ.joint_transform()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPZ.joint_motion_subspace"><code class="docutils literal notranslate"><span class="pre">JointPZ.joint_motion_subspace()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPZ.joint_velocity"><code class="docutils literal notranslate"><span class="pre">JointPZ.joint_velocity()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPZ.integrate"><code class="docutils literal notranslate"><span class="pre">JointPZ.integrate()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPZ.difference"><code class="docutils literal notranslate"><span class="pre">JointPZ.difference()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPZ.random_configuration"><code class="docutils literal notranslate"><span class="pre">JointPZ.random_configuration()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPZ.neutral"><code class="docutils literal notranslate"><span class="pre">JointPZ.neutral()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned"><code class="docutils literal notranslate"><span class="pre">JointPrismaticUnaligned</span></code></a><ul class="nav section-nav flex-column">
@@ -1017,13 +827,6 @@ and unaligned <code class="docutils literal notranslate"><span class="pre">Joint
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.kind"><code class="docutils literal notranslate"><span class="pre">JointPrismaticUnaligned.kind</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.nq"><code class="docutils literal notranslate"><span class="pre">JointPrismaticUnaligned.nq</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.nv"><code class="docutils literal notranslate"><span class="pre">JointPrismaticUnaligned.nv</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.joint_transform"><code class="docutils literal notranslate"><span class="pre">JointPrismaticUnaligned.joint_transform()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.joint_motion_subspace"><code class="docutils literal notranslate"><span class="pre">JointPrismaticUnaligned.joint_motion_subspace()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.joint_velocity"><code class="docutils literal notranslate"><span class="pre">JointPrismaticUnaligned.joint_velocity()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.integrate"><code class="docutils literal notranslate"><span class="pre">JointPrismaticUnaligned.integrate()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.difference"><code class="docutils literal notranslate"><span class="pre">JointPrismaticUnaligned.difference()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.random_configuration"><code class="docutils literal notranslate"><span class="pre">JointPrismaticUnaligned.random_configuration()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.prismatic.JointPrismaticUnaligned.neutral"><code class="docutils literal notranslate"><span class="pre">JointPrismaticUnaligned.neutral()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -1063,7 +866,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 18, 2026.
+  Last updated on Jul 19, 2026.
   <br/>
 </p>
   </div>

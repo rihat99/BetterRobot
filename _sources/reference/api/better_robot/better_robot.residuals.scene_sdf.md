@@ -207,11 +207,11 @@
 
 ````
 
-````{py:property} inputs
-:canonical: better_robot.residuals.scene_sdf.SceneSDFProvider.inputs
+````{py:property} reads
+:canonical: better_robot.residuals.scene_sdf.SceneSDFProvider.reads
 :type: tuple[str, ...]
 
-```{autodoc2-docstring} better_robot.residuals.scene_sdf.SceneSDFProvider.inputs
+```{autodoc2-docstring} better_robot.residuals.scene_sdf.SceneSDFProvider.reads
 ```
 
 ````

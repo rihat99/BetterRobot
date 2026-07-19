@@ -1,386 +1,239 @@
-# Lie Groups and Spatial Algebra
+# Rotations, Poses, and Spatial Motion
 
-The math layer is the foundation everything else stands on. Forward
-kinematics composes SE(3) elements; pose residuals subtract them on
-the manifold; dynamics computes spatial accelerations and wrenches;
-the trajectory parameterisations retract through SE(3) and SO(3) for
-free-flyer and spherical joints. If the math layer is wrong, every
-algorithm above it is wrong in correlated ways that are very hard to
-debug.
+Robot motion is not ordinary vector addition. A position can be shifted by a
+three-dimensional vector, but an orientation lives on a curved space: adding
+two sets of angles does not, in general, compose two rotations. BetterRobot
+uses Lie groups to represent that geometry while keeping the implementation in
+ordinary Torch tensors.
 
-We had three choices to make. The first was the storage layout: how
-do you spell an SE(3) pose? The second was whether to subclass
-`torch.Tensor` (PyTorch's `__torch_function__` hook lets you) or to
-keep the math layer purely functional. The third was whether to
-depend on an external Lie library (PyPose was the obvious candidate)
-or to implement the kernels from scratch. Each of those came with a
-specific cost we wanted to avoid.
+This chapter starts with the picture behind the terms. The storage and API
+details come afterward.
 
-The storage layout is now fixed library-wide: `(..., 7)` for SE(3)
-with the order `[tx, ty, tz, qx, qy, qz, qw]` — translation first,
-scalar quaternion **last**. Tangent vectors are `(..., 6)` with
-`[vx, vy, vz, wx, wy, wz]` — linear block first. SO(3) quaternions
-are `(..., 4)` with the same scalar-last convention. Spatial
-Jacobians are `(..., 6, nv)` with linear rows on top of angular rows.
-None of these are negotiable; they are baked into every public
-function and into `tests/contract/test_no_legacy_strings.py`. The
-order matches what you read in Pinocchio's source and most modern
-robotics libraries; the scalar-last convention matches PyPose's
-native layout, which made the early prototype easy and stayed because
-it composes cleanly with the rest.
+## A rotation quaternion in plain words
 
-The second choice was about subclassing. PyTorch's
-`__torch_function__` mechanism lets you define a `class SE3(Tensor)`
-that reuses the tensor machinery (`+`, `*`, `@`, slicing, autograd)
-and overrides specific operations. PyPose did exactly that. It works
-beautifully for two months and then starts producing subtle bugs
-that are very expensive to diagnose: gradient overrides that fire
-in unexpected places, autograd graphs that surgery themselves when a
-subclass slips through a `torch.cat`, `__torch_function__` dispatch
-that interacts oddly with `torch.compile`. We do not subclass
-`torch.Tensor`. The typed wrappers (`SE3`, `SO3`, `Pose`, `Motion`,
-`Force`, `Inertia`) are frozen `@dataclass`es around a tensor; their
-operations route through the functional `lie.se3.*` / `lie.so3.*`
-API; autograd, `vmap`, and `torch.compile` see plain tensors and do
-the right thing.
+A three-dimensional rotation has three degrees of freedom. BetterRobot stores
+it as a **unit quaternion** with four numbers:
 
-The third choice was about dependencies. The early prototype used
-PyPose for SE(3) ops, and it was the right call at the time —
-re-deriving Barfoot's SE(3) Taylor expansions from the textbook is
-not a task you want during a project's first month. Once the
-prototype was working, two issues came up that pushed us off the
-PyPose path. First, PyPose subclasses `torch.Tensor`, which is the
-exact pattern we did not want to expose at our boundaries; routing
-PyPose calls through the functional facade meant we were already
-re-wrapping every operation. Second, PyPose's `Log` had an autograd
-issue that forced our residual Jacobian path to use central finite
-differences as the default — slow, and a tax on every iteration. The
-direct Torch implementation (`lie/_impl.py`) replaced PyPose; it is
-gradcheck-clean by construction and has no external dependencies.
-
-## Storage convention
-
-| Object | Storage | Layout |
-|--------|---------|--------|
-| SE(3) pose | `(..., 7)` | `[tx, ty, tz, qx, qy, qz, qw]` (scalar last) |
-| se(3) tangent | `(..., 6)` | `[vx, vy, vz, wx, wy, wz]` (linear first) |
-| SO(3) quaternion | `(..., 4)` | `[qx, qy, qz, qw]` (scalar last) |
-| so(3) tangent | `(..., 3)` | `[wx, wy, wz]` |
-| Spatial Jacobian | `(..., 6, nv)` | rows `[v_lin (3); ω (3)]` |
-
-These are repeated in {doc}`/conventions/contracts` and
-{doc}`/conventions/style`. There is no point in the codebase where a
-different convention is allowed — `tests/contract/test_no_legacy_strings.py`
-prevents it.
-
-## The functional API
-
-`lie/` is purely functional. `lie/se3.py`, `lie/so3.py`, and
-`lie/tangents.py` are modules of free functions that take and return
-plain `torch.Tensor`s.
-
-```python
-# src/better_robot/lie/se3.py
-def identity(*, batch_shape=(), device=None, dtype=torch.float32) -> torch.Tensor: ...
-def compose(a, b)        -> torch.Tensor:   # (..., 7), (..., 7) → (..., 7)
-def inverse(t)           -> torch.Tensor:   # (..., 7) → (..., 7)
-def log(t)               -> torch.Tensor:   # (..., 7) → (..., 6)
-def exp(v)               -> torch.Tensor:   # (..., 6) → (..., 7)
-def act(t, p)            -> torch.Tensor:   # (..., 7), (..., 3) → (..., 3)
-def adjoint(t)           -> torch.Tensor:   # (..., 7) → (..., 6, 6)
-def adjoint_inv(t)       -> torch.Tensor:   # faster than inv(adjoint(...))
-def from_matrix(m)       -> torch.Tensor:   # (..., 4, 4) → (..., 7)
-def to_matrix(t)         -> torch.Tensor:   # (..., 7) → (..., 4, 4)
-def from_axis_angle(axis, angle): ...
-def from_translation(axis, disp): ...  # translation by scalar/vector disp along axis
-def normalize(t)         -> torch.Tensor:   # re-project onto SE(3)
-
-# src/better_robot/lie/so3.py
-identity, compose, inverse, log, exp, act, adjoint,
-from_euler, to_euler, from_matrix, to_matrix, from_axis_angle, normalize
-
-# src/better_robot/lie/alignment.py
-def umeyama(source, target, weights=None, *, estimate_scale=True): ...
-
-# src/better_robot/lie/tangents.py — right / left Jacobians of exp
-def right_jacobian_so3(omega) -> torch.Tensor:    # Jr(ω), (..., 3) → (..., 3, 3)
-def right_jacobian_inv_so3(omega): ...
-def left_jacobian_so3(omega): ...
-def left_jacobian_inv_so3(omega): ...
-def right_jacobian_se3(xi)    -> torch.Tensor:    # Jr(ξ), (..., 6) → (..., 6, 6)
-def right_jacobian_inv_se3(xi): ...
-def left_jacobian_se3(xi):     ...
-def left_jacobian_inv_se3(xi): ...
-def hat_se3(xi): ...   # (..., 6) → (..., 4, 4)
-def vee_se3(X):  ...   # (..., 4, 4) → (..., 6)
-def hat_so3(w):  ...   # (..., 3) → (..., 3, 3)
-def vee_so3(W):  ...   # (..., 3, 3) → (..., 3)
+```text
+[qx, qy, qz, qw]
 ```
 
-Every function calls the direct Torch implementation in `lie/_impl.py`,
-which uses Barfoot's closed forms. There is no runtime dispatch in this
-layer. An optional kernel optimisation belongs at a complete FK/RNEA-style
-pass described in {doc}`batching_and_backends`; it does not replace an
-individual Lie primitive.
+The extra number is constrained by `qx² + qy² + qz² + qw² = 1`, so it does
+not add a fourth degree of freedom. Quaternions avoid the gimbal lock of Euler
+angles and compose rotations efficiently. They also have a double cover:
+`q` and `-q` describe the same physical rotation.
 
-## Interchange and point-set alignment
+The set of all three-dimensional rotations is called **SO(3)**. The name is
+less important than the rule: values on SO(3) must be composed and compared as
+rotations, not treated as unconstrained four-vectors.
 
-Euler interchange uses one fixed active convention: inputs are
-`[roll, pitch, yaw]`, applied extrinsically about XYZ, so
-`R = Rz(yaw) @ Ry(pitch) @ Rx(roll)`. `so3.from_euler` returns the frozen
-scalar-last quaternion layout and `so3.to_euler` returns its principal branch;
-roll and yaw are necessarily ambiguous at pitch `+/- pi/2`.
+For a gentle introduction, see Lynch and Park's
+[Modern Robotics](https://hades.mech.northwestern.edu/index.php/Modern_Robotics)
+and Joan Solà's
+[quaternion notes](https://arxiv.org/abs/1711.02508).
 
-`se3.from_matrix` and `se3.to_matrix` bridge homogeneous `(..., 4, 4)`
-matrices and `[tx, ty, tz, qx, qy, qz, qw]` tensors without changing that
-layout. For point clouds, `lie.umeyama(source, target, weights)` fits batched
-3D similarity transforms and returns `(scale, rotation, translation)`. Its SVD
-correction always returns a proper rotation with determinant `+1`.
+## A pose and SE(3)
 
-## Singularity handling
+A rigid-body pose combines a translation and a rotation. The set of all such
+poses is called **SE(3)**. BetterRobot stores one pose as seven numbers:
 
-The exp / log maps on SO(3) have a removable singularity at θ = 0
-(the rotation matrix is the identity, the formula divides by sin(θ),
-and a Taylor expansion around 0 is needed for stable gradients). The
-SE(3) left-Jacobian has a similar singularity. Both are handled with
-`torch.where` against a `θ²` cutoff:
-
-```python
-# Sketch — see src/better_robot/lie/_impl.py
-use_taylor = theta2 < EPS
-theta2_safe = torch.where(use_taylor, torch.ones_like(theta2), theta2)
-theta = theta2_safe.sqrt()
-b = torch.where(use_taylor,
-                0.5 - theta2 / 24.0,
-                (1.0 - torch.cos(theta)) / theta2_safe)
-c = torch.where(use_taylor,
-                1.0/6.0 - theta2 / 120.0,
-                (theta - torch.sin(theta)) / (theta * theta2_safe))
+```text
+[tx, ty, tz, qx, qy, qz, qw]
 ```
 
-The Taylor leads are checked explicitly by
-`tests/lie/test_torch_backend_singularities.py` at
-`θ ∈ {0, π/2, π − 1e-6}` and with first-/second-order checks at zero and
-`1e-9`. The full-formula branch receives a safe dummy denominator in the Taylor
-region because `torch.where` evaluates both branches during backward.
+If `T_world_tool` is a pose, it answers both “where is the tool origin?” and
+“how are the tool axes oriented?” Pose composition follows frames: composing
+`T_world_parent` with `T_parent_child` produces `T_world_child`.
 
-## Quaternion double cover
+SO(3) and SE(3) are Lie groups. In practical robotics language, that means
+they have two useful views:
 
-A unit quaternion `q` and `-q` represent the same rotation. The naive
-implementation of `so3.log(q)` returns different tangents for the two
-representations, which breaks gradient flow at the seam. The
-direct implementation folds the two halves of the cover by flipping
-the sign whenever `qw < 0`:
+- a curved value space for complete rotations or poses; and
+- a flat local space for small changes around one value.
 
-```python
-q = torch.where((q[..., 3:4] < 0), -q, q)
+Solà, Deray, and Atchuthan's
+[micro Lie theory](https://arxiv.org/abs/1812.01537) develops this connection
+with robotics examples and formula tables.
+
+## Tangents and twists
+
+A **tangent** is a small local change expressed in a flat vector space. An
+SO(3) tangent has three angular components. An SE(3) tangent has six
+components: three linear and three angular. A motion tangent is often called a
+**twist**.
+
+BetterRobot stores an SE(3) tangent as:
+
+```text
+[vx, vy, vz, wx, wy, wz]
 ```
 
-The `log ∘ exp` round-trip is the identity modulo numerical noise. Quaternion
-storage must be compared modulo sign: compare rotation matrices, or compare the
-norm of a relative SO(3) logarithm. BetterRobot does not expose an
-`assert_close_manifold` helper.
+The exponential map `exp` turns a tangent into a rotation or pose change. The
+logarithm `log` turns a nearby rotation or pose back into a tangent. An
+optimizer uses the same idea through a retraction: compute a step in the flat
+tangent space, then move the configuration back onto its manifold.
 
-## Numerical evidence
+This explains why a free-flyer has `nq=7` but `nv=6`. Its pose needs seven
+stored numbers because rotation uses a quaternion. Its local motion still has
+only six degrees of freedom. BetterRobot uses `nq` for stored configuration
+width and `nv` for tangent or velocity width throughout the library.
 
-Typed SO(3)/SE(3) round-trip tests use ``1e-6`` in fp32 and ``1e-12``
-in fp64 on their committed random fixtures. The focused fp64 gradcheck module
-covers SO(3) exp/log and SE(3) exp/log/inverse/compose/act with
-``atol=1e-6, rtol=1e-5``; singularity tests separately cover zero, ``1e-9``,
-and the principal-log boundary. See
-``tests/lie/test_torch_backend_gradcheck.py`` and
-``tests/lie/test_torch_backend_singularities.py``.
+## Storage conventions
 
-Those are test-specific observations, not a universal guarantee for every
-public wrapper or an arbitrary long FK chain. Kinematics/Pinocchio tolerances
-are documented with their own tests.
+The layouts are fixed:
 
-## Typed value classes — `lie/types.py`
+| Object | Shape | Last-axis order |
+|---|---|---|
+| SO(3) quaternion | `(..., 4)` | `[qx, qy, qz, qw]` |
+| SO(3) tangent | `(..., 3)` | `[wx, wy, wz]` |
+| SE(3) pose | `(..., 7)` | `[tx, ty, tz, qx, qy, qz, qw]` |
+| SE(3) tangent or twist | `(..., 6)` | `[vx, vy, vz, wx, wy, wz]` |
+| Spatial Jacobian | `(..., 6, nv)` | linear rows, then angular rows |
 
-`lie/` is functional. `lie/types.py` adds typed `SE3`, `SO3`, `Pose`
-dataclasses on top — frozen `@dataclass`es around a `torch.Tensor`,
-**not** subclasses of one. They expose the functional API as named
-methods plus a single unambiguous operator (`@`):
+Quaternion scalars are last; spatial linear components come first. These are
+ecosystem choices rather than mathematical necessities. The alternatives and
+interchange argument are recorded in {ref}`decision-pose-layout`.
 
-```python
-@dataclass(frozen=True)
-class SE3:
-    """Rigid transform in SE(3), stored as (..., 7) [tx, ty, tz, qx, qy, qz, qw].
+Euler angles are an interchange format, not internal storage.
+`so3.from_euler` and `so3.to_euler` use active roll, pitch, yaw rotations with
+`R = Rz(yaw) @ Ry(pitch) @ Rx(roll)`. Euler angles necessarily become
+ambiguous at pitch `+/- pi/2`.
 
-    The ``tensor`` attribute is a plain torch.Tensor — autograd, vmap,
-    and torch.compile see a tensor, not a custom subclass. All
-    operations route through the functional lie.se3.* API.
-    """
-    tensor: torch.Tensor
+## Functional Lie operations
 
-    @classmethod
-    def identity(cls, *, batch_shape=(), device=None, dtype=torch.float32) -> "SE3": ...
-    @classmethod
-    def from_translation(cls, t: torch.Tensor) -> "SE3": ...
-    @classmethod
-    def from_rotation(cls, r: "SO3") -> "SE3": ...
-    @classmethod
-    def from_axis_angle(cls, axis, angle) -> "SE3": ...
-    @classmethod
-    def from_matrix(cls, m: torch.Tensor) -> "SE3": ...
-    @classmethod
-    def exp(cls, xi: torch.Tensor) -> "SE3": ...
+The `better_robot.lie.se3` and `better_robot.lie.so3` modules contain free
+functions over `torch.Tensor` values:
 
-    @property
-    def translation(self) -> torch.Tensor: ...     # (..., 3)
-    @property
-    def rotation(self) -> "SO3": ...
-    @property
-    def batch_shape(self) -> tuple[int, ...]: ...
+```{testcode}
+import torch
+from better_robot.lie import se3, so3
 
-    def compose(self, other: "SE3") -> "SE3": ...
-    def inverse(self) -> "SE3": ...
-    def log(self) -> torch.Tensor: ...             # (..., 6)
-    def adjoint(self) -> torch.Tensor: ...         # (..., 6, 6)
-    def to_matrix(self) -> torch.Tensor: ...       # (..., 4, 4)
+T_a = se3.identity(dtype=torch.float64)
+T_b = se3.exp(torch.tensor([0.1, 0.0, 0.0, 0.0, 0.2, 0.0], dtype=torch.float64))
+T_ab = se3.compose(T_a, T_b)
+T_ba = se3.inverse(T_ab)
+points_b = torch.tensor([1.0, 0.0, 0.0], dtype=torch.float64)
+points_a = se3.act(T_ab, points_b)
 
-    def act_point(self, p: torch.Tensor) -> torch.Tensor: ...
-    def act_motion(self, m: "Motion") -> "Motion": ...
-    def act_force (self, f: "Force")  -> "Force":  ...
-    def act_inertia(self, I: "Inertia") -> "Inertia": ...
+xi = se3.log(T_ab)
+T_again = se3.exp(xi)
 
-    def __matmul__(self, other):
-        # SE3 @ SE3   → compose
-        # SE3 @ (..., 3) → act_point
-        ...
+R = so3.to_matrix(T_ab[..., 3:])
+q = so3.from_matrix(R)
 ```
 
-Source: `src/better_robot/lie/types.py`. `SO3` mirrors at `(..., 4)`.
-`Pose` is an alias for `SE3`.
+The main operations are `identity`, `compose`, `inverse`, `act`, `exp`,
+`log`, `normalize`, `from_matrix`, and `to_matrix`. They broadcast leading
+batch axes and preserve dtype and device.
 
-The typed wrappers exist so that user-facing call sites read like the
-math:
+The implementation does not subclass `torch.Tensor`. Optional typed wrappers
+such as `SE3`, `SO3`, and `Pose` contain a tensor and delegate to the same
+functions. Core algorithms store raw tensors on `Model` and `Data`, which
+keeps autograd, `torch.func`, and `torch.compile` on a direct Torch graph.
+See {ref}`decision-functional-lie` for why this was chosen over tensor
+subclasses and per-operation dispatch.
 
-```python
-T_world_ee = T_world_arm @ T_arm_ee     # SE3 @ SE3 → SE3
-p_world    = T_world_ee @ p_local       # SE3 @ tensor[..., 3] → tensor[..., 3]
-xi         = T_world_ee.log()           # SE3 → tangent
+## Exponential and logarithm Jacobians
+
+Differentiating `exp` and `log` on a curved group introduces left and right
+Jacobians. BetterRobot exposes these in `better_robot.lie.tangents`:
+
+```{testcode}
+import torch
+from better_robot.lie import tangents
+
+xi = torch.tensor([0.1, 0.0, 0.0, 0.0, 0.2, 0.0], dtype=torch.float64)
+Jr = tangents.right_jacobian_se3(xi)
+Jr_inv = tangents.right_jacobian_inv_se3(xi)
+Jl = tangents.left_jacobian_se3(xi)
 ```
 
-Hot paths still call the functional `lie.se3.*` API directly on raw tensors —
-boxing every entry of a `(B..., njoints, 7)` tensor into an `SE3` instance
-would defeat batching. Storage on `Model` and `Data` is raw. The typed
-`Data.frame_pose(frame_id)` accessor returns `SE3`, while
-`IKResult.frame_pose(name)` returns the raw `(..., 7)` tensor used by task
-callers. Functional `lie.se3.*` operations accept raw tensors; use the typed
-wrapper's methods when working with `SE3` objects.
+These are not robot frame Jacobians. They describe how a perturbation passes
+through a Lie-group exponential or logarithm. A pose residual composes them
+with a frame Jacobian; {doc}`kinematics_and_jacobians` shows that example.
 
-The deliberately-omitted operators are worth naming:
+## Singularities and numerical branches
 
-- **No `__mul__`.** PyTorch's `*` is element-wise multiplication on
-  the underlying tensor, which would yield a leafwise scale of the
-  pose — mathematical garbage. Composing two SE(3)s is `T1 @ T2`, not
-  `T1 * T2`.
-- **No `__invert__` (`~T`).** Sigil-overloaded inverse is unreadable;
-  `T.inverse()` is one extra character and obviously correct.
+Closed-form SO(3) and SE(3) formulas contain ratios that appear to divide by
+zero near a zero rotation. The mathematical limit is well defined, so the
+implementation uses Taylor series in that region. Both branches receive safe
+denominators because `torch.where` may evaluate their gradients even when one
+branch is not selected.
 
-## Spatial value types — `spatial/`
+Near a rotation of pi, the principal logarithm has a branch boundary. The two
+quaternion signs are first folded to a common hemisphere, but no representation
+can make the principal logarithm smooth across every possible rotation.
+Optimization code should keep adjacent trajectory quaternions on a consistent
+hemisphere and avoid comparing quaternion storage directly.
 
-The 6D value types that dynamics consumes:
+For equality, compare rotation matrices or use the norm of a relative
+SO(3) logarithm. `torch.testing.assert_close(q1, q2)` is not a physical
+rotation comparison because `q` and `-q` are equivalent.
 
-```python
-@dataclass(frozen=True)
-class Motion:
-    """6D twist: linear + angular velocity. Stored as (..., 6) [vx, vy, vz, wx, wy, wz]."""
-    data: torch.Tensor
+## Spatial motion, force, and inertia
 
-    @classmethod
-    def zero(cls, *, batch_shape=(), device=None, dtype=torch.float32) -> "Motion": ...
+Spatial algebra packages a rigid body's linear and angular quantities into
+six-dimensional objects:
 
-    @property
-    def linear(self)  -> torch.Tensor: ...     # (..., 3)
-    @property
-    def angular(self) -> torch.Tensor: ...     # (..., 3)
+- `Motion` stores linear and angular velocity or acceleration.
+- `Force` stores force and torque.
+- `Inertia` stores mass, center of mass, and rotational inertia as one
+  operator from motion to force.
 
-    def cross_motion(self, other: "Motion") -> "Motion":
-        """Motion × Motion (spatial acceleration cross). Featherstone eq. (2.30)."""
+The wrappers validate their event shapes and provide operations whose meaning
+is unambiguous. A motion can act on another motion through the spatial cross
+product; its dual action on a force uses the corresponding force cross
+operator. An inertia multiplies a motion to produce a force.
 
-    def cross_force(self, other: "Force") -> "Force":
-        """Motion × Force (the ad* operator). Featherstone eq. (2.31)."""
+The convention is always linear first. This matches the rest of BetterRobot's
+Jacobians and avoids a reorder at every dynamics boundary. Roy Featherstone's
+[spatial-vector resources](https://royfeatherstone.org/) are the primary
+reference for the six-dimensional algebra and the dynamics algorithms built
+on it.
 
-    def se3_action(self, T) -> "Motion": ...
-    def compose(self, other: "Motion") -> "Motion":
-        """Element-wise sum (valid because Motion is a vector space)."""
+## Matrices, alignment, and typed views
+
+`se3.from_matrix` and `se3.to_matrix` convert homogeneous `(..., 4, 4)`
+matrices without changing the scalar-last pose convention. The Umeyama helper
+fits a batched similarity transform between point sets:
+
+```{testcode}
+import torch
+from better_robot.lie import umeyama
+
+source = torch.tensor(
+    [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+    dtype=torch.float64,
+)
+target = 2.0 * source + torch.tensor([0.5, -0.2, 0.3], dtype=torch.float64)
+weights = torch.ones(3, dtype=torch.float64)
+scale, rotation, translation = umeyama(source, target, weights)
 ```
 
-Source: `src/better_robot/spatial/`.
+The fitted rotation is proper: its determinant is `+1`. This is a data
+alignment helper, not a replacement for pose composition.
 
-Two design choices stand out.
+Typed wrappers are useful at application boundaries where `SE3` conveys more
+meaning than “tensor ending in seven.” Raw algorithm storage remains tensor
+based so thousands of poses do not become thousands of Python objects.
 
-**Operators are explicit.** `+`, `-`, and `__neg__` are safe (Motion
-is a vector space) and implemented. `__mul__` is **not** implemented
-because it is ambiguous between leafwise scale and cross-product —
-the same footgun as on `SE3`. Users call `.cross_motion(...)`,
-`.cross_force(...)`, `.se3_action(...)` by name.
+## Practical rules
 
-**`Force.cross_motion` raises `NotImplementedError` on purpose.**
-`Force × Motion` is not a standard spatial-algebra operation. The
-dual that exists is `Motion.cross_force`, which is the `ad*` operator
-from Featherstone eq. (2.31). Adding a `Force.cross_motion` for
-"symmetry" would teach users a non-textbook algebra. The error
-message names the standard dual:
+- Normalize quaternions before they enter a long computation. Public FK can
+  optionally diagnose clearly invalid free-flyer norms, but it does not
+  normalize every call.
+- Do not add or linearly interpolate quaternion components. Use SO(3)
+  composition, logarithms, or spherical interpolation.
+- Keep frame direction in the variable name: `T_world_tool` is easier to use
+  correctly than `pose`.
+- Remember that `nq` is storage width and `nv` is tangent width.
+- Do not confuse Lie exponential Jacobians with robot frame Jacobians.
 
-```
-NotImplementedError:
-    Force × Motion is not a standard spatial-algebra operation.
-    The dual that exists is Motion.cross_force(force) → Force,
-    which is the `ad*` operator (Featherstone eq. 2.31).
-```
+## Where to continue
 
-`Inertia` is the third value type — a typed view over a packed
-`(..., 10)` tensor with layout
-`[mass, cx, cy, cz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]`. Factories
-(`from_sphere`, `from_box`, `from_capsule`, `from_ellipsoid`,
-`from_mass_com_matrix`) exist for the common cases. `from_mesh` performs
-batched, differentiable signed-tetrahedron integration over a closed,
-consistently wound triangle surface; it accepts either global winding and
-keeps gradients to vertices and uniform density entirely in Torch. Methods accept
-the typed wrapper or the raw tensor; methods that return an inertia
-return the typed wrapper.
-
-## Why the split — `lie/` is functional, `spatial/` adds wrappers
-
-Pinocchio's `SE3` class with overloaded `operator*` (across `SE3`,
-`Motion`, `Force`, `Inertia`) is elegant in C++ but turns into
-footguns in Python:
-
-- `Tensor.__mul__` ambiguity (the brax lesson).
-- Hidden autograd graph surgery when value types wrap a `torch.Tensor`.
-- `__torch_function__` subclass drift on tensor subclasses (the
-  PyPose lesson).
-
-So `lie/` stays functional over plain tensors — direct, autograd-clean, and
-`torch.compile`-friendly. `spatial/`
-provides shallow value-type wrappers with explicit named methods for
-code that reads cleaner with them (notably `dynamics/`). Kinematics
-works directly on tensors; dynamics uses `Motion` / `Force` / `Inertia`
-for readability.
-
-## Sharp edges
-
-- Quaternions are scalar-last `[qx, qy, qz, qw]`. Code that expects
-  scalar-first will silently produce wrong rotations; the contract
-  test `test_no_legacy_strings.py` catches the literal in `src/`.
-- `lie.se3.log` returns a 6-vector with **linear first**, not angular
-  first. If you compute `xi = T.log()` and pull out the angular part,
-  it is `xi[..., 3:6]`, not `xi[..., :3]`.
-- Storage on `Model` and `Data` is raw tensors, not `SE3` instances.
-  Boxing every entry of `(B..., njoints, 7)` would be unreasonable;
-  the typed wrapper is for user-facing call sites only.
-- `gradcheck` for the math layer runs at fp64. fp32 is the production
-  default but the gradient correctness proofs use fp64 to avoid the
-  numerical noise.
-
-## Where to look next
-
-- {doc}`kinematics` — how the FK loop calls `lie.se3.compose` for
-  every joint in `topo_order`.
-- {doc}`batching_and_backends` — the structure/value seam and explicit
-  whole-pass compute lanes.
-- {doc}`/conventions/contracts` §1.3 — the quaternion-norm input
-  contract.
+- {doc}`joints_bodies_frames` applies these manifolds to every joint kind.
+- {doc}`kinematics_and_jacobians` composes joint transforms and explains robot
+  Jacobians.
+- {doc}`dynamics` uses spatial motion, force, and inertia.
+- {doc}`the_compute_seam` explains how the tensor functions participate in a
+  whole-pass implementation.

@@ -31,7 +31,7 @@
 
 ### API
 
-`````{py:class} PoseResidual(*, frame_id: int, target: torch.Tensor, pos_weight: float = 1.0, ori_weight: float = 1.0, model: better_robot.data_model.model.Model | None = None, name: str = 'pose', target_name: str | None = None)
+`````{py:class} PoseResidual(model: better_robot.data_model.model.Model | None = None, *, frame: str | None = None, frame_id: int | None = None, target: torch.Tensor, pos_weight: float = 1.0, ori_weight: float = 1.0, name: str = 'pose', target_name: str | None = None)
 :canonical: better_robot.residuals.pose.PoseResidual
 
 ```{autodoc2-docstring} better_robot.residuals.pose.PoseResidual
@@ -54,14 +54,6 @@
    ('q', 'data')
 
 ```{autodoc2-docstring} better_robot.residuals.pose.PoseResidual.reads
-```
-
-````
-
-````{py:method} jacobian(value: better_robot.residuals.base.ResidualState | collections.abc.Mapping[str, typing.Any]) -> torch.Tensor | None
-:canonical: better_robot.residuals.pose.PoseResidual.jacobian
-
-```{autodoc2-docstring} better_robot.residuals.pose.PoseResidual.jacobian
 ```
 
 ````
@@ -103,14 +95,6 @@
 
 ````
 
-````{py:method} jacobian(value: better_robot.residuals.base.ResidualState | collections.abc.Mapping[str, typing.Any]) -> torch.Tensor | None
-:canonical: better_robot.residuals.pose.PositionResidual.jacobian
-
-```{autodoc2-docstring} better_robot.residuals.pose.PositionResidual.jacobian
-```
-
-````
-
 ````{py:method} jacobian_blocks(ctx: collections.abc.Mapping[str, typing.Any]) -> dict[str, torch.Tensor]
 :canonical: better_robot.residuals.pose.PositionResidual.jacobian_blocks
 
@@ -144,14 +128,6 @@
    ('q', 'data')
 
 ```{autodoc2-docstring} better_robot.residuals.pose.OrientationResidual.reads
-```
-
-````
-
-````{py:method} jacobian(value: better_robot.residuals.base.ResidualState | collections.abc.Mapping[str, typing.Any]) -> torch.Tensor | None
-:canonical: better_robot.residuals.pose.OrientationResidual.jacobian
-
-```{autodoc2-docstring} better_robot.residuals.pose.OrientationResidual.jacobian
 ```
 
 ````
