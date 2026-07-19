@@ -9,121 +9,96 @@ from better_robot.residuals.chamfer import MaskedChamferResidual
 
 
 def test_masked_bidirectional_chamfer_matches_toy_reference_and_drops_empty_frame() -> None:
-    residual = MaskedChamferResidual(
-        2,
-        2,
-        3,
-        vertex_weights="vertex_weights",
-        chunk_size=1,
-    )
     source = torch.tensor(
         [
             [[0.0, 0.0, 0.0], [2.0, 0.0, 0.0]],
             [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]],
-        ],
-        dtype=torch.float32,
+        ]
     )
     target = torch.tensor(
         [
             [[0.0, 1.0, 0.0], [10.0, 0.0, 0.0], [2.0, 0.1, 0.0]],
             [[0.0, 0.1, 0.0], [1.0, 0.1, 0.0], [2.0, 0.1, 0.0]],
-        ],
-        dtype=torch.float32,
+        ]
     )
-    source_validity = torch.ones(2, 2, dtype=torch.bool)
-    target_validity = torch.tensor(
-        [[True, True, False], [False, False, False]],
+    item = MaskedChamferResidual(
+        source,
+        target,
+        torch.ones(2, 2, dtype=torch.bool),
+        torch.tensor([[True, True, False], [False, False, False]]),
+        vertex_weights=torch.tensor([[2.0, 0.5], [1.0, 1.0]]),
+        chunk_size=1,
     )
-    vertex_weights = torch.tensor([[2.0, 0.5], [1.0, 1.0]])
+    expected = torch.tensor([2.0, 0.5 * 5.0**0.5, 1.0, 8.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
-    actual = residual(
-        {
-            "points": source,
-            "target_points": target,
-            "point_validity": source_validity,
-            "target_validity": target_validity,
-            "vertex_weights": vertex_weights,
-        }
-    )
-    expected = torch.tensor(
-        [2.0, 0.5 * 5.0**0.5, 1.0, 8.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        dtype=torch.float32,
-    )
-
-    assert residual.dim == 10
-    torch.testing.assert_close(actual, expected)
+    assert item.dim == 10
+    torch.testing.assert_close(item.error(), expected)
 
 
 def test_chamfer_batched_values_match_sequential_with_shared_padded_target() -> None:
-    residual = MaskedChamferResidual(1, 2, 2, chunk_size=1)
     source = torch.tensor(
         [
             [[[0.0, 0.0, 0.0], [2.0, 0.0, 0.0]]],
             [[[0.0, 0.5, 0.0], [2.0, -0.5, 0.0]]],
-        ],
-        dtype=torch.float32,
+        ]
     )
-    target = torch.tensor([[[0.0, 1.0, 0.0], [2.0, 1.0, 0.0]]], dtype=torch.float32)
+    target = torch.tensor([[[0.0, 1.0, 0.0], [2.0, 1.0, 0.0]]])
     source_validity = torch.ones(2, 1, 2, dtype=torch.bool)
     target_validity = torch.ones(1, 2, dtype=torch.bool)
-    batched = residual(
-        {
-            "points": source,
-            "target_points": target,
-            "point_validity": source_validity,
-            "target_validity": target_validity,
-        }
-    )
+    batched = MaskedChamferResidual(
+        source,
+        target,
+        source_validity,
+        target_validity,
+        chunk_size=1,
+    ).error()
 
     assert batched.shape == (2, 4)
     for index in range(2):
-        sequential = residual(
-            {
-                "points": source[index],
-                "target_points": target,
-                "point_validity": source_validity[index],
-                "target_validity": target_validity,
-            }
-        )
+        sequential = MaskedChamferResidual(
+            source[index],
+            target,
+            source_validity[index],
+            target_validity,
+            chunk_size=1,
+        ).error()
         torch.testing.assert_close(batched[index], sequential)
 
 
 @pytest.mark.parametrize(
-    ("key", "value"),
+    ("argument", "value"),
     [
-        ("target_points", torch.zeros(1, 3)),
+        ("target", torch.zeros(1, 3)),
         ("target_validity", torch.ones(1, dtype=torch.bool)),
     ],
 )
-def test_chamfer_rejects_missing_configured_frame_axis(key: str, value: torch.Tensor) -> None:
-    residual = MaskedChamferResidual(2, 1, 1, bidirectional=False)
-    context = {
-        "points": torch.zeros(2, 1, 3),
-        "target_points": torch.zeros(2, 1, 3),
-        "point_validity": torch.ones(2, 1, dtype=torch.bool),
+def test_chamfer_rejects_missing_configured_frame_axis(argument: str, value: torch.Tensor) -> None:
+    inputs = {
+        "source": torch.zeros(2, 1, 3),
+        "target": torch.zeros(2, 1, 3),
+        "source_validity": torch.ones(2, 1, dtype=torch.bool),
         "target_validity": torch.ones(2, 1, dtype=torch.bool),
     }
-    context[key] = value
+    inputs[argument] = value
 
-    with pytest.raises(ValueError, match=key):
-        residual(context)
+    with pytest.raises(ValueError, match=argument):
+        MaskedChamferResidual(**inputs, bidirectional=False)
 
 
 def test_chamfer_gradient_uses_selected_valid_correspondence_only() -> None:
-    residual = MaskedChamferResidual(1, 1, 3, bidirectional=False, chunk_size=1)
     source = torch.tensor([[[0.0, 0.0, 0.0]]], requires_grad=True)
     target = torch.tensor(
         [[[1.0, 0.0, 0.0], [10.0, 0.0, 0.0], [0.1, 0.0, 0.0]]],
         requires_grad=True,
     )
-    value = residual(
-        {
-            "points": source,
-            "target_points": target,
-            "point_validity": torch.ones(1, 1, dtype=torch.bool),
-            "target_validity": torch.tensor([[True, True, False]]),
-        }
-    )
+    value = MaskedChamferResidual(
+        source,
+        target,
+        torch.ones(1, 1, dtype=torch.bool),
+        torch.tensor([[True, True, False]]),
+        bidirectional=False,
+        chunk_size=1,
+    ).error()
     source_gradient, target_gradient = torch.autograd.grad(value.sum(), (source, target))
 
     torch.testing.assert_close(value, torch.ones(1))
@@ -133,22 +108,16 @@ def test_chamfer_gradient_uses_selected_valid_correspondence_only() -> None:
 
 
 def test_chamfer_masked_nan_padding_has_zero_value_and_gradients() -> None:
-    residual = MaskedChamferResidual(1, 1, 1, chunk_size=1)
     source = torch.zeros((1, 1, 3), requires_grad=True)
     target = torch.full((1, 1, 3), torch.nan, requires_grad=True)
-
-    value = residual(
-        {
-            "points": source,
-            "target_points": target,
-            "point_validity": torch.ones(1, 1, dtype=torch.bool),
-            "target_validity": torch.zeros(1, 1, dtype=torch.bool),
-        }
-    )
-    source_gradient, target_gradient = torch.autograd.grad(
-        value.sum(),
-        (source, target),
-    )
+    value = MaskedChamferResidual(
+        source,
+        target,
+        torch.ones(1, 1, dtype=torch.bool),
+        torch.zeros(1, 1, dtype=torch.bool),
+        chunk_size=1,
+    ).error()
+    source_gradient, target_gradient = torch.autograd.grad(value.sum(), (source, target))
 
     torch.testing.assert_close(value, torch.zeros(2))
     assert torch.isfinite(source_gradient).all()

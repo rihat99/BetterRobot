@@ -1,14 +1,14 @@
-"""Whole-body inverse kinematics as a named-block optimization preset.
+"""Whole-body inverse kinematics as an object-referenced optimization preset.
 
 The task facade owns no solver loop. It assembles one ``q`` variable on the
-robot-configuration manifold, installs the built-in kinematic residuals and a
-lazy robot-state provider, then runs a public named-block solver.
+robot-configuration manifold, installs the built-in kinematic residuals, and
+runs a public optimizer.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, Any, Literal
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Literal
 
 import torch
 
@@ -19,12 +19,12 @@ from ..optim import (
     GaussNewton,
     JacobianStrategy,
     LevenbergMarquardt,
+    OptimizerInfo,
     Problem,
-    ResidualItem,
-    RobotConfig,
-    RobotStateProvider,
-    VarSpec,
-    run_first_order,
+    Residual,
+    RobotVariable,
+    TorchOptimizer,
+    Variable,
 )
 from ..optim import Cauchy, Cholesky, Huber, L2, Tukey
 from ..residuals.limits import JointPositionLimit
@@ -67,11 +67,11 @@ class IKCostConfig:
 
 @dataclass
 class OptimizerConfig:
-    """Named-block solver selection and hyperparameters.
+    """Optimizer selection and hyperparameters.
 
     ``lm_then_adam`` runs LM followed by the ``torch.optim`` adapter. Batched
-    L-BFGS is deliberately not exposed by the named-block
-    stack yet; the retained ``lbfgs`` spellings fail with an actionable error.
+    L-BFGS is deliberately not exposed by the task facade yet; the retained
+    ``lbfgs`` spellings fail with an actionable error.
     Linear-solver and Jacobian settings apply to LM/GN phases; damping applies
     only to configurations with an LM phase.
     """
@@ -137,7 +137,7 @@ def _validate_optimizer_config(config: OptimizerConfig) -> None:
 
 
 def _make_linear_solver(name: str):
-    """Return a fresh named-block linear solver."""
+    """Return a fresh linear solver."""
     if name not in _LINEAR_SOLVERS:
         raise ValueError(f"Unknown linear_solver {name!r}; expected one of {sorted(_LINEAR_SOLVERS)}")
     return _LINEAR_SOLVERS[name]()
@@ -178,48 +178,25 @@ def _ik_batch_shape(tensors: list[torch.Tensor]) -> torch.Size:
         ) from exc
 
 
-def _state_iterations(state: Any) -> torch.Tensor:
-    if hasattr(state, "iterations"):
-        return state.iterations
-    if hasattr(state, "step"):
-        return state.step
-    raise TypeError(f"solver state {type(state).__name__} has no iteration tensor")
-
-
 def _public_diagnostics(
-    states: tuple[Any, ...],
-    exemplar: torch.Tensor,
+    infos: tuple[OptimizerInfo, ...],
 ) -> tuple[int | torch.Tensor, bool | torch.Tensor]:
-    nonempty = tuple(state for state in states if state is not None)
-    if not nonempty:
-        batch_shape = exemplar.shape[:-1]
-        iterations = torch.zeros(batch_shape, dtype=torch.int64, device=exemplar.device)
-        converged = torch.zeros(batch_shape, dtype=torch.bool, device=exemplar.device)
-    else:
-        iterations = sum(
-            (_state_iterations(state) for state in nonempty),
-            torch.zeros_like(_state_iterations(nonempty[0])),
-        )
-        converged = nonempty[-1].converged
+    iterations = sum(
+        (info.iterations for info in infos),
+        torch.zeros_like(infos[0].iterations),
+    )
+    converged = infos[-1].converged
     if iterations.ndim == 0:
         return int(iterations), bool(converged)
     return iterations, converged
 
 
-def _refinement_problem(problem: Problem, disabled_items: tuple[str, ...]) -> Problem:
-    known = {item.name for item in problem.residuals}
-    unknown = set(disabled_items) - known
+def _refinement_residuals(problem: Problem, disabled_items: tuple[str, ...]) -> tuple[Residual, ...]:
+    known = {residual.name: residual for residual in problem.residuals}
+    unknown = set(disabled_items) - set(known)
     if unknown:
         raise ValueError(f"refine_disabled_items contains unknown residual names {sorted(unknown)}")
-    return Problem(
-        vars=problem.vars,
-        residuals=tuple(
-            replace(item, weight=0.0) if item.name in disabled_items else item for item in problem.residuals
-        ),
-        providers=problem.providers,
-        parameters=problem.parameters,
-        differentiable_parameters=tuple(problem.parameter_gradients),
-    )
+    return tuple(known[name] for name in disabled_items)
 
 
 def solve_ik(  # noqa: PLR0912, PLR0915 - explicit preset assembly keeps task policy visible
@@ -254,142 +231,133 @@ def solve_ik(  # noqa: PLR0912, PLR0915 - explicit preset assembly keeps task po
         raise ValueError("differentiable=True requires optimizer_cfg.optimizer='lm'")
     if optimizer_cfg.optimizer in {"lbfgs", "lm_then_lbfgs"}:
         raise NotImplementedError(
-            "Batched named-block L-BFGS is deferred because per-element line "
-            "search/history reset semantics are not implemented. Use 'adam' "
-            "or 'lm_then_adam'."
+            "Batched L-BFGS is deferred because its global line search and "
+            "history couple batch elements. Use 'adam' or 'lm_then_adam'."
         )
 
     start = initial_q.clone().detach() if initial_q is not None else model.q_neutral.clone()
     active_q_rest = cost_cfg.q_rest if cost_cfg.rest_weight > 0.0 else None
     start = _broadcast_initial_configuration(model, start, targets, active_q_rest)
-    manifold = RobotConfig(model)
-    bounds = manifold.joint_bounds()
+    q_variable = RobotVariable(model, start, name="q", bounds=True)
     # The task preset starts inside its declared joint box; several shipped
-    # neutral configurations lie outside it (notably Panda joint 4).
-    start = manifold.project(start, bounds)
+    # neutral configurations lie outside it (notably Panda joint 4). A zero
+    # retraction also normalizes any unit-coordinate representatives.
+    q_variable.tensor = q_variable.retract(
+        q_variable.tensor.new_zeros(*q_variable.batch_shape, q_variable.free_dim),
+    )
 
     kernel = _make_robust_kernel(optimizer_cfg.kernel)
-    residuals: list[ResidualItem] = []
-    parameters: dict[str, torch.Tensor] = {}
-    differentiable_parameters: list[str] = []
+    residuals: list[Residual] = []
     for target_index, (frame_name, target) in enumerate(targets.items()):
         frame_id = model.frame_id(frame_name)
         item_name = f"pose_{frame_name}"
         target_name = f"target_pose_{target_index}"
-        parameters[target_name] = target
-        differentiable_parameters.append(target_name)
+        target_variable = Variable(
+            target,
+            name=target_name,
+            trainable=False,
+            batch_ndim=target.ndim - 1,
+        )
         residuals.append(
-            ResidualItem(
-                item_name,
-                PoseResidual(
-                    frame_id=frame_id,
-                    target=target,
-                    pos_weight=cost_cfg.pos_weight,
-                    ori_weight=cost_cfg.ori_weight,
-                    model=model,
-                    name=item_name,
-                    target_name=target_name,
-                ),
+            PoseResidual(
+                q_variable,
+                frame_id=frame_id,
+                target=target_variable,
+                pos_weight=cost_cfg.pos_weight,
+                ori_weight=cost_cfg.ori_weight,
                 weight=cost_cfg.pose_weight,
                 kernel=kernel,
+                name=item_name,
             )
         )
     if cost_cfg.limit_weight > 0.0:
         residuals.append(
-            ResidualItem(
-                "limits",
-                JointPositionLimit(model, name="limits"),
+            JointPositionLimit(
+                q_variable,
                 weight=cost_cfg.limit_weight,
                 kernel=kernel,
+                name="limits",
             )
         )
     q_rest = cost_cfg.q_rest if cost_cfg.q_rest is not None else model.q_neutral
     if cost_cfg.rest_weight > 0.0:
-        rest_target_name = "target_rest"
-        parameters[rest_target_name] = q_rest
-        differentiable_parameters.append(rest_target_name)
+        rest_variable = Variable(
+            q_rest,
+            name="target_rest",
+            trainable=False,
+            batch_ndim=q_rest.ndim - 1,
+        )
         residuals.append(
-            ResidualItem(
-                "rest",
-                RestResidual(
-                    model,
-                    q_rest,
-                    name="rest",
-                    target_name=rest_target_name,
-                ),
+            RestResidual(
+                q_variable,
+                rest_variable,
                 weight=cost_cfg.rest_weight,
                 kernel=kernel,
+                name="rest",
             )
         )
-    problem = Problem(
-        vars=(
-            VarSpec(
-                "q",
-                (model.nq,),
-                manifold=manifold,
-                bounds=bounds,
-            ),
-        ),
-        residuals=tuple(residuals),
-        providers=(RobotStateProvider(model),),
-        parameters=parameters,
-        differentiable_parameters=tuple(differentiable_parameters),
-    )
-    values = {"q": start}
+    problem = Problem(residuals)
 
     if optimizer_cfg.optimizer == "adam":
-        values, state = run_first_order(
-            values,
+        info = TorchOptimizer(
             problem,
-            lambda params: torch.optim.Adam(params, lr=1e-2),
-            max_iter=optimizer_cfg.max_iter,
+            torch.optim.Adam,
+            lr=1e-2,
+            max_iterations=optimizer_cfg.max_iter,
             tolerance=optimizer_cfg.tol,
-        )
-        states: tuple[Any, ...] = (state,)
+        ).optimize()
+        infos = (info,)
     else:
-        jacobian_strategy = optimizer_cfg.jacobian_strategy
         common = {
-            "gtol": optimizer_cfg.tol,
-            "linear_solver": _make_linear_solver(optimizer_cfg.linear_solver),
-            "kernel": kernel,
-            "jacobian_strategy": jacobian_strategy,
+            "tolerance": optimizer_cfg.tol,
+            "solver": _make_linear_solver(optimizer_cfg.linear_solver),
+            "jacobian_strategy": optimizer_cfg.jacobian_strategy,
         }
         if optimizer_cfg.optimizer == "lm":
             solver = LevenbergMarquardt(
-                max_iter=optimizer_cfg.max_iter,
+                problem,
+                max_iterations=optimizer_cfg.max_iter,
                 **common,
                 fixed_damping=optimizer_cfg.damping == "constant",
             )
-            if differentiable:
-                values, state = solver.solve(values, problem, differentiate="implicit")
-            else:
-                values, state = solver.run(values, problem)
-            states = (state,)
+            info = solver.optimize(differentiate="implicit" if differentiable else None)
+            infos = (info,)
         elif optimizer_cfg.optimizer == "gn":
-            solver = GaussNewton(max_iter=optimizer_cfg.max_iter, **common)
-            values, state = solver.run(values, problem)
-            states = (state,)
+            info = GaussNewton(
+                problem,
+                max_iterations=optimizer_cfg.max_iter,
+                **common,
+            ).optimize()
+            infos = (info,)
         else:  # only lm_then_adam remains after boundary validation
             coarse_iters = optimizer_cfg.max_iter // 2
             refine_iters = optimizer_cfg.max_iter - coarse_iters
-            values, coarse_state = LevenbergMarquardt(
-                max_iter=coarse_iters,
+            disabled = _refinement_residuals(problem, optimizer_cfg.refine_disabled_items)
+            coarse_info = LevenbergMarquardt(
+                problem,
+                max_iterations=coarse_iters,
                 **common,
                 fixed_damping=optimizer_cfg.damping == "constant",
-            ).run(values, problem)
-            refinement = _refinement_problem(problem, optimizer_cfg.refine_disabled_items)
-            values, refine_state = run_first_order(
-                values,
-                refinement,
-                lambda params: torch.optim.Adam(params, lr=1e-2),
-                max_iter=refine_iters,
-                tolerance=optimizer_cfg.tol,
-            )
-            states = (coarse_state, refine_state)
-    iterations, converged = _public_diagnostics(states, values["q"])
+            ).optimize()
+            original_weights = tuple(residual.weight for residual in disabled)
+            try:
+                for residual in disabled:
+                    residual.weight = 0.0
+                refine_info = TorchOptimizer(
+                    problem,
+                    torch.optim.Adam,
+                    lr=1e-2,
+                    max_iterations=refine_iters,
+                    tolerance=optimizer_cfg.tol,
+                ).optimize()
+            finally:
+                for residual, weight in zip(disabled, original_weights, strict=True):
+                    residual.weight = weight
+            infos = (coarse_info, refine_info)
+    iterations, converged = _public_diagnostics(infos)
     return IKResult(
-        q=values["q"],
-        residual=problem.residual(values),
+        q=q_variable.tensor,
+        residual=problem.error(),
         iters=iterations,
         converged=converged,
         model=model,

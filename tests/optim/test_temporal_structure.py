@@ -3,49 +3,41 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
-from typing import Any
 
 import pytest
 import torch
 
-from better_robot.optim import (
-    Problem,
-    ResidualItem,
-    TemporalPattern,
-    VarSpec,
-)
+from better_robot.optim import Problem, Residual, TemporalPattern, Variable
 from better_robot.optim.temporal import BlockBandedMatrix, LinearizationReason
+from better_robot.residuals._temporal_jacobian import temporal_free_indices
 
 
-@dataclass(frozen=True)
-class _DifferenceResidual:
-    horizon: int
-    width: int
-    name: str = "difference"
-    reads: tuple[str, ...] = ("x",)
+class _DifferenceResidual(Residual):
+    def __init__(self, x: Variable, *, weight: float = 1.7) -> None:
+        self.x = x
+        self.horizon = x.time_length
+        self.width = x.shape[-1]
+        super().__init__(
+            x,
+            dim=(self.horizon - 1) * self.width,
+            weight=weight,
+            name="difference",
+        )
 
-    @property
-    def dim(self) -> int:
-        return (self.horizon - 1) * self.width
-
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        value = ctx["x"]
+    def error(self) -> torch.Tensor:
+        value = self.x.tensor
         return (value[..., 1:, :] - value[..., :-1, :]).reshape(*value.shape[:-2], self.dim)
 
-    def temporal_structure(self, variable_name: str) -> TemporalPattern | None:
-        if variable_name != "x":
+    def temporal_structure(self, variable: Variable | str) -> TemporalPattern | None:
+        if variable is not self.x and variable != self.x.name:
             return None
         return TemporalPattern(self.horizon - 1, self.width, 0, (0, 1))
 
-    def temporal_jacobian_blocks(
-        self,
-        ctx: Mapping[str, Any],
-        variable_name: str,
-    ) -> Mapping[int, torch.Tensor]:
-        assert variable_name == "x"
-        value = ctx["x"]
-        indices = ctx.temporal_free_indices("x").to(device=value.device)
+    def temporal_jacobian_blocks(self, variable: Variable | str) -> Mapping[int, torch.Tensor]:
+        if variable is not self.x and variable != self.x.name:
+            return {}
+        value = self.x.tensor
+        indices = temporal_free_indices(self.x, device=value.device)
         identity = torch.eye(self.width, dtype=value.dtype, device=value.device).index_select(-1, indices)
         block = identity.expand(*value.shape[:-2], self.horizon - 1, self.width, indices.numel())
         anchor = value.sum(dim=(-2, -1)) * 0.0
@@ -53,43 +45,41 @@ class _DifferenceResidual:
         return {0: -block, 1: block}
 
 
-@dataclass(frozen=True)
-class _DeclaredOnlyResidual:
-    horizon: int
-    name: str = "declared_only"
-    reads: tuple[str, ...] = ("x",)
+class _DeclaredOnlyResidual(Residual):
+    def __init__(self, x: Variable) -> None:
+        self.x = x
+        self.horizon = x.time_length
+        super().__init__(x, dim=self.horizon, name="declared_only")
 
-    @property
-    def dim(self) -> int:
-        return self.horizon
+    def error(self) -> torch.Tensor:
+        return self.x.tensor[..., :, 0]
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        return ctx["x"][..., :, 0]
-
-    def temporal_structure(self, variable_name: str) -> TemporalPattern | None:
-        return TemporalPattern(self.horizon, 1, 0, (0,)) if variable_name == "x" else None
+    def temporal_structure(self, variable: Variable | str) -> TemporalPattern | None:
+        if variable is not self.x and variable != self.x.name:
+            return None
+        return TemporalPattern(self.horizon, 1, 0, (0,))
 
 
-@dataclass(frozen=True)
-class _UndeclaredResidual:
-    horizon: int
-    name: str = "undeclared"
-    reads: tuple[str, ...] = ("x",)
+class _UndeclaredResidual(Residual):
+    def __init__(self, x: Variable, *, weight: float = 1.0) -> None:
+        self.x = x
+        self.horizon = x.time_length
+        super().__init__(x, dim=self.horizon, weight=weight, name="undeclared")
 
-    @property
-    def dim(self) -> int:
-        return self.horizon
-
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        return ctx["x"][..., :, 0]
+    def error(self) -> torch.Tensor:
+        return self.x.tensor[..., :, 0]
 
 
 def _problem(*, horizon: int = 5, width: int = 3, mask: torch.Tensor | None = None) -> Problem:
-    residual = _DifferenceResidual(horizon, width)
-    return Problem(
-        vars=(VarSpec("x", (horizon, width), mask=mask, time_axis=0),),
-        residuals=(ResidualItem(residual.name, residual, weight=1.7),),
+    x = Variable(
+        torch.zeros(horizon, width),
+        name="x",
+        mask=mask,
+        time_axis=0,
     )
+    problem = Problem([_DifferenceResidual(x)])
+    problem.error()
+    return problem
 
 
 def test_temporal_pattern_and_time_axis_validate_static_contracts() -> None:
@@ -100,29 +90,25 @@ def test_temporal_pattern_and_time_axis_validate_static_contracts() -> None:
     with pytest.raises(ValueError, match="non-empty"):
         TemporalPattern(2, 1, 0, ())
     with pytest.raises(TypeError, match="time_axis"):
-        VarSpec("x", (3, 2), time_axis=True)
-    with pytest.raises(ValueError, match="leading, separable time axis"):
-        VarSpec("x", (3, 2), time_axis=1)
-    with pytest.raises(ValueError, match="leading, separable time axis"):
-        VarSpec("x", (), time_axis=0)
+        Variable(torch.zeros(3, 2), name="x", time_axis=True)
+    with pytest.raises(ValueError, match="leading event axis 0"):
+        Variable(torch.zeros(3, 2), name="x", time_axis=1)
+    with pytest.raises(ValueError, match="non-scalar event shape"):
+        Variable(torch.tensor(0.0), name="x", time_axis=0)
 
 
 def test_cached_analysis_keeps_zero_weight_and_requires_numeric_blocks() -> None:
     horizon = 4
-    declared = _DeclaredOnlyResidual(horizon)
-    declared_problem = Problem(
-        vars=(VarSpec("x", (horizon, 2), time_axis=0),),
-        residuals=(ResidualItem(declared.name, declared),),
-    )
+    declared_x = Variable(torch.zeros(horizon, 2), name="x", time_axis=0)
+    declared_problem = Problem([_DeclaredOnlyResidual(declared_x)])
+    declared_problem.error()
     analysis = declared_problem.temporal_analysis
     assert not analysis.direct_eligible
     assert analysis.reason is LinearizationReason.MISSING_TEMPORAL_BLOCKS
 
-    undeclared = _UndeclaredResidual(horizon)
-    zero_problem = Problem(
-        vars=(VarSpec("x", (horizon, 2), time_axis=0),),
-        residuals=(ResidualItem(undeclared.name, undeclared, weight=0.0),),
-    )
+    undeclared_x = Variable(torch.zeros(horizon, 2), name="x", time_axis=0)
+    zero_problem = Problem([_UndeclaredResidual(undeclared_x, weight=0.0)])
+    zero_problem.error()
     assert not zero_problem.temporal_analysis.direct_eligible
     assert zero_problem.temporal_analysis.reason is LinearizationReason.UNDECLARED_TEMPORAL_RESIDUAL
 
@@ -147,12 +133,12 @@ def test_structured_normal_matches_dense_jacobian_and_flat_operators(batch_shape
     torch.manual_seed(11)
     horizon, width = 5, 3
     problem = _problem(horizon=horizon, width=width)
-    values = {"x": torch.randn(*batch_shape, horizon, width)}
-    residual = problem.residual(values)
+    problem.update({"x": torch.randn(*batch_shape, horizon, width)})
+    residual = problem.error()
     row_scale = torch.linspace(0.3, 1.1, problem.dim_total).expand(*batch_shape, problem.dim_total).clone()
 
-    structured = problem.structured_normal(values, residual=residual, row_scale=row_scale)
-    dense_j = problem.dense_jacobian(values) * row_scale.unsqueeze(-1)
+    structured = problem.structured_normal(residual=residual, row_scale=row_scale)
+    dense_j = problem.dense_jacobian() * row_scale.unsqueeze(-1)
     weighted_residual = residual * row_scale
     dense_gradient = (dense_j.mT @ weighted_residual.unsqueeze(-1)).squeeze(-1)
     dense_normal = dense_j.mT @ dense_j

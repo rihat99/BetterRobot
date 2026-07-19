@@ -1,8 +1,6 @@
-"""Dense and banded routing for named-block LM."""
+"""Dense and banded routing for object-referenced LM problems."""
 
 from __future__ import annotations
-
-from dataclasses import dataclass
 
 import pytest
 import torch
@@ -11,173 +9,164 @@ from better_robot.optim import (
     LevenbergMarquardt,
     LinearizationReason,
     Problem,
-    ResidualItem,
+    Residual,
     TemporalPattern,
-    VarSpec,
+    Variable,
 )
 from better_robot.optim.solvers import BandedCholesky, Cholesky
 
 
-@dataclass(frozen=True)
-class _DiagonalTrajectoryResidual:
-    horizon: int
-    width: int
-    name: str = "trajectory_target"
-    reads: tuple[str, ...] = ("x",)
+def _matches(variable: Variable | str, expected: Variable) -> bool:
+    return variable is expected or variable == expected.name
 
-    @property
-    def dim(self) -> int:
-        return self.horizon * self.width
 
-    def __call__(self, ctx) -> torch.Tensor:
-        x = ctx["x"]
+class _TrajectoryResidual(Residual):
+    def __init__(self, x: Variable, horizon: int, width: int, *, name: str) -> None:
+        self.x = x
+        self.horizon = horizon
+        self.width = width
+        super().__init__(x, dim=horizon * width, name=name)
+
+
+class _DiagonalTrajectoryResidual(_TrajectoryResidual):
+    def __init__(self, x: Variable, horizon: int, width: int) -> None:
+        super().__init__(x, horizon, width, name="trajectory_target")
+
+    def error(self) -> torch.Tensor:
+        x = self.x.tensor
         return (x - 1.0).reshape(*x.shape[:-2], self.dim)
 
-    def temporal_structure(self, variable_name: str) -> TemporalPattern | None:
-        if variable_name != "x":
+    def temporal_structure(self, variable: Variable | str) -> TemporalPattern | None:
+        if not _matches(variable, self.x):
             return None
-        return TemporalPattern(
-            rows=self.horizon,
-            row_width=self.width,
-            row_origin=0,
-            offsets=(0,),
-        )
+        return TemporalPattern(self.horizon, self.width, 0, (0,))
 
-    def temporal_jacobian_blocks(self, ctx, variable_name: str):
-        x = ctx["x"]
-        local = ctx.temporal_free_indices(variable_name).to(device=x.device)
+    def temporal_jacobian_blocks(self, variable: Variable | str) -> dict[int, torch.Tensor]:
+        if not _matches(variable, self.x):
+            return {}
+        x = self.x.tensor
+        local = self.x.temporal_free_indices.to(device=x.device)
         identity = torch.eye(self.width, dtype=x.dtype, device=x.device).index_select(-1, local)
         block = identity.expand(*x.shape[:-2], self.horizon, self.width, local.numel())
-        # Keep the exact constant block usable by create_graph=True.
         return {0: block + x.sum(dim=(-2, -1))[..., None, None, None] * 0.0}
 
 
-@dataclass(frozen=True)
-class _DeclaredWithoutBlocks:
-    horizon: int
-    width: int
-    name: str = "operator_only"
-    reads: tuple[str, ...] = ("x",)
+class _DeclaredWithoutBlocks(_TrajectoryResidual):
+    def __init__(self, x: Variable, horizon: int, width: int) -> None:
+        super().__init__(x, horizon, width, name="operator_only")
 
-    @property
-    def dim(self) -> int:
-        return self.horizon * self.width
-
-    def __call__(self, ctx) -> torch.Tensor:
-        x = ctx["x"]
+    def error(self) -> torch.Tensor:
+        x = self.x.tensor
         return (2.0 * x - 1.0).reshape(*x.shape[:-2], self.dim)
 
-    def temporal_structure(self, variable_name: str) -> TemporalPattern | None:
-        if variable_name != "x":
+    def temporal_structure(self, variable: Variable | str) -> TemporalPattern | None:
+        if not _matches(variable, self.x):
             return None
         return TemporalPattern(self.horizon, self.width, 0, (0,))
 
 
-@dataclass(frozen=True)
-class _UndeclaredTrajectoryResidual:
-    horizon: int
-    width: int
-    name: str = "undeclared"
-    reads: tuple[str, ...] = ("x",)
+class _UndeclaredTrajectoryResidual(_TrajectoryResidual):
+    def __init__(self, x: Variable, horizon: int, width: int) -> None:
+        super().__init__(x, horizon, width, name="undeclared")
 
-    @property
-    def dim(self) -> int:
-        return self.horizon * self.width
-
-    def __call__(self, ctx) -> torch.Tensor:
-        x = ctx["x"]
+    def error(self) -> torch.Tensor:
+        x = self.x.tensor
         return x.reshape(*x.shape[:-2], self.dim)
 
 
 def _problem(
-    residual,
+    residual_type: type[_TrajectoryResidual],
+    horizon: int,
+    width: int,
     *,
     mask: torch.Tensor | None = None,
-) -> Problem:
-    return Problem(
-        vars=(
-            VarSpec(
-                "x",
-                (residual.horizon, residual.width),
-                mask=mask,
-                time_axis=0,
-            ),
-        ),
-        residuals=(ResidualItem(residual.name, residual),),
+    dtype: torch.dtype = torch.float64,
+) -> tuple[Variable, Problem]:
+    x = Variable(
+        torch.zeros(horizon, width, dtype=dtype),
+        name="x",
+        mask=mask,
+        time_axis=0,
     )
+    return x, Problem([residual_type(x, horizon, width)])
 
 
 def test_auto_banded_matches_forced_dense() -> None:
-    residual = _DiagonalTrajectoryResidual(6, 3)
-    problem = _problem(residual)
-    values = {"x": torch.zeros(2, 6, 3, dtype=torch.float64)}
-
-    outputs = {}
-    states = {}
+    values = torch.zeros(2, 6, 3, dtype=torch.float64)
+    outputs: dict[str, torch.Tensor] = {}
+    costs: dict[str, torch.Tensor] = {}
+    statuses: dict[str, torch.Tensor] = {}
     for mode in ("dense", "structured", "auto"):
-        solver = LevenbergMarquardt(max_iter=4, linearization=mode)
-        outputs[mode], states[mode] = solver.run(values, problem)
+        x, problem = _problem(_DiagonalTrajectoryResidual, 6, 3)
+        problem.update({"x": values.clone()})
+        optimizer = LevenbergMarquardt(problem, max_iterations=4, linearization=mode)
+        info = optimizer.optimize()
+        outputs[mode] = x.tensor.clone()
+        costs[mode] = info.cost
+        statuses[mode] = info.status
 
-    assert LevenbergMarquardt().resolve_linearization(problem).used == "banded"
+    _x, auto_problem = _problem(_DiagonalTrajectoryResidual, 6, 3)
+    assert LevenbergMarquardt(auto_problem).resolve_linearization(auto_problem).used == "banded"
     for mode in ("structured", "auto"):
-        torch.testing.assert_close(outputs[mode]["x"], outputs["dense"]["x"], atol=1e-10, rtol=1e-10)
-        torch.testing.assert_close(states[mode].cost, states["dense"].cost, atol=1e-12, rtol=1e-12)
-        assert torch.equal(states[mode].status, states["dense"].status)
+        torch.testing.assert_close(outputs[mode], outputs["dense"], atol=1e-10, rtol=1e-10)
+        torch.testing.assert_close(costs[mode], costs["dense"], atol=1e-12, rtol=1e-12)
+        assert torch.equal(statuses[mode], statuses["dense"])
 
 
 def test_structured_route_never_calls_dense_jacobian(monkeypatch: pytest.MonkeyPatch) -> None:
-    residual = _DiagonalTrajectoryResidual(5, 2)
-    problem = _problem(residual)
+    _x, problem = _problem(_DiagonalTrajectoryResidual, 5, 2)
 
     def fail_dense(*_args, **_kwargs):
         raise AssertionError("structured route materialized the dense Jacobian")
 
     monkeypatch.setattr(Problem, "dense_jacobian", fail_dense)
     values = {"x": torch.zeros(5, 2, dtype=torch.float64)}
-    state = LevenbergMarquardt(linearization="structured").init_state(values, problem)
+    optimizer = LevenbergMarquardt(problem, linearization="structured")
+    state = optimizer._init_state(values, problem)
 
     assert torch.isfinite(state.cost)
 
 
 def test_missing_numeric_blocks_fall_back_to_dense() -> None:
-    residual = _DeclaredWithoutBlocks(4, 2)
-    problem = _problem(residual)
+    x, problem = _problem(_DeclaredWithoutBlocks, 4, 2)
+    optimizer = LevenbergMarquardt(problem, max_iterations=4)
     analysis = problem.temporal_analysis
 
     assert not analysis.direct_eligible
     assert analysis.reason is LinearizationReason.MISSING_TEMPORAL_BLOCKS
-    assert LevenbergMarquardt().resolve_linearization(problem).used == "dense"
+    assert optimizer.resolve_linearization(problem).used == "dense"
     with pytest.raises(ValueError, match="missing_temporal_blocks"):
-        LevenbergMarquardt(linearization="structured").resolve_linearization(problem)
+        LevenbergMarquardt(problem, linearization="structured").resolve_linearization(problem)
 
-    values = {"x": torch.zeros(4, 2, dtype=torch.float64)}
-    solved, state = LevenbergMarquardt(max_iter=4).run(values, problem)
-    torch.testing.assert_close(solved["x"], torch.full_like(solved["x"], 0.5), atol=1e-8, rtol=1e-8)
-    assert torch.isfinite(state.cost)
+    info = optimizer.optimize()
+    torch.testing.assert_close(x.tensor, torch.full_like(x.tensor, 0.5), atol=1e-8, rtol=1e-8)
+    assert torch.isfinite(info.cost)
 
 
 def test_undeclared_or_nonseparable_problem_falls_back_with_stable_reason() -> None:
-    undeclared = _problem(_UndeclaredTrajectoryResidual(4, 2))
-    decision = LevenbergMarquardt().resolve_linearization(undeclared)
+    _x, undeclared = _problem(_UndeclaredTrajectoryResidual, 4, 2)
+    optimizer = LevenbergMarquardt(undeclared)
+    decision = optimizer.resolve_linearization(undeclared)
     assert decision.used == "dense"
     assert decision.reason is LinearizationReason.UNDECLARED_TEMPORAL_RESIDUAL
     with pytest.raises(ValueError, match="undeclared_temporal_residual"):
-        LevenbergMarquardt(linearization="structured").resolve_linearization(undeclared)
+        LevenbergMarquardt(undeclared, linearization="structured").resolve_linearization(undeclared)
 
     mask = torch.tensor([1, 1, 1, 0, 1, 1, 1, 1], dtype=torch.bool)
-    nonseparable = _problem(_DiagonalTrajectoryResidual(4, 2), mask=mask)
-    decision = LevenbergMarquardt().resolve_linearization(nonseparable)
+    _x, nonseparable = _problem(_DiagonalTrajectoryResidual, 4, 2, mask=mask)
+    decision = LevenbergMarquardt(nonseparable).resolve_linearization(nonseparable)
     assert decision.used == "dense"
     assert decision.reason is LinearizationReason.NONSEPARABLE_MASK
 
 
 def test_explicit_solver_compatibility_is_not_silently_ignored() -> None:
-    problem = _problem(_DiagonalTrajectoryResidual(4, 2))
+    _x, problem = _problem(_DiagonalTrajectoryResidual, 4, 2)
 
-    assert LevenbergMarquardt(linear_solver=Cholesky()).resolve_linearization(problem).used == "dense"
-    assert LevenbergMarquardt(linear_solver=BandedCholesky()).resolve_linearization(problem).used == "banded"
+    assert LevenbergMarquardt(problem, solver=Cholesky()).resolve_linearization(problem).used == "dense"
+    assert LevenbergMarquardt(problem, solver=BandedCholesky()).resolve_linearization(problem).used == "banded"
     with pytest.raises(ValueError, match="incompatible_solver"):
         LevenbergMarquardt(
+            problem,
             linearization="dense",
-            linear_solver=BandedCholesky(),
+            solver=BandedCholesky(),
         ).resolve_linearization(problem)

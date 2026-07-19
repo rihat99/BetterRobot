@@ -1,24 +1,23 @@
-"""Point-cloud signed-distance provider and reusable penalty residuals."""
+"""Shared point-cloud signed-distance state and reusable penalty residuals."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+import math
+from numbers import Real
 
 import torch
 
 from .._validation import check_tensor
 from ._point_cloud import _detached_nearest, _gather_rows, _validate_clouds
+from ._variables import VariableLike as _VariableLike, value, variables
+from .base import Residual, Weight
+from .nodes import Node
 
 
 @dataclass(frozen=True)
 class SceneSDFResult:
-    """Fixed-shape outputs shared by all scene signed-distance heads.
-
-    All fields have shape ``(B..., frames, query_points)``. ``has_point``
-    is boolean; the other fields preserve the query-point floating dtype.
-    """
+    """Fixed-shape outputs shared by all scene signed-distance heads."""
 
     signed_distance: torch.Tensor
     dmin: torch.Tensor
@@ -26,93 +25,87 @@ class SceneSDFResult:
     has_point: torch.Tensor
 
 
-@dataclass(frozen=True)
-class SceneSDFProvider:
-    """Approximate point-cloud SDF with one detached nearest-neighbour pass.
+class SceneSDFState(Node):
+    """Approximate point-cloud SDF cached for one evaluation epoch.
 
-    Queries and scenes use the padded ``(tensor, validity_mask)`` convention.
-    Scene normals orient the unsigned nearest distance.  Both nearest indices
-    and the side-of-surface sign are detached discrete choices; distance is
-    reconstructed from graph-carrying query/scene points.  ``confidence`` is
-    the absolute normal alignment, optionally multiplied by a gathered scene
-    confidence table.
+    This multi-input node is never identity-merged. Reuse is explicit: pass
+    the same :class:`SceneSDFState` object to every penalty residual that
+    should share one detached nearest-neighbour computation.
     """
 
-    query_points: str = "scene_query_points"
-    query_validity: str = "scene_query_validity"
-    scene_points: str = "scene_points"
-    scene_normals: str = "scene_normals"
-    scene_validity: str = "scene_validity"
-    scene_confidence: str | None = None
-    output: str = "scene_sdf"
-    name: str = "scene_sdf_provider"
-    chunk_size: int = 4096
-    eps: float = 1e-8
+    def __init__(
+        self,
+        query_points: _VariableLike | torch.Tensor,
+        query_validity: _VariableLike | torch.Tensor,
+        scene_points: _VariableLike | torch.Tensor,
+        scene_normals: _VariableLike | torch.Tensor,
+        scene_validity: _VariableLike | torch.Tensor,
+        *,
+        scene_confidence: _VariableLike | torch.Tensor | None = None,
+        chunk_size: int = 4096,
+        eps: float = 1e-8,
+    ) -> None:
+        self.query_points, self.query_validity = query_points, query_validity
+        self.scene_points, self.scene_normals = scene_points, scene_normals
+        self.scene_validity, self.scene_confidence = scene_validity, scene_confidence
+        query, _scene, _query_validity, _scene_validity, _normals, _confidence = self._inputs()
+        if isinstance(chunk_size, bool) or not isinstance(chunk_size, int) or chunk_size <= 0:
+            raise ValueError(f"chunk_size must be a positive integer, got {chunk_size!r}")
+        if not isinstance(eps, float) or not math.isfinite(eps) or eps <= 0.0:
+            raise ValueError(f"eps must be a positive finite float, got {eps!r}")
 
-    def __post_init__(self) -> None:
-        required = (
-            self.query_points,
-            self.query_validity,
-            self.scene_points,
-            self.scene_normals,
-            self.scene_validity,
+        self.frames = int(query.shape[-3])
+        self.points = int(query.shape[-2])
+        self.chunk_size = chunk_size
+        self.eps = eps
+        super().__init__(
+            *variables(
+                query_points,
+                query_validity,
+                scene_points,
+                scene_normals,
+                scene_validity,
+                scene_confidence,
+            )
         )
-        if any(not isinstance(value, str) or not value for value in required):
-            raise ValueError("scene SDF context names must be non-empty strings")
-        if len(set(required)) != len(required):
-            raise ValueError("scene SDF input context names must be unique")
-        if self.scene_confidence is not None and (
-            not isinstance(self.scene_confidence, str) or not self.scene_confidence
-        ):
-            raise ValueError("scene_confidence must be a non-empty context name or None")
-        if self.scene_confidence is not None and self.scene_confidence in required:
-            raise ValueError("scene_confidence must name a distinct context entry")
-        if not isinstance(self.output, str) or not self.output:
-            raise ValueError("output must be a non-empty string")
-        if not isinstance(self.name, str) or not self.name:
-            raise ValueError("name must be a non-empty string")
-        if isinstance(self.chunk_size, bool) or not isinstance(self.chunk_size, int) or self.chunk_size <= 0:
-            raise ValueError(f"chunk_size must be a positive integer, got {self.chunk_size!r}")
-        if not isinstance(self.eps, float) or self.eps <= 0.0:
-            raise ValueError(f"eps must be a positive float, got {self.eps!r}")
 
-    @property
-    def reads(self) -> tuple[str, ...]:
-        base = (
-            self.query_points,
-            self.query_validity,
-            self.scene_points,
-            self.scene_normals,
-            self.scene_validity,
-        )
-        return (*base, *((self.scene_confidence,) if self.scene_confidence is not None else ()))
-
-    @property
-    def outputs(self) -> tuple[str, ...]:
-        return (self.output,)
-
-    def __call__(self, ctx: Mapping[str, Any]) -> dict[str, SceneSDFResult]:
+    def _inputs(self):
         query, scene, query_validity, scene_validity = _validate_clouds(
-            ctx[self.query_points],
-            ctx[self.scene_points],
-            ctx[self.query_validity],
-            ctx[self.scene_validity],
+            value(self.query_points, "query_points"),
+            value(self.scene_points, "scene_points"),
+            value(self.query_validity, "query_validity"),
+            value(self.scene_validity, "scene_validity"),
         )
+        if query.ndim < 3:
+            raise ValueError(f"query_points must include a frames axis, got {tuple(query.shape)}")
+        normals = check_tensor(
+            "scene_normals",
+            value(self.scene_normals, "scene_normals"),
+            shape=tuple(scene.shape[-2:]),
+            floating=True,
+            dtype=query.dtype,
+            device=query.device,
+        )
+        confidence = None
+        if self.scene_confidence is not None:
+            confidence = check_tensor(
+                "scene_confidence",
+                value(self.scene_confidence, "scene_confidence"),
+                shape=(scene.shape[-2],),
+                floating=True,
+                dtype=query.dtype,
+                device=query.device,
+            )
+        return query, scene, query_validity, scene_validity, normals, confidence
+
+    def compute(self) -> SceneSDFResult:
+        query, scene, query_validity, scene_validity, normals, scene_confidence = self._inputs()
         correspondence = _detached_nearest(
             query,
             scene,
             query_validity=query_validity,
             reference_validity=scene_validity,
             chunk_size=self.chunk_size,
-        )
-
-        normals = check_tensor(
-            self.scene_normals,
-            ctx[self.scene_normals],
-            shape=tuple(scene.shape[-2:]),
-            floating=True,
-            dtype=query.dtype,
-            device=query.device,
         )
         nearest_normal = _gather_rows(normals, correspondence.index)
         nearest_normal = torch.where(
@@ -124,9 +117,6 @@ class SceneSDFProvider:
         normal_norm = torch.linalg.vector_norm(nearest_normal, dim=-1, keepdim=True)
         unit_normal = nearest_normal / normal_norm.clamp_min(epsilon)
         normal_projection = (correspondence.delta * unit_normal).sum(dim=-1)
-
-        # Side selection is as discrete as the NN identity.  Keeping its sign
-        # detached avoids gradients through a branch while dmin remains live.
         sign = torch.where(
             normal_projection.detach() < 0.0,
             -torch.ones_like(normal_projection),
@@ -136,73 +126,53 @@ class SceneSDFProvider:
         confidence = normal_projection.abs() / correspondence.distance.clamp_min(epsilon)
         confidence = confidence.clamp(min=0.0, max=1.0)
 
-        if self.scene_confidence is not None:
-            scene_confidence = check_tensor(
-                self.scene_confidence,
-                ctx[self.scene_confidence],
-                shape=(scene.shape[-2],),
-                floating=True,
-                dtype=query.dtype,
-                device=query.device,
-            )
-            gathered_confidence = _gather_rows(
-                scene_confidence.unsqueeze(-1),
-                correspondence.index,
-            ).squeeze(-1)
-            gathered_confidence = torch.where(
-                correspondence.valid,
-                gathered_confidence,
-                torch.zeros_like(gathered_confidence),
-            )
-            confidence = confidence * gathered_confidence.clamp(min=0.0, max=1.0)
+        if scene_confidence is not None:
+            gathered = _gather_rows(scene_confidence.unsqueeze(-1), correspondence.index).squeeze(-1)
+            gathered = torch.where(correspondence.valid, gathered, torch.zeros_like(gathered))
+            confidence = confidence * gathered.clamp(min=0.0, max=1.0)
 
         valid = correspondence.valid & (normal_norm.squeeze(-1) > epsilon)
         zeros = torch.zeros_like(correspondence.distance)
-        result = SceneSDFResult(
+        return SceneSDFResult(
             signed_distance=torch.where(valid, signed_distance, zeros),
             dmin=torch.where(valid, correspondence.distance, zeros),
             confidence=torch.where(valid, confidence, zeros),
             has_point=valid,
         )
-        return {self.output: result}
 
 
-class _ScenePenaltyResidual:
-    """Common fixed-shape validation and confidence masking for three heads."""
-
+class _ScenePenaltyResidual(Residual):
     def __init__(
         self,
-        frames: int,
-        points: int,
+        state: SceneSDFState,
         *,
-        scene_sdf: str,
+        weight: Weight | Real | torch.Tensor,
+        kernel: object | None,
         name: str,
     ) -> None:
-        for label, value in (("frames", frames), ("points", points)):
-            if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
-                raise ValueError(f"{label} must be a positive integer, got {value!r}")
-        if not isinstance(scene_sdf, str) or not scene_sdf:
-            raise ValueError("scene_sdf must be a non-empty context name")
-        if not isinstance(name, str) or not name:
-            raise ValueError("name must be a non-empty string")
-        self.frames = frames
-        self.points = points
-        self.name = name
-        self.reads = (scene_sdf,)
-        self.dim = frames * points
+        if not isinstance(state, SceneSDFState):
+            raise TypeError(f"state must be a SceneSDFState, got {type(state).__name__}")
+        self.state = state
+        self.nodes = (state,)
+        self.frames = state.frames
+        self.points = state.points
+        super().__init__(
+            dim=self.frames * self.points,
+            weight=weight,
+            kernel=kernel,
+            name=name,
+        )
 
-    def _result(self, ctx: Mapping[str, Any]) -> SceneSDFResult:
-        result = ctx[self.reads[0]]
-        if not isinstance(result, SceneSDFResult):
-            raise TypeError(f"{self.reads[0]} must be a SceneSDFResult")
+    def _result(self) -> SceneSDFResult:
+        result = self.state._checked_value(SceneSDFResult)
         suffix = (self.frames, self.points)
-        for label, value in (
+        for label, tensor in (
             ("signed_distance", result.signed_distance),
             ("dmin", result.dmin),
             ("confidence", result.confidence),
             ("has_point", result.has_point),
         ):
-            check_tensor(f"SceneSDFResult.{label}", value, shape=suffix)
+            check_tensor(f"SceneSDFResult.{label}", tensor, shape=suffix)
         check_tensor("SceneSDFResult.has_point", result.has_point, dtype=torch.bool)
         return result
 
@@ -217,16 +187,16 @@ class ScenePenetrationResidual(_ScenePenaltyResidual):
 
     def __init__(
         self,
-        frames: int,
-        points: int,
+        state: SceneSDFState,
         *,
-        scene_sdf: str = "scene_sdf",
+        weight: Weight | Real | torch.Tensor = 1.0,
+        kernel: object | None = None,
         name: str = "scene_penetration",
     ) -> None:
-        super().__init__(frames, points, scene_sdf=scene_sdf, name=name)
+        super().__init__(state, weight=weight, kernel=kernel, name=name)
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        result = self._result(ctx)
+    def error(self) -> torch.Tensor:
+        result = self._result()
         return self._finish(result, torch.relu(-result.signed_distance))
 
 
@@ -235,20 +205,20 @@ class SceneAttractionResidual(_ScenePenaltyResidual):
 
     def __init__(
         self,
-        frames: int,
-        points: int,
+        state: SceneSDFState,
         *,
         target_distance: float = 0.0,
-        scene_sdf: str = "scene_sdf",
+        weight: Weight | Real | torch.Tensor = 1.0,
+        kernel: object | None = None,
         name: str = "scene_attraction",
     ) -> None:
         if not isinstance(target_distance, float):
             raise TypeError("target_distance must be float")
-        super().__init__(frames, points, scene_sdf=scene_sdf, name=name)
         self.target_distance = target_distance
+        super().__init__(state, weight=weight, kernel=kernel, name=name)
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        result = self._result(ctx)
+    def error(self) -> torch.Tensor:
+        result = self._result()
         penalty = (result.signed_distance - self.target_distance).abs()
         return self._finish(result, penalty)
 
@@ -258,20 +228,20 @@ class SceneClearanceResidual(_ScenePenaltyResidual):
 
     def __init__(
         self,
-        frames: int,
-        points: int,
+        state: SceneSDFState,
         *,
         clearance: float,
-        scene_sdf: str = "scene_sdf",
+        weight: Weight | Real | torch.Tensor = 1.0,
+        kernel: object | None = None,
         name: str = "scene_clearance",
     ) -> None:
         if not isinstance(clearance, float) or clearance < 0.0:
             raise ValueError("clearance must be a non-negative float")
-        super().__init__(frames, points, scene_sdf=scene_sdf, name=name)
         self.clearance = clearance
+        super().__init__(state, weight=weight, kernel=kernel, name=name)
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        result = self._result(ctx)
+    def error(self) -> torch.Tensor:
+        result = self._result()
         return self._finish(result, torch.relu(result.signed_distance - self.clearance))
 
 
@@ -279,6 +249,6 @@ __all__ = [
     "SceneAttractionResidual",
     "SceneClearanceResidual",
     "ScenePenetrationResidual",
-    "SceneSDFProvider",
     "SceneSDFResult",
+    "SceneSDFState",
 ]

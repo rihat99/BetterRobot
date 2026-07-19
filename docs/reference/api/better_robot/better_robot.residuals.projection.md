@@ -23,27 +23,21 @@
 
 ### API
 
-`````{py:class} ProjectionResidual(model: better_robot.data_model.model.Model, point_ids: collections.abc.Sequence[int] | torch.Tensor, K: torch.Tensor, extrinsics: torch.Tensor, target_px: torch.Tensor, *, weights: torch.Tensor | None = None, valid_mask: torch.Tensor | None = None, K_name: str | None = None, extrinsics_name: str | None = None, target_name: str | None = None, weights_name: str | None = None, valid_mask_name: str | None = None, min_depth: float = 1e-06, name: str = 'projection')
+`````{py:class} ProjectionResidual(q_or_state: better_robot.residuals._variables.RobotVariableLike | better_robot.residuals.nodes.RobotState, point_ids: collections.abc.Sequence[int] | torch.Tensor, K: better_robot.residuals._variables.VariableLike | torch.Tensor, extrinsics: better_robot.residuals._variables.VariableLike | torch.Tensor, target_px: better_robot.residuals._variables.VariableLike | torch.Tensor, *, weights: better_robot.residuals._variables.VariableLike | torch.Tensor | None = None, valid_mask: better_robot.residuals._variables.VariableLike | torch.Tensor | None = None, min_depth: float = 1e-06, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'projection')
 :canonical: better_robot.residuals.projection.ProjectionResidual
+
+Bases: {py:obj}`better_robot.residuals.base.Residual`
 
 ```{autodoc2-docstring} better_robot.residuals.projection.ProjectionResidual
 ```
 
-````{py:attribute} reads
-:canonical: better_robot.residuals.projection.ProjectionResidual.reads
-:value: >
-   ('data',)
-
-```{autodoc2-docstring} better_robot.residuals.projection.ProjectionResidual.reads
-```
+````{py:method} error() -> torch.Tensor
+:canonical: better_robot.residuals.projection.ProjectionResidual.error
 
 ````
 
-````{py:method} jacobian_blocks(ctx: collections.abc.Mapping[str, typing.Any]) -> dict[str, torch.Tensor]
-:canonical: better_robot.residuals.projection.ProjectionResidual.jacobian_blocks
-
-```{autodoc2-docstring} better_robot.residuals.projection.ProjectionResidual.jacobian_blocks
-```
+````{py:method} jacobian() -> tuple[torch.Tensor, ...] | None
+:canonical: better_robot.residuals.projection.ProjectionResidual.jacobian
 
 ````
 

@@ -2,27 +2,46 @@
 
 ## Design Rule
 
-Tasks are thin facades. No Jacobian code, no solver loops, no branching for fixed vs floating base. IK and knot trajopt assemble named-block `Problem` instances.
+Tasks are thin facades. No Jacobian code, no private optimizer loops, no
+branching for fixed vs floating base. IK and knot trajopt assemble
+object-referenced `Problem` graphs and call public optimizers.
 
 ## Implementation Status
 
 | Task | Status |
 |------|--------|
 | `solve_ik` | Implemented |
-| `solve_trajopt` | Named-block `RobotConfig` trajectory with automatic dense/banded routing; non-knot robot parameterisations remain gated |
-| `solve_contact_forces` | Implemented for batched floating-base clips through one named force block and shared RNEA provider |
+| `solve_trajopt` | `RobotVariable(..., time_axis=0)` with automatic dense/banded routing; non-knot robot parameterisations remain gated |
+| `solve_contact_forces` | Implemented for batched floating-base clips through one force `Variable` and shared RNEA `Node` |
 | `Trajectory` | Implemented (`with_batch_dims`, `slice`, `resample(linear|sclerp)`, `downsample`, `to_data`) |
 | `smooth_trajectory` | Implemented for batched quaternion and SE3 pose trajectories with explicit kernels |
 
 ## solve_ik
 
-Assembles one bounded `RobotConfig` block, `PoseResidual` items, optional limit/rest items, and evaluation-local robot state. Pose targets are declared differentiable `Problem.parameters`. `differentiable=True` attaches LM's guarded implicit backward; other optimizer choices reject that flag. Named-block LM/GN, the `torch.optim` adapter, and sequential `lm_then_adam` are supported; the L-BFGS spellings fail honestly. Arbitrary common leading batch axes return per-element diagnostics.
+Assembles one bounded `RobotVariable`, `PoseResidual` objects, optional
+limit/rest residuals, and evaluation-local `RobotState` nodes. Pose and rest
+targets are graph-carrying static `Variable` objects.
+`differentiable=True` selects LM's guarded implicit backward; other optimizer
+choices reject that flag. Object-owned LM/GN, `TorchOptimizer`, and sequential
+`lm_then_adam` are supported; the L-BFGS spellings fail honestly. Arbitrary
+common leading batch axes return per-element diagnostics.
 
-**Single code path** — floating-base is transparent. First 7 DOF of q are base pose for free-flyer models. Solver doesn't need to know.
+**Single code path** — floating-base is transparent. The first 7 DOF of `q`
+are the base pose for free-flyer models; the optimizer does not need to know.
 
 ## solve_trajopt
 
-Adapts an explicit sequence of `ResidualItem` values into one `VarSpec("q", (T, nq), RobotConfig(model), time_axis=0)`. Route-aware named-block LM chooses the banded path when every residual declares numeric temporal blocks; forced dense remains the parity oracle. `TrajOptResult` exposes `linearization_requested`, `linearization_used` (`"dense"` or `"banded"`), `linearization_reason`, and `linearization_detail`. Arbitrary leading batch axes return per-element iterations, convergence, and status. Callers omit residuals they do not want to solve. `BSplineTrajectory` remains a Euclidean numerical basis utility and is rejected until a separately reviewed manifold-safe mapping exists.
+Accepts a caller-owned `RobotVariable(model, q, time_axis=0)` with concrete
+residuals, or a trajectory tensor with `q -> Residual` factories. The facade
+harvests one `Problem` and invokes an optional `problem -> Optimizer` factory.
+Route-aware LM chooses the banded path when every residual declares numeric
+temporal blocks; forced dense remains the parity oracle. `TrajOptResult`
+exposes `linearization_requested`, `linearization_used` (`"dense"` or
+`"banded"`), `linearization_reason`, and `linearization_detail`. Arbitrary
+leading batch axes return per-element iterations, convergence, and status.
+Callers omit residuals they do not want. `BSplineTrajectory` remains a
+Euclidean numerical basis utility and is rejected until a separately reviewed
+manifold-safe mapping exists.
 
 ## solve_contact_forces
 
@@ -30,11 +49,11 @@ Fits world-frame point forces for a frozen `(*B, T, nq)` trajectory. Contacts
 are named by joint id and gated by a broadcastable `(B..., T, C)` active mask.
 The task central-differences velocity/acceleration, freezes world-to-local
 rotations, scatters `[force, torque=0]` external wrenches, and runs `rnea_raw`
-once per evaluation through a provider. The public term weights are base
+once per evaluation through a shared node. The public term weights are base
 wrench, force magnitude, force smoothness, and actuated-torque smoothness.
 Gravity is a task argument; do not mutate or replace the caller's model.
 Final diagnostics preserve available graphs to gravity and active-mask inputs;
-the force solver and frozen trajectory internals remain detached.
+the force optimizer and frozen trajectory internals remain detached.
 
 ## Trajectory
 

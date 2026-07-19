@@ -2,69 +2,62 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 import math
-from typing import Any
 
 import torch
 
 from better_robot.optim import (
     LevenbergMarquardt,
-    LMStatus,
+    OptimizerStatus,
     Problem,
-    ResidualItem,
-    SO3Manifold,
-    VarSpec,
+    Residual,
+    SO3Variable,
+    Variable,
 )
 
 
-class _PeriodicSO3Residual:
-    name = "periodic_so3"
-    reads = ("rotation",)
-    dim = 1
+class _PeriodicSO3Residual(Residual):
+    def __init__(self, rotation: SO3Variable) -> None:
+        self.rotation = rotation
+        super().__init__(rotation, dim=1, name="periodic_so3")
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        rotation = ctx["rotation"]
-        return 1.0 + 4.0 * math.pi * rotation[..., :1]
+    def error(self) -> torch.Tensor:
+        return 1.0 + 4.0 * math.pi * self.rotation.tensor[..., :1]
 
-    def jacobian_blocks(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
-        rotation = ctx["rotation"]
+    def jacobian(self) -> tuple[torch.Tensor, ...]:
+        rotation = self.rotation.tensor
         row = rotation.new_tensor([2.0 * math.pi, 0.0, 0.0])
-        return {"rotation": row.expand(*rotation.shape[:-1], 1, 3)}
+        return (row.expand(*rotation.shape[:-1], 1, 3),)
 
 
-class _QuadraticResidual:
-    name = "quadratic"
-    reads = ("x",)
-    dim = 1
+class _QuadraticResidual(Residual):
+    def __init__(self, x: Variable) -> None:
+        self.x = x
+        super().__init__(x, dim=1, name="quadratic")
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        return ctx["x"].square() - 2.0
+    def error(self) -> torch.Tensor:
+        return self.x.tensor.square() - 2.0
 
 
 def test_unbounded_so3_kkt_uses_raw_gradient_without_periodic_wrap() -> None:
-    problem = Problem(
-        vars=(VarSpec("rotation", (4,), manifold=SO3Manifold()),),
-        residuals=(ResidualItem("periodic_so3", _PeriodicSO3Residual()),),
-    )
-    values = {"rotation": torch.tensor([0.0, 0.0, 0.0, 1.0])}
+    rotation = SO3Variable(torch.tensor([0.0, 0.0, 0.0, 1.0]), name="rotation")
+    problem = Problem([_PeriodicSO3Residual(rotation)])
+    optimizer = LevenbergMarquardt(problem, jacobian_strategy="analytic")
 
-    state = LevenbergMarquardt(jacobian_strategy="analytic").init_state(values, problem)
+    state = optimizer._init_state({"rotation": rotation.tensor}, problem)
 
     torch.testing.assert_close(state.grad_norm, torch.tensor(2.0 * math.pi))
     torch.testing.assert_close(state.projected_grad_norm, state.grad_norm)
-    assert int(state.status) == int(LMStatus.RUNNING)
+    assert int(state.status) == int(OptimizerStatus.RUNNING)
 
 
 def _one_quadratic_step(value: torch.Tensor, *, create_graph: bool) -> torch.Tensor:
-    problem = Problem(
-        vars=(VarSpec("x", (1,)),),
-        residuals=(ResidualItem("quadratic", _QuadraticResidual()),),
-    )
-    solver = LevenbergMarquardt(max_iter=1, jacobian_strategy="jacrev")
+    x = Variable(value, name="x")
+    problem = Problem([_QuadraticResidual(x)])
+    optimizer = LevenbergMarquardt(problem, max_iterations=1, jacobian_strategy="jacrev")
     values = {"x": value}
-    state = solver.init_state(values, problem, create_graph=create_graph)
-    next_values, _ = solver.update(values, state, problem, create_graph=create_graph)
+    state = optimizer._init_state(values, problem, create_graph=create_graph)
+    next_values, _ = optimizer._update(values, state, problem, create_graph=create_graph)
     return next_values["x"]
 
 
@@ -84,17 +77,11 @@ def test_explicit_unrolled_step_preserves_the_exact_iteration_derivative() -> No
     assert derivative < -0.49
 
 
-def test_detached_run_never_appears_to_support_unrolled_backpropagation() -> None:
-    x = torch.tensor([1.0], dtype=torch.float64, requires_grad=True)
-    problem = Problem(
-        vars=(VarSpec("x", (1,)),),
-        residuals=(ResidualItem("quadratic", _QuadraticResidual()),),
-    )
+def test_detached_optimize_never_appears_to_support_unrolled_backpropagation() -> None:
+    x = Variable(torch.tensor([1.0], dtype=torch.float64, requires_grad=True), name="x")
+    problem = Problem([_QuadraticResidual(x)])
 
-    values, state = LevenbergMarquardt(max_iter=2, jacobian_strategy="jacrev").run(
-        {"x": x},
-        problem,
-    )
+    info = LevenbergMarquardt(problem, max_iterations=2, jacobian_strategy="jacrev").optimize()
 
-    assert not values["x"].requires_grad
-    assert all(not tensor.requires_grad for tensor in state)
+    assert not x.tensor.requires_grad
+    assert all(not tensor.requires_grad for tensor in (info.status, info.iterations, info.cost))

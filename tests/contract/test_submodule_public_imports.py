@@ -15,6 +15,74 @@ import pytest
 from better_robot import optim
 
 
+OPTIM_V2_PUBLIC: frozenset[str] = frozenset(
+    {
+        "Bounds",
+        "Residual",
+        "Weight",
+        "ScaleWeight",
+        "DiagonalWeight",
+        "Difference",
+        "residual",
+        "RobustKernel",
+        "L2",
+        "Huber",
+        "Cauchy",
+        "Tukey",
+        "GemanMcClure",
+        "LinearSystem",
+        "LinearSolver",
+        "InformativeLinearSolver",
+        "LinearSolveResult",
+        "LinearSolveStatus",
+        "Cholesky",
+        "LU",
+        "BandedCholesky",
+        "BlockBandedMatrix",
+        "Variable",
+        "SO3Variable",
+        "SE3Variable",
+        "RobotVariable",
+        "TemporalPattern",
+        "TemporalAnalysis",
+        "StructuredNormal",
+        "LinearizationMode",
+        "LinearizationReason",
+        "LinearizationDecision",
+        "Problem",
+        "JacobianStrategy",
+        "Optimizer",
+        "OptimizerInfo",
+        "OptimizerStatus",
+        "TorchOptimizer",
+        "LevenbergMarquardt",
+        "GaussNewton",
+        "ImplicitDiffConfig",
+        "ImplicitDifferentiationError",
+    }
+)
+
+RETIRED_OPTIM_PUBLIC: frozenset[str] = frozenset(
+    {
+        "Manifold",
+        "Euclidean",
+        "SO3Manifold",
+        "SE3Manifold",
+        "RobotConfig",
+        "Values",
+        "VarSpec",
+        "ResidualItem",
+        "EvaluationContext",
+        "RobotStateProvider",
+        "detach_values",
+        "LMState",
+        "FirstOrderResult",
+        "OptimizerFactory",
+        "run_first_order",
+    }
+)
+
+
 SUBMODULE_PATHS: list[tuple[str, str]] = [
     # lie
     ("better_robot.lie", "SE3"),
@@ -56,42 +124,18 @@ SUBMODULE_PATHS: list[tuple[str, str]] = [
     ("better_robot.tasks", "ContactForceResult"),
     ("better_robot.tasks", "ContactForceWeights"),
     # M4 vision residuals
+    ("better_robot.residuals", "Node"),
+    ("better_robot.residuals", "RobotState"),
     ("better_robot.residuals", "ProjectionResidual"),
     ("better_robot.residuals", "MaskedChamferResidual"),
-    ("better_robot.residuals", "SceneSDFProvider"),
+    ("better_robot.residuals", "SceneSDFState"),
     ("better_robot.residuals", "SceneSDFResult"),
     ("better_robot.residuals", "ScenePenetrationResidual"),
     ("better_robot.residuals", "SceneAttractionResidual"),
     ("better_robot.residuals", "SceneClearanceResidual"),
     ("better_robot.optim.kernels", "GemanMcClure"),
-    # optim named-block evaluation (M2a)
-    ("better_robot.optim", "Bounds"),
-    ("better_robot.optim", "Euclidean"),
-    ("better_robot.optim", "SO3Manifold"),
-    ("better_robot.optim", "SE3Manifold"),
-    ("better_robot.optim", "RobotConfig"),
-    ("better_robot.optim", "Values"),
-    ("better_robot.optim", "VarSpec"),
-    ("better_robot.optim", "Problem"),
-    ("better_robot.optim", "ResidualItem"),
-    ("better_robot.optim", "RobotStateProvider"),
-    ("better_robot.optim", "ImplicitDiffConfig"),
-    ("better_robot.optim", "ImplicitDifferentiationError"),
-    ("better_robot.optim", "RobustKernel"),
-    ("better_robot.optim", "L2"),
-    ("better_robot.optim", "Huber"),
-    ("better_robot.optim", "Cauchy"),
-    ("better_robot.optim", "Tukey"),
-    ("better_robot.optim", "GemanMcClure"),
-    ("better_robot.optim", "LinearSolver"),
-    ("better_robot.optim", "InformativeLinearSolver"),
-    ("better_robot.optim", "LinearSolveResult"),
-    ("better_robot.optim", "LinearSolveStatus"),
-    ("better_robot.optim", "Cholesky"),
-    ("better_robot.optim", "BandedCholesky"),
-    ("better_robot.optim", "detach_values"),
-    ("better_robot.optim", "FirstOrderResult"),
-    ("better_robot.optim", "run_first_order"),
+    # Optimization API v2
+    *(("better_robot.optim", name) for name in sorted(OPTIM_V2_PUBLIC)),
     # exceptions
     ("better_robot.exceptions", "StaleCacheError"),
 ]
@@ -135,26 +179,16 @@ def test_symmetric3_is_submodule_only() -> None:
         from better_robot import Symmetric3  # noqa: F401, PLC0415
 
 
-def test_named_block_api_is_qualified_and_has_no_lie_name_collision() -> None:
-    block_names = {
-        "Bounds",
-        "Euclidean",
-        "SO3Manifold",
-        "SE3Manifold",
-        "RobotConfig",
-        "Values",
-        "VarSpec",
-        "Problem",
-        "ResidualItem",
-        "RobotStateProvider",
-        "detach_values",
-        "FirstOrderResult",
-        "run_first_order",
-    }
-
-    assert block_names <= set(optim.__all__)
+def test_optim_v2_api_is_qualified_and_has_no_lie_name_collision() -> None:
+    assert OPTIM_V2_PUBLIC <= set(optim.__all__)
     assert not hasattr(optim, "SO3")
     assert not hasattr(optim, "SE3")
-    assert block_names.isdisjoint(better_robot.__all__)
-    for name in block_names:
+    assert OPTIM_V2_PUBLIC.isdisjoint(better_robot.__all__)
+    for name in OPTIM_V2_PUBLIC:
         assert not hasattr(better_robot, name)
+
+
+def test_retired_optim_api_stays_removed() -> None:
+    assert RETIRED_OPTIM_PUBLIC.isdisjoint(optim.__all__)
+    for name in RETIRED_OPTIM_PUBLIC:
+        assert not hasattr(optim, name)

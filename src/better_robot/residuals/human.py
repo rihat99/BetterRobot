@@ -9,16 +9,15 @@ Jacobian construction to the problem's tangent-space AD path.
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from numbers import Real
-from typing import Any
 
 import torch
 
 from .._validation import check_tensor
-from ..data_model.model import Model
 from ..lie import so3
-from .base import _configuration
+from ._variables import RobotValueLike as _RobotVariableLike, VariableLike
+from .base import Residual, Weight
 
 
 def _per_joint_values(
@@ -27,7 +26,6 @@ def _per_joint_values(
     count: int,
     label: str,
 ) -> torch.Tensor:
-    """Normalize a scalar or ``(count,)`` floating value table."""
     if isinstance(value, Real):
         result = torch.full(
             (count,),
@@ -45,7 +43,7 @@ def _per_joint_values(
     return result
 
 
-class SwingTwistLimitResidual:
+class SwingTwistLimitResidual(Residual):
     """One-sided swing/twist limits for selected spherical joints.
 
     For every selected joint the three rows are::
@@ -66,20 +64,21 @@ class SwingTwistLimitResidual:
     callers may select the explicit finite-difference debug strategy.
     """
 
-    reads = ("q",)
-
     def __init__(  # noqa: PLR0912, PLR0915 - validates one static residual contract
         self,
-        model: Model,
+        q: _RobotVariableLike,
         joint_ids: Sequence[int],
         twist_axis: torch.Tensor,
         swing_max: Real | torch.Tensor,
         twist_range: tuple[Real, Real] | torch.Tensor,
         *,
+        weight: Weight | Real | torch.Tensor = 1.0,
+        kernel: object | None = None,
         name: str = "swing_twist_limit",
     ) -> None:
-        if not isinstance(name, str) or not name:
-            raise ValueError("name must be a non-empty string")
+        if not isinstance(q, _RobotVariableLike) or not isinstance(q, VariableLike):
+            raise TypeError(f"q must be a RobotVariable-like object, got {type(q).__name__}")
+        model = q.model
         ids = tuple(joint_ids)
         if not ids:
             raise ValueError("joint_ids must contain at least one spherical joint")
@@ -133,23 +132,30 @@ class SwingTwistLimitResidual:
             start = model.idx_qs[joint_id]
             q_indices.extend(range(start, start + 4))
 
+        self.q = q
         self.model = model
-        self.name = name
         self.joint_ids = ids
         self.twist_axis = axes / axis_norm.unsqueeze(-1)
         self.swing_max = swing
         self.twist_range = ranges
         self._q_indices = torch.tensor(q_indices, dtype=torch.long)
         self._joint_count = count
-        self.dim = 3 * count
+        super().__init__(
+            q,
+            dim=3 * count,
+            weight=weight,
+            kernel=kernel,
+            group_size=3,
+            name=name,
+        )
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        q = _configuration(ctx)
-        indices = self._q_indices.to(device=q.device)
-        joint_q = q.index_select(-1, indices).reshape(*q.shape[:-1], self._joint_count, 4)
+    def error(self) -> torch.Tensor:
+        value = self.q.tensor
+        indices = self._q_indices.to(device=value.device)
+        joint_q = value.index_select(-1, indices).reshape(*value.shape[:-1], self._joint_count, 4)
         joint_q = so3.normalize(joint_q)
 
-        axes = self.twist_axis.to(device=q.device, dtype=q.dtype)
+        axes = self.twist_axis.to(device=value.device, dtype=value.dtype)
         vector = joint_q[..., :3]
         scalar = joint_q[..., 3]
         along = (vector * axes).sum(dim=-1)
@@ -159,17 +165,15 @@ class SwingTwistLimitResidual:
         twist_norm = torch.linalg.vector_norm(torch.stack((scalar, along), dim=-1), dim=-1)
         swing = 2.0 * torch.atan2(swing_sin_half, twist_norm)
 
-        # At pure pi swing, scalar == along == 0 and twist is not defined.
-        # Feed atan2 a benign zero-twist representative so inactive twist rows
-        # cannot inherit NaNs from the undefined decomposition.
-        singular = twist_norm <= 16.0 * torch.finfo(q.dtype).eps
+        # Use a benign zero-twist representative at the undefined pure-pi swing.
+        singular = twist_norm <= 16.0 * torch.finfo(value.dtype).eps
         safe_along = torch.where(singular, torch.zeros_like(along), along)
         safe_scalar = torch.where(singular, torch.ones_like(scalar), scalar)
         raw_twist = 2.0 * torch.atan2(safe_along, safe_scalar)
         twist = torch.atan2(torch.sin(raw_twist), torch.cos(raw_twist))
 
-        swing_max = self.swing_max.to(device=q.device, dtype=q.dtype)
-        twist_range = self.twist_range.to(device=q.device, dtype=q.dtype)
+        swing_max = self.swing_max.to(device=value.device, dtype=value.dtype)
+        twist_range = self.twist_range.to(device=value.device, dtype=value.dtype)
         lower = twist_range[..., 0]
         upper = twist_range[..., 1]
         rows = torch.stack(
@@ -180,7 +184,7 @@ class SwingTwistLimitResidual:
             ),
             dim=-1,
         )
-        return rows.reshape(*q.shape[:-1], self.dim)
+        return rows.reshape(*value.shape[:-1], self.dim)
 
 
 __all__ = ["SwingTwistLimitResidual"]

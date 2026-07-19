@@ -1,273 +1,148 @@
-"""Manifold-aware smoothness residuals on trajectory-shaped variables.
-
-The context's ``q`` block is expected to have shape ``(T, nq)``; residuals produce
-flat vectors and analytic Jacobians of shape ``(dim, T*nv)`` — one dense
-block per timestep. Velocity / acceleration are computed in the tangent
-space via ``Model.difference`` — so SE(3) floating bases, spherical joints,
-and revolute joints all contribute the right number of DOFs without
-special-casing.
-
-See ``docs/concepts/residuals_costs_and_solvers.md``.
-"""
+"""Manifold-aware smoothness residuals over trajectory variables."""
 
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+import math
+from numbers import Real
 
 import torch
 
-from ..data_model.model import Model
-from ._temporal_jacobian import dense_temporal_jacobian, temporal_free_indices
-from .base import _configuration
+from ._temporal_jacobian import dense_temporal_residual, temporal_free_indices
+from ._variables import RobotLike, RobotVariableLike as _RobotTrajectory, matches
+from .base import Residual, Weight
 from .structure import TemporalPattern
 
 
-def _require_traj(q: torch.Tensor, name: str) -> int:
-    if q.dim() < 2:  # bench-ok: trajectory-shape contract validation
-        raise ValueError(f"{name}: expected trajectory shape (B..., T, nq); got {tuple(q.shape)}")
-    T = int(q.shape[-2])
-    if T < 3:
-        raise ValueError(f"{name}: need at least 3 timesteps, got T={T}")
-    return T
-
-
-def _static_horizon(horizon: int | None, name: str) -> int | None:
-    if horizon is None:
-        return None
-    if isinstance(horizon, bool) or not isinstance(horizon, int):
-        raise TypeError(f"{name}: horizon must be an int or None")
+def _trajectory(variable: _RobotTrajectory, name: str) -> tuple[torch.Tensor, int]:
+    if not isinstance(variable, RobotLike):
+        raise TypeError(f"{name} q must be a RobotVariable, got {type(variable).__name__}")
+    if variable.time_axis != 0 or len(variable.shape) != 2:
+        raise ValueError(f"{name} q must declare time_axis=0 with event shape (T, nq), got {variable.shape}")
+    horizon = variable.time_length
     if horizon < 3:
-        raise ValueError(f"{name}: need at least 3 timesteps, got T={horizon}")
-    return horizon
+        raise ValueError(f"{name} needs at least 3 timesteps, got T={horizon}")
+    return variable.tensor, horizon
+
+
+def _validate_dt(dt: Real, name: str) -> float:
+    if isinstance(dt, bool) or not isinstance(dt, Real) or not math.isfinite(float(dt)) or float(dt) <= 0.0:
+        raise ValueError(f"{name} dt must be finite and positive, got {dt!r}")
+    return float(dt)
 
 
 def _anchor_constant_block(block: torch.Tensor, q: torch.Tensor) -> torch.Tensor:
-    """Keep a mathematically constant analytic block graph-connected."""
     anchor = q.sum(dim=(-2, -1)) * 0.0
     return block + anchor[..., None, None, None]
 
 
-class VelocityResidual:
-    """3-point central-difference velocity in tangent space.
+class _SmoothnessResidual(Residual):
+    _offsets: tuple[int, ...]
+    _coefficients: tuple[float, ...]
 
-    For ``t ∈ [1, T-1)``::
+    def __init__(self, q, *, dt, weight, kernel, name) -> None:
+        _value, horizon = _trajectory(q, type(self).__name__)
+        self.q, self.model = q, q.model
+        self.dt = _validate_dt(dt, type(self).__name__)
+        self.horizon = horizon
+        super().__init__(q, dim=(horizon - 2) * q.model.nv, weight=weight, kernel=kernel, name=name)
 
-        v_t = model.difference(q_{t-1}, q_{t+1}) / (2 * dt)
+    def temporal_structure(self, variable: _RobotTrajectory | str) -> TemporalPattern | None:
+        return TemporalPattern(self.horizon - 2, self.model.nv, 1, self._offsets) if matches(variable, self.q) else None
 
-    Output dim: ``nv * (T - 2)``. Flattened row-major: outer axis is
-    timestep ``t``, inner axis is the ``nv`` tangent components.
+    def _row_scale(self) -> float:
+        raise NotImplementedError
 
-    Analytic Jacobian uses the identity-right-Jacobian approximation
-    ``J_r(difference) ≈ I`` — valid in the small-step regime that motion
-    optimization operates in.
-    """
+    def temporal_jacobian_blocks(self, variable: _RobotTrajectory | str) -> Mapping[int, torch.Tensor]:
+        if not matches(variable, self.q):
+            return {}
+        q, horizon = _trajectory(self.q, type(self).__name__)
+        indices = temporal_free_indices(self.q, device=q.device)
+        identity = torch.eye(self.model.nv, dtype=q.dtype, device=q.device).index_select(-1, indices)
+        base = identity.expand(*q.shape[:-2], horizon - 2, self.model.nv, indices.numel())
+        scale = self._row_scale()
+        return {
+            offset: _anchor_constant_block(coefficient * scale * base, q)
+            for offset, coefficient in zip(self._offsets, self._coefficients, strict=True)
+        }
 
-    name: str = "velocity"
-    reads = ("q",)
+    def jacobian(self) -> tuple[torch.Tensor, ...]:
+        return dense_temporal_residual(self, self.q, self.horizon)
+
+
+class VelocityResidual(_SmoothnessResidual):
+    """Three-point central-difference velocity in robot tangent space."""
+
+    _offsets, _coefficients = (-1, 1), (-1.0, 1.0)
 
     def __init__(
         self,
-        model: Model,
+        q: _RobotTrajectory,
         *,
-        dt: float,
-        weight: float = 1.0,
-        horizon: int | None = None,
+        dt: Real,
+        weight: Weight | Real | torch.Tensor = 1.0,
+        kernel: object | None = None,
         name: str = "velocity",
     ) -> None:
-        self.model = model
-        self.name = name
-        self.dt = float(dt)
-        self.weight = float(weight)
-        self.horizon = _static_horizon(horizon, "VelocityResidual")
-        self.dim = 0 if self.horizon is None else (self.horizon - 2) * model.nv
+        super().__init__(q, dt=dt, weight=weight, kernel=kernel, name=name)
 
-    def _trajectory(
-        self,
-        ctx: Mapping[str, Any],
-    ) -> tuple[torch.Tensor, int]:
-        q = _configuration(ctx)
-        T = _require_traj(q, "VelocityResidual")
-        if self.horizon is not None and T != self.horizon:
-            raise ValueError(f"VelocityResidual: trajectory horizon {T} != declared horizon {self.horizon}")
-        if self.horizon is None:
-            raise ValueError("VelocityResidual requires horizon=... for problem use")
-        self.dim = (T - 2) * self.model.nv
-        return q, T
+    def _row_scale(self) -> float:
+        return 1.0 / (2.0 * self.dt)
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        q, T = self._trajectory(ctx)
-        q_prev = q[..., :-2, :]
-        q_next = q[..., 2:, :]
-        v = self.model.difference(q_prev, q_next) / (2.0 * self.dt)  # (T-2, nv)
-        return (v * self.weight).reshape(*q.shape[:-2], self.dim)
-
-    @staticmethod
-    def _pattern(T: int, nv: int) -> TemporalPattern:
-        return TemporalPattern(
-            rows=T - 2,
-            row_width=nv,
-            row_origin=1,
-            offsets=(-1, 1),
-        )
-
-    def temporal_structure(self, variable_name: str) -> TemporalPattern | None:
-        if variable_name != "q" or self.horizon is None:
-            return None
-        return self._pattern(self.horizon, self.model.nv)
-
-    def _temporal_blocks(
-        self,
-        q: torch.Tensor,
-        T: int,
-        indices: torch.Tensor,
-    ) -> dict[int, torch.Tensor]:
-        nv = self.model.nv
-        rows = T - 2
-        reduced_identity = torch.eye(nv, dtype=q.dtype, device=q.device).index_select(-1, indices)
-        base = reduced_identity.expand(*q.shape[:-2], rows, nv, indices.numel())
-        scale = self.weight / (2.0 * self.dt)
-        return {
-            -1: _anchor_constant_block(-scale * base, q),
-            1: _anchor_constant_block(scale * base, q),
-        }
-
-    def temporal_jacobian_blocks(
-        self,
-        ctx: Mapping[str, Any],
-        variable_name: str,
-    ) -> Mapping[int, torch.Tensor]:
-        if variable_name != "q":
-            return {}
-        q, T = self._trajectory(ctx)
-        indices = temporal_free_indices(ctx, "q", device=q.device)
-        return self._temporal_blocks(q, T, indices)
-
-    def jacobian_blocks(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
-        pattern = self.temporal_structure("q")
-        if pattern is None:
-            raise ValueError("VelocityResidual requires horizon=... for problem use")
-        blocks = self.temporal_jacobian_blocks(ctx, "q")
-        return {"q": dense_temporal_jacobian(pattern, blocks, horizon=self.horizon)}
+    def error(self) -> torch.Tensor:
+        q, _horizon = _trajectory(self.q, type(self).__name__)
+        velocity = self.model.difference(q[..., :-2, :], q[..., 2:, :]) / (2.0 * self.dt)
+        return velocity.reshape(*q.shape[:-2], self.dim)
 
 
-class AccelerationResidual:
-    """3-point tangent-space acceleration.
+class AccelerationResidual(_SmoothnessResidual):
+    """Three-point tangent-space acceleration over a robot trajectory."""
 
-    For ``t ∈ [1, T-1)``::
-
-        a_t = (model.difference(q_t, q_{t+1}) - model.difference(q_{t-1}, q_t)) / dt²
-
-    Output dim: ``nv * (T - 2)``. Analytic Jacobian is tridiagonal over
-    timesteps with blocks ``[+I, −2I, +I] / dt²`` (identity-right-Jacobian
-    approximation — see ``VelocityResidual`` docstring).
-    """
-
-    name: str = "acceleration"
-    reads = ("q",)
+    _offsets, _coefficients = (-1, 0, 1), (1.0, -2.0, 1.0)
 
     def __init__(
         self,
-        model: Model,
+        q: _RobotTrajectory,
         *,
-        dt: float,
-        weight: float = 1.0,
-        horizon: int | None = None,
+        dt: Real,
+        weight: Weight | Real | torch.Tensor = 1.0,
+        kernel: object | None = None,
         name: str = "acceleration",
     ) -> None:
-        self.model = model
-        self.name = name
-        self.dt = float(dt)
-        self.weight = float(weight)
-        self.horizon = _static_horizon(horizon, "AccelerationResidual")
-        self.dim = 0 if self.horizon is None else (self.horizon - 2) * model.nv
+        super().__init__(q, dt=dt, weight=weight, kernel=kernel, name=name)
 
-    def _trajectory(
+    def _row_scale(self) -> float:
+        return 1.0 / self.dt**2
+
+    def error(self) -> torch.Tensor:
+        q, _horizon = _trajectory(self.q, type(self).__name__)
+        forward = self.model.difference(q[..., 1:-1, :], q[..., 2:, :])
+        backward = self.model.difference(q[..., :-2, :], q[..., 1:-1, :])
+        acceleration = (forward - backward) / self.dt**2
+        return acceleration.reshape(*q.shape[:-2], self.dim)
+
+
+class JerkResidual(Residual):
+    """Unimplemented third-derivative placeholder on a trajectory variable."""
+
+    def __init__(
         self,
-        ctx: Mapping[str, Any],
-    ) -> tuple[torch.Tensor, int]:
-        q = _configuration(ctx)
-        T = _require_traj(q, "AccelerationResidual")
-        if self.horizon is not None and T != self.horizon:
-            raise ValueError(f"AccelerationResidual: trajectory horizon {T} != declared horizon {self.horizon}")
-        if self.horizon is None:
-            raise ValueError("AccelerationResidual requires horizon=... for problem use")
-        self.dim = (T - 2) * self.model.nv
-        return q, T
+        q: _RobotTrajectory,
+        *,
+        dt: Real,
+        weight: Weight | Real | torch.Tensor = 1.0,
+        name: str = "jerk",
+    ) -> None:
+        _value, horizon = _trajectory(q, type(self).__name__)
+        if horizon < 4:
+            raise ValueError(f"JerkResidual needs at least 4 timesteps, got T={horizon}")
+        self.q = q
+        self.model = q.model
+        self.dt = _validate_dt(dt, type(self).__name__)
+        super().__init__(q, dim=(horizon - 3) * q.model.nv, weight=weight, name=name)
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        q, T = self._trajectory(ctx)
-        diff_fwd = self.model.difference(q[..., 1:-1, :], q[..., 2:, :])
-        diff_back = self.model.difference(q[..., :-2, :], q[..., 1:-1, :])
-        a = (diff_fwd - diff_back) / (self.dt**2)  # (T-2, nv)
-        return (a * self.weight).reshape(*q.shape[:-2], self.dim)
-
-    @staticmethod
-    def _pattern(T: int, nv: int) -> TemporalPattern:
-        return TemporalPattern(
-            rows=T - 2,
-            row_width=nv,
-            row_origin=1,
-            offsets=(-1, 0, 1),
-        )
-
-    def temporal_structure(self, variable_name: str) -> TemporalPattern | None:
-        if variable_name != "q" or self.horizon is None:
-            return None
-        return self._pattern(self.horizon, self.model.nv)
-
-    def _temporal_blocks(
-        self,
-        q: torch.Tensor,
-        T: int,
-        indices: torch.Tensor,
-    ) -> dict[int, torch.Tensor]:
-        nv = self.model.nv
-        rows = T - 2
-        reduced_identity = torch.eye(nv, dtype=q.dtype, device=q.device).index_select(-1, indices)
-        base = reduced_identity.expand(*q.shape[:-2], rows, nv, indices.numel())
-        scale = self.weight / (self.dt**2)
-        return {
-            -1: _anchor_constant_block(scale * base, q),
-            0: _anchor_constant_block(-2.0 * scale * base, q),
-            1: _anchor_constant_block(scale * base, q),
-        }
-
-    def temporal_jacobian_blocks(
-        self,
-        ctx: Mapping[str, Any],
-        variable_name: str,
-    ) -> Mapping[int, torch.Tensor]:
-        if variable_name != "q":
-            return {}
-        q, T = self._trajectory(ctx)
-        indices = temporal_free_indices(ctx, "q", device=q.device)
-        return self._temporal_blocks(q, T, indices)
-
-    def jacobian_blocks(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
-        pattern = self.temporal_structure("q")
-        if pattern is None:
-            raise ValueError("AccelerationResidual requires horizon=... for problem use")
-        blocks = self.temporal_jacobian_blocks(ctx, "q")
-        return {"q": dense_temporal_jacobian(pattern, blocks, horizon=self.horizon)}
-
-
-class JerkResidual:
-    """Placeholder — jerk (third-derivative) smoothness on trajectory.
-
-    Not implemented in v1: acceleration regularization is sufficient for
-    human-motion and manipulator trajectory problems.
-    """
-
-    name: str = "jerk"
-    dim: int = 0
-    reads = ("q",)
-
-    def __init__(self, model: Model, *, dt: float, weight: float = 1.0) -> None:
-        self.model = model
-        self.dt = dt
-        self.weight = weight
-
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        del ctx
+    def error(self) -> torch.Tensor:
         raise NotImplementedError("jerk residual not implemented — use AccelerationResidual instead")
+
+
+__all__ = ["AccelerationResidual", "JerkResidual", "VelocityResidual"]

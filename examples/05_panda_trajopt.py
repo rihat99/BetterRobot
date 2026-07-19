@@ -2,7 +2,7 @@
 
 Pyroki-style trajopt demo (see ``reference_optim/pyroki/examples/07_trajopt.py``):
 a Panda arm moves from a home pose to a shifted goal with
-* pose constraints at the first and last timesteps (via ``TimeIndexedResidual``),
+* pose constraints at the first and last timesteps,
 * acceleration smoothness in tangent space,
 * joint-position limit penalties at every step.
 
@@ -18,20 +18,20 @@ interpolation with ``model.integrate(q_start, alpha * model.difference(q_start, 
 from __future__ import annotations
 
 import argparse
+from functools import partial
 import math
 import time
 
 import torch
 
 import better_robot as br
-from better_robot.optim import LevenbergMarquardt, ResidualItem
+from better_robot.optim import LevenbergMarquardt
 from better_robot.residuals import (
     AccelerationResidual,
     JointPositionLimit,
     PoseResidual,
-    TimeIndexedResidual,
 )
-from better_robot.tasks.trajopt import solve_trajopt
+from better_robot.tasks.trajopt import ResidualFactory, solve_trajopt
 
 PANDA_READY = [
     0.0,
@@ -51,51 +51,43 @@ GOAL_OFFSET = torch.tensor([0.10, 0.15, 0.15])  # move EE by this in world frame
 
 
 def build_residuals(
-    model,
     *,
     T_start: torch.Tensor,
     T_goal: torch.Tensor,
     frame_id: int,
-) -> list[ResidualItem]:
+) -> list[ResidualFactory]:
     residuals = [
-        ResidualItem(
-            "start_pose",
-            TimeIndexedResidual(
-                PoseResidual(frame_id=frame_id, target=T_start),
-                t_idx=0,
-                horizon=T,
-                name="start_pose",
-            ),
+        partial(
+            PoseResidual,
+            frame_id=frame_id,
+            target=T_start,
+            knot=0,
             weight=1000.0,
+            name="start_pose",
         ),
-        ResidualItem(
-            "goal_pose",
-            TimeIndexedResidual(
-                PoseResidual(frame_id=frame_id, target=T_goal),
-                t_idx=T - 1,
-                horizon=T,
-                name="goal_pose",
-            ),
+        partial(
+            PoseResidual,
+            frame_id=frame_id,
+            target=T_goal,
+            knot=T - 1,
             weight=100.0,
+            name="goal_pose",
         ),
-        ResidualItem(
-            "accel",
-            AccelerationResidual(model, dt=DT, horizon=T, name="accel"),
+        partial(
+            AccelerationResidual,
+            dt=DT,
             weight=0.1,
+            name="accel",
         ),
     ]
     for t in range(T):
         name = f"limits_t{t}"
         residuals.append(
-            ResidualItem(
-                name,
-                TimeIndexedResidual(
-                    JointPositionLimit(model),
-                    t_idx=t,
-                    horizon=T,
-                    name=name,
-                ),
+            partial(
+                JointPositionLimit,
+                knot=t,
                 weight=10.0,
+                name=name,
             )
         )
     return residuals
@@ -140,20 +132,18 @@ def main() -> None:
     q_init = q_start * (1.0 - alpha) + q_goal * alpha  # (T, nq)
 
     # --- Residuals -----------------------------------------------------------
-    residuals = build_residuals(model, T_start=T_start, T_goal=T_goal, frame_id=frame_id)
-    residual_dim = sum(item.residual.dim for item in residuals)
+    residuals = build_residuals(T_start=T_start, T_goal=T_goal, frame_id=frame_id)
+    residual_dim = 2 * 6 + (T - 2) * model.nv + T * 2 * model.nq
     print(f"Residual dim: {residual_dim}  (vars: {T * model.nq})")
 
     # --- Solve ---------------------------------------------------------------
     t0 = time.perf_counter()
     result = solve_trajopt(
         model,
-        horizon=T,
         dt=DT,
         initial_q_traj=q_init,
         residuals=residuals,
-        optimizer=LevenbergMarquardt(gtol=1e-7),
-        max_iter=50,
+        optimizer=partial(LevenbergMarquardt, max_iterations=50, tolerance=1e-7),
     )
     solve_time = time.perf_counter() - t0
     print(

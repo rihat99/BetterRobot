@@ -1,10 +1,10 @@
-"""Inverse contact-force fitting on the named-block optimizer stack."""
+"""Inverse contact-force fitting with object-referenced residuals."""
 
 from __future__ import annotations
 
 import dataclasses
 import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import torch
@@ -15,7 +15,8 @@ from ..data_model.model_values import ModelValues
 from ..dynamics.rnea import rnea_raw
 from ..kinematics.forward import forward_kinematics
 from ..lie import so3
-from ..optim import LevenbergMarquardt, Problem, ResidualItem, VarSpec
+from ..optim import LevenbergMarquardt, Problem, Residual, Variable
+from ..residuals.nodes import Node
 
 
 @dataclass(frozen=True)
@@ -75,22 +76,33 @@ def _trajectory_derivatives(model: Model, q: torch.Tensor, dt: float) -> tuple[t
     return velocity, acceleration
 
 
-@dataclass(frozen=True)
-class _ContactDynamicsProvider:
-    model: Model
-    q: torch.Tensor
-    velocity: torch.Tensor
-    acceleration: torch.Tensor
-    world_to_local: torch.Tensor
-    active: torch.Tensor
-    contact_to_joint: torch.Tensor
-    values: ModelValues
-    name: str = "contact_dynamics"
-    reads: tuple[str, ...] = ("forces",)
-    outputs: tuple[str, ...] = ("generalized_force", "fext_local")
+class _ContactDynamicsNode(Node):
+    def __init__(
+        self,
+        forces: Variable,
+        *,
+        model: Model,
+        q: torch.Tensor,
+        velocity: torch.Tensor,
+        acceleration: torch.Tensor,
+        world_to_local: torch.Tensor,
+        active: torch.Tensor,
+        contact_to_joint: torch.Tensor,
+        values: ModelValues,
+    ) -> None:
+        self.forces = forces
+        self.model = model
+        self.q = q
+        self.velocity = velocity
+        self.acceleration = acceleration
+        self.world_to_local = world_to_local
+        self.active = active
+        self.contact_to_joint = contact_to_joint
+        self.values = values
+        super().__init__(forces)
 
-    def __call__(self, ctx: Mapping[str, torch.Tensor]) -> dict[str, torch.Tensor]:
-        forces_world = ctx["forces"] * self.active[..., None]
+    def compute(self) -> dict[str, torch.Tensor]:
+        forces_world = self.forces.tensor * self.active[..., None]
         forces_local = (self.world_to_local @ forces_world.unsqueeze(-1)).squeeze(-1)
         by_joint = torch.einsum("...tci,cj->...tji", forces_local, self.contact_to_joint)
         fext_local = torch.cat((by_joint, torch.zeros_like(by_joint)), dim=-1)
@@ -108,67 +120,65 @@ class _ContactDynamicsProvider:
         }
 
 
-@dataclass(frozen=True)
-class _BaseWrenchResidual:
-    time: int
-    name: str = "base_wrench"
-    reads: tuple[str, ...] = ("generalized_force",)
+class _BaseWrenchResidual(Residual):
+    def __init__(self, dynamics: _ContactDynamicsNode, time: int, *, weight: float) -> None:
+        self.dynamics = dynamics
+        self.nodes = (dynamics,)
+        super().__init__(dim=time * 6, weight=weight, group_size=6, name="base_wrench")
 
-    @property
-    def dim(self) -> int:
-        return self.time * 6
-
-    def __call__(self, ctx: Mapping[str, torch.Tensor]) -> torch.Tensor:
-        tau = ctx["generalized_force"]
+    def error(self) -> torch.Tensor:
+        tau = self.dynamics.value()["generalized_force"]
         return tau[..., :6].reshape(*tau.shape[:-2], self.dim)
 
 
-@dataclass(frozen=True)
-class _ForceMagnitudeResidual:
-    time: int
-    contacts: int
-    name: str = "force_magnitude"
-    reads: tuple[str, ...] = ("forces",)
+class _ForceMagnitudeResidual(Residual):
+    def __init__(self, forces: Variable, time: int, contacts: int, *, weight: float) -> None:
+        self.forces = forces
+        super().__init__(
+            forces,
+            dim=time * contacts * 3,
+            weight=weight,
+            group_size=3,
+            name="force_magnitude",
+        )
 
-    @property
-    def dim(self) -> int:
-        return self.time * self.contacts * 3
-
-    def __call__(self, ctx: Mapping[str, torch.Tensor]) -> torch.Tensor:
-        forces = ctx["forces"]
+    def error(self) -> torch.Tensor:
+        forces = self.forces.tensor
         return forces.reshape(*forces.shape[:-3], self.dim)
 
 
-@dataclass(frozen=True)
-class _ForceSmoothResidual:
-    time: int
-    contacts: int
-    name: str = "force_smooth"
-    reads: tuple[str, ...] = ("forces",)
+class _ForceSmoothResidual(Residual):
+    def __init__(self, forces: Variable, time: int, contacts: int, *, weight: float = 1.0) -> None:
+        self.forces = forces
+        super().__init__(
+            forces,
+            dim=(time - 1) * contacts * 3,
+            weight=weight,
+            group_size=3,
+            name="force_smooth",
+        )
 
-    @property
-    def dim(self) -> int:
-        return (self.time - 1) * self.contacts * 3
-
-    def __call__(self, ctx: Mapping[str, torch.Tensor]) -> torch.Tensor:
-        forces = ctx["forces"]
+    def error(self) -> torch.Tensor:
+        forces = self.forces.tensor
         delta = forces[..., 1:, :, :] - forces[..., :-1, :, :]
         return delta.reshape(*forces.shape[:-3], self.dim)
 
 
-@dataclass(frozen=True)
-class _TorqueSmoothResidual:
-    time: int
-    actuated: int
-    name: str = "torque_smooth"
-    reads: tuple[str, ...] = ("generalized_force",)
+class _TorqueSmoothResidual(Residual):
+    def __init__(
+        self,
+        dynamics: _ContactDynamicsNode,
+        time: int,
+        actuated: int,
+        *,
+        weight: float = 1.0,
+    ) -> None:
+        self.dynamics = dynamics
+        self.nodes = (dynamics,)
+        super().__init__(dim=(time - 1) * actuated, weight=weight, name="torque_smooth")
 
-    @property
-    def dim(self) -> int:
-        return (self.time - 1) * self.actuated
-
-    def __call__(self, ctx: Mapping[str, torch.Tensor]) -> torch.Tensor:
-        tau = ctx["generalized_force"][..., 6:]
+    def error(self) -> torch.Tensor:
+        tau = self.dynamics.value()["generalized_force"][..., 6:]
         delta = tau[..., 1:, :] - tau[..., :-1, :]
         return delta.reshape(*tau.shape[:-2], self.dim)
 
@@ -274,9 +284,9 @@ def solve_contact_forces(  # noqa: PLR0912, PLR0915 - one complete public task b
 
     ``q_traj`` has event shape ``(T, model.nq)`` and may carry arbitrary
     independent leading batch axes. ``active_mask`` is broadcast to
-    ``(B..., T, C)``. Forces are optimized as one named Euclidean block;
-    a lazy provider scatters them into local external wrenches and evaluates
-    RNEA once per residual/Jacobian context.
+    ``(B..., T, C)``. Forces are optimized as one Euclidean ``Variable``;
+    a lazy ``Node`` scatters them into local external wrenches and evaluates
+    RNEA once per residual/Jacobian evaluation.
 
     Each ``contact_joint_ids`` entry places its force at that joint's origin.
     The resulting local wrench is ``[force, torque=0]``. Arbitrary contact
@@ -321,7 +331,13 @@ def solve_contact_forces(  # noqa: PLR0912, PLR0915 - one complete public task b
     force_shape = (*batch_shape, time, contacts, 3)
     forces0 = _initial_forces(initial_forces, force_shape, q)
 
-    provider = _ContactDynamicsProvider(
+    force_variable = Variable(
+        forces0,
+        name="forces",
+        batch_ndim=len(batch_shape),
+    )
+    dynamics = _ContactDynamicsNode(
+        force_variable,
         model=model,
         q=q,
         velocity=velocity,
@@ -332,64 +348,62 @@ def solve_contact_forces(  # noqa: PLR0912, PLR0915 - one complete public task b
         values=values,
     )
     residuals = [
-        ResidualItem(
-            "base_wrench",
-            _BaseWrenchResidual(time),
+        _BaseWrenchResidual(
+            dynamics,
+            time,
             weight=_residual_multiplier(weights.base_wrench),
-            group_size=6,
         ),
-        ResidualItem(
-            "force_magnitude",
-            _ForceMagnitudeResidual(time, contacts),
+        _ForceMagnitudeResidual(
+            force_variable,
+            time,
+            contacts,
             weight=_residual_multiplier(weights.force_magnitude),
-            group_size=3,
         ),
     ]
     if time > 1:
         residuals.append(
-            ResidualItem(
-                "force_smooth",
-                _ForceSmoothResidual(time, contacts),
+            _ForceSmoothResidual(
+                force_variable,
+                time,
+                contacts,
                 weight=_residual_multiplier(weights.force_smooth),
-                group_size=3,
             )
         )
     if time > 1 and model.nv > 6:
         residuals.append(
-            ResidualItem(
-                "torque_smooth",
-                _TorqueSmoothResidual(time, model.nv - 6),
+            _TorqueSmoothResidual(
+                dynamics,
+                time,
+                model.nv - 6,
                 weight=_residual_multiplier(weights.torque_smooth),
             )
         )
 
-    problem = Problem(
-        vars=(VarSpec("forces", (time, contacts, 3)),),
-        residuals=tuple(residuals),
-        providers=(provider,),
-    )
+    problem = Problem(residuals)
     solver = LevenbergMarquardt(
-        max_iter=max_iter,
-        damping_parameter=damping_parameter,
-        gtol=tolerance,
+        problem,
+        max_iterations=max_iter,
+        damping=damping_parameter,
+        tolerance=tolerance,
     )
-    solved, state = solver.run({"forces": forces0}, problem)
-    forces = solved["forces"]
-    diagnostics = provider({"forces": forces})
-    iters: int | torch.Tensor = state.iterations
-    converged: bool | torch.Tensor = state.converged
+    info = solver.optimize()
+    forces = force_variable.tensor
+    diagnostics = dynamics.compute()
+    residual = problem.error().detach()
+    iters: int | torch.Tensor = info.iterations
+    converged: bool | torch.Tensor = info.converged
     if not batch_shape:
-        iters = int(state.iterations)
-        converged = bool(state.converged)
+        iters = int(info.iterations)
+        converged = bool(info.converged)
     return ContactForceResult(
         forces_world=forces,
         fext_local=diagnostics["fext_local"],
         generalized_force=diagnostics["generalized_force"],
-        residual=state.residual,
-        cost=state.cost,
+        residual=residual,
+        cost=info.cost,
         iters=iters,
         converged=converged,
-        status=state.status,
+        status=info.status,
         model=model,
     )
 

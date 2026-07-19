@@ -107,8 +107,7 @@ def _detached_nearest(
         query_chunk = query[..., start:stop, :]
         valid_chunk = query_validity[..., start:stop] & has_reference
 
-        # The detached score tensor owns all discrete choices.  Continuous
-        # deltas are rebuilt below from the original graph-carrying tensors.
+        # Detached scores own discrete choices; deltas retain the original graph.
         detached_query = torch.where(
             query_validity[..., start:stop].unsqueeze(-1),
             query_chunk.detach(),

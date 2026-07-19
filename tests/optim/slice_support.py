@@ -10,7 +10,8 @@ from typing import Any
 
 import torch
 
-from better_robot.optim import Problem, ResidualItem, VarSpec
+from better_robot.optim import Problem, Residual, Variable
+from better_robot.residuals import Node
 
 
 SEED = 20260717
@@ -38,12 +39,11 @@ PROVIDER_INACTIVE_WEIGHTS = {
 }
 
 FRICTION_LOG = (
-    "Masks are static on VarSpec, so the root-to-full transition cheaply rebuilds "
-    "Problem while preserving Values; phase orchestration remains outside M2a.",
-    "torch.optim.Adam consumes leaf gradients, while Problem.gradient returns named "
-    "reduced tangents; zeroed tangent buffers adapt Adam updates into Problem.retract.",
-    "The guide intentionally keeps providers structural rather than prescribing a "
-    "base class; the slice supplies name/reads/outputs/__call__ without inheritance.",
+    "Masks are static on Variable, so the root-to-full transition cheaply rebuilds "
+    "Problem while copying owned tensors; phase orchestration remains outside M2a.",
+    "TorchOptimizer owns persistent Adam state over rebased reduced-tangent buffers.",
+    "Shared Node objects memoize synthetic kinematics and nearest-neighbor work for "
+    "one evaluation epoch without retaining an old autograd graph.",
 )
 
 
@@ -75,46 +75,45 @@ class SliceCounters:
     nearest_neighbor: int = 0
 
 
-@dataclass(frozen=True)
-class SyntheticKinematicsProvider:
+class SyntheticKinematicsNode(Node):
     """One cheap FK-shaped pass producing each frame's translated origin."""
 
-    counters: SliceCounters
-    name: str = "synthetic_kinematics"
-    reads: tuple[str, ...] = ("q",)
-    outputs: tuple[str, ...] = ("kinematic_origins",)
+    def __init__(self, q: Variable, counters: SliceCounters) -> None:
+        self.q = q
+        self.counters = counters
+        super().__init__(q)
 
-    def __call__(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
+    def compute(self) -> torch.Tensor:
         self.counters.kinematics += 1
-        return {"kinematic_origins": ctx["q"].unsqueeze(-2)}
+        return self.q.tensor.unsqueeze(-2)
 
 
-@dataclass(frozen=True)
-class DetachedNearestNeighborProvider:
+class DetachedNearestNeighborNode(Node):
     """Detach only discrete NN indices; preserve gradients through selected deltas."""
 
-    counters: SliceCounters
-    name: str = "scene_nearest_neighbor"
-    reads: tuple[str, ...] = (
-        "kinematic_origins",
-        "log_s",
-        "template_points",
-        "scene_points",
-    )
-    outputs: tuple[str, ...] = (
-        "signed_distance",
-        "nearest_delta",
-        "nearest_squared_distance",
-    )
+    def __init__(
+        self,
+        kinematics: SyntheticKinematicsNode,
+        log_s: Variable,
+        template_points: torch.Tensor,
+        scene_points: torch.Tensor,
+        counters: SliceCounters,
+    ) -> None:
+        self.kinematics = kinematics
+        self.log_s = log_s
+        self.template_points = template_points
+        self.scene_points = scene_points
+        self.counters = counters
+        super().__init__(*kinematics.variables, log_s)
 
-    def __call__(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
+    def compute(self) -> dict[str, torch.Tensor]:
         self.counters.nearest_neighbor += 1
-        origins = ctx["kinematic_origins"]
-        scale = ctx["log_s"].exp()
+        origins = self.kinematics.value()
+        scale = self.log_s.tensor.exp()
         while scale.ndim < origins.ndim:
             scale = scale.unsqueeze(-1)
-        points = origins + scale * ctx["template_points"]
-        candidates = points.unsqueeze(-2) - ctx["scene_points"].unsqueeze(-3)
+        points = origins + scale * self.template_points
+        candidates = points.unsqueeze(-2) - self.scene_points.unsqueeze(-3)
         squared = candidates.square().sum(dim=-1)
         nearest_index = squared.detach().argmin(dim=-1)
         gather_index = nearest_index[..., None, None].expand(
@@ -131,39 +130,65 @@ class DetachedNearestNeighborProvider:
         }
 
 
-class AttractionResidual:
+class AttractionResidual(Residual):
     """Vector displacement from every synthetic body point to its detached NN."""
 
-    name = "attraction"
-    reads = ("nearest_delta",)
-    dim = TIME * POINTS * COORDS
+    def __init__(
+        self,
+        kinematics: SyntheticKinematicsNode,
+        nearest: DetachedNearestNeighborNode,
+        *,
+        weight: float,
+    ) -> None:
+        self.nearest = nearest
+        self.nodes = (kinematics, nearest)
+        super().__init__(
+            *nearest.variables,
+            dim=TIME * POINTS * COORDS,
+            group_size=COORDS,
+            name="attraction",
+            weight=weight,
+        )
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        delta = ctx["nearest_delta"]
+    def error(self) -> torch.Tensor:
+        delta = self.nearest.value()["nearest_delta"]
         return delta.reshape(*delta.shape[:-3], self.dim)
 
 
-class ClearanceResidual:
+class ClearanceResidual(Residual):
     """One-sided positive-side clearance excess around the target surface."""
 
-    name = "clearance"
-    reads = ("signed_distance",)
-    dim = TIME * POINTS
+    def __init__(
+        self,
+        kinematics: SyntheticKinematicsNode,
+        nearest: DetachedNearestNeighborNode,
+        *,
+        weight: float,
+    ) -> None:
+        self.nearest = nearest
+        self.nodes = (kinematics, nearest)
+        super().__init__(
+            *nearest.variables,
+            dim=TIME * POINTS,
+            name="clearance",
+            weight=weight,
+        )
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        signed = ctx["signed_distance"]
+    def error(self) -> torch.Tensor:
+        signed = self.nearest.value()["signed_distance"]
         return torch.relu(signed - 0.02).reshape(*signed.shape[:-2], self.dim)
 
 
-class ScalePriorResidual:
+class ScalePriorResidual(Residual):
     """One-row least-squares prior keeping log-scale near the target."""
 
-    name = "scale_prior"
-    reads = ("log_s", "target_log_s")
-    dim = 1
+    def __init__(self, log_s: Variable, target: torch.Tensor, *, weight: float) -> None:
+        self.log_s = log_s
+        self.target = target
+        super().__init__(log_s, dim=1, name="scale_prior", weight=weight)
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        return math.sqrt(2.0) * (ctx["log_s"] - ctx["target_log_s"])
+    def error(self) -> torch.Tensor:
+        return math.sqrt(2.0) * (self.log_s.tensor - self.target)
 
 
 @dataclass(frozen=True)
@@ -223,30 +248,44 @@ def make_problem(
     *,
     root_only: bool,
     counters: SliceCounters | None = None,
+    values: Mapping[str, torch.Tensor] | None = None,
+    weights: Mapping[str, float] = FULL_WEIGHTS,
 ) -> tuple[Problem, SliceCounters]:
     """Build one phase's problem; rebuilding is the M2a mask transition."""
     counters = counters or SliceCounters()
-    penetration = PenetrationResidual(TIME, POINTS)
+    initial = data.initial_values() if values is None else dict(values)
+    q_value, log_s_value = initial["q"], initial["log_s"]
+    q = Variable(
+        q_value,
+        name="q",
+        mask=q_mask(root_only=root_only),
+        batch_ndim=q_value.ndim - 2,
+    )
+    log_s = Variable(log_s_value, name="log_s", batch_ndim=log_s_value.ndim - 1)
+    kinematics = SyntheticKinematicsNode(q, counters)
+    nearest = DetachedNearestNeighborNode(
+        kinematics,
+        log_s,
+        data.template_points,
+        data.scene_points,
+        counters,
+    )
+    penetration = PenetrationResidual(
+        nearest,
+        time=TIME,
+        points=POINTS,
+        weight=weights["penetration"],
+    )
+    # The custom guide class knows its immediate node. Register the upstream
+    # node too so both epoch memos invalidate together.
+    penetration.nodes = (kinematics, nearest)
     problem = Problem(
-        vars=(
-            VarSpec("q", (TIME, COORDS), mask=q_mask(root_only=root_only)),
-            VarSpec("log_s", (1,)),
-        ),
-        residuals=(
-            ResidualItem("penetration", penetration),
-            ResidualItem("attraction", AttractionResidual(), group_size=COORDS),
-            ResidualItem("clearance", ClearanceResidual()),
-            ResidualItem("scale_prior", ScalePriorResidual()),
-        ),
-        providers=(
-            SyntheticKinematicsProvider(counters),
-            DetachedNearestNeighborProvider(counters),
-        ),
-        parameters={
-            "template_points": data.template_points,
-            "scene_points": data.scene_points,
-            "target_log_s": data.target_log_s,
-        },
+        [
+            penetration,
+            AttractionResidual(kinematics, nearest, weight=weights["attraction"]),
+            ClearanceResidual(kinematics, nearest, weight=weights["clearance"]),
+            ScalePriorResidual(log_s, data.target_log_s, weight=weights["scale_prior"]),
+        ]
     )
     return problem, counters
 

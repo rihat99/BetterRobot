@@ -15,12 +15,11 @@ from better_robot.kinematics import forward_kinematics
 from better_robot.optim import (
     LevenbergMarquardt,
     Problem,
-    ResidualItem,
-    RobotConfig,
-    RobotStateProvider,
-    VarSpec,
+    RobotVariable,
+    Variable,
 )
 from better_robot.residuals.limits import JointPositionLimit
+from better_robot.residuals.nodes import RobotState
 from better_robot.residuals.pose import OrientationResidual, PoseResidual, PositionResidual
 from better_robot.residuals.regularization import RestResidual
 from better_robot.tasks.ik import IKCostConfig, OptimizerConfig, solve_ik
@@ -39,63 +38,55 @@ def _panda_hand(model) -> int:
     raise AssertionError("Panda hand frame is missing")
 
 
-def test_built_in_kinematic_residuals_share_context_protocol(panda) -> None:
-    """Built-ins compose through one context protocol and analytic tangent J."""
+def test_built_in_kinematic_residuals_share_object_protocol(panda) -> None:
+    """Built-ins compose through object references and analytic tangent J."""
     q = panda.q_neutral.clone()
     q_rest = q.clamp(panda.lower_pos_limit, panda.upper_pos_limit)
     q_rest[0] = 0.2
     target_data = forward_kinematics(panda, q_rest, compute_frames=True)
     frame_id = _panda_hand(panda)
     target = target_data.frame_pose_world[frame_id].clone()
-    data = forward_kinematics(panda, q, compute_frames=True)
+    q_variable = RobotVariable(panda, q, name="q")
+    state = RobotState(q_variable)
+    target_variable = Variable(target, name="target", trainable=False)
+    rest_variable = Variable(q_rest, name="q_rest", trainable=False)
     residuals = (
         PoseResidual(
+            state,
             frame_id=frame_id,
-            target=target,
+            target=target_variable,
             pos_weight=0.7,
             ori_weight=1.3,
-            model=panda,
             name="pose",
         ),
         PositionResidual(
+            state,
             frame_id=frame_id,
-            target=target,
+            target=target_variable,
             weight=0.6,
-            model=panda,
             name="position",
         ),
         OrientationResidual(
+            state,
             frame_id=frame_id,
-            target=target,
+            target=target_variable,
             weight=0.8,
-            model=panda,
             name="orientation",
         ),
-        JointPositionLimit(panda, weight=0.4, name="limits"),
-        RestResidual(panda, q_rest, weight=0.2, name="rest"),
+        JointPositionLimit(q_variable, weight=0.4, name="limits"),
+        RestResidual(q_variable, rest_variable, weight=0.2, name="rest"),
     )
-    problem = Problem(
-        vars=(VarSpec("q", (panda.nq,), manifold=RobotConfig(panda)),),
-        residuals=tuple(
-            ResidualItem(name, residual)
-            for name, residual in zip(
-                ("pose", "position", "orientation", "limits", "rest"),
-                residuals,
-                strict=True,
-            )
-        ),
-        providers=(RobotStateProvider(panda),),
-    )
+    problem = Problem(residuals)
 
-    expected_residual = torch.cat([residual({"q": q, "data": data}) for residual in residuals], dim=-1)
+    expected_residual = torch.cat([residual.weighted_error() for residual in residuals], dim=-1)
 
     torch.testing.assert_close(
-        problem.residual({"q": q}),
+        problem.error(),
         expected_residual,
         atol=1e-6,
         rtol=1e-6,
     )
-    jacobian = problem.dense_jacobian({"q": q}, strategy="analytic")
+    jacobian = problem.dense_jacobian(strategy="analytic")
     assert jacobian.shape == (problem.dim_total, panda.nv)
     assert torch.isfinite(jacobian).all()
 
@@ -116,13 +107,11 @@ def test_direct_builder_ik_auto_wires_robot_state() -> None:
     goal = torch.tensor([0.25])
     target = forward_kinematics(model, goal, compute_frames=True).frame_pose_world[model.frame_id("body_tip")]
 
-    robot = RobotConfig(model)
-    problem = Problem()
-    problem.add_variable("q", manifold=robot, bounds=robot.joint_bounds())
-    problem.add_residual(PoseResidual(model, frame="body_tip", target=target))
-    values, _ = LevenbergMarquardt(max_iter=30).run({"q": torch.tensor([-0.2])}, problem)
+    q = RobotVariable(model, torch.tensor([-0.2]), bounds=True)
+    problem = Problem([PoseResidual(q, frame="body_tip", target=target)])
+    LevenbergMarquardt(problem, max_iterations=30).optimize()
 
-    torch.testing.assert_close(values["q"], goal, atol=2e-4, rtol=2e-4)
+    torch.testing.assert_close(q.tensor, goal, atol=2e-4, rtol=2e-4)
 
 
 def test_solve_ik_path_has_no_legacy_problem_import() -> None:
@@ -135,11 +124,19 @@ def test_solve_ik_path_has_no_legacy_problem_import() -> None:
     imported_names = {alias.name for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) for alias in node.names}
 
     assert not any(module.endswith("optim.problem") for module in imported_modules)
-    assert "LeastSquaresProblem" not in imported_names
+    forbidden = {
+        "EvaluationContext",
+        "LeastSquaresProblem",
+        "ResidualItem",
+        "RobotStateProvider",
+        "VarSpec",
+        "run_first_order",
+    }
+    assert forbidden.isdisjoint(imported_names)
     assert "LeastSquaresProblem" not in source
 
 
-def test_facade_declares_and_reads_differentiable_target_parameters(
+def test_facade_declares_and_reads_static_target_variables(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     builder = ModelBuilder("target_parameter_facade")
@@ -164,8 +161,8 @@ def test_facade_declares_and_reads_differentiable_target_parameters(
     captured: dict[str, Problem] = {}
     original_problem = ik_module.Problem
 
-    def record_problem(**kwargs) -> Problem:
-        problem = original_problem(**kwargs)
+    def record_problem(*args, **kwargs) -> Problem:
+        problem = original_problem(*args, **kwargs)
         captured["problem"] = problem
         return problem
 
@@ -180,11 +177,12 @@ def test_facade_declares_and_reads_differentiable_target_parameters(
     )
 
     problem = captured["problem"]
-    assert problem.parameter_gradients == {"target_pose_0"}
-    assert problem.parameters["target_pose_0"] is target
-    assert "target_pose_0" in problem.residuals[0].residual.reads
+    target_variable = problem.variables["target_pose_0"]
+    assert target_variable.tensor is target
+    assert target_variable.trainable is False
+    assert target_variable in problem.residuals[0].variables
     target_gradient = torch.autograd.grad(
-        problem.objective({"q": initial}),
+        problem.objective(),
         target,
     )[0]
     assert torch.isfinite(target_gradient).all()
@@ -209,8 +207,8 @@ def test_facade_declares_rest_target_only_when_active(
     captured: list[Problem] = []
     original_problem = ik_module.Problem
 
-    def record_problem(**kwargs) -> Problem:
-        problem = original_problem(**kwargs)
+    def record_problem(*args, **kwargs) -> Problem:
+        problem = original_problem(*args, **kwargs)
         captured.append(problem)
         return problem
 
@@ -224,11 +222,13 @@ def test_facade_declares_rest_target_only_when_active(
     )
 
     active_problem = captured[-1]
-    assert active_problem.parameter_gradients == {"target_rest"}
-    assert active_problem.parameters["target_rest"] is q_rest
-    assert "target_rest" in active_problem.residuals[0].residual.reads
+    rest_variable = active_problem.variables["target_rest"]
+    assert rest_variable.tensor is q_rest
+    assert rest_variable.trainable is False
+    assert rest_variable in active_problem.residuals[0].variables
+    active_problem.update({"q": torch.tensor([0.1])})
     rest_gradient = torch.autograd.grad(
-        active_problem.objective({"q": torch.tensor([0.1])}),
+        active_problem.objective(),
         q_rest,
     )[0]
     assert torch.isfinite(rest_gradient).all()
@@ -248,8 +248,7 @@ def test_facade_declares_rest_target_only_when_active(
         optimizer_cfg=OptimizerConfig(max_iter=0),
     )
     disabled_problem = captured[-1]
-    assert "target_rest" not in disabled_problem.parameters
-    assert "target_rest" not in disabled_problem.parameter_gradients
+    assert "target_rest" not in disabled_problem.variables
 
 
 def test_bounds_active_target_converges_through_facade() -> None:

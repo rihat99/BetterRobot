@@ -68,19 +68,18 @@ Every speed claim about one choice needs a committed benchmark. “Analytic” o
 
 Dense Cholesky is the correctness path for LM and Gauss--Newton. A problem
 with one declared temporal variable and compatible temporal residuals can use
-block-banded normal storage. The solver never infers structure from numerical
+block-banded normal storage. The optimizer never infers structure from numerical
 zeros, and an ineligible problem falls back to dense work.
 
-`run_first_order` differentiates the scalar objective and lets
-`torch.optim` update persistent tangent buffers; it does not assemble a
-dense Jacobian.
+`TorchOptimizer` differentiates the scalar objective and lets `torch.optim`
+update persistent tangent buffers; it does not assemble a dense Jacobian.
 
 ## Compilation
 
 BetterRobot does not decorate public functions with `torch.compile`.
 `forward_kinematics_raw` is tested with an explicit caller-side
 `torch.compile(..., fullgraph=True)` wrapper. Model creation, `Data`
-allocation, and public solver loops remain eager.
+allocation, and public optimizer loops remain eager.
 
 PyTorch may specialize on shape, dtype, device, layout, topology, and compiler
 options. Cold compilation belongs in a cold-start measurement; do not hide it
@@ -103,15 +102,15 @@ stream, and benchmark evidence.
 
 ## CUDA graphs
 
-No public captured solver loop ships. A fixed-shape `update` method is not
-enough by itself: capture also needs stable storage, warmup, invalidation,
+No public captured optimizer loop ships. LM's private fixed-shape iteration is
+not enough by itself: capture also needs stable storage, warmup, invalidation,
 replay parity, and a forward/backward lifetime. An experimental caller owns
 those pieces until a complete path is implemented and measured.
 
 ## Hot-path source rules
 
 `tests/contract/test_hot_path_lint.py` checks selected kinematics, dynamics,
-Lie, residual, and solver files.
+Lie, residual, and optimization files.
 
 | Pattern | Why it is risky | Preferred response |
 |---|---|---|

@@ -1,17 +1,10 @@
-"""``PoseResidual``, ``PositionResidual``, ``OrientationResidual``.
-
-Analytic Jacobians via ``get_frame_jacobian`` composed with
-``right_jacobian_inv_se3(log_err)``. Replaces the legacy ``Jlog ≈ I``
-approximation.
-
-See ``docs/concepts/kinematics_and_jacobians.md`` and
-``docs/concepts/residuals_costs_and_solvers.md``.
-"""
+"""Pose, position, and orientation residuals over robot state nodes."""
 
 from __future__ import annotations
 
+from abc import abstractmethod
 from collections.abc import Mapping
-from typing import Any
+from numbers import Real
 
 import torch
 
@@ -20,290 +13,294 @@ from ..data_model.model import Model
 from ..kinematics.jacobian import get_frame_jacobian
 from ..lie import se3, so3
 from ..lie.tangents import right_jacobian_inv_se3, right_jacobian_inv_so3
-from .base import _configuration
-
-
-def _context_state(
-    ctx: Mapping[str, Any],
-    model: Model | None,
-) -> tuple[Model, torch.Tensor, Data]:
-    if model is None:
-        raise TypeError("kinematic residuals require model=... for evaluation")
-    q = _configuration(ctx)
-    data = ctx["data"]
-    if not isinstance(data, Data):
-        raise TypeError(f"data must be Data, got {type(data).__name__}")
-    return model, q, data
+from ._temporal_jacobian import dense_temporal_residual, temporal_free_indices
+from ._variables import (
+    RobotVariableLike as _RobotVariable,
+    VariableLike as _Variable,
+    current_value,
+    matches,
+    static_value,
+)
+from .base import Residual, Weight
+from .nodes import RobotState, robot_state
+from .structure import TemporalPattern
 
 
 def _get_frame_pose(model: Model, data: Data, frame_id: int) -> torch.Tensor:
-    """Get world pose of ``frame_id`` from ``data.frame_pose_world`` or
-    compute on-the-fly."""
     if data.frame_pose_world is not None:
-        return data.frame_pose_world[..., frame_id, :]  # (B..., 7)
+        return data.frame_pose_world[..., frame_id, :]
     frame = model.frames[frame_id]
-    T_parent = data.joint_pose_world[..., frame.parent_joint, :]
-    T_local = model.values.frame_placements[..., frame_id, :]
-    return se3.compose(T_parent, T_local)
+    parent = data.joint_pose_world[..., frame.parent_joint, :]
+    placement = model.values.frame_placements[..., frame_id, :]
+    return se3.compose(parent, placement)
 
 
-def _target_from_input(
-    ctx: Mapping[str, Any],
-    fallback: torch.Tensor,
-    target_name: str | None,
-) -> torch.Tensor:
-    """Resolve a declared block parameter or use the constructor fallback."""
-    if target_name is None:
-        return fallback
-    target = ctx[target_name]
-    if not isinstance(target, torch.Tensor):
-        raise TypeError(f"{target_name!r} must be a tensor, got {type(target).__name__}")
-    return target
-
-
-def _validate_target_name(target_name: str | None) -> None:
-    if target_name is not None and (not isinstance(target_name, str) or not target_name):
-        raise TypeError("target_name must be a non-empty string or None")
-
-
-def _resolve_frame_id(
-    model: Model | None,
-    frame: str | None,
-    frame_id: int | None,
-) -> int:
+def _resolve_frame_id(model: Model, frame: str | None, frame_id: int | None) -> int:
     if frame is not None and frame_id is not None:
         raise TypeError("provide either frame=... or frame_id=..., not both")
     if frame is not None:
         if not isinstance(frame, str) or not frame:
             raise TypeError("frame must be a non-empty string")
-        if model is None:
-            raise TypeError("PoseResidual frame=... requires a model")
         return model.frame_id(frame)
     if isinstance(frame_id, bool) or not isinstance(frame_id, int):
-        raise TypeError("PoseResidual requires frame=... or an integer frame_id=...")
+        raise TypeError("frame_id must be an int when frame is omitted")
+    if not 0 <= frame_id < model.nframes:
+        raise ValueError(f"frame_id must be in [0, {model.nframes}), got {frame_id}")
     return frame_id
 
 
-class PoseResidual:
-    """6-DOF pose residual targeting a frame. ``dim = 6``.
+def _normalize_knot(q: _RobotVariable, knot: int | None) -> int | None:
+    if q.time_axis is None:
+        if knot is not None:
+            raise ValueError("knot requires q.time_axis=0")
+        return None
+    if q.time_axis != 0:
+        raise ValueError(f"q time_axis must be 0 or None, got {q.time_axis}")
+    if knot is None:
+        return None
+    if isinstance(knot, bool) or not isinstance(knot, int):
+        raise TypeError(f"knot must be an int or None, got {type(knot).__name__}")
+    if not -q.time_length <= knot < q.time_length:
+        raise ValueError(f"knot={knot} must index trajectory length {q.time_length}")
+    return knot % q.time_length
 
-    ``r = log(T_target^{-1} ⊕ T_ee)`` — error in the target frame.
-    Position (lin) and orientation (ang) parts are weighted independently.
-    """
 
-    name: str = "pose"
-    reads = ("q", "data")
+class _KinematicResidual(Residual):
+    def __init__(
+        self,
+        q_or_state: _RobotVariable | RobotState,
+        *,
+        frame: str | None,
+        frame_id: int | None,
+        target: torch.Tensor | _Variable,
+        knot: int | None,
+        dim: int,
+        weight: Weight | Real | torch.Tensor,
+        kernel: object | None,
+        name: str,
+    ) -> None:
+        q, state = robot_state(q_or_state)
+        initial_target, targets = static_value(target, name="target")
+        self.q = q
+        self.state = state
+        self.nodes = (state,)
+        self.model = q.model
+        self.frame_id = _resolve_frame_id(q.model, frame, frame_id)
+        self.target = target
+        self.knot = _normalize_knot(q, knot)
+        self._knot_dim = dim
+        self._validate_target_shape(initial_target)
+        super().__init__(q, *targets, dim=dim, weight=weight, kernel=kernel, name=name)
+
+    @abstractmethod
+    def _validate_target_shape(self, target: torch.Tensor) -> None:
+        """Validate one concrete pose target shape."""
+
+    def _require_knot(self, knot: int | None) -> int | None:
+        if self.q.time_axis == 0 and knot is None:
+            raise ValueError(f"{type(self).__name__} over a trajectory requires knot=...")
+        return knot
+
+    def _frame_pose_at(self, knot: int | None) -> torch.Tensor:
+        pose = _get_frame_pose(self.model, self.state._checked_value(Data), self.frame_id)
+        return pose if knot is None else pose[..., knot, :]
+
+    def _frame_jacobian_at(self, knot: int | None) -> torch.Tensor:
+        jacobian = get_frame_jacobian(self.model, self.state._checked_value(Data), self.frame_id)
+        return jacobian if knot is None else jacobian[..., knot, :, :]
+
+    def _target_tensor(self, exemplar: torch.Tensor) -> torch.Tensor:
+        return current_value(self.target, exemplar, name="target")
+
+    @abstractmethod
+    def _error_at(self, knot: int | None) -> torch.Tensor:
+        """Evaluate one concrete kinematic error."""
+
+    def error(self) -> torch.Tensor:
+        return self._error_at(self._require_knot(self.knot))
+
+    @abstractmethod
+    def _full_jacobian_at(self, knot: int | None) -> torch.Tensor:
+        """Evaluate one concrete full-coordinate Jacobian."""
+
+    def _reduced_jacobian_at(self, knot: int) -> torch.Tensor:
+        full = self._full_jacobian_at(knot)
+        indices = temporal_free_indices(self.q, device=full.device)
+        return full.index_select(-1, indices)
+
+    def temporal_structure(self, variable: _RobotVariable | str) -> TemporalPattern | None:
+        if self.q.time_axis != 0 or self.knot is None or not matches(variable, self.q):
+            return None
+        return TemporalPattern(1, self.dim, self.knot, (0,))
+
+    def temporal_jacobian_blocks(
+        self,
+        variable: _RobotVariable | str,
+    ) -> Mapping[int, torch.Tensor]:
+        pattern = self.temporal_structure(variable)
+        if pattern is None:
+            return {}
+        return {0: self._reduced_jacobian_at(self.knot).unsqueeze(-3)}
+
+    def jacobian(self) -> tuple[torch.Tensor, ...]:
+        if self.q.time_axis is None:
+            full = self._full_jacobian_at(None)
+            return (full.index_select(-1, self.q.free_indices.to(full.device)),)
+        self._require_knot(self.knot)
+        return dense_temporal_residual(self, self.q, self.q.time_length)
+
+
+class PoseResidual(_KinematicResidual):
+    """Six-dimensional frame pose error in the target frame."""
 
     def __init__(
         self,
-        model: Model | None = None,
+        q_or_state: _RobotVariable | RobotState,
         *,
         frame: str | None = None,
         frame_id: int | None = None,
-        target: torch.Tensor,
-        pos_weight: float = 1.0,
-        ori_weight: float = 1.0,
+        target: torch.Tensor | _Variable,
+        knot: int | None = None,
+        pos_weight: Real = 1.0,
+        ori_weight: Real = 1.0,
+        weight: Weight | Real | torch.Tensor = 1.0,
+        kernel: object | None = None,
         name: str = "pose",
-        target_name: str | None = None,
     ) -> None:
-        _validate_target_name(target_name)
-        self.model = model
-        self.name = name
-        self.target_name = target_name
-        self.reads = ("q", "data", target_name) if target_name is not None else ("q", "data")
-        self.frame_id = _resolve_frame_id(model, frame, frame_id)
-        self.target = target
-        self.pos_weight = pos_weight
-        self.ori_weight = ori_weight
-        self._weight = torch.tensor(
-            [pos_weight, pos_weight, pos_weight, ori_weight, ori_weight, ori_weight],
-            dtype=target.dtype,
-            device=target.device,
+        self.pos_weight = float(pos_weight)
+        self.ori_weight = float(ori_weight)
+        super().__init__(
+            q_or_state,
+            frame=frame,
+            frame_id=frame_id,
+            target=target,
+            knot=knot,
+            dim=6,
+            weight=weight,
+            kernel=kernel,
+            name=name,
         )
-        self.dim = 6
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        target = _target_from_input(ctx, self.target, self.target_name)
-        model, q, data = _context_state(ctx, self.model)
-        T_target = target.to(device=q.device, dtype=q.dtype)
-        T_ee = _get_frame_pose(model, data, self.frame_id)  # (B..., 7)
-        T_err = se3.compose(se3.inverse(T_target), T_ee)  # (B..., 7)
-        r = se3.log(T_err)  # (B..., 6)
-        weight = self._weight.to(device=r.device, dtype=r.dtype)
-        return r * weight
+    def _validate_target_shape(self, target: torch.Tensor) -> None:
+        if not target.shape or target.shape[-1] != 7:
+            raise ValueError(f"target must end in pose width 7, got {tuple(target.shape)}")
 
-    def _analytic_jacobian(
-        self,
-        ctx: Mapping[str, Any],
-    ) -> torch.Tensor:
-        """Analytic Jacobian: ``Jr^{-1}(r) @ Ad(T_ee^{-1}) @ J_frame_world``.
+    def _error_at(self, knot: int | None) -> torch.Tensor:
+        end_effector = self._frame_pose_at(knot)
+        target = self._target_tensor(end_effector)
+        error = se3.log(se3.compose(se3.inverse(target), end_effector))
+        return torch.cat(
+            (error[..., :3] * self.pos_weight, error[..., 3:] * self.ori_weight),
+            dim=-1,
+        )
 
-        See docs/concepts/kinematics_and_jacobians.md.
-        """
-        target = _target_from_input(ctx, self.target, self.target_name)
-        model, q, data = _context_state(ctx, self.model)
-        T_target = target.to(device=q.device, dtype=q.dtype)
-        T_ee = _get_frame_pose(model, data, self.frame_id)
-        T_err = se3.compose(se3.inverse(T_target), T_ee)
-        r = se3.log(T_err)  # (B..., 6)
-
-        # World-frame spatial Jacobian of the end-effector frame
-        # (LOCAL_WORLD_ALIGNED convention: [v_frame_origin_world, omega_world])
-        J_world = get_frame_jacobian(model, data, self.frame_id)  # (B..., 6, nv)
-
-        # Body-frame Jacobian: just rotate both halves by R_ee^T.
-        # get_frame_jacobian returns the velocity of the frame origin (not the world
-        # origin), so only the rotation part of Ad(T_ee^{-1}) applies — the
-        # cross-term -R^T @ hat(p) @ omega would be spurious here.
-        R_ee = so3.to_matrix(T_ee[..., 3:])  # (B..., 3, 3)
-        J_local = torch.cat(
-            [
-                torch.matmul(R_ee.mT, J_world[..., :3, :]),
-                torch.matmul(R_ee.mT, J_world[..., 3:, :]),
-            ],
+    def _full_jacobian_at(self, knot: int | None) -> torch.Tensor:
+        end_effector = self._frame_pose_at(knot)
+        target = self._target_tensor(end_effector)
+        error = se3.log(se3.compose(se3.inverse(target), end_effector))
+        world = self._frame_jacobian_at(knot)
+        rotation = so3.to_matrix(end_effector[..., 3:])
+        local = torch.cat(
+            (rotation.mT @ world[..., :3, :], rotation.mT @ world[..., 3:, :]),
             dim=-2,
-        )  # (B..., 6, nv)
-
-        # Analytic Jacobian: Jr^{-1}(r) @ J_local
-        Jr_inv = right_jacobian_inv_se3(r)  # (B..., 6, 6)
-        J_analytic = torch.matmul(Jr_inv, J_local)  # (B..., 6, nv)
-
-        # Apply weights row-wise
-        weight = self._weight.to(device=r.device, dtype=r.dtype)
-        return J_analytic * weight.unsqueeze(-1)  # (B..., 6, nv)
-
-    def jacobian_blocks(
-        self,
-        ctx: Mapping[str, Any],
-    ) -> dict[str, torch.Tensor]:
-        """Return the mask-reduced analytic ``q`` block."""
-        full = self._analytic_jacobian(ctx)
-        indices = ctx.free_indices("q").to(device=full.device)
-        return {"q": full.index_select(-1, indices)}
+        )
+        jacobian = right_jacobian_inv_se3(error) @ local
+        return torch.cat(
+            (jacobian[..., :3, :] * self.pos_weight, jacobian[..., 3:, :] * self.ori_weight),
+            dim=-2,
+        )
 
 
-class PositionResidual:
-    """3-DOF position residual. ``dim = 3``.
-
-    ``r = (p_ee - p_target) * weight`` — Euclidean position error.
-    Analytic Jacobian is just the top-3 rows of the spatial Jacobian.
-    """
-
-    name: str = "position"
-    reads = ("q", "data")
+class PositionResidual(_KinematicResidual):
+    """Three-dimensional frame position error."""
 
     def __init__(
         self,
+        q_or_state: _RobotVariable | RobotState,
         *,
-        frame_id: int,
-        target: torch.Tensor,
-        weight: float = 1.0,
-        model: Model | None = None,
+        frame: str | None = None,
+        frame_id: int | None = None,
+        target: torch.Tensor | _Variable,
+        knot: int | None = None,
+        weight: Weight | Real | torch.Tensor = 1.0,
+        kernel: object | None = None,
         name: str = "position",
-        target_name: str | None = None,
     ) -> None:
-        _validate_target_name(target_name)
-        self.model = model
-        self.name = name
-        self.target_name = target_name
-        self.reads = ("q", "data", target_name) if target_name is not None else ("q", "data")
-        self.frame_id = frame_id
-        self.target = target
-        self.weight = weight
-        self.dim = 3
+        super().__init__(
+            q_or_state,
+            frame=frame,
+            frame_id=frame_id,
+            target=target,
+            knot=knot,
+            dim=3,
+            weight=weight,
+            kernel=kernel,
+            name=name,
+        )
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        target = _target_from_input(ctx, self.target, self.target_name)
-        model, q, data = _context_state(ctx, self.model)
-        T_target = target.to(device=q.device, dtype=q.dtype)
-        T_ee = _get_frame_pose(model, data, self.frame_id)
-        p_ee = T_ee[..., :3]
-        p_target = T_target[..., :3]
-        return (p_ee - p_target) * self.weight
+    def _validate_target_shape(self, target: torch.Tensor) -> None:
+        if not target.shape or target.shape[-1] not in (3, 7):
+            raise ValueError(f"target must end in position width 3 or pose width 7, got {tuple(target.shape)}")
 
-    def _analytic_jacobian(
-        self,
-        ctx: Mapping[str, Any],
-    ) -> torch.Tensor:
-        model, _q, data = _context_state(ctx, self.model)
-        J_world = get_frame_jacobian(model, data, self.frame_id)  # (B..., 6, nv)
-        return J_world[..., :3, :] * self.weight  # (B..., 3, nv)
+    def _position_target(self, exemplar: torch.Tensor) -> torch.Tensor:
+        target = self._target_tensor(exemplar)
+        return target[..., :3]
 
-    def jacobian_blocks(
-        self,
-        ctx: Mapping[str, Any],
-    ) -> dict[str, torch.Tensor]:
-        """Return the mask-reduced analytic ``q`` block."""
-        full = self._analytic_jacobian(ctx)
-        indices = ctx.free_indices("q").to(device=full.device)
-        return {"q": full.index_select(-1, indices)}
+    def _error_at(self, knot: int | None) -> torch.Tensor:
+        end_effector = self._frame_pose_at(knot)
+        return end_effector[..., :3] - self._position_target(end_effector)
+
+    def _full_jacobian_at(self, knot: int | None) -> torch.Tensor:
+        return self._frame_jacobian_at(knot)[..., :3, :]
 
 
-class OrientationResidual:
-    """3-DOF orientation residual. ``dim = 3``.
-
-    ``r = log_SO3(q_target^{-1} ⊕ q_ee) * weight``.
-    """
-
-    name: str = "orientation"
-    reads = ("q", "data")
+class OrientationResidual(_KinematicResidual):
+    """Three-dimensional logarithmic frame orientation error."""
 
     def __init__(
         self,
+        q_or_state: _RobotVariable | RobotState,
         *,
-        frame_id: int,
-        target: torch.Tensor,
-        weight: float = 1.0,
-        model: Model | None = None,
+        frame: str | None = None,
+        frame_id: int | None = None,
+        target: torch.Tensor | _Variable,
+        knot: int | None = None,
+        weight: Weight | Real | torch.Tensor = 1.0,
+        kernel: object | None = None,
         name: str = "orientation",
-        target_name: str | None = None,
     ) -> None:
-        _validate_target_name(target_name)
-        self.model = model
-        self.name = name
-        self.target_name = target_name
-        self.reads = ("q", "data", target_name) if target_name is not None else ("q", "data")
-        self.frame_id = frame_id
-        self.target = target
-        self.weight = weight
-        self.dim = 3
+        super().__init__(
+            q_or_state,
+            frame=frame,
+            frame_id=frame_id,
+            target=target,
+            knot=knot,
+            dim=3,
+            weight=weight,
+            kernel=kernel,
+            name=name,
+        )
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        target = _target_from_input(ctx, self.target, self.target_name)
-        model, q, data = _context_state(ctx, self.model)
-        T_target = target.to(device=q.device, dtype=q.dtype)
-        T_ee = _get_frame_pose(model, data, self.frame_id)
-        q_target = T_target[..., 3:]  # (B..., 4) quaternion
-        q_ee = T_ee[..., 3:]
-        r_so3 = so3.log(so3.compose(so3.inverse(q_target), q_ee))  # (B..., 3)
-        return r_so3 * self.weight
+    def _validate_target_shape(self, target: torch.Tensor) -> None:
+        if not target.shape or target.shape[-1] not in (4, 7):
+            raise ValueError(f"target must end in quaternion width 4 or pose width 7, got {tuple(target.shape)}")
 
-    def _analytic_jacobian(
-        self,
-        ctx: Mapping[str, Any],
-    ) -> torch.Tensor:
-        target = _target_from_input(ctx, self.target, self.target_name)
-        model, q, data = _context_state(ctx, self.model)
-        T_target = target.to(device=q.device, dtype=q.dtype)
-        T_ee = _get_frame_pose(model, data, self.frame_id)
-        q_target = T_target[..., 3:]
-        q_ee = T_ee[..., 3:]
-        r = so3.log(so3.compose(so3.inverse(q_target), q_ee))  # (B..., 3)
+    def _orientation_target(self, exemplar: torch.Tensor) -> torch.Tensor:
+        target = self._target_tensor(exemplar)
+        return target if target.shape[-1] == 4 else target[..., 3:]
 
-        J_world = get_frame_jacobian(model, data, self.frame_id)
-        J_ang = J_world[..., 3:, :]  # angular rows (B..., 3, nv)
+    def _error_at(self, knot: int | None) -> torch.Tensor:
+        end_effector = self._frame_pose_at(knot)
+        target = self._orientation_target(end_effector)
+        return so3.log(so3.compose(so3.inverse(target), end_effector[..., 3:]))
 
-        Jr_inv = right_jacobian_inv_so3(r)  # (B..., 3, 3)
-        # Local angular Jacobian: J_ang_local = R_ee^T @ J_ang_world
-        R_ee = so3.to_matrix(q_ee)  # (B..., 3, 3)
-        J_ang_local = torch.matmul(R_ee.mT, J_ang)  # (B..., 3, nv)
-        return torch.matmul(Jr_inv, J_ang_local) * self.weight
+    def _full_jacobian_at(self, knot: int | None) -> torch.Tensor:
+        end_effector = self._frame_pose_at(knot)
+        target = self._orientation_target(end_effector)
+        error = so3.log(so3.compose(so3.inverse(target), end_effector[..., 3:]))
+        angular = self._frame_jacobian_at(knot)[..., 3:, :]
+        rotation = so3.to_matrix(end_effector[..., 3:])
+        return right_jacobian_inv_so3(error) @ (rotation.mT @ angular)
 
-    def jacobian_blocks(
-        self,
-        ctx: Mapping[str, Any],
-    ) -> dict[str, torch.Tensor]:
-        """Return the mask-reduced analytic ``q`` block."""
-        full = self._analytic_jacobian(ctx)
-        indices = ctx.free_indices("q").to(device=full.device)
-        return {"q": full.index_select(-1, indices)}
+
+__all__ = ["OrientationResidual", "PoseResidual", "PositionResidual"]

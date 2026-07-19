@@ -1,4 +1,4 @@
-# Residuals, Costs, and Solvers
+# Residuals, Costs, and Optimizers
 
 Optimization turns several imperfect requirements into one configuration that
 balances them. A hand should reach a target, joints should stay within limits,
@@ -37,90 +37,97 @@ The [Ceres nonlinear least-squares
 guide](https://ceres-solver.org/nnls_solving.html) is a useful independent
 reference for residuals, parameter groups, bounds, and robust losses.
 
-## A residual is a small callable
+## A residual holds its dependencies
 
-A residual declares a name, a fixed output width, the context entries it
-reads, and a call:
+A residual owns references to every variable it reads, plus its name, fixed
+output width, weight, robust kernel, and grouping. The `@residual` adapter is
+enough for a small tensor function:
 
 ```{testcode}
 import torch
+from better_robot.optim import Variable, residual
 
-class PositionError:
-    name = "position"
-    reads = ("x", "target")
-    dim = 3
+x = Variable(torch.tensor([1.0, 2.0, 3.0]), name="x")
+target = Variable(torch.ones(3), name="target", trainable=False)
 
-    def __call__(self, ctx):
-        return ctx["x"] - ctx["target"]
 
-error = PositionError()
-actual = error({"x": torch.tensor([1.0, 2.0, 3.0]), "target": torch.ones(3)})
+@residual(x, target, dim=3, name="position")
+def position_error(value, desired):
+    return value - desired
+
+
+actual = position_error.error()
 torch.testing.assert_close(actual, torch.tensor([0.0, 1.0, 2.0]))
 ```
 
 The returned tensor ends in `(dim,)` and may have leading batch axes. Fixed
-width matters: Jacobian rows, robust groups, and solver state keep the same
+width matters: Jacobian rows, robust groups, and optimizer storage keep the same
 meaning at every evaluation. Variable-size observations are padded and paired
 with validity masks rather than changing the residual dimension.
 
-An optional `jacobian_blocks(ctx)` method supplies derivatives for selected
-variables. Without it, `Problem` uses automatic differentiation. Finite
-differences are available only as an explicit debugging strategy. See
+An optional `jacobian()` method returns complete reduced-tangent blocks in
+dependency order. Without it, `Problem` uses automatic differentiation.
+Finite differences are available only as an explicit debugging strategy. See
 {doc}`kinematics_and_jacobians` for the distinction and for the documented
 small-step approximations used by a few built-in blocks.
 
-## Problems have named variables
+## Problems harvest an object graph
 
-A `Problem` owns:
+A `Problem` freezes and lays out:
 
-- variables and their manifolds, bounds, masks, and event shapes;
-- residual items with weights and robust grouping;
-- constant or differentiable parameter tensors; and
-- providers for shared evaluation work.
+- trainable and static variables referenced by residuals or nodes;
+- fixed residual rows, weights, kernels, and robust groups; and
+- evaluation-scoped nodes for shared computation.
 
-Names remove manual packing. A robot configuration can use `RobotConfig`, an
-object pose can use `SE3Manifold`, and camera intrinsics can remain Euclidean.
-The problem lays out tangent columns internally and returns updates under the
-same names.
+Each `Variable` owns its tensor and geometry. Use `RobotVariable` for a robot
+configuration, `SE3Variable` for an object pose, and plain `Variable` for a
+Euclidean block such as camera intrinsics. Stable names make diagnostics and
+atomic `Problem.update()` calls readable without a separate packing schema.
 
-A plain callable is enough for a small Euclidean problem. This complete line
-fit is executed by the documentation test target:
+A decorated tensor function is enough for a small Euclidean problem. This
+complete line fit is executed by the documentation test target:
 
 ```{testcode}
 import torch
-from better_robot.optim import Problem, LevenbergMarquardt
+from better_robot.optim import LevenbergMarquardt, Problem, Variable, residual
 
-x = torch.tensor([0., 1., 2., 3.]); y = torch.tensor([1., 3., 5., 7.])
+x = torch.tensor([0., 1., 2., 3.], dtype=torch.float64)
+y = torch.tensor([1., 3., 5., 7.], dtype=torch.float64)
+theta = Variable(torch.zeros(2, dtype=torch.float64), name="theta")
+observations = Variable(y, name="observations", trainable=False)
 
-def fit(ctx):
-    m, c = ctx["theta"][..., 0:1], ctx["theta"][..., 1:2]
-    return m * x + c - y
 
-problem = Problem()
-problem.add_variable("theta", shape=(2,))               # Euclidean by default
-problem.add_residual(fit, dim=4)                        # plain callable is enough
-values, state = LevenbergMarquardt().run({"theta": torch.zeros(2)}, problem)
+@residual(theta, observations, dim=4)
+def fit(parameters, measured):
+    m, c = parameters[..., 0:1], parameters[..., 1:2]
+    return m * x + c - measured
+
+
+problem = Problem([fit])
+info = LevenbergMarquardt(
+    problem,
+    max_iterations=20,
+    tolerance=1e-9,
+).optimize()
+torch.testing.assert_close(theta.tensor, torch.tensor([2., 1.], dtype=torch.float64))
+assert bool(info.converged)
 ```
 
-`add_variable` creates a variable specification. `add_residual` wraps the
-callable in a residual item. Advanced construction can create `VarSpec` and
-`ResidualItem` values directly.
+Subclass `Residual` when an error term needs analytic or temporal blocks, a
+custom weight, or a shared node.
 
-## Providers share expensive work
+## Nodes share expensive work
 
 Several robot residuals need the same forward kinematics. Recomputing it in
 each residual would be wasteful and could produce inconsistent cache state.
-A provider declares what it reads and which context values it produces.
-`RobotStateProvider`, for example, produces `data` once for one problem
-evaluation.
+A `Node` holds its input variables and computes a lazy value. `RobotState`,
+for example, owns one `RobotVariable` reference and provides FK data.
 
-Provider outputs are cached only inside that evaluation. The next candidate
-configuration gets a fresh context. Recursive resolution supports providers
-that depend on other providers, while cycles raise a direct error.
-
-When a problem has one `RobotConfig` variable and a residual reads `data`, the
-usual robot-state provider is supplied automatically if no explicit provider
-already produces it.
+A residual lists shared nodes in `nodes` and reads `node.value()` in
+`error()` or `jacobian()`. `Problem` merges compatible nodes when it freezes,
+invalidates their memos at every evaluation boundary, and therefore computes
+shared graph-bearing work at most once per evaluation without carrying it to
+the next candidate.
 
 ## Built-in residual families
 
@@ -133,15 +140,15 @@ The shipped residuals cover these roles:
 | Trajectory structure | `ReferenceTrajectoryResidual`, `TimeIndexedResidual`, `VelocityResidual`, `AccelerationResidual` |
 | Contact motion | `ContactConsistencyResidual` |
 | Image observations | `ProjectionResidual` |
-| Padded point sets | `MaskedChamferResidual`, `SceneSDFProvider` and its penetration, attraction, and clearance residuals |
+| Padded point sets | `MaskedChamferResidual`, `SceneSDFState` and its penetration, attraction, and clearance residuals |
 | Spherical-joint limits | `SwingTwistLimitResidual` |
 
 `JerkResidual` and `NullspaceResidual` are explicit placeholders that raise
 `NotImplementedError`; they are not live behavior.
 
-Residual weights belong to the surrounding `ResidualItem`. A weight of zero
-as a Python number skips that item. Tensor weights may vary over the execution
-batch while preserving its shape, dtype, and device.
+Residual weights live on the `Residual` itself. A Python numeric zero skips
+that residual. Tensor weights remain graph-visible and may vary over the
+execution batch while preserving shape, dtype, and device.
 
 ## Robust losses
 
@@ -187,34 +194,40 @@ tries more cautiously. Bounds use a projected active set, and manifold steps
 are retracted back to valid configurations.
 
 `GaussNewton` is a fixed, very-low-damping preset of the same guarded update.
-BetterRobot owns these solvers because batched independent damping,
+BetterRobot owns these optimizers because batched independent damping,
 manifold-aware updates, robust rows, and bounds are central robotics behavior.
 First-order optimizers are delegated to `torch.optim` instead.
 
-## Owning the solver loop
+## Owning the optimizer loop
 
-LM exposes the lifecycle needed for warm starts or an application-controlled
-loop:
+Every optimizer owns one problem. `step()` advances referenced variables once;
+`optimize()` runs the complete eager loop:
 
 ```text
-from better_robot.optim import LevenbergMarquardt
+from better_robot.optim import LevenbergMarquardt, OptimizerStatus
 
-solver = LevenbergMarquardt(max_iter=50, gtol=1e-6)
-state = solver.init_state(values, problem)
-values, state = solver.update(values, state, problem)
-values, state = solver.finalize(values, state, problem)
+optimizer = LevenbergMarquardt(
+    problem,
+    max_iterations=50,
+    tolerance=1e-6,
+)
+info = optimizer.step()
+if bool((info.status != OptimizerStatus.RUNNING).all()):
+    ...
 ```
 
 For an ordinary detached solve:
 
 ```text
-values, state = solver.run(values, problem)
+info = optimizer.optimize()
+solution = q.tensor
 ```
 
-`LMState` contains tensor-valued damping, costs, convergence flags, status,
-and iteration counts for every batch element. Passing a previous terminal
-state to `run` preserves suitable damping information as a warm start; the
-problem and values are validated again.
+`OptimizerInfo` contains only per-element status, iterations, cost, and a
+derived convergence flag. Detailed LM state is private. `Problem.update()`
+changes current variable tensors atomically; LM refreshes the changed graph
+while retaining compatible damping. `optimizer.reset()` clears optimizer
+state but deliberately retains current variable values.
 
 An initially non-finite model is reported as failed. A non-finite trial is
 rejected rather than installed as the new value. Exhausting the iteration
@@ -244,41 +257,46 @@ caller and a verified elimination design, not from guessing structure.
 
 ## First-order optimization
 
-`run_first_order` adapts the same problem to an ordinary
-`torch.optim.Optimizer`:
+`TorchOptimizer` adapts the same problem to an ordinary
+`torch.optim.Optimizer` class or factory:
 
 ```text
-from better_robot.optim import run_first_order
+from better_robot.optim import TorchOptimizer
 
-values, result = run_first_order(
-    values,
+optimizer = TorchOptimizer(
     problem,
-    lambda parameters: torch.optim.Adam(parameters, lr=1e-2),
-    max_iter=100,
+    torch.optim.Adam,
+    lr=1e-2,
+    max_iterations=100,
     tolerance=1e-6,
 )
+info = optimizer.optimize()
 ```
 
 The adapter keeps tangent buffers, lets the Torch optimizer update them,
-retracts the result onto each manifold, and rebases the buffers without
+retracts through each variable's geometry, and rebases the buffers without
 discarding optimizer state. Adam, SGD, or another compatible optimizer can be
 selected by the factory. BetterRobot does not reimplement their moment rules.
 
 ## Differentiating a solution
 
-The default solver result is detached. Eligible converged problems can request
+The default optimizer result is detached. Eligible converged problems can request
 a guarded implicit derivative:
 
 ```text
-values, state = solver.solve(values, problem, differentiate="implicit")
-loss = values["q"].square().sum()
+target = Variable(target_tensor, name="target", trainable=False)
+# A residual references both q and target; Problem harvests both roles.
+lm = LevenbergMarquardt(problem, max_iterations=50)
+info = lm.optimize(differentiate="implicit")
+loss = q.tensor.square().sum()
 loss.backward()
 ```
 
-The backward path checks convergence, active bounds, quaternion branch cuts,
-robust-loss kinks, problem size, and linearization support. If those
-assumptions do not hold, it raises `ImplicitDifferentiationError` instead of
-returning a derivative that looks plausible but is not justified.
+Graph-carrying static variables are the differentiable inputs. The backward
+path checks convergence, active bounds, quaternion branch cuts, robust-loss
+kinks, problem size, and linearization support. If those assumptions do not
+hold, it raises `ImplicitDifferentiationError` instead of returning a
+derivative that looks plausible but is not justified.
 
 ## Common mistakes
 

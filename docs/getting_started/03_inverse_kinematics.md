@@ -47,4 +47,10 @@ The optional configuration objects tune weights and stopping behavior. You do
 not need them for a first solve; they are shown above only to make this small
 generated target especially easy to recover.
 
+The facade builds the same public graph available to direct optimization
+callers: one bounded `RobotVariable`, static target `Variable` objects,
+kinematic residuals with shared `RobotState` nodes, a harvested `Problem`, and
+an object-owned optimizer. Set `differentiable=True` only when an LM solution
+must carry the guarded implicit gradient back to graph-carrying targets.
+
 Floating-base robots use the same call, as shown in {doc}`04_floating_base`.

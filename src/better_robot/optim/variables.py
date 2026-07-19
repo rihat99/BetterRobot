@@ -2,86 +2,135 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import TypeAlias
+from dataclasses import dataclass
+from functools import reduce
+from itertools import count
+from operator import mul
 
 import torch
 
 from ..exceptions import DeviceMismatchError, DtypeMismatchError
-from .manifolds import Bounds, Euclidean, Manifold, RobotConfig, SE3Manifold, SO3Manifold
-
-Values: TypeAlias = dict[str, torch.Tensor]
-
-
-def _validate_optional_tensor(
-    name: str,
-    label: str,
-    value: torch.Tensor | None,
-    shape: tuple[int, ...],
-) -> None:
-    if value is None:
-        return
-    if not isinstance(value, torch.Tensor):
-        raise TypeError(f"VarSpec {name!r} {label} must be a torch.Tensor or None")
-    if tuple(value.shape) != shape:
-        raise ValueError(f"VarSpec {name!r} {label} must have tangent shape {shape}, got {tuple(value.shape)}")
+from ..data_model.model import Model
+from ..lie import se3, so3
+from .manifolds import Bounds
 
 
-@dataclass(frozen=True)
-class VarSpec:
-    """Static state event, manifold, bounds, and reduced tangent layout."""
+_VARIABLE_COUNTERS: dict[type, count] = {}
 
-    name: str
-    shape: tuple[int, ...]
-    manifold: Manifold = field(default_factory=Euclidean)
-    bounds: Bounds | None = None
-    scale: torch.Tensor | None = None
-    mask: torch.Tensor | None = None
-    time_axis: int | None = None
-    _tangent_dim: int = field(init=False, repr=False, compare=False)
-    _free_indices: torch.Tensor = field(init=False, repr=False, compare=False)
 
-    def __post_init__(self) -> None:
-        if not isinstance(self.name, str) or not self.name:
-            raise ValueError("VarSpec name must be non-empty")
-        if not isinstance(self.shape, tuple) or any(not isinstance(size, int) or size <= 0 for size in self.shape):
-            raise ValueError(f"VarSpec {self.name!r} shape must be a tuple of positive integers")
-        if not isinstance(self.manifold, Manifold):
-            raise TypeError(f"VarSpec {self.name!r} manifold does not implement Manifold")
-        tangent_dim = self.manifold.tangent_dim(self.shape)
-        if not isinstance(tangent_dim, int) or tangent_dim <= 0:
-            raise ValueError(f"VarSpec {self.name!r} manifold tangent_dim must be a positive int, got {tangent_dim!r}")
-        object.__setattr__(self, "_tangent_dim", tangent_dim)
+def _auto_name(cls: type) -> str:
+    counter = _VARIABLE_COUNTERS.setdefault(cls, count())
+    return f"{cls.__name__.lower()}_{next(counter)}"
 
-        if self.time_axis is not None:
-            if isinstance(self.time_axis, bool) or not isinstance(self.time_axis, int):
-                raise TypeError(f"VarSpec {self.name!r} time_axis must be an int or None")
-            if self.time_axis != 0 or not self.shape or tangent_dim % self.shape[0]:
-                raise ValueError(f"VarSpec {self.name!r} time_axis must identify a leading, separable time axis")
-        if self.bounds is not None and not isinstance(self.bounds, Bounds):
-            raise TypeError(f"VarSpec {self.name!r} bounds must be Bounds or None")
-        self.manifold.validate_bounds(self.bounds, name=self.name)
-        expected_bounds = self.shape[-1:] if isinstance(self.manifold, RobotConfig) else self.shape
-        if self.bounds is not None and tuple(self.bounds.lower.shape) != expected_bounds:
-            raise ValueError(
-                f"Bounds on VarSpec {self.name!r} must have state shape {expected_bounds}, "
-                f"got {tuple(self.bounds.lower.shape)}"
-            )
+
+def _numel(shape: tuple[int, ...]) -> int:
+    return reduce(mul, shape, 1)
+
+
+class Variable:
+    """A Euclidean tensor variable with an owned value and reduced tangent layout."""
+
+    _feature_width: int | None = None
+
+    def __init__(  # noqa: PLR0912, PLR0915 - validates one structural public boundary
+        self,
+        tensor: torch.Tensor,
+        *,
+        name: str | None = None,
+        trainable: bool = True,
+        bounds: Bounds | None = None,
+        mask: torch.Tensor | None = None,
+        scale: torch.Tensor | None = None,
+        batch_ndim: int = 0,
+        time_axis: int | None = None,
+    ) -> None:
+        if not isinstance(tensor, torch.Tensor):
+            raise TypeError(f"tensor must be a torch.Tensor, got {type(tensor).__name__}")
+        if tensor.dtype not in (torch.float32, torch.float64):
+            raise DtypeMismatchError(f"tensor must use torch.float32 or torch.float64, got dtype={tensor.dtype}")
+        if name is None:
+            name = _auto_name(type(self))
+        if not isinstance(name, str) or not name:
+            raise ValueError(f"name must be a non-empty string, got {name!r}")
+        if not isinstance(trainable, bool):
+            raise TypeError(f"trainable must be a bool, got {type(trainable).__name__}")
+        if isinstance(batch_ndim, bool) or not isinstance(batch_ndim, int) or batch_ndim < 0:
+            raise ValueError(f"batch_ndim must be a non-negative int, got {batch_ndim!r}")
+        if batch_ndim > tensor.ndim:
+            raise ValueError(f"batch_ndim must not exceed tensor.ndim={tensor.ndim}, got {batch_ndim}")
+        if time_axis is not None and (isinstance(time_axis, bool) or not isinstance(time_axis, int)):
+            raise TypeError(f"time_axis must be an int or None, got {time_axis!r}")
+        if time_axis not in (None, 0):
+            raise ValueError(f"time_axis must identify the leading event axis 0, got {time_axis}")
+
+        width = self._feature_width
+        if width is None:
+            event_shape = tuple(tensor.shape[batch_ndim:])
+            inferred_batch_ndim = batch_ndim
+            if time_axis is not None and not event_shape:
+                raise ValueError("time_axis=0 requires a non-scalar event shape")
+        else:
+            event_ndim = 2 if time_axis is not None else 1
+            if tensor.ndim < event_ndim:
+                expected = f"(..., T, {width})" if time_axis is not None else f"(..., {width})"
+                raise ValueError(f"tensor must have shape {expected}, got {tuple(tensor.shape)}")
+            event_shape = tuple(tensor.shape[-event_ndim:])
+            inferred_batch_ndim = tensor.ndim - event_ndim
+            if event_shape[-1] != width:
+                raise ValueError(f"tensor must end in feature width {width}, got {tuple(tensor.shape)}")
+            if time_axis is not None and event_shape[0] <= 0:
+                raise ValueError("time_axis=0 requires at least one timestep")
+            if batch_ndim not in (0, inferred_batch_ndim):
+                raise ValueError(
+                    f"batch_ndim must match the {inferred_batch_ndim} inferred leading batch axes, got {batch_ndim}"
+                )
+
+        self.name = name
+        self.trainable = trainable
+        self.tensor = tensor
+        self.shape = event_shape
+        self.batch_ndim = inferred_batch_ndim
+        self.time_axis = time_axis
+        self.bounds = self._normalize_bounds(bounds)
+        self._validate_bounds(self.bounds)
+
+        tangent_dim = self.tangent_dim()
         tangent_shape = (tangent_dim,)
-        _validate_optional_tensor(self.name, "scale", self.scale, tangent_shape)
-        _validate_optional_tensor(self.name, "mask", self.mask, tangent_shape)
-        if self.scale is not None and not self.scale.is_floating_point():
-            raise TypeError(f"VarSpec {self.name!r} scale must use a floating dtype")
-        indices = (
+        for label, value in (("mask", mask), ("scale", scale)):
+            if value is not None and not isinstance(value, torch.Tensor):
+                raise TypeError(f"{label} must be a torch.Tensor or None, got {type(value).__name__}")
+            if value is not None and tuple(value.shape) != tangent_shape:
+                raise ValueError(f"{label} must have tangent shape {tangent_shape}, got {tuple(value.shape)}")
+        if mask is not None and mask.dtype is not torch.bool:
+            raise TypeError(f"mask must use torch.bool, got {mask.dtype}")
+        if scale is not None and not scale.is_floating_point():
+            raise TypeError(f"scale must use a floating dtype, got {scale.dtype}")
+        if scale is not None and (scale.dtype != tensor.dtype or scale.device != tensor.device):
+            raise ValueError(
+                "scale and tensor must have the same dtype/device, "
+                f"got {scale.dtype}/{scale.device} and {tensor.dtype}/{tensor.device}"
+            )
+        self.mask = mask
+        self.scale = scale
+        self._free_indices = (
             torch.arange(tangent_dim, dtype=torch.long)
-            if self.mask is None
-            else torch.nonzero(self.mask.to(dtype=torch.bool), as_tuple=False).flatten()
+            if mask is None
+            else torch.nonzero(mask, as_tuple=False).flatten()
         )
-        object.__setattr__(self, "_free_indices", indices)
+        self.validate_value(tensor)
 
-    @property
+    def _normalize_bounds(self, bounds: Bounds | None) -> Bounds | None:
+        if bounds is not None and not isinstance(bounds, Bounds):
+            raise TypeError(f"bounds must be Bounds or None, got {type(bounds).__name__}")
+        return bounds
+
+    def _validate_bounds(self, bounds: Bounds | None) -> None:
+        if bounds is not None and tuple(bounds.lower.shape) != self.shape:
+            raise ValueError(f"bounds must have event shape {self.shape}, got {tuple(bounds.lower.shape)}")
+
     def tangent_dim(self) -> int:
-        return self._tangent_dim
+        """Return the full tangent width of one event."""
+        return _numel(self.shape)
 
     @property
     def free_dim(self) -> int:
@@ -96,14 +145,22 @@ class VarSpec:
         return None if self.scale is None else self.gather_tangent(self.scale)
 
     @property
+    def batch_shape(self) -> tuple[int, ...]:
+        return self.batch_shape_of(self.tensor)
+
+    def batch_shape_of(self, value: torch.Tensor) -> tuple[int, ...]:
+        self.validate_value(value)
+        return tuple(value.shape[: value.ndim - len(self.shape)]) if self.shape else tuple(value.shape)
+
+    @property
     def time_length(self) -> int:
         if self.time_axis is None:
-            raise ValueError(f"VarSpec {self.name!r} has no time_axis")
+            raise ValueError(f"Variable {self.name!r} has no time_axis")
         return self.shape[0]
 
     @property
     def temporal_tangent_width(self) -> int:
-        return self.tangent_dim // self.time_length
+        return self.tangent_dim() // self.time_length
 
     @property
     def temporal_mask_is_separable(self) -> bool:
@@ -111,109 +168,312 @@ class VarSpec:
             return False
         if self.mask is None:
             return True
-        shaped = self.mask.to(dtype=torch.bool).reshape(self.time_length, self.temporal_tangent_width)
+        shaped = self.mask.reshape(self.time_length, self.temporal_tangent_width)
         return bool(torch.equal(shaped, shaped[:1].expand_as(shaped)))
 
     @property
     def temporal_free_indices(self) -> torch.Tensor:
         if not self.temporal_mask_is_separable:
-            raise ValueError(f"VarSpec {self.name!r} temporal mask is not separable across time")
+            raise ValueError(f"Variable {self.name!r} temporal mask is not separable across time")
         if self.mask is None:
             return torch.arange(self.temporal_tangent_width, dtype=torch.long)
-        first = self.mask.to(dtype=torch.bool).reshape(self.time_length, self.temporal_tangent_width)[0]
+        first = self.mask.reshape(self.time_length, self.temporal_tangent_width)[0]
         return torch.nonzero(first, as_tuple=False).flatten()
 
     @property
     def temporal_reduced_width(self) -> int:
         return int(self.temporal_free_indices.numel())
 
-    def batch_shape(self, value: torch.Tensor) -> tuple[int, ...]:
-        self.validate_value(value)
-        return tuple(value.shape[: value.ndim - len(self.shape)])
-
     def validate_value(self, value: torch.Tensor) -> None:
         if not isinstance(value, torch.Tensor):
-            raise TypeError(f"Value for VarSpec {self.name!r} must be a torch.Tensor")
+            raise TypeError(f"Value for Variable {self.name!r} must be a torch.Tensor")
         if value.dtype not in (torch.float32, torch.float64):
             raise DtypeMismatchError(
-                f"Value for VarSpec {self.name!r} has unsupported dtype={value.dtype}; use torch.float32 or torch.float64"
+                f"Value for Variable {self.name!r} must use torch.float32 or torch.float64, got {value.dtype}"
             )
         trailing = tuple(value.shape[-len(self.shape) :]) if self.shape else ()
         if value.ndim < len(self.shape) or trailing != self.shape:
             raise ValueError(
-                f"Value for VarSpec {self.name!r} must end in event shape {self.shape}, got {tuple(value.shape)}"
+                f"Value for Variable {self.name!r} must end in event shape {self.shape}, got {tuple(value.shape)}"
             )
         if self.bounds is not None and (
             value.dtype != self.bounds.lower.dtype or value.device != self.bounds.lower.device
         ):
             raise ValueError(
-                f"Value and Bounds for VarSpec {self.name!r} must have the same dtype/device, "
-                f"got {value.dtype}/{value.device} and {self.bounds.lower.dtype}/{self.bounds.lower.device}"
+                f"Value and bounds for Variable {self.name!r} must share dtype/device, "
+                f"got {value.dtype}/{value.device} and "
+                f"{self.bounds.lower.dtype}/{self.bounds.lower.device}"
             )
 
     def _tangent_event_shape(self) -> tuple[int, ...]:
-        if isinstance(self.manifold, RobotConfig):
-            return (*self.shape[:-1], self.manifold.model.nv)
-        if isinstance(self.manifold, SO3Manifold):
-            return (*self.shape[:-1], 3)
-        if isinstance(self.manifold, SE3Manifold):
-            return (*self.shape[:-1], 6)
         return self.shape
 
     def gather_tangent(self, full: torch.Tensor) -> torch.Tensor:
-        if full.shape[-1] != self.tangent_dim:
-            raise ValueError(
-                f"Full tangent for VarSpec {self.name!r} must end in {self.tangent_dim}, got {tuple(full.shape)}"
-            )
-        return full if self.free_dim == self.tangent_dim else full.index_select(-1, self.free_indices.to(full.device))
+        if full.shape[-1] != self.tangent_dim():
+            raise ValueError(f"full tangent must end in {self.tangent_dim()}, got {tuple(full.shape)}")
+        return (
+            full if self.free_dim == self.tangent_dim() else full.index_select(-1, self._free_indices.to(full.device))
+        )
 
     def expand_tangent(self, reduced: torch.Tensor) -> torch.Tensor:
         if reduced.shape[-1] != self.free_dim:
-            raise ValueError(
-                f"Reduced tangent for VarSpec {self.name!r} must end in {self.free_dim}, got {tuple(reduced.shape)}"
-            )
-        if self.free_dim == self.tangent_dim:
+            raise ValueError(f"reduced tangent must end in {self.free_dim}, got {tuple(reduced.shape)}")
+        if self.free_dim == self.tangent_dim():
             return reduced
-        full = reduced.new_zeros(*reduced.shape[:-1], self.tangent_dim)
+        full = reduced.new_zeros(*reduced.shape[:-1], self.tangent_dim())
         if self.free_dim:
-            full.index_copy_(-1, self.free_indices.to(reduced.device), reduced)
+            full.index_copy_(-1, self._free_indices.to(reduced.device), reduced)
         return full
 
-    def retract(self, value: torch.Tensor, reduced_delta: torch.Tensor) -> torch.Tensor:
-        batch = self.batch_shape(value)
+    def _retract_full(self, value: torch.Tensor, delta: torch.Tensor) -> torch.Tensor:
+        return value + delta
+
+    def _difference_full(self, x0: torch.Tensor, x1: torch.Tensor) -> torch.Tensor:
+        return x1 - x0
+
+    def _project_full(self, value: torch.Tensor) -> torch.Tensor:
+        if self.bounds is None:
+            return value
+        return torch.maximum(torch.minimum(value, self.bounds.upper), self.bounds.lower)
+
+    def project(self, value: torch.Tensor) -> torch.Tensor:
+        """Project a value onto this variable's valid representation."""
+        return self._project_full(value)
+
+    def retract(self, reduced_delta: torch.Tensor) -> torch.Tensor:
+        """Retract ``reduced_delta`` from the current value without assigning it."""
+        value = self.tensor
+        batch = self.batch_shape_of(value)
         if not isinstance(reduced_delta, torch.Tensor):
-            raise TypeError(f"Step for VarSpec {self.name!r} must be a torch.Tensor")
+            raise TypeError(f"delta must be a torch.Tensor, got {type(reduced_delta).__name__}")
         if reduced_delta.dtype != value.dtype:
-            raise DtypeMismatchError(
-                f"Step and value for VarSpec {self.name!r} must share dtype; got {reduced_delta.dtype} and {value.dtype}"
-            )
+            raise DtypeMismatchError(f"delta and value must share dtype, got {reduced_delta.dtype} and {value.dtype}")
         if reduced_delta.device != value.device:
             raise DeviceMismatchError(
-                f"Step and value for VarSpec {self.name!r} must share device; got {reduced_delta.device} and {value.device}"
+                f"delta and value must share device, got {reduced_delta.device} and {value.device}"
             )
         expected = (*batch, self.free_dim)
         if tuple(reduced_delta.shape) != expected:
-            raise ValueError(
-                f"Step for VarSpec {self.name!r} must have shape {expected}, got {tuple(reduced_delta.shape)}"
-            )
+            raise ValueError(f"delta must have shape {expected}, got {tuple(reduced_delta.shape)}")
         full = self.expand_tangent(reduced_delta).reshape((*batch, *self._tangent_event_shape()))
-        return self.manifold.project(self.manifold.retract(value, full), self.bounds)
+        return self.project(self._retract_full(value, full))
 
-    def difference(self, x0: torch.Tensor, x1: torch.Tensor) -> torch.Tensor:
-        batch = self.batch_shape(x0)
-        if tuple(x1.shape) != tuple(x0.shape):
-            raise ValueError(f"VarSpec {self.name!r} difference inputs must have equal shape")
-        self.validate_value(x1)
-        if x1.dtype != x0.dtype:
-            raise DtypeMismatchError(
-                f"Difference inputs for VarSpec {self.name!r} must share dtype; got {x0.dtype} and {x1.dtype}"
+    def _retract_from(self, value: torch.Tensor, reduced_delta: torch.Tensor) -> torch.Tensor:
+        original = self.tensor
+        self.tensor = value
+        try:
+            return self.retract(reduced_delta)
+        finally:
+            self.tensor = original
+
+    def difference(self, other: torch.Tensor) -> torch.Tensor:
+        """Return the tangent displacement from ``other`` to the current value."""
+        value = self.tensor
+        batch = self.batch_shape_of(other)
+        self.validate_value(value)
+        if tuple(other.shape) != tuple(value.shape):
+            raise ValueError(
+                f"difference inputs must have equal shape, got {tuple(other.shape)} and {tuple(value.shape)}"
             )
-        if x1.device != x0.device:
-            raise DeviceMismatchError(
-                f"Difference inputs for VarSpec {self.name!r} must share device; got {x0.device} and {x1.device}"
+        if other.dtype != value.dtype:
+            raise DtypeMismatchError(f"difference inputs must share dtype, got {other.dtype} and {value.dtype}")
+        if other.device != value.device:
+            raise DeviceMismatchError(f"difference inputs must share device, got {other.device} and {value.device}")
+        return self._difference_full(other, value).reshape(*batch, self.tangent_dim())
+
+    def _difference_from(self, x0: torch.Tensor, x1: torch.Tensor) -> torch.Tensor:
+        original = self.tensor
+        self.tensor = x1
+        try:
+            return self.difference(x0)
+        finally:
+            self.tensor = original
+
+
+_GROUP_BOUNDS_ERROR = (
+    "{kind} variables have no meaningful global box bound. Express rotation "
+    "limits as residuals or use RobotVariable with joint limits; got "
+    "bounds={bounds!r} on Variable {name!r}."
+)
+
+
+class SO3Variable(Variable):
+    """A unit-quaternion variable with a three-dimensional tangent."""
+
+    _feature_width = 4
+
+    def _validate_bounds(self, bounds: Bounds | None) -> None:
+        if bounds is not None:
+            raise ValueError(_GROUP_BOUNDS_ERROR.format(kind="SO3", bounds=bounds, name=self.name))
+
+    def tangent_dim(self) -> int:
+        return _numel(self.shape[:-1]) * 3
+
+    def _tangent_event_shape(self) -> tuple[int, ...]:
+        return (*self.shape[:-1], 3)
+
+    def _retract_full(self, value: torch.Tensor, delta: torch.Tensor) -> torch.Tensor:
+        return so3.normalize(so3.compose(value, so3.exp(delta)))
+
+    def _difference_full(self, x0: torch.Tensor, x1: torch.Tensor) -> torch.Tensor:
+        return so3.log(so3.normalize(so3.compose(so3.inverse(x0), x1)))
+
+    def _project_full(self, value: torch.Tensor) -> torch.Tensor:
+        return so3.normalize(value)
+
+
+class SE3Variable(Variable):
+    """An SE(3) pose variable with a six-dimensional tangent."""
+
+    _feature_width = 7
+
+    def _validate_bounds(self, bounds: Bounds | None) -> None:
+        if bounds is not None:
+            raise ValueError(_GROUP_BOUNDS_ERROR.format(kind="SE3", bounds=bounds, name=self.name))
+
+    def tangent_dim(self) -> int:
+        return _numel(self.shape[:-1]) * 6
+
+    def _tangent_event_shape(self) -> tuple[int, ...]:
+        return (*self.shape[:-1], 6)
+
+    def _retract_full(self, value: torch.Tensor, delta: torch.Tensor) -> torch.Tensor:
+        return se3.normalize(se3.compose(value, se3.exp(delta)))
+
+    def _difference_full(self, x0: torch.Tensor, x1: torch.Tensor) -> torch.Tensor:
+        return se3.log(se3.compose(se3.inverse(x0), x1))
+
+    def _project_full(self, value: torch.Tensor) -> torch.Tensor:
+        return se3.normalize(value)
+
+
+@dataclass(frozen=True)
+class _JointCoordinateLayout:
+    box_mask: tuple[bool, ...]
+    unit_ranges: tuple[tuple[int, int], ...]
+    q_for_v: tuple[int, ...]
+    unsafe_q: tuple[int, ...]
+
+
+def _joint_layout(joint) -> _JointCoordinateLayout:
+    if joint.kind == "composite":
+        box_mask: list[bool] = []
+        unit_ranges: list[tuple[int, int]] = []
+        q_for_v: list[int] = []
+        unsafe_q: list[int] = []
+        q_offset = 0
+        for child in joint.sub_joints:
+            layout = _joint_layout(child)
+            box_mask.extend(layout.box_mask)
+            unit_ranges.extend((q_offset + start, q_offset + stop) for start, stop in layout.unit_ranges)
+            q_for_v.extend(q_offset + index if index >= 0 else -1 for index in layout.q_for_v)
+            unsafe_q.extend(q_offset + index for index in layout.unsafe_q)
+            q_offset += child.nq
+        return _JointCoordinateLayout(tuple(box_mask), tuple(unit_ranges), tuple(q_for_v), tuple(unsafe_q))
+
+    box_mask = (False,) * joint.nq
+    unit_ranges: tuple[tuple[int, int], ...] = ()
+    q_for_v = (-1,) * joint.nv
+    unsafe_q: tuple[int, ...] = ()
+    if joint.kind == "free_flyer":
+        box_mask, unit_ranges, unsafe_q = (True, True, True, False, False, False, False), ((3, 7),), (0, 1, 2)
+    elif joint.kind == "spherical":
+        unit_ranges = ((0, 4),)
+    elif joint.kind == "planar":
+        box_mask, unit_ranges, q_for_v = (True, True, False, False), ((2, 4),), (0, 1, -1)
+    elif joint.kind == "revolute_unbounded":
+        unit_ranges = ((0, 2),)
+    elif joint.kind.startswith(("revolute", "prismatic")) or joint.kind in {"helical", "translation"}:
+        box_mask, q_for_v = (True,) * joint.nq, tuple(range(joint.nv))
+    return _JointCoordinateLayout(box_mask, unit_ranges, q_for_v, unsafe_q)
+
+
+class RobotVariable(Variable):
+    """A robot configuration variable using a model's integrate/difference geometry."""
+
+    def __init__(
+        self,
+        model: Model,
+        tensor: torch.Tensor | None = None,
+        *,
+        name: str | None = None,
+        trainable: bool = True,
+        bounds: Bounds | bool | None = None,
+        mask: torch.Tensor | None = None,
+        scale: torch.Tensor | None = None,
+        batch_ndim: int = 0,
+        time_axis: int | None = None,
+    ) -> None:
+        if not isinstance(model, Model):
+            raise TypeError(f"model must be a Model, got {type(model).__name__}")
+        self.model = model
+        self._feature_width = model.nq
+        if tensor is None:
+            tensor = model.q_neutral.clone()
+        if bounds is True:
+            bounds = self.joint_bounds()
+        elif bounds is False:
+            bounds = None
+        super().__init__(
+            tensor,
+            name=name,
+            trainable=trainable,
+            bounds=bounds,
+            mask=mask,
+            scale=scale,
+            batch_ndim=batch_ndim,
+            time_axis=time_axis,
+        )
+
+    @property
+    def box_mask(self) -> torch.Tensor:
+        mask = torch.zeros(self.model.nq, dtype=torch.bool)
+        for joint, nq_joint, iq in zip(self.model.joint_models, self.model.nqs, self.model.idx_qs, strict=True):
+            if nq_joint:
+                mask[iq : iq + nq_joint] = torch.tensor(_joint_layout(joint).box_mask)
+        return mask
+
+    def joint_bounds(self) -> Bounds:
+        lower, upper = self.model.lower_pos_limit, self.model.upper_pos_limit
+        box = self.box_mask.to(lower.device)
+        return Bounds(
+            torch.where(box, lower, torch.full_like(lower, -torch.inf)),
+            torch.where(box, upper, torch.full_like(upper, torch.inf)),
+        )
+
+    @property
+    def unit_coordinate_slices(self) -> tuple[slice, ...]:
+        ranges: list[tuple[int, int]] = []
+        for joint, nq_joint, iq in zip(self.model.joint_models, self.model.nqs, self.model.idx_qs, strict=True):
+            if nq_joint:
+                ranges.extend((iq + start, iq + stop) for start, stop in _joint_layout(joint).unit_ranges)
+        return tuple(slice(start, stop) for start, stop in ranges)
+
+    def _validate_bounds(self, bounds: Bounds | None) -> None:
+        if bounds is None:
+            return
+        if tuple(bounds.lower.shape) != (self.model.nq,):
+            raise ValueError(f"bounds must have state shape ({self.model.nq},), got {tuple(bounds.lower.shape)}")
+        protected = ~self.box_mask.to(bounds.lower.device)
+        valid = torch.isneginf(bounds.lower[protected]).all() & torch.isposinf(bounds.upper[protected]).all()
+        if not bool(valid):
+            indices = torch.nonzero(protected, as_tuple=False).flatten().tolist()
+            raise ValueError(
+                "RobotVariable bounds must be (-inf, +inf) on non-box manifold coordinates "
+                f"{indices}; quaternion/unit-circle coordinates are never clamped"
             )
-        return self.manifold.difference(x0, x1).reshape(*batch, self.tangent_dim)
+
+    def tangent_dim(self) -> int:
+        return _numel(self.shape[:-1]) * self.model.nv
+
+    def _tangent_event_shape(self) -> tuple[int, ...]:
+        return (*self.shape[:-1], self.model.nv)
+
+    def _retract_full(self, value: torch.Tensor, delta: torch.Tensor) -> torch.Tensor:
+        return self.model.integrate(value, delta)
+
+    def _difference_full(self, x0: torch.Tensor, x1: torch.Tensor) -> torch.Tensor:
+        return self.model.difference(x0, x1)
 
 
-def detach_values(values: Values) -> Values:
-    return {name: value.detach() for name, value in values.items()}
+__all__ = ["RobotVariable", "SE3Variable", "SO3Variable", "Variable"]

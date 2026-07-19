@@ -1,14 +1,14 @@
-"""Regression tests for evaluation-local named-block IK state caching."""
+"""Regression tests for evaluation-local object-referenced IK state caching."""
 
 from __future__ import annotations
 
 import torch
 
-import better_robot.optim.providers as provider_module
+import better_robot.residuals.nodes as node_module
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics.forward import forward_kinematics
-from better_robot.optim import Problem, ResidualItem, RobotConfig, RobotStateProvider, VarSpec
+from better_robot.optim import Problem, RobotVariable
 from better_robot.residuals.pose import PoseResidual
 
 
@@ -26,41 +26,35 @@ def _make_arm():
     return build_model(builder.finalize())
 
 
-def test_block_kinematic_residuals_share_one_fk_per_context(monkeypatch) -> None:
+def test_kinematic_residuals_share_one_fk_per_evaluation(monkeypatch) -> None:
     model = _make_arm()
     q = torch.tensor([1.0, -0.8, 0.6])
     data = forward_kinematics(model, q, compute_frames=True)
 
     fk_calls = 0
-    original_fk = provider_module.forward_kinematics
+    original_fk = node_module.forward_kinematics
 
     def counted_fk(*args, **kwargs):
         nonlocal fk_calls
         fk_calls += 1
         return original_fk(*args, **kwargs)
 
-    monkeypatch.setattr(provider_module, "forward_kinematics", counted_fk)
+    monkeypatch.setattr(node_module, "forward_kinematics", counted_fk)
+    q_variable = RobotVariable(model, q, name="q")
     residuals = []
     for link in ("body_link2", "body_link3"):
         name = f"pose_{link}"
         residuals.append(
-            ResidualItem(
-                name,
-                PoseResidual(
-                    frame_id=model.frame_id(link),
-                    target=data.frame_pose_world[model.frame_id(link)],
-                    model=model,
-                    name=name,
-                ),
+            PoseResidual(
+                q_variable,
+                frame_id=model.frame_id(link),
+                target=data.frame_pose_world[model.frame_id(link)],
+                name=name,
             )
         )
-    problem = Problem(
-        vars=(VarSpec("q", (model.nq,), manifold=RobotConfig(model)),),
-        residuals=tuple(residuals),
-        providers=(RobotStateProvider(model),),
-    )
+    problem = Problem(residuals)
 
-    problem.residual({"q": q})
+    problem.error()
     assert fk_calls == 1
-    problem.jacobian_blocks({"q": q})
+    problem.jacobian_blocks()
     assert fk_calls == 2

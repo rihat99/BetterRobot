@@ -2,8 +2,8 @@
 
 1. **Two blocks:** ``q`` has event shape ``(time, 2)`` and ``log_s`` is a
    scalar log-scale block in :func:`slice_support.make_problem`.
-2. **Shared provider:** counted synthetic kinematics feeds one detached-index
-   nearest-neighbor provider shared by penetration, attraction, and clearance.
+2. **Shared node:** counted synthetic kinematics feeds one detached-index
+   nearest-neighbor node shared by penetration, attraction, and clearance.
 3. **Custom residual:** ``PenetrationResidual`` is executed from the exact
    marked testcode fence in ``docs/guides/custom_residual.md``; it is not copied.
 4. **Scale prior:** ``ScalePriorResidual`` is an ordinary one-row residual
@@ -15,18 +15,17 @@
 7. **Phase transition:** two manual Adam segments use different weight columns
    and q masks, with no library solver or Phase abstraction.
 
-Friction log (resolved in test-local integration): VarSpec masks are static, so
-the manual transition cheaply rebuilds Problem while preserving Values;
-torch.optim.Adam needs leaf parameters, so persistent Adam state drives zeroed
-reduced-tangent buffers whose updates are applied by Problem.retract; providers
-remain structural objects because the guide deliberately requires no base class.
+Friction log (resolved in test-local integration): Variable masks are static, so
+the manual transition cheaply rebuilds Problem while copying owned tensors;
+TorchOptimizer drives persistent Adam state over rebased reduced tangents; shared
+Node objects own evaluation-epoch memos.
 """
 
 from __future__ import annotations
 
 import torch
 
-from better_robot.optim import Values, run_first_order
+from better_robot.optim import Problem, TorchOptimizer
 
 from .slice_support import (
     COORDS,
@@ -46,62 +45,69 @@ from .slice_support import (
 
 
 def _run_adam_segment(
-    problem,
-    values: Values,
+    problem: Problem,
+    values: dict[str, torch.Tensor],
     *,
-    weights,
     iterations: int,
     learning_rate: float,
-) -> Values:
+) -> dict[str, torch.Tensor]:
     """Run the public torch.optim adapter for one staged segment."""
-    current, _ = run_first_order(
-        values,
+    problem.update(values)
+    TorchOptimizer(
         problem,
-        lambda params: torch.optim.Adam(params, lr=learning_rate),
-        max_iter=iterations,
+        torch.optim.Adam,
+        lr=learning_rate,
+        max_iterations=iterations,
         tolerance=0.0,
-        weights=weights,
-    )
-    return current
+    ).optimize()
+    return {variable.name: variable.tensor.clone() for variable in problem.vars}
 
 
 def test_marked_guide_residual_and_provider_evaluation_counts() -> None:
     assert GUIDE_CUSTOM_RESIDUAL_SOURCE.startswith("import torch")
-    assert "class PenetrationResidual:" in GUIDE_CUSTOM_RESIDUAL_SOURCE
+    assert "class PenetrationResidual(Residual):" in GUIDE_CUSTOM_RESIDUAL_SOURCE
     assert PenetrationResidual.__module__.endswith("slice_support")
     assert len(FRICTION_LOG) == 3
 
     data = make_slice_data()
-    problem, counters = make_problem(data, root_only=False)
-    values = data.initial_values()
+    problem, counters = make_problem(data, root_only=False, weights=FULL_WEIGHTS)
 
-    residual = problem.residual(values, weights=FULL_WEIGHTS)
+    residual = problem.error()
     assert residual.shape == (TIME * POINTS * (COORDS + 2) + 1,)
     assert (counters.kinematics, counters.nearest_neighbor) == (1, 1)
 
-    gradient = problem.gradient(values, weights=FULL_WEIGHTS)
+    gradient = problem.gradient()
     assert set(gradient) == {"q", "log_s"}
     assert (counters.kinematics, counters.nearest_neighbor) == (2, 2)
 
-    objective = problem.objective(values, weights=FULL_WEIGHTS)
+    objective = problem.objective()
     assert torch.isfinite(objective)
     assert (counters.kinematics, counters.nearest_neighbor) == (3, 3)
 
-    inactive_problem, inactive = make_problem(data, root_only=False)
-    inactive_problem.residual(values, weights=PROVIDER_INACTIVE_WEIGHTS)
-    inactive_problem.gradient(values, weights=PROVIDER_INACTIVE_WEIGHTS)
-    inactive_problem.objective(values, weights=PROVIDER_INACTIVE_WEIGHTS)
+    inactive_problem, inactive = make_problem(
+        data,
+        root_only=False,
+        weights=PROVIDER_INACTIVE_WEIGHTS,
+    )
+    inactive_problem.error()
+    inactive_problem.gradient()
+    inactive_problem.objective()
     assert (inactive.kinematics, inactive.nearest_neighbor) == (0, 0)
 
 
 def test_batched_residual_and_gradient_match_three_sequential_evaluations() -> None:
     data = make_slice_data()
-    problem, counters = make_problem(data, root_only=False)
     batched_values = make_batched_values(data)
+    problem, counters = make_problem(
+        data,
+        root_only=False,
+        values=batched_values,
+        weights=FULL_WEIGHTS,
+    )
 
-    batched_residual = problem.residual(batched_values, weights=FULL_WEIGHTS)
+    batched_residual = problem.error()
     assert counters.kinematics == counters.nearest_neighbor == 1
-    batched_gradient = problem.gradient(batched_values, weights=FULL_WEIGHTS)
+    batched_gradient = problem.gradient()
     assert counters.kinematics == counters.nearest_neighbor == 2
 
     assert batched_residual.shape == (3, TIME * POINTS * (COORDS + 2) + 1)
@@ -109,8 +115,14 @@ def test_batched_residual_and_gradient_match_three_sequential_evaluations() -> N
     assert batched_gradient["log_s"].shape == (3, 1)
     for index in range(3):
         sequential = {name: value[index] for name, value in batched_values.items()}
-        expected_residual = problem.residual(sequential, weights=FULL_WEIGHTS)
-        expected_gradient = problem.gradient(sequential, weights=FULL_WEIGHTS)
+        sequential_problem, _ = make_problem(
+            data,
+            root_only=False,
+            values=sequential,
+            weights=FULL_WEIGHTS,
+        )
+        expected_residual = sequential_problem.error()
+        expected_gradient = sequential_problem.gradient()
         torch.testing.assert_close(
             batched_residual[index],
             expected_residual,
@@ -128,22 +140,25 @@ def test_batched_residual_and_gradient_match_three_sequential_evaluations() -> N
 
 def test_batched_jacobians_keep_shared_slice_parameters_intact() -> None:
     data = make_slice_data()
-    problem, _ = make_problem(data, root_only=False)
     batched_values = make_batched_values(data)
+    problem, _ = make_problem(
+        data,
+        root_only=False,
+        values=batched_values,
+        weights=FULL_WEIGHTS,
+    )
 
     for strategy in ("jacrev", "jacfwd"):
-        batched = problem.jacobian_blocks(
-            batched_values,
-            weights=FULL_WEIGHTS,
-            strategy=strategy,
-        )
+        batched = problem.jacobian_blocks(strategy=strategy)
         for index in range(3):
             sequential_values = {name: value[index] for name, value in batched_values.items()}
-            sequential = problem.jacobian_blocks(
-                sequential_values,
+            sequential_problem, _ = make_problem(
+                data,
+                root_only=False,
+                values=sequential_values,
                 weights=FULL_WEIGHTS,
-                strategy=strategy,
             )
+            sequential = sequential_problem.jacobian_blocks(strategy=strategy)
             assert tuple(batched) == tuple(sequential)
             for key in batched:
                 torch.testing.assert_close(
@@ -158,38 +173,48 @@ def test_manual_root_to_full_phase_transition_converges() -> None:
     torch.manual_seed(20260717)
     data = make_slice_data()
     counters = SliceCounters()
-    root_problem, _ = make_problem(data, root_only=True, counters=counters)
-    full_problem, _ = make_problem(data, root_only=False, counters=counters)
+    root_problem, _ = make_problem(
+        data,
+        root_only=True,
+        counters=counters,
+        weights=ROOT_WEIGHTS,
+    )
+    full_problem, _ = make_problem(
+        data,
+        root_only=False,
+        counters=counters,
+        weights=FULL_WEIGHTS,
+    )
     values = data.initial_values()
+    root_problem._freeze()
+    full_problem._freeze()
 
     assert root_problem.vars[0].free_dim == TIME
     assert full_problem.vars[0].free_dim == TIME * COORDS
     assert root_problem.vars[0].free_indices.tolist() != full_problem.vars[0].free_indices.tolist()
     assert ROOT_WEIGHTS != FULL_WEIGHTS
 
-    initial_loss = full_problem.objective(values, weights=FULL_WEIGHTS)
+    initial_loss = full_problem.objective()
     root_iterations = 45
     full_iterations = 90
     values = _run_adam_segment(
         root_problem,
         values,
-        weights=ROOT_WEIGHTS,
         iterations=root_iterations,
         learning_rate=0.04,
     )
     values = _run_adam_segment(
         full_problem,
         values,
-        weights=FULL_WEIGHTS,
         iterations=full_iterations,
         learning_rate=0.035,
     )
-    final_loss = full_problem.objective(values, weights=FULL_WEIGHTS)
+    final_loss = full_problem.objective()
 
     assert final_loss.item() < 2e-4
     assert final_loss.item() < 0.01 * initial_loss.item()
     torch.testing.assert_close(values["q"], data.target_q, rtol=0.0, atol=1.5e-2)
     torch.testing.assert_close(values["log_s"], data.target_log_s, rtol=0.0, atol=1.5e-2)
-    expected_active_evaluations = 4 + root_iterations + full_iterations
+    expected_active_evaluations = 4 + 2 * root_iterations + 2 * full_iterations
     assert counters.kinematics == expected_active_evaluations
     assert counters.nearest_neighbor == expected_active_evaluations

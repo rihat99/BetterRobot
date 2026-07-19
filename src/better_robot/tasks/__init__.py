@@ -1,8 +1,7 @@
 """``better_robot.tasks`` — task facades and trajectory utilities.
 
-Optimisation entry points are short facades that pick frames by name,
-assemble named ``Problem`` / ``VarSpec`` blocks with residual items and lazy
-providers, run a named-block solver over a values mapping, and return a clean
+Optimisation entry points are short facades that construct variables and
+residual objects, assemble a ``Problem``, run an optimizer, and return a clean
 task result. Trajectory helpers remain plain, differentiable tensor operations.
 
 No Jacobian code, no solver loops, no fixed-vs-floating base branching

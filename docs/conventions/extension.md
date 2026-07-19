@@ -11,10 +11,11 @@ dictionary is a public plugin API.
 
 | Goal | Public extension point |
 |---|---|
-| add an objective | residual callable, usually wrapped by `ResidualItem` |
+| add an objective | `Residual` subclass or `@residual` tensor function |
 | add a robot joint | `JointModel` protocol and `ModelBuilder` |
-| add a first-order optimizer | a `torch.optim.Optimizer` factory |
-| add a least-squares solver | call a solver object directly |
+| add shared residual work | `Node` subclass |
+| add a first-order optimizer | `TorchOptimizer` with a `torch.optim.Optimizer` class or factory |
+| add a nonlinear optimizer | `Optimizer` subclass owning one `Problem` |
 | add a linear solver | `LinearSolver` protocol |
 | add a robust loss | `RobustKernel` protocol |
 | add a file format | `register_parser(suffix, function)` |
@@ -24,38 +25,52 @@ dictionary is a public plugin API.
 
 ## Residuals
 
-Start with {doc}`/guides/custom_residual`. A residual declares:
+Start with {doc}`/guides/custom_residual`. A residual subclasses `Residual`
+and declares:
 
 | Member | Meaning |
 |---|---|
 | `name` | stable diagnostic name |
-| `reads` | context entries needed by the calculation |
+| `variables` | ordered object references read by the residual |
 | `dim` | fixed number of output rows |
-| `__call__(ctx)` | returns `(B..., dim)` |
-| `jacobian_blocks(ctx)` | optional complete analytic blocks |
+| `weight`, `kernel`, `group_size` | row scaling and robust grouping |
+| `error()` | returns `(B..., dim)` |
+| `jacobian()` | optional complete reduced-tangent blocks |
 
 For example:
 
 ```{testcode}
 import torch
+from better_robot.optim import Problem, Residual, Variable
 
 
-class PointAtOrigin:
-    name = "point_at_origin"
-    reads = ("point",)
-    dim = 3
+class PointAtOrigin(Residual):
+    def __init__(self, point):
+        self.point = point
+        super().__init__(point, dim=3, name="point_at_origin")
 
-    def __call__(self, ctx) -> torch.Tensor:
-        return ctx["point"]
+    def error(self) -> torch.Tensor:
+        return self.point.tensor
+
+
+point = Variable(torch.ones(3), name="point")
+problem = Problem([PointAtOrigin(point)])
+torch.testing.assert_close(problem.error(), torch.ones(3))
 ```
 
-Add an instance explicitly with `Problem.add_residual` or wrap it in a
-`ResidualItem`. The item owns its weight and robust kernel. There is no
-process-wide residual registry.
+Pass residual instances to `Problem`; it harvests their variable and node
+references. The `@residual(variable, ..., dim=...)` adapter is the concise
+choice when automatic differentiation is sufficient. There is no process-wide
+residual registry.
 
-A provider may compute shared context entries lazily. It declares `name`,
-`reads`, `outputs`, and `__call__(ctx)`. Provider caches last for one
-problem evaluation only.
+## Shared nodes
+
+A `Node` computes shared work lazily from variables supplied to its
+constructor. Implement `compute()`, and optionally an identity-only
+`merge_key` when equivalent instances may share one memo. Residuals list the
+nodes they use in `nodes` and call `node.value()`. `Problem` invalidates all
+node memos at evaluation boundaries, so graph-bearing values never leak from
+one candidate to another. `RobotState` is the built-in FK example.
 
 ## Joint models
 
@@ -82,25 +97,25 @@ There is no joint registry. Pass the custom joint object to a programmatic
 `JointKind` literal lists built-ins and does not become open merely because
 runtime construction accepts a custom string.
 
-## Nonlinear solvers
+## Nonlinear optimizers
 
-`LevenbergMarquardt` and `GaussNewton` expose the lifecycle used by direct
-callers:
+Every `Optimizer` owns a `Problem` and exposes this public lifecycle:
 
 | Method | Purpose |
 |---|---|
-| `init_state(values, problem)` | validate the solve and create tensor state |
-| `update(values, state, problem)` | perform one fixed-shape step |
-| `finalize(values, state, problem)` | refresh diagnostics at the returned point |
-| `run(values, problem, state=None)` | run the detached eager loop |
-| `solve(..., differentiate=...)` | choose detached or eligible implicit differentiation |
+| `step()` | update referenced trainable variables once and return `OptimizerInfo` |
+| `optimize()` | run the eager loop and return final public diagnostics |
+| `reset()` | clear optimizer state while retaining variable values |
 
-A prior state can warm-start solver state. Task helpers do not discover custom
-solver classes; call a custom solver directly.
+Subclass `Optimizer` for a genuinely different nonlinear driver and implement
+`step`, `reset`, and the initial-info hook. Solved values remain on variables;
+the shared `OptimizerInfo` contains status, iterations, cost, and derived
+convergence. Task helpers accept custom optimizer factories only where their
+documented signature says so; otherwise call the custom optimizer directly.
 
-For first-order methods, pass a standard optimizer factory to
-`run_first_order`. BetterRobot owns tangent retraction and bounds while
-PyTorch owns Adam, SGD, or another compatible update rule.
+For first-order methods, construct `TorchOptimizer(problem, optimizer_cls,
+**kwargs)`. BetterRobot owns tangent retraction and bounds while PyTorch owns
+Adam, SGD, or another compatible update rule.
 
 The generated {doc}`/reference/api/better_robot/better_robot.optim` page is
 the exact signature reference. The least-squares reasoning and damping
@@ -108,14 +123,21 @@ intuition live in {doc}`/concepts/residuals_costs_and_solvers`.
 
 ## Linear solvers
 
-A `LinearSolver` implements:
+A `LinearSolver` implements a `solve` method:
 
 ```{testcode}
 import torch
 
 
-def solve(A, b, ridge=None):
-    return torch.linalg.solve(A, b)
+class DenseSolver:
+    supported_systems = frozenset({"dense"})
+
+    def solve(self, A, b, ridge=None):
+        matrix = A.clone()
+        if ridge is not None:
+            value = torch.as_tensor(ridge, dtype=A.dtype, device=A.device)
+            matrix.diagonal(dim1=-2, dim2=-1).add_(value[..., None])
+        return torch.linalg.solve(matrix, b)
 ```
 
 `b` has shape `(B..., n)`; `ridge` is a scalar, `(B...,)`, or
@@ -123,9 +145,9 @@ def solve(A, b, ridge=None):
 `supported_systems`. A solver that accepts block-banded storage declares
 `supported_systems = frozenset({"banded"})` or both supported forms.
 
-The built-ins are dense `Cholesky` and `BandedCholesky`. Do not claim a
-rank-deficient fallback unless the implementation and result diagnostics prove
-it.
+The built-ins are dense `Cholesky`, dense `LU`, and `BandedCholesky`. Do not
+claim a rank-deficient fallback unless the implementation and result
+diagnostics prove it.
 
 ## Robust kernels
 
@@ -134,7 +156,7 @@ for the iteratively reweighted normal equations. Both methods preserve the
 input shape. BetterRobot uses `weight(s) = 2 * rho'(s)`.
 
 Built-ins are `L2`, `Huber`, `Cauchy`, `Tukey`, and
-`GemanMcClure`. Pass a kernel on the residual item; there is no global
+`GemanMcClure`. Pass a kernel on the residual; there is no global
 kernel selector.
 
 ## Parser formats

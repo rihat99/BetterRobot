@@ -1,131 +1,174 @@
-"""Joint position / velocity / acceleration limit residuals.
-
-Uses a clamped penalty — zero inside limits, positive outside. This is
-what replaces the current ``costs/limits.py`` ``torch.clamp(min=0)`` pattern.
-
-See ``docs/concepts/residuals_costs_and_solvers.md``.
-"""
+"""Joint position and velocity limit residuals."""
 
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+import math
+from numbers import Real
 
 import torch
 
-from ..data_model.model import Model
-from .base import _configuration
+from ._temporal_jacobian import dense_temporal_residual, temporal_free_indices
+from ._variables import (
+    RobotLike,
+    RobotVariableLike as _RobotVariable,
+    ShapedVariableLike as _Variable,
+    current_value,
+    matches,
+    static_value,
+)
+from .base import Residual, Weight
+from .structure import TemporalPattern
 
 
-class JointPositionLimit:
-    """One-sided clamped penalty on joint position limits.
-
-    ``r = [clamp(lower - q, min=0); clamp(q - upper, min=0)] * weight``
-
-    ``dim = 2 * nq`` (lower violations concatenated with upper violations).
-    The analytic Jacobian is taken in **tangent space** ``nv`` via a
-    precomputed ``(nq, nv)`` ``dq/dv`` projection. For single-DOF joints
-    ``nq == nv`` and the projection is identity-per-joint. For joints with
-    ``nq != nv`` (free-flyer, spherical, planar, unbounded) the projection
-    rows are zero — their position limits are always ±inf (or ±1 on unit
-    components that never actually violate) so the gradient there is zero
-    anyway, and this keeps the tangent-space contract consistent for
-    floating-base robots.
-    """
-
-    name: str = "joint_position_limit"
-    reads = ("q",)
+class JointPositionLimit(Residual):
+    """One-sided clamped penalty on a robot variable's position limits."""
 
     def __init__(
         self,
-        model: Model,
+        q: _RobotVariable,
         *,
-        weight: float = 1.0,
+        knot: int | None = None,
+        weight: Weight | Real | torch.Tensor = 1.0,
+        kernel: object | None = None,
         name: str = "joint_position_limit",
     ) -> None:
-        self.model = model
-        self.name = name
-        self.weight = weight
-        self.dim = 2 * model.nq
+        if not isinstance(q, RobotLike):
+            raise TypeError(f"q must be a RobotVariable, got {type(q).__name__}")
+        if q.time_axis is None:
+            if knot is not None:
+                raise ValueError("knot requires q.time_axis=0")
+            horizon = None
+        else:
+            if q.time_axis != 0:
+                raise ValueError(f"q time_axis must be 0 or None, got {q.time_axis}")
+            horizon = q.time_length
+            if knot is not None:
+                if isinstance(knot, bool) or not isinstance(knot, int):
+                    raise TypeError(f"knot must be an int or None, got {type(knot).__name__}")
+                if not -horizon <= knot < horizon:
+                    raise ValueError(f"knot={knot} must index trajectory length {horizon}")
+                knot %= horizon
+        self.q = q
+        self.model = q.model
+        self.horizon = horizon
+        self.knot = knot
+        self._knot_dim = 2 * q.model.nq
+        dim = self._knot_dim if horizon is None or knot is not None else horizon * self._knot_dim
+        super().__init__(q, dim=dim, weight=weight, kernel=kernel, name=name)
 
-        # Precompute dq/dv projection: (nq, nv) with identity blocks where
-        # a joint has nq == nv, zeros elsewhere. Built on CPU once; the
-        # analytic block helper moves it to the caller's device/dtype lazily.
-        dq_dv = torch.zeros(model.nq, model.nv, dtype=torch.float32)
-        for j in range(model.njoints):
-            nq_j = model.nqs[j]
-            nv_j = model.nvs[j]
-            if nq_j == 0 or nq_j != nv_j:
-                continue
-            iq = model.idx_qs[j]
-            iv = model.idx_vs[j]
-            for k in range(nq_j):
-                dq_dv[iq + k, iv + k] = 1.0
-        self._dq_dv = dq_dv  # (nq, nv)
+    def _configuration_at(self, knot: int | None) -> torch.Tensor:
+        q = self.q.tensor
+        return q if knot is None else q[..., knot, :]
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        q = _configuration(ctx)
-        lo = self.model.lower_pos_limit.to(q.device, q.dtype)  # (nq,)
-        hi = self.model.upper_pos_limit.to(q.device, q.dtype)  # (nq,)
-        lower_viol = torch.clamp(lo - q, min=0.0) * self.weight  # (B..., nq)
-        upper_viol = torch.clamp(q - hi, min=0.0) * self.weight  # (B..., nq)
-        return torch.cat([lower_viol, upper_viol], dim=-1)  # (B..., 2*nq)
+    def _limits(self, q: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        lower, upper = self.model.lower_pos_limit, self.model.upper_pos_limit
+        if lower.dtype != q.dtype or lower.device != q.device:
+            raise ValueError("model position limits must share q dtype/device")
+        return lower, upper
 
-    def _analytic_jacobian(
+    def _error_at(self, knot: int | None) -> torch.Tensor:
+        q = self._configuration_at(knot)
+        lower, upper = self._limits(q)
+        rows = torch.cat((torch.clamp(lower - q, min=0.0), torch.clamp(q - upper, min=0.0)), dim=-1)
+        if knot is None and self.horizon is not None:
+            return rows.reshape(*q.shape[:-2], self.horizon * self._knot_dim)
+        return rows
+
+    def error(self) -> torch.Tensor:
+        return self._error_at(self.knot)
+
+    def _dq_dv(self, q: torch.Tensor) -> torch.Tensor:
+        projection = q.new_zeros(self.model.nq, self.model.nv)
+        for nq_joint, nv_joint, iq, iv in zip(
+            self.model.nqs,
+            self.model.nvs,
+            self.model.idx_qs,
+            self.model.idx_vs,
+            strict=True,
+        ):
+            if nq_joint and nq_joint == nv_joint:
+                projection[iq : iq + nq_joint, iv : iv + nv_joint].fill_diagonal_(1.0)
+        return projection
+
+    def _full_jacobian_at(self, knot: int | None) -> torch.Tensor:
+        q = self._configuration_at(knot)
+        lower, upper = self._limits(q)
+        lower_diagonal = torch.where(q < lower, -torch.ones_like(q), torch.zeros_like(q))
+        upper_diagonal = torch.where(q > upper, torch.ones_like(q), torch.zeros_like(q))
+        projection = self._dq_dv(q)
+        return torch.cat(
+            (lower_diagonal.unsqueeze(-1) * projection, upper_diagonal.unsqueeze(-1) * projection),
+            dim=-2,
+        )
+
+    def _reduced_jacobian_at(self, knot: int) -> torch.Tensor:
+        full = self._full_jacobian_at(knot)
+        indices = temporal_free_indices(self.q, device=full.device)
+        return full.index_select(-1, indices)
+
+    def temporal_structure(self, variable: _RobotVariable | str) -> TemporalPattern | None:
+        if self.horizon is None or not matches(variable, self.q):
+            return None
+        if self.knot is None:
+            return TemporalPattern(self.horizon, self._knot_dim, 0, (0,))
+        return TemporalPattern(1, self._knot_dim, self.knot, (0,))
+
+    def temporal_jacobian_blocks(
         self,
-        ctx: Mapping[str, Any],
-    ) -> torch.Tensor:
-        """Analytic Jacobian in tangent space. Shape ``(B..., 2*nq, nv)``."""
-        q = _configuration(ctx)
-        lo = self.model.lower_pos_limit.to(q.device, q.dtype)
-        hi = self.model.upper_pos_limit.to(q.device, q.dtype)
+        variable: _RobotVariable | str,
+    ) -> Mapping[int, torch.Tensor]:
+        pattern = self.temporal_structure(variable)
+        if pattern is None:
+            return {}
+        if self.knot is None:
+            blocks = [self._reduced_jacobian_at(index) for index in range(self.horizon or 0)]
+            block = torch.stack(blocks, dim=-3)
+        else:
+            block = self._reduced_jacobian_at(self.knot).unsqueeze(-3)
+        return {0: block}
 
-        # Per-q indicator of active lower/upper violation, scaled by weight.
-        lower_diag = torch.where(
-            q < lo,
-            torch.full_like(q, -self.weight),
-            torch.zeros_like(q),
-        )  # (B..., nq)
-        upper_diag = torch.where(
-            q > hi,
-            torch.full_like(q, self.weight),
-            torch.zeros_like(q),
-        )  # (B..., nq)
+    def jacobian(self) -> tuple[torch.Tensor, ...]:
+        if self.horizon is None:
+            full = self._full_jacobian_at(None)
+            return (full.index_select(-1, self.q.free_indices.to(full.device)),)
+        return dense_temporal_residual(self, self.q, self.horizon)
 
-        # Project to nv columns via the precomputed (nq, nv) mapping.
-        dq_dv = self._dq_dv.to(q.device, q.dtype)  # (nq, nv)
-        J_lower = lower_diag.unsqueeze(-1) * dq_dv  # (B..., nq, nv)
-        J_upper = upper_diag.unsqueeze(-1) * dq_dv  # (B..., nq, nv)
-        return torch.cat([J_lower, J_upper], dim=-2)  # (B..., 2*nq, nv)
 
-    def jacobian_blocks(
+class JointVelocityLimit(Residual):
+    """One-sided clamped penalty on a velocity-valued Variable."""
+
+    def __init__(
         self,
-        ctx: Mapping[str, Any],
-    ) -> dict[str, torch.Tensor]:
-        """Return the mask-reduced analytic ``q`` block."""
-        full = self._analytic_jacobian(ctx)
-        indices = ctx.free_indices("q").to(device=full.device)
-        return {"q": full.index_select(-1, indices)}
+        velocity: _Variable,
+        limit: torch.Tensor | _Variable,
+        *,
+        weight: Weight | Real | torch.Tensor = 1.0,
+        kernel: object | None = None,
+        name: str = "joint_velocity_limit",
+    ) -> None:
+        if not isinstance(velocity, _Variable):
+            raise TypeError(f"velocity must be a Variable, got {type(velocity).__name__}")
+        limit_tensor, targets = static_value(limit, name="limit")
+        if not velocity.shape or tuple(limit_tensor.shape) != velocity.shape[-1:]:
+            raise ValueError(f"limit must have shape {velocity.shape[-1:]}, got {tuple(limit_tensor.shape)}")
+        self.velocity = velocity
+        self.limit = limit
+        event_width = math.prod(velocity.shape)
+        super().__init__(
+            velocity,
+            *targets,
+            dim=2 * event_width,
+            weight=weight,
+            kernel=kernel,
+            name=name,
+        )
+
+    def error(self) -> torch.Tensor:
+        velocity = self.velocity.tensor
+        limit = current_value(self.limit, velocity, name="limit", preserve=False)
+        rows = torch.cat((torch.clamp(-limit - velocity, min=0.0), torch.clamp(velocity - limit, min=0.0)), dim=-1)
+        return rows.reshape(*velocity.shape[: -len(self.velocity.shape)], self.dim)
 
 
-class JointVelocityLimit:
-    """One-sided clamped penalty on joint velocity limits. ``dim = 2 * nv``."""
-
-    name: str = "joint_velocity_limit"
-    reads = ("q", "data")
-
-    def __init__(self, model: Model, *, weight: float = 1.0) -> None:
-        self.model = model
-        self.weight = weight
-        self.dim = 2 * model.nv
-
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        q = _configuration(ctx)
-        data = ctx["data"]
-        # For velocity limits we check data.v if available,
-        # otherwise fall back to a zero residual.
-        v = data.v if data.v is not None else torch.zeros_like(q)
-        lim = self.model.velocity_limit.to(v.device, v.dtype)  # (nv,)
-        lower_viol = torch.clamp(-lim - v, min=0.0) * self.weight
-        upper_viol = torch.clamp(v - lim, min=0.0) * self.weight
-        return torch.cat([lower_viol, upper_viol], dim=-1)
+__all__ = ["JointPositionLimit", "JointVelocityLimit"]

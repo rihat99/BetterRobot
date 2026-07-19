@@ -1,111 +1,113 @@
-"""Contact-consistency residual: penalise cartesian motion of contact frames.
-
-Given a contact mask ``c ∈ (T, K)`` over ``K`` target frames, the residual
-penalises the per-frame linear velocity of each contact frame — measured
-as the world-frame displacement of the frame origin between consecutive
-timesteps. This is exactly the linear part of the frame's
-``LOCAL_WORLD_ALIGNED`` spatial velocity (see
-``docs/concepts/kinematics_and_jacobians.md``):
-
-    r_{t,k,:3} = c_{t,k} * (p_k(q_{t+1}) - p_k(q_t)) / dt
-
-where ``p_k(q) = data.frame_pose_world[t, frame_ids[k], :3]``.
-
-Output dim: ``3 * K * (T - 1)`` — linear only in v1. The ``angular`` flag
-is reserved as an expansion hook.
-
-See ``docs/concepts/residuals_costs_and_solvers.md``.
-"""
+"""Contact-consistency residual for trajectory robot variables."""
 
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+import math
+from numbers import Real
 
 import torch
 
+from .._validation import check_tensor
 from ..data_model.data import Data
-from ..data_model.model import Model
-from ._temporal_jacobian import dense_temporal_jacobian, temporal_free_indices
-from .base import _configuration
+from ._temporal_jacobian import dense_temporal_jacobian
+from ._variables import RobotVariableLike as _RobotVariableLike, VariableLike as _VariableLike, matches, value
+from .base import Residual, Weight
+from .nodes import RobotState, robot_state
 from .structure import TemporalPattern
 
 
-class ContactConsistencyResidual:
-    """Linear cartesian velocity penalty on tagged contact frames."""
+class ContactConsistencyResidual(Residual):
+    """Cartesian velocity penalty on tagged contact frames.
 
-    name: str = "contact_consistency"
-    reads = ("q", "data")
+    ``contact_weights`` are domain mask amplitudes averaged across each pair
+    of adjacent knots. The inherited ``weight`` is the optimizer-level row
+    multiplier and is therefore not duplicated inside :meth:`error` or
+    :meth:`jacobian`.
+    """
 
     def __init__(
         self,
-        model: Model,
+        q_or_state: _RobotVariableLike | RobotState,
         frame_ids: tuple[int, ...],
-        contact_weights: torch.Tensor,
+        contact_weights: _VariableLike | torch.Tensor,
         *,
         dt: float,
-        weight: float = 1.0,
+        weight: Weight | Real | torch.Tensor = 1.0,
+        kernel: object | None = None,
         angular: bool = False,
         name: str = "contact_consistency",
     ) -> None:
         if angular:
             raise NotImplementedError("angular contact-consistency is an expansion hook; not implemented in v1")
-        if contact_weights.dim() != 2 or contact_weights.shape[1] != len(frame_ids):
-            raise ValueError(f"contact_weights must be (T, {len(frame_ids)}); got {tuple(contact_weights.shape)}")
+        q, state = robot_state(q_or_state)
+        if q.time_axis != 0 or len(q.shape) != 2:
+            raise ValueError("ContactConsistencyResidual q must declare time_axis=0")
         if not frame_ids:
             raise ValueError("ContactConsistencyResidual requires at least one contact frame")
-        if contact_weights.shape[0] < 2:
+        ids = tuple(frame_ids)
+        if any(isinstance(frame_id, bool) or not isinstance(frame_id, int) for frame_id in ids):
+            raise TypeError("frame_ids must contain only integer frame ids")
+        if any(frame_id < 0 or frame_id >= q.model.nframes for frame_id in ids):
+            raise ValueError(f"frame_ids must index model frame rows in [0, {q.model.nframes})")
+        weights = check_tensor("contact_weights", value(contact_weights, "contact_weights"), floating=True)
+        if weights.ndim != 2 or weights.shape[1] != len(ids):
+            raise ValueError(f"contact_weights must be (T, {len(ids)}); got {tuple(weights.shape)}")
+        if weights.shape[0] < 2:
             raise ValueError("ContactConsistencyResidual requires at least two timesteps")
-        self.model = model
-        self.name = name
-        self.frame_ids = tuple(int(i) for i in frame_ids)
-        self.contact_weights = contact_weights
-        self.dt = float(dt)
-        self.weight = float(weight)
-        T = int(contact_weights.shape[0])
-        self.horizon = T
-        K = len(self.frame_ids)
-        self.dim = 3 * K * (T - 1)
+        if q.shape[0] != weights.shape[0]:
+            raise ValueError(f"q horizon {q.shape[0]} != contact_weights length {weights.shape[0]}")
+        dt = float(dt)
+        if not math.isfinite(dt) or dt <= 0.0:
+            raise ValueError(f"dt must be finite and positive, got {dt!r}")
 
-    def _context(
-        self,
-        ctx: Mapping[str, Any],
-    ) -> tuple[torch.Tensor, Data]:
-        q = _configuration(ctx)
-        data = ctx["data"]
-        if not isinstance(data, Data):
-            raise TypeError(f"data must be Data, got {type(data).__name__}")
-        if q.ndim < 2:  # bench-ok: trajectory-shape contract validation
-            raise ValueError(f"ContactConsistencyResidual expects (B..., T, nq); got {tuple(q.shape)}")
-        if q.shape[-2] != self.horizon:
-            raise ValueError(f"trajectory length {q.shape[-2]} != contact_weights length {self.horizon}")
-        return q, data
+        self.state = state
+        self.nodes = (state,)
+        self.q = q
+        self.model = q.model
+        self.frame_ids = ids
+        self.contact_weights = contact_weights
+        self.dt = dt
+        self.horizon = int(weights.shape[0])
+        direct = (contact_weights,) if isinstance(contact_weights, _VariableLike) else ()
+        super().__init__(
+            *direct,
+            dim=3 * len(ids) * (self.horizon - 1),
+            weight=weight,
+            kernel=kernel,
+            group_size=3,
+            name=name,
+        )
 
     def _frame_positions(self, data: Data) -> torch.Tensor:
-        """Return ``(B..., T, K, 3)`` frame-origin positions."""
         if data.frame_pose_world is None:
-            raise RuntimeError(
-                "ContactConsistencyResidual: data.frame_pose_world is None; "
-                "RobotStateProvider must compute frame placements"
-            )
+            raise RuntimeError("ContactConsistencyResidual requires frame placements")
         frame_idx = torch.as_tensor(self.frame_ids, device=data.frame_pose_world.device)
-        p = data.frame_pose_world[..., :3]
-        return p.index_select(-2, frame_idx)
+        return data.frame_pose_world[..., :3].index_select(-2, frame_idx)
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        q, data = self._context(ctx)
-        p = self._frame_positions(data)  # (T, K, 3)
-        dp = (p[..., 1:, :, :] - p[..., :-1, :, :]) / self.dt
+    def _domain_weights(self, exemplar: torch.Tensor) -> torch.Tensor:
+        return check_tensor(
+            "contact_weights",
+            value(self.contact_weights, "contact_weights"),
+            shape=(self.horizon, len(self.frame_ids)),
+            floating=True,
+            dtype=exemplar.dtype,
+            device=exemplar.device,
+        )
 
-        w = self.contact_weights.to(device=q.device, dtype=q.dtype)
-        # Use the average of the endpoint masks — so transitions do not
-        # weight the displacement asymmetrically.
-        w_pair = 0.5 * (w[:-1] + w[1:]).unsqueeze(-1)  # (T-1, K, 1)
-        r = self.weight * w_pair * dp  # (T-1, K, 3)
-        return r.reshape(*q.shape[:-2], self.dim)
+    def error(self) -> torch.Tensor:
+        q = self.q.tensor
+        if q.ndim < 2 or q.shape[-2] != self.horizon:
+            raise ValueError(f"trajectory must end in ({self.horizon}, nq), got {tuple(q.shape)}")
+        positions = self._frame_positions(self.state._checked_value(Data))
+        displacement = (positions[..., 1:, :, :] - positions[..., :-1, :, :]) / self.dt
+        weights = self._domain_weights(q)
+        pair_weights = 0.5 * (weights[:-1] + weights[1:]).unsqueeze(-1)
+        rows = pair_weights * displacement
+        return rows.reshape(*q.shape[:-2], self.dim)
 
-    def temporal_structure(self, variable_name: str) -> TemporalPattern | None:
-        if variable_name != "q":
+    def temporal_structure(self, variable: _RobotVariableLike | str) -> TemporalPattern | None:
+        if not matches(variable, self.q):
             return None
         return TemporalPattern(
             rows=self.horizon - 1,
@@ -115,61 +117,49 @@ class ContactConsistencyResidual:
         )
 
     def _frame_jacobians(self, data: Data) -> torch.Tensor:
-        """Return LWA linear frame Jacobians ``(B..., T, K, 3, nv)``."""
         from ..kinematics.jacobian import get_frame_jacobian  # noqa: PLC0415
 
         return torch.stack(
-            [
-                get_frame_jacobian(
-                    self.model,
-                    data,
-                    frame_id,
-                )[..., :3, :]
-                for frame_id in self.frame_ids
-            ],
+            [get_frame_jacobian(self.model, data, frame_id)[..., :3, :] for frame_id in self.frame_ids],
             dim=-3,
         )
 
-    def _temporal_blocks(
-        self,
-        q: torch.Tensor,
-        data: Data,
-        indices: torch.Tensor,
-    ) -> dict[int, torch.Tensor]:
-        K = len(self.frame_ids)
-        frame_jacobians = self._frame_jacobians(data).index_select(-1, indices)
-        weights = self.contact_weights.to(device=q.device, dtype=q.dtype)
-        pair_weights = 0.5 * (weights[:-1] + weights[1:])
-        scale_shape = (*((1,) * len(q.shape[:-2])), self.horizon - 1, K, 1, 1)
-        scales = (self.weight * pair_weights / self.dt).reshape(scale_shape)
+    def _temporal_blocks(self, indices: torch.Tensor) -> dict[int, torch.Tensor]:
+        q = self.q.tensor
+        contacts = len(self.frame_ids)
+        frame_jacobians = self._frame_jacobians(self.state._checked_value(Data)).index_select(-1, indices)
+        pair_weights = 0.5 * (self._domain_weights(q)[:-1] + self._domain_weights(q)[1:])
+        scale_shape = (*((1,) * len(q.shape[:-2])), self.horizon - 1, contacts, 1, 1)
+        scales = (pair_weights / self.dt).reshape(scale_shape)
         left = -scales * frame_jacobians[..., :-1, :, :, :]
         right = scales * frame_jacobians[..., 1:, :, :, :]
-        output_shape = (
-            *q.shape[:-2],
-            self.horizon - 1,
-            3 * K,
-            indices.numel(),
-        )
-        return {0: left.reshape(output_shape), 1: right.reshape(output_shape)}
+        shape = (*q.shape[:-2], self.horizon - 1, 3 * contacts, indices.numel())
+        return {0: left.reshape(shape), 1: right.reshape(shape)}
 
     def temporal_jacobian_blocks(
         self,
-        ctx: Mapping[str, Any],
-        variable_name: str,
+        variable: _RobotVariableLike | str,
     ) -> Mapping[int, torch.Tensor]:
-        if variable_name != "q":
+        if not matches(variable, self.q):
             return {}
-        q, data = self._context(ctx)
-        indices = temporal_free_indices(ctx, "q", device=q.device)
-        return self._temporal_blocks(q, data, indices)
+        indices = self.q.temporal_free_indices.to(device=self.q.tensor.device)
+        return self._temporal_blocks(indices)
 
-    def jacobian_blocks(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
-        pattern = self.temporal_structure("q")
+    def jacobian(self) -> tuple[torch.Tensor, ...] | None:
+        direct_trainables = tuple(variable for variable in self.variables if variable.trainable)
+        if direct_trainables:
+            return None
+        if not self.q.trainable:
+            return ()
+        pattern = self.temporal_structure(self.q)
         assert pattern is not None
-        return {
-            "q": dense_temporal_jacobian(
-                pattern,
-                self.temporal_jacobian_blocks(ctx, "q"),
-                horizon=self.horizon,
-            )
-        }
+        full_indices = torch.arange(self.model.nv, device=self.q.tensor.device)
+        full = dense_temporal_jacobian(
+            pattern,
+            self._temporal_blocks(full_indices),
+            horizon=self.horizon,
+        )
+        return (self.q.gather_tangent(full),)
+
+
+__all__ = ["ContactConsistencyResidual"]

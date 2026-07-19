@@ -1,7 +1,7 @@
 """Forbid hot-path patterns that break ``torch.compile`` and CUDA throughput.
 
 AST-walks ``kinematics/``, ``dynamics/``, ``optim/lm.py``,
-``optim/first_order.py``, ``residuals/``, and ``lie/`` and fails the test
+``optim/optimizers.py``, ``residuals/``, and ``lie/`` and fails the test
 if any forbidden idiom appears:
 
 * ``.item()`` / ``.cpu()`` — force a CUDA-host sync.
@@ -31,7 +31,7 @@ WATCHED_DIRS = ("kinematics", "dynamics", "residuals", "lie")
 # perform host-side boundary validation, while the prevalidated solver update
 # must remain sync-free.  ``run`` and initialization may use a reasoned
 # ``# bench-ok`` exemption at their documented eager/static boundaries.
-WATCHED_FILES = ("optim/lm.py", "optim/first_order.py")
+WATCHED_FILES = ("optim/lm.py", "optim/optimizers.py")
 ALLOC_FNS = ("zeros", "ones", "empty", "full", "rand", "randn", "eye")
 
 # Calls with these names are tensor evidence when reached through ``torch``.
@@ -510,10 +510,10 @@ def test_new_forbidden_patterns_are_detected(name: str, src: str, needle: str) -
     assert any(needle in violation for violation in violations), violations
 
 
-def test_named_block_update_modules_are_watched() -> None:
+def test_optimizer_update_modules_are_watched() -> None:
     watched = {path.relative_to(ROOT).as_posix() for path in _find_hot_path_files()}
     assert "optim/lm.py" in watched
-    assert "optim/first_order.py" in watched
+    assert "optim/optimizers.py" in watched
 
 
 def test_scalar_float_conversions_are_not_tensor_syncs() -> None:

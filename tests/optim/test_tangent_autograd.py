@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping, Sequence
 import math
-from collections.abc import Callable
 
 import pytest
 import torch
@@ -11,18 +11,7 @@ import torch
 from better_robot.io import load
 from better_robot.io.builders.smpl_like import make_smpl_like_model
 from better_robot.kinematics import forward_kinematics
-from better_robot.optim import (
-    Euclidean,
-    Problem,
-    ResidualItem,
-    RobotConfig,
-    RobotStateProvider,
-    SE3Manifold,
-    SO3Manifold,
-    Values,
-    VarSpec,
-)
-from better_robot.optim.autograd import perturb_values, tangent_grad
+from better_robot.optim import Problem, RobotVariable, SE3Variable, SO3Variable, Variable
 from better_robot.residuals.pose import PoseResidual
 
 
@@ -43,51 +32,57 @@ def _identity_se3() -> torch.Tensor:
     return torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
 
 
-def _singular_case(case: str) -> tuple[VarSpec, torch.Tensor, _Observable, bool]:
+def _retracted_gradient(
+    fn: Callable[[Mapping[str, torch.Tensor]], torch.Tensor],
+    variables: Sequence[Variable],
+    *,
+    create_graph: bool = False,
+) -> dict[str, torch.Tensor]:
+    deltas = {
+        variable.name: variable.tensor.new_zeros(*variable.batch_shape, variable.free_dim, requires_grad=True)
+        for variable in variables
+    }
+    values = {variable.name: variable.retract(deltas[variable.name]) for variable in variables}
+    output = fn(values)
+    computed = torch.autograd.grad(
+        output.sum(),
+        tuple(deltas.values()),
+        create_graph=create_graph,
+        allow_unused=True,
+    )
+    anchors = [variable.tensor.sum() * 0.0 for variable in variables if create_graph and variable.tensor.requires_grad]
+    anchor = sum(anchors[1:], anchors[0]) if anchors else None
+    result: dict[str, torch.Tensor] = {}
+    for variable, gradient in zip(variables, computed, strict=True):
+        value = torch.zeros_like(deltas[variable.name]) if gradient is None else gradient
+        result[variable.name] = value + anchor if anchor is not None else value
+    return result
+
+
+def _singular_case(case: str) -> tuple[Variable, _Observable, bool]:
     if case == "euclidean":
-        manifold = Euclidean()
-        value = torch.zeros(3)
-        return VarSpec("value", (3,), manifold), value, lambda x: x, True
+        variable = Variable(torch.zeros(3), name="value")
+        return variable, lambda x: x, True
     if case == "so3_identity":
-        manifold = SO3Manifold()
         value = _identity_so3()
-        return (
-            VarSpec("value", (4,), manifold),
-            value,
-            lambda x: manifold.difference(value, x),
-            True,
-        )
+        variable = SO3Variable(value, name="value")
+        return variable, lambda x: variable._difference_from(value, x), True
     if case == "se3_identity":
-        manifold = SE3Manifold()
         value = _identity_se3()
-        return (
-            VarSpec("value", (7,), manifold),
-            value,
-            lambda x: manifold.difference(value, x),
-            True,
-        )
+        variable = SE3Variable(value, name="value")
+        return variable, lambda x: variable._difference_from(value, x), True
     if case == "identical_quaternions":
-        manifold = SO3Manifold()
-        value = torch.tensor([0.2, -0.15, 0.1])
-        value = manifold.retract(_identity_so3(), value)
-        return (
-            VarSpec("value", (4,), manifold),
-            value,
-            lambda x: manifold.difference(value, x),
-            True,
-        )
+        tangent = torch.tensor([0.2, -0.15, 0.1])
+        value = SO3Variable(_identity_so3()).retract(tangent)
+        variable = SO3Variable(value, name="value")
+        return variable, lambda x: variable._difference_from(value, x), True
     if case == "near_pi":
-        manifold = SO3Manifold()
         axis = torch.tensor([1.0, 0.2, -0.1])
         axis = axis / axis.norm()
-        value = manifold.retract(_identity_so3(), axis * (math.pi - 0.05))
         identity = _identity_so3()
-        return (
-            VarSpec("value", (4,), manifold),
-            value,
-            lambda x: manifold.difference(identity, x),
-            False,
-        )
+        value = SO3Variable(identity).retract(axis * (math.pi - 0.05))
+        variable = SO3Variable(value, name="value")
+        return variable, lambda x: variable._difference_from(identity, x), False
     raise AssertionError(f"unknown case {case}")
 
 
@@ -96,16 +91,11 @@ def _singular_case(case: str) -> tuple[VarSpec, torch.Tensor, _Observable, bool]
     ("euclidean", "so3_identity", "se3_identity", "identical_quaternions", "near_pi"),
 )
 def test_tangent_perturbation_gradcheck_at_singular_points(case: str) -> None:
-    spec, value, observable, expect_identity_gradient = _singular_case(case)
-    zero = torch.zeros(spec.free_dim, dtype=torch.float32, requires_grad=True)
+    variable, observable, expect_identity_gradient = _singular_case(case)
+    zero = variable.tensor.new_zeros(variable.free_dim, requires_grad=True)
 
     def closure(delta: torch.Tensor) -> torch.Tensor:
-        perturbed = perturb_values(
-            (spec,),
-            {spec.name: value},
-            {spec.name: delta},
-        )
-        return observable(perturbed[spec.name])
+        return observable(variable.retract(delta))
 
     assert torch.autograd.gradcheck(
         closure,
@@ -116,44 +106,36 @@ def test_tangent_perturbation_gradcheck_at_singular_points(case: str) -> None:
         fast_mode=True,
     )
 
-    gradient = tangent_grad(
-        lambda values: observable(values[spec.name]),
-        (spec,),
-        {spec.name: value},
-    )[spec.name]
-    assert gradient.shape == (spec.free_dim,)
+    gradient = _retracted_gradient(
+        lambda values: observable(values[variable.name]),
+        (variable,),
+    )[variable.name]
+    assert gradient.shape == (variable.free_dim,)
     assert torch.isfinite(gradient).all()
     if expect_identity_gradient:
         torch.testing.assert_close(gradient, torch.ones_like(gradient), atol=2e-4, rtol=2e-4)
 
 
-def test_tangent_grad_returns_only_free_masked_coordinates() -> None:
-    spec = VarSpec(
+def test_retracted_gradient_returns_only_free_masked_coordinates() -> None:
+    x = Variable(
+        torch.tensor([1.0, 2.0, 3.0, 4.0]),
         name="x",
-        shape=(4,),
-        manifold=Euclidean(),
         mask=torch.tensor([True, False, True, False]),
     )
-    value = torch.tensor([1.0, 2.0, 3.0, 4.0])
 
-    gradient = tangent_grad(
-        lambda values: values["x"].square(),
-        (spec,),
-        {"x": value},
-    )["x"]
+    gradient = _retracted_gradient(lambda values: values["x"].square(), (x,))["x"]
 
     assert gradient.shape == (2,)
     torch.testing.assert_close(gradient, torch.tensor([2.0, 6.0]))
 
 
 def test_create_graph_supports_a_second_derivative_smoke() -> None:
-    spec = VarSpec(name="x", shape=(3,), manifold=Euclidean())
     value = torch.tensor([0.5, -1.0, 2.0], requires_grad=True)
+    x = Variable(value, name="x")
 
-    first = tangent_grad(
+    first = _retracted_gradient(
         lambda values: values["x"].square(),
-        (spec,),
-        {"x": value},
+        (x,),
         create_graph=True,
     )["x"]
     second = torch.autograd.grad(first.sum(), value)[0]
@@ -163,22 +145,19 @@ def test_create_graph_supports_a_second_derivative_smoke() -> None:
 
 
 def test_create_graph_keeps_constant_and_unused_block_zeros_connected() -> None:
-    specs = (
-        VarSpec(name="x", shape=(1,)),
-        VarSpec(name="unused", shape=(1,)),
-    )
-    x = torch.tensor([0.5], requires_grad=True)
-    unused = torch.tensor([1.2], requires_grad=True)
+    x_tensor = torch.tensor([0.5], requires_grad=True)
+    unused_tensor = torch.tensor([1.2], requires_grad=True)
+    x = Variable(x_tensor, name="x")
+    unused = Variable(unused_tensor, name="unused")
 
-    gradients = tangent_grad(
+    gradients = _retracted_gradient(
         lambda values: values["x"],
-        specs,
-        {"x": x, "unused": unused},
+        (x, unused),
         create_graph=True,
     )
     second_x, second_unused = torch.autograd.grad(
         gradients["x"].sum() + gradients["unused"].sum(),
-        (x, unused),
+        (x_tensor, unused_tensor),
     )
 
     torch.testing.assert_close(gradients["x"], torch.ones(1))
@@ -189,18 +168,12 @@ def test_create_graph_keeps_constant_and_unused_block_zeros_connected() -> None:
 
 def test_spherical_tree_rest_pose_tangent_gradient_is_finite() -> None:
     model = make_smpl_like_model(dtype=torch.float32)
-    spec = VarSpec(
-        name="q",
-        shape=(model.nq,),
-        manifold=RobotConfig(model),
-    )
     neutral = model.q_neutral
-    batched = neutral.expand(2, 3, model.nq).clone()
+    q = RobotVariable(model, neutral.expand(2, 3, model.nq).clone(), name="q")
 
-    gradient = tangent_grad(
+    gradient = _retracted_gradient(
         lambda values: model.difference(neutral, values["q"]),
-        (spec,),
-        {"q": batched},
+        (q,),
     )["q"]
 
     assert gradient.shape == (2, 3, model.nv)
@@ -210,27 +183,18 @@ def test_spherical_tree_rest_pose_tangent_gradient_is_finite() -> None:
 
 def test_panda_pose_tangent_gradient_matches_existing_analytic_path(panda_model) -> None:
     model = panda_model
-    q = model.q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit)
-    data = forward_kinematics(model, q, compute_frames=True)
+    q_tensor = model.q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit)
+    data = forward_kinematics(model, q_tensor, compute_frames=True)
     frame_name = "body_panda_hand" if "body_panda_hand" in model.frame_name_to_id else model.frame_names[-1]
     frame_id = model.frame_id(frame_name)
     target = data.frame_pose_world[frame_id].detach().clone()
-    residual = PoseResidual(model, frame_id=frame_id, target=target)
+    q = RobotVariable(model, q_tensor, name="q")
+    problem = Problem([PoseResidual(q, frame_id=frame_id, target=target, name="pose")])
     cotangent = torch.tensor([0.7, -0.4, 0.2, -0.3, 0.5, 0.6])
-    spec = VarSpec(name="q", shape=(model.nq,), manifold=RobotConfig(model))
-    problem = Problem(
-        vars=(spec,),
-        residuals=(ResidualItem("pose", residual),),
-        providers=(RobotStateProvider(model),),
-    )
-    analytic_jacobian = problem.dense_jacobian({"q": q}, strategy="analytic")
+
+    analytic_jacobian = problem.dense_jacobian(strategy="analytic")
+    autodiff_jacobian = problem.dense_jacobian(strategy="jacrev")
     expected = analytic_jacobian.mT @ cotangent
-
-    def objective(values: Values) -> torch.Tensor:
-        q_value = values["q"]
-        value_data = forward_kinematics(model, q_value, compute_frames=True)
-        return residual({"q": q_value, "data": value_data}) @ cotangent
-
-    actual = tangent_grad(objective, (spec,), {"q": q})["q"]
+    actual = autodiff_jacobian.mT @ cotangent
 
     torch.testing.assert_close(actual, expected, atol=1e-3, rtol=1e-3)

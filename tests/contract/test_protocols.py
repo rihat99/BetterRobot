@@ -1,11 +1,12 @@
-"""Contract tests: every extension-seam ``Protocol`` is ``@runtime_checkable``
-and every built-in implementation passes the corresponding ``isinstance`` check.
+"""Contract tests for extension Protocols and the residual abstract base class.
 
 See ``docs/conventions/extension.md`` for the seam inventory and
 ``docs/concepts/residuals_costs_and_solvers.md`` for the concrete protocols.
 """
 
 from __future__ import annotations
+
+import inspect
 
 import pytest
 import torch
@@ -21,7 +22,21 @@ from better_robot.data_model.joint_models import (
     JointSpherical,
     JointUniverse,
 )
-from better_robot.optim import Cauchy, Cholesky, Huber, L2, LinearSolver, RobustKernel
+from better_robot.io import ModelBuilder, build_model
+from better_robot.optim import (
+    BandedCholesky,
+    Cauchy,
+    Cholesky,
+    GemanMcClure,
+    Huber,
+    InformativeLinearSolver,
+    L2,
+    LinearSolver,
+    LU,
+    RobotVariable,
+    RobustKernel,
+    Tukey,
+)
 from better_robot.residuals.base import Residual
 from better_robot.residuals.pose import OrientationResidual, PoseResidual, PositionResidual
 from better_robot.viewer.render_modes.base import RenderMode
@@ -34,7 +49,7 @@ def _is_runtime_checkable(proto: type) -> bool:
 
 @pytest.mark.parametrize(
     "proto",
-    [Residual, LinearSolver, RobustKernel, JointModel, RenderMode],
+    [LinearSolver, InformativeLinearSolver, RobustKernel, JointModel, RenderMode],
 )
 def test_protocol_is_runtime_checkable(proto: type) -> None:
     """Every extension-seam Protocol must support ``isinstance``."""
@@ -48,24 +63,36 @@ def test_protocol_is_runtime_checkable(proto: type) -> None:
 
 
 def _dummy_pose() -> torch.Tensor:
-    return torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+    return torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], dtype=torch.float64)
 
 
-def test_residual_instances_satisfy_protocol() -> None:
-    p = PoseResidual(frame_id=0, target=_dummy_pose())
-    assert isinstance(p, Residual)
-    pos = PositionResidual(frame_id=0, target=_dummy_pose())
-    assert isinstance(pos, Residual)
-    ori = OrientationResidual(frame_id=0, target=_dummy_pose())
-    assert isinstance(ori, Residual)
+@pytest.fixture(scope="module")
+def robot_variable() -> RobotVariable:
+    identity = _dummy_pose()
+    builder = ModelBuilder("protocol_residual")
+    builder.add_body("base", mass=1.0)
+    builder.add_frame("tip", parent_body="base", placement=identity)
+    model = build_model(builder.finalize(), dtype=torch.float64)
+    return RobotVariable(model, name="q")
+
+
+def test_residual_is_an_abstract_base_class() -> None:
+    assert inspect.isabstract(Residual)
+
+
+@pytest.mark.parametrize("cls", [PoseResidual, PositionResidual, OrientationResidual])
+def test_residual_instances_satisfy_abc(cls: type[Residual], robot_variable: RobotVariable) -> None:
+    item = cls(robot_variable, frame="tip", target=_dummy_pose())
+    assert isinstance(item, Residual)
 
 
 # ── Linear solvers ────────────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("cls", [Cholesky])
+@pytest.mark.parametrize("cls", [Cholesky, LU, BandedCholesky])
 def test_linear_solver_instances_satisfy_protocol(cls: type) -> None:
     assert isinstance(cls(), LinearSolver), cls.__name__
+    assert isinstance(cls(), InformativeLinearSolver), cls.__name__
 
 
 # ── Robust kernels ────────────────────────────────────────────────────────────
@@ -75,6 +102,8 @@ def test_robust_kernel_instances_satisfy_protocol() -> None:
     assert isinstance(L2(), RobustKernel)
     assert isinstance(Huber(delta=1.0), RobustKernel)
     assert isinstance(Cauchy(c=1.0), RobustKernel)
+    assert isinstance(Tukey(c=1.0), RobustKernel)
+    assert isinstance(GemanMcClure(c=1.0), RobustKernel)
 
 
 # ── Joint models ──────────────────────────────────────────────────────────────

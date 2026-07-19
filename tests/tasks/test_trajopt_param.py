@@ -18,9 +18,8 @@ import torch
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics.forward import forward_kinematics
-from better_robot.optim import LevenbergMarquardt, ResidualItem
+from better_robot.optim import LevenbergMarquardt
 from better_robot.residuals.pose import PoseResidual
-from better_robot.residuals.temporal import TimeIndexedResidual
 from better_robot.tasks.parameterization import (
     BSplineTrajectory,
     KnotTrajectory,
@@ -95,24 +94,14 @@ def test_solve_trajopt_with_knots_reaches_target() -> None:
     target = forward_kinematics(model, q0, compute_frames=True).frame_pose_world[fid].clone()
     target[..., 0] += 0.03
 
-    residuals = (
-        ResidualItem(
-            "pose_final",
-            TimeIndexedResidual(
-                PoseResidual(frame_id=fid, target=target),
-                t_idx=T - 1,
-                name="pose_final",
-            ),
-        ),
-    )
+    residuals = (lambda q: PoseResidual(q, frame_id=fid, target=target, knot=T - 1, name="pose_final"),)
 
     res = solve_trajopt(
         model,
-        horizon=T,
         dt=0.05,
         initial_q_traj=initial_q_traj,
         residuals=residuals,
-        optimizer=LevenbergMarquardt(max_iter=20),
+        optimizer=lambda problem: LevenbergMarquardt(problem, max_iterations=20),
         parameterization=KnotTrajectory(),
     )
     assert res.trajectory.q.shape == (1, T, model.nq)
@@ -127,10 +116,9 @@ def test_solve_trajopt_rejects_floating_base_bspline() -> None:
     horizon = 8
     q_seed = model.q_neutral.unsqueeze(0).expand(horizon, -1).clone()
 
-    with pytest.raises(NotImplementedError, match="manifold-safe.*deferred"):
+    with pytest.raises(NotImplementedError, match="component-space.*not manifold-safe"):
         solve_trajopt(
             model,
-            horizon=horizon,
             dt=0.05,
             initial_q_traj=q_seed,
             residuals=(),
@@ -143,10 +131,9 @@ def test_solve_trajopt_rejects_bounded_bspline() -> None:
     horizon = 8
     q_seed = model.q_neutral.unsqueeze(0).expand(horizon, -1).clone()
 
-    with pytest.raises(NotImplementedError, match="cannot preserve state bounds.*deferred"):
+    with pytest.raises(NotImplementedError, match="component-space.*not manifold-safe"):
         solve_trajopt(
             model,
-            horizon=horizon,
             dt=0.05,
             initial_q_traj=q_seed,
             residuals=(),
@@ -161,10 +148,9 @@ def test_solve_trajopt_rejects_multistage_bspline() -> None:
     horizon = 8
     q_seed = model.q_neutral.unsqueeze(0).expand(horizon, -1).clone()
 
-    with pytest.raises(NotImplementedError, match="component-space.*deferred"):
+    with pytest.raises(NotImplementedError, match="component-space.*not manifold-safe"):
         solve_trajopt(
             model,
-            horizon=horizon,
             dt=0.05,
             initial_q_traj=q_seed,
             residuals=(),

@@ -73,3 +73,21 @@ public symbol; the owner resolves the consumer side.
 | `better_robot.residuals.SelfCollisionResidual`, `WorldCollisionResidual` and their `better_robot.residuals.collision` paths | No replacement ships; collision residuals wait on the owner-gated collision package decision. |
 | `better_robot.residuals.JointAccelLimit`, `better_robot.residuals.limits.JointAccelLimit` | No replacement ships; the model currently has no acceleration-limit values. |
 | `better_robot.kinematics.ReferenceFrame` | Pass `"world"`, `"local"`, or `"local_world_aligned"` directly to `get_joint_jacobian` or `get_frame_jacobian`. |
+
+## Removed by the object-referenced optimizer rewrite
+
+This later table supersedes older replacement text above where the optimizer
+surface changed again.
+
+| Removed surface | Replacement |
+|---|---|
+| `VarSpec`, the `Values` alias, and `detach_values` | Construct `Variable`, `SO3Variable`, `SE3Variable`, or `RobotVariable`; values live on `.tensor` and `Problem.update(...)` feeds new tensors. |
+| `Manifold`, `Euclidean`, `SO3Manifold`, `SE3Manifold`, and `RobotConfig` | Geometry now belongs to the corresponding variable subclass; `Bounds` remains public. |
+| `Problem.add_variable` and the `vars=` / parameter-registry constructor | Pass residuals to `Problem`; it harvests referenced trainable and static variables when first used. |
+| `EvaluationContext`, `Provider`, `RobotStateProvider`, provider `reads`/`outputs`, and `better_robot.optim.providers` | Residuals hold variables directly; shared evaluation work lives in `Node` objects such as `RobotState`. |
+| `ResidualItem` | Put `name`, `dim`, `weight`, `kernel`, and `group_size` on the `Residual` itself. |
+| The private `_CallableResidual` and trajectory `_ResidualAdapter` conventions | Use `@residual(...)` for tensor functions or a direct `Residual` subclass. |
+| `LMState` and public LM `init_state` / `run` / `update` / `finalize` lifecycle methods | Read `OptimizerInfo` from `step()` or `optimize()`; solved values remain on the variables. |
+| `run_first_order`, `FirstOrderResult`, and the first-order `OptimizerFactory` alias | Use `TorchOptimizer(problem, torch.optim.OptimizerSubclass, ...)`. |
+| `autograd.tangent_grad`, `autograd.perturb_values`, `Problem.external_parameters`, and `better_robot.optim.autograd` | Use `Variable.retract`, `Problem.gradient`, and graph-carrying static variables (`trainable=False`). |
+| Scattered private `_broadcast_weight` helpers | Implement row scaling once with `ScaleWeight`, `DiagonalWeight`, or another `Weight`. |

@@ -20,17 +20,8 @@ from better_robot.kinematics.jacobian import (
     get_frame_jacobian,
     joint_jacobians_raw,
 )
+from better_robot.optim import Problem, RobotVariable
 from better_robot.residuals.pose import PoseResidual
-
-
-class _Context(dict):
-    def __init__(self, *args, nv: int, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.nv = nv
-
-    def free_indices(self, variable_name: str) -> torch.Tensor:
-        assert variable_name == "q"
-        return torch.arange(self.nv)
 
 
 def _id7() -> torch.Tensor:
@@ -143,9 +134,10 @@ def _analytic_vs_finite_diff(model, q, frame_id, rtol=1e-3, atol=1e-4):
     data = forward_kinematics(model, q, compute_frames=True)
     T_target = data.frame_pose_world[frame_id].clone()  # use current pose as target → r≈0 near neutral
 
-    residual = PoseResidual(model, frame_id=frame_id, target=T_target)
-    ctx = _Context({"q": q, "data": data}, nv=model.nv)
-    J_analytic = residual.jacobian_blocks(ctx)["q"]
+    q_variable = RobotVariable(model, q, name="q")
+    residual = PoseResidual(q_variable, frame_id=frame_id, target=T_target)
+    problem = Problem([residual])
+    J_analytic = problem.jacobian_blocks(strategy="analytic")[(residual.name, q_variable.name)]
 
     eps = 1e-3 if q.dtype == torch.float32 else 1e-7
     columns = []
@@ -154,18 +146,10 @@ def _analytic_vs_finite_diff(model, q, frame_id, rtol=1e-3, atol=1e-4):
         delta[index] = eps
         q_plus = model.integrate(q, delta)
         q_minus = model.integrate(q, -delta)
-        plus = residual(
-            {
-                "q": q_plus,
-                "data": forward_kinematics(model, q_plus, compute_frames=True),
-            }
-        )
-        minus = residual(
-            {
-                "q": q_minus,
-                "data": forward_kinematics(model, q_minus, compute_frames=True),
-            }
-        )
+        problem.update({"q": q_plus})
+        plus = problem.error()
+        problem.update({"q": q_minus})
+        minus = problem.error()
         columns.append((plus - minus) / (2.0 * eps))
     J_finite_diff = torch.stack(columns, dim=-1)
 
@@ -200,10 +184,11 @@ def test_pose_residual_resolves_frame_name(arm):
     data = forward_kinematics(arm, q, compute_frames=True)
     frame_name = "body_link1"
     target = data.frame_pose_world[arm.frame_id(frame_name)].clone()
-    residual = PoseResidual(arm, frame=frame_name, target=target)
+    q_variable = RobotVariable(arm, q, name="q")
+    residual = PoseResidual(q_variable, frame=frame_name, target=target)
 
     assert residual.frame_id == arm.frame_id(frame_name)
-    torch.testing.assert_close(residual({"q": q, "data": data}), torch.zeros(6))
+    torch.testing.assert_close(residual.error(), torch.zeros(6))
 
 
 # ── panda Jacobian check ──────────────────────────────────────────────────────

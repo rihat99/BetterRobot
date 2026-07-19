@@ -24,6 +24,7 @@ from better_robot.data_model.reduced_coordinates import (
     expand_tangent,
 )
 from better_robot.io import IRError, ModelBuilder, build_model
+from better_robot.optim import RobotVariable
 from better_robot.residuals import JointPositionLimit
 
 
@@ -160,9 +161,8 @@ def test_sign_aware_limits_and_generalized_capacities_are_reduced() -> None:
     torch.testing.assert_close(model.velocity_limit, torch.tensor([2.0], dtype=torch.float64))
     torch.testing.assert_close(model.effort_limit, torch.tensor([19.0], dtype=torch.float64))
 
-    residual = JointPositionLimit(model)
-    value = {"q": torch.tensor([0.5], dtype=torch.float64), "model": model}
-    result = residual(value)
+    q = RobotVariable(model, torch.tensor([0.5], dtype=torch.float64), name="q")
+    result = JointPositionLimit(q).error()
     assert result.shape == (2,)
     torch.testing.assert_close(result, torch.tensor([0.0, 0.125], dtype=torch.float64))
 

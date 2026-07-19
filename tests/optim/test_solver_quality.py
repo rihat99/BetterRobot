@@ -16,10 +16,10 @@ from better_robot.kinematics import forward_kinematics
 from better_robot.optim import (
     GaussNewton,
     LevenbergMarquardt,
-    LMStatus,
+    OptimizerStatus,
     Problem,
-    ResidualItem,
-    VarSpec,
+    Residual,
+    Variable,
 )
 from better_robot.optim.kernels import Huber, L2
 from better_robot.tasks.ik import IKCostConfig, OptimizerConfig, solve_ik
@@ -42,12 +42,13 @@ def panda_model():
     return load(panda_description.URDF_PATH, dtype=torch.float32)
 
 
-def _solver(*, max_iter: int = 60) -> LevenbergMarquardt:
+def _solver(problem: Problem, *, max_iter: int = 60) -> LevenbergMarquardt:
     return LevenbergMarquardt(
-        max_iter=max_iter,
-        gtol=1e-5,
-        xtol=1e-8,
-        ftol=1e-8,
+        problem,
+        max_iterations=max_iter,
+        tolerance=1e-5,
+        step_tolerance=1e-8,
+        relative_tolerance=1e-8,
     )
 
 
@@ -65,14 +66,12 @@ def test_p1_bounded_interior_panda_regression(panda_model) -> None:
     target = target_poses(panda_model, q_target)
     problem = make_panda_problem(panda_model, target, regularized=False)
 
-    values, state = _solver(max_iter=60).run(
-        {"q": bounded_start(panda_model)},
-        problem,
-    )
+    state = _solver(problem, max_iter=60).optimize()
+    q = problem.variables["q"].tensor
 
-    assert int(state.status) == int(LMStatus.CONVERGED)
+    assert int(state.status) == int(OptimizerStatus.CONVERGED)
     assert state.cost < 1e-8
-    assert _position_error(panda_model, values["q"], target) < 1e-3
+    assert _position_error(panda_model, q, target) < 1e-3
     assert state.iterations <= 60
 
 
@@ -87,10 +86,10 @@ def test_p3_block_level_feasible_panda_target(panda_model) -> None:
     target = target_poses(panda_model, q_target)
     problem = make_panda_problem(panda_model, target, regularized=True)
 
-    values, state = _solver().run({"q": bounded_start(panda_model)}, problem)
+    state = _solver(problem).optimize()
 
-    assert int(state.status) == int(LMStatus.CONVERGED)
-    assert _position_error(panda_model, values["q"], target) < 1e-3
+    assert int(state.status) == int(OptimizerStatus.CONVERGED)
+    assert _position_error(panda_model, problem.variables["q"].tensor, target) < 1e-3
 
 
 def test_p3_feasible_panda_target_through_solve_ik_facade(panda_model) -> None:
@@ -125,68 +124,63 @@ def test_p4_gauss_newton_is_monotone_and_reports_an_honest_status(panda_model) -
     )[0]
     target = target_poses(panda_model, q_target)
     problem = make_panda_problem(panda_model, target, regularized=True)
-    initial = {"q": bounded_start(panda_model)}
     solver = GaussNewton(
-        max_iter=60,
-        gtol=1e-5,
-        xtol=1e-8,
-        ftol=1e-8,
+        problem,
+        max_iterations=60,
+        tolerance=1e-5,
+        step_tolerance=1e-8,
+        relative_tolerance=1e-8,
     )
-    initial_cost = solver.init_state(initial, problem).cost
+    initial_cost = problem.objective()
 
-    _values, state = solver.run(initial, problem)
+    state = solver.optimize()
 
     assert state.cost <= initial_cost
-    assert int(state.status) in {int(LMStatus.CONVERGED), int(LMStatus.MAXITER)}
+    assert int(state.status) in {int(OptimizerStatus.CONVERGED), int(OptimizerStatus.MAXITER)}
 
 
-class _PointFitResidual:
-    name = "points"
-    reads = ("x", "points")
+class _PointFitResidual(Residual):
+    def __init__(self, x: Variable, points: torch.Tensor, kernel) -> None:
+        self.x = x
+        self.points = points
+        super().__init__(x, dim=points.numel(), name="points", kernel=kernel)
 
-    def __init__(self, count: int) -> None:
-        self.dim = count
+    def error(self) -> torch.Tensor:
+        return self.x.tensor[..., :1] - self.points
 
-    def __call__(self, ctx) -> torch.Tensor:
-        return ctx["x"][..., :1] - ctx["points"]
-
-    def jacobian_blocks(self, ctx) -> dict[str, torch.Tensor]:
-        x = ctx["x"]
-        return {
-            "x": torch.ones(
+    def jacobian(self) -> tuple[torch.Tensor, ...]:
+        x = self.x.tensor
+        return (
+            torch.ones(
                 (*x.shape[:-1], self.dim, 1),
                 dtype=x.dtype,
                 device=x.device,
-            )
-        }
+            ),
+        )
 
 
-def _point_problem(points: torch.Tensor, kernel) -> Problem:
-    residual = _PointFitResidual(points.numel())
-    return Problem(
-        vars=(VarSpec("x", (1,)),),
-        residuals=(ResidualItem("points", residual, kernel=kernel),),
-        parameters={"points": points},
-    )
+def _point_problem(points: torch.Tensor, kernel) -> tuple[Problem, Variable]:
+    x = Variable(torch.zeros(1), name="x")
+    return Problem([_PointFitResidual(x, points, kernel)]), x
 
 
 def test_p5_huber_point_fit_rejects_gross_outlier_bias() -> None:
     generator = torch.Generator().manual_seed(1_847)
     clean = 2.0 + 0.08 * torch.randn(16, generator=generator)
     points = torch.cat((clean, torch.tensor([25.0, 30.0, 35.0, 40.0])))
-    initial = {"x": torch.zeros(1)}
-    solver = LevenbergMarquardt(max_iter=80, gtol=2e-5)
-
-    l2_values, _l2_state = solver.run(initial, _point_problem(points, L2()))
-    huber_values, huber_state = solver.run(
-        initial,
-        _point_problem(points, Huber(delta=0.2)),
-    )
+    l2_problem, l2_x = _point_problem(points, L2())
+    huber_problem, huber_x = _point_problem(points, Huber(delta=0.2))
+    LevenbergMarquardt(l2_problem, max_iterations=80, tolerance=2e-5).optimize()
+    huber_state = LevenbergMarquardt(
+        huber_problem,
+        max_iterations=80,
+        tolerance=2e-5,
+    ).optimize()
     clean_optimum = clean.mean()
-    l2_error = (l2_values["x"][0] - clean_optimum).abs()
-    huber_error = (huber_values["x"][0] - clean_optimum).abs()
+    l2_error = (l2_x.tensor[0] - clean_optimum).abs()
+    huber_error = (huber_x.tensor[0] - clean_optimum).abs()
 
-    assert int(huber_state.status) == int(LMStatus.CONVERGED)
+    assert int(huber_state.status) == int(OptimizerStatus.CONVERGED)
     assert huber_error <= 0.1 * clean_optimum.abs()
     assert l2_error > 0.1 * clean_optimum.abs()
     assert l2_error > 10.0 * huber_error

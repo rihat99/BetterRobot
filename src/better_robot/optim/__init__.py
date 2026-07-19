@@ -1,15 +1,15 @@
-"""Named-block problems, manifolds, and optimization algorithms."""
+"""Object-referenced least-squares problems, optimizers, and linear solvers."""
 
 from __future__ import annotations
 
+from ..residuals.base import DiagonalWeight, Difference, Residual, ScaleWeight, Weight, residual
 from ..residuals.structure import TemporalPattern
-from .first_order import FirstOrderResult, run_first_order
 from .implicit import ImplicitDiffConfig, ImplicitDifferentiationError
 from .kernels import Cauchy, GemanMcClure, Huber, L2, RobustKernel, Tukey
-from .lm import GaussNewton, LevenbergMarquardt, LinearizationDecision, LinearizationMode, LMState, LMStatus
-from .manifolds import Bounds, Euclidean, RobotConfig, SE3Manifold, SO3Manifold
-from .problem import JacobianStrategy, Problem, ResidualItem
-from .providers import RobotStateProvider
+from .lm import GaussNewton, LevenbergMarquardt, LinearizationDecision, LinearizationMode
+from .manifolds import Bounds
+from .optimizers import Optimizer, OptimizerInfo, OptimizerStatus, TorchOptimizer
+from .problem import JacobianStrategy, Problem
 from .solvers import (
     BandedCholesky,
     Cholesky,
@@ -18,14 +18,19 @@ from .solvers import (
     LinearSolveStatus,
     LinearSolver,
     LinearSystem,
+    LU,
 )
 from .temporal import BlockBandedMatrix, LinearizationReason, StructuredNormal, TemporalAnalysis
-from .variables import Values, VarSpec, detach_values
+from .variables import RobotVariable, SE3Variable, SO3Variable, Variable
 
 __all__ = [
-    # Named-block evaluation and solver API. Deliberately qualified under ``optim``;
-    # the package root keeps its existing Lie ``SE3`` identity.
     "Bounds",
+    "Residual",
+    "Weight",
+    "ScaleWeight",
+    "DiagonalWeight",
+    "Difference",
+    "residual",
     "RobustKernel",
     "L2",
     "Huber",
@@ -38,14 +43,13 @@ __all__ = [
     "LinearSolveResult",
     "LinearSolveStatus",
     "Cholesky",
+    "LU",
     "BandedCholesky",
     "BlockBandedMatrix",
-    "Euclidean",
-    "SO3Manifold",
-    "SE3Manifold",
-    "RobotConfig",
-    "Values",
-    "VarSpec",
+    "Variable",
+    "SO3Variable",
+    "SE3Variable",
+    "RobotVariable",
     "TemporalPattern",
     "TemporalAnalysis",
     "StructuredNormal",
@@ -54,15 +58,12 @@ __all__ = [
     "LinearizationDecision",
     "Problem",
     "JacobianStrategy",
-    "ResidualItem",
-    "RobotStateProvider",
-    "detach_values",
-    "FirstOrderResult",
-    "run_first_order",
+    "Optimizer",
+    "OptimizerInfo",
+    "OptimizerStatus",
+    "TorchOptimizer",
     "LevenbergMarquardt",
     "GaussNewton",
     "ImplicitDiffConfig",
     "ImplicitDifferentiationError",
-    "LMState",
-    "LMStatus",
 ]

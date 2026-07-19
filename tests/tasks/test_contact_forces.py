@@ -9,14 +9,25 @@ from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics.forward import forward_kinematics
 from better_robot.lie import so3
+from better_robot.optim import Variable
+from better_robot.residuals import Node
 from better_robot.tasks.contact_forces import (
     ContactForceWeights,
-    _ContactDynamicsProvider,
+    _ContactDynamicsNode,
     _ForceSmoothResidual,
     _TorqueSmoothResidual,
     _trajectory_derivatives,
     solve_contact_forces,
 )
+
+
+class _FixedDynamics(Node):
+    def __init__(self, generalized_force: torch.Tensor) -> None:
+        self.generalized_force = generalized_force
+        super().__init__()
+
+    def compute(self) -> dict[str, torch.Tensor]:
+        return {"generalized_force": self.generalized_force}
 
 
 def _floating_body(*, dtype: torch.dtype = torch.float64):
@@ -62,14 +73,17 @@ def test_contact_force_solve_reduces_floating_base_wrench() -> None:
     assert result.fext_local.shape == (3, model.njoints, 6)
 
 
-def test_contact_force_provider_is_differentiable_through_fext() -> None:
+def test_contact_force_node_is_differentiable_through_fext() -> None:
     model = _floating_body()
     q = _clip(model)
     data = forward_kinematics(model, q)
     velocity, acceleration = _trajectory_derivatives(model, data.q, 0.1)
     ids = torch.tensor([1])
     pose = data.joint_pose_world.index_select(-2, ids)
-    provider = _ContactDynamicsProvider(
+    forces = torch.randn(3, 1, 3, dtype=torch.float64, requires_grad=True)
+    force_variable = Variable(forces, name="forces")
+    node = _ContactDynamicsNode(
+        force_variable,
         model=model,
         q=data.q,
         velocity=velocity,
@@ -79,10 +93,13 @@ def test_contact_force_provider_is_differentiable_through_fext() -> None:
         contact_to_joint=torch.nn.functional.one_hot(ids, model.njoints).to(torch.float64),
         values=model.values,
     )
-    forces = torch.randn(3, 1, 3, dtype=torch.float64, requires_grad=True)
+
+    def generalized_force(value: torch.Tensor) -> torch.Tensor:
+        force_variable.tensor = value
+        return node.compute()["generalized_force"][..., :6]
 
     assert torch.autograd.gradcheck(
-        lambda value: provider({"forces": value})["generalized_force"][..., :6],
+        generalized_force,
         (forces,),
         atol=2e-5,
         rtol=2e-4,
@@ -118,13 +135,13 @@ def test_contact_force_result_preserves_available_output_graphs() -> None:
 
 def test_force_and_torque_smooth_terms_match_hand_differences() -> None:
     forces = torch.tensor([[[1.0, 0.0, 0.0]], [[3.0, 1.0, 0.0]], [[2.0, 4.0, 1.0]]])
-    force_rows = _ForceSmoothResidual(3, 1)({"forces": forces})
+    force_rows = _ForceSmoothResidual(Variable(forces), 3, 1).error()
     expected_force = torch.tensor([2.0, 1.0, 0.0, -1.0, 3.0, 1.0])
     torch.testing.assert_close(force_rows, expected_force)
 
     tau = torch.zeros(3, 8)
     tau[:, 6:] = torch.tensor([[1.0, 2.0], [4.0, 3.0], [2.0, 8.0]])
-    torque_rows = _TorqueSmoothResidual(3, 2)({"generalized_force": tau})
+    torque_rows = _TorqueSmoothResidual(_FixedDynamics(tau), 3, 2).error()
     torch.testing.assert_close(torque_rows, torch.tensor([3.0, 1.0, -2.0, 5.0]))
 
 

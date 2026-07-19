@@ -9,10 +9,7 @@ from better_robot.kinematics import forward_kinematics
 from better_robot.optim import (
     Bounds,
     Problem,
-    ResidualItem,
-    RobotConfig,
-    RobotStateProvider,
-    VarSpec,
+    RobotVariable,
 )
 from better_robot.residuals.limits import JointPositionLimit
 from better_robot.residuals.pose import PoseResidual
@@ -77,34 +74,25 @@ def make_panda_problem(
     regularized: bool,
 ) -> Problem:
     """Build the M2a block problem used by P1/P3/P4/P6 and P7."""
+    q = RobotVariable(
+        model,
+        bounded_start(model),
+        name="q",
+        bounds=Bounds(lower=model.lower_pos_limit, upper=model.upper_pos_limit),
+    )
     pose = PoseResidual(
+        q,
         frame_id=panda_frame_id(model),
         target=target,
-        model=model,
         name="pose",
     )
-    residuals = [ResidualItem("pose", pose, group_size=6)]
+    pose.group_size = 6
+    residuals = [pose]
     if regularized:
-        limits = JointPositionLimit(model, name="limits")
-        rest = RestResidual(model, model.q_neutral, name="rest")
         residuals.extend(
             (
-                ResidualItem("limits", limits, weight=0.1),
-                ResidualItem("rest", rest, weight=0.01),
+                JointPositionLimit(q, name="limits", weight=0.1),
+                RestResidual(q, model.q_neutral, name="rest", weight=0.01),
             )
         )
-    return Problem(
-        vars=(
-            VarSpec(
-                "q",
-                (model.nq,),
-                manifold=RobotConfig(model),
-                bounds=Bounds(
-                    lower=model.lower_pos_limit,
-                    upper=model.upper_pos_limit,
-                ),
-            ),
-        ),
-        residuals=tuple(residuals),
-        providers=(RobotStateProvider(model),),
-    )
+    return Problem(residuals)

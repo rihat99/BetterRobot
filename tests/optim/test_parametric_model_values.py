@@ -8,13 +8,7 @@ from better_robot.dynamics import rnea
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics.forward import forward_kinematics
-from better_robot.optim import (
-    Problem,
-    ResidualItem,
-    RobotConfig,
-    RobotStateProvider,
-    VarSpec,
-)
+from better_robot.optim import Problem, RobotVariable
 from better_robot.residuals import PoseResidual
 
 
@@ -84,21 +78,22 @@ def test_fake_betas_reach_batched_fk_ik_objective_and_rnea() -> None:
         .detach()
     )
 
-    problem = Problem(
-        vars=(VarSpec("q", (model.nq,), manifold=RobotConfig(shaped)),),
-        residuals=(
-            ResidualItem(
-                "pose",
-                PoseResidual(
-                    model=shaped,
-                    frame_id=shaped.frame_id("tip"),
-                    target=target,
-                ),
-            ),
-        ),
-        providers=(RobotStateProvider(shaped),),
+    q_variable = RobotVariable(
+        shaped,
+        q,
+        name="q",
+        batch_ndim=1,
     )
-    ik_cost = problem.objective({"q": q}).sum()
+    problem = Problem(
+        [
+            PoseResidual(
+                q_variable,
+                frame_id=shaped.frame_id("tip"),
+                target=target,
+            )
+        ]
+    )
+    ik_cost = problem.objective().sum()
     v = torch.zeros(batch, model.nv, dtype=q.dtype)
     a = torch.full_like(v, 0.2)
     tau = rnea(shaped, q, v, a)

@@ -1,14 +1,9 @@
-"""``better_robot.residuals`` — residual classes.
-
-Every residual is a callable over an evaluation context. Optional analytic
-Jacobians are exposed through ``jacobian_blocks``.
-
-See ``docs/concepts/residuals_costs_and_solvers.md``.
-"""
+"""Object-referenced residuals, weights, and shared evaluation nodes."""
 
 from __future__ import annotations
 
-from .base import Residual
+from .base import DiagonalWeight, Difference, Residual, ScaleWeight, Weight, residual
+from .nodes import Node, RobotState
 from .chamfer import MaskedChamferResidual
 from .limits import JointPositionLimit, JointVelocityLimit
 from .human import SwingTwistLimitResidual
@@ -23,18 +18,25 @@ from .scene_sdf import (
     SceneAttractionResidual,
     SceneClearanceResidual,
     ScenePenetrationResidual,
-    SceneSDFProvider,
     SceneSDFResult,
+    SceneSDFState,
 )
 
 __all__ = [
     "Residual",
+    "Weight",
+    "ScaleWeight",
+    "DiagonalWeight",
+    "Difference",
+    "residual",
+    "Node",
+    "RobotState",
     "PoseResidual",
     "PositionResidual",
     "OrientationResidual",
     "ProjectionResidual",
     "MaskedChamferResidual",
-    "SceneSDFProvider",
+    "SceneSDFState",
     "SceneSDFResult",
     "ScenePenetrationResidual",
     "SceneAttractionResidual",

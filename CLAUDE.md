@@ -35,7 +35,7 @@ io   kinematics   dynamics   collision
 ```
 
 Kinematics and dynamics share an architectural rank; dynamics may reuse raw
-FK helpers. `io` builds `data_model` objects and does not depend on solvers.
+FK helpers. `io` builds `data_model` objects and does not depend on optimizers.
 Nothing in the computational core imports `viewer`. The dependency contract is
 enforced by `tests/contract/test_layer_dependencies.py`.
 
@@ -59,16 +59,19 @@ pass-specific; only forward kinematics currently has an opt-in Warp lane.
 
 ## Optimization
 
-`better_robot.optim` has one supported problem representation: named variables
-with manifolds, bounds, masks, providers, and fixed-width residuals. It is
-consumed by batched LM/GN or `run_first_order`. `solve_ik` and `solve_trajopt`
-are recipes over that same surface. Finite differences are an explicit debug
-strategy; normal differentiation uses analytic blocks or `torch.func`.
+`better_robot.optim` has one supported representation: object-owned `Variable`
+instances, fixed-width `Residual` objects that reference everything they read,
+evaluation-scoped `Node` objects for shared work, and a `Problem` that harvests
+that graph. Batched LM/GN and `TorchOptimizer` consume the same representation;
+`solve_ik` and `solve_trajopt` are recipes over it. Finite differences are an
+explicit debug strategy; normal differentiation uses analytic blocks or
+`torch.func`.
 
-Solver `update` must remain fixed-shape and free of host synchronization.
-Eager `run` may check whether every batch element is terminal once per
-iteration. Provider caches live for one evaluation only. See
-`src/better_robot/optim/CLAUDE.md` before changing solver behavior.
+Public optimizers own their problem and expose `step()` and `optimize()`.
+LM's private tensor update must remain fixed-shape and free of host
+synchronization; the eager driver may check whether every batch element is
+terminal once per iteration. Node memos live for one evaluation epoch only. See
+`src/better_robot/optim/CLAUDE.md` before changing optimizer behavior.
 
 ## Working rules
 

@@ -1,123 +1,99 @@
-"""Parity and graph contracts for blockwise Jacobian strategies."""
+"""Parity and graph contracts for blockwise v2 Jacobian strategies."""
 
 from __future__ import annotations
-
-from collections.abc import Mapping
-from typing import Any
 
 import pytest
 import torch
 
-from better_robot.optim import Problem, ResidualItem, VarSpec
+from better_robot.optim import Problem, Residual, Variable
 
 
-class _PolynomialResidual:
-    name = "polynomial"
-    reads = ("x",)
-    dim = 2
+class _PolynomialResidual(Residual):
+    def __init__(self, x: Variable, *, weight=1.0) -> None:
+        self.x = x
+        super().__init__(x, dim=2, weight=weight, name="polynomial")
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        x = ctx["x"]
+    def error(self) -> torch.Tensor:
+        x = self.x.tensor
         return torch.stack((x[..., 0].square() + 3.0 * x[..., 1], x[..., 1] * x[..., 2]), dim=-1)
 
-    def jacobian_blocks(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
-        x = ctx["x"]
-        zero = torch.zeros_like(x[0])
+    def jacobian(self) -> tuple[torch.Tensor, ...]:
+        x = self.x.tensor
+        zero = torch.zeros_like(x[..., 0])
         full = torch.stack(
             (
-                torch.stack((2.0 * x[0], 3.0 + zero, zero)),
-                torch.stack((zero, x[2], x[1])),
-            )
+                torch.stack((2.0 * x[..., 0], 3.0 + zero, zero), dim=-1),
+                torch.stack((zero, x[..., 2], x[..., 1]), dim=-1),
+            ),
+            dim=-2,
         )
-        indices = ctx.free_indices("x").to(device=x.device)
-        return {"x": full.index_select(-1, indices)}
+        return (full.index_select(-1, self.x.free_indices.to(x.device)),)
 
 
-class _CubicResidual:
-    name = "cubic"
-    reads = ("x",)
-    dim = 1
+class _CubicResidual(Residual):
+    def __init__(self, x: Variable) -> None:
+        self.x = x
+        super().__init__(x, dim=1, name="cubic")
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        return ctx["x"].pow(3)
+    def error(self) -> torch.Tensor:
+        return self.x.tensor.pow(3)
 
 
-class _ExplodingAnalyticResidual:
-    name = "exploding"
-    reads = ("x",)
-    dim = 2
+class _ExplodingAnalyticResidual(Residual):
+    def __init__(self, x: Variable, *, weight=1.0) -> None:
+        self.x = x
+        super().__init__(x, dim=2, weight=weight, name="exploding")
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        return ctx["x"].square()
+    def error(self) -> torch.Tensor:
+        return self.x.tensor.square()
 
-    def jacobian_blocks(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
-        del ctx
+    def jacobian(self):
         raise RuntimeError("analytic failure sentinel")
 
 
-class _ExternalScaleResidual:
-    name = "external_scale"
-    reads = ("x", "scale")
-    dim = 3
+class _ProductResidual(Residual):
+    def __init__(self, x: Variable, static: Variable, *, name: str) -> None:
+        self.x, self.static = x, static
+        super().__init__(x, static, dim=x.shape[-1] if x.shape else 1, name=name)
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        return ctx["x"] * ctx["scale"]
-
-
-class _AffineExternalResidual:
-    name = "affine_external"
-    reads = ("x", "offset")
-    dim = 1
-
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        return ctx["x"] + ctx["offset"]
+    def error(self) -> torch.Tensor:
+        return self.x.tensor * self.static.tensor
 
 
-def _polynomial_problem(*, masked: bool = False) -> Problem:
+class _AffineResidual(_ProductResidual):
+    def error(self) -> torch.Tensor:
+        return self.x.tensor + self.static.tensor
+
+
+def _polynomial_problem(value: torch.Tensor, *, masked: bool = False, weight=1.0):
     mask = torch.tensor([True, False, True]) if masked else None
-    return Problem(
-        vars=(VarSpec("x", (3,), mask=mask),),
-        residuals=(ResidualItem("polynomial", _PolynomialResidual()),),
-    )
+    x = Variable(value, name="x", mask=mask, batch_ndim=max(0, value.ndim - 1))
+    item = _PolynomialResidual(x, weight=weight)
+    return x, item, Problem([item])
 
 
 @pytest.mark.parametrize("strategy", ["jacrev", "jacfwd"])
 def test_forced_ad_matches_analytic(strategy: str) -> None:
-    problem = _polynomial_problem()
-    values = {"x": torch.tensor([0.7, -0.4, 1.2])}
-
-    analytic = problem.jacobian_blocks(values, strategy="analytic")[("polynomial", "x")]
-    forced = problem.jacobian_blocks(values, strategy=strategy)[("polynomial", "x")]
-
+    _x, _item, problem = _polynomial_problem(torch.tensor([0.7, -0.4, 1.2]))
+    analytic = problem.jacobian_blocks(strategy="analytic")[("polynomial", "x")]
+    forced = problem.jacobian_blocks(strategy=strategy)[("polynomial", "x")]
     torch.testing.assert_close(forced, analytic, atol=1e-6, rtol=1e-6)
 
 
 @pytest.mark.parametrize("strategy", ["analytic", "jacrev", "jacfwd"])
 def test_masked_blocks_have_only_reduced_columns(strategy: str) -> None:
-    problem = _polynomial_problem(masked=True)
-    values = {"x": torch.tensor([0.7, -0.4, 1.2])}
-
-    block = problem.jacobian_blocks(values, strategy=strategy)[("polynomial", "x")]
-
+    _x, _item, problem = _polynomial_problem(torch.tensor([0.7, -0.4, 1.2]), masked=True)
+    block = problem.jacobian_blocks(strategy=strategy)[("polynomial", "x")]
     assert block.shape == (2, 2)
     torch.testing.assert_close(block, torch.tensor([[1.4, 0.0], [0.0, -0.4]]))
 
 
 def test_create_graph_supports_a_function_of_jacobian_second_derivative() -> None:
-    problem = Problem(
-        vars=(VarSpec("x", (1,)),),
-        residuals=(ResidualItem("cubic", _CubicResidual()),),
-    )
-    x = torch.tensor([2.0], requires_grad=True)
-
-    block = problem.jacobian_blocks(
-        {"x": x},
-        strategy="jacrev",
-        create_graph=True,
-    )[("cubic", "x")]
-    first = torch.autograd.grad(block.sum(), x, create_graph=True)[0]
-    second = torch.autograd.grad(first.sum(), x)[0]
-
+    x = Variable(torch.tensor([2.0], requires_grad=True), name="x")
+    problem = Problem([_CubicResidual(x)])
+    block = problem.jacobian_blocks(strategy="jacrev", create_graph=True)[("cubic", "x")]
+    first = torch.autograd.grad(block.sum(), x.tensor, create_graph=True)[0]
+    second = torch.autograd.grad(first.sum(), x.tensor)[0]
     torch.testing.assert_close(block, torch.tensor([[12.0]]))
     torch.testing.assert_close(first, torch.tensor([12.0]))
     torch.testing.assert_close(second, torch.tensor([6.0]))
@@ -125,146 +101,73 @@ def test_create_graph_supports_a_function_of_jacobian_second_derivative() -> Non
 
 @pytest.mark.parametrize("strategy", ["jacrev", "jacfwd"])
 def test_create_graph_keeps_constant_ad_block_connected(strategy: str) -> None:
-    offset = torch.tensor([0.4], requires_grad=True)
-    problem = Problem(
-        vars=(VarSpec("x", (1,)),),
-        residuals=(ResidualItem("affine_external", _AffineExternalResidual()),),
-        parameters={"offset": offset},
-        differentiable_parameters=("offset",),
-    )
-    x = torch.tensor([0.7], requires_grad=True)
-
-    block = problem.jacobian_blocks(
-        {"x": x},
-        strategy=strategy,
-        create_graph=True,
-    )[("affine_external", "x")]
-    x_vjp, offset_vjp = torch.autograd.grad(block.sum(), (x, offset))
-
+    x = Variable(torch.tensor([0.7], requires_grad=True), name="x")
+    offset = Variable(torch.tensor([0.4], requires_grad=True), name="offset", trainable=False)
+    problem = Problem([_AffineResidual(x, offset, name="affine_external")])
+    block = problem.jacobian_blocks(strategy=strategy, create_graph=True)[("affine_external", "x")]
+    x_vjp, offset_vjp = torch.autograd.grad(block.sum(), (x.tensor, offset.tensor))
     torch.testing.assert_close(block, torch.ones(1, 1))
-    torch.testing.assert_close(x_vjp, torch.zeros_like(x))
-    torch.testing.assert_close(offset_vjp, torch.zeros_like(offset))
+    torch.testing.assert_close(x_vjp, torch.zeros_like(x.tensor))
+    torch.testing.assert_close(offset_vjp, torch.zeros_like(offset.tensor))
 
 
 @pytest.mark.parametrize("strategy", ["jacrev", "jacfwd"])
-def test_batched_jacobian_matches_sequential(strategy: str) -> None:
-    problem = _polynomial_problem()
-    values = {"x": torch.tensor([[0.7, -0.4, 1.2], [-0.2, 0.5, 1.7], [1.1, 0.3, -0.8]])}
-
-    batched = problem.jacobian_blocks(values, strategy=strategy)[("polynomial", "x")]
+@pytest.mark.parametrize("batch_shape", [(3,), (2, 3)])
+def test_batched_jacobian_matches_sequential(strategy: str, batch_shape: tuple[int, ...]) -> None:
+    values = torch.linspace(-0.7, 1.1, 3 * torch.tensor(batch_shape).prod().item()).reshape(*batch_shape, 3)
+    _x, _item, problem = _polynomial_problem(values)
+    batched = problem.jacobian_blocks(strategy=strategy)[("polynomial", "x")]
     sequential = torch.stack(
         [
-            problem.jacobian_blocks({"x": values["x"][index]}, strategy=strategy)[("polynomial", "x")]
-            for index in range(values["x"].shape[0])
+            _polynomial_problem(row)[2].jacobian_blocks(strategy=strategy)[("polynomial", "x")]
+            for row in values.reshape(-1, 3)
         ]
-    )
-
-    assert batched.shape == (3, 2, 3)
+    ).reshape(*batch_shape, 2, 3)
     torch.testing.assert_close(batched, sequential, atol=1e-6, rtol=1e-6)
 
 
 @pytest.mark.parametrize("strategy", ["jacrev", "jacfwd"])
-def test_multi_axis_batched_jacobian_matches_sequential(strategy: str) -> None:
-    problem = _polynomial_problem()
-    values = {"x": torch.linspace(-0.7, 1.1, 18).reshape(2, 3, 3)}
-
-    batched = problem.jacobian_blocks(values, strategy=strategy)[("polynomial", "x")]
-    sequential = torch.stack(
-        [
-            problem.jacobian_blocks({"x": row}, strategy=strategy)[("polynomial", "x")]
-            for row in values["x"].reshape(-1, 3)
-        ]
-    ).reshape(2, 3, 2, 3)
-
-    assert batched.shape == (2, 3, 2, 3)
-    torch.testing.assert_close(batched, sequential, atol=1e-6, rtol=1e-6)
+def test_shared_static_vector_is_not_misread_as_a_batch_axis(strategy: str) -> None:
+    x = Variable(torch.ones(3, 3), name="x", batch_ndim=1)
+    scale = Variable(torch.tensor([2.0, 3.0, 4.0]), name="scale", trainable=False)
+    problem = Problem([_ProductResidual(x, scale, name="external_scale")])
+    block = problem.jacobian_blocks(strategy=strategy)[("external_scale", "x")]
+    torch.testing.assert_close(block, torch.diag(scale.tensor).expand(3, -1, -1))
 
 
 @pytest.mark.parametrize("strategy", ["jacrev", "jacfwd"])
-def test_shared_external_vector_is_not_misread_as_a_batch_axis(strategy: str) -> None:
-    scale = torch.tensor([2.0, 3.0, 4.0])
-    problem = Problem(
-        vars=(VarSpec("x", (3,)),),
-        residuals=(ResidualItem("external_scale", _ExternalScaleResidual()),),
-        parameters={"scale": scale},
-    )
-    values = {"x": torch.ones(3, 3)}  # batch size intentionally equals scale length
-
-    block = problem.jacobian_blocks(values, strategy=strategy)[("external_scale", "x")]
-    expected = torch.diag(scale).expand(3, -1, -1)
-
-    torch.testing.assert_close(block, expected)
-
-
-@pytest.mark.parametrize("strategy", ["jacrev", "jacfwd"])
-def test_batched_tensor_residual_weights_scale_each_jacobian(strategy: str) -> None:
-    problem = _polynomial_problem()
-    values = {"x": torch.tensor([[0.7, -0.4, 1.2], [-0.2, 0.5, 1.7], [1.1, 0.3, -0.8]])}
+def test_batched_tensor_weights_scale_each_jacobian(strategy: str) -> None:
+    values = torch.tensor([[0.7, -0.4, 1.2], [-0.2, 0.5, 1.7], [1.1, 0.3, -0.8]])
     weights = torch.tensor([0.5, 1.25, 2.0])
-
-    unweighted = problem.jacobian_blocks(values, strategy=strategy)[("polynomial", "x")]
-    weighted = problem.jacobian_blocks(
-        values,
-        weights={"polynomial": weights},
-        strategy=strategy,
-    )[("polynomial", "x")]
-
+    _x, item, problem = _polynomial_problem(values)
+    unweighted = problem.jacobian_blocks(strategy=strategy)[("polynomial", "x")]
+    item.weight = weights
+    weighted = problem.jacobian_blocks(strategy=strategy)[("polynomial", "x")]
     torch.testing.assert_close(weighted, unweighted * weights[:, None, None])
 
 
 def test_finite_difference_is_explicit_and_never_a_silent_fallback() -> None:
-    problem = Problem(
-        vars=(VarSpec("x", (2,)),),
-        residuals=(ResidualItem("exploding", _ExplodingAnalyticResidual()),),
-    )
-    values = {"x": torch.tensor([0.7, -1.2])}
-
+    x = Variable(torch.tensor([0.7, -1.2]), name="x")
+    problem = Problem([_ExplodingAnalyticResidual(x)])
     with pytest.raises(RuntimeError, match="analytic failure sentinel"):
-        problem.jacobian_blocks(values, strategy="auto")
-
-    expected = torch.diag(2.0 * values["x"])
+        problem.jacobian_blocks(strategy="auto")
+    expected = torch.diag(2.0 * x.tensor)
+    torch.testing.assert_close(problem.jacobian_blocks(strategy="jacrev")[("exploding", "x")], expected)
     torch.testing.assert_close(
-        problem.jacobian_blocks(values, strategy="jacrev")[("exploding", "x")],
-        expected,
-    )
-    torch.testing.assert_close(
-        problem.jacobian_blocks(
-            values,
-            strategy="finite_difference",
-            fd_eps=1e-3,
-        )[("exploding", "x")],
+        problem.jacobian_blocks(strategy="finite_difference", fd_eps=1e-3)[("exploding", "x")],
         expected,
         atol=2e-4,
         rtol=2e-4,
     )
-    with pytest.raises(ValueError, match="graph-free debug strategy"):
-        problem.jacobian_blocks(
-            values,
-            strategy="finite_difference",
-            create_graph=True,
-        )
+    with pytest.raises(ValueError, match="finite_difference must be graph-free"):
+        problem.jacobian_blocks(strategy="finite_difference", create_graph=True)
 
 
 def test_finite_difference_releases_primal_and_weight_graphs() -> None:
-    problem = Problem(
-        vars=(VarSpec("x", (2,)),),
-        residuals=(ResidualItem("exploding", _ExplodingAnalyticResidual()),),
-    )
-    values = {"x": torch.tensor([0.7, -1.2], requires_grad=True)}
-    weight = torch.tensor(1.5, requires_grad=True)
-
-    block = problem.jacobian_blocks(
-        values,
-        weights={"exploding": weight},
-        strategy="finite_difference",
-    )[("exploding", "x")]
-    dense = problem.dense_jacobian(
-        values,
-        weights={"exploding": weight},
-        strategy="finite_difference",
-    )
-
-    assert block.requires_grad is False
-    assert block.grad_fn is None
-    assert dense.requires_grad is False
-    assert dense.grad_fn is None
+    x = Variable(torch.tensor([0.7, -1.2], requires_grad=True), name="x")
+    item = _ExplodingAnalyticResidual(x, weight=torch.tensor(1.5, requires_grad=True))
+    problem = Problem([item])
+    block = problem.jacobian_blocks(strategy="finite_difference")[("exploding", "x")]
+    dense = problem.dense_jacobian(strategy="finite_difference")
+    assert not block.requires_grad and block.grad_fn is None
+    assert not dense.requires_grad and dense.grad_fn is None

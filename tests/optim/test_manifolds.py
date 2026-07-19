@@ -1,4 +1,4 @@
-"""Contracts for the draft state-manifold and variable-block primitives."""
+"""Geometry and validation regressions for object-owned variables."""
 
 from __future__ import annotations
 
@@ -9,32 +9,13 @@ import torch
 
 from better_robot.exceptions import DtypeMismatchError
 from better_robot.io import ModelBuilder, build_model, load
-from better_robot.optim import (
-    Bounds,
-    Euclidean,
-    RobotConfig,
-    SE3Manifold,
-    SO3Manifold,
-    VarSpec,
-)
-
+from better_robot.optim import Bounds, RobotVariable, SE3Variable, SO3Variable, Variable
 
 _BATCH_SHAPES = ((), (4,), (2, 3))
 
 
 def _pattern(batch_shape: tuple[int, ...], width: int, *, scale: float) -> torch.Tensor:
-    count = math.prod(batch_shape) * width
-    return torch.linspace(-scale, scale, count, dtype=torch.float32).reshape(*batch_shape, width)
-
-
-def _identity_so3(batch_shape: tuple[int, ...]) -> torch.Tensor:
-    identity = torch.tensor([0.0, 0.0, 0.0, 1.0])
-    return identity.expand(*batch_shape, 4).clone()
-
-
-def _identity_se3(batch_shape: tuple[int, ...]) -> torch.Tensor:
-    identity = torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
-    return identity.expand(*batch_shape, 7).clone()
+    return torch.linspace(-scale, scale, math.prod(batch_shape) * width).reshape(*batch_shape, width)
 
 
 @pytest.fixture(scope="module")
@@ -51,13 +32,7 @@ def floating_spherical_model():
     tip = builder.add_body("tip", mass=1.0)
     builder.add_free_flyer_root("floating", child=base)
     builder.add_spherical("ball", parent=base, child=middle)
-    builder.add_revolute_z(
-        "hinge",
-        parent=middle,
-        child=tip,
-        lower=-0.25,
-        upper=0.25,
-    )
+    builder.add_revolute_z("hinge", parent=middle, child=tip, lower=-0.25, upper=0.25)
     return build_model(builder.finalize(), dtype=torch.float32)
 
 
@@ -65,200 +40,115 @@ def floating_spherical_model():
 @pytest.mark.parametrize("kind", ("euclidean", "so3", "se3"))
 def test_retract_difference_roundtrip(kind: str, batch_shape: tuple[int, ...]) -> None:
     if kind == "euclidean":
-        manifold = Euclidean()
-        x = _pattern(batch_shape, 5, scale=0.3)
-        dv = _pattern(batch_shape, 5, scale=0.02)
+        value = _pattern(batch_shape, 5, scale=0.3)
+        variable = Variable(value, batch_ndim=len(batch_shape))
+        delta = _pattern(batch_shape, 5, scale=0.02)
     elif kind == "so3":
-        manifold = SO3Manifold()
-        x = _identity_so3(batch_shape)
-        dv = _pattern(batch_shape, 3, scale=0.02)
+        value = torch.tensor([0.0, 0.0, 0.0, 1.0]).expand(*batch_shape, 4).clone()
+        variable = SO3Variable(value)
+        delta = _pattern(batch_shape, 3, scale=0.02)
     else:
-        manifold = SE3Manifold()
-        x = _identity_se3(batch_shape)
-        dv = _pattern(batch_shape, 6, scale=0.02)
-
-    actual = manifold.difference(x, manifold.retract(x, dv))
-
-    assert actual.shape == dv.shape
-    torch.testing.assert_close(actual, dv, rtol=2e-4, atol=2e-5)
+        value = torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]).expand(*batch_shape, 7).clone()
+        variable = SE3Variable(value)
+        delta = _pattern(batch_shape, 6, scale=0.02)
+    actual = variable._difference_from(value, variable.retract(delta))
+    torch.testing.assert_close(actual, delta, rtol=2e-4, atol=2e-5)
 
 
-def _assert_robot_config_wrapper(model, batch_shape: tuple[int, ...]) -> None:
-    manifold = RobotConfig(model)
+def _assert_robot_variable(model, batch_shape: tuple[int, ...]) -> None:
     q = model.q_neutral.expand(*batch_shape, model.nq).clone()
-    dv = _pattern(batch_shape, model.nv, scale=0.01)
-
-    wrapped_q = manifold.retract(q, dv)
-    direct_q = model.integrate(q, dv)
-    torch.testing.assert_close(wrapped_q, direct_q, rtol=0.0, atol=0.0)
-
-    wrapped_difference = manifold.difference(q, wrapped_q)
-    direct_difference = model.difference(q, direct_q)
-    torch.testing.assert_close(
-        wrapped_difference,
-        direct_difference,
-        rtol=0.0,
-        atol=0.0,
-    )
-    torch.testing.assert_close(wrapped_difference, dv, rtol=2e-4, atol=2e-5)
-    assert manifold.tangent_dim((model.nq,)) == model.nv
+    variable = RobotVariable(model, q)
+    delta = _pattern(batch_shape, model.nv, scale=0.01)
+    integrated = variable.retract(delta)
+    torch.testing.assert_close(integrated, model.integrate(q, delta), rtol=0.0, atol=0.0)
+    torch.testing.assert_close(variable._difference_from(q, integrated), delta, rtol=2e-4, atol=2e-5)
 
 
 @pytest.mark.parametrize("batch_shape", _BATCH_SHAPES)
-def test_panda_robot_config_wrapper_parity(panda_model, batch_shape) -> None:
-    assert panda_model.nq == panda_model.nv == 8
-    _assert_robot_config_wrapper(panda_model, batch_shape)
+def test_panda_robot_variable_parity(panda_model, batch_shape) -> None:
+    _assert_robot_variable(panda_model, batch_shape)
 
 
 @pytest.mark.parametrize("batch_shape", _BATCH_SHAPES)
-def test_floating_spherical_robot_config_wrapper_parity(
-    floating_spherical_model,
-    batch_shape,
-) -> None:
-    assert floating_spherical_model.nq == 12
-    assert floating_spherical_model.nv == 10
+def test_floating_spherical_robot_variable_parity(floating_spherical_model, batch_shape) -> None:
     assert floating_spherical_model.nq != floating_spherical_model.nv
-    _assert_robot_config_wrapper(floating_spherical_model, batch_shape)
+    _assert_robot_variable(floating_spherical_model, batch_shape)
 
 
 def _floating_bounds(model) -> Bounds:
-    lower = torch.full((model.nq,), -torch.inf)
-    upper = torch.full((model.nq,), torch.inf)
-    lower[0], upper[0] = -0.5, 0.5
-    lower[-1], upper[-1] = -0.25, 0.25
-    return Bounds(lower=lower, upper=upper)
+    lower, upper = torch.full((model.nq,), -torch.inf), torch.full((model.nq,), torch.inf)
+    lower[0], upper[0], lower[-1], upper[-1] = -0.5, 0.5, -0.25, 0.25
+    return Bounds(lower, upper)
 
 
-def test_feasible_retraction_clamps_only_box_coordinates_and_preserves_units(
-    floating_spherical_model,
-) -> None:
+def test_retraction_clamps_only_box_coordinates_and_preserves_units(floating_spherical_model) -> None:
     model = floating_spherical_model
-    bounds = _floating_bounds(model)
-    spec = VarSpec(
-        name="q",
-        shape=(model.nq,),
-        manifold=RobotConfig(model),
-        bounds=bounds,
+    variable = RobotVariable(model, model.q_neutral.clone(), bounds=_floating_bounds(model))
+    delta = torch.zeros(model.nv)
+    delta[0], delta[3:6], delta[6:9], delta[-1] = (
+        2.0,
+        torch.tensor([0.1, -0.2, 0.15]),
+        torch.tensor([0.2, 0.1, -0.1]),
+        1.0,
     )
-    q = model.q_neutral.clone()
-    dv = torch.zeros(model.nv)
-    dv[0] = 2.0
-    dv[3:6] = torch.tensor([0.1, -0.2, 0.15])
-    dv[6:9] = torch.tensor([0.2, 0.1, -0.1])
-    dv[-1] = 1.0
-
-    unconstrained = model.integrate(q, dv)
-    projected = spec.retract(q, dv)
-
+    unconstrained = model.integrate(variable.tensor, delta)
+    projected = variable.retract(delta)
     assert projected[0].item() == pytest.approx(0.5)
     assert projected[-1].item() == pytest.approx(0.25)
-    torch.testing.assert_close(projected[3:7], unconstrained[3:7])
-    torch.testing.assert_close(projected[7:11], unconstrained[7:11])
+    torch.testing.assert_close(projected[3:11], unconstrained[3:11])
     torch.testing.assert_close(projected[3:7].norm(), torch.tensor(1.0))
     torch.testing.assert_close(projected[7:11].norm(), torch.tensor(1.0))
 
 
-@pytest.mark.parametrize(
-    ("manifold", "shape", "kind"),
-    ((SO3Manifold(), (4,), "SO3"), (SE3Manifold(), (7,), "SE3")),
-)
-def test_group_bounds_raise_the_exact_global_box_error(manifold, shape, kind) -> None:
-    bounds = Bounds(torch.full(shape, -torch.inf), torch.full(shape, torch.inf))
-
-    with pytest.raises(ValueError) as exc_info:
-        VarSpec(name="orientation", shape=shape, manifold=manifold, bounds=bounds)
-
-    expected = (
-        f"{kind} variable blocks have no meaningful global box bound — neither in "
-        "state space nor in tangent space. Express rotation limits as residuals "
-        "(for example JointRotationPrior or SwingTwistLimitResidual), or use "
-        "RobotConfig with joint "
-        f"limits. Got bounds={bounds!r} on VarSpec 'orientation'."
-    )
-    assert str(exc_info.value) == expected
+@pytest.mark.parametrize(("cls", "width", "kind"), ((SO3Variable, 4, "SO3"), (SE3Variable, 7, "SE3")))
+def test_group_bounds_raise_actionably(cls, width: int, kind: str) -> None:
+    bounds = Bounds(torch.full((width,), -torch.inf), torch.full((width,), torch.inf))
+    identity = torch.zeros(width)
+    identity[-1] = 1.0
+    with pytest.raises(ValueError, match=rf"{kind} variables have no meaningful global box bound"):
+        cls(identity, name="orientation", bounds=bounds)
 
 
-def test_robot_config_rejects_bounds_on_quaternion_coordinates_exactly(
-    floating_spherical_model,
-) -> None:
+def test_robot_variable_rejects_bounds_on_quaternion_coordinates(floating_spherical_model) -> None:
     bounds = _floating_bounds(floating_spherical_model)
     lower = bounds.lower.clone()
     lower[3] = -1.0
-    invalid = Bounds(lower, bounds.upper)
-
-    with pytest.raises(ValueError) as exc_info:
-        VarSpec(
-            name="q",
-            shape=(floating_spherical_model.nq,),
-            manifold=RobotConfig(floating_spherical_model),
-            bounds=invalid,
-        )
-
-    assert str(exc_info.value) == (
-        "RobotConfig VarSpec 'q' bounds must be (-inf, +inf) on non-box "
-        "manifold coordinates [3, 4, 5, 6, 7, 8, 9, 10]; quaternion/unit-circle "
-        "coordinates are never clamped"
-    )
+    with pytest.raises(ValueError, match="non-box manifold coordinates"):
+        RobotVariable(floating_spherical_model, bounds=Bounds(lower, bounds.upper))
 
 
 def test_mask_eliminates_fixed_tangent_coordinates() -> None:
-    spec = VarSpec(
-        name="x",
-        shape=(4,),
-        manifold=Euclidean(),
-        mask=torch.tensor([True, False, True, False]),
-    )
-
-    assert spec.tangent_dim == 4
-    assert spec.free_dim == 2
-    assert spec.free_indices.tolist() == [0, 2]
+    variable = Variable(torch.zeros(4), mask=torch.tensor([True, False, True, False]))
     reduced = torch.tensor([0.25, -0.5])
-    expanded = spec.expand_tangent(reduced)
+    expanded = variable.expand_tangent(reduced)
+    assert variable.tangent_dim() == 4 and variable.free_indices.tolist() == [0, 2]
     torch.testing.assert_close(expanded, torch.tensor([0.25, 0.0, -0.5, 0.0]))
-    torch.testing.assert_close(spec.gather_tangent(expanded), reduced)
-    torch.testing.assert_close(spec.retract(torch.zeros(4), reduced), expanded)
+    torch.testing.assert_close(variable.gather_tangent(expanded), reduced)
+    torch.testing.assert_close(variable.retract(reduced), expanded)
 
 
 def test_scalar_event_shape_supports_independent_batch_axes() -> None:
-    spec = VarSpec(name="scale", shape=())
-    torch.testing.assert_close(
-        spec.retract(torch.tensor(1.0), torch.tensor([0.2])),
-        torch.tensor(1.2),
-    )
+    scalar = Variable(torch.tensor(1.0))
+    torch.testing.assert_close(scalar.retract(torch.tensor([0.2])), torch.tensor(1.2))
     values = torch.tensor([0.2, -0.3, 0.5])
-    steps = torch.tensor([[0.1], [0.2], [-0.4]])
-
-    assert spec.batch_shape(values) == (3,)
-    assert spec.tangent_dim == spec.free_dim == 1
-    torch.testing.assert_close(spec.retract(values, steps), torch.tensor([0.3, -0.1, 0.1]))
+    batched = Variable(values, batch_ndim=1)
+    assert batched.batch_shape == (3,) and batched.tangent_dim() == batched.free_dim == 1
+    torch.testing.assert_close(batched.retract(torch.tensor([[0.1], [0.2], [-0.4]])), torch.tensor([0.3, -0.1, 0.1]))
 
 
 @pytest.mark.parametrize("dtype", (torch.float16, torch.bfloat16, torch.int64))
 def test_values_reject_unsupported_working_dtypes(dtype: torch.dtype) -> None:
-    with pytest.raises(DtypeMismatchError, match="use torch.float32 or torch.float64"):
-        VarSpec(name="x", shape=(2,)).validate_value(torch.ones(2, dtype=dtype))
+    with pytest.raises(DtypeMismatchError, match="torch.float32 or torch.float64"):
+        Variable(torch.ones(2, dtype=dtype))
 
 
-def test_retraction_rejects_a_mixed_dtype_step() -> None:
-    spec = VarSpec(name="x", shape=(2,))
-
-    with pytest.raises(DtypeMismatchError, match="Step and value.*share dtype"):
-        spec.retract(
-            torch.ones(2, dtype=torch.float32),
-            torch.zeros(2, dtype=torch.float64),
-        )
-
-
-def test_difference_validates_both_inputs_and_rejects_mixed_dtype() -> None:
-    spec = VarSpec(name="x", shape=(2,))
-
-    with pytest.raises(DtypeMismatchError, match="Difference inputs.*share dtype"):
-        spec.difference(
-            torch.ones(2, dtype=torch.float32),
-            torch.zeros(2, dtype=torch.float64),
-        )
-    difference = spec.difference(torch.ones(2), torch.tensor([0.0, float("nan")]))
-    assert torch.isnan(difference[-1])
+def test_retraction_and_difference_reject_mixed_dtype() -> None:
+    variable = Variable(torch.ones(2))
+    with pytest.raises(DtypeMismatchError, match="delta and value must share dtype"):
+        variable.retract(torch.zeros(2, dtype=torch.float64))
+    with pytest.raises(DtypeMismatchError, match="difference inputs must share dtype"):
+        variable._difference_from(torch.ones(2), torch.zeros(2, dtype=torch.float64))
+    assert torch.isnan(variable._difference_from(torch.ones(2), torch.tensor([0.0, float("nan")]))[-1])
 
 
 def test_bounds_reject_nan_endpoints() -> None:
@@ -268,15 +158,9 @@ def test_bounds_reject_nan_endpoints() -> None:
         Bounds(torch.tensor([-1.0]), torch.tensor([float("nan")]))
 
 
-def test_value_validation_checks_structure_without_scanning_manifold_content(
-    floating_spherical_model,
-) -> None:
-    VarSpec("rotation", (4,), manifold=SO3Manifold()).validate_value(torch.zeros(4))
-    VarSpec("pose", (7,), manifold=SE3Manifold()).validate_value(torch.zeros(7))
+def test_value_validation_is_structural(floating_spherical_model) -> None:
+    SO3Variable(torch.zeros(4))
+    SE3Variable(torch.zeros(7))
     q = floating_spherical_model.q_neutral.clone()
     q[3:7] = 0.0
-    VarSpec(
-        "q",
-        (floating_spherical_model.nq,),
-        manifold=RobotConfig(floating_spherical_model),
-    ).validate_value(q)
+    RobotVariable(floating_spherical_model, q)

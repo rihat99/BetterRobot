@@ -13,6 +13,7 @@ import torch
 from better_robot.io import build_model, load
 from better_robot.io.builders.smpl_like import make_smpl_like_body
 from better_robot.io.ir import IRModel
+from better_robot.optim import RobotVariable
 from better_robot.residuals.regularization import RestResidual
 
 
@@ -117,7 +118,8 @@ def test_smpl_rest_residual_backward_is_nan_free(smpl_model):
     """RestResidual traverses one free-flyer and 23 identity SO3 logs."""
     q_rest = smpl_model.q_neutral.to(dtype=torch.float64)
     q = q_rest.detach().clone().requires_grad_(True)
-    residual = RestResidual(smpl_model, q_rest)({"q": q})
+    q_variable = RobotVariable(smpl_model, q, name="q")
+    residual = RestResidual(q_variable, q_rest).error()
     residual.square().sum().backward()
 
     assert q.grad is not None

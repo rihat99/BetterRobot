@@ -19,8 +19,8 @@
   - ```{autodoc2-docstring} better_robot.residuals.scene_sdf.SceneSDFResult
     :summary:
     ```
-* - {py:obj}`SceneSDFProvider <better_robot.residuals.scene_sdf.SceneSDFProvider>`
-  - ```{autodoc2-docstring} better_robot.residuals.scene_sdf.SceneSDFProvider
+* - {py:obj}`SceneSDFState <better_robot.residuals.scene_sdf.SceneSDFState>`
+  - ```{autodoc2-docstring} better_robot.residuals.scene_sdf.SceneSDFState
     :summary:
     ```
 * - {py:obj}`ScenePenetrationResidual <better_robot.residuals.scene_sdf.ScenePenetrationResidual>`
@@ -91,143 +91,22 @@
 
 `````
 
-`````{py:class} SceneSDFProvider
-:canonical: better_robot.residuals.scene_sdf.SceneSDFProvider
+`````{py:class} SceneSDFState(query_points: better_robot.residuals._variables.VariableLike | torch.Tensor, query_validity: better_robot.residuals._variables.VariableLike | torch.Tensor, scene_points: better_robot.residuals._variables.VariableLike | torch.Tensor, scene_normals: better_robot.residuals._variables.VariableLike | torch.Tensor, scene_validity: better_robot.residuals._variables.VariableLike | torch.Tensor, *, scene_confidence: better_robot.residuals._variables.VariableLike | torch.Tensor | None = None, chunk_size: int = 4096, eps: float = 1e-08)
+:canonical: better_robot.residuals.scene_sdf.SceneSDFState
 
-```{autodoc2-docstring} better_robot.residuals.scene_sdf.SceneSDFProvider
+Bases: {py:obj}`better_robot.residuals.nodes.Node`
+
+```{autodoc2-docstring} better_robot.residuals.scene_sdf.SceneSDFState
 ```
 
-````{py:attribute} query_points
-:canonical: better_robot.residuals.scene_sdf.SceneSDFProvider.query_points
-:type: str
-:value: >
-   'scene_query_points'
-
-```{autodoc2-docstring} better_robot.residuals.scene_sdf.SceneSDFProvider.query_points
-```
-
-````
-
-````{py:attribute} query_validity
-:canonical: better_robot.residuals.scene_sdf.SceneSDFProvider.query_validity
-:type: str
-:value: >
-   'scene_query_validity'
-
-```{autodoc2-docstring} better_robot.residuals.scene_sdf.SceneSDFProvider.query_validity
-```
-
-````
-
-````{py:attribute} scene_points
-:canonical: better_robot.residuals.scene_sdf.SceneSDFProvider.scene_points
-:type: str
-:value: >
-   'scene_points'
-
-```{autodoc2-docstring} better_robot.residuals.scene_sdf.SceneSDFProvider.scene_points
-```
-
-````
-
-````{py:attribute} scene_normals
-:canonical: better_robot.residuals.scene_sdf.SceneSDFProvider.scene_normals
-:type: str
-:value: >
-   'scene_normals'
-
-```{autodoc2-docstring} better_robot.residuals.scene_sdf.SceneSDFProvider.scene_normals
-```
-
-````
-
-````{py:attribute} scene_validity
-:canonical: better_robot.residuals.scene_sdf.SceneSDFProvider.scene_validity
-:type: str
-:value: >
-   'scene_validity'
-
-```{autodoc2-docstring} better_robot.residuals.scene_sdf.SceneSDFProvider.scene_validity
-```
-
-````
-
-````{py:attribute} scene_confidence
-:canonical: better_robot.residuals.scene_sdf.SceneSDFProvider.scene_confidence
-:type: str | None
-:value: >
-   None
-
-```{autodoc2-docstring} better_robot.residuals.scene_sdf.SceneSDFProvider.scene_confidence
-```
-
-````
-
-````{py:attribute} output
-:canonical: better_robot.residuals.scene_sdf.SceneSDFProvider.output
-:type: str
-:value: >
-   'scene_sdf'
-
-```{autodoc2-docstring} better_robot.residuals.scene_sdf.SceneSDFProvider.output
-```
-
-````
-
-````{py:attribute} name
-:canonical: better_robot.residuals.scene_sdf.SceneSDFProvider.name
-:type: str
-:value: >
-   'scene_sdf_provider'
-
-```{autodoc2-docstring} better_robot.residuals.scene_sdf.SceneSDFProvider.name
-```
-
-````
-
-````{py:attribute} chunk_size
-:canonical: better_robot.residuals.scene_sdf.SceneSDFProvider.chunk_size
-:type: int
-:value: >
-   4096
-
-```{autodoc2-docstring} better_robot.residuals.scene_sdf.SceneSDFProvider.chunk_size
-```
-
-````
-
-````{py:attribute} eps
-:canonical: better_robot.residuals.scene_sdf.SceneSDFProvider.eps
-:type: float
-:value: >
-   1e-08
-
-```{autodoc2-docstring} better_robot.residuals.scene_sdf.SceneSDFProvider.eps
-```
-
-````
-
-````{py:property} reads
-:canonical: better_robot.residuals.scene_sdf.SceneSDFProvider.reads
-:type: tuple[str, ...]
-
-```{autodoc2-docstring} better_robot.residuals.scene_sdf.SceneSDFProvider.reads
-```
-
-````
-
-````{py:property} outputs
-:canonical: better_robot.residuals.scene_sdf.SceneSDFProvider.outputs
-:type: tuple[str, ...]
-
-```{autodoc2-docstring} better_robot.residuals.scene_sdf.SceneSDFProvider.outputs
-```
+````{py:method} compute() -> better_robot.residuals.scene_sdf.SceneSDFResult
+:canonical: better_robot.residuals.scene_sdf.SceneSDFState.compute
 
 ````
 
 `````
 
-````{py:class} ScenePenetrationResidual(frames: int, points: int, *, scene_sdf: str = 'scene_sdf', name: str = 'scene_penetration')
+`````{py:class} ScenePenetrationResidual(state: better_robot.residuals.scene_sdf.SceneSDFState, *, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'scene_penetration')
 :canonical: better_robot.residuals.scene_sdf.ScenePenetrationResidual
 
 Bases: {py:obj}`better_robot.residuals.scene_sdf._ScenePenaltyResidual`
@@ -235,9 +114,14 @@ Bases: {py:obj}`better_robot.residuals.scene_sdf._ScenePenaltyResidual`
 ```{autodoc2-docstring} better_robot.residuals.scene_sdf.ScenePenetrationResidual
 ```
 
+````{py:method} error() -> torch.Tensor
+:canonical: better_robot.residuals.scene_sdf.ScenePenetrationResidual.error
+
 ````
 
-````{py:class} SceneAttractionResidual(frames: int, points: int, *, target_distance: float = 0.0, scene_sdf: str = 'scene_sdf', name: str = 'scene_attraction')
+`````
+
+`````{py:class} SceneAttractionResidual(state: better_robot.residuals.scene_sdf.SceneSDFState, *, target_distance: float = 0.0, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'scene_attraction')
 :canonical: better_robot.residuals.scene_sdf.SceneAttractionResidual
 
 Bases: {py:obj}`better_robot.residuals.scene_sdf._ScenePenaltyResidual`
@@ -245,9 +129,14 @@ Bases: {py:obj}`better_robot.residuals.scene_sdf._ScenePenaltyResidual`
 ```{autodoc2-docstring} better_robot.residuals.scene_sdf.SceneAttractionResidual
 ```
 
+````{py:method} error() -> torch.Tensor
+:canonical: better_robot.residuals.scene_sdf.SceneAttractionResidual.error
+
 ````
 
-````{py:class} SceneClearanceResidual(frames: int, points: int, *, clearance: float, scene_sdf: str = 'scene_sdf', name: str = 'scene_clearance')
+`````
+
+`````{py:class} SceneClearanceResidual(state: better_robot.residuals.scene_sdf.SceneSDFState, *, clearance: float, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'scene_clearance')
 :canonical: better_robot.residuals.scene_sdf.SceneClearanceResidual
 
 Bases: {py:obj}`better_robot.residuals.scene_sdf._ScenePenaltyResidual`
@@ -255,4 +144,9 @@ Bases: {py:obj}`better_robot.residuals.scene_sdf._ScenePenaltyResidual`
 ```{autodoc2-docstring} better_robot.residuals.scene_sdf.SceneClearanceResidual
 ```
 
+````{py:method} error() -> torch.Tensor
+:canonical: better_robot.residuals.scene_sdf.SceneClearanceResidual.error
+
 ````
+
+`````

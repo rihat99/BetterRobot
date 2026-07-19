@@ -311,15 +311,12 @@ def test_solve_ik_floating_base_with_limits(g1):
 
 def test_joint_position_limit_jacobian_shape_floating_base(g1):
     """JointPositionLimit's analytic block uses tangent columns, not nq."""
-    from better_robot.optim import Problem, ResidualItem, RobotConfig, VarSpec  # noqa: PLC0415
+    from better_robot.optim import Problem, RobotVariable  # noqa: PLC0415
     from better_robot.residuals.limits import JointPositionLimit  # noqa: PLC0415
 
     q = g1.q_neutral.clone()
     q[6] = 1.0
-    res = JointPositionLimit(g1)
-    problem = Problem(
-        vars=(VarSpec("q", (g1.nq,), manifold=RobotConfig(g1)),),
-        residuals=(ResidualItem("joint_position_limit", res),),
-    )
-    J = problem.dense_jacobian({"q": q}, strategy="analytic")
+    q_variable = RobotVariable(g1, q, name="q")
+    problem = Problem([JointPositionLimit(q_variable)])
+    J = problem.dense_jacobian(strategy="analytic")
     assert J.shape == (2 * g1.nq, g1.nv), f"expected (2*nq={2 * g1.nq}, nv={g1.nv}), got {tuple(J.shape)}"

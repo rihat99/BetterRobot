@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import math
-from numbers import Real
 from typing import Protocol, runtime_checkable
 
 import torch
@@ -12,37 +11,6 @@ import torch
 def _group_rows(rows: torch.Tensor, group_size: int) -> torch.Tensor:
     """View the last residual axis as contiguous robust groups."""
     return rows.reshape(*rows.shape[:-1], rows.shape[-1] // group_size, group_size)
-
-
-def _validate_weight_type(name: str, weight: object) -> None:
-    if not isinstance(weight, (Real, torch.Tensor)):
-        raise TypeError(f"Weight for item {name!r} must be a real number or torch.Tensor")
-    if isinstance(weight, torch.Tensor) and not weight.is_floating_point():
-        raise TypeError(f"Tensor weight for item {name!r} must use a floating dtype")
-
-
-def _is_inactive(weight: object) -> bool:
-    return isinstance(weight, Real) and float(weight) == 0.0
-
-
-def _broadcast_weight(weight: object, output: torch.Tensor) -> torch.Tensor:
-    value = weight.to(output) if isinstance(weight, torch.Tensor) else output.new_full((), float(weight))
-    return value.reshape(*value.shape, *((1,) * (output.ndim - value.ndim)))
-
-
-def _validate_runtime_weight(name: str, weight: object, batch_shape: tuple[int, ...], exemplar: torch.Tensor) -> None:
-    if not isinstance(weight, torch.Tensor):
-        return
-    if tuple(weight.shape) not in ((), batch_shape):
-        raise ValueError(
-            f"Tensor weight for item {name!r} must be scalar or have exact batch shape {batch_shape}, "
-            f"got {tuple(weight.shape)}"
-        )
-    if weight.dtype != exemplar.dtype or weight.device != exemplar.device:
-        raise ValueError(
-            f"Tensor weight for item {name!r} must preserve working dtype/device "
-            f"{exemplar.dtype}/{exemplar.device}, got {weight.dtype}/{weight.device}"
-        )
 
 
 @runtime_checkable

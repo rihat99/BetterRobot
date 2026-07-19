@@ -11,11 +11,10 @@ import torch
 
 from .._validation import check_tensor
 from ..residuals.structure import TemporalPattern
-from . import kernels as _kernels
 
 if TYPE_CHECKING:
-    from .problem import Problem, Weight
-    from .variables import Values, VarSpec
+    from .problem import Problem
+    from .variables import Variable
 
 
 class LinearizationReason(str, Enum):
@@ -174,7 +173,7 @@ def _analysis(
     eligible: bool,
     reason: LinearizationReason,
     detail: str,
-    spec: VarSpec | None = None,
+    variable: Variable | None = None,
     *,
     bandwidth: int = 0,
     patterns: tuple[tuple[str, TemporalPattern], ...] = (),
@@ -183,10 +182,10 @@ def _analysis(
         eligible,
         reason,
         detail,
-        None if spec is None else spec.name,
-        None if spec is None else spec.time_length,
-        None if spec is None else spec.temporal_tangent_width,
-        None if spec is None or not spec.temporal_mask_is_separable else spec.temporal_reduced_width,
+        None if variable is None else variable.name,
+        None if variable is None else variable.time_length,
+        None if variable is None else variable.temporal_tangent_width,
+        None if variable is None or not variable.temporal_mask_is_separable else variable.temporal_reduced_width,
         bandwidth,
         patterns,
     )
@@ -194,24 +193,24 @@ def _analysis(
 
 def analyze_temporal_problem(problem: Problem) -> TemporalAnalysis:  # noqa: PLR0911
     """Analyze static declarations without reading numeric values."""
-    optimized = tuple(spec for spec in problem.vars if spec.free_dim > 0)
-    temporal = tuple(spec for spec in optimized if spec.time_axis is not None)
+    optimized = tuple(variable for variable in problem.vars if variable.free_dim > 0)
+    temporal = tuple(variable for variable in optimized if variable.time_axis is not None)
     if not temporal:
         return _analysis(False, LinearizationReason.NO_TIME_VARIABLE, "problem has no free time-annotated variable")
     if len(optimized) != 1 or len(temporal) != 1:
-        names = tuple(spec.name for spec in optimized)
+        names = tuple(variable.name for variable in optimized)
         return _analysis(
             False,
             LinearizationReason.MULTIPLE_OPTIMIZED_VARIABLES,
             f"structured v1 requires exactly one free variable; found {names}",
         )
-    spec = temporal[0]
-    if not spec.temporal_mask_is_separable:
+    variable = temporal[0]
+    if not variable.temporal_mask_is_separable:
         return _analysis(
             False,
             LinearizationReason.NONSEPARABLE_MASK,
-            f"temporal variable {spec.name!r} mask differs across knots",
-            spec,
+            f"temporal variable {variable.name!r} mask differs across knots",
+            variable,
         )
 
     patterns: list[tuple[str, TemporalPattern]] = []
@@ -219,49 +218,49 @@ def analyze_temporal_problem(problem: Problem) -> TemporalAnalysis:  # noqa: PLR
     bandwidth = 0
     for item in problem.residuals:
         dependencies = problem._item_variable_reads[item.name]
-        if spec.name not in dependencies:
+        if variable.name not in dependencies:
             continue
         other_free = tuple(
-            name for name in dependencies if name != spec.name and problem._vars_by_name[name].free_dim > 0
+            name for name in dependencies if name != variable.name and problem._vars_by_name[name].free_dim > 0
         )
         if other_free:
             return _analysis(
                 False,
                 LinearizationReason.MIXED_OPTIMIZED_DEPENDENCY,
-                f"residual {item.name!r} couples {spec.name!r} to free variables {other_free}",
-                spec,
+                f"residual {item.name!r} couples {variable.name!r} to free variables {other_free}",
+                variable,
             )
-        declaration = getattr(item.residual, "temporal_structure", None)
+        declaration = getattr(item, "temporal_structure", None)
         if not callable(declaration):
             return _analysis(
                 False,
                 LinearizationReason.UNDECLARED_TEMPORAL_RESIDUAL,
-                f"residual {item.name!r} depends on {spec.name!r} but declares no temporal structure",
-                spec,
+                f"residual {item.name!r} depends on {variable.name!r} but declares no temporal structure",
+                variable,
             )
-        pattern = declaration(spec.name)
+        pattern = declaration(variable)
         if not isinstance(pattern, TemporalPattern):
             raise TypeError(
-                f"Residual {item.name!r} temporal_structure({spec.name!r}) must return TemporalPattern, "
+                f"Residual {item.name!r} temporal_structure({variable.name!r}) must return TemporalPattern, "
                 f"not {type(pattern).__name__}"
             )
-        if pattern.rows * pattern.row_width != item.residual.dim:
+        if pattern.rows * pattern.row_width != item.dim:
             raise ValueError(
-                f"Residual {item.name!r} temporal pattern rows*row_width must equal dim={item.residual.dim}, "
+                f"Residual {item.name!r} temporal pattern rows*row_width must equal dim={item.dim}, "
                 f"got {pattern.rows}*{pattern.row_width}"
             )
         first, last = (
             pattern.row_origin + pattern.offsets[0],
             pattern.row_origin + pattern.rows - 1 + pattern.offsets[-1],
         )
-        if first < 0 or last >= spec.time_length:
+        if first < 0 or last >= variable.time_length:
             raise ValueError(
                 f"Residual {item.name!r} temporal pattern reaches knots [{first}, {last}] "
-                f"outside [0, {spec.time_length})"
+                f"outside [0, {variable.time_length})"
             )
         patterns.append((item.name, pattern))
         bandwidth = max(bandwidth, *(abs(value) for value in pattern.hessian_offsets))
-        if not callable(getattr(item.residual, "temporal_jacobian_blocks", None)):
+        if not callable(getattr(item, "temporal_jacobian_blocks", None)):
             missing.append(item.name)
 
     entries = tuple(patterns)
@@ -270,15 +269,15 @@ def analyze_temporal_problem(problem: Problem) -> TemporalAnalysis:  # noqa: PLR
             False,
             LinearizationReason.MISSING_TEMPORAL_BLOCKS,
             f"residuals {tuple(missing)} declare support but no temporal numeric blocks",
-            spec,
+            variable,
             bandwidth=bandwidth,
             patterns=entries,
         )
     return _analysis(
         True,
         LinearizationReason.ELIGIBLE_BANDED,
-        f"all residuals depending on {spec.name!r} provide temporal blocks",
-        spec,
+        f"all residuals depending on {variable.name!r} provide temporal blocks",
+        variable,
         bandwidth=bandwidth,
         patterns=entries,
     )
@@ -333,10 +332,8 @@ class StructuredNormal:
 
 def assemble_structured_normal(  # noqa: PLR0912, PLR0915
     problem: Problem,
-    values: Values,
     *,
     batch_shape: tuple[int, ...],
-    weights: Mapping[str, Weight] | None = None,
     row_scale: torch.Tensor | None = None,
     residual: torch.Tensor | None = None,
     create_graph: bool = False,
@@ -348,11 +345,10 @@ def assemble_structured_normal(  # noqa: PLR0912, PLR0915
     assert analysis.variable_name is not None
     assert analysis.time_length is not None
     assert analysis.reduced_width is not None
-    spec = problem._vars_by_name[analysis.variable_name]
-    exemplar = values[spec.name]
-    ctx = problem._make_context(values)
+    variable = problem._vars_by_name[analysis.variable_name]
+    exemplar = variable.tensor
     if residual is None:
-        residual = problem._residual_with_context(values, batch_shape, ctx, weights, validate_runtime=validate_runtime)
+        residual = problem._error_current(validate_runtime=validate_runtime)
     if row_scale is None:
         row_scale = torch.ones_like(residual)
     expected_rows = (*batch_shape, problem.dim_total)
@@ -369,19 +365,16 @@ def assemble_structured_normal(  # noqa: PLR0912, PLR0915
     terms: list[_StructuredTerm] = []
     patterns = dict(analysis.patterns)
     weighted_residual = residual * row_scale
-    graph_inputs = (*values.values(), *problem.parameters.values())
+    graph_inputs = tuple(item.tensor for item in problem.variables.values())
     graph_required = create_graph and any(value.requires_grad for value in graph_inputs)
 
     for item in problem.residuals:
         pattern = patterns.get(item.name)
         if pattern is None:
             continue
-        weight = problem._weights_for(item, weights)
-        if validate_runtime:
-            _kernels._validate_runtime_weight(item.name, weight, batch_shape, exemplar)
-        if _kernels._is_inactive(weight):
+        if item.weight.is_inactive():
             continue
-        raw = item.residual.temporal_jacobian_blocks(ctx, spec.name)
+        raw = item.temporal_jacobian_blocks(variable)
         if not isinstance(raw, Mapping):
             raise TypeError(f"Residual {item.name!r} temporal_jacobian_blocks must return a mapping")
         if set(raw) != set(pattern.offsets):
@@ -391,10 +384,10 @@ def assemble_structured_normal(  # noqa: PLR0912, PLR0915
         item_scale = row_scale[..., problem.row_offsets[item.name]].reshape(
             *batch_shape, pattern.rows, pattern.row_width, 1
         )
-        blocks: list[tuple[int, torch.Tensor]] = []
+        ordered_raw: list[torch.Tensor] = []
         for offset in pattern.offsets:
             block = raw[offset]
-            expected = (*batch_shape, pattern.rows, pattern.row_width, d)
+            expected = (*batch_shape, pattern.rows, pattern.row_width, analysis.reduced_width)
             if not isinstance(block, torch.Tensor) or tuple(block.shape) != expected:
                 actual = tuple(block.shape) if isinstance(block, torch.Tensor) else type(block).__name__
                 raise ValueError(
@@ -402,9 +395,16 @@ def assemble_structured_normal(  # noqa: PLR0912, PLR0915
                 )
             if block.dtype != exemplar.dtype or block.device != exemplar.device:
                 raise ValueError(f"Residual {item.name!r} temporal block {offset} must preserve dtype/device")
+            ordered_raw.append(block.reshape(*batch_shape, item.dim, analysis.reduced_width))
+        weighted_raw = item.weight.apply_jacobian(tuple(ordered_raw))
+        blocks: list[tuple[int, torch.Tensor]] = []
+        for offset, flat_block in zip(pattern.offsets, weighted_raw, strict=True):
+            block = flat_block.reshape(*batch_shape, pattern.rows, pattern.row_width, d)
             if graph_required and not block.requires_grad:
-                raise ValueError(f"Temporal block {(item.name, spec.name, offset)!r} cannot honor create_graph=True")
-            weighted = block * _kernels._broadcast_weight(weight, block) * item_scale
+                raise ValueError(
+                    f"Temporal block {(item.name, variable.name, offset)!r} cannot honor create_graph=True"
+                )
+            weighted = block * item_scale
             blocks.append((offset, weighted if create_graph else weighted.detach()))
 
         row = weighted_residual[..., problem.row_offsets[item.name]].reshape(

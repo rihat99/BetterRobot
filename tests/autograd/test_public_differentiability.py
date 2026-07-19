@@ -17,6 +17,7 @@ from better_robot.kinematics import (
     get_joint_jacobian,
     joint_jacobians_raw,
 )
+from better_robot.optim import RobotVariable
 from better_robot.residuals import PoseResidual
 
 
@@ -196,6 +197,6 @@ def test_pose_residual_reaches_q_and_model_values(panda) -> None:
     model, placements = _placement_model(panda)
     target_q = model.integrate(_configuration(model), torch.full((model.nv,), 0.02, dtype=q.dtype))
     target = br.forward_kinematics(model, target_q, compute_frames=True).frame_pose_world[_hand_frame(model)].detach()
-    data = br.forward_kinematics(model, q, compute_frames=True)
-    residual = PoseResidual(model, frame_id=_hand_frame(model), target=target)
-    _assert_gradients(residual({"q": q, "data": data}), q, placements)
+    q_variable = RobotVariable(model, q, name="q")
+    residual = PoseResidual(q_variable, frame_id=_hand_frame(model), target=target)
+    _assert_gradients(residual.error(), q, placements)

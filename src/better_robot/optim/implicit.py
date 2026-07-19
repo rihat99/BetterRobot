@@ -18,11 +18,11 @@ from torch.autograd.function import once_differentiable
 
 from ._solver_common import _state_coordinates
 from .kernels import Huber, L2, RobustKernel, _group_rows
-from .manifolds import RobotConfig, SE3Manifold, SO3Manifold
 from .problem import Problem
-from .variables import Values
+from .variables import RobotVariable, SE3Variable, SO3Variable
 
-ForwardLinearization: TypeAlias = Literal["dense", "banded"]
+_ForwardLinearization: TypeAlias = Literal["dense", "banded"]
+_TensorValues: TypeAlias = dict[str, torch.Tensor]
 
 _CONVERGED = 1
 _STALLED_AT_BOUNDS = 2
@@ -65,7 +65,7 @@ class ImplicitDiffConfig:
             raise TypeError("allow_banded_dense_backward must be a bool")
 
 
-class ImplicitTerminalState(Protocol):
+class _ImplicitTerminalState(Protocol):
     """Terminal LM/GN tensors required by implicit differentiation."""
 
     status: torch.Tensor
@@ -96,15 +96,13 @@ class _StateSnapshot:
 class _Payload:
     problem: Problem
     value_names: tuple[str, ...]
-    parameter_names: tuple[str, ...]
-    differentiable_names: frozenset[str]
+    static_names: tuple[str, ...]
     batch_shape: tuple[int, ...]
-    default_kernel: RobustKernel
     config: ImplicitDiffConfig
     state: _StateSnapshot
 
 
-def _snapshot(state: ImplicitTerminalState) -> _StateSnapshot:
+def _snapshot(state: _ImplicitTerminalState) -> _StateSnapshot:
     return _StateSnapshot(*(getattr(state, name).detach().clone() for name in _StateSnapshot.__dataclass_fields__))
 
 
@@ -120,12 +118,12 @@ def _validate_state(state: _StateSnapshot, batch: tuple[int, ...], tangent_dim: 
             raise ValueError(f"implicit state {name} must have shape {(tangent_dim,)}")
     for name in _StateSnapshot.__dataclass_fields__:
         if getattr(state, name).device != exemplar.device:
-            raise ValueError(f"implicit state {name} must be on terminal Values device {exemplar.device}")
+            raise ValueError(f"implicit state {name} must be on terminal value device {exemplar.device}")
     if state.gradient.dtype != exemplar.dtype:
-        raise ValueError("implicit state gradient must preserve terminal Values dtype")
+        raise ValueError("implicit state gradient must preserve terminal value dtype")
 
 
-def _validate_route(problem: Problem, route: ForwardLinearization, config: ImplicitDiffConfig) -> None:
+def _validate_route(problem: Problem, route: _ForwardLinearization, config: ImplicitDiffConfig) -> None:
     if route not in {"dense", "banded"}:
         raise ValueError(f"unknown forward_linearization {route!r}; expected 'dense' or 'banded'")
     if route == "banded" and not config.allow_banded_dense_backward:
@@ -151,7 +149,7 @@ def _status_names(status: torch.Tensor, invalid: torch.Tensor) -> tuple[str, ...
     return tuple(_STATUS_NAMES.get(int(value), f"unknown({int(value)})") for value in values)
 
 
-def _eligibility(values: Values, payload: _Payload) -> tuple[torch.Tensor, torch.Tensor]:
+def _eligibility(values: _TensorValues, payload: _Payload) -> tuple[torch.Tensor, torch.Tensor]:
     state = payload.state
     stalled = state.status == _STALLED_AT_BOUNDS
     terminal = ((state.status == _CONVERGED) & state.implicit_valid) | stalled
@@ -177,17 +175,17 @@ def _eligibility(values: Values, payload: _Payload) -> tuple[torch.Tensor, torch
     return terminal & finite & stable, stable
 
 
-def _smooth_quaternion_representative(values: Values, payload: _Payload) -> torch.Tensor:
+def _smooth_quaternion_representative(values: _TensorValues, payload: _Payload) -> torch.Tensor:
     smooth = torch.ones(payload.batch_shape, dtype=torch.bool, device=values[payload.value_names[0]].device)
     for spec in payload.problem.vars:
         value = values[spec.name]
         scalar_parts: torch.Tensor | None = None
-        if isinstance(spec.manifold, (SO3Manifold, SE3Manifold)):
+        if isinstance(spec, (SO3Variable, SE3Variable)):
             scalar_parts = value[..., -1:]
-        elif isinstance(spec.manifold, RobotConfig):
+        elif isinstance(spec, RobotVariable):
             indices = tuple(
                 event.stop - 1
-                for event in spec.manifold.unit_coordinate_slices
+                for event in spec.unit_coordinate_slices
                 if event.start is not None and event.stop is not None and event.stop - event.start == 4
             )
             if indices:
@@ -196,25 +194,6 @@ def _smooth_quaternion_representative(values: Values, payload: _Payload) -> torc
             threshold = max(_NONSMOOTH_TOLERANCE, 8.0 * torch.finfo(value.dtype).eps)
             smooth &= ~(scalar_parts.abs() <= threshold).reshape(*payload.batch_shape, -1).any(dim=-1)
     return smooth
-
-
-def validate_implicit_input_roles(values: Mapping[str, torch.Tensor], problem: Problem) -> None:
-    """Require optimized values and named parameters to be distinct tensors."""
-    collisions = tuple(
-        (value_name, parameter_name)
-        for value_name, value in values.items()
-        for parameter_name, parameter in problem.parameters.items()
-        if value is parameter
-    )
-    if collisions:
-        raise ValueError(
-            "implicit differentiation requires optimized values and external parameters to occupy "
-            f"distinct tensor roles; identity collisions {collisions}"
-        )
-
-
-def _detached_weights(problem: Problem) -> dict[str, torch.Tensor]:
-    return {item.name: item.weight.detach() for item in problem.residuals if isinstance(item.weight, torch.Tensor)}
 
 
 def _detached_kernel(kernel: RobustKernel) -> RobustKernel:
@@ -229,23 +208,17 @@ def _detached_kernel(kernel: RobustKernel) -> RobustKernel:
 
 
 def _objective(
-    values: Values, parameters: Mapping[str, torch.Tensor], payload: _Payload
+    values: _TensorValues, statics: Mapping[str, torch.Tensor], payload: _Payload
 ) -> tuple[torch.Tensor, torch.Tensor]:
     problem = payload.problem
-    residual = problem._residual_with_context(
-        values,
-        payload.batch_shape,
-        problem._make_context(values, parameters=parameters),
-        _detached_weights(problem),
-        validate_runtime=False,
-    )
+    residual = problem._error_at({**values, **statics}, validate_runtime=False)
     costs: list[torch.Tensor] = []
     smooth = torch.ones(payload.batch_shape, dtype=torch.bool, device=residual.device)
     for item in problem.residuals:
         rows = residual[..., problem.row_offsets[item.name]]
         groups = _group_rows(rows, item.group_size)
         squared_norm = groups.square().sum(dim=-1)
-        kernel = _detached_kernel(item.kernel or payload.default_kernel)
+        kernel = _detached_kernel(item.kernel or L2())
         costs.append(kernel.rho(squared_norm).sum(dim=-1))
         if isinstance(kernel, Huber):
             delta2 = torch.as_tensor(kernel.delta, dtype=residual.dtype, device=residual.device).square()
@@ -254,19 +227,19 @@ def _objective(
     return torch.stack(costs, dim=-1).sum(dim=-1), smooth
 
 
-def _local_values(terminal: Values, delta: torch.Tensor, payload: _Payload) -> Values:
+def _local_values(terminal: _TensorValues, delta: torch.Tensor, payload: _Payload) -> _TensorValues:
     pieces = {spec.name: delta[..., payload.problem.column_offsets[spec.name]] for spec in payload.problem.vars}
     return payload.problem.retract(terminal, pieces)
 
 
 def _exact_system(
-    terminal: Values,
-    parameters: Mapping[str, torch.Tensor],
+    terminal: _TensorValues,
+    statics: Mapping[str, torch.Tensor],
     payload: _Payload,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     exemplar = terminal[payload.value_names[0]]
     delta = exemplar.new_zeros(*payload.batch_shape, payload.problem.tangent_dim_total, requires_grad=True)
-    objective, smooth = _objective(_local_values(terminal, delta, payload), parameters, payload)
+    objective, smooth = _objective(_local_values(terminal, delta, payload), statics, payload)
     if not objective.requires_grad:
         raise ImplicitDifferentiationError(
             "the robust objective has no tangent derivative; implicit system is singular"
@@ -284,7 +257,9 @@ def _exact_system(
     return optimality, torch.stack(rows, dim=-2).detach(), smooth
 
 
-def _output_cotangent(terminal: Values, gradients: tuple[torch.Tensor | None, ...], payload: _Payload) -> torch.Tensor:
+def _output_cotangent(
+    terminal: _TensorValues, gradients: tuple[torch.Tensor | None, ...], payload: _Payload
+) -> torch.Tensor:
     exemplar = terminal[payload.value_names[0]]
     delta = exemplar.new_zeros(*payload.batch_shape, payload.problem.tangent_dim_total, requires_grad=True)
     local = _local_values(terminal, delta, payload)
@@ -369,22 +344,22 @@ class _ImplicitValues(torch.autograd.Function):
                 invalid_indices=invalid,
             )
 
-        parameter_tensors = saved[value_count:]
-        needed = ctx.needs_input_grad[value_count : value_count + len(payload.parameter_names)]
-        parameters: dict[str, torch.Tensor] = {}
+        static_tensors = saved[value_count:]
+        needed = ctx.needs_input_grad[value_count : value_count + len(payload.static_names)]
+        statics: dict[str, torch.Tensor] = {}
         differentiable: list[torch.Tensor] = []
         positions: list[int] = []
         for position, (name, tensor, needs_grad) in enumerate(
-            zip(payload.parameter_names, parameter_tensors, needed, strict=True)
+            zip(payload.static_names, static_tensors, needed, strict=True)
         ):
-            local = tensor.detach().requires_grad_(bool(needs_grad and name in payload.differentiable_names))
-            parameters[name] = local
+            local = tensor.detach().requires_grad_(bool(needs_grad))
+            statics[name] = local
             if local.requires_grad:
                 differentiable.append(local)
                 positions.append(position)
 
         with torch.enable_grad():
-            optimality, hessian, smooth = _exact_system(terminal, parameters, payload)
+            optimality, hessian, smooth = _exact_system(terminal, statics, payload)
             cotangent = _output_cotangent(terminal, grad_outputs, payload)
             free_optimality = torch.where(payload.state.active_mask, 0.0, optimality)
             exact_valid = torch.isfinite(free_optimality).all(dim=-1) & torch.isfinite(hessian).all(dim=(-2, -1))
@@ -402,76 +377,69 @@ class _ImplicitValues(torch.autograd.Function):
             )
 
         disconnected = tuple(
-            payload.parameter_names[position]
+            payload.static_names[position]
             for position, gradient in zip(positions, computed, strict=True)
             if gradient is None
         )
         if disconnected:
             raise ImplicitDifferentiationError(
-                f"declared differentiable parameters are disconnected from terminal optimality: {disconnected}"
+                f"graph-carrying static variables are disconnected from terminal optimality: {disconnected}"
             )
-        parameter_gradients: list[torch.Tensor | None] = [None] * len(payload.parameter_names)
+        static_gradients: list[torch.Tensor | None] = [None] * len(payload.static_names)
         for position, gradient in zip(positions, computed, strict=True):
-            parameter_gradients[position] = gradient
-        return (*([None] * value_count), *parameter_gradients, None)
+            static_gradients[position] = gradient
+        return (*([None] * value_count), *static_gradients, None)
 
 
-def attach_implicit_gradients(
+def _attach_implicit_gradients(
     terminal_values: Mapping[str, torch.Tensor],
-    state: ImplicitTerminalState,
+    state: _ImplicitTerminalState,
     problem: Problem,
     *,
-    default_kernel: RobustKernel | None = None,
-    forward_linearization: ForwardLinearization = "dense",
+    forward_linearization: _ForwardLinearization = "dense",
     config: ImplicitDiffConfig | None = None,
-) -> Values:
+) -> _TensorValues:
     """Attach an exact first-order implicit backward to terminal values."""
     if not isinstance(problem, Problem):
         raise TypeError("problem must be a named-block Problem")
-    validate_implicit_input_roles(terminal_values, problem)
     if not problem.residuals:
         raise ValueError("implicit differentiation requires at least one residual vector")
     resolved_config = ImplicitDiffConfig() if config is None else config
     if not isinstance(resolved_config, ImplicitDiffConfig):
         raise TypeError("config must be ImplicitDiffConfig or None")
-    resolved_kernel = L2() if default_kernel is None else default_kernel
-    if not isinstance(resolved_kernel, RobustKernel):
-        raise TypeError("default_kernel must implement the robust-kernel protocol")
     _validate_route(problem, forward_linearization, resolved_config)
 
     detached = {name: value.detach() for name, value in terminal_values.items()}
-    batch_shape = problem._validate_values(detached)
+    batch_shape = problem._validate_trainable_values(detached)
     snapshot = _snapshot(state)
     _validate_state(snapshot, batch_shape, problem.tangent_dim_total, detached[problem.vars[0].name])
     value_names = tuple(spec.name for spec in problem.vars)
-    parameter_names = tuple(problem.parameters)
-    differentiable_names = frozenset(problem.differentiable_external_parameters)
-    nonfloating = tuple(name for name in differentiable_names if not problem.parameters[name].is_floating_point())
+    static_variables = tuple(variable for variable in problem._ordered_variables if not variable.trainable)
+    static_names = tuple(variable.name for variable in static_variables)
+    nonfloating = tuple(
+        variable.name
+        for variable in static_variables
+        if variable.tensor.requires_grad and not variable.tensor.is_floating_point()
+    )
     if nonfloating:
-        raise TypeError(f"implicit differentiable parameters must be floating tensors: {nonfloating}")
+        raise TypeError(f"implicit graph-carrying static variables must be floating tensors: {nonfloating}")
     payload = _Payload(
         problem,
         value_names,
-        parameter_names,
-        differentiable_names,
+        static_names,
         batch_shape,
-        resolved_kernel,
         resolved_config,
         snapshot,
     )
-    parameters = tuple(
-        problem.parameters[name] if name in differentiable_names else problem.parameters[name].detach()
-        for name in parameter_names
+    static_tensors = tuple(
+        variable.tensor if variable.tensor.requires_grad else variable.tensor.detach() for variable in static_variables
     )
-    raw = _ImplicitValues.apply(*(detached[name] for name in value_names), *parameters, payload)
+    raw = _ImplicitValues.apply(*(detached[name] for name in value_names), *static_tensors, payload)
     outputs = (raw,) if isinstance(raw, torch.Tensor) else raw
     return dict(zip(value_names, outputs, strict=True))
 
 
 __all__ = [
-    "ForwardLinearization",
     "ImplicitDiffConfig",
     "ImplicitDifferentiationError",
-    "ImplicitTerminalState",
-    "attach_implicit_gradients",
 ]

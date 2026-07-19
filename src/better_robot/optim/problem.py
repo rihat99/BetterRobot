@@ -1,342 +1,311 @@
-"""Named-block residual evaluation and dense/structured linearization."""
+"""Object-referenced residual problems and tangent-coordinate linearization."""
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from types import MappingProxyType
-from typing import Any, Literal, Protocol, TypeAlias, runtime_checkable
+from typing import Any, Literal, TypeAlias
 
 import torch
 
-from . import kernels as _kernels
-from .autograd import _tangent_value_and_grad
-from .kernels import L2, RobustKernel, _broadcast_weight, _group_rows
-from .manifolds import Bounds, Euclidean, Manifold, RobotConfig, SE3Manifold, SO3Manifold
-from .providers import EvaluationContext, Provider, RobotStateProvider
-from .temporal import StructuredNormal, analyze_temporal_problem, assemble_structured_normal
-from .variables import Values, VarSpec
+from ..residuals.base import Residual
+from .kernels import L2, RobustKernel, _group_rows
+from .variables import Variable
 
-Weight: TypeAlias = float | torch.Tensor
+_TensorMap: TypeAlias = dict[str, torch.Tensor]
 JacobianStrategy: TypeAlias = Literal["auto", "analytic", "jacrev", "jacfwd", "finite_difference"]
 _JACOBIAN_STRATEGIES = frozenset(("auto", "analytic", "jacrev", "jacfwd", "finite_difference"))
 _L2_KERNEL = L2()
 
 
-@runtime_checkable
-class Residual(Protocol):
-    name: str
-    reads: tuple[str, ...]
-    dim: int
-
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor: ...
-
-
-@dataclass(frozen=True)
-class ResidualItem:
-    name: str
-    residual: Residual
-    weight: Weight = 1.0
-    kernel: RobustKernel | None = None
-    group_size: int = 1
-
-    def __post_init__(self) -> None:
-        residual_name = getattr(self.residual, "name", None)
-        dim = getattr(self.residual, "dim", None)
-        if not isinstance(self.name, str) or not self.name:
-            raise ValueError(f"ResidualItem name must be a non-empty string, got {self.name!r}")
-        if not isinstance(residual_name, str) or not residual_name:
-            raise TypeError("A residual must declare a non-empty string name")
-        if residual_name != self.name:
-            raise ValueError(f"ResidualItem name {self.name!r} does not match residual name {residual_name!r}")
-        if not isinstance(dim, int) or dim <= 0:
-            raise ValueError(f"Residual {self.name!r} must declare a positive static dim, got {dim!r}")
-        if not isinstance(self.group_size, int) or self.group_size <= 0 or dim % self.group_size:
-            raise ValueError(
-                f"ResidualItem {self.name!r} group_size must be a positive divisor of dim={dim}, got {self.group_size!r}"
-            )
-        if self.kernel is not None and not isinstance(self.kernel, RobustKernel):
-            raise TypeError(
-                f"ResidualItem {self.name!r} kernel must implement rho(squared_norm) and weight(squared_norm)"
-            )
-        _kernels._validate_weight_type(self.name, self.weight)
-
-
-@dataclass(frozen=True)
-class _CallableResidual:
-    fn: Callable[[Mapping[str, Any]], torch.Tensor]
-    name: str
-    reads: tuple[str, ...]
-    dim: int
-
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        return self.fn(ctx)
-
-    def __getattr__(self, attribute: str) -> Any:
-        return getattr(self.fn, attribute)
-
-
-def _named(items: Sequence[Any], label: str) -> dict[str, Any]:
-    result: dict[str, Any] = {}
-    for item in items:
-        name = getattr(item, "name", None)
-        if not isinstance(name, str) or not name:
-            raise ValueError(f"Every {label} must have a non-empty string name")
-        if name in result:
-            raise ValueError(f"duplicate {label} name {name!r}")
-        result[name] = item
-    return result
+def _check_strategy(strategy: JacobianStrategy, create_graph: bool) -> None:
+    if strategy not in _JACOBIAN_STRATEGIES:
+        raise ValueError(f"strategy must be one of {sorted(_JACOBIAN_STRATEGIES)}, got {strategy!r}")
+    if create_graph and strategy == "finite_difference":
+        raise ValueError("finite_difference must be graph-free, got create_graph=True")
 
 
 def _offsets(items: Sequence[Any], width: Callable[[Any], int]) -> Mapping[str, slice]:
-    start, result = 0, {}
+    start = 0
+    result: dict[str, slice] = {}
     for item in items:
         stop = start + width(item)
-        result[item.name], start = slice(start, stop), stop
+        result[item.name] = slice(start, stop)
+        start = stop
     return MappingProxyType(result)
 
 
-def _check_strategy(strategy: JacobianStrategy, create_graph: bool) -> None:
-    if strategy not in _JACOBIAN_STRATEGIES:
-        raise ValueError(f"unknown Jacobian strategy {strategy!r}")
-    if create_graph and strategy == "finite_difference":
-        raise ValueError("finite_difference is a graph-free debug strategy")
+def _detach(mapping: Mapping[str, torch.Tensor]) -> _TensorMap:
+    return {name: value.detach() for name, value in mapping.items()}
 
 
 class Problem:
-    def __init__(  # noqa: PLR0912, PLR0915
+    """A frozen-at-first-use graph of residuals and referenced variables."""
+
+    def __init__(
         self,
-        *,
-        vars: Sequence[VarSpec] = (),
-        residuals: Sequence[ResidualItem] = (),
-        providers: Sequence[Provider] = (),
-        parameters: Mapping[str, torch.Tensor] | None = None,
-        differentiable_parameters: Sequence[str] = (),
+        residuals: Sequence[Residual] = (),
     ) -> None:
-        self.vars, self.residuals, self.providers = tuple(vars), tuple(residuals), tuple(providers)
-        self.parameters = MappingProxyType(dict(parameters or {}))
-        differentiable_parameters = tuple(differentiable_parameters)
-        self.parameter_gradients = frozenset(differentiable_parameters)
-        if any(not isinstance(name, str) or not name for name in differentiable_parameters):
-            raise TypeError("differentiable_parameters must contain non-empty string names")
-        if any(not isinstance(spec, VarSpec) for spec in self.vars):
-            raise TypeError("Problem.vars must contain only VarSpec values")
-        if any(not isinstance(item, ResidualItem) for item in self.residuals):
-            raise TypeError("Problem.residuals must contain only ResidualItem values")
-
-        # A single RobotConfig variable can supply the conventional ``data`` context lazily.
-        if len(self.vars) == 1 and isinstance(self.vars[0].manifold, RobotConfig):
-            robot = self.vars[0].manifold
-            consumers = [item for item in self.residuals if "data" in (getattr(item.residual, "reads", None) or ())]
-            for item in consumers:
-                model = getattr(item.residual, "model", None)
-                if model is not None and model is not robot.model:
-                    raise ValueError(
-                        f"Residual {item.name!r} model must match RobotConfig.model for automatic robot state"
-                    )
-            outputs = {
-                output
-                for provider in self.providers
-                for output in getattr(provider, "outputs", ())
-                if isinstance(output, str)
-            }
-            if consumers and "data" not in outputs:
-                self.providers = (*self.providers, RobotStateProvider(robot.model, var=self.vars[0].name))
-
-        self._vars_by_name = _named(self.vars, "variable")
-        self._residuals_by_name = _named(self.residuals, "residual")
-        _named(self.providers, "provider")
-        if any(not isinstance(name, str) or not name for name in self.parameters):
-            raise TypeError("Problem parameter names must be non-empty strings")
-        if any(not isinstance(value, torch.Tensor) for value in self.parameters.values()):
-            raise TypeError("Problem parameters must be a mapping of names to tensors")
-        unknown_gradients = self.parameter_gradients - set(self.parameters)
-        if unknown_gradients:
-            raise ValueError(
-                f"differentiable_parameters names must exist in Problem.parameters; unknown {sorted(unknown_gradients)}"
-            )
-
-        variable_names, parameter_names = set(self._vars_by_name), set(self.parameters)
-        if duplicate := variable_names & parameter_names:
-            raise ValueError(f"variable/parameter names collide: {sorted(duplicate)}")
-        base_names = variable_names | parameter_names
-        providers_by_output: dict[str, Provider] = {}
-        for provider in self.providers:
-            if not isinstance(provider, Provider):
-                raise TypeError(f"Provider {provider!r} does not implement the Provider protocol")
-            for label in ("reads", "outputs"):
-                names = getattr(provider, label)
-                if not isinstance(names, tuple) or any(not isinstance(name, str) or not name for name in names):
-                    raise TypeError(f"Provider {provider.name!r} {label} must be tuple[str, ...]")
-            if not provider.outputs:
-                raise ValueError(f"Provider {provider.name!r} must declare at least one output")
-            for output in provider.outputs:
-                if output in base_names or output in providers_by_output:
-                    raise ValueError(f"provider output {output!r} collides with another context name")
-                providers_by_output[output] = provider
-
-        known_names = base_names | set(providers_by_output)
-        for provider in self.providers:
-            if unknown := set(provider.reads) - known_names:
-                raise ValueError(f"Provider {provider.name!r} declares unknown reads {sorted(unknown)}")
-        self._providers_by_output = MappingProxyType(providers_by_output)
-
-        dependencies: dict[str, frozenset[str]] = {}
-        resolving: set[str] = set()
-
-        def variable_dependencies(name: str) -> frozenset[str]:
-            if name in variable_names:
-                return frozenset((name,))
-            if name in parameter_names:
-                return frozenset()
-            if name in dependencies:
-                return dependencies[name]
-            provider = providers_by_output[name]
-            if provider.name in resolving:
-                raise ValueError(f"provider dependency cycle involving {provider.name!r}")
-            resolving.add(provider.name)
-            try:
-                result = frozenset().union(*(variable_dependencies(item) for item in provider.reads))
-            finally:
-                resolving.remove(provider.name)
-            dependencies.update(dict.fromkeys(provider.outputs, result))
-            return result
-
-        for output in providers_by_output:
-            variable_dependencies(output)
+        self.residuals = list(residuals)
+        self._frozen = False
+        self._epoch = 0
+        self._update_serial = 0
+        self._ordered_variables: tuple[Variable, ...] = ()
+        self.vars: tuple[Variable, ...] = ()
+        self.variables: Mapping[str, Variable] = MappingProxyType({})
+        self._vars_by_name: Mapping[str, Variable] = self.variables
+        self._residuals_by_name: Mapping[str, Residual] = MappingProxyType({})
         self._item_variable_reads: dict[str, frozenset[str]] = {}
-        for item in self.residuals:
-            reads = getattr(item.residual, "reads", None)
-            if not isinstance(reads, tuple) or any(not isinstance(name, str) for name in reads):
-                raise TypeError(f"Item {item.name!r} must declare reads as tuple[str, ...]")
-            if unknown := set(reads) - known_names:
-                raise ValueError(f"Item {item.name!r} declares unknown reads {sorted(unknown)}")
-            self._item_variable_reads[item.name] = frozenset().union(*(variable_dependencies(name) for name in reads))
+        self._nodes: tuple[Any, ...] = ()
+        self.row_offsets: Mapping[str, slice] = MappingProxyType({})
+        self.column_offsets: Mapping[str, slice] = MappingProxyType({})
+        self.dim_total = 0
+        self.tangent_dim_total = 0
+        self.temporal_analysis = None
 
-        self.row_offsets = _offsets(self.residuals, lambda item: item.residual.dim)
-        self.column_offsets = _offsets(self.vars, lambda spec: spec.free_dim)
-        self.dim_total = sum(item.residual.dim for item in self.residuals)
-        self.tangent_dim_total = sum(spec.free_dim for spec in self.vars)
-        self.temporal_analysis = analyze_temporal_problem(self)
+    @property
+    def frozen(self) -> bool:
+        return self._frozen
 
-    def _rebuild(
-        self, *, vars: Sequence[VarSpec] | None = None, residuals: Sequence[ResidualItem] | None = None
-    ) -> None:
-        self.__init__(
-            vars=self.vars if vars is None else vars,
-            residuals=self.residuals if residuals is None else residuals,
-            providers=self.providers,
-            parameters=self.parameters,
-            differentiable_parameters=tuple(self.parameter_gradients),
-        )
-
-    def add_variable(
-        self,
-        name: str,
-        *,
-        shape: tuple[int, ...] | None = None,
-        manifold: Manifold = Euclidean(),
-        bounds: Bounds | None = None,
-        mask: torch.Tensor | None = None,
-        scale: torch.Tensor | None = None,
-        time_axis: int | None = None,
-    ) -> VarSpec:
-        if shape is None:
-            if isinstance(manifold, RobotConfig):
-                shape = (manifold.model.nq,)
-            elif isinstance(manifold, SO3Manifold):
-                shape = (4,)
-            elif isinstance(manifold, SE3Manifold):
-                shape = (7,)
-            else:
-                raise ValueError("shape is required unless the manifold has a canonical state shape")
-        spec = VarSpec(name, shape, manifold=manifold, bounds=bounds, mask=mask, scale=scale, time_axis=time_axis)
-        self._rebuild(vars=(*self.vars, spec))
-        return spec
-
-    def add_residual(
-        self,
-        residual: Callable[[Mapping[str, Any]], torch.Tensor],
-        *,
-        weight: Weight = 1.0,
-        kernel: RobustKernel | None = None,
-        name: str | None = None,
-        dim: int | None = None,
-    ) -> ResidualItem:
-        item_name = name or getattr(residual, "name", None) or getattr(residual, "__name__", None)
-        residual_dim = dim if dim is not None else getattr(residual, "dim", None)
-        reads = getattr(residual, "reads", None)
-        if reads is None and len(self.vars) == 1:
-            reads = (self.vars[0].name,)
-        if not isinstance(reads, tuple) or any(not isinstance(value, str) or not value for value in reads):
-            raise ValueError(
-                f"Residual {item_name!r} must declare reads when the problem does not have exactly one variable"
-            )
-        item = ResidualItem(item_name, _CallableResidual(residual, item_name, reads, residual_dim), weight, kernel)
-        self._rebuild(residuals=(*self.residuals, item))
+    def add_residual(self, item: Residual) -> Residual:
+        if self._frozen:
+            raise RuntimeError("add_residual must run before the Problem is frozen")
+        if not isinstance(item, Residual):
+            raise TypeError(f"item must be a Residual, got {type(item).__name__}")
+        self.residuals.append(item)
         return item
 
+    @staticmethod
+    def _node_variables(node: Any) -> tuple[Variable, ...]:
+        values = getattr(node, "variables", ())
+        if not isinstance(values, tuple) or any(not isinstance(value, Variable) for value in values):
+            raise TypeError(f"node {type(node).__name__} variables must be tuple[Variable, ...]")
+        return values
+
+    def _freeze(self) -> None:  # noqa: PLR0912, PLR0915 - freezes and validates one graph transaction
+        if self._frozen:
+            return
+        if any(not isinstance(item, Residual) for item in self.residuals):
+            invalid = next(item for item in self.residuals if not isinstance(item, Residual))
+            raise TypeError(f"Problem residuals must contain Residual objects, got {type(invalid).__name__}")
+
+        residual_names: dict[str, Residual] = {}
+        variables: list[Variable] = []
+        variable_ids: set[int] = set()
+        nodes: list[Any] = []
+        node_ids: set[int] = set()
+        mergeable_nodes: dict[tuple[object, ...], Any] = {}
+        dependencies: dict[str, frozenset[str]] = {}
+        for item in self.residuals:
+            if item.name in residual_names:
+                raise ValueError(f"duplicate residual name {item.name!r}")
+            residual_names[item.name] = item
+            direct = list(item.variables)
+            for declared_node in getattr(item, "nodes", ()):
+                node = declared_node
+                merge_key = getattr(node, "merge_key", None)
+                if merge_key is not None:
+                    canonical = mergeable_nodes.get(merge_key)
+                    if canonical is None:
+                        mergeable_nodes[merge_key] = node
+                    else:
+                        share = getattr(node, "_share_with", None)
+                        if not callable(share):
+                            raise TypeError(f"mergeable node {type(node).__name__} must implement _share_with")
+                        share(canonical)
+                        node = canonical
+                if id(node) not in node_ids:
+                    nodes.append(node)
+                    node_ids.add(id(node))
+                direct.extend(self._node_variables(node))
+            item_variables: list[Variable] = []
+            item_ids: set[int] = set()
+            for variable in direct:
+                if not isinstance(variable, Variable):
+                    raise TypeError(
+                        f"Residual {item.name!r} variable references must be Variable objects, "
+                        f"got {type(variable).__name__}"
+                    )
+                if id(variable) not in item_ids:
+                    item_variables.append(variable)
+                    item_ids.add(id(variable))
+                if id(variable) not in variable_ids:
+                    variables.append(variable)
+                    variable_ids.add(id(variable))
+            dependencies[item.name] = frozenset(variable.name for variable in item_variables if variable.trainable)
+
+        by_name: dict[str, Variable] = {}
+        for variable in variables:
+            previous = by_name.get(variable.name)
+            if previous is not None and previous is not variable:
+                raise ValueError(f"duplicate variable name {variable.name!r}")
+            by_name[variable.name] = variable
+        trainable = tuple(variable for variable in variables if variable.trainable)
+
+        self._ordered_variables = tuple(variables)
+        self.vars = trainable
+        self.variables = MappingProxyType(by_name)
+        self._vars_by_name = self.variables
+        self._residuals_by_name = MappingProxyType(residual_names)
+        self._item_variable_reads = dependencies
+        self._nodes = tuple(nodes)
+        self.row_offsets = _offsets(self.residuals, lambda item: item.dim)
+        self.column_offsets = _offsets(trainable, lambda variable: variable.free_dim)
+        self.dim_total = sum(item.dim for item in self.residuals)
+        self.tangent_dim_total = sum(variable.free_dim for variable in trainable)
+        self._frozen = True
+        self._validate_values(self._current_values())
+        self._refresh_temporal_analysis()
+
+    def _refresh_temporal_analysis(self) -> None:
+        from .temporal import LinearizationReason, TemporalAnalysis, analyze_temporal_problem  # noqa: PLC0415
+
+        if any(variable.time_axis is not None for variable in self.vars):
+            self.temporal_analysis = analyze_temporal_problem(self)
+        else:
+            self.temporal_analysis = TemporalAnalysis(
+                False,
+                LinearizationReason.NO_TIME_VARIABLE,
+                "no optimized variable declares a time axis",
+            )
+
+    def _current_values(self) -> _TensorMap:
+        return {variable.name: variable.tensor for variable in self._ordered_variables}
+
+    def _trainable_values(self) -> _TensorMap:
+        self._freeze()
+        return {variable.name: variable.tensor for variable in self.vars}
+
     def _validate_values(self, values: Mapping[str, torch.Tensor]) -> tuple[int, ...]:
-        if set(values) != set(self._vars_by_name):
-            raise ValueError(f"Problem values names must be {tuple(self._vars_by_name)}, got {tuple(values)}")
-        batch_shape, dtype, device = None, None, None
-        for spec in self.vars:
-            value = values[spec.name]
-            spec.validate_value(value)
-            current = tuple(value.shape[: value.ndim - len(spec.shape)])
-            if batch_shape is not None and current != batch_shape:
-                raise ValueError(
-                    f"All Values must share batch shape {batch_shape}; VarSpec {spec.name!r} has {current}"
-                )
-            batch_shape = current if batch_shape is None else batch_shape
+        expected = set(self.variables)
+        if set(values) != expected:
+            raise ValueError(f"values names must be {tuple(self.variables)}, got {tuple(values)}")
+        batch_shape: tuple[int, ...] | None = None
+        dtype: torch.dtype | None = None
+        device: torch.device | None = None
+        for variable in self._ordered_variables:
+            value = values[variable.name]
+            variable.validate_value(value)
+            if variable.trainable:
+                current = variable.batch_shape_of(value)
+                if batch_shape is not None and current != batch_shape:
+                    raise ValueError(
+                        f"all trainable variables must share batch shape {batch_shape}, "
+                        f"got {current} for {variable.name!r}"
+                    )
+                batch_shape = current if batch_shape is None else batch_shape
             if dtype is not None and (value.dtype != dtype or value.device != device):
                 raise ValueError(
-                    f"All Values must share dtype/device {dtype}/{device}; "
-                    f"VarSpec {spec.name!r} has {value.dtype}/{value.device}"
+                    f"all variables must share dtype/device {dtype}/{device}, "
+                    f"got {value.dtype}/{value.device} for {variable.name!r}"
                 )
             dtype, device = (value.dtype, value.device) if dtype is None else (dtype, device)
-            if spec.scale is not None and (spec.scale.dtype != value.dtype or spec.scale.device != value.device):
-                raise ValueError(
-                    f"VarSpec {spec.name!r} scale and value must share dtype/device; "
-                    f"got {spec.scale.dtype}/{spec.scale.device} and {value.dtype}/{value.device}"
-                )
         return batch_shape or ()
 
-    def _make_context(
-        self, values: Mapping[str, torch.Tensor], *, parameters: Mapping[str, torch.Tensor] | None = None
-    ) -> EvaluationContext:
-        seeded = {**values, **(self.parameters if parameters is None else parameters)}
-        free = {name: spec.free_indices for name, spec in self._vars_by_name.items()}
-        temporal = {
-            name: spec.temporal_free_indices
-            for name, spec in self._vars_by_name.items()
-            if spec.time_axis is not None and spec.temporal_mask_is_separable
-        }
-        return EvaluationContext(seeded, self._providers_by_output, free, temporal)
+    def _invalidate_nodes(self) -> None:
+        self._epoch += 1
+        for node in self._nodes:
+            invalidate = getattr(node, "_invalidate", None)
+            if callable(invalidate):
+                invalidate(self._epoch)
+
+    @contextmanager
+    def _node_evaluation(self) -> Iterator[None]:
+        self._epoch += 1
+        entered: list[tuple[Any, bool]] = []
+        try:
+            for node in self._nodes:
+                begin = getattr(node, "_begin_evaluation", None)
+                end = getattr(node, "_end_evaluation", None)
+                scoped = callable(begin) and callable(end)
+                if scoped:
+                    begin(self._epoch)
+                else:
+                    invalidate = getattr(node, "_invalidate", None)
+                    if callable(invalidate):
+                        invalidate(self._epoch)
+                entered.append((node, scoped))
+            yield
+        finally:
+            self._epoch += 1
+            for node, scoped in reversed(entered):
+                if scoped:
+                    node._end_evaluation(self._epoch)
+                else:
+                    invalidate = getattr(node, "_invalidate", None)
+                    if callable(invalidate):
+                        invalidate(self._epoch)
+
+    @contextmanager
+    def _assigned(self, values: Mapping[str, torch.Tensor]) -> Iterator[None]:
+        originals = {name: self.variables[name].tensor for name in values}
+        for name, value in values.items():
+            self.variables[name].tensor = value
+        self._invalidate_nodes()
+        try:
+            yield
+        finally:
+            for name, value in originals.items():
+                self.variables[name].tensor = value
+            self._invalidate_nodes()
+
+    @contextmanager
+    def _evaluation(self, values: Mapping[str, torch.Tensor] | None = None) -> Iterator[None]:
+        if values is None:
+            with self._node_evaluation():
+                yield
+        else:
+            with self._assigned(values):
+                with self._node_evaluation():
+                    yield
+
+    def update(self, values: Mapping[str, torch.Tensor]) -> None:
+        self._freeze()
+        if any(name not in self.variables for name in values):
+            unknown = sorted(set(values) - set(self.variables))
+            raise ValueError(f"update names must belong to the Problem, got unknown {unknown}")
+        combined = self._current_values()
+        combined.update(values)
+        self._validate_values(combined)
+        for name, value in values.items():
+            self.variables[name].tensor = value
+        self._update_serial += 1
+        self._invalidate_nodes()
+
+    def _set_trainable(self, values: Mapping[str, torch.Tensor], *, detach: bool = False) -> None:
+        expected = {variable.name for variable in self.vars}
+        if set(values) != expected:
+            raise ValueError(f"trainable values names must be {tuple(expected)}, got {tuple(values)}")
+        for variable in self.vars:
+            value = values[variable.name]
+            variable.tensor = value.detach() if detach else value
+        self._invalidate_nodes()
+
+    def _validate_trainable_values(self, values: Mapping[str, torch.Tensor]) -> tuple[int, ...]:
+        expected = {variable.name for variable in self.vars}
+        if set(values) != expected:
+            raise ValueError(f"trainable values names must be {tuple(expected)}, got {tuple(values)}")
+        combined = self._current_values()
+        combined.update(values)
+        return self._validate_values(combined)
+
+    def _batch_and_exemplar(self) -> tuple[tuple[int, ...], torch.Tensor]:
+        self._freeze()
+        if not self.residuals:
+            raise ValueError("Problem must contain at least one residual")
+        if not self._ordered_variables:
+            raise ValueError("Problem residuals must reference at least one variable")
+        values = self._current_values()
+        batch_shape = self._validate_values(values)
+        exemplar = self.vars[0].tensor if self.vars else self._ordered_variables[0].tensor
+        return batch_shape, exemplar
 
     @staticmethod
-    def _weights_for(item: ResidualItem, weights: Mapping[str, Weight] | None) -> Weight:
-        return item.weight if weights is None or item.name not in weights else weights[item.name]
-
-    def _validate_weights(self, weights: Mapping[str, Weight] | None) -> None:
-        if weights is None:
-            return
-        if any(not isinstance(name, str) or not name for name in weights):
-            raise TypeError("weight override names must be non-empty strings")
-        if unknown := set(weights) - set(self._residuals_by_name):
-            raise ValueError(f"weight overrides contain unknown item names {sorted(unknown)}")
-        for name, weight in weights.items():
-            _kernels._validate_weight_type(name, weight)
-
-    def _prepare(self, values: Mapping[str, torch.Tensor], weights: Mapping[str, Weight] | None) -> tuple[int, ...]:
-        self._validate_weights(weights)
-        return self._validate_values(values)
-
-    @staticmethod
-    def _validate_residual_output(
-        item: ResidualItem, output: torch.Tensor, batch_shape: tuple[int, ...], exemplar: torch.Tensor
+    def _validate_output(
+        item: Residual, output: torch.Tensor, batch_shape: tuple[int, ...], exemplar: torch.Tensor
     ) -> None:
-        expected = (*batch_shape, item.residual.dim)
+        expected = (*batch_shape, item.dim)
         if not isinstance(output, torch.Tensor) or tuple(output.shape) != expected:
             actual = tuple(output.shape) if isinstance(output, torch.Tensor) else type(output).__name__
             raise ValueError(f"Residual {item.name!r} must return shape {expected}, got {actual}")
@@ -346,276 +315,271 @@ class Problem:
                 f"{exemplar.dtype}/{exemplar.device}, got {output.dtype}/{output.device}"
             )
 
-    def _residual_with_context(
-        self,
-        values: Mapping[str, torch.Tensor],
-        batch_shape: tuple[int, ...],
-        ctx: EvaluationContext,
-        weights: Mapping[str, Weight] | None,
-        *,
-        validate_runtime: bool = True,
-    ) -> torch.Tensor:
-        exemplar = values[self.vars[0].name]
+    def _error_current(self, *, validate_runtime: bool = True) -> torch.Tensor:
+        batch_shape, exemplar = self._batch_and_exemplar()
         result = exemplar.new_zeros(*batch_shape, self.dim_total)
         for item in self.residuals:
-            weight = self._weights_for(item, weights)
-            if validate_runtime:
-                _kernels._validate_runtime_weight(item.name, weight, batch_shape, exemplar)
-            if _kernels._is_inactive(weight):
+            if item.weight.is_inactive():
                 continue
-            output = item.residual(ctx)
+            output = item.error()
             if validate_runtime:
-                self._validate_residual_output(item, output, batch_shape, exemplar)
-            result[..., self.row_offsets[item.name]] = output * _broadcast_weight(weight, output)
+                self._validate_output(item, output, batch_shape, exemplar)
+            result[..., self.row_offsets[item.name]] = item.weight.apply(output)
         return result
 
-    def residual(
-        self, values: Mapping[str, torch.Tensor], *, weights: Mapping[str, Weight] | None = None
-    ) -> torch.Tensor:
-        batch_shape = self._prepare(values, weights)
-        return self._residual_with_context(values, batch_shape, self._make_context(values), weights)
+    def error(self) -> torch.Tensor:
+        """Return concatenated weighted residuals at current variable values."""
+        self._freeze()
+        with self._evaluation():
+            return self._error_current()
 
-    def _objective_with_context(
-        self,
-        values: Mapping[str, torch.Tensor],
-        batch_shape: tuple[int, ...],
-        ctx: EvaluationContext,
-        weights: Mapping[str, Weight] | None,
-        *,
-        validate_runtime: bool = True,
-    ) -> torch.Tensor:
-        residual = self._residual_with_context(values, batch_shape, ctx, weights, validate_runtime=validate_runtime)
-        cost = values[self.vars[0].name].new_zeros(batch_shape)
+    def _error_at(self, values: Mapping[str, torch.Tensor], *, validate_runtime: bool = True) -> torch.Tensor:
+        with self._evaluation(values):
+            return self._error_current(validate_runtime=validate_runtime)
+
+    def _objective_current(self, *, validate_runtime: bool = True) -> torch.Tensor:
+        weighted = self._error_current(validate_runtime=validate_runtime)
+        batch_shape, exemplar = self._batch_and_exemplar()
+        cost = exemplar.new_zeros(batch_shape)
         for item in self.residuals:
-            if _kernels._is_inactive(self._weights_for(item, weights)):
+            if item.weight.is_inactive():
                 continue
-            groups = _group_rows(residual[..., self.row_offsets[item.name]], item.group_size)
+            groups = _group_rows(weighted[..., self.row_offsets[item.name]], item.group_size)
             kernel = item.kernel if item.kernel is not None else _L2_KERNEL
+            if not isinstance(kernel, RobustKernel):
+                raise TypeError(f"Residual {item.name!r} kernel must implement the RobustKernel protocol")
             cost = cost + kernel.rho(groups.square().sum(dim=-1)).sum(dim=-1)
         return cost
 
-    def objective(
-        self, values: Mapping[str, torch.Tensor], *, weights: Mapping[str, Weight] | None = None
-    ) -> torch.Tensor:
-        batch_shape = self._prepare(values, weights)
-        return self._objective_with_context(values, batch_shape, self._make_context(values), weights)
+    def objective(self, values: Mapping[str, torch.Tensor] | None = None) -> torch.Tensor:
+        self._freeze()
+        with self._evaluation(values):
+            return self._objective_current()
 
-    def gradient(
-        self,
-        values: Mapping[str, torch.Tensor],
-        *,
-        weights: Mapping[str, Weight] | None = None,
-        create_graph: bool = False,
-    ) -> Values:
-        batch_shape = self._prepare(values, weights)
-        return self._objective_gradient(values, batch_shape=batch_shape, weights=weights, create_graph=create_graph)[1]
-
-    def _objective_gradient(
-        self,
-        values: Mapping[str, torch.Tensor],
-        *,
-        batch_shape: tuple[int, ...],
-        weights: Mapping[str, Weight] | None = None,
-        create_graph: bool = False,
-    ) -> tuple[torch.Tensor, Values]:
-        def closure(perturbed: Values) -> torch.Tensor:
-            return self._objective_with_context(perturbed, batch_shape, self._make_context(perturbed), weights)
-
-        return _tangent_value_and_grad(
-            closure,
-            self.vars,
-            values,
-            batch_shape=batch_shape,
-            create_graph=create_graph,
-            graph_inputs=tuple(self.differentiable_external_parameters.values()),
+    def gradient(self, *, create_graph: bool = False) -> _TensorMap:
+        self._freeze()
+        batch_shape, _ = self._batch_and_exemplar()
+        base = self._trainable_values()
+        deltas: dict[str, torch.Tensor] = {}
+        active: list[torch.Tensor] = []
+        for variable in self.vars:
+            delta = variable.tensor.new_zeros(*batch_shape, variable.free_dim)
+            if variable.free_dim:
+                delta.requires_grad_(True)
+                active.append(delta)
+            deltas[variable.name] = delta
+        candidate = {
+            variable.name: variable._retract_from(base[variable.name], deltas[variable.name]) for variable in self.vars
+        }
+        output = self.objective(candidate)
+        computed = (
+            torch.autograd.grad(output.sum(), active, create_graph=create_graph, allow_unused=True)
+            if active and output.requires_grad
+            else ()
         )
-
-    def structured_normal(
-        self,
-        values: Mapping[str, torch.Tensor],
-        *,
-        weights: Mapping[str, Weight] | None = None,
-        row_scale: torch.Tensor | None = None,
-        residual: torch.Tensor | None = None,
-        create_graph: bool = False,
-    ) -> StructuredNormal:
-        if not isinstance(create_graph, bool):
-            raise TypeError("create_graph must be a static bool")
-        batch_shape = self._prepare(values, weights)
-        return assemble_structured_normal(
-            self,
-            dict(values),
-            batch_shape=batch_shape,
-            weights=weights,
-            row_scale=row_scale,
-            residual=residual,
-            create_graph=create_graph,
-            validate_runtime=True,
+        by_name = (
+            dict(zip((variable.name for variable in self.vars if variable.free_dim), computed, strict=True))
+            if computed
+            else {}
         )
+        anchors = [
+            variable.tensor.sum() * 0.0
+            for variable in self._ordered_variables
+            if create_graph and variable.tensor.requires_grad
+        ]
+        anchor = sum(anchors[1:], anchors[0]) if anchors else None
+        result: _TensorMap = {}
+        for variable in self.vars:
+            value = by_name.get(variable.name)
+            gradient = torch.zeros_like(deltas[variable.name]) if value is None else value
+            result[variable.name] = gradient + anchor if anchor is not None else gradient
+        return result
 
-    def retract(self, values: Mapping[str, torch.Tensor], steps: Mapping[str, torch.Tensor]) -> Values:
-        self._validate_values(values)
-        if set(steps) != set(self._vars_by_name):
-            raise ValueError("Problem steps must contain exactly one tensor per variable")
-        return {spec.name: spec.retract(values[spec.name], steps[spec.name]) for spec in self.vars}
-
-    def difference(self, x0: Mapping[str, torch.Tensor], x1: Mapping[str, torch.Tensor]) -> Values:
-        self._validate_values(x0)
-        self._validate_values(x1)
-        return {spec.name: spec.difference(x0[spec.name], x1[spec.name]) for spec in self.vars}
-
-    def _ad_block(  # noqa: PLR0913
+    def _ad_block(
         self,
-        item: ResidualItem,
-        spec: VarSpec,
-        values: Mapping[str, torch.Tensor],
+        item: Residual,
+        variable: Variable,
         batch_shape: tuple[int, ...],
-        parameters: Mapping[str, torch.Tensor],
         strategy: Literal["jacrev", "jacfwd"],
-        weight: Weight,
         *,
         create_graph: bool,
     ) -> torch.Tensor:
-        base = values[spec.name]
+        base = variable.tensor
 
         def closure(delta: torch.Tensor) -> torch.Tensor:
-            perturbed = dict(values)
-            perturbed[spec.name] = spec.retract(base, delta)
-            output = item.residual(self._make_context(perturbed, parameters=parameters))
-            self._validate_residual_output(item, output, batch_shape, base)
-            return output * _broadcast_weight(weight, output)
+            candidate = variable._retract_from(base, delta)
+            with self._evaluation({variable.name: candidate}):
+                output = item.error()
+                self._validate_output(item, output, batch_shape, base)
+                return item.weight.apply(output)
 
-        transformed = (torch.func.jacrev if strategy == "jacrev" else torch.func.jacfwd)(closure)(
-            base.new_zeros(*batch_shape, spec.free_dim)
-        )
+        transform = torch.func.jacrev if strategy == "jacrev" else torch.func.jacfwd
+        block = transform(closure)(base.new_zeros(*batch_shape, variable.free_dim))
         if batch_shape:
             count = 1
             for size in batch_shape:
                 count *= size
-            matrix = transformed.reshape(count, item.residual.dim, count, spec.free_dim)
-            transformed = (
-                matrix.diagonal(dim1=0, dim2=2).movedim(-1, 0).reshape(*batch_shape, item.residual.dim, spec.free_dim)
-            )
-        block = transformed.to(base)
+            matrix = block.reshape(count, item.dim, count, variable.free_dim)
+            block = matrix.diagonal(dim1=0, dim2=2).movedim(-1, 0).reshape(*batch_shape, item.dim, variable.free_dim)
+        block = block.to(base)
         if not create_graph:
             return block.detach()
-        anchors = [value.sum() * 0.0 for value in (*values.values(), *parameters.values()) if value.requires_grad]
+        anchors = [value.sum() * 0.0 for value in self._current_values().values() if value.requires_grad]
         return block + sum(anchors[1:], anchors[0]) if anchors else block
 
-    def _fd_block(  # noqa: PLR0913
+    def _fd_block(
         self,
-        item: ResidualItem,
-        spec: VarSpec,
-        values: Mapping[str, torch.Tensor],
+        item: Residual,
+        variable: Variable,
         batch_shape: tuple[int, ...],
-        parameters: Mapping[str, torch.Tensor],
-        weight: Weight,
         *,
         eps: float,
     ) -> torch.Tensor:
-        columns = []
-        for column in range(spec.free_dim):
-            delta = values[spec.name].new_zeros(*batch_shape, spec.free_dim)
+        columns: list[torch.Tensor] = []
+        base = variable.tensor
+        for column in range(variable.free_dim):
+            delta = base.new_zeros(*batch_shape, variable.free_dim)
             delta[..., column] = eps
-            plus, minus = dict(values), dict(values)
-            plus[spec.name] = spec.retract(values[spec.name], delta)
-            minus[spec.name] = spec.retract(values[spec.name], -delta)
-            rp = item.residual(self._make_context(plus, parameters=parameters))
-            rm = item.residual(self._make_context(minus, parameters=parameters))
-            self._validate_residual_output(item, rp, batch_shape, values[spec.name])
-            self._validate_residual_output(item, rm, batch_shape, values[spec.name])
-            columns.append((rp - rm) / (2.0 * eps))
+            with self._evaluation({variable.name: variable._retract_from(base, delta)}):
+                plus_raw = item.error()
+                self._validate_output(item, plus_raw, batch_shape, base)
+                plus = item.weight.apply(plus_raw)
+            with self._evaluation({variable.name: variable._retract_from(base, -delta)}):
+                minus_raw = item.error()
+                self._validate_output(item, minus_raw, batch_shape, base)
+                minus = item.weight.apply(minus_raw)
+            columns.append((plus - minus) / (2.0 * eps))
         if not columns:
-            return values[spec.name].new_empty(*batch_shape, item.residual.dim, 0)
-        return (torch.stack(columns, dim=-1) * _broadcast_weight(weight, torch.stack(columns, dim=-1))).detach()
+            return base.new_empty(*batch_shape, item.dim, 0)
+        return torch.stack(columns, dim=-1).detach()
 
-    def jacobian_blocks(  # noqa: PLR0912
+    def jacobian_blocks(  # noqa: PLR0912 - validates and dispatches every supported block strategy
         self,
-        values: Mapping[str, torch.Tensor],
         *,
-        weights: Mapping[str, Weight] | None = None,
         strategy: JacobianStrategy = "auto",
         create_graph: bool = False,
         fd_eps: float = 1e-4,
     ) -> dict[tuple[str, str], torch.Tensor]:
+        self._freeze()
         _check_strategy(strategy, create_graph)
-        batch_shape = self._prepare(values, weights)
-        parameters, ctx = self.parameters, self._make_context(values)
+        batch_shape, exemplar = self._batch_and_exemplar()
         result: dict[tuple[str, str], torch.Tensor] = {}
+        analytic_by_name: dict[str, tuple[torch.Tensor, ...] | None] = {}
+        if strategy in {"auto", "analytic"}:
+            # All analytic blocks see one exact tensor assignment, so shared
+            # nodes (notably RobotState) compute once for the whole pass.
+            with self._evaluation():
+                analytic_by_name = {
+                    item.name: item.jacobian() for item in self.residuals if not item.weight.is_inactive()
+                }
         for item in self.residuals:
-            weight = self._weights_for(item, weights)
-            _kernels._validate_runtime_weight(item.name, weight, batch_shape, values[self.vars[0].name])
-            if _kernels._is_inactive(weight):
+            if item.weight.is_inactive():
                 continue
-            analytic: Mapping[str, torch.Tensor] = {}
-            analytic_fn = getattr(item.residual, "jacobian_blocks", None)
-            if strategy in {"auto", "analytic"} and analytic_fn is not None:
-                analytic = analytic_fn(ctx)
-                if unknown := set(analytic) - self._item_variable_reads[item.name]:
+            dependencies = [variable for variable in self.vars if variable.name in self._item_variable_reads[item.name]]
+            analytic = analytic_by_name.get(item.name)
+            if strategy in {"auto", "analytic"}:
+                if analytic is not None and len(analytic) != len(dependencies):
                     raise ValueError(
-                        f"Residual {item.name!r} returned analytic blocks for unread variables {sorted(unknown)}"
+                        f"Residual {item.name!r} jacobian must return {len(dependencies)} blocks, got {len(analytic)}"
                     )
-            for spec in self.vars:
-                if spec.name not in self._item_variable_reads[item.name] or spec.free_dim == 0:
-                    continue
-                key = (item.name, spec.name)
-                if spec.name in analytic:
-                    block = analytic[spec.name]
-                    expected = (*batch_shape, item.residual.dim, spec.free_dim)
+            weighted_analytic = item.weight.apply_jacobian(analytic) if analytic is not None else None
+            for index, variable in enumerate(dependencies):
+                key = (item.name, variable.name)
+                if weighted_analytic is not None:
+                    block = weighted_analytic[index]
+                    expected = (*batch_shape, item.dim, variable.free_dim)
                     if not isinstance(block, torch.Tensor) or tuple(block.shape) != expected:
                         actual = tuple(block.shape) if isinstance(block, torch.Tensor) else type(block).__name__
-                        raise ValueError(f"Analytic block {key!r} must have reduced shape {expected}, got {actual}")
-                    exemplar = values[spec.name]
+                        raise ValueError(f"Analytic block {key!r} must have shape {expected}, got {actual}")
                     if block.dtype != exemplar.dtype or block.device != exemplar.device:
                         raise ValueError(
                             f"Analytic block {key!r} must preserve working dtype/device "
                             f"{exemplar.dtype}/{exemplar.device}, got {block.dtype}/{block.device}"
                         )
-                    graph_inputs = (*values.values(), *parameters.values())
-                    if create_graph and any(value.requires_grad for value in graph_inputs) and not block.requires_grad:
-                        raise ValueError(
-                            f"Analytic block {key!r} cannot honor create_graph=True; it is detached from graph-carrying "
-                            "context inputs. Return a differentiable block or omit the analytic block and use an AD strategy."
-                        )
-                    weighted = block * _broadcast_weight(weight, block)
-                    result[key] = weighted if create_graph else weighted.detach()
+                    if create_graph and variable.tensor.requires_grad and not block.requires_grad:
+                        raise ValueError(f"Analytic block {key!r} cannot honor create_graph=True")
+                    result[key] = block if create_graph else block.detach()
                 elif strategy == "analytic":
-                    raise ValueError(f"Residual {item.name!r} has no analytic block for {spec.name!r}")
+                    raise ValueError(f"Residual {item.name!r} must provide an analytic Jacobian")
                 elif strategy == "finite_difference":
-                    result[key] = self._fd_block(item, spec, values, batch_shape, parameters, weight, eps=fd_eps)
+                    result[key] = self._fd_block(item, variable, batch_shape, eps=fd_eps)
                 else:
                     selected = (
-                        strategy
-                        if strategy != "auto"
-                        else ("jacrev" if item.residual.dim <= spec.free_dim else "jacfwd")
+                        strategy if strategy != "auto" else ("jacrev" if item.dim <= variable.free_dim else "jacfwd")
                     )
                     result[key] = self._ad_block(
-                        item, spec, values, batch_shape, parameters, selected, weight, create_graph=create_graph
+                        item,
+                        variable,
+                        batch_shape,
+                        selected,
+                        create_graph=create_graph,
                     )
         return result
 
     def dense_jacobian(
         self,
-        values: Mapping[str, torch.Tensor],
         *,
-        weights: Mapping[str, Weight] | None = None,
         strategy: JacobianStrategy = "auto",
         create_graph: bool = False,
     ) -> torch.Tensor:
-        blocks = self.jacobian_blocks(values, weights=weights, strategy=strategy, create_graph=create_graph)
-        exemplar = values[self.vars[0].name]
-        batch_shape = tuple(exemplar.shape[: exemplar.ndim - len(self.vars[0].shape)])
+        self._freeze()
+        batch_shape, exemplar = self._batch_and_exemplar()
         dense = exemplar.new_zeros(*batch_shape, self.dim_total, self.tangent_dim_total)
-        for (residual_name, variable_name), block in blocks.items():
+        for (residual_name, variable_name), block in self.jacobian_blocks(
+            strategy=strategy,
+            create_graph=create_graph,
+        ).items():
             dense[..., self.row_offsets[residual_name], self.column_offsets[variable_name]] = block
         return dense
 
-    @property
-    def external_parameters(self) -> Mapping[str, torch.Tensor]:
-        return self.parameters
+    def _dense_jacobian_at(
+        self,
+        values: Mapping[str, torch.Tensor],
+        *,
+        strategy: JacobianStrategy = "auto",
+        create_graph: bool = False,
+    ) -> torch.Tensor:
+        with self._evaluation(values):
+            return self.dense_jacobian(strategy=strategy, create_graph=create_graph)
 
-    @property
-    def differentiable_external_parameters(self) -> Mapping[str, torch.Tensor]:
-        return MappingProxyType(
-            {name: self.parameters[name] for name in self.parameters if name in self.parameter_gradients}
-        )
+    def retract(self, values: Mapping[str, torch.Tensor], steps: Mapping[str, torch.Tensor]) -> _TensorMap:
+        self._freeze()
+        if set(values) != {variable.name for variable in self.vars} or set(steps) != set(values):
+            raise ValueError("values and steps must contain exactly one entry per trainable variable")
+        return {
+            variable.name: variable._retract_from(values[variable.name], steps[variable.name]) for variable in self.vars
+        }
+
+    def difference(self, x0: Mapping[str, torch.Tensor], x1: Mapping[str, torch.Tensor]) -> _TensorMap:
+        self._freeze()
+        if set(x0) != {variable.name for variable in self.vars} or set(x1) != set(x0):
+            raise ValueError("difference inputs must contain exactly one entry per trainable variable")
+        return {
+            variable.name: variable._difference_from(x0[variable.name], x1[variable.name]) for variable in self.vars
+        }
+
+    def structured_normal(
+        self,
+        values: Mapping[str, torch.Tensor] | None = None,
+        *,
+        row_scale: torch.Tensor | None = None,
+        residual: torch.Tensor | None = None,
+        create_graph: bool = False,
+    ):
+        from .temporal import assemble_structured_normal  # noqa: PLC0415
+
+        self._freeze()
+        current = self._trainable_values() if values is None else dict(values)
+        batch_shape = self._validate_trainable_values(current)
+        with self._evaluation(current):
+            return assemble_structured_normal(
+                self,
+                batch_shape=batch_shape,
+                row_scale=row_scale,
+                residual=residual,
+                create_graph=create_graph,
+                validate_runtime=True,
+            )
+
+
+__all__ = ["JacobianStrategy", "Problem"]

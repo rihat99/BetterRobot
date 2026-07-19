@@ -2,20 +2,23 @@
 
 from __future__ import annotations
 
+from typing import TypeAlias
+
 import torch
 
 from .problem import Problem
-from .variables import Values
+
+_TensorValues: TypeAlias = dict[str, torch.Tensor]
 
 
-def _batch_shape(values: Values, problem: Problem) -> tuple[int, ...]:
+def _batch_shape(values: _TensorValues, problem: Problem) -> tuple[int, ...]:
     """Infer leading solve-batch axes from the first variable block."""
-    spec = problem.vars[0]
-    value = values[spec.name]
-    return tuple(value.shape[: value.ndim - len(spec.shape)])
+    variable = problem.vars[0]
+    value = values[variable.name]
+    return tuple(value.shape[: value.ndim - len(variable.shape)])
 
 
-def _blend_values(mask: torch.Tensor, yes: Values, no: Values) -> Values:
+def _blend_values(mask: torch.Tensor, yes: _TensorValues, no: _TensorValues) -> _TensorValues:
     """Select complete named values per batch element."""
     return {
         name: torch.where(
@@ -28,13 +31,13 @@ def _blend_values(mask: torch.Tensor, yes: Values, no: Values) -> Values:
 
 
 def _state_coordinates(
-    values: Values,
+    values: _TensorValues,
     problem: Problem,
     state_index: torch.Tensor,
 ) -> torch.Tensor:
     """Gather ambient coordinates corresponding to tangent-space bounds."""
     flat = torch.cat(
-        tuple(values[spec.name].reshape(*_batch_shape(values, problem), -1) for spec in problem.vars),
+        tuple(values[variable.name].reshape(*_batch_shape(values, problem), -1) for variable in problem.vars),
         dim=-1,
     )
     gathered = flat.index_select(-1, state_index.clamp(min=0))

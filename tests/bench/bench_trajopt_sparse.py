@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Mapping, Sequence
+from functools import partial
 import gc
 import json
 import math
@@ -37,7 +38,7 @@ from typing import Any, Literal
 import torch
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 SEED = 20260717
 DT = 1.0 / 30.0
 HORIZONS = (50, 125, 250, 500)
@@ -67,96 +68,99 @@ THREAD_ENVIRONMENT = {
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-class TrajectoryTangentEnvelopeResidual:
-    """Benchmark-only tangent-space envelope hinge with diagonal blocks."""
+def _make_tangent_envelope_residual(
+    q: Any,
+    *,
+    half_width: torch.Tensor,
+    weight: float,
+    kernel: Any,
+    name: str = "tangent_reference_envelope",
+) -> Any:
+    """Build the benchmark-only v2 envelope residual without eager package imports."""
+    from better_robot.optim import Residual  # noqa: PLC0415
+    from better_robot.residuals._temporal_jacobian import (  # noqa: PLC0415
+        dense_temporal_jacobian,
+        temporal_free_indices,
+    )
+    from better_robot.residuals.structure import TemporalPattern  # noqa: PLC0415
 
-    reads = ("q",)
+    class TrajectoryTangentEnvelopeResidual(Residual):
+        """Tangent-space envelope hinge with one diagonal block per knot."""
 
-    def __init__(
-        self,
-        model: Any,
-        *,
-        horizon: int,
-        half_width: torch.Tensor,
-        name: str = "tangent_reference_envelope",
-    ) -> None:
-        if tuple(half_width.shape) != (model.nv,):
-            raise ValueError(f"half_width must have shape ({model.nv},), got {tuple(half_width.shape)}")
-        self.model = model
-        self.horizon = horizon
-        self.half_width = half_width
-        self.name = name
-        self.dim = 2 * horizon * model.nv
-
-    def _trajectory(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        q = ctx["q"]
-        if not isinstance(q, torch.Tensor):
-            raise TypeError("TrajectoryTangentEnvelopeResidual q must be a tensor")
-        expected = (self.horizon, self.model.nq)
-        if tuple(q.shape[-2:]) != expected:
-            raise ValueError(f"q must end in {expected}, got {tuple(q.shape)}")
-        return q
-
-    def _delta(self, ctx: Mapping[str, Any]) -> tuple[torch.Tensor, torch.Tensor]:
-        q = self._trajectory(ctx)
-        neutral = self.model.q_neutral.to(dtype=q.dtype, device=q.device).expand(self.horizon, -1)
-        delta = self.model.difference(neutral, q)
-        half_width = self.half_width.to(dtype=q.dtype, device=q.device)
-        return delta, half_width
-
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        delta, half_width = self._delta(ctx)
-        lower_hinge = torch.clamp(-half_width - delta, min=0.0)
-        upper_hinge = torch.clamp(delta - half_width, min=0.0)
-        return torch.cat((lower_hinge, upper_hinge), dim=-1).reshape(
-            *delta.shape[:-2],
-            self.dim,
-        )
-
-    def temporal_structure(self, variable_name: str):
-        from better_robot.residuals.structure import TemporalPattern  # noqa: PLC0415
-
-        if variable_name != "q":
-            return None
-        return TemporalPattern(
-            rows=self.horizon,
-            row_width=2 * self.model.nv,
-            row_origin=0,
-            offsets=(0,),
-        )
-
-    def temporal_jacobian_blocks(
-        self,
-        ctx: Mapping[str, Any],
-        variable_name: str,
-    ) -> Mapping[int, torch.Tensor]:
-        from better_robot.residuals._temporal_jacobian import temporal_free_indices  # noqa: PLC0415
-
-        if variable_name != "q":
-            return {}
-        q = self._trajectory(ctx)
-        delta, half_width = self._delta(ctx)
-        indices = temporal_free_indices(ctx, "q", device=q.device)
-        lower = -torch.diag_embed((delta < -half_width).to(dtype=q.dtype)).index_select(-1, indices)
-        upper = torch.diag_embed((delta > half_width).to(dtype=q.dtype)).index_select(-1, indices)
-        block = torch.cat((lower, upper), dim=-2)
-        # Preserve the explicit-unroll graph contract with a mathematically
-        # zero anchor; the active-set indicators remain piecewise constant.
-        anchor = q.sum(dim=(-2, -1)) * 0.0
-        return {0: block + anchor[..., None, None, None]}
-
-    def jacobian_blocks(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
-        from better_robot.residuals._temporal_jacobian import dense_temporal_jacobian  # noqa: PLC0415
-
-        pattern = self.temporal_structure("q")
-        assert pattern is not None
-        return {
-            "q": dense_temporal_jacobian(
-                pattern,
-                self.temporal_jacobian_blocks(ctx, "q"),
-                horizon=self.horizon,
+        def __init__(self) -> None:
+            if tuple(half_width.shape) != (q.model.nv,):
+                raise ValueError(f"half_width must have shape ({q.model.nv},), got {tuple(half_width.shape)}")
+            self.q = q
+            self.model = q.model
+            self.horizon = q.time_length
+            self.half_width = half_width
+            super().__init__(
+                q,
+                dim=2 * self.horizon * self.model.nv,
+                weight=weight,
+                kernel=kernel,
+                name=name,
             )
-        }
+
+        def _trajectory(self) -> torch.Tensor:
+            value = self.q.tensor
+            expected = (self.horizon, self.model.nq)
+            if tuple(value.shape[-2:]) != expected:
+                raise ValueError(f"q must end in {expected}, got {tuple(value.shape)}")
+            return value
+
+        def _delta(self) -> tuple[torch.Tensor, torch.Tensor]:
+            value = self._trajectory()
+            neutral = self.model.q_neutral.to(dtype=value.dtype, device=value.device).expand(self.horizon, -1)
+            delta = self.model.difference(neutral, value)
+            width = self.half_width.to(dtype=value.dtype, device=value.device)
+            return delta, width
+
+        def error(self) -> torch.Tensor:
+            delta, width = self._delta()
+            lower_hinge = torch.clamp(-width - delta, min=0.0)
+            upper_hinge = torch.clamp(delta - width, min=0.0)
+            return torch.cat((lower_hinge, upper_hinge), dim=-1).reshape(
+                *delta.shape[:-2],
+                self.dim,
+            )
+
+        def temporal_structure(self, variable: Any) -> Any:
+            if variable is not self.q and variable != self.q.name:
+                return None
+            return TemporalPattern(
+                rows=self.horizon,
+                row_width=2 * self.model.nv,
+                row_origin=0,
+                offsets=(0,),
+            )
+
+        def temporal_jacobian_blocks(self, variable: Any) -> Mapping[int, torch.Tensor]:
+            if variable is not self.q and variable != self.q.name:
+                return {}
+            value = self._trajectory()
+            delta, width = self._delta()
+            indices = temporal_free_indices(self.q, device=value.device)
+            lower = -torch.diag_embed((delta < -width).to(dtype=value.dtype)).index_select(-1, indices)
+            upper = torch.diag_embed((delta > width).to(dtype=value.dtype)).index_select(-1, indices)
+            block = torch.cat((lower, upper), dim=-2)
+            # Preserve the explicit-unroll graph contract with a mathematically
+            # zero anchor; the active-set indicators remain piecewise constant.
+            anchor = value.sum(dim=(-2, -1)) * 0.0
+            return {0: block + anchor[..., None, None, None]}
+
+        def jacobian(self) -> tuple[torch.Tensor, ...]:
+            pattern = self.temporal_structure(self.q)
+            assert pattern is not None
+            return (
+                dense_temporal_jacobian(
+                    pattern,
+                    self.temporal_jacobian_blocks(self.q),
+                    horizon=self.horizon,
+                ),
+            )
+
+    return TrajectoryTangentEnvelopeResidual()
 
 
 def _hemisphere_align(q: torch.Tensor, manifold: Any) -> torch.Tensor:
@@ -180,7 +184,12 @@ def _hemisphere_align(q: torch.Tensor, manifold: Any) -> torch.Tensor:
     return aligned
 
 
-def _build_problem(path: Literal["dense", "structured"], horizon: int) -> dict[str, Any]:  # noqa: PLR0915
+def _build_problem(  # noqa: PLR0915
+    path: Literal["dense", "structured"],
+    horizon: int,
+    *,
+    updates: int = CANONICAL_UPDATES,
+) -> dict[str, Any]:
     """Construct the exact deterministic §11 model, Problem, and optimizer."""
     from better_robot.io.builders.smpl_like import make_smpl_like_model  # noqa: PLC0415
     from better_robot.kinematics.forward import forward_kinematics  # noqa: PLC0415
@@ -188,16 +197,12 @@ def _build_problem(path: Literal["dense", "structured"], horizon: int) -> dict[s
         Bounds,
         LevenbergMarquardt,
         Problem,
-        ResidualItem,
-        RobotConfig,
-        RobotStateProvider,
-        VarSpec,
+        RobotVariable,
     )
     from better_robot.optim.kernels import L2  # noqa: PLC0415
     from better_robot.residuals.pose import PoseResidual  # noqa: PLC0415
     from better_robot.residuals.regularization import ReferenceTrajectoryResidual  # noqa: PLC0415
     from better_robot.residuals.smoothness import AccelerationResidual, VelocityResidual  # noqa: PLC0415
-    from better_robot.residuals.temporal import TimeIndexedResidual  # noqa: PLC0415
 
     if path not in PATHS:
         raise ValueError(f"path must be one of {PATHS}, got {path!r}")
@@ -233,10 +238,10 @@ def _build_problem(path: Literal["dense", "structured"], horizon: int) -> dict[s
     q_ground_truth = model.integrate(q_neutral, tangent)
     q_initial = q_neutral.clone()
 
-    manifold = RobotConfig(model)
-    q_ground_truth = _hemisphere_align(q_ground_truth, manifold)
-    q_initial = _hemisphere_align(q_initial, manifold)
-    box = manifold.box_mask
+    layout = RobotVariable(model, q_initial, trainable=False, time_axis=0)
+    q_ground_truth = _hemisphere_align(q_ground_truth, layout)
+    q_initial = _hemisphere_align(q_initial, layout)
+    box = layout.box_mask
     raw_lower = model.lower_pos_limit.to(dtype=torch.float32, device="cpu")
     raw_upper = model.upper_pos_limit.to(dtype=torch.float32, device="cpu")
     robot_bounds = Bounds(
@@ -247,10 +252,10 @@ def _build_problem(path: Literal["dense", "structured"], horizon: int) -> dict[s
         raise AssertionError("non-box lower bounds must be -inf")
     if not bool(torch.isposinf(robot_bounds.upper[~box]).all()):
         raise AssertionError("non-box upper bounds must be +inf")
-    q_spec = VarSpec(
-        "q",
-        (horizon, model.nq),
-        manifold=manifold,
+    q = RobotVariable(
+        model,
+        q_initial,
+        name="q",
         bounds=robot_bounds,
         time_axis=0,
     )
@@ -273,61 +278,54 @@ def _build_problem(path: Literal["dense", "structured"], horizon: int) -> dict[s
         raise AssertionError("benchmark target FK did not produce frame poses")
 
     l2 = L2()
-    residual_items: list[Any] = []
+    residuals: list[Any] = []
     for t_idx in keyframes:
         for frame_name in FRAME_NAMES:
             item_name = f"pose_t{t_idx}_{frame_name}"
-            inner = PoseResidual(
+            pose = PoseResidual(
+                q,
                 frame_id=frame_ids[frame_name],
                 target=target_data.frame_pose_world[t_idx, frame_ids[frame_name]].clone(),
+                knot=t_idx,
                 pos_weight=10.0,
                 ori_weight=2.0,
-                model=model,
+                weight=1.0,
+                kernel=l2,
                 name=item_name,
             )
-            temporal = TimeIndexedResidual(inner, t_idx, horizon=horizon, name=item_name)
-            residual_items.append(ResidualItem(item_name, temporal, weight=1.0, kernel=l2, group_size=6))
+            pose.group_size = 6
+            residuals.append(pose)
 
-    velocity = VelocityResidual(model, dt=DT, horizon=horizon, name="central_velocity")
-    acceleration = AccelerationResidual(model, dt=DT, horizon=horizon, name="acceleration")
+    velocity = VelocityResidual(q, dt=DT, weight=0.05, kernel=l2, name="central_velocity")
+    acceleration = AccelerationResidual(q, dt=DT, weight=0.005, kernel=l2, name="acceleration")
     reference = ReferenceTrajectoryResidual(
-        model,
+        q,
         q_neutral.clone(),
+        weight=0.01,
+        kernel=l2,
         name="reference_to_neutral",
     )
-    envelope = TrajectoryTangentEnvelopeResidual(
-        model,
-        horizon=horizon,
+    envelope = _make_tangent_envelope_residual(
+        q,
         half_width=half_width,
+        weight=0.10,
+        kernel=l2,
     )
-    residual_items.extend(
-        (
-            ResidualItem("central_velocity", velocity, weight=0.05, kernel=l2, group_size=75),
-            ResidualItem("acceleration", acceleration, weight=0.005, kernel=l2, group_size=75),
-            ResidualItem("reference_to_neutral", reference, weight=0.01, kernel=l2, group_size=75),
-            ResidualItem(
-                "tangent_reference_envelope",
-                envelope,
-                weight=0.10,
-                kernel=l2,
-                group_size=1,
-            ),
-        )
-    )
-    problem = Problem(
-        vars=(q_spec,),
-        residuals=tuple(residual_items),
-        providers=(RobotStateProvider(model),),
-    )
-    optimizer = LevenbergMarquardt(
-        max_iter=CANONICAL_UPDATES,
-        damping_parameter=1e-4,
-        gtol=0.0,
-        xtol=0.0,
-        ftol=0.0,
-        linear_solver=None,
+    for residual in (velocity, acceleration, reference):
+        residual.group_size = 75
+    residuals.extend((velocity, acceleration, reference, envelope))
+    problem = Problem(residuals)
+    optimizer_factory = partial(
+        LevenbergMarquardt,
+        max_iterations=updates,
+        damping=1e-4,
+        tolerance=0.0,
+        step_tolerance=0.0,
+        relative_tolerance=0.0,
+        solver="auto",
         linearization=path,
     )
+    optimizer = optimizer_factory(problem)
     decision = optimizer.resolve_linearization(problem)
     expected_route = "dense" if path == "dense" else "banded"
     if decision.used != expected_route:
@@ -335,7 +333,8 @@ def _build_problem(path: Literal["dense", "structured"], horizon: int) -> dict[s
     return {
         "model": model,
         "problem": problem,
-        "optimizer": optimizer,
+        "optimizer_factory": optimizer_factory,
+        "requested_path": path,
         "q_initial": q_initial,
         "active_envelope_coordinates": active_envelope,
         "keyframes": keyframes,
@@ -354,46 +353,33 @@ def _enum_name(enum_type: Any, value: int) -> str:
 
 def _run_one_solve(case: Mapping[str, Any], *, updates: int) -> dict[str, Any]:
     """Run exactly one fresh fixed-budget solve and retain small diagnostics."""
-    from better_robot.optim import LMStatus  # noqa: PLC0415
+    from better_robot.optim import OptimizerStatus  # noqa: PLC0415
 
     problem = case["problem"]
-    optimizer = case["optimizer"]
+    problem.update({"q": case["q_initial"].clone()})
+    optimizer = case["optimizer_factory"](problem)
     gc.collect()
-    values = {"q": case["q_initial"].clone()}
-    factorization_diagnostics: list[torch.Tensor] = []
     started = time.perf_counter()
-    state = optimizer.init_state(values, problem)
-    for _ in range(updates):
-        values, state = optimizer.update(values, state, problem)
-        # References are safe: LMState is immutable and each update creates
-        # fresh scalar tensors. Keeping only these tensors avoids retaining a
-        # prior residual/Jacobian while adding no timed tensor operation.
-        factorization_diagnostics.append(state.factorization_ok)
-    values, state = optimizer.finalize(values, state, problem)
+    info = optimizer.optimize()
     elapsed_seconds = time.perf_counter() - started
+    residual = problem.error()
 
-    lm_status = int(state.status)
-    allowed_lm = {
-        LMStatus.RUNNING.value,
-        LMStatus.CONVERGED.value,
-        LMStatus.STALLED_AT_BOUNDS.value,
+    optimizer_status = int(info.status)
+    allowed_status = {
+        OptimizerStatus.CONVERGED.value,
+        OptimizerStatus.STALLED_AT_BOUNDS.value,
+        OptimizerStatus.MAXITER.value,
     }
     finite_final = bool(
-        torch.isfinite(state.cost)
-        & torch.isfinite(state.residual).all()
-        & torch.isfinite(state.gradient).all()
-        & torch.isfinite(state.grad_norm)
+        torch.isfinite(info.cost) & torch.isfinite(residual).all() & torch.isfinite(problem.variables["q"].tensor).all()
     )
-    linear_success = all(bool(ok) for ok in factorization_diagnostics)
-    expected_route = "dense" if case["optimizer"].linearization == "dense" else "banded"
+    expected_route = "dense" if case["requested_path"] == "dense" else "banded"
     route_success = case["route"] == expected_route
     failure_reasons: list[str] = []
     if not finite_final:
         failure_reasons.append("nonfinite_final_metrics")
-    if lm_status not in allowed_lm:
-        failure_reasons.append(f"disallowed_lm_status:{_enum_name(LMStatus, lm_status)}")
-    if not linear_success:
-        failure_reasons.append("linear_solve_not_successful")
+    if optimizer_status not in allowed_status:
+        failure_reasons.append(f"disallowed_optimizer_status:{_enum_name(OptimizerStatus, optimizer_status)}")
     if not route_success:
         failure_reasons.append(f"unexpected_route:{case['route']}")
 
@@ -403,12 +389,10 @@ def _run_one_solve(case: Mapping[str, Any], *, updates: int) -> dict[str, Any]:
         "success": not failure_reasons,
         "failure_reasons": failure_reasons,
         "route": case["route"],
-        "final_lm_status": lm_status,
-        "final_lm_status_name": _enum_name(LMStatus, lm_status),
-        "final_cost": float(state.cost),
-        "final_residual_norm": float(torch.linalg.vector_norm(state.residual)),
-        "final_gradient_norm": float(torch.linalg.vector_norm(state.gradient)),
-        "linear_solves": [{"factorization_ok": bool(ok)} for ok in factorization_diagnostics],
+        "final_optimizer_status": optimizer_status,
+        "final_optimizer_status_name": _enum_name(OptimizerStatus, optimizer_status),
+        "final_cost": float(info.cost),
+        "final_residual_norm": float(torch.linalg.vector_norm(residual)),
     }
 
 
@@ -446,7 +430,7 @@ def _run_child_case(  # noqa: PLR0915
     virtual_size_before_limit: int,
 ) -> dict[str, Any]:
     construction_started = time.perf_counter()
-    case = _build_problem(path, horizon)
+    case = _build_problem(path, horizon, updates=updates)
     construction_seconds = time.perf_counter() - construction_started
     construction_rss_bytes = _current_rss_bytes()
 
@@ -589,12 +573,12 @@ def _definition() -> dict[str, Any]:
         ],
         "optimizer": {
             "type": "LevenbergMarquardt",
-            "max_iter": CANONICAL_UPDATES,
-            "damping_parameter": 1e-4,
-            "gtol": 0.0,
-            "xtol": 0.0,
-            "ftol": 0.0,
-            "linear_solver": None,
+            "max_iterations": CANONICAL_UPDATES,
+            "damping": 1e-4,
+            "tolerance": 0.0,
+            "step_tolerance": 0.0,
+            "relative_tolerance": 0.0,
+            "solver": "auto",
         },
         "measurement": {
             "cold_solves": 1,

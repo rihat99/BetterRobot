@@ -93,5 +93,5 @@ def test_all_is_list_of_str() -> None:
         assert isinstance(name, str)
 
 
-def test_root_se3_remains_the_lie_type_after_named_block_freeze() -> None:
+def test_root_se3_remains_the_lie_type_after_optim_v2() -> None:
     assert br.SE3 is LieSE3

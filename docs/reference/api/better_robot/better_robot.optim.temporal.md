@@ -451,7 +451,7 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 `````
 
-````{py:function} assemble_structured_normal(problem: better_robot.optim.problem.Problem, values: better_robot.optim.variables.Values, *, batch_shape: tuple[int, ...], weights: collections.abc.Mapping[str, better_robot.optim.problem.Weight] | None = None, row_scale: torch.Tensor | None = None, residual: torch.Tensor | None = None, create_graph: bool = False, validate_runtime: bool = True) -> better_robot.optim.temporal.StructuredNormal
+````{py:function} assemble_structured_normal(problem: better_robot.optim.problem.Problem, *, batch_shape: tuple[int, ...], row_scale: torch.Tensor | None = None, residual: torch.Tensor | None = None, create_graph: bool = False, validate_runtime: bool = True) -> better_robot.optim.temporal.StructuredNormal
 :canonical: better_robot.optim.temporal.assemble_structured_normal
 
 ```{autodoc2-docstring} better_robot.optim.temporal.assemble_structured_normal

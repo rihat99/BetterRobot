@@ -13,25 +13,24 @@ from better_robot.optim import (
     LevenbergMarquardt,
     LinearizationMode,
     LinearizationReason,
-    ResidualItem,
+    Problem,
+    Residual,
 )
 from better_robot.residuals.regularization import ReferenceTrajectoryResidual
 from better_robot.tasks.parameterization import BSplineTrajectory
 from better_robot.tasks.trajopt import solve_trajopt
 
 
-class _UndeclaredTrajectoryResidual:
+class _UndeclaredTrajectoryResidual(Residual):
     """Valid named residual that deliberately makes auto route dense."""
 
-    name = "internal_undeclared"
-    reads = ("q",)
-
-    def __init__(self, target: torch.Tensor) -> None:
+    def __init__(self, q, target: torch.Tensor) -> None:
+        self.q = q
         self.target = target
-        self.dim = target.numel()
+        super().__init__(q, dim=target.shape[-2] * q.model.nv, name="internal_undeclared")
 
-    def __call__(self, ctx) -> torch.Tensor:
-        q = ctx["q"]
+    def error(self) -> torch.Tensor:
+        q = self.q.tensor
         return (q - self.target).reshape(*q.shape[:-2], self.dim)
 
 
@@ -57,29 +56,41 @@ def _floating_body():
     return build_model(builder.finalize())
 
 
-def _reference_residuals(model, reference: torch.Tensor) -> tuple[ResidualItem, ...]:
-    residual = ReferenceTrajectoryResidual(
-        model,
-        reference,
-        name="reference",
-    )
-    return (ResidualItem("reference", residual),)
+def _reference_residuals(reference: torch.Tensor):
+    return (lambda q: ReferenceTrajectoryResidual(q, reference, name="reference"),)
 
 
 def _solve_reference(model, seed, reference, *, linearization: LinearizationMode, **kwargs):
     return solve_trajopt(
         model,
-        horizon=seed.shape[-2],
         dt=0.05,
         initial_q_traj=seed,
-        residuals=_reference_residuals(model, reference),
-        optimizer=LevenbergMarquardt(
-            max_iter=12,
-            damping_parameter=1e-5,
+        residuals=_reference_residuals(reference),
+        optimizer=lambda problem: LevenbergMarquardt(
+            problem,
+            max_iterations=12,
+            damping=1e-5,
             linearization=linearization,
         ),
         **kwargs,
     )
+
+
+def test_optimizer_factory_must_own_the_facade_problem() -> None:
+    model = _fixed_arm()
+    seed = model.q_neutral.expand(3, -1).clone()
+
+    def wrong_factory(problem: Problem) -> LevenbergMarquardt:
+        return LevenbergMarquardt(Problem(problem.residuals), max_iterations=0)
+
+    with pytest.raises(ValueError, match="owning the supplied Problem"):
+        solve_trajopt(
+            model,
+            dt=0.05,
+            initial_q_traj=seed,
+            residuals=_reference_residuals(seed),
+            optimizer=wrong_factory,
+        )
 
 
 def test_dense_and_structured_task_routes_match() -> None:
@@ -117,11 +128,10 @@ def test_auto_route_honors_optional_bounds_and_projects_seed() -> None:
 
     result = solve_trajopt(
         model,
-        horizon=horizon,
         dt=0.05,
         initial_q_traj=seed,
-        residuals=_reference_residuals(model, reference),
-        optimizer=LevenbergMarquardt(max_iter=12, linearization="auto"),
+        residuals=_reference_residuals(reference),
+        optimizer=lambda problem: LevenbergMarquardt(problem, max_iterations=12, linearization="auto"),
         lower=lower,
         upper=upper,
     )
@@ -195,15 +205,12 @@ def test_auto_falls_back_to_dense_for_undeclared_temporal_item() -> None:
     seed = model.q_neutral.expand(horizon, -1).clone()
     target = seed.clone()
     target[:, 0] = 0.1
-    residual = _UndeclaredTrajectoryResidual(target)
-
     result = solve_trajopt(
         model,
-        horizon=horizon,
         dt=0.05,
         initial_q_traj=seed,
-        residuals=(ResidualItem(residual.name, residual),),
-        optimizer=LevenbergMarquardt(max_iter=8, linearization="auto"),
+        residuals=(lambda q: _UndeclaredTrajectoryResidual(q, target),),
+        optimizer=lambda problem: LevenbergMarquardt(problem, max_iterations=8, linearization="auto"),
     )
 
     assert result.linearization_requested == "auto"
@@ -218,12 +225,11 @@ def test_bspline_fails_actionably() -> None:
     seed = model.q_neutral.expand(horizon, -1).clone()
     reference = seed.clone()
 
-    with pytest.raises(NotImplementedError, match="component-space.*deferred"):
+    with pytest.raises(NotImplementedError, match="component-space.*not manifold-safe"):
         solve_trajopt(
             model,
-            horizon=horizon,
             dt=0.05,
             initial_q_traj=seed,
-            residuals=_reference_residuals(model, reference),
+            residuals=_reference_residuals(reference),
             parameterization=BSplineTrajectory(num_control_points=4),
         )

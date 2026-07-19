@@ -3,25 +3,19 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from typing import Any
 
 import torch
 
+from ._variables import RobotVariableLike as _TemporalVariable
 from .structure import TemporalPattern
 
 
-def temporal_free_indices(
-    ctx: Mapping[str, object],
-    variable_name: str,
-    *,
-    device: torch.device,
-) -> torch.Tensor:
-    """Return one knot's reduced tangent indices from an evaluation context."""
-    getter = getattr(ctx, "temporal_free_indices", None)
-    if getter is None:
-        raise TypeError("temporal analytic blocks require a context with temporal_free_indices(variable_name)")
-    indices = getter(variable_name)
+def temporal_free_indices(variable: _TemporalVariable, *, device: torch.device) -> torch.Tensor:
+    """Return one knot's reduced tangent indices from a temporal variable."""
+    indices = getattr(variable, "temporal_free_indices", None)
     if not isinstance(indices, torch.Tensor) or indices.ndim != 1:
-        raise TypeError("temporal_free_indices must return a one-dimensional tensor")
+        raise TypeError("temporal variable must expose one-dimensional temporal_free_indices")
     return indices.to(device=device, dtype=torch.int64)
 
 
@@ -31,11 +25,7 @@ def dense_temporal_jacobian(
     *,
     horizon: int,
 ) -> torch.Tensor:
-    """Densify ``offset -> (..., rows, row_width, d)`` blocks.
-
-    This is the dense-oracle path used by residual ``jacobian_blocks`` methods
-    and their parity tests. Structured assembly consumes the blocks directly.
-    """
+    """Densify ``offset -> (..., rows, row_width, d)`` blocks."""
     dense: torch.Tensor | None = None
     for offset in pattern.offsets:
         block = blocks[offset]
@@ -54,6 +44,12 @@ def dense_temporal_jacobian(
         pattern.rows * pattern.row_width,
         horizon * dense.shape[-1],
     )
+
+
+def dense_temporal_residual(residual: Any, variable: _TemporalVariable, horizon: int) -> tuple[torch.Tensor, ...]:
+    pattern = residual.temporal_structure(variable)
+    assert pattern is not None
+    return (dense_temporal_jacobian(pattern, residual.temporal_jacobian_blocks(variable), horizon=horizon),)
 
 
 __all__ = ["dense_temporal_jacobian", "temporal_free_indices"]

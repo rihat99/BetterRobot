@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
-from enum import IntEnum
+from dataclasses import dataclass
 from functools import reduce
 import math
 from operator import mul
@@ -12,7 +11,7 @@ from typing import Literal, NamedTuple, TypeAlias, cast
 
 import torch
 
-from .kernels import L2, RobustKernel, _group_rows
+from .kernels import L2, _group_rows
 from .solvers import (
     BandedCholesky,
     Cholesky,
@@ -20,12 +19,14 @@ from .solvers import (
 )
 from ._solver_common import _blend_values, _state_coordinates
 from .implicit import ImplicitDiffConfig
-from .manifolds import Euclidean, RobotConfig, _joint_coordinate_layout
-from .problem import JacobianStrategy, Problem, _check_strategy
+from .optimizers import Optimizer, OptimizerInfo, OptimizerStatus
+from .problem import JacobianStrategy, Problem, _check_strategy, _detach
 from .temporal import BlockBandedMatrix, LinearizationReason
-from .variables import Values, detach_values
+from .variables import RobotVariable, _joint_layout
 
 LinearizationMode: TypeAlias = Literal["auto", "dense", "structured"]
+_TensorValues: TypeAlias = dict[str, torch.Tensor]
+_DEFAULT_KERNEL = L2()
 
 
 @dataclass(frozen=True)
@@ -41,17 +42,7 @@ class LinearizationDecision:
 _ResolvedLinearSolver: TypeAlias = LinearSolver | BandedCholesky | Cholesky
 
 
-class LMStatus(IntEnum):
-    """Per-element terminal status stored as ``torch.int8``."""
-
-    RUNNING = 0
-    CONVERGED = 1
-    STALLED_AT_BOUNDS = 2
-    MAXITER = 3
-    FAILED = 4
-
-
-class LMState(NamedTuple):
+class _LMIterationState(NamedTuple):
     """Fixed-structure tensor state for arbitrary leading batch axes."""
 
     residual: torch.Tensor
@@ -106,13 +97,13 @@ def _max_abs(vector: torch.Tensor) -> torch.Tensor:
     return vector.abs().amax(dim=-1)
 
 
-def _split_step(step: torch.Tensor, problem: Problem) -> Values:
+def _split_step(step: torch.Tensor, problem: Problem) -> _TensorValues:
     return {spec.name: step[..., problem.column_offsets[spec.name]] for spec in problem.vars}
 
 
 def _difference_reduced(
-    x0: Values,
-    x1: Values,
+    x0: _TensorValues,
+    x1: _TensorValues,
     problem: Problem,
 ) -> torch.Tensor:
     full = problem.difference(x0, x1)
@@ -123,16 +114,16 @@ def _difference_reduced(
 
 
 def _retract_reduced(
-    values: Values,
+    values: _TensorValues,
     step: torch.Tensor,
     problem: Problem,
-) -> Values:
+) -> _TensorValues:
     return problem.retract(values, _split_step(step, problem))
 
 
 def _project_step(
-    values: Values, step: torch.Tensor, problem: Problem, limits: tuple[tuple[str, float], ...]
-) -> tuple[Values, torch.Tensor]:
+    values: _TensorValues, step: torch.Tensor, problem: Problem, limits: tuple[tuple[str, float], ...]
+) -> tuple[_TensorValues, torch.Tensor]:
     proposed = _retract_reduced(values, _limit_block_step_norms(step, problem, limits), problem)
     return proposed, _difference_reduced(values, proposed, problem)
 
@@ -181,12 +172,12 @@ def _validate_block_step_limits(limits: tuple[tuple[str, float], ...]) -> None:
             raise ValueError(f"block_step_limits max norm for {block_name!r} must be a finite positive Python number")
 
 
-def _detach_state(state: LMState) -> LMState:
-    return LMState(*(tensor.detach() for tensor in state))
+def _detach_state(state: _LMIterationState) -> _LMIterationState:
+    return _LMIterationState(*(tensor.detach() for tensor in state))
 
 
 def _static_layout(  # noqa: PLR0912 - handles the finite supported variable layouts
-    values: Values,
+    values: _TensorValues,
     problem: Problem,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """Build scale and state-box-to-tangent maps once at the public boundary."""
@@ -204,26 +195,27 @@ def _static_layout(  # noqa: PLR0912 - handles the finite supported variable lay
         if spec.free_scale is not None:
             scale[column] = spec.free_scale.to(device=exemplar.device)
 
+        tangent_dim = spec.tangent_dim()
         full_mapping = torch.full(
-            (spec.tangent_dim,),
+            (tangent_dim,),
             -1,
             dtype=torch.long,
             device=exemplar.device,
         )
-        full_lower = exemplar.new_full((spec.tangent_dim,), -torch.inf)
-        full_upper = exemplar.new_full((spec.tangent_dim,), torch.inf)
-        if isinstance(spec.manifold, Euclidean):
+        full_lower = exemplar.new_full((tangent_dim,), -torch.inf)
+        full_upper = exemplar.new_full((tangent_dim,), torch.inf)
+        if not isinstance(spec, RobotVariable):
             full_mapping = torch.arange(
                 state_offset,
-                state_offset + spec.tangent_dim,
+                state_offset + tangent_dim,
                 dtype=torch.long,
                 device=exemplar.device,
             )
             if spec.bounds is not None:
                 full_lower = spec.bounds.lower.reshape(-1)
                 full_upper = spec.bounds.upper.reshape(-1)
-        elif isinstance(spec.manifold, RobotConfig):
-            model = spec.manifold.model
+        elif isinstance(spec, RobotVariable):
+            model = spec.model
             q_for_v = [-1] * model.nv
             unsafe_q: list[int] = []
             for joint, nq_joint, nv_joint, iq, iv in zip(
@@ -236,7 +228,7 @@ def _static_layout(  # noqa: PLR0912 - handles the finite supported variable lay
             ):
                 if nq_joint == 0 and nv_joint == 0:
                     continue
-                layout = _joint_coordinate_layout(joint)
+                layout = _joint_layout(joint)
                 for local_v, local_q in enumerate(layout.q_for_v):
                     if local_q >= 0:
                         q_for_v[iv + local_v] = iq + local_q
@@ -248,7 +240,7 @@ def _static_layout(  # noqa: PLR0912 - handles the finite supported variable lay
                 )
                 if bool(unsafe_finite.any()):  # bench-ok: init-only static bounds validation
                     raise ValueError(
-                        f"RobotConfig VarSpec {spec.name!r} has a finite free-flyer "
+                        f"RobotVariable {spec.name!r} has a finite free-flyer "
                         "translation bound. World-axis state boxes are not axis-aligned "
                         "in the right-local SE(3) tangent; defer this constraint or "
                         "express it as a residual."
@@ -276,7 +268,6 @@ def _static_layout(  # noqa: PLR0912 - handles the finite supported variable lay
 def _robustify(
     residual: torch.Tensor,
     problem: Problem,
-    default_kernel: RobustKernel,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     costs: list[torch.Tensor] = []
     row_weights: list[torch.Tensor] = []
@@ -284,7 +275,7 @@ def _robustify(
         rows = residual[..., problem.row_offsets[item.name]]
         groups = _group_rows(rows, item.group_size)
         squared_norm = groups.square().sum(dim=-1)
-        kernel = item.kernel if item.kernel is not None else default_kernel
+        kernel = item.kernel if item.kernel is not None else _DEFAULT_KERNEL
         costs.append(kernel.rho(squared_norm).sum(dim=-1))
         group_weight = kernel.weight(squared_norm)
         row_weights.append(group_weight.unsqueeze(-1).expand(*group_weight.shape, item.group_size).reshape(*rows.shape))
@@ -298,7 +289,6 @@ def _robust_decrease(
     current: torch.Tensor,
     candidate: torch.Tensor,
     problem: Problem,
-    default_kernel: RobustKernel,
 ) -> torch.Tensor:
     """Accumulate per-group decreases without subtracting two large totals."""
     decreases: list[torch.Tensor] = []
@@ -306,7 +296,7 @@ def _robust_decrease(
         row_slice = problem.row_offsets[item.name]
         current_groups = _group_rows(current[..., row_slice], item.group_size)
         candidate_groups = _group_rows(candidate[..., row_slice], item.group_size)
-        kernel = item.kernel if item.kernel is not None else default_kernel
+        kernel = item.kernel if item.kernel is not None else _DEFAULT_KERNEL
         current_rho = kernel.rho(current_groups.square().sum(dim=-1))
         candidate_rho = kernel.rho(candidate_groups.square().sum(dim=-1))
         decreases.append((current_rho - candidate_rho).sum(dim=-1))
@@ -324,7 +314,7 @@ def _robust_finite(residual: torch.Tensor, cost: torch.Tensor, weights: torch.Te
 
 
 def _active_mask(
-    values: Values,
+    values: _TensorValues,
     gradient: torch.Tensor,
     problem: Problem,
     state_index: torch.Tensor,
@@ -342,7 +332,7 @@ def _active_mask(
 
 
 def _projected_gradient(
-    values: Values,
+    values: _TensorValues,
     gradient: torch.Tensor,
     problem: Problem,
     bounded: torch.Tensor,
@@ -350,14 +340,14 @@ def _projected_gradient(
     projected = _retract_reduced(values, -gradient, problem)
     # P(x - g) - x is the projected *descent* direction; negate it so the
     # stored vector follows the ordinary-gradient sign on bounded axes. Group
-    # manifolds are unbounded under VarSpec and can wrap a large tangent
+    # group variables are unbounded and can wrap a large tangent
     # through log(exp(.)); retain their raw gradient instead.
     projected_box_gradient = -_difference_reduced(values, projected, problem)
     return torch.where(bounded, projected_box_gradient, gradient)
 
 
 def _linearize_model(
-    values: Values,
+    values: _TensorValues,
     problem: Problem,
     solver: LevenbergMarquardt,
     decision: LinearizationDecision,
@@ -365,12 +355,12 @@ def _linearize_model(
     create_graph: bool = False,
 ) -> _LinearizedLeastSquares:
     state_index, lower, upper, bounded = bounds
-    residual = problem.residual(values)
-    cost, robust_weights, row_scale = _robustify(residual, problem, solver.kernel)
+    residual = problem._error_at(values)
+    cost, robust_weights, row_scale = _robustify(residual, problem)
     common_finite = _robust_finite(residual, cost, robust_weights)
 
     if decision.used == "dense":
-        jacobian_raw = problem.dense_jacobian(
+        jacobian_raw = problem._dense_jacobian_at(
             values,
             strategy=solver.jacobian_strategy,
             create_graph=create_graph,
@@ -431,37 +421,58 @@ def _linearize_model(
 def _terminal_status(model: _LinearizedLeastSquares, gtol: float) -> torch.Tensor:
     active_kkt = model.active_mask.any(dim=-1) & (model.grad_norm > gtol)
     satisfies_kkt = model.finite & (model.projected_grad_norm <= gtol)
-    running = torch.full_like(model.projected_grad_norm, LMStatus.RUNNING.value, dtype=torch.int8)
-    converged = torch.full_like(running, LMStatus.CONVERGED.value)
-    stalled = torch.full_like(running, LMStatus.STALLED_AT_BOUNDS.value)
-    failed = torch.full_like(running, LMStatus.FAILED.value)
+    running = torch.full_like(model.projected_grad_norm, OptimizerStatus.RUNNING.value, dtype=torch.int8)
+    converged = torch.full_like(running, OptimizerStatus.CONVERGED.value)
+    stalled = torch.full_like(running, OptimizerStatus.STALLED_AT_BOUNDS.value)
+    failed = torch.full_like(running, OptimizerStatus.FAILED.value)
     success = torch.where(active_kkt, stalled, converged)
     return torch.where(~model.finite, failed, torch.where(satisfies_kkt, success, running))
 
 
-@dataclass(frozen=True)
-class LevenbergMarquardt:
-    """Batched projected active-set LM over named-block problems."""
+class LevenbergMarquardt(Optimizer):
+    """Batched projected active-set LM that owns one problem."""
 
-    max_iter: int = 50
-    gtol: float = 1e-6
-    xtol: float = 1e-9
-    ftol: float = 1e-9
-    damping_parameter: float = 1e-4
-    mu_min: float = 1e-12
-    mu_max: float = float(2**32)
-    increase_factor_max: float = float(2**32)
-    bound_tolerance: float = 1e-7
-    linear_solver: LinearSolver | None = None
-    linearization: LinearizationMode = "auto"
-    kernel: RobustKernel = field(default_factory=L2)
-    jacobian_strategy: JacobianStrategy = "auto"
-    fixed_damping: bool = False
-    block_step_limits: tuple[tuple[str, float], ...] = ()
-
-    def __post_init__(self) -> None:
-        if isinstance(self.max_iter, bool) or not isinstance(self.max_iter, int) or self.max_iter < 0:
-            raise ValueError("max_iter must be a non-negative int")
+    def __init__(
+        self,
+        problem: Problem,
+        *,
+        solver: Literal["auto"] | LinearSolver = "auto",
+        max_iterations: int = 50,
+        tolerance: float = 1e-6,
+        step_tolerance: float = 1e-9,
+        relative_tolerance: float = 1e-9,
+        damping: float = 1e-4,
+        mu_min: float = 1e-12,
+        mu_max: float = float(2**32),
+        increase_factor_max: float = float(2**32),
+        bound_tolerance: float = 1e-7,
+        linearization: LinearizationMode = "auto",
+        jacobian_strategy: JacobianStrategy = "auto",
+        fixed_damping: bool = False,
+        block_step_limits: tuple[tuple[str, float], ...] = (),
+    ) -> None:
+        super().__init__(problem, max_iterations=max_iterations, tolerance=tolerance)
+        if solver == "auto":
+            linear_solver = None
+        elif isinstance(solver, LinearSolver):
+            linear_solver = solver
+        else:
+            raise TypeError("solver must be 'auto' or implement solve(A, b, ridge=None)")
+        self.gtol = self.tolerance
+        self.xtol = step_tolerance
+        self.ftol = relative_tolerance
+        self.damping_parameter = damping
+        self.mu_min = mu_min
+        self.mu_max = mu_max
+        self.increase_factor_max = increase_factor_max
+        self.bound_tolerance = bound_tolerance
+        self.linear_solver = linear_solver
+        self.linearization = linearization
+        self.jacobian_strategy = jacobian_strategy
+        self.fixed_damping = fixed_damping
+        self.block_step_limits = block_step_limits
+        self._state: _LMIterationState | None = None
+        self._seen_update_serial = problem._update_serial
         if not isinstance(self.fixed_damping, bool):
             raise TypeError("fixed_damping must be a static bool")
         _validate_block_step_limits(self.block_step_limits)
@@ -489,10 +500,7 @@ class LevenbergMarquardt:
         _check_strategy(self.jacobian_strategy, False)
         if self.linearization not in {"auto", "dense", "structured"}:
             raise ValueError("linearization must be auto/dense/structured")
-        if self.linear_solver is not None and not isinstance(self.linear_solver, LinearSolver):
-            raise TypeError("linear_solver must implement solve(A, b, ridge=None)")
-        if not isinstance(self.kernel, RobustKernel):
-            raise TypeError("kernel must implement rho(squared_norm) and weight(squared_norm)")
+        problem._freeze()
 
     def resolve_linearization(self, problem: Problem) -> LinearizationDecision:
         """Resolve one static dense or block-banded route for ``problem``."""
@@ -544,13 +552,13 @@ class LevenbergMarquardt:
     def _resolved_linear_solver(self, decision: LinearizationDecision) -> _ResolvedLinearSolver:
         return self.linear_solver or (BandedCholesky() if decision.used == "banded" else Cholesky())
 
-    def init_state(
+    def _init_state(
         self,
-        values: Values,
+        values: _TensorValues,
         problem: Problem,
         *,
         create_graph: bool = False,
-    ) -> LMState:
+    ) -> _LMIterationState:
         """Validate a solve boundary and evaluate its initial linearization."""
         if not isinstance(create_graph, bool):
             raise TypeError("create_graph must be a static bool")
@@ -568,16 +576,16 @@ class LevenbergMarquardt:
             )
         if problem.tangent_dim_total <= 0:
             raise ValueError(f"{type(self).__name__} requires at least one free tangent coordinate")
-        batch_shape = problem._validate_values(values)
+        batch_shape = problem._validate_trainable_values(values)
         decision = self.resolve_linearization(problem)
         scale, state_index, lower, upper, bounded = _static_layout(values, problem)
         model = _linearize_model(values, problem, self, decision, (state_index, lower, upper, bounded), create_graph)
         diagonal_max = (model.normal_diagonal * scale.square()).amax(dim=-1)
         mu = (self.damping_parameter * diagonal_max).clamp(min=self.mu_min, max=self.mu_max)
         status = _terminal_status(model, self.gtol)
-        converged = (status == LMStatus.CONVERGED.value) | (status == LMStatus.STALLED_AT_BOUNDS.value)
+        converged = (status == OptimizerStatus.CONVERGED.value) | (status == OptimizerStatus.STALLED_AT_BOUNDS.value)
         zeros = model.cost.new_zeros(batch_shape)
-        return LMState(
+        return _LMIterationState(
             residual=model.residual,
             robust_weights=model.robust_weights,
             cost=model.cost,
@@ -592,7 +600,7 @@ class LevenbergMarquardt:
             active_mask=model.active_mask,
             factorization_ok=torch.ones_like(model.cost, dtype=torch.bool),
             converged=converged,
-            implicit_valid=(status == LMStatus.CONVERGED.value) & model.finite,
+            implicit_valid=(status == OptimizerStatus.CONVERGED.value) & model.finite,
             status=status,
             iterations=torch.zeros_like(status, dtype=torch.int64),
             scale=scale,
@@ -605,7 +613,7 @@ class LevenbergMarquardt:
     def _solve_step(
         self,
         model: _LinearizedLeastSquares,
-        state: LMState,
+        state: _LMIterationState,
         decision: LinearizationDecision,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         scaled_gradient = model.gradient * state.scale
@@ -640,15 +648,15 @@ class LevenbergMarquardt:
         safe_step = torch.where(ok.unsqueeze(-1), torch.nan_to_num(raw_step), torch.zeros_like(raw_step))
         return state.scale * safe_step * movable, ok
 
-    def update(  # noqa: PLR0915 - one fixed-work tensor program keeps acceptance auditable
+    def _update(  # noqa: PLR0915 - one fixed-work tensor program keeps acceptance auditable
         self,
-        values: Values,
-        state: LMState,
+        values: _TensorValues,
+        state: _LMIterationState,
         problem: Problem,
         *,
         create_graph: bool = False,
-    ) -> tuple[Values, LMState]:
-        """Apply one pure, sync-free, fixed-shape batched LM update.
+    ) -> tuple[_TensorValues, _LMIterationState]:
+        """Apply one pure, sync-free, fixed-shape batched LM _update.
 
         ``create_graph=True`` is the explicit small-problem unrolled oracle;
         the default step and :meth:`run` retain no Jacobian graph.
@@ -657,10 +665,10 @@ class LevenbergMarquardt:
         bounds = (state.bound_state_index, state.bound_lower, state.bound_upper, state.bounded_mask)
         model = _linearize_model(values, problem, self, decision, bounds, create_graph)
         terminal_now = _terminal_status(model, self.gtol)
-        was_running = state.status == LMStatus.RUNNING.value
-        terminal_from_model = was_running & (terminal_now != LMStatus.RUNNING.value)
+        was_running = state.status == OptimizerStatus.RUNNING.value
+        terminal_from_model = was_running & (terminal_now != OptimizerStatus.RUNNING.value)
         current_status = torch.where(terminal_from_model, terminal_now, state.status)
-        movable_element = current_status == LMStatus.RUNNING.value
+        movable_element = current_status == OptimizerStatus.RUNNING.value
 
         lm_step, factorization_ok = self._solve_step(model, state, decision)
         lm_values, lm_actual_step = _project_step(values, lm_step, problem, self.block_step_limits)
@@ -689,18 +697,9 @@ class LevenbergMarquardt:
             torch.zeros_like(selected_step),
         )
 
-        candidate_residual = problem.residual(selected_values)
-        candidate_cost, candidate_weights, _candidate_row_scale = _robustify(
-            candidate_residual,
-            problem,
-            self.kernel,
-        )
-        actual_decrease = _robust_decrease(
-            model.residual,
-            candidate_residual,
-            problem,
-            self.kernel,
-        )
+        candidate_residual = problem._error_at(selected_values)
+        candidate_cost, candidate_weights, _candidate_row_scale = _robustify(candidate_residual, problem)
+        actual_decrease = _robust_decrease(model.residual, candidate_residual, problem)
         gain_ratio = actual_decrease / prediction.clamp(min=torch.finfo(model.cost.dtype).eps)
         candidate_finite = _robust_finite(candidate_residual, candidate_cost, candidate_weights)
         accept = (
@@ -738,7 +737,7 @@ class LevenbergMarquardt:
         failed_model = movable_element & ~model.finite
         failure_status = torch.where(
             failed_factor | failed_model,
-            torch.full_like(current_status, LMStatus.FAILED.value),
+            torch.full_like(current_status, OptimizerStatus.FAILED.value),
             current_status,
         )
         taken_step = torch.where(accept.unsqueeze(-1), selected_step, torch.zeros_like(selected_step))
@@ -756,10 +755,12 @@ class LevenbergMarquardt:
         )
         next_status = torch.where(
             tolerance_converged,
-            torch.full_like(failure_status, LMStatus.CONVERGED.value),
+            torch.full_like(failure_status, OptimizerStatus.CONVERGED.value),
             failure_status,
         )
-        converged = (next_status == LMStatus.CONVERGED.value) | (next_status == LMStatus.STALLED_AT_BOUNDS.value)
+        converged = (next_status == OptimizerStatus.CONVERGED.value) | (
+            next_status == OptimizerStatus.STALLED_AT_BOUNDS.value
+        )
         iterations = state.iterations + movable_element.to(dtype=state.iterations.dtype)
         next_state = state._replace(
             residual=next_residual,
@@ -782,46 +783,48 @@ class LevenbergMarquardt:
             converged=converged,
             # Step/decrease termination is a valid numerical stop, but only
             # the final-point KKT evaluation may make it implicit-eligible.
-            implicit_valid=(next_status == LMStatus.CONVERGED.value)
-            & (terminal_now == LMStatus.CONVERGED.value)
+            implicit_valid=(next_status == OptimizerStatus.CONVERGED.value)
+            & (terminal_now == OptimizerStatus.CONVERGED.value)
             & model.finite,
             status=next_status,
             iterations=iterations,
         )
         return next_values, next_state
 
-    def finalize(
+    def _finalize(
         self,
-        values: Values,
-        state: LMState,
+        values: _TensorValues,
+        state: _LMIterationState,
         problem: Problem,
         *,
         create_graph: bool = False,
-    ) -> tuple[Values, LMState]:
+    ) -> tuple[_TensorValues, _LMIterationState]:
         """Canonical final-point evaluation for consistent terminal artifacts."""
         decision = self.resolve_linearization(problem)
         bounds = (state.bound_state_index, state.bound_lower, state.bound_upper, state.bounded_mask)
         model = _linearize_model(values, problem, self, decision, bounds, create_graph)
         terminal = _terminal_status(model, self.gtol)
-        preserve_terminal_failure = (state.status == LMStatus.FAILED.value) | (state.status == LMStatus.MAXITER.value)
+        preserve_terminal_failure = (state.status == OptimizerStatus.FAILED.value) | (
+            state.status == OptimizerStatus.MAXITER.value
+        )
         same_terminal_artifacts = (
             (model.residual == state.residual).all(dim=-1)
             & (model.robust_weights == state.robust_weights).all(dim=-1)
             & (model.cost == state.cost)
         )
         preserve_tolerance_convergence = (
-            (state.status == LMStatus.CONVERGED.value) & ~state.implicit_valid & same_terminal_artifacts
+            (state.status == OptimizerStatus.CONVERGED.value) & ~state.implicit_valid & same_terminal_artifacts
         )
         status = torch.where(
-            terminal != LMStatus.RUNNING.value,
+            terminal != OptimizerStatus.RUNNING.value,
             terminal,
             torch.where(
                 preserve_terminal_failure | preserve_tolerance_convergence,
                 state.status,
-                torch.full_like(state.status, LMStatus.RUNNING.value),
+                torch.full_like(state.status, OptimizerStatus.RUNNING.value),
             ),
         )
-        converged = (status == LMStatus.CONVERGED.value) | (status == LMStatus.STALLED_AT_BOUNDS.value)
+        converged = (status == OptimizerStatus.CONVERGED.value) | (status == OptimizerStatus.STALLED_AT_BOUNDS.value)
         return values, state._replace(
             residual=model.residual,
             robust_weights=model.robust_weights,
@@ -831,21 +834,21 @@ class LevenbergMarquardt:
             projected_grad_norm=model.projected_grad_norm,
             active_mask=model.active_mask,
             converged=converged,
-            implicit_valid=(terminal == LMStatus.CONVERGED.value) & model.finite,
+            implicit_valid=(terminal == OptimizerStatus.CONVERGED.value) & model.finite,
             status=status,
         )
 
-    def _warm_start(self, values: Values, state: LMState, problem: Problem) -> LMState:
+    def _warm_start(self, values: _TensorValues, state: _LMIterationState, problem: Problem) -> _LMIterationState:
         """Refresh changed targets while retaining the previous damping state."""
-        fresh = self.init_state(values, problem)
+        fresh = self._init_state(values, problem)
         for name in ("mu", "increase_factor"):
             retained = getattr(state, name)
             expected = getattr(fresh, name)
             if retained.shape != expected.shape:
-                raise ValueError("warm-start state batch shape does not match Values")
+                raise ValueError("warm-start state batch shape does not match _TensorValues")
             if retained.dtype != expected.dtype or retained.device != expected.device:
                 raise ValueError(
-                    "warm-start damping tensors must share Values' dtype and device; "
+                    "warm-start damping tensors must share _TensorValues' dtype and device; "
                     f"{name} is ({retained.dtype}, {retained.device}) but expected "
                     f"({expected.dtype}, {expected.device})"
                 )
@@ -857,79 +860,102 @@ class LevenbergMarquardt:
             ),
         )
 
-    def run(
+    def reset(self) -> None:
+        self._state = None
+        self._seen_update_serial = self.problem._update_serial
+
+    def _ensure_state(self) -> _LMIterationState:
+        values = _detach(self.problem._trainable_values())
+        if self._state is None:
+            self._state = self._init_state(values, self.problem)
+        elif self._seen_update_serial != self.problem._update_serial:
+            try:
+                self._state = self._warm_start(values, self._state, self.problem)
+            except ValueError:
+                self._state = self._init_state(values, self.problem)
+        self._seen_update_serial = self.problem._update_serial
+        return self._state
+
+    @staticmethod
+    def _info(state: _LMIterationState) -> OptimizerInfo:
+        return OptimizerInfo(state.status.detach(), state.iterations.detach(), state.cost.detach())
+
+    def _initial_info(self) -> OptimizerInfo:
+        return self._info(self._ensure_state())
+
+    def step(self) -> OptimizerInfo:
+        state = self._ensure_state()
+        if bool((state.status != OptimizerStatus.RUNNING.value).all()):  # bench-ok: eager step boundary
+            return self._info(state)
+        values = _detach(self.problem._trainable_values())
+        values, state = self._update(values, state, self.problem)
+        values = _detach(values)
+        state = _detach_state(state)
+        self.problem._set_trainable(values, detach=True)
+        self._state = state
+        return self._info(state)
+
+    def optimize(
         self,
-        values: Values,
-        problem: Problem,
-        state: LMState | None = None,
-    ) -> tuple[Values, LMState]:
-        """Run the detached eager loop, optionally retaining warm-start damping."""
-        current_values = detach_values(values)
-        current_state = (
-            self.init_state(current_values, problem)
-            if state is None
-            else self._warm_start(current_values, state, problem)
-        )
-        for _ in range(self.max_iter):
-            if bool((current_state.status != LMStatus.RUNNING.value).all()):  # bench-ok: eager loop boundary sync
+        *,
+        verbose: bool = False,
+        differentiate: Literal["implicit"] | None = None,
+        implicit_config: ImplicitDiffConfig | None = None,
+    ) -> OptimizerInfo:
+        if differentiate not in {None, "implicit"}:
+            raise ValueError("differentiate must be None or 'implicit'")
+        if differentiate is None and implicit_config is not None:
+            raise ValueError("implicit_config must only be used with differentiate='implicit'")
+
+        state = self._ensure_state()
+        for _ in range(self.max_iterations):
+            if bool((state.status != OptimizerStatus.RUNNING.value).all()):  # bench-ok: eager boundary sync
                 break
-            current_values, current_state = self.update(current_values, current_state, problem)
-            current_values = detach_values(current_values)
-            current_state = _detach_state(current_state)
-        current_values, current_state = self.finalize(current_values, current_state, problem)
-        running = current_state.status == LMStatus.RUNNING.value
-        current_state = current_state._replace(
+            info = self.step()
+            assert self._state is not None
+            state = self._state
+            if verbose:
+                converged = int(info.converged.sum().detach().cpu())  # bench-ok: eager verbose reporting
+                print(
+                    f"iteration={int(info.iterations.max().detach().cpu())} "  # bench-ok: eager verbose reporting
+                    f"cost={float(info.cost.sum().detach().cpu()):.6g} "  # bench-ok: eager verbose reporting
+                    f"converged={converged}/{info.converged.numel()}"
+                )
+
+        values = _detach(self.problem._trainable_values())
+        values, state = self._finalize(values, state, self.problem)
+        running = state.status == OptimizerStatus.RUNNING.value
+        state = state._replace(
             status=torch.where(
                 running,
-                torch.full_like(current_state.status, LMStatus.MAXITER.value),
-                current_state.status,
+                torch.full_like(state.status, OptimizerStatus.MAXITER.value),
+                state.status,
             ),
-            converged=current_state.converged & ~running,
-            implicit_valid=current_state.implicit_valid & ~running,
+            converged=state.converged & ~running,
+            implicit_valid=state.implicit_valid & ~running,
         )
-        return detach_values(current_values), _detach_state(current_state)
-
-    def solve(
-        self,
-        values: Values,
-        problem: Problem,
-        state: LMState | None = None,
-        *,
-        differentiate: Literal["detached", "implicit"] = "detached",
-        implicit_config: ImplicitDiffConfig | None = None,
-    ) -> tuple[Values, LMState]:
-        """Solve detached by default, or attach the guarded implicit backward."""
-        if differentiate not in {"detached", "implicit"}:
-            raise ValueError("differentiate must be 'detached' or 'implicit'")
-        if differentiate == "detached" and implicit_config is not None:
-            raise ValueError("implicit_config is only used with differentiate='implicit'")
+        self._state = _detach_state(state)
+        self.problem._set_trainable(_detach(values), detach=True)
 
         if differentiate == "implicit":
-            from .implicit import validate_implicit_input_roles  # noqa: PLC0415
+            from .implicit import _attach_implicit_gradients  # noqa: PLC0415
 
-            validate_implicit_input_roles(values, problem)
-
-        terminal_values, terminal_state = self.run(values, problem, state)
-        if differentiate == "detached":
-            return terminal_values, terminal_state
-
-        from .implicit import attach_implicit_gradients  # noqa: PLC0415
-
-        decision = self.resolve_linearization(problem)
-        differentiable_values = attach_implicit_gradients(
-            terminal_values,
-            terminal_state,
-            problem,
-            default_kernel=self.kernel,
-            forward_linearization=decision.used,
-            config=implicit_config,
-        )
-        return differentiable_values, terminal_state
+            decision = self.resolve_linearization(self.problem)
+            differentiable = _attach_implicit_gradients(
+                _detach(values),
+                state,
+                self.problem,
+                forward_linearization=decision.used,
+                config=implicit_config,
+            )
+            self.problem._set_trainable(differentiable)
+        return self._info(self._state)
 
 
-@dataclass(frozen=True)
 class GaussNewton(LevenbergMarquardt):
-    """Gauss--Newton preset using LM's guarded acceptance update."""
+    """Gauss--Newton preset using LM's guarded acceptance step."""
 
-    damping_parameter: float = 1e-9
-    fixed_damping: bool = True
+    def __init__(self, problem: Problem, **kwargs) -> None:
+        kwargs.setdefault("damping", 1e-9)
+        kwargs.setdefault("fixed_damping", True)
+        super().__init__(problem, **kwargs)

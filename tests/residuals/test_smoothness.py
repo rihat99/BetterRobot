@@ -1,12 +1,4 @@
-"""Sanity tests for ``VelocityResidual`` / ``AccelerationResidual``.
-
-Covers:
-* Linearly-interpolated trajectory in config space → acceleration ≈ 0.
-* Perturbed trajectory → acceleration ≠ 0.
-* Analytic Jacobians match central finite differences through
-  ``model.integrate`` (the identity-right-Jacobian approximation is
-  valid in the small-step regime these residuals operate in).
-"""
+"""Object-referenced trajectory smoothness residuals."""
 
 from __future__ import annotations
 
@@ -14,6 +6,7 @@ import pytest
 import torch
 
 import better_robot as br
+from better_robot.optim import RobotVariable
 from better_robot.residuals import AccelerationResidual, VelocityResidual
 
 
@@ -25,122 +18,86 @@ def panda_model():
     return br.load(panda_description.URDF_PATH, dtype=torch.float64)
 
 
-class _Context(dict):
-    def __init__(self, *args, nv: int, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.nv = nv
-
-    def temporal_free_indices(self, variable_name: str) -> torch.Tensor:
-        assert variable_name == "q"
-        return torch.arange(self.nv)
+def _variable(model, tensor: torch.Tensor) -> RobotVariable:
+    return RobotVariable(model, tensor, name="q", time_axis=0)
 
 
-def _context(model, q_traj):
-    return _Context({"q": q_traj}, nv=model.nv)
-
-
-def test_acceleration_zero_on_linear_trajectory(panda_model):
-    """A linear interpolation in config space has zero acceleration."""
-    T = 10
+def test_acceleration_zero_on_linear_trajectory(panda_model) -> None:
+    horizon = 10
     q0 = panda_model.q_neutral.double()
     q1 = q0.clone()
     q1[0] = 0.5
-    alpha = torch.linspace(0, 1, T, dtype=torch.float64).unsqueeze(1)
-    q_traj = q0 * (1 - alpha) + q1 * alpha
+    alpha = torch.linspace(0, 1, horizon, dtype=torch.float64).unsqueeze(1)
+    q = _variable(panda_model, q0 * (1 - alpha) + q1 * alpha)
 
-    res = AccelerationResidual(panda_model, dt=0.1, horizon=T)
-    r = res(_context(panda_model, q_traj))
-    # Machine-precision zero for a pure Euclidean linear interpolation.
-    assert float(r.abs().max()) < 1e-12, f"expected ~0, got {float(r.abs().max()):.3e}"
+    error = AccelerationResidual(q, dt=0.1).error()
 
-
-def test_acceleration_nonzero_on_perturbed_trajectory(panda_model):
-    """Random perturbation per frame → non-trivial acceleration."""
-    torch.manual_seed(42)
-    T = 10
-    q = panda_model.q_neutral.double().unsqueeze(0).expand(T, -1).clone()
-    q += torch.randn_like(q) * 0.1
-
-    res = AccelerationResidual(panda_model, dt=0.05, horizon=T)
-    r = res(_context(panda_model, q))
-    assert float(r.norm()) > 1.0, "perturbed trajectory should have nonzero acceleration"
+    assert error.abs().max() < 1e-12
 
 
-def test_velocity_zero_on_constant_trajectory(panda_model):
-    """Constant configuration across time → zero velocity."""
-    T = 6
-    q_traj = panda_model.q_neutral.double().unsqueeze(0).expand(T, -1).clone()
-    res = VelocityResidual(panda_model, dt=0.1, horizon=T)
-    r = res(_context(panda_model, q_traj))
-    assert float(r.abs().max()) < 1e-12
+def test_acceleration_nonzero_on_perturbed_trajectory(panda_model) -> None:
+    generator = torch.Generator().manual_seed(42)
+    tensor = panda_model.q_neutral.double().expand(10, -1).clone()
+    tensor += torch.randn(tensor.shape, generator=generator, dtype=tensor.dtype) * 0.1
+    residual = AccelerationResidual(_variable(panda_model, tensor), dt=0.05)
+
+    assert torch.linalg.vector_norm(residual.error()) > 1.0
 
 
-def test_acceleration_analytic_jacobian_matches_fd(panda_model):
-    """Analytic Jacobian agrees with central FD through ``model.integrate``."""
-    torch.manual_seed(0)
-    T = 6
-    dt = 0.1
-    q_traj = panda_model.q_neutral.double().unsqueeze(0).expand(T, -1).clone()
-    q_traj = q_traj + torch.randn_like(q_traj) * 0.02
+def test_velocity_preserves_arbitrary_batch_axes(panda_model) -> None:
+    tensor = panda_model.q_neutral.double().expand(2, 3, 6, -1).clone()
+    residual = VelocityResidual(_variable(panda_model, tensor), dt=0.1, weight=0.25)
 
-    res = AccelerationResidual(panda_model, dt=dt, horizon=T)
-    J_an = res.jacobian_blocks(_context(panda_model, q_traj))["q"]
-
-    nv = panda_model.nv
-    eps = 1e-6
-    J_fd = torch.zeros_like(J_an)
-    for s in range(T):
-        for i in range(nv):
-            dv = torch.zeros(T, nv, dtype=q_traj.dtype)
-            dv[s, i] = eps
-            q_p = panda_model.integrate(q_traj, dv)
-            q_m = panda_model.integrate(q_traj, -dv)
-            r_p = res(_context(panda_model, q_p))
-            r_m = res(_context(panda_model, q_m))
-            J_fd[:, s * nv + i] = (r_p - r_m) / (2 * eps)
-
-    torch.testing.assert_close(J_an, J_fd, atol=1e-6, rtol=1e-4)
+    assert residual.error().shape == (2, 3, 4 * panda_model.nv)
+    torch.testing.assert_close(residual.error(), torch.zeros_like(residual.error()))
+    torch.testing.assert_close(residual.weighted_error(), residual.error() * 0.25)
 
 
-def test_velocity_analytic_jacobian_matches_fd(panda_model):
-    torch.manual_seed(1)
-    T = 6
-    dt = 0.1
-    q_traj = panda_model.q_neutral.double().unsqueeze(0).expand(T, -1).clone()
-    q_traj = q_traj + torch.randn_like(q_traj) * 0.02
+@pytest.mark.parametrize("residual_type", [VelocityResidual, AccelerationResidual])
+def test_analytic_jacobian_matches_tangent_finite_difference(panda_model, residual_type) -> None:
+    generator = torch.Generator().manual_seed(3)
+    horizon = 6
+    tensor = panda_model.q_neutral.double().expand(horizon, -1).clone()
+    tensor += torch.randn(tensor.shape, generator=generator, dtype=tensor.dtype) * 0.02
+    q = _variable(panda_model, tensor)
+    residual = residual_type(q, dt=0.1)
+    analytic = residual.jacobian()[0]
+    finite_difference = torch.zeros_like(analytic)
+    epsilon = 1e-6
 
-    res = VelocityResidual(panda_model, dt=dt, horizon=T)
-    J_an = res.jacobian_blocks(_context(panda_model, q_traj))["q"]
+    for knot in range(horizon):
+        for coordinate in range(panda_model.nv):
+            delta = torch.zeros(horizon, panda_model.nv, dtype=tensor.dtype)
+            delta[knot, coordinate] = epsilon
+            q.tensor = panda_model.integrate(tensor, delta)
+            plus = residual.error()
+            q.tensor = panda_model.integrate(tensor, -delta)
+            minus = residual.error()
+            finite_difference[:, knot * panda_model.nv + coordinate] = (plus - minus) / (2.0 * epsilon)
+    q.tensor = tensor
 
-    nv = panda_model.nv
-    eps = 1e-6
-    J_fd = torch.zeros_like(J_an)
-    for s in range(T):
-        for i in range(nv):
-            dv = torch.zeros(T, nv, dtype=q_traj.dtype)
-            dv[s, i] = eps
-            q_p = panda_model.integrate(q_traj, dv)
-            q_m = panda_model.integrate(q_traj, -dv)
-            r_p = res(_context(panda_model, q_p))
-            r_m = res(_context(panda_model, q_m))
-            J_fd[:, s * nv + i] = (r_p - r_m) / (2 * eps)
-
-    torch.testing.assert_close(J_an, J_fd, atol=1e-6, rtol=1e-4)
+    torch.testing.assert_close(analytic, finite_difference, atol=1e-6, rtol=1e-4)
 
 
-def test_autograd_through_difference(panda_model):
-    """End-to-end autograd: loss via AccelerationResidual + tangent-space
-    parameterisation backprops cleanly into the tangent variable."""
-    T = 6
-    dt = 0.1
-    q_init = panda_model.q_neutral.double().unsqueeze(0).expand(T, -1).clone()
-    delta_v = torch.zeros(T, panda_model.nv, dtype=torch.float64, requires_grad=True)
+def test_autograd_through_acceleration_difference(panda_model) -> None:
+    horizon = 6
+    initial = panda_model.q_neutral.double().expand(horizon, -1).clone()
+    delta = torch.zeros(horizon, panda_model.nv, dtype=torch.float64, requires_grad=True)
+    q = _variable(panda_model, panda_model.integrate(initial, delta))
 
-    q_traj = panda_model.integrate(q_init, delta_v)
-    res = AccelerationResidual(panda_model, dt=dt, horizon=T)
-    r = res(_context(panda_model, q_traj))
-    loss = 0.5 * (r * r).sum()
-    loss.backward()
+    loss = AccelerationResidual(q, dt=0.1).error().square().sum()
+    gradient = torch.autograd.grad(loss, delta)[0]
 
-    assert delta_v.grad is not None
-    assert torch.isfinite(delta_v.grad).all()
+    assert torch.isfinite(gradient).all()
+
+
+def test_constructor_derives_and_validates_trajectory_structure(panda_model) -> None:
+    short = _variable(panda_model, panda_model.q_neutral.expand(2, -1).clone())
+    point = RobotVariable(panda_model, panda_model.q_neutral.clone(), name="point")
+
+    with pytest.raises(ValueError, match="at least 3"):
+        VelocityResidual(short, dt=0.1)
+    with pytest.raises(ValueError, match="time_axis=0"):
+        AccelerationResidual(point, dt=0.1)
+    with pytest.raises(ValueError, match="finite and positive"):
+        VelocityResidual(_variable(panda_model, panda_model.q_neutral.expand(4, -1).clone()), dt=0.0)

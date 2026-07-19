@@ -5,7 +5,7 @@ from __future__ import annotations
 import torch
 
 from better_robot.io import ModelBuilder, build_model
-from better_robot.optim import Problem, ResidualItem, RobotConfig, VarSpec
+from better_robot.optim import Problem, RobotVariable
 from better_robot.residuals import JointRotationPrior
 
 
@@ -22,15 +22,17 @@ def _model():
 def test_joint_weights_expand_over_tangent_slices_and_batch() -> None:
     model = _model()
     joint_weights = torch.tensor([0.0, 0.0, 2.0, 0.25], dtype=torch.float64)
-    prior = JointRotationPrior(model, model.q_neutral, joint_weights)
     tangent = torch.tensor([0.2, -0.1, 0.3, -0.4, 0.5, 0.1], dtype=torch.float64)
-    q = model.integrate(model.q_neutral, tangent)
-    batched = torch.stack((q, q)).reshape(1, 2, model.nq)
+    tensor = model.integrate(model.q_neutral, tangent)
+    q = RobotVariable(model, tensor, name="q")
+    prior = JointRotationPrior(q, model.q_neutral, joint_weights)
+    batched = torch.stack((tensor, tensor)).reshape(1, 2, model.nq)
 
     expected_weight = torch.tensor([2.0, 2.0, 2.0, 0.25, 0.25, 0.25], dtype=torch.float64)
     expected = tangent * expected_weight
-    torch.testing.assert_close(prior({"q": q}), expected, atol=1e-12, rtol=1e-12)
-    actual = prior({"q": batched})
+    torch.testing.assert_close(prior.error(), expected, atol=1e-12, rtol=1e-12)
+    q.tensor = batched
+    actual = prior.error()
     assert actual.shape == (1, 2, model.nv)
     torch.testing.assert_close(actual, expected.expand(1, 2, model.nv), atol=1e-12, rtol=1e-12)
 
@@ -38,28 +40,25 @@ def test_joint_weights_expand_over_tangent_slices_and_batch() -> None:
 def test_explicit_tangent_weights_match_manual_difference() -> None:
     model = _model()
     weights = torch.linspace(0.1, 0.6, model.nv, dtype=torch.float64)
-    prior = JointRotationPrior(model, model.q_neutral, weights)
     tangent = torch.linspace(-0.25, 0.3, model.nv, dtype=torch.float64)
-    q = model.integrate(model.q_neutral, tangent)
+    tensor = model.integrate(model.q_neutral, tangent)
+    q = RobotVariable(model, tensor, name="q")
+    prior = JointRotationPrior(q, model.q_neutral, weights)
 
-    expected = model.difference(model.q_neutral, q) * weights
-    torch.testing.assert_close(prior({"q": q}), expected)
+    expected = model.difference(model.q_neutral, tensor) * weights
+    torch.testing.assert_close(prior.error(), expected)
 
 
 def test_named_block_ad_matches_finite_difference_away_from_mean() -> None:
     model = _model()
     weights = torch.linspace(0.2, 0.9, model.nv, dtype=torch.float64)
-    prior = JointRotationPrior(model, model.q_neutral, weights)
     tangent = torch.tensor([0.3, -0.2, 0.15, -0.1, 0.25, 0.2], dtype=torch.float64)
-    q = model.integrate(model.q_neutral, tangent)
-    problem = Problem(
-        vars=(VarSpec("q", (model.nq,), RobotConfig(model)),),
-        residuals=(ResidualItem(prior.name, prior),),
-    )
+    q = RobotVariable(model, model.integrate(model.q_neutral, tangent), name="q")
+    prior = JointRotationPrior(q, model.q_neutral, weights)
+    problem = Problem([prior])
 
-    ad = problem.jacobian_blocks({"q": q}, strategy="jacrev")[(prior.name, "q")]
+    ad = problem.jacobian_blocks(strategy="jacrev")[(prior.name, "q")]
     fd = problem.jacobian_blocks(
-        {"q": q},
         strategy="finite_difference",
         fd_eps=1e-6,
     )[(prior.name, "q")]
@@ -68,14 +67,12 @@ def test_named_block_ad_matches_finite_difference_away_from_mean() -> None:
 
 def test_identity_prior_has_finite_fp32_tangent_gradient() -> None:
     model = _model().to(dtype=torch.float32)
-    prior = JointRotationPrior(model, model.q_neutral, torch.ones(model.njoints))
-    problem = Problem(
-        vars=(VarSpec("q", (model.nq,), RobotConfig(model)),),
-        residuals=(ResidualItem(prior.name, prior),),
-    )
+    q = RobotVariable(model, model.q_neutral, name="q")
+    prior = JointRotationPrior(q, model.q_neutral, torch.ones(model.njoints))
+    problem = Problem([prior])
 
-    jacobian = problem.dense_jacobian({"q": model.q_neutral}, strategy="jacrev")
-    gradient = problem.gradient({"q": model.q_neutral})["q"]
+    jacobian = problem.dense_jacobian(strategy="jacrev")
+    gradient = problem.gradient()["q"]
     assert torch.isfinite(jacobian).all()
     assert torch.isfinite(gradient).all()
     torch.testing.assert_close(gradient, torch.zeros_like(gradient))

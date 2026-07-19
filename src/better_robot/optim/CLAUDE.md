@@ -1,65 +1,71 @@
 # `optim/` — Nonlinear Least Squares
 
-This package has one problem representation: named tensor variables and
-fixed-width residuals in a `Problem`. LM/GN and `run_first_order` consume that
-same representation; task helpers build it rather than defining another
-solver protocol.
+This package has one graph representation: object-owned variables referenced
+by fixed-width residuals and harvested into a `Problem`. LM/GN and
+`TorchOptimizer` consume that same graph; task helpers assemble it rather than
+defining another optimizer protocol.
 
-## Variables and manifolds
+## Variables and geometry
 
-`Values` maps names to tensors. `VarSpec` defines each tensor's trailing event
-shape, manifold (`Euclidean`, `SO3Manifold`, `SE3Manifold`, or
-`RobotConfig`), optional state-space `Bounds`, tangent mask and scale, and an
-optional knot-major `time_axis=0`.
+`Variable` owns its current tensor, stable name, trainable/static role, event
+shape, optional `Bounds`, tangent mask and scale, batch declaration, and
+optional knot-major `time_axis=0`. `SO3Variable`, `SE3Variable`, and
+`RobotVariable` own their corresponding retract/difference geometry. There is
+no separate public variable specification or manifold object.
 
 Leading axes are independent execution batches. Masks eliminate tangent
 columns from derivatives and linear systems. Retraction projects supported
 bounds in state space; bounds are not tangent step limits. Validate structural
-compatibility at solve entry, then let numerical non-finites produce honest
-solver status.
+compatibility at graph freeze or solve entry, then let numerical non-finites
+produce honest optimizer status.
 
-## Residuals and providers
+## Residuals, nodes, and problems
 
-A residual declares a positive static `dim`, optional `reads`, and returns
-`(..., dim)`. Optional `jacobian_blocks` are already in reduced tangent
-coordinates. Strategies are `auto`, `analytic`, `jacrev`, `jacfwd`, and the
-explicit debug-only `finite_difference`; a failing analytic block is an error.
+A `Residual` holds ordered references to every variable it reads, a positive
+static `dim`, `name`, `weight`, robust `kernel`, and `group_size`. `error()`
+returns `(..., dim)`. Optional `jacobian()` blocks are ordered like the
+trainable dependencies and already use reduced tangent coordinates. Strategies
+are `auto`, `analytic`, `jacrev`, `jacfwd`, and explicit debug-only
+`finite_difference`; a malformed advertised analytic block is an error.
 
-`ResidualItem` owns weight, robust kernel, and group size. The objective and
-LM/GN row weights must implement the same grouped robust loss. A Python zero
-weight skips the item, including any constant kernel offset.
+Evaluation-scoped `Node` objects own shared graph-bearing work such as
+`RobotState`. Residuals list nodes in `nodes`; `Problem` merges compatible
+nodes, harvests their variable dependencies, and invalidates memos at every
+evaluation boundary. Never retain a node result across candidate values.
 
-Providers declare `reads` and `outputs`. `EvaluationContext` resolves them
-recursively and caches results for one evaluation only. Never persist
-graph-bearing provider results across candidate values. A single
-`RobotConfig` variable gets `RobotStateProvider` automatically when `data` is
-needed and no explicit provider supplies it.
+`Problem` freezes on first use, validates unique names, and computes row and
+tangent-column layouts from references. A Python-zero residual weight skips
+its rows; tensor zero remains graph-visible. Grouped robust objective and IRLS
+row scaling must stay mathematically consistent.
 
-## Solvers
+## Optimizers
+
+`Optimizer` owns one `Problem`. Public control is `step()` for a caller-owned
+loop, `optimize()` for the complete eager driver, and `reset()` to clear
+optimizer state while retaining variable values. `OptimizerInfo` exposes only
+per-element `status`, `iterations`, `cost`, and derived `converged`; solved
+values live in the variables.
 
 `LevenbergMarquardt` and `GaussNewton` preserve arbitrary leading batch axes
-and per-element cost, damping, acceptance, convergence, status, and iteration
-state. Dense routing uses `Cholesky`; directly eligible temporal problems may
-use `BlockBandedMatrix` and `BandedCholesky`. `auto` must report a stable
-`LinearizationReason` when it chooses dense execution.
+and per-element damping, acceptance, convergence, and status internally.
+Dense routing uses `Cholesky` by default; directly eligible temporal graphs use
+`BlockBandedMatrix` and `BandedCholesky`. Automatic routing must report a
+stable `LinearizationReason`.
 
-Use `init_state` / `update` / `finalize` for an application-owned loop, or
-detached eager `run`. `update` stays fixed-shape, input-pure, sync-free, and
-tensor-branching. Eager `run` may perform one all-terminal host check per
-iteration. Keep `LMState` tensor-only and require projected-gradient KKT for
-bounded success.
-
-`run_first_order` owns persistent tangent parameters, retracts after each
-Torch optimizer step, and rebases without replacing those parameters.
+Keep LM's private per-iteration tensor program input-pure, fixed-shape,
+sync-free, and tensor-branching. `TorchOptimizer` owns persistent tangent
+buffers, delegates update rules to `torch.optim`, retracts after each step, and
+rebases without discarding optimizer state.
 
 ## Differentiation
 
-`solve(..., differentiate="implicit")` attaches a guarded first-order backward
-to a detached converged solution. Keep guards for convergence, active bounds,
-robust kinks, quaternion branch cuts, routing/size limits, non-finite systems,
-and singular systems. Only declared external parameters receive gradients;
-never infer roles from tensor identity or `requires_grad`.
+`optimize(differentiate="implicit")` attaches a guarded first-order backward
+to an eligible detached solution. Differentiable inputs are graph-carrying
+static `Variable` objects referenced by residuals or nodes. Keep guards for
+convergence, active bounds, robust kinks, quaternion branch cuts, routing and
+size limits, non-finite systems, and singular systems.
 
-Direct public modules are `problem.py`, `variables.py`, `manifolds.py`,
-`providers.py`, `lm.py`, `first_order.py`, `implicit.py`, `kernels.py`,
-`solvers.py`, and `temporal.py`. Keep new behavior on this surface.
+Direct public modules are `problem.py`, `variables.py`, `optimizers.py`,
+`lm.py`, `implicit.py`, `kernels.py`, `solvers.py`, and `temporal.py`;
+`manifolds.py` retains only bounds and private shared helpers. Evaluation nodes
+live with residuals. Keep new behavior on this surface.

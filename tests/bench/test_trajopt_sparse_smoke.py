@@ -59,6 +59,8 @@ def test_trajopt_sparse_structured_t50_one_update(tmp_path: Path) -> None:
     assert result["status"] == "SUCCESS"
     assert result["path"] == "structured"
     assert result["route"] == "banded"
+    assert result["route_reason"] == "eligible_banded"
+    assert result["route_detail"]
     assert result["horizon"] == 50
     assert result["updates_per_solve"] == 1
     assert result["warmup_solve_count"] == 0

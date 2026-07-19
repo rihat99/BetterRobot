@@ -2,88 +2,86 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
 
 import pytest
 import torch
 
 from better_robot.optim import (
     Bounds,
-    LMStatus,
     LevenbergMarquardt,
+    OptimizerStatus,
     Problem,
-    ResidualItem,
-    VarSpec,
+    Residual,
+    Variable,
 )
 from better_robot.optim.kernels import Huber, Tukey
 
 
-class _ExponentialResidual:
-    name = "exponential"
-    reads = ("x", "target")
-    dim = 1
+class _ExponentialResidual(Residual):
+    def __init__(self, x: Variable, target: Variable) -> None:
+        self.x = x
+        self.target = target
+        super().__init__(x, target, dim=1, name="exponential")
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        return ctx["x"].exp() - ctx["target"]
+    def error(self) -> torch.Tensor:
+        return self.x.tensor.exp() - self.target.tensor
 
-    def jacobian_blocks(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
-        return {"x": ctx["x"].exp().unsqueeze(-1)}
+    def jacobian(self) -> tuple[torch.Tensor, ...]:
+        return (self.x.tensor.exp().unsqueeze(-1),)
 
 
-class _MixedUnitResidual:
-    name = "mixed_unit"
-    reads = ("meters", "millimeters", "target")
-    dim = 2
+class _MixedUnitResidual(Residual):
+    def __init__(self, meters: Variable, millimeters: Variable, target: Variable) -> None:
+        self.meters = meters
+        self.millimeters = millimeters
+        self.target = target
+        super().__init__(meters, millimeters, target, dim=2, name="mixed_unit")
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
+    def error(self) -> torch.Tensor:
         return torch.stack(
             (
-                ctx["meters"][..., 0] - ctx["target"][..., 0],
-                1_000.0 * (ctx["millimeters"][..., 0] - ctx["target"][..., 1]),
+                self.meters.tensor[..., 0] - self.target.tensor[..., 0],
+                1_000.0 * (self.millimeters.tensor[..., 0] - self.target.tensor[..., 1]),
             ),
             dim=-1,
         )
 
-    def jacobian_blocks(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
-        target = ctx["target"]
+    def jacobian(self) -> tuple[torch.Tensor, ...]:
+        target = self.target.tensor
         zeros = torch.zeros_like(target[..., 0])
         ones = torch.ones_like(zeros)
-        return {
-            "meters": torch.stack((ones, zeros), dim=-1).unsqueeze(-1),
-            "millimeters": torch.stack((zeros, 1_000.0 * ones), dim=-1).unsqueeze(-1),
-        }
+        meters = torch.stack((ones, zeros), dim=-1).unsqueeze(-1)
+        millimeters = torch.stack((zeros, 1_000.0 * ones), dim=-1).unsqueeze(-1)
+        return meters, millimeters
 
 
-class _PointFitResidual:
-    name = "points"
-    reads = ("x", "points")
-    dim = 6
+class _PointFitResidual(Residual):
+    def __init__(self, x: Variable, points: Variable, *, kernel: Huber) -> None:
+        self.x = x
+        self.points = points
+        super().__init__(x, points, dim=6, kernel=kernel, group_size=2, name="points")
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        return (ctx["x"].unsqueeze(-2) - ctx["points"]).reshape(*ctx["x"].shape[:-1], 6)
+    def error(self) -> torch.Tensor:
+        return (self.x.tensor.unsqueeze(-2) - self.points.tensor).reshape(*self.x.tensor.shape[:-1], 6)
 
-    def jacobian_blocks(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
-        x = ctx["x"]
+    def jacobian(self) -> tuple[torch.Tensor, ...]:
+        x = self.x.tensor
         identity = torch.eye(2, dtype=x.dtype, device=x.device)
         block = identity.expand(*x.shape[:-1], 3, 2, 2)
-        return {"x": block.reshape(*x.shape[:-1], 6, 2)}
+        return (block.reshape(*x.shape[:-1], 6, 2),)
 
 
-class _TukeyDirectionReversalResidual:
+class _TukeyDirectionReversalResidual(Residual):
     """A smooth residual whose trial lowers raw L2 but raises grouped Tukey."""
 
-    name = "tukey_reversal"
-    reads = ("x",)
-    dim = 4
-
-    def __init__(self) -> None:
+    def __init__(self, x: Variable, *, kernel: Tukey) -> None:
+        self.x = x
         self.seen: list[torch.Tensor] = []
+        super().__init__(x, dim=4, kernel=kernel, group_size=2, name="tukey_reversal")
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        x = ctx["x"][..., 0]
-        self.seen.append(x.detach().clone())
+    def evaluate(self, value: torch.Tensor) -> torch.Tensor:
+        x = value[..., 0]
         return torch.stack(
             (
                 10.0 - 230.0 * x.square(),
@@ -94,8 +92,12 @@ class _TukeyDirectionReversalResidual:
             dim=-1,
         )
 
-    def jacobian_blocks(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
-        x = ctx["x"][..., 0]
+    def error(self) -> torch.Tensor:
+        self.seen.append(self.x.tensor[..., 0].detach().clone())
+        return self.evaluate(self.x.tensor)
+
+    def jacobian(self) -> tuple[torch.Tensor, ...]:
+        x = self.x.tensor[..., 0]
         derivative = torch.stack(
             (
                 -460.0 * x,
@@ -105,36 +107,36 @@ class _TukeyDirectionReversalResidual:
             ),
             dim=-1,
         )
-        return {"x": derivative.unsqueeze(-1)}
+        return (derivative.unsqueeze(-1),)
 
 
-class _OffsetPairResidual:
-    reads = ("x",)
-    dim = 2
-
-    def __init__(self, name: str, target: float) -> None:
-        self.name = name
+class _OffsetPairResidual(Residual):
+    def __init__(self, x: Variable, name: str, target: float, *, kernel: object) -> None:
+        self.x = x
         self.target = target
+        super().__init__(x, dim=2, kernel=kernel, group_size=2, name=name)
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        x = ctx["x"][..., 0]
+    def error(self) -> torch.Tensor:
+        x = self.x.tensor[..., 0]
         return torch.stack((x - self.target, torch.zeros_like(x)), dim=-1)
 
-    def jacobian_blocks(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
-        x = ctx["x"][..., 0]
-        return {"x": torch.stack((torch.ones_like(x), torch.zeros_like(x)), dim=-1).unsqueeze(-1)}
+    def jacobian(self) -> tuple[torch.Tensor, ...]:
+        x = self.x.tensor[..., 0]
+        block = torch.stack((torch.ones_like(x), torch.zeros_like(x)), dim=-1).unsqueeze(-1)
+        return (block,)
 
 
-class _LinearResidual:
-    name = "linear"
-    reads = ("x", "target")
-    dim = 1
+class _LinearResidual(Residual):
+    def __init__(self, x: Variable, target: Variable) -> None:
+        self.x = x
+        self.target = target
+        super().__init__(x, target, dim=1, name="linear")
 
-    def __call__(self, ctx: Mapping[str, Any]) -> torch.Tensor:
-        return ctx["x"] - ctx["target"]
+    def error(self) -> torch.Tensor:
+        return self.x.tensor - self.target.tensor
 
-    def jacobian_blocks(self, ctx: Mapping[str, Any]) -> dict[str, torch.Tensor]:
-        return {"x": torch.ones_like(ctx["x"]).unsqueeze(-1)}
+    def jacobian(self) -> tuple[torch.Tensor, ...]:
+        return (torch.ones_like(self.x.tensor).unsqueeze(-1),)
 
 
 @dataclass(frozen=True)
@@ -160,18 +162,44 @@ def _grouped_cost(residual: torch.Tensor, kernel: object, group_size: int) -> to
     return kernel.rho(groups.square().sum(dim=-1)).sum()
 
 
-def test_madsen_nielsen_damping_is_per_element_and_uses_exact_multipliers() -> None:
-    target = torch.tensor([[1.1], [2.25], [10.0]], dtype=torch.float64)
-    problem = Problem(
-        vars=(VarSpec("x", (1,)),),
-        residuals=(ResidualItem("exponential", _ExponentialResidual()),),
-        parameters={"target": target},
+def _exponential_problem(
+    target_tensor: torch.Tensor,
+    *,
+    initial: torch.Tensor | None = None,
+    bounds: Bounds | None = None,
+) -> tuple[Variable, Variable, Problem]:
+    value = torch.zeros_like(target_tensor) if initial is None else initial
+    batch_ndim = max(value.ndim - 1, 0)
+    x = Variable(value, name="x", bounds=bounds, batch_ndim=batch_ndim)
+    target = Variable(
+        target_tensor,
+        name="target",
+        trainable=False,
+        batch_ndim=max(target_tensor.ndim - 1, 0),
     )
-    solver = LevenbergMarquardt(max_iter=3)
-    values = {"x": torch.zeros_like(target)}
-    state = solver.init_state(values, problem)
+    return x, target, Problem([_ExponentialResidual(x, target)])
 
-    values_next, state_next = solver.update(values, state, problem)
+
+def _linear_problem(target_tensor: torch.Tensor, *, initial: torch.Tensor | None = None):
+    value = torch.zeros_like(target_tensor) if initial is None else initial
+    x = Variable(value, name="x", batch_ndim=max(value.ndim - 1, 0))
+    target = Variable(
+        target_tensor,
+        name="target",
+        trainable=False,
+        batch_ndim=max(target_tensor.ndim - 1, 0),
+    )
+    return x, target, Problem([_LinearResidual(x, target)])
+
+
+def test_madsen_nielsen_damping_is_per_element_and_uses_exact_multipliers() -> None:
+    target_tensor = torch.tensor([[1.1], [2.25], [10.0]], dtype=torch.float64)
+    x, _target, problem = _exponential_problem(target_tensor)
+    optimizer = LevenbergMarquardt(problem, max_iterations=3)
+    values = {"x": x.tensor}
+    state = optimizer._init_state(values, problem)
+
+    values_next, state_next = optimizer._update(values, state, problem)
 
     assert state_next.gain_ratio[0] > 0.9
     assert 0.0 < state_next.gain_ratio[1] < 0.1
@@ -180,39 +208,29 @@ def test_madsen_nielsen_damping_is_per_element_and_uses_exact_multipliers() -> N
         torch.full_like(state_next.gain_ratio[:2], 1.0 / 3.0),
         1.0 - (2.0 * state_next.gain_ratio[:2] - 1.0).pow(3),
     )
-    torch.testing.assert_close(
-        state_next.mu[:2],
-        state.mu[:2] * accepted_multiplier,
-        rtol=1e-14,
-        atol=0.0,
-    )
+    torch.testing.assert_close(state_next.mu[:2], state.mu[:2] * accepted_multiplier, rtol=1e-14, atol=0.0)
     torch.testing.assert_close(state_next.increase_factor[:2], torch.full((2,), 2.0, dtype=torch.float64))
     torch.testing.assert_close(state_next.mu[2], state.mu[2] * 2.0, rtol=0.0, atol=0.0)
     torch.testing.assert_close(state_next.increase_factor[2], torch.tensor(4.0, dtype=torch.float64))
     assert torch.all(values_next["x"][:2] != values["x"][:2])
     assert torch.equal(values_next["x"][2], values["x"][2])
 
-    _, state_twice = solver.update(values_next, state_next, problem)
-
+    _, state_twice = optimizer._update(values_next, state_next, problem)
     torch.testing.assert_close(state_twice.mu[2], state_next.mu[2] * 4.0, rtol=0.0, atol=0.0)
     torch.testing.assert_close(state_twice.increase_factor[2], torch.tensor(8.0, dtype=torch.float64))
 
 
 def test_rejected_damping_and_increase_factor_clamp_independently() -> None:
-    target = torch.tensor([[1.1], [10.0]], dtype=torch.float64)
-    problem = Problem(
-        vars=(VarSpec("x", (1,)),),
-        residuals=(ResidualItem("exponential", _ExponentialResidual()),),
-        parameters={"target": target},
-    )
-    solver = LevenbergMarquardt(mu_max=16.0, increase_factor_max=32.0)
-    values = {"x": torch.zeros_like(target)}
-    state = solver.init_state(values, problem)._replace(
+    target_tensor = torch.tensor([[1.1], [10.0]], dtype=torch.float64)
+    x, _target, problem = _exponential_problem(target_tensor)
+    optimizer = LevenbergMarquardt(problem, mu_max=16.0, increase_factor_max=32.0)
+    values = {"x": x.tensor}
+    state = optimizer._init_state(values, problem)._replace(
         mu=torch.tensor([1e-4, 8.0], dtype=torch.float64),
         increase_factor=torch.tensor([2.0, 32.0], dtype=torch.float64),
     )
 
-    _, state_next = solver.update(values, state, problem)
+    _, state_next = optimizer._update(values, state, problem)
 
     assert state_next.gain_ratio[0] > 0.0
     assert state_next.gain_ratio[1] < 0.0
@@ -222,198 +240,184 @@ def test_rejected_damping_and_increase_factor_clamp_independently() -> None:
 
 
 def test_zero_mu_min_is_rejected_instead_of_deadlocking_factorization_retries() -> None:
+    _x, _target, problem = _linear_problem(torch.ones(1))
     with pytest.raises(ValueError, match="0 < mu_min <= mu_max"):
-        LevenbergMarquardt(mu_min=0.0)
+        LevenbergMarquardt(problem, mu_min=0.0)
 
 
 def test_factorization_gets_one_attempt_at_mu_cap_before_failure() -> None:
     dtype = torch.float64
-    problem = _linear_problem(torch.ones(1, dtype=dtype))
-    solver = LevenbergMarquardt(
+    x, _target, problem = _linear_problem(torch.ones(1, dtype=dtype))
+    optimizer = LevenbergMarquardt(
+        problem,
         mu_max=10.0,
-        linear_solver=_ThresholdSolver(minimum_diagonal=11.0),
+        solver=_ThresholdSolver(minimum_diagonal=11.0),
     )
-    values = {"x": torch.zeros(1, dtype=dtype)}
-    state = solver.init_state(values, problem)._replace(
+    values = {"x": x.tensor}
+    state = optimizer._init_state(values, problem)._replace(
         mu=torch.tensor(5.0, dtype=dtype),
         increase_factor=torch.tensor(2.0, dtype=dtype),
     )
 
-    unchanged, at_cap = solver.update(values, state, problem)
+    unchanged, at_cap = optimizer._update(values, state, problem)
 
     torch.testing.assert_close(unchanged["x"], values["x"], rtol=0.0, atol=0.0)
     torch.testing.assert_close(at_cap.mu, torch.tensor(10.0, dtype=dtype))
-    assert LMStatus(int(at_cap.status)) is LMStatus.RUNNING
+    assert OptimizerStatus(int(at_cap.status)) is OptimizerStatus.RUNNING
 
-    moved, recovered = solver.update(unchanged, at_cap, problem)
-
+    moved, recovered = optimizer._update(unchanged, at_cap, problem)
     assert moved["x"].item() > 0.0
     assert bool(recovered.factorization_ok)
-    assert LMStatus(int(recovered.status)) is not LMStatus.FAILED
+    assert OptimizerStatus(int(recovered.status)) is not OptimizerStatus.FAILED
 
 
-@pytest.mark.parametrize(
-    ("xtol", "ftol"),
-    [(2.0, 0.0), (0.0, 2.0)],
-)
-def test_accepted_step_or_relative_decrease_tolerance_terminates(
-    xtol: float,
-    ftol: float,
-) -> None:
+@pytest.mark.parametrize(("xtol", "ftol"), [(2.0, 0.0), (0.0, 2.0)])
+def test_accepted_step_or_relative_decrease_tolerance_terminates(xtol: float, ftol: float) -> None:
     dtype = torch.float64
-    problem = Problem(
-        vars=(VarSpec("x", (1,)),),
-        residuals=(ResidualItem("exponential", _ExponentialResidual()),),
-        parameters={"target": torch.tensor([2.0], dtype=dtype)},
+    x, _target, problem = _exponential_problem(torch.tensor([2.0], dtype=dtype))
+    optimizer = LevenbergMarquardt(
+        problem,
+        max_iterations=1,
+        tolerance=0.0,
+        step_tolerance=xtol,
+        relative_tolerance=ftol,
     )
-    solver = LevenbergMarquardt(max_iter=1, gtol=0.0, xtol=xtol, ftol=ftol)
 
-    values, state = solver.run({"x": torch.zeros(1, dtype=dtype)}, problem)
+    info = optimizer.optimize()
+    assert optimizer._state is not None
+    state = optimizer._state
 
-    assert values["x"].item() > 0.0
+    assert x.tensor.item() > 0.0
     assert state.step_norm > 0.0
     assert state.relative_decrease > 0.0
-    assert state.grad_norm > 1.0  # This is a numerical stop, not a KKT stop.
-    assert LMStatus(int(state.status)) is LMStatus.CONVERGED
-    assert bool(state.converged)
+    assert state.grad_norm > 1.0
+    assert OptimizerStatus(int(info.status)) is OptimizerStatus.CONVERGED
+    assert bool(info.converged)
     assert not bool(state.implicit_valid)
 
 
 def test_bounded_problem_never_reports_tolerance_only_convergence() -> None:
     dtype = torch.float64
-    problem = Problem(
-        vars=(
-            VarSpec(
-                "x",
-                (1,),
-                bounds=Bounds(
-                    lower=torch.tensor([-10.0], dtype=dtype),
-                    upper=torch.tensor([10.0], dtype=dtype),
-                ),
-            ),
-        ),
-        residuals=(ResidualItem("exponential", _ExponentialResidual()),),
-        parameters={"target": torch.tensor([2.0], dtype=dtype)},
+    bounds = Bounds(
+        lower=torch.tensor([-10.0], dtype=dtype),
+        upper=torch.tensor([10.0], dtype=dtype),
     )
-    solver = LevenbergMarquardt(max_iter=1, gtol=1e-8, xtol=2.0, ftol=2.0)
+    _x, _target, problem = _exponential_problem(torch.tensor([2.0], dtype=dtype), bounds=bounds)
+    optimizer = LevenbergMarquardt(
+        problem,
+        max_iterations=1,
+        tolerance=1e-8,
+        step_tolerance=2.0,
+        relative_tolerance=2.0,
+    )
 
-    _values, state = solver.run({"x": torch.zeros(1, dtype=dtype)}, problem)
+    info = optimizer.optimize()
+    assert optimizer._state is not None
+    state = optimizer._state
 
-    assert state.projected_grad_norm > solver.gtol
-    assert LMStatus(int(state.status)) is LMStatus.MAXITER
-    assert not bool(state.converged)
+    assert state.projected_grad_norm > optimizer.gtol
+    assert OptimizerStatus(int(info.status)) is OptimizerStatus.MAXITER
+    assert not bool(info.converged)
     assert not bool(state.implicit_valid)
 
 
 def test_rejected_zero_step_does_not_trigger_step_or_decrease_tolerance() -> None:
     dtype = torch.float64
-    problem = Problem(
-        vars=(VarSpec("x", (1,)),),
-        residuals=(ResidualItem("exponential", _ExponentialResidual()),),
-        parameters={"target": torch.tensor([10.0], dtype=dtype)},
+    x, _target, problem = _exponential_problem(torch.tensor([10.0], dtype=dtype))
+    optimizer = LevenbergMarquardt(
+        problem,
+        tolerance=0.0,
+        step_tolerance=100.0,
+        relative_tolerance=100.0,
     )
-    solver = LevenbergMarquardt(gtol=0.0, xtol=100.0, ftol=100.0)
-    values = {"x": torch.zeros(1, dtype=dtype)}
-    state = solver.init_state(values, problem)
+    values = {"x": x.tensor}
+    state = optimizer._init_state(values, problem)
 
-    next_values, next_state = solver.update(values, state, problem)
+    next_values, next_state = optimizer._update(values, state, problem)
 
     torch.testing.assert_close(next_values["x"], values["x"], rtol=0.0, atol=0.0)
     torch.testing.assert_close(next_state.step_norm, torch.tensor(0.0, dtype=dtype))
     torch.testing.assert_close(next_state.relative_decrease, torch.tensor(0.0, dtype=dtype))
-    assert LMStatus(int(next_state.status)) is LMStatus.RUNNING
+    assert OptimizerStatus(int(next_state.status)) is OptimizerStatus.RUNNING
 
 
 def test_finalize_does_not_preserve_tolerance_status_for_changed_values() -> None:
     dtype = torch.float64
-    problem = Problem(
-        vars=(VarSpec("x", (1,)),),
-        residuals=(ResidualItem("exponential", _ExponentialResidual()),),
-        parameters={"target": torch.tensor([2.0], dtype=dtype)},
-    )
-    solver = LevenbergMarquardt(gtol=0.0, xtol=2.0, ftol=0.0)
-    initial = {"x": torch.zeros(1, dtype=dtype)}
-    state = solver.init_state(initial, problem)
-    _accepted_values, tolerance_state = solver.update(initial, state, problem)
-    assert LMStatus(int(tolerance_state.status)) is LMStatus.CONVERGED
+    x, _target, problem = _exponential_problem(torch.tensor([2.0], dtype=dtype))
+    optimizer = LevenbergMarquardt(problem, tolerance=0.0, step_tolerance=2.0, relative_tolerance=0.0)
+    initial = {"x": x.tensor}
+    state = optimizer._init_state(initial, problem)
+    _accepted_values, tolerance_state = optimizer._update(initial, state, problem)
+    assert OptimizerStatus(int(tolerance_state.status)) is OptimizerStatus.CONVERGED
 
-    _, refreshed = solver.finalize(initial, tolerance_state, problem)
+    _, refreshed = optimizer._finalize(initial, tolerance_state, problem)
 
-    assert LMStatus(int(refreshed.status)) is LMStatus.RUNNING
+    assert OptimizerStatus(int(refreshed.status)) is OptimizerStatus.RUNNING
     assert not bool(refreshed.converged)
     assert not bool(refreshed.implicit_valid)
 
 
-def _mixed_unit_problem(*, scaled: bool, dtype: torch.dtype) -> Problem:
-    return Problem(
-        vars=(
-            VarSpec(
-                "meters",
-                (1,),
-                scale=torch.tensor([1.0], dtype=dtype) if scaled else None,
-            ),
-            VarSpec(
-                "millimeters",
-                (1,),
-                scale=torch.tensor([1e-3], dtype=dtype) if scaled else None,
-            ),
-        ),
-        residuals=(ResidualItem("mixed_unit", _MixedUnitResidual()),),
-        parameters={"target": torch.ones(2, dtype=dtype)},
+def _mixed_unit_problem(*, scaled: bool, dtype: torch.dtype) -> tuple[dict[str, Variable], Problem]:
+    meters = Variable(
+        torch.zeros(1, dtype=dtype),
+        name="meters",
+        scale=torch.tensor([1.0], dtype=dtype) if scaled else None,
     )
+    millimeters = Variable(
+        torch.zeros(1, dtype=dtype),
+        name="millimeters",
+        scale=torch.tensor([1e-3], dtype=dtype) if scaled else None,
+    )
+    target = Variable(torch.ones(2, dtype=dtype), name="target", trainable=False)
+    variables = {"meters": meters, "millimeters": millimeters}
+    return variables, Problem([_MixedUnitResidual(meters, millimeters, target)])
 
 
-def test_varspec_scale_sets_scaled_mu_and_balances_mixed_unit_step() -> None:
+def test_variable_scale_sets_scaled_mu_and_balances_mixed_unit_step() -> None:
     dtype = torch.float64
-    values = {
-        "meters": torch.zeros(1, dtype=dtype),
-        "millimeters": torch.zeros(1, dtype=dtype),
-    }
-    solver = LevenbergMarquardt(max_iter=1)
-    unscaled_problem = _mixed_unit_problem(scaled=False, dtype=dtype)
-    scaled_problem = _mixed_unit_problem(scaled=True, dtype=dtype)
-    unscaled_state = solver.init_state(values, unscaled_problem)
-    scaled_state = solver.init_state(values, scaled_problem)
+    unscaled_variables, unscaled_problem = _mixed_unit_problem(scaled=False, dtype=dtype)
+    scaled_variables, scaled_problem = _mixed_unit_problem(scaled=True, dtype=dtype)
+    unscaled_values = {name: variable.tensor for name, variable in unscaled_variables.items()}
+    scaled_values = {name: variable.tensor for name, variable in scaled_variables.items()}
+    unscaled_optimizer = LevenbergMarquardt(unscaled_problem, max_iterations=1)
+    scaled_optimizer = LevenbergMarquardt(scaled_problem, max_iterations=1)
+    unscaled_state = unscaled_optimizer._init_state(unscaled_values, unscaled_problem)
+    scaled_state = scaled_optimizer._init_state(scaled_values, scaled_problem)
 
     torch.testing.assert_close(unscaled_state.scale, torch.ones(2, dtype=dtype))
     torch.testing.assert_close(scaled_state.scale, torch.tensor([1.0, 1e-3], dtype=dtype))
     torch.testing.assert_close(unscaled_state.mu, torch.tensor(100.0, dtype=dtype))
     torch.testing.assert_close(scaled_state.mu, torch.tensor(1e-4, dtype=dtype))
 
-    unscaled_values, unscaled_next = solver.update(values, unscaled_state, unscaled_problem)
-    scaled_values, scaled_next = solver.update(values, scaled_state, scaled_problem)
+    unscaled_next_values, unscaled_next = unscaled_optimizer._update(unscaled_values, unscaled_state, unscaled_problem)
+    scaled_next_values, scaled_next = scaled_optimizer._update(scaled_values, scaled_state, scaled_problem)
 
-    assert unscaled_values["meters"][0] < 0.02
-    assert scaled_values["meters"][0] > 0.99
-    assert scaled_values["millimeters"][0] > 0.99
+    assert unscaled_next_values["meters"][0] < 0.02
+    assert scaled_next_values["meters"][0] > 0.99
+    assert scaled_next_values["millimeters"][0] > 0.99
     assert scaled_next.cost < unscaled_next.cost * 0.02
 
 
 def test_grouped_huber_gain_accepts_when_raw_l2_increases() -> None:
     dtype = torch.float64
-    points = torch.tensor([[0.0, 0.0], [0.0, 0.0], [100.0, 0.0]], dtype=dtype)
-    start = points.mean(dim=0)
+    points_tensor = torch.tensor([[0.0, 0.0], [0.0, 0.0], [100.0, 0.0]], dtype=dtype)
+    start = points_tensor.mean(dim=0)
     kernel = Huber(delta=1.0)
-    problem = Problem(
-        vars=(VarSpec("x", (2,)),),
-        residuals=(ResidualItem("points", _PointFitResidual(), group_size=2),),
-        parameters={"points": points},
-    )
-    solver = LevenbergMarquardt(kernel=kernel)
-    values = {"x": start.clone()}
-    state = solver.init_state(values, problem)
+    x = Variable(start.clone(), name="x")
+    points = Variable(points_tensor, name="points", trainable=False)
+    problem = Problem([_PointFitResidual(x, points, kernel=kernel)])
+    optimizer = LevenbergMarquardt(problem)
+    values = {"x": x.tensor}
+    state = optimizer._init_state(values, problem)
     current_raw = 0.5 * state.residual.square().sum()
     current_robust = _grouped_cost(state.residual, kernel, 2)
     expected_group_weight = kernel.weight(state.residual.reshape(3, 2).square().sum(dim=-1))
 
-    values_next, state_next = solver.update(values, state, problem)
+    values_next, state_next = optimizer._update(values, state, problem)
 
     candidate_raw = 0.5 * state_next.residual.square().sum()
     candidate_robust = _grouped_cost(state_next.residual, kernel, 2)
-    torch.testing.assert_close(
-        state.robust_weights,
-        expected_group_weight.repeat_interleave(2),
-    )
+    torch.testing.assert_close(state.robust_weights, expected_group_weight.repeat_interleave(2))
     torch.testing.assert_close(state.cost, current_robust)
     torch.testing.assert_close(state_next.cost, candidate_robust)
     assert state_next.gain_ratio > 0.0
@@ -424,23 +428,21 @@ def test_grouped_huber_gain_accepts_when_raw_l2_increases() -> None:
 
 def test_grouped_tukey_gain_rejects_when_raw_l2_decreases() -> None:
     dtype = torch.float64
-    residual = _TukeyDirectionReversalResidual()
     kernel = Tukey(c=1.0)
-    problem = Problem(
-        vars=(VarSpec("x", (1,)),),
-        residuals=(ResidualItem("tukey_reversal", residual, group_size=2),),
-    )
-    solver = LevenbergMarquardt(kernel=kernel)
-    values = {"x": torch.zeros(1, dtype=dtype)}
-    state = solver.init_state(values, problem)
+    x = Variable(torch.zeros(1, dtype=dtype), name="x")
+    residual = _TukeyDirectionReversalResidual(x, kernel=kernel)
+    problem = Problem([residual])
+    optimizer = LevenbergMarquardt(problem)
+    values = {"x": x.tensor}
+    state = optimizer._init_state(values, problem)
     current_raw = 0.5 * state.residual.square().sum()
     current_robust = _grouped_cost(state.residual, kernel, 2)
     residual.seen.clear()
 
-    values_next, state_next = solver.update(values, state, problem)
+    values_next, state_next = optimizer._update(values, state, problem)
 
     trial_x = residual.seen[-1]
-    trial_residual = residual({"x": trial_x.unsqueeze(-1)})
+    trial_residual = residual.evaluate(trial_x.unsqueeze(-1))
     trial_raw = 0.5 * trial_residual.square().sum()
     trial_robust = _grouped_cost(trial_residual, kernel, 2)
     assert not torch.equal(trial_x, values["x"][..., 0])
@@ -451,30 +453,20 @@ def test_grouped_tukey_gain_rejects_when_raw_l2_decreases() -> None:
     torch.testing.assert_close(state_next.cost, state.cost, rtol=0.0, atol=0.0)
 
 
-def test_item_kernel_overrides_solver_default_per_semantic_group() -> None:
+def test_item_kernels_apply_per_semantic_group() -> None:
     dtype = torch.float64
     override_kernel = Huber(delta=1.0)
     default_kernel = Tukey(c=1.0)
+    x = Variable(torch.zeros(1, dtype=dtype), name="x")
     problem = Problem(
-        vars=(VarSpec("x", (1,)),),
-        residuals=(
-            ResidualItem(
-                "override",
-                _OffsetPairResidual("override", 2.0),
-                kernel=override_kernel,
-                group_size=2,
-            ),
-            ResidualItem(
-                "default",
-                _OffsetPairResidual("default", 2.0),
-                group_size=2,
-            ),
-        ),
+        [
+            _OffsetPairResidual(x, "override", 2.0, kernel=override_kernel),
+            _OffsetPairResidual(x, "default", 2.0, kernel=default_kernel),
+        ]
     )
-    solver = LevenbergMarquardt(kernel=default_kernel)
-    values = {"x": torch.zeros(1, dtype=dtype)}
-
-    state = solver.init_state(values, problem)
+    optimizer = LevenbergMarquardt(problem)
+    values = {"x": x.tensor}
+    state = optimizer._init_state(values, problem)
 
     squared_norm = torch.tensor(4.0, dtype=dtype)
     expected_cost = override_kernel.rho(squared_norm) + default_kernel.rho(squared_norm)
@@ -482,71 +474,41 @@ def test_item_kernel_overrides_solver_default_per_semantic_group() -> None:
     torch.testing.assert_close(state.cost, expected_cost)
     torch.testing.assert_close(state.robust_weights, expected_weights)
 
-    _, state_next = solver.update(values, state, problem)
+    _, state_next = optimizer._update(values, state, problem)
 
     assert state_next.gain_ratio > 0.0
     assert state_next.cost < state.cost
     assert torch.all(state_next.robust_weights > 0.99)
 
 
-def _linear_problem(target: torch.Tensor) -> Problem:
-    return Problem(
-        vars=(VarSpec("x", (1,)),),
-        residuals=(ResidualItem("linear", _LinearResidual()),),
-        parameters={"target": target},
-    )
-
-
 def test_initial_nonfinite_model_reaches_failed_status() -> None:
-    values, state = LevenbergMarquardt(max_iter=2).run(
-        {"x": torch.tensor([float("nan")])},
-        _linear_problem(torch.ones(1)),
-    )
+    initial = torch.tensor([float("nan")])
+    x, _target, problem = _linear_problem(torch.ones(1), initial=initial)
+    info = LevenbergMarquardt(problem, max_iterations=2).optimize()
 
-    assert torch.isnan(values["x"]).all()
-    assert LMStatus(int(state.status)) is LMStatus.FAILED
+    assert torch.isnan(x.tensor).all()
+    assert OptimizerStatus(int(info.status)) is OptimizerStatus.FAILED
 
 
 def test_warm_start_retains_damping_but_refreshes_changed_target_artifacts() -> None:
     dtype = torch.float64
-    solver = LevenbergMarquardt(max_iter=0)
-    values = {"x": torch.zeros(1, dtype=dtype)}
-    _, old_state = solver.run(values, _linear_problem(torch.ones(1, dtype=dtype)))
-    old_state = old_state._replace(
+    x, target, problem = _linear_problem(torch.ones(1, dtype=dtype))
+    optimizer = LevenbergMarquardt(problem, max_iterations=0)
+    optimizer.optimize()
+    assert optimizer._state is not None
+    old_state = optimizer._state._replace(
         mu=torch.tensor(0.123, dtype=dtype),
         increase_factor=torch.tensor(8.0, dtype=dtype),
     )
+    optimizer._state = old_state
 
-    _, refreshed = solver.run(
-        values,
-        _linear_problem(torch.full((1,), 2.0, dtype=dtype)),
-        state=old_state,
-    )
+    problem.update({"x": x.tensor, "target": torch.full_like(target.tensor, 2.0)})
+    optimizer.optimize()
+    assert optimizer._state is not None
+    refreshed = optimizer._state
 
     torch.testing.assert_close(refreshed.mu, old_state.mu, rtol=0.0, atol=0.0)
-    torch.testing.assert_close(
-        refreshed.increase_factor,
-        old_state.increase_factor,
-        rtol=0.0,
-        atol=0.0,
-    )
+    torch.testing.assert_close(refreshed.increase_factor, old_state.increase_factor, rtol=0.0, atol=0.0)
     torch.testing.assert_close(refreshed.residual, torch.tensor([-2.0], dtype=dtype))
     torch.testing.assert_close(refreshed.cost, torch.tensor(2.0, dtype=dtype))
     torch.testing.assert_close(refreshed.iterations, torch.tensor(0, dtype=torch.int64))
-
-
-def test_warm_start_rejects_damping_dtype_mismatch_at_the_boundary() -> None:
-    solver = LevenbergMarquardt(max_iter=0)
-    old_values = {"x": torch.zeros(1, dtype=torch.float64)}
-    _, old_state = solver.run(
-        old_values,
-        _linear_problem(torch.ones(1, dtype=torch.float64)),
-    )
-    new_values = {"x": torch.zeros(1, dtype=torch.float32)}
-
-    with pytest.raises(ValueError, match="warm-start damping tensors.*dtype and device"):
-        solver.run(
-            new_values,
-            _linear_problem(torch.ones(1, dtype=torch.float32)),
-            state=old_state,
-        )
