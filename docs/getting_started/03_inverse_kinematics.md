@@ -33,9 +33,15 @@ result = br.solve_ik(
     optimizer_cfg=OptimizerConfig(max_iter=100),
 )
 
-assert result.converged
-assert result.q.shape == (model.nq,)
-assert result.frame_pose(frame_name).shape == (7,)
+print(bool(result.converged))
+print(result.q.shape)
+print(result.frame_pose(frame_name).shape)
+```
+
+```{testoutput}
+True
+torch.Size([8])
+torch.Size([7])
 ```
 
 Targets use the same `[x, y, z, qx, qy, qz, qw]` layout as FK. The dictionary

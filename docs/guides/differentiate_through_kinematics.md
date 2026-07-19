@@ -33,8 +33,13 @@ def hand_position(q):
 q = model.q_neutral.clone()
 position_jacobian = torch.func.jacrev(hand_position)(q)
 
-assert position_jacobian.shape == (3, model.nq)
-assert torch.isfinite(position_jacobian).all()
+print(position_jacobian.shape)
+print(bool(torch.isfinite(position_jacobian).all()))
+```
+
+```{testoutput}
+torch.Size([3, 8])
+True
 ```
 
 The raw passes trust their caller. Keep `q`, `ModelValues`, dtype, device, and

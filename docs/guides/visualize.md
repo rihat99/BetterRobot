@@ -20,7 +20,11 @@ from robot_descriptions import panda_description
 model = br.load(panda_description.URDF_PATH)
 viewer = Visualizer(model, port=8080)
 
-assert viewer.last_q.shape == (model.nq,)
+print(viewer.last_q.shape)
+```
+
+```{testoutput}
+torch.Size([8])
 ```
 
 With the viewer extra installed, the interactive part is:

@@ -14,15 +14,25 @@ A configuration `q` stores the position of every independent joint. Forward
 kinematics, usually shortened to **FK**, walks from each parent joint to its
 children and composes transforms along the tree.
 
-```text
-data = better_robot.forward_kinematics(
-    model,
-    q,
-    compute_frames=True,
-)
+```{testcode}
+import torch
+from better_robot import forward_kinematics
+from better_robot.io import ModelBuilder, build_model
 
-joint_poses = data.joint_pose_world   # (..., njoints, 7)
-frame_poses = data.frame_pose_world   # (..., nframes, 7)
+builder = ModelBuilder("one_joint_kinematics")
+builder.add_body("base")
+builder.add_body("link")
+builder.add_revolute_z("joint", parent="base", child="link", lower=-3.14, upper=3.14)
+model = build_model(builder.finalize(), dtype=torch.float64)
+q = model.q_neutral
+data = forward_kinematics(model, q, compute_frames=True)
+print("joint poses:", tuple(data.joint_pose_world.shape))
+print("frame poses:", tuple(data.frame_pose_world.shape))
+```
+
+```{testoutput}
+joint poses: (3, 7)
+frame poses: (3, 7)
 ```
 
 The final axis of each pose is
@@ -31,11 +41,21 @@ the robot or search for a configuration; it answers where the model would be
 for the `q` it was given.
 
 Every joint supplies a transform from its parent at the current joint slice.
-The tree recurrence is:
+The local pose composes its fixed placement with the current joint transform;
+the world pose then composes that result with its parent's world pose. Those
+poses feed the frame-Jacobian pass directly:
 
-```text
-joint_pose_local[j] = fixed_placement[j] * joint_transform(j, q[j])
-joint_pose_world[j] = joint_pose_world[parent[j]] * joint_pose_local[j]
+```{testcode}
+from better_robot.kinematics import compute_joint_jacobians, get_frame_jacobian
+
+compute_joint_jacobians(model, data)
+frame_id = model.frame_id("body_link")
+frame_jacobian = get_frame_jacobian(model, data, frame_id)
+print("frame Jacobian shape:", tuple(frame_jacobian.shape))
+```
+
+```{testoutput}
+frame Jacobian shape: (6, 1)
 ```
 
 A fixed-base and a floating-base model use the same recurrence. The latter

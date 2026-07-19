@@ -19,9 +19,15 @@ data = br.forward_kinematics(model, q, compute_frames=True)
 hand_id = model.frame_id("body_panda_hand")
 hand_pose = data.frame_pose_world[hand_id]
 
-assert data.joint_pose_world.shape == (model.njoints, 7)
-assert data.frame_pose_world.shape == (model.nframes, 7)
-assert hand_pose.shape == (7,)
+print(data.joint_pose_world.shape)
+print(data.frame_pose_world.shape)
+print(hand_pose.shape)
+```
+
+```{testoutput}
+torch.Size([14, 7])
+torch.Size([14, 7])
+torch.Size([7])
 ```
 
 Each pose stores translation followed by a scalar-last quaternion:

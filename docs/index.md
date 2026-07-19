@@ -32,7 +32,7 @@ This example loads a Franka Panda, makes a reachable target from a known joint
 configuration, and optimizes a robot configuration to recover it.
 
 <!-- front-page-example:start -->
-```python
+```{testcode}
 import better_robot as br
 from better_robot.optim import LevenbergMarquardt, Problem, RobotVariable
 from better_robot.residuals import PoseResidual
@@ -57,8 +57,15 @@ info = optimizer.optimize()
 solution = br.forward_kinematics(model, q.tensor, compute_frames=True)
 solution_pose = solution.frame_pose_world[model.frame_id("body_panda_hand")]
 
-q.tensor  # (nq,) joint solution
-solution_pose  # (7,) pose at the solution
+print(bool(info.converged))
+print(q.tensor.shape)
+print(solution_pose.shape)
+```
+
+```{testoutput}
+True
+torch.Size([8])
+torch.Size([7])
 ```
 <!-- front-page-example:end -->
 

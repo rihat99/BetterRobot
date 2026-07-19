@@ -11,7 +11,7 @@ def test_front_page_example_executes_exactly_as_published() -> None:
     index = Path(__file__).parents[2] / "docs" / "index.md"
     page = index.read_text(encoding="utf-8")
     marked = page.split("<!-- front-page-example:start -->", 1)[1].split("<!-- front-page-example:end -->", 1)[0]
-    matches = re.findall(r"```python\n(.*?)```", marked, flags=re.DOTALL)
+    matches = re.findall(r"```(?:python|\{testcode\})\n(.*?)```", marked, flags=re.DOTALL)
 
     assert len(matches) == 1
     namespace: dict[str, object] = {}

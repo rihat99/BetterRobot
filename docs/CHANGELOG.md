@@ -5,15 +5,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
-- `Problem.add_variable` and `Problem.add_residual` now build least-squares
-  problems directly from named variables and residual callables. `VarSpec`
-  and `ResidualItem` remain available when explicit records are useful.
-- `solve_trajopt` now takes a sequence of `ResidualItem` objects through its
-  `residuals=` argument. Callers choose active terms by passing only those
-  items; robust kernels, weights, and grouping remain attached to each item.
+- `Problem` now freezes a graph of residual objects and the variables and nodes
+  they reference. Variable subclasses own their tensor and geometry; residuals
+  own their weights, robust groups, and dependencies.
+- `solve_trajopt` now accepts residual objects or trajectory-variable residual
+  factories. Callers may supply their own `RobotVariable`, and optimizer
+  factories receive and own the assembled `Problem`.
 - `LevenbergMarquardt` and `GaussNewton` now share one dense or block-banded
-  path. `run_first_order` adapts the same `Problem` to a standard
-  `torch.optim.Optimizer`, and eligible converged solves can request guarded
+  path. `TorchOptimizer` adapts the same `Problem` to a standard
+  `torch.optim.Optimizer`; eligible converged LM solves can request guarded
   implicit differentiation.
 - Temporal variables and residual patterns can route trajectory problems
   through block-banded Cholesky. Problems without complete temporal structure
@@ -36,31 +36,31 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `Adam` state machine, L-BFGS and multi-stage wrappers, damping strategies,
   phase records, and the `better_robot.costs` package. Every removed symbol
   and its supported replacement is listed in the
-  [migration details](https://github.com/rihat99/BetterRobot/blob/dev/plan/migration_ledger.md).
+  [migration details](https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md).
 - Scalar objectives, `ResidualState`, residual-owned Jacobian hooks,
   `ResidualSpec`, provider `inputs` declarations, and the root/kinematics
   `JacobianStrategy` export were removed or replaced by the single callable
   residual protocol. Exact replacements are in the
-  [migration details](https://github.com/rihat99/BetterRobot/blob/dev/plan/migration_ledger.md).
+  [migration details](https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md).
 - `LSTSQ`, the rank-deficient Cholesky fallback, `NormalCG`, `NormalOperator`,
   matrix-free routing, pure linear-solve diagnostics, and nested
   `optim.blocks`, `optim.kernels.*`, `optim.solvers.*`, and `optim.structure`
   import paths were removed. Dense and declared temporal routes replace them;
-  the [migration details](https://github.com/rihat99/BetterRobot/blob/dev/plan/migration_ledger.md)
+  the [migration details](https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md)
   cover each surface.
 - Unimplemented public dynamics exports (`compute_minverse`,
   `compute_coriolis_matrix`, centroidal dynamics derivatives, three dynamics
   integrators, and `nle`) and residual exports (`YoshikawaResidual`, collision
   residuals, and `JointAccelLimit`) were removed. Their supported alternatives
   are listed in the
-  [migration details](https://github.com/rihat99/BetterRobot/blob/dev/plan/migration_ledger.md).
+  [migration details](https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md).
 - Raise-only jerk and nullspace residual exports, the unsupported angular
   contact-consistency option, and the unused public model-value batch-shape
   wrapper were removed. Supported alternatives are recorded in the
   [migration details](https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md).
 - The unused `ReferenceFrame` enum was replaced by the literal frame strings
   accepted by the Jacobian API; see the
-  [migration details](https://github.com/rihat99/BetterRobot/blob/dev/plan/migration_ledger.md).
+  [migration details](https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md).
 - Fused Warp forward kinematics remains an explicit GPU alternative with
   forward and gradient parity coverage; PyTorch remains the default path.
 - Tutorials now introduce the robotics concepts they use, guides show complete
@@ -70,6 +70,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## v0.2.0 — 2026-04-11
 
 The first stable release of the PyTorch-native BetterRobot stack.
+
+The public API list below is historical and superseded; see [Unreleased](#unreleased)
+and the current [migration details](https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md).
 
 ### Highlights
 

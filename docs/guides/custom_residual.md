@@ -52,14 +52,18 @@ class SignedDistance(Node):
         return {"signed_distance": self.distance.tensor}
 
 
-signed_distance = torch.tensor([[-0.2, 0.1], [-0.4, 0.3]])
+signed_distance = torch.tensor([[-0.2, 0.1], [-0.4, 0.3]], dtype=torch.float64)
 residual = PenetrationResidual(SignedDistance(signed_distance), time=2, points=2)
 problem = Problem([residual])
 rows = problem.error()
 
-torch.testing.assert_close(rows, torch.tensor([0.2, 0.0, 0.4, 0.0]))
+print(rows.tolist())
 ```
 <!-- custom-residual-example:end -->
+
+```{testoutput}
+[0.2, 0.0, 0.4, 0.0]
+```
 
 The example uses a static variable because it only evaluates rows. In an
 optimization, the node would reference trainable variables instead; the

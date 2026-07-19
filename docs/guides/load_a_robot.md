@@ -15,8 +15,13 @@ from robot_descriptions import panda_description
 
 model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
 
-assert model.q_neutral.dtype == torch.float64
-assert model.q_neutral.shape == (model.nq,)
+print(model.q_neutral.dtype)
+print(model.q_neutral.shape)
+```
+
+```{testoutput}
+torch.float64
+torch.Size([8])
 ```
 
 For your own file, replace `panda_description.URDF_PATH` with a path such as
@@ -57,8 +62,13 @@ builder.add_revolute_z(
 )
 model = build_model(builder.finalize())
 
-assert model.nq == 1
-assert "shoulder" in model.joint_names
+print(model.nq)
+print(model.joint_names[-1])
+```
+
+```{testoutput}
+1
+shoulder
 ```
 
 Use a named helper such as `add_revolute_z`, `add_prismatic`, or

@@ -41,10 +41,13 @@ from robot_descriptions import panda_description
 
 model = br.load(panda_description.URDF_PATH)
 
-assert model.q_neutral.shape == (model.nq,)
-assert model.nq > 0
-assert model.nv > 0
-assert model.njoints > 0
+print(model.q_neutral.shape)
+print((model.nq, model.nv, model.njoints))
+```
+
+```{testoutput}
+torch.Size([8])
+(8, 8, 14)
 ```
 
 Continue with {doc}`01_robot_model` to see what the loaded object contains.

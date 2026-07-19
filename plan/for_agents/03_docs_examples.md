@@ -1,5 +1,10 @@
 # 03 — Documentation style and examples
 
+> **Implementation log (2026-07-19):** Complete: `1583 passed, 2 skipped,
+> 16 deselected`; docs/examples `31 passed`; doctest `30/30`; all eight
+> examples run headlessly. The honesty sweep also fixed three stale Unreleased
+> bullets; strict Sphinx remains blocked by 1,145 baseline cross-reference warnings.
+
 **Goal:** finish the documentation the way the owner reads it: every snippet
 *shows* its result instead of asserting it, concept pages that explain a
 capability also demonstrate it, and `examples/` covers what the library is

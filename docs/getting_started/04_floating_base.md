@@ -20,9 +20,15 @@ q[2] += 0.05
 data = br.forward_kinematics(model, q, compute_frames=True)
 left_ankle = model.frame_id("body_left_ankle_roll_link")
 
-assert model.nq == model.nv + 1
-assert q[:7].shape == (7,)
-assert data.frame_pose_world[left_ankle].shape == (7,)
+print((model.nq, model.nv))
+print(q[:7].shape)
+print(data.frame_pose_world[left_ankle].shape)
+```
+
+```{testoutput}
+(36, 35)
+torch.Size([7])
+torch.Size([7])
 ```
 
 Do not add or normalize quaternion components by hand. Use

@@ -57,7 +57,11 @@ def position_error(value, desired):
 
 
 actual = position_error.error()
-torch.testing.assert_close(actual, torch.tensor([0.0, 1.0, 2.0]))
+print(actual.tolist())
+```
+
+```{testoutput}
+[0.0, 1.0, 2.0]
 ```
 
 The returned tensor ends in `(dim,)` and may have leading batch axes. Fixed
@@ -109,8 +113,13 @@ info = LevenbergMarquardt(
     max_iterations=20,
     tolerance=1e-9,
 ).optimize()
-torch.testing.assert_close(theta.tensor, torch.tensor([2., 1.], dtype=torch.float64))
-assert bool(info.converged)
+print("solution:", theta.tensor.round(decimals=6).tolist())
+print("converged:", bool(info.converged))
+```
+
+```{testoutput}
+solution: [2.0, 1.0]
+converged: True
 ```
 
 Subclass `Residual` when an error term needs analytic or temporal blocks, a
@@ -203,24 +212,34 @@ First-order optimizers are delegated to `torch.optim` instead.
 Every optimizer owns one problem. `step()` advances referenced variables once;
 `optimize()` runs the complete eager loop:
 
-```text
-from better_robot.optim import LevenbergMarquardt, OptimizerStatus
-
+```{testcode}
+problem.update({"theta": torch.zeros_like(theta.tensor)})
 optimizer = LevenbergMarquardt(
     problem,
     max_iterations=50,
-    tolerance=1e-6,
+    tolerance=1e-9,
 )
-info = optimizer.step()
-if bool((info.status != OptimizerStatus.RUNNING).all()):
-    ...
+initial_cost = problem.objective()
+step_info = optimizer.step()
+print("one step reduced cost:", bool((step_info.cost < initial_cost).all()))
+```
+
+```{testoutput}
+one step reduced cost: True
 ```
 
 For an ordinary detached solve:
 
-```text
+```{testcode}
 info = optimizer.optimize()
-solution = q.tensor
+solution = theta.tensor
+print("detached solution:", solution.round(decimals=6).tolist())
+print("converged:", bool(info.converged))
+```
+
+```{testoutput}
+detached solution: [2.0, 1.0]
+converged: True
 ```
 
 `OptimizerInfo` contains only per-element status, iterations, cost, and a
@@ -260,17 +279,39 @@ caller and a verified elimination design, not from guessing structure.
 `TorchOptimizer` adapts the same problem to an ordinary
 `torch.optim.Optimizer` class or factory:
 
-```text
+```{testcode}
 from better_robot.optim import TorchOptimizer
 
-optimizer = TorchOptimizer(
-    problem,
+adam_value = Variable(torch.tensor([0.0], dtype=torch.float64), name="adam_value")
+adam_target = Variable(
+    torch.tensor([3.0], dtype=torch.float64),
+    name="adam_target",
+    trainable=False,
+)
+
+
+@residual(adam_value, adam_target, dim=1)
+def adam_error(value, desired):
+    return value - desired
+
+
+adam_problem = Problem([adam_error])
+adam = TorchOptimizer(
+    adam_problem,
     torch.optim.Adam,
-    lr=1e-2,
-    max_iterations=100,
+    lr=0.1,
+    max_iterations=250,
     tolerance=1e-6,
 )
-info = optimizer.optimize()
+adam_info = adam.optimize()
+near_target = torch.allclose(adam_value.tensor, adam_target.tensor, atol=1e-3, rtol=0.0)
+print("Adam reached target:", bool(near_target))
+print("Adam converged:", bool(adam_info.converged))
+```
+
+```{testoutput}
+Adam reached target: True
+Adam converged: True
 ```
 
 The adapter keeps tangent buffers, lets the Torch optimizer update them,
@@ -280,16 +321,34 @@ selected by the factory. BetterRobot does not reimplement their moment rules.
 
 ## Differentiating a solution
 
-The default optimizer result is detached. Eligible converged problems can request
-a guarded implicit derivative:
+The default optimizer result is detached. Eligible converged problems can
+request a guarded implicit derivative:
 
-```text
-target = Variable(target_tensor, name="target", trainable=False)
-# A residual references both q and target; Problem harvests both roles.
-lm = LevenbergMarquardt(problem, max_iterations=50)
-info = lm.optimize(differentiate="implicit")
+```{testcode}
+target_tensor = torch.tensor([2.0], dtype=torch.float64, requires_grad=True)
+q = Variable(torch.zeros(1, dtype=torch.float64), name="q")
+target = Variable(target_tensor, name="implicit_target", trainable=False)
+
+
+@residual(q, target, dim=1)
+def target_error(value, desired):
+    return value - desired
+
+
+implicit_problem = Problem([target_error])
+lm = LevenbergMarquardt(implicit_problem, max_iterations=20, tolerance=1e-10)
+implicit_info = lm.optimize(differentiate="implicit")
 loss = q.tensor.square().sum()
 loss.backward()
+print("implicit solution:", q.tensor.detach().round(decimals=6).tolist())
+print("target gradient:", target_tensor.grad.round(decimals=6).tolist())
+print("implicit converged:", bool(implicit_info.converged))
+```
+
+```{testoutput}
+implicit solution: [2.0]
+target gradient: [4.0]
+implicit converged: True
 ```
 
 Graph-carrying static variables are the differentiable inputs. The backward

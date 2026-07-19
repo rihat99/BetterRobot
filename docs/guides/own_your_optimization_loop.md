@@ -45,24 +45,20 @@ for _ in range(optimizer.max_iterations):
     if bool((info.status != OptimizerStatus.RUNNING).all()):
         break
 
-torch.testing.assert_close(
-    theta.tensor,
-    torch.tensor([2.0, 1.0], dtype=torch.float64),
-    atol=2e-8,
-    rtol=2e-8,
-)
+print([round(value, 6) for value in theta.tensor.tolist()])
 
 # Updating a referenced static variable refreshes the problem while LM keeps
 # compatible damping state and starts from theta's current value.
 problem.update({"observations": y + 1.0})
 info = optimizer.optimize()
-torch.testing.assert_close(
-    theta.tensor,
-    torch.tensor([2.0, 2.0], dtype=torch.float64),
-    atol=2e-8,
-    rtol=2e-8,
-)
-assert bool(info.converged)
+print([round(value, 6) for value in theta.tensor.tolist()])
+print(bool(info.converged))
+```
+
+```{testoutput}
+[2.0, 1.0]
+[2.0, 2.0]
+True
 ```
 
 The `bool(...)` condition is an intentional eager synchronization point owned

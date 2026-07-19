@@ -55,7 +55,11 @@ class PointAtOrigin(Residual):
 
 point = Variable(torch.ones(3), name="point")
 problem = Problem([PointAtOrigin(point)])
-torch.testing.assert_close(problem.error(), torch.ones(3))
+print(problem.error().tolist())
+```
+
+```{testoutput}
+[1.0, 1.0, 1.0]
 ```
 
 Pass residual instances to `Problem`; it harvests their variable and node
@@ -138,6 +142,15 @@ class DenseSolver:
             value = torch.as_tensor(ridge, dtype=A.dtype, device=A.device)
             matrix.diagonal(dim1=-2, dim2=-1).add_(value[..., None])
         return torch.linalg.solve(matrix, b)
+
+
+A = torch.tensor([[3.0, 1.0], [1.0, 2.0]])
+b = torch.tensor([9.0, 8.0])
+print(DenseSolver().solve(A, b).tolist())
+```
+
+```{testoutput}
+[2.0, 3.0]
 ```
 
 `b` has shape `(B..., n)`; `ridge` is a scalar, `(B...,)`, or
