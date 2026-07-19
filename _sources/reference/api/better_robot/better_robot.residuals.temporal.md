@@ -23,13 +23,20 @@
 
 ### API
 
-`````{py:class} TimeIndexedResidual(inner, t_idx: int, *, horizon: int | None = None, name: str | None = None)
+`````{py:class} TimeIndexedResidual(inner: better_robot.residuals.base.Residual, t_idx: int, *, name: str | None = None)
 :canonical: better_robot.residuals.temporal.TimeIndexedResidual
+
+Bases: {py:obj}`better_robot.residuals.base.Residual`
 
 ```{autodoc2-docstring} better_robot.residuals.temporal.TimeIndexedResidual
 ```
 
-````{py:method} temporal_structure(variable_name: str) -> better_robot.residuals.structure.TemporalPattern | None
+````{py:method} error() -> torch.Tensor
+:canonical: better_robot.residuals.temporal.TimeIndexedResidual.error
+
+````
+
+````{py:method} temporal_structure(variable: better_robot.residuals._variables.TemporalVariableLike | str) -> better_robot.residuals.structure.TemporalPattern | None
 :canonical: better_robot.residuals.temporal.TimeIndexedResidual.temporal_structure
 
 ```{autodoc2-docstring} better_robot.residuals.temporal.TimeIndexedResidual.temporal_structure
@@ -37,7 +44,7 @@
 
 ````
 
-````{py:method} temporal_jacobian_blocks(ctx: collections.abc.Mapping[str, typing.Any], variable_name: str) -> collections.abc.Mapping[int, torch.Tensor]
+````{py:method} temporal_jacobian_blocks(variable: better_robot.residuals._variables.TemporalVariableLike | str) -> collections.abc.Mapping[int, torch.Tensor]
 :canonical: better_robot.residuals.temporal.TimeIndexedResidual.temporal_jacobian_blocks
 
 ```{autodoc2-docstring} better_robot.residuals.temporal.TimeIndexedResidual.temporal_jacobian_blocks
@@ -45,11 +52,8 @@
 
 ````
 
-````{py:method} jacobian_blocks(ctx: collections.abc.Mapping[str, typing.Any]) -> dict[str, torch.Tensor]
-:canonical: better_robot.residuals.temporal.TimeIndexedResidual.jacobian_blocks
-
-```{autodoc2-docstring} better_robot.residuals.temporal.TimeIndexedResidual.jacobian_blocks
-```
+````{py:method} jacobian() -> tuple[torch.Tensor, ...]
+:canonical: better_robot.residuals.temporal.TimeIndexedResidual.jacobian
 
 ````
 

@@ -33,6 +33,22 @@
     ```
 ````
 
+### Data
+
+````{list-table}
+:class: autosummary longtable
+:align: left
+
+* - {py:obj}`ResidualFactory <better_robot.tasks.trajopt.ResidualFactory>`
+  - ```{autodoc2-docstring} better_robot.tasks.trajopt.ResidualFactory
+    :summary:
+    ```
+* - {py:obj}`OptimizerFactory <better_robot.tasks.trajopt.OptimizerFactory>`
+  - ```{autodoc2-docstring} better_robot.tasks.trajopt.OptimizerFactory
+    :summary:
+    ```
+````
+
 ### API
 
 `````{py:class} TrajOptResult
@@ -153,7 +169,27 @@
 
 `````
 
-````{py:function} solve_trajopt(model: better_robot.data_model.model.Model, *, horizon: int, dt: float, initial_q_traj: torch.Tensor, residuals: collections.abc.Sequence[better_robot.optim.ResidualItem], optimizer: better_robot.optim.LevenbergMarquardt | None = None, max_iter: int = 50, jacobian_strategy: better_robot.optim.JacobianStrategy = 'auto', lower: torch.Tensor | None = None, upper: torch.Tensor | None = None, parameterization: better_robot.tasks.parameterization.KnotTrajectory | None = None) -> better_robot.tasks.trajopt.TrajOptResult
+````{py:data} ResidualFactory
+:canonical: better_robot.tasks.trajopt.ResidualFactory
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.tasks.trajopt.ResidualFactory
+```
+
+````
+
+````{py:data} OptimizerFactory
+:canonical: better_robot.tasks.trajopt.OptimizerFactory
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.tasks.trajopt.OptimizerFactory
+```
+
+````
+
+````{py:function} solve_trajopt(model: better_robot.data_model.model.Model, *, dt: float, initial_q_traj: torch.Tensor | better_robot.optim.RobotVariable, residuals: collections.abc.Sequence[better_robot.optim.Residual | better_robot.tasks.trajopt.ResidualFactory], optimizer: better_robot.tasks.trajopt.OptimizerFactory | None = None, max_iter: int = 50, jacobian_strategy: better_robot.optim.JacobianStrategy = 'auto', lower: torch.Tensor | None = None, upper: torch.Tensor | None = None, parameterization: better_robot.tasks.parameterization.KnotTrajectory | None = None) -> better_robot.tasks.trajopt.TrajOptResult
 :canonical: better_robot.tasks.trajopt.solve_trajopt
 
 ```{autodoc2-docstring} better_robot.tasks.trajopt.solve_trajopt

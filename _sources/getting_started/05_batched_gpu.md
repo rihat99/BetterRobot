@@ -20,9 +20,15 @@ q_batch = model.q_neutral.expand(1000, -1).clone()
 data = br.forward_kinematics(model, q_batch, compute_frames=True)
 hand = data.frame_pose_world[..., model.frame_id("body_panda_hand"), :]
 
-assert q_batch.shape == (1000, model.nq)
-assert hand.shape == (1000, 7)
-assert hand.device == device
+print(q_batch.shape)
+print(hand.shape)
+print(hand.device.type == device.type)
+```
+
+```{testoutput}
+torch.Size([1000, 8])
+torch.Size([1000, 7])
+True
 ```
 
 The batch prefix may have more than one axis, for example `(people, samples,

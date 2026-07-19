@@ -57,7 +57,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -193,7 +193,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
@@ -246,6 +246,7 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -284,12 +285,10 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -603,10 +602,10 @@
                   
   <section id="module-better_robot.tasks.ik">
 <span id="better-robot-tasks-ik"></span><h1><a class="reference internal" href="#module-better_robot.tasks.ik" title="better_robot.tasks.ik"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.ik</span></code></a><a class="headerlink" href="#module-better_robot.tasks.ik" title="Link to this heading">#</a></h1>
-<p>Whole-body inverse kinematics as a named-block optimization preset.</p>
+<p>Whole-body inverse kinematics as an object-referenced optimization preset.</p>
 <p>The task facade owns no solver loop. It assembles one <code class="docutils literal notranslate"><span class="pre">q</span></code> variable on the
-robot-configuration manifold, installs the built-in kinematic residuals and a
-lazy robot-state provider, then runs a public named-block solver.</p>
+robot-configuration manifold, installs the built-in kinematic residuals, and
+runs a public optimizer.</p>
 <section id="module-contents">
 <h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading">#</a></h2>
 <section id="classes">
@@ -617,7 +616,7 @@ lazy robot-state provider, then runs a public named-block solver.</p>
 <td><p>Weights for the built-in IK residuals.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#better_robot.tasks.ik.OptimizerConfig" title="better_robot.tasks.ik.OptimizerConfig"><code class="xref py py-obj docutils literal notranslate"><span class="pre">OptimizerConfig</span></code></a></p></td>
-<td><p>Named-block solver selection and hyperparameters.</p></td>
+<td><p>Optimizer selection and hyperparameters.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.tasks.ik.IKResult" title="better_robot.tasks.ik.IKResult"><code class="xref py py-obj docutils literal notranslate"><span class="pre">IKResult</span></code></a></p></td>
 <td><p>Result of an unbatched or independently batched IK solve.</p></td>
@@ -645,37 +644,37 @@ lazy robot-state provider, then runs a public named-block solver.</p>
 <dd><p>Weights for the built-in IK residuals.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.ik.IKCostConfig.pos_weight">
-<span class="sig-name descname"><span class="pre">pos_weight</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#better_robot.tasks.ik.IKCostConfig.pos_weight" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">pos_weight</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#better_robot.tasks.ik.IKCostConfig.pos_weight" title="Link to this definition">#</a></dt>
 <dd><p>1.0</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.ik.IKCostConfig.ori_weight">
-<span class="sig-name descname"><span class="pre">ori_weight</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#better_robot.tasks.ik.IKCostConfig.ori_weight" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">ori_weight</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#better_robot.tasks.ik.IKCostConfig.ori_weight" title="Link to this definition">#</a></dt>
 <dd><p>1.0</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.ik.IKCostConfig.pose_weight">
-<span class="sig-name descname"><span class="pre">pose_weight</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#better_robot.tasks.ik.IKCostConfig.pose_weight" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">pose_weight</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#better_robot.tasks.ik.IKCostConfig.pose_weight" title="Link to this definition">#</a></dt>
 <dd><p>1.0</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.ik.IKCostConfig.limit_weight">
-<span class="sig-name descname"><span class="pre">limit_weight</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#better_robot.tasks.ik.IKCostConfig.limit_weight" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">limit_weight</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#better_robot.tasks.ik.IKCostConfig.limit_weight" title="Link to this definition">#</a></dt>
 <dd><p>0.1</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.ik.IKCostConfig.rest_weight">
-<span class="sig-name descname"><span class="pre">rest_weight</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#better_robot.tasks.ik.IKCostConfig.rest_weight" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">rest_weight</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#better_robot.tasks.ik.IKCostConfig.rest_weight" title="Link to this definition">#</a></dt>
 <dd><p>0.01</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.ik.IKCostConfig.q_rest">
-<span class="sig-name descname"><span class="pre">q_rest</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#better_robot.tasks.ik.IKCostConfig.q_rest" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">q_rest</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">torch.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#better_robot.tasks.ik.IKCostConfig.q_rest" title="Link to this definition">#</a></dt>
 <dd><p>None</p>
 </dd></dl>
 
@@ -684,10 +683,10 @@ lazy robot-state provider, then runs a public named-block solver.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="better_robot.tasks.ik.OptimizerConfig">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">OptimizerConfig</span></span><a class="reference internal" href="../../../_modules/better_robot/tasks/ik.html#OptimizerConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.tasks.ik.OptimizerConfig" title="Link to this definition">#</a></dt>
-<dd><p>Named-block solver selection and hyperparameters.</p>
+<dd><p>Optimizer selection and hyperparameters.</p>
 <p><code class="docutils literal notranslate"><span class="pre">lm_then_adam</span></code> runs LM followed by the <code class="docutils literal notranslate"><span class="pre">torch.optim</span></code> adapter. Batched
-L-BFGS is deliberately not exposed by the named-block
-stack yet; the retained <code class="docutils literal notranslate"><span class="pre">lbfgs</span></code> spellings fail with an actionable error.
+L-BFGS is deliberately not exposed by the task facade yet; the retained
+<code class="docutils literal notranslate"><span class="pre">lbfgs</span></code> spellings fail with an actionable error.
 Linear-solver and Jacobian settings apply to LM/GN phases; damping applies
 only to configurations with an LM phase.</p>
 <dl class="py attribute">
@@ -698,7 +697,7 @@ only to configurations with an LM phase.</p>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.ik.OptimizerConfig.max_iter">
-<span class="sig-name descname"><span class="pre">max_iter</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#better_robot.tasks.ik.OptimizerConfig.max_iter" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">max_iter</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#better_robot.tasks.ik.OptimizerConfig.max_iter" title="Link to this definition">#</a></dt>
 <dd><p>100</p>
 </dd></dl>
 
@@ -710,31 +709,31 @@ only to configurations with an LM phase.</p>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.ik.OptimizerConfig.linear_solver">
-<span class="sig-name descname"><span class="pre">linear_solver</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.14)"><span class="pre">Literal</span></a><span class="p"><span class="pre">[</span></span><span class="pre">cholesky</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#better_robot.tasks.ik.OptimizerConfig.linear_solver" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">linear_solver</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">cholesky</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#better_robot.tasks.ik.OptimizerConfig.linear_solver" title="Link to this definition">#</a></dt>
 <dd><p>‘cholesky’</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.ik.OptimizerConfig.kernel">
-<span class="sig-name descname"><span class="pre">kernel</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.14)"><span class="pre">Literal</span></a><span class="p"><span class="pre">[</span></span><span class="pre">l2</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">huber</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">cauchy</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">tukey</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#better_robot.tasks.ik.OptimizerConfig.kernel" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">kernel</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">l2</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">huber</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">cauchy</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">tukey</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#better_robot.tasks.ik.OptimizerConfig.kernel" title="Link to this definition">#</a></dt>
 <dd><p>‘l2’</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.ik.OptimizerConfig.damping">
-<span class="sig-name descname"><span class="pre">damping</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.14)"><span class="pre">Literal</span></a><span class="p"><span class="pre">[</span></span><span class="pre">constant</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">adaptive</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#better_robot.tasks.ik.OptimizerConfig.damping" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">damping</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">constant</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">adaptive</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#better_robot.tasks.ik.OptimizerConfig.damping" title="Link to this definition">#</a></dt>
 <dd><p>‘adaptive’</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.ik.OptimizerConfig.tol">
-<span class="sig-name descname"><span class="pre">tol</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#better_robot.tasks.ik.OptimizerConfig.tol" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">tol</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#better_robot.tasks.ik.OptimizerConfig.tol" title="Link to this definition">#</a></dt>
 <dd><p>1e-06</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.ik.OptimizerConfig.refine_disabled_items">
-<span class="sig-name descname"><span class="pre">refine_disabled_items</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#better_robot.tasks.ik.OptimizerConfig.refine_disabled_items" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">refine_disabled_items</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#better_robot.tasks.ik.OptimizerConfig.refine_disabled_items" title="Link to this definition">#</a></dt>
 <dd><p>()</p>
 </dd></dl>
 
@@ -746,25 +745,25 @@ only to configurations with an LM phase.</p>
 <dd><p>Result of an unbatched or independently batched IK solve.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.ik.IKResult.q">
-<span class="sig-name descname"><span class="pre">q</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.tasks.ik.IKResult.q" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">q</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></em><a class="headerlink" href="#better_robot.tasks.ik.IKResult.q" title="Link to this definition">#</a></dt>
 <dd><p>None</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.ik.IKResult.residual">
-<span class="sig-name descname"><span class="pre">residual</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.tasks.ik.IKResult.residual" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">residual</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></em><a class="headerlink" href="#better_robot.tasks.ik.IKResult.residual" title="Link to this definition">#</a></dt>
 <dd><p>None</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.ik.IKResult.iters">
-<span class="sig-name descname"><span class="pre">iters</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.tasks.ik.IKResult.iters" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">iters</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></em><a class="headerlink" href="#better_robot.tasks.ik.IKResult.iters" title="Link to this definition">#</a></dt>
 <dd><p>None</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.ik.IKResult.converged">
-<span class="sig-name descname"><span class="pre">converged</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.tasks.ik.IKResult.converged" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">converged</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></em><a class="headerlink" href="#better_robot.tasks.ik.IKResult.converged" title="Link to this definition">#</a></dt>
 <dd><p>None</p>
 </dd></dl>
 
@@ -782,7 +781,7 @@ only to configurations with an LM phase.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="better_robot.tasks.ik.IKResult.frame_pose">
-<span class="sig-name descname"><span class="pre">frame_pose</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/tasks/ik.html#IKResult.frame_pose"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.tasks.ik.IKResult.frame_pose" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">frame_pose</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">torch.Tensor</span></span></span><a class="reference internal" href="../../../_modules/better_robot/tasks/ik.html#IKResult.frame_pose"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.tasks.ik.IKResult.frame_pose" title="Link to this definition">#</a></dt>
 <dd><p>Return one named frame pose at the solution.</p>
 </dd></dl>
 
@@ -790,7 +789,7 @@ only to configurations with an LM phase.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="better_robot.tasks.ik.solve_ik">
-<span class="sig-name descname"><span class="pre">solve_ik</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.data_model.model.html#better_robot.data_model.model.Model" title="better_robot.data_model.model.Model"><span class="pre">better_robot.data_model.model.Model</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">targets</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_q</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cost_cfg</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#better_robot.tasks.ik.IKCostConfig" title="better_robot.tasks.ik.IKCostConfig"><span class="pre">better_robot.tasks.ik.IKCostConfig</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optimizer_cfg</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#better_robot.tasks.ik.OptimizerConfig" title="better_robot.tasks.ik.OptimizerConfig"><span class="pre">better_robot.tasks.ik.OptimizerConfig</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">differentiable</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#better_robot.tasks.ik.IKResult" title="better_robot.tasks.ik.IKResult"><span class="pre">better_robot.tasks.ik.IKResult</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/tasks/ik.html#solve_ik"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.tasks.ik.solve_ik" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">solve_ik</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.data_model.model.html#better_robot.data_model.model.Model" title="better_robot.data_model.model.Model"><span class="pre">better_robot.data_model.model.Model</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">targets</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_q</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cost_cfg</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#better_robot.tasks.ik.IKCostConfig" title="better_robot.tasks.ik.IKCostConfig"><span class="pre">better_robot.tasks.ik.IKCostConfig</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optimizer_cfg</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#better_robot.tasks.ik.OptimizerConfig" title="better_robot.tasks.ik.OptimizerConfig"><span class="pre">better_robot.tasks.ik.OptimizerConfig</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">differentiable</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#better_robot.tasks.ik.IKResult" title="better_robot.tasks.ik.IKResult"><span class="pre">better_robot.tasks.ik.IKResult</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/tasks/ik.html#solve_ik"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.tasks.ik.solve_ik" title="Link to this definition">#</a></dt>
 <dd><p>Solve one or an arbitrary leading batch of frame-target IK problems.</p>
 <p>Targets map frame names to scalar-last SE(3) poses shaped <code class="docutils literal notranslate"><span class="pre">(B...,</span> <span class="pre">7)</span></code>.
 <code class="docutils literal notranslate"><span class="pre">initial_q</span></code> may be <code class="docutils literal notranslate"><span class="pre">(nq,)</span></code> or <code class="docutils literal notranslate"><span class="pre">(B...,</span> <span class="pre">nq)</span></code> and is broadcast with all
@@ -925,7 +924,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>

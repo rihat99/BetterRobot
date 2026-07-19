@@ -192,7 +192,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
@@ -245,6 +245,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -283,12 +284,10 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -493,8 +492,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntEnum</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">reduce</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">operator</span><span class="w"> </span><span class="kn">import</span> <span class="n">mul</span>
@@ -502,7 +500,7 @@
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">.kernels</span><span class="w"> </span><span class="kn">import</span> <span class="n">L2</span><span class="p">,</span> <span class="n">RobustKernel</span><span class="p">,</span> <span class="n">_group_rows</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.kernels</span><span class="w"> </span><span class="kn">import</span> <span class="n">L2</span><span class="p">,</span> <span class="n">_group_rows</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.solvers</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">BandedCholesky</span><span class="p">,</span>
     <span class="n">Cholesky</span><span class="p">,</span>
@@ -510,12 +508,14 @@
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">._solver_common</span><span class="w"> </span><span class="kn">import</span> <span class="n">_blend_values</span><span class="p">,</span> <span class="n">_state_coordinates</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.implicit</span><span class="w"> </span><span class="kn">import</span> <span class="n">ImplicitDiffConfig</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.manifolds</span><span class="w"> </span><span class="kn">import</span> <span class="n">Euclidean</span><span class="p">,</span> <span class="n">RobotConfig</span><span class="p">,</span> <span class="n">_joint_coordinate_layout</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.problem</span><span class="w"> </span><span class="kn">import</span> <span class="n">JacobianStrategy</span><span class="p">,</span> <span class="n">Problem</span><span class="p">,</span> <span class="n">_check_strategy</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.optimizers</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optimizer</span><span class="p">,</span> <span class="n">OptimizerInfo</span><span class="p">,</span> <span class="n">OptimizerStatus</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.problem</span><span class="w"> </span><span class="kn">import</span> <span class="n">JacobianStrategy</span><span class="p">,</span> <span class="n">Problem</span><span class="p">,</span> <span class="n">_check_strategy</span><span class="p">,</span> <span class="n">_detach</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.temporal</span><span class="w"> </span><span class="kn">import</span> <span class="n">BlockBandedMatrix</span><span class="p">,</span> <span class="n">LinearizationReason</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.variables</span><span class="w"> </span><span class="kn">import</span> <span class="n">Values</span><span class="p">,</span> <span class="n">detach_values</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.variables</span><span class="w"> </span><span class="kn">import</span> <span class="n">RobotVariable</span><span class="p">,</span> <span class="n">_joint_layout</span>
 
 <span class="n">LinearizationMode</span><span class="p">:</span> <span class="n">TypeAlias</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span> <span class="s2">&quot;dense&quot;</span><span class="p">,</span> <span class="s2">&quot;structured&quot;</span><span class="p">]</span>
+<span class="n">_TensorValues</span><span class="p">:</span> <span class="n">TypeAlias</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span>
+<span class="n">_DEFAULT_KERNEL</span> <span class="o">=</span> <span class="n">L2</span><span class="p">()</span>
 
 
 <div class="viewcode-block" id="LinearizationDecision">
@@ -534,22 +534,7 @@
 <span class="n">_ResolvedLinearSolver</span><span class="p">:</span> <span class="n">TypeAlias</span> <span class="o">=</span> <span class="n">LinearSolver</span> <span class="o">|</span> <span class="n">BandedCholesky</span> <span class="o">|</span> <span class="n">Cholesky</span>
 
 
-<div class="viewcode-block" id="LMStatus">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMStatus">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">LMStatus</span><span class="p">(</span><span class="n">IntEnum</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Per-element terminal status stored as ``torch.int8``.&quot;&quot;&quot;</span>
-
-    <span class="n">RUNNING</span> <span class="o">=</span> <span class="mi">0</span>
-    <span class="n">CONVERGED</span> <span class="o">=</span> <span class="mi">1</span>
-    <span class="n">STALLED_AT_BOUNDS</span> <span class="o">=</span> <span class="mi">2</span>
-    <span class="n">MAXITER</span> <span class="o">=</span> <span class="mi">3</span>
-    <span class="n">FAILED</span> <span class="o">=</span> <span class="mi">4</span></div>
-
-
-
-<div class="viewcode-block" id="LMState">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">LMState</span><span class="p">(</span><span class="n">NamedTuple</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">_LMIterationState</span><span class="p">(</span><span class="n">NamedTuple</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Fixed-structure tensor state for arbitrary leading batch axes.&quot;&quot;&quot;</span>
 
     <span class="n">residual</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
@@ -578,8 +563,7 @@
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">kkt_norm</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Alias for the projected-gradient infinity norm.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">projected_grad_norm</span></div>
-
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">projected_grad_norm</span>
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">_JacobianOperators</span><span class="p">(</span><span class="n">NamedTuple</span><span class="p">):</span>
@@ -605,13 +589,13 @@
     <span class="k">return</span> <span class="n">vector</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_split_step</span><span class="p">(</span><span class="n">step</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Values</span><span class="p">:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_split_step</span><span class="p">(</span><span class="n">step</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_TensorValues</span><span class="p">:</span>
     <span class="k">return</span> <span class="p">{</span><span class="n">spec</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">step</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">problem</span><span class="o">.</span><span class="n">column_offsets</span><span class="p">[</span><span class="n">spec</span><span class="o">.</span><span class="n">name</span><span class="p">]]</span> <span class="k">for</span> <span class="n">spec</span> <span class="ow">in</span> <span class="n">problem</span><span class="o">.</span><span class="n">vars</span><span class="p">}</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_difference_reduced</span><span class="p">(</span>
-    <span class="n">x0</span><span class="p">:</span> <span class="n">Values</span><span class="p">,</span>
-    <span class="n">x1</span><span class="p">:</span> <span class="n">Values</span><span class="p">,</span>
+    <span class="n">x0</span><span class="p">:</span> <span class="n">_TensorValues</span><span class="p">,</span>
+    <span class="n">x1</span><span class="p">:</span> <span class="n">_TensorValues</span><span class="p">,</span>
     <span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
     <span class="n">full</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="n">x0</span><span class="p">,</span> <span class="n">x1</span><span class="p">)</span>
@@ -622,16 +606,16 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_retract_reduced</span><span class="p">(</span>
-    <span class="n">values</span><span class="p">:</span> <span class="n">Values</span><span class="p">,</span>
+    <span class="n">values</span><span class="p">:</span> <span class="n">_TensorValues</span><span class="p">,</span>
     <span class="n">step</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Values</span><span class="p">:</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_TensorValues</span><span class="p">:</span>
     <span class="k">return</span> <span class="n">problem</span><span class="o">.</span><span class="n">retract</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">_split_step</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">problem</span><span class="p">))</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_project_step</span><span class="p">(</span>
-    <span class="n">values</span><span class="p">:</span> <span class="n">Values</span><span class="p">,</span> <span class="n">step</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">,</span> <span class="n">limits</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Values</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+    <span class="n">values</span><span class="p">:</span> <span class="n">_TensorValues</span><span class="p">,</span> <span class="n">step</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">,</span> <span class="n">limits</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">_TensorValues</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
     <span class="n">proposed</span> <span class="o">=</span> <span class="n">_retract_reduced</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">_limit_block_step_norms</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">problem</span><span class="p">,</span> <span class="n">limits</span><span class="p">),</span> <span class="n">problem</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">proposed</span><span class="p">,</span> <span class="n">_difference_reduced</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">proposed</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
 
@@ -680,12 +664,12 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;block_step_limits max norm for </span><span class="si">{</span><span class="n">block_name</span><span class="si">!r}</span><span class="s2"> must be a finite positive Python number&quot;</span><span class="p">)</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_detach_state</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="n">LMState</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">LMState</span><span class="p">:</span>
-    <span class="k">return</span> <span class="n">LMState</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">tensor</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span> <span class="k">for</span> <span class="n">tensor</span> <span class="ow">in</span> <span class="n">state</span><span class="p">))</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_detach_state</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="n">_LMIterationState</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_LMIterationState</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">_LMIterationState</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">tensor</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span> <span class="k">for</span> <span class="n">tensor</span> <span class="ow">in</span> <span class="n">state</span><span class="p">))</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_static_layout</span><span class="p">(</span>  <span class="c1"># noqa: PLR0912 - handles the finite supported variable layouts</span>
-    <span class="n">values</span><span class="p">:</span> <span class="n">Values</span><span class="p">,</span>
+    <span class="n">values</span><span class="p">:</span> <span class="n">_TensorValues</span><span class="p">,</span>
     <span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Build scale and state-box-to-tangent maps once at the public boundary.&quot;&quot;&quot;</span>
@@ -703,26 +687,27 @@
         <span class="k">if</span> <span class="n">spec</span><span class="o">.</span><span class="n">free_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">scale</span><span class="p">[</span><span class="n">column</span><span class="p">]</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">free_scale</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="n">exemplar</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
 
+        <span class="n">tangent_dim</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">tangent_dim</span><span class="p">()</span>
         <span class="n">full_mapping</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">full</span><span class="p">(</span>
-            <span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">tangent_dim</span><span class="p">,),</span>
+            <span class="p">(</span><span class="n">tangent_dim</span><span class="p">,),</span>
             <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
             <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">,</span>
             <span class="n">device</span><span class="o">=</span><span class="n">exemplar</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">full_lower</span> <span class="o">=</span> <span class="n">exemplar</span><span class="o">.</span><span class="n">new_full</span><span class="p">((</span><span class="n">spec</span><span class="o">.</span><span class="n">tangent_dim</span><span class="p">,),</span> <span class="o">-</span><span class="n">torch</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
-        <span class="n">full_upper</span> <span class="o">=</span> <span class="n">exemplar</span><span class="o">.</span><span class="n">new_full</span><span class="p">((</span><span class="n">spec</span><span class="o">.</span><span class="n">tangent_dim</span><span class="p">,),</span> <span class="n">torch</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">manifold</span><span class="p">,</span> <span class="n">Euclidean</span><span class="p">):</span>
+        <span class="n">full_lower</span> <span class="o">=</span> <span class="n">exemplar</span><span class="o">.</span><span class="n">new_full</span><span class="p">((</span><span class="n">tangent_dim</span><span class="p">,),</span> <span class="o">-</span><span class="n">torch</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+        <span class="n">full_upper</span> <span class="o">=</span> <span class="n">exemplar</span><span class="o">.</span><span class="n">new_full</span><span class="p">((</span><span class="n">tangent_dim</span><span class="p">,),</span> <span class="n">torch</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">spec</span><span class="p">,</span> <span class="n">RobotVariable</span><span class="p">):</span>
             <span class="n">full_mapping</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span>
                 <span class="n">state_offset</span><span class="p">,</span>
-                <span class="n">state_offset</span> <span class="o">+</span> <span class="n">spec</span><span class="o">.</span><span class="n">tangent_dim</span><span class="p">,</span>
+                <span class="n">state_offset</span> <span class="o">+</span> <span class="n">tangent_dim</span><span class="p">,</span>
                 <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">,</span>
                 <span class="n">device</span><span class="o">=</span><span class="n">exemplar</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="k">if</span> <span class="n">spec</span><span class="o">.</span><span class="n">bounds</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">full_lower</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">lower</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
                 <span class="n">full_upper</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">upper</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">manifold</span><span class="p">,</span> <span class="n">RobotConfig</span><span class="p">):</span>
-            <span class="n">model</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">manifold</span><span class="o">.</span><span class="n">model</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">spec</span><span class="p">,</span> <span class="n">RobotVariable</span><span class="p">):</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">model</span>
             <span class="n">q_for_v</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">model</span><span class="o">.</span><span class="n">nv</span>
             <span class="n">unsafe_q</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">for</span> <span class="n">joint</span><span class="p">,</span> <span class="n">nq_joint</span><span class="p">,</span> <span class="n">nv_joint</span><span class="p">,</span> <span class="n">iq</span><span class="p">,</span> <span class="n">iv</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
@@ -735,7 +720,7 @@
             <span class="p">):</span>
                 <span class="k">if</span> <span class="n">nq_joint</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">nv_joint</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
                     <span class="k">continue</span>
-                <span class="n">layout</span> <span class="o">=</span> <span class="n">_joint_coordinate_layout</span><span class="p">(</span><span class="n">joint</span><span class="p">)</span>
+                <span class="n">layout</span> <span class="o">=</span> <span class="n">_joint_layout</span><span class="p">(</span><span class="n">joint</span><span class="p">)</span>
                 <span class="k">for</span> <span class="n">local_v</span><span class="p">,</span> <span class="n">local_q</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">q_for_v</span><span class="p">):</span>
                     <span class="k">if</span> <span class="n">local_q</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
                         <span class="n">q_for_v</span><span class="p">[</span><span class="n">iv</span> <span class="o">+</span> <span class="n">local_v</span><span class="p">]</span> <span class="o">=</span> <span class="n">iq</span> <span class="o">+</span> <span class="n">local_q</span>
@@ -747,7 +732,7 @@
                 <span class="p">)</span>
                 <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="n">unsafe_finite</span><span class="o">.</span><span class="n">any</span><span class="p">()):</span>  <span class="c1"># bench-ok: init-only static bounds validation</span>
                     <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                        <span class="sa">f</span><span class="s2">&quot;RobotConfig VarSpec </span><span class="si">{</span><span class="n">spec</span><span class="o">.</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> has a finite free-flyer &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;RobotVariable </span><span class="si">{</span><span class="n">spec</span><span class="o">.</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> has a finite free-flyer &quot;</span>
                         <span class="s2">&quot;translation bound. World-axis state boxes are not axis-aligned &quot;</span>
                         <span class="s2">&quot;in the right-local SE(3) tangent; defer this constraint or &quot;</span>
                         <span class="s2">&quot;express it as a residual.&quot;</span>
@@ -775,7 +760,6 @@
 <span class="k">def</span><span class="w"> </span><span class="nf">_robustify</span><span class="p">(</span>
     <span class="n">residual</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">,</span>
-    <span class="n">default_kernel</span><span class="p">:</span> <span class="n">RobustKernel</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
     <span class="n">costs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">row_weights</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
@@ -783,7 +767,7 @@
         <span class="n">rows</span> <span class="o">=</span> <span class="n">residual</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">problem</span><span class="o">.</span><span class="n">row_offsets</span><span class="p">[</span><span class="n">item</span><span class="o">.</span><span class="n">name</span><span class="p">]]</span>
         <span class="n">groups</span> <span class="o">=</span> <span class="n">_group_rows</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">item</span><span class="o">.</span><span class="n">group_size</span><span class="p">)</span>
         <span class="n">squared_norm</span> <span class="o">=</span> <span class="n">groups</span><span class="o">.</span><span class="n">square</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
-        <span class="n">kernel</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">kernel</span> <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">kernel</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">default_kernel</span>
+        <span class="n">kernel</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">kernel</span> <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">kernel</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">_DEFAULT_KERNEL</span>
         <span class="n">costs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">kernel</span><span class="o">.</span><span class="n">rho</span><span class="p">(</span><span class="n">squared_norm</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">))</span>
         <span class="n">group_weight</span> <span class="o">=</span> <span class="n">kernel</span><span class="o">.</span><span class="n">weight</span><span class="p">(</span><span class="n">squared_norm</span><span class="p">)</span>
         <span class="n">row_weights</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">group_weight</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="o">*</span><span class="n">group_weight</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">item</span><span class="o">.</span><span class="n">group_size</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">*</span><span class="n">rows</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
@@ -797,7 +781,6 @@
     <span class="n">current</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">candidate</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">,</span>
-    <span class="n">default_kernel</span><span class="p">:</span> <span class="n">RobustKernel</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Accumulate per-group decreases without subtracting two large totals.&quot;&quot;&quot;</span>
     <span class="n">decreases</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
@@ -805,7 +788,7 @@
         <span class="n">row_slice</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">row_offsets</span><span class="p">[</span><span class="n">item</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
         <span class="n">current_groups</span> <span class="o">=</span> <span class="n">_group_rows</span><span class="p">(</span><span class="n">current</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">row_slice</span><span class="p">],</span> <span class="n">item</span><span class="o">.</span><span class="n">group_size</span><span class="p">)</span>
         <span class="n">candidate_groups</span> <span class="o">=</span> <span class="n">_group_rows</span><span class="p">(</span><span class="n">candidate</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">row_slice</span><span class="p">],</span> <span class="n">item</span><span class="o">.</span><span class="n">group_size</span><span class="p">)</span>
-        <span class="n">kernel</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">kernel</span> <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">kernel</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">default_kernel</span>
+        <span class="n">kernel</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">kernel</span> <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">kernel</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">_DEFAULT_KERNEL</span>
         <span class="n">current_rho</span> <span class="o">=</span> <span class="n">kernel</span><span class="o">.</span><span class="n">rho</span><span class="p">(</span><span class="n">current_groups</span><span class="o">.</span><span class="n">square</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">))</span>
         <span class="n">candidate_rho</span> <span class="o">=</span> <span class="n">kernel</span><span class="o">.</span><span class="n">rho</span><span class="p">(</span><span class="n">candidate_groups</span><span class="o">.</span><span class="n">square</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">))</span>
         <span class="n">decreases</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">current_rho</span> <span class="o">-</span> <span class="n">candidate_rho</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">))</span>
@@ -823,7 +806,7 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_active_mask</span><span class="p">(</span>
-    <span class="n">values</span><span class="p">:</span> <span class="n">Values</span><span class="p">,</span>
+    <span class="n">values</span><span class="p">:</span> <span class="n">_TensorValues</span><span class="p">,</span>
     <span class="n">gradient</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">,</span>
     <span class="n">state_index</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
@@ -841,7 +824,7 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_projected_gradient</span><span class="p">(</span>
-    <span class="n">values</span><span class="p">:</span> <span class="n">Values</span><span class="p">,</span>
+    <span class="n">values</span><span class="p">:</span> <span class="n">_TensorValues</span><span class="p">,</span>
     <span class="n">gradient</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">,</span>
     <span class="n">bounded</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
@@ -849,14 +832,14 @@
     <span class="n">projected</span> <span class="o">=</span> <span class="n">_retract_reduced</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="o">-</span><span class="n">gradient</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
     <span class="c1"># P(x - g) - x is the projected *descent* direction; negate it so the</span>
     <span class="c1"># stored vector follows the ordinary-gradient sign on bounded axes. Group</span>
-    <span class="c1"># manifolds are unbounded under VarSpec and can wrap a large tangent</span>
+    <span class="c1"># group variables are unbounded and can wrap a large tangent</span>
     <span class="c1"># through log(exp(.)); retain their raw gradient instead.</span>
     <span class="n">projected_box_gradient</span> <span class="o">=</span> <span class="o">-</span><span class="n">_difference_reduced</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">projected</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">bounded</span><span class="p">,</span> <span class="n">projected_box_gradient</span><span class="p">,</span> <span class="n">gradient</span><span class="p">)</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_linearize_model</span><span class="p">(</span>
-    <span class="n">values</span><span class="p">:</span> <span class="n">Values</span><span class="p">,</span>
+    <span class="n">values</span><span class="p">:</span> <span class="n">_TensorValues</span><span class="p">,</span>
     <span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">,</span>
     <span class="n">solver</span><span class="p">:</span> <span class="n">LevenbergMarquardt</span><span class="p">,</span>
     <span class="n">decision</span><span class="p">:</span> <span class="n">LinearizationDecision</span><span class="p">,</span>
@@ -864,12 +847,12 @@
     <span class="n">create_graph</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_LinearizedLeastSquares</span><span class="p">:</span>
     <span class="n">state_index</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">bounded</span> <span class="o">=</span> <span class="n">bounds</span>
-    <span class="n">residual</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">residual</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
-    <span class="n">cost</span><span class="p">,</span> <span class="n">robust_weights</span><span class="p">,</span> <span class="n">row_scale</span> <span class="o">=</span> <span class="n">_robustify</span><span class="p">(</span><span class="n">residual</span><span class="p">,</span> <span class="n">problem</span><span class="p">,</span> <span class="n">solver</span><span class="o">.</span><span class="n">kernel</span><span class="p">)</span>
+    <span class="n">residual</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">_error_at</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+    <span class="n">cost</span><span class="p">,</span> <span class="n">robust_weights</span><span class="p">,</span> <span class="n">row_scale</span> <span class="o">=</span> <span class="n">_robustify</span><span class="p">(</span><span class="n">residual</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
     <span class="n">common_finite</span> <span class="o">=</span> <span class="n">_robust_finite</span><span class="p">(</span><span class="n">residual</span><span class="p">,</span> <span class="n">cost</span><span class="p">,</span> <span class="n">robust_weights</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">decision</span><span class="o">.</span><span class="n">used</span> <span class="o">==</span> <span class="s2">&quot;dense&quot;</span><span class="p">:</span>
-        <span class="n">jacobian_raw</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">dense_jacobian</span><span class="p">(</span>
+        <span class="n">jacobian_raw</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">_dense_jacobian_at</span><span class="p">(</span>
             <span class="n">values</span><span class="p">,</span>
             <span class="n">strategy</span><span class="o">=</span><span class="n">solver</span><span class="o">.</span><span class="n">jacobian_strategy</span><span class="p">,</span>
             <span class="n">create_graph</span><span class="o">=</span><span class="n">create_graph</span><span class="p">,</span>
@@ -930,39 +913,60 @@
 <span class="k">def</span><span class="w"> </span><span class="nf">_terminal_status</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">_LinearizedLeastSquares</span><span class="p">,</span> <span class="n">gtol</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
     <span class="n">active_kkt</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">active_mask</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">grad_norm</span> <span class="o">&gt;</span> <span class="n">gtol</span><span class="p">)</span>
     <span class="n">satisfies_kkt</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">finite</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">projected_grad_norm</span> <span class="o">&lt;=</span> <span class="n">gtol</span><span class="p">)</span>
-    <span class="n">running</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">projected_grad_norm</span><span class="p">,</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">RUNNING</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span>
-    <span class="n">converged</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">running</span><span class="p">,</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">CONVERGED</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
-    <span class="n">stalled</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">running</span><span class="p">,</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">STALLED_AT_BOUNDS</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
-    <span class="n">failed</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">running</span><span class="p">,</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">FAILED</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+    <span class="n">running</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">projected_grad_norm</span><span class="p">,</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">RUNNING</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span>
+    <span class="n">converged</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">running</span><span class="p">,</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">CONVERGED</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+    <span class="n">stalled</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">running</span><span class="p">,</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">STALLED_AT_BOUNDS</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+    <span class="n">failed</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">running</span><span class="p">,</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">FAILED</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
     <span class="n">success</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">active_kkt</span><span class="p">,</span> <span class="n">stalled</span><span class="p">,</span> <span class="n">converged</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="o">~</span><span class="n">model</span><span class="o">.</span><span class="n">finite</span><span class="p">,</span> <span class="n">failed</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">satisfies_kkt</span><span class="p">,</span> <span class="n">success</span><span class="p">,</span> <span class="n">running</span><span class="p">))</span>
 
 
 <div class="viewcode-block" id="LevenbergMarquardt">
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt">[docs]</a>
-<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">LevenbergMarquardt</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Batched projected active-set LM over named-block problems.&quot;&quot;&quot;</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">LevenbergMarquardt</span><span class="p">(</span><span class="n">Optimizer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Batched projected active-set LM that owns one problem.&quot;&quot;&quot;</span>
 
-    <span class="n">max_iter</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">50</span>
-    <span class="n">gtol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-6</span>
-    <span class="n">xtol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-9</span>
-    <span class="n">ftol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-9</span>
-    <span class="n">damping_parameter</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-4</span>
-    <span class="n">mu_min</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-12</span>
-    <span class="n">mu_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="mi">32</span><span class="p">)</span>
-    <span class="n">increase_factor_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="mi">32</span><span class="p">)</span>
-    <span class="n">bound_tolerance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-7</span>
-    <span class="n">linear_solver</span><span class="p">:</span> <span class="n">LinearSolver</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">linearization</span><span class="p">:</span> <span class="n">LinearizationMode</span> <span class="o">=</span> <span class="s2">&quot;auto&quot;</span>
-    <span class="n">kernel</span><span class="p">:</span> <span class="n">RobustKernel</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">L2</span><span class="p">)</span>
-    <span class="n">jacobian_strategy</span><span class="p">:</span> <span class="n">JacobianStrategy</span> <span class="o">=</span> <span class="s2">&quot;auto&quot;</span>
-    <span class="n">fixed_damping</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
-    <span class="n">block_step_limits</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_iter</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_iter</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_iter</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;max_iter must be a non-negative int&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">solver</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;auto&quot;</span><span class="p">]</span> <span class="o">|</span> <span class="n">LinearSolver</span> <span class="o">=</span> <span class="s2">&quot;auto&quot;</span><span class="p">,</span>
+        <span class="n">max_iterations</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span>
+        <span class="n">tolerance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-6</span><span class="p">,</span>
+        <span class="n">step_tolerance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-9</span><span class="p">,</span>
+        <span class="n">relative_tolerance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-9</span><span class="p">,</span>
+        <span class="n">damping</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-4</span><span class="p">,</span>
+        <span class="n">mu_min</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-12</span><span class="p">,</span>
+        <span class="n">mu_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="mi">32</span><span class="p">),</span>
+        <span class="n">increase_factor_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="mi">32</span><span class="p">),</span>
+        <span class="n">bound_tolerance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-7</span><span class="p">,</span>
+        <span class="n">linearization</span><span class="p">:</span> <span class="n">LinearizationMode</span> <span class="o">=</span> <span class="s2">&quot;auto&quot;</span><span class="p">,</span>
+        <span class="n">jacobian_strategy</span><span class="p">:</span> <span class="n">JacobianStrategy</span> <span class="o">=</span> <span class="s2">&quot;auto&quot;</span><span class="p">,</span>
+        <span class="n">fixed_damping</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">block_step_limits</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(),</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">problem</span><span class="p">,</span> <span class="n">max_iterations</span><span class="o">=</span><span class="n">max_iterations</span><span class="p">,</span> <span class="n">tolerance</span><span class="o">=</span><span class="n">tolerance</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">solver</span> <span class="o">==</span> <span class="s2">&quot;auto&quot;</span><span class="p">:</span>
+            <span class="n">linear_solver</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">solver</span><span class="p">,</span> <span class="n">LinearSolver</span><span class="p">):</span>
+            <span class="n">linear_solver</span> <span class="o">=</span> <span class="n">solver</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;solver must be &#39;auto&#39; or implement solve(A, b, ridge=None)&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gtol</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tolerance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">xtol</span> <span class="o">=</span> <span class="n">step_tolerance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ftol</span> <span class="o">=</span> <span class="n">relative_tolerance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">damping_parameter</span> <span class="o">=</span> <span class="n">damping</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mu_min</span> <span class="o">=</span> <span class="n">mu_min</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mu_max</span> <span class="o">=</span> <span class="n">mu_max</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">increase_factor_max</span> <span class="o">=</span> <span class="n">increase_factor_max</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bound_tolerance</span> <span class="o">=</span> <span class="n">bound_tolerance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">linear_solver</span> <span class="o">=</span> <span class="n">linear_solver</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">linearization</span> <span class="o">=</span> <span class="n">linearization</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">jacobian_strategy</span> <span class="o">=</span> <span class="n">jacobian_strategy</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fixed_damping</span> <span class="o">=</span> <span class="n">fixed_damping</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">block_step_limits</span> <span class="o">=</span> <span class="n">block_step_limits</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="p">:</span> <span class="n">_LMIterationState</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_seen_update_serial</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">_update_serial</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fixed_damping</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;fixed_damping must be a static bool&quot;</span><span class="p">)</span>
         <span class="n">_validate_block_step_limits</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">block_step_limits</span><span class="p">)</span>
@@ -990,10 +994,7 @@
         <span class="n">_check_strategy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">jacobian_strategy</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">linearization</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span> <span class="s2">&quot;dense&quot;</span><span class="p">,</span> <span class="s2">&quot;structured&quot;</span><span class="p">}:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;linearization must be auto/dense/structured&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">linear_solver</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">linear_solver</span><span class="p">,</span> <span class="n">LinearSolver</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;linear_solver must implement solve(A, b, ridge=None)&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">,</span> <span class="n">RobustKernel</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;kernel must implement rho(squared_norm) and weight(squared_norm)&quot;</span><span class="p">)</span>
+        <span class="n">problem</span><span class="o">.</span><span class="n">_freeze</span><span class="p">()</span>
 
 <div class="viewcode-block" id="LevenbergMarquardt.resolve_linearization">
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.resolve_linearization">[docs]</a>
@@ -1048,15 +1049,13 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">_resolved_linear_solver</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">decision</span><span class="p">:</span> <span class="n">LinearizationDecision</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_ResolvedLinearSolver</span><span class="p">:</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">linear_solver</span> <span class="ow">or</span> <span class="p">(</span><span class="n">BandedCholesky</span><span class="p">()</span> <span class="k">if</span> <span class="n">decision</span><span class="o">.</span><span class="n">used</span> <span class="o">==</span> <span class="s2">&quot;banded&quot;</span> <span class="k">else</span> <span class="n">Cholesky</span><span class="p">())</span>
 
-<div class="viewcode-block" id="LevenbergMarquardt.init_state">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.init_state">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">init_state</span><span class="p">(</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_init_state</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">values</span><span class="p">:</span> <span class="n">Values</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">_TensorValues</span><span class="p">,</span>
         <span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">create_graph</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">LMState</span><span class="p">:</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_LMIterationState</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate a solve boundary and evaluate its initial linearization.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">create_graph</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;create_graph must be a static bool&quot;</span><span class="p">)</span>
@@ -1074,16 +1073,16 @@
             <span class="p">)</span>
         <span class="k">if</span> <span class="n">problem</span><span class="o">.</span><span class="n">tangent_dim_total</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> requires at least one free tangent coordinate&quot;</span><span class="p">)</span>
-        <span class="n">batch_shape</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">_validate_values</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+        <span class="n">batch_shape</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">_validate_trainable_values</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
         <span class="n">decision</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_linearization</span><span class="p">(</span><span class="n">problem</span><span class="p">)</span>
         <span class="n">scale</span><span class="p">,</span> <span class="n">state_index</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">bounded</span> <span class="o">=</span> <span class="n">_static_layout</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
         <span class="n">model</span> <span class="o">=</span> <span class="n">_linearize_model</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">problem</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">decision</span><span class="p">,</span> <span class="p">(</span><span class="n">state_index</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">bounded</span><span class="p">),</span> <span class="n">create_graph</span><span class="p">)</span>
         <span class="n">diagonal_max</span> <span class="o">=</span> <span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">normal_diagonal</span> <span class="o">*</span> <span class="n">scale</span><span class="o">.</span><span class="n">square</span><span class="p">())</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
         <span class="n">mu</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">damping_parameter</span> <span class="o">*</span> <span class="n">diagonal_max</span><span class="p">)</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mu_min</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mu_max</span><span class="p">)</span>
         <span class="n">status</span> <span class="o">=</span> <span class="n">_terminal_status</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gtol</span><span class="p">)</span>
-        <span class="n">converged</span> <span class="o">=</span> <span class="p">(</span><span class="n">status</span> <span class="o">==</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">CONVERGED</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">status</span> <span class="o">==</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">STALLED_AT_BOUNDS</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">converged</span> <span class="o">=</span> <span class="p">(</span><span class="n">status</span> <span class="o">==</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">CONVERGED</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">status</span> <span class="o">==</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">STALLED_AT_BOUNDS</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
         <span class="n">zeros</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">cost</span><span class="o">.</span><span class="n">new_zeros</span><span class="p">(</span><span class="n">batch_shape</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">LMState</span><span class="p">(</span>
+        <span class="k">return</span> <span class="n">_LMIterationState</span><span class="p">(</span>
             <span class="n">residual</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">residual</span><span class="p">,</span>
             <span class="n">robust_weights</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">robust_weights</span><span class="p">,</span>
             <span class="n">cost</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">cost</span><span class="p">,</span>
@@ -1098,7 +1097,7 @@
             <span class="n">active_mask</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">active_mask</span><span class="p">,</span>
             <span class="n">factorization_ok</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">cost</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">bool</span><span class="p">),</span>
             <span class="n">converged</span><span class="o">=</span><span class="n">converged</span><span class="p">,</span>
-            <span class="n">implicit_valid</span><span class="o">=</span><span class="p">(</span><span class="n">status</span> <span class="o">==</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">CONVERGED</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">model</span><span class="o">.</span><span class="n">finite</span><span class="p">,</span>
+            <span class="n">implicit_valid</span><span class="o">=</span><span class="p">(</span><span class="n">status</span> <span class="o">==</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">CONVERGED</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">model</span><span class="o">.</span><span class="n">finite</span><span class="p">,</span>
             <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span>
             <span class="n">iterations</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">int64</span><span class="p">),</span>
             <span class="n">scale</span><span class="o">=</span><span class="n">scale</span><span class="p">,</span>
@@ -1106,13 +1105,12 @@
             <span class="n">bound_lower</span><span class="o">=</span><span class="n">lower</span><span class="p">,</span>
             <span class="n">bound_upper</span><span class="o">=</span><span class="n">upper</span><span class="p">,</span>
             <span class="n">bounded_mask</span><span class="o">=</span><span class="n">bounded</span><span class="p">,</span>
-        <span class="p">)</span></div>
-
+        <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_solve_step</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">model</span><span class="p">:</span> <span class="n">_LinearizedLeastSquares</span><span class="p">,</span>
-        <span class="n">state</span><span class="p">:</span> <span class="n">LMState</span><span class="p">,</span>
+        <span class="n">state</span><span class="p">:</span> <span class="n">_LMIterationState</span><span class="p">,</span>
         <span class="n">decision</span><span class="p">:</span> <span class="n">LinearizationDecision</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
         <span class="n">scaled_gradient</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">gradient</span> <span class="o">*</span> <span class="n">state</span><span class="o">.</span><span class="n">scale</span>
@@ -1147,17 +1145,15 @@
         <span class="n">safe_step</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">ok</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">raw_step</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">raw_step</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">state</span><span class="o">.</span><span class="n">scale</span> <span class="o">*</span> <span class="n">safe_step</span> <span class="o">*</span> <span class="n">movable</span><span class="p">,</span> <span class="n">ok</span>
 
-<div class="viewcode-block" id="LevenbergMarquardt.update">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.update">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">update</span><span class="p">(</span>  <span class="c1"># noqa: PLR0915 - one fixed-work tensor program keeps acceptance auditable</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_update</span><span class="p">(</span>  <span class="c1"># noqa: PLR0915 - one fixed-work tensor program keeps acceptance auditable</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">values</span><span class="p">:</span> <span class="n">Values</span><span class="p">,</span>
-        <span class="n">state</span><span class="p">:</span> <span class="n">LMState</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">_TensorValues</span><span class="p">,</span>
+        <span class="n">state</span><span class="p">:</span> <span class="n">_LMIterationState</span><span class="p">,</span>
         <span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">create_graph</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Values</span><span class="p">,</span> <span class="n">LMState</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Apply one pure, sync-free, fixed-shape batched LM update.</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">_TensorValues</span><span class="p">,</span> <span class="n">_LMIterationState</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Apply one pure, sync-free, fixed-shape batched LM _update.</span>
 
 <span class="sd">        ``create_graph=True`` is the explicit small-problem unrolled oracle;</span>
 <span class="sd">        the default step and :meth:`run` retain no Jacobian graph.</span>
@@ -1166,10 +1162,10 @@
         <span class="n">bounds</span> <span class="o">=</span> <span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">bound_state_index</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">bound_lower</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">bound_upper</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">bounded_mask</span><span class="p">)</span>
         <span class="n">model</span> <span class="o">=</span> <span class="n">_linearize_model</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">problem</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">decision</span><span class="p">,</span> <span class="n">bounds</span><span class="p">,</span> <span class="n">create_graph</span><span class="p">)</span>
         <span class="n">terminal_now</span> <span class="o">=</span> <span class="n">_terminal_status</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gtol</span><span class="p">)</span>
-        <span class="n">was_running</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">RUNNING</span><span class="o">.</span><span class="n">value</span>
-        <span class="n">terminal_from_model</span> <span class="o">=</span> <span class="n">was_running</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">terminal_now</span> <span class="o">!=</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">RUNNING</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">was_running</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">RUNNING</span><span class="o">.</span><span class="n">value</span>
+        <span class="n">terminal_from_model</span> <span class="o">=</span> <span class="n">was_running</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">terminal_now</span> <span class="o">!=</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">RUNNING</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
         <span class="n">current_status</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">terminal_from_model</span><span class="p">,</span> <span class="n">terminal_now</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
-        <span class="n">movable_element</span> <span class="o">=</span> <span class="n">current_status</span> <span class="o">==</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">RUNNING</span><span class="o">.</span><span class="n">value</span>
+        <span class="n">movable_element</span> <span class="o">=</span> <span class="n">current_status</span> <span class="o">==</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">RUNNING</span><span class="o">.</span><span class="n">value</span>
 
         <span class="n">lm_step</span><span class="p">,</span> <span class="n">factorization_ok</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_solve_step</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">decision</span><span class="p">)</span>
         <span class="n">lm_values</span><span class="p">,</span> <span class="n">lm_actual_step</span> <span class="o">=</span> <span class="n">_project_step</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">lm_step</span><span class="p">,</span> <span class="n">problem</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_step_limits</span><span class="p">)</span>
@@ -1198,18 +1194,9 @@
             <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">selected_step</span><span class="p">),</span>
         <span class="p">)</span>
 
-        <span class="n">candidate_residual</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">residual</span><span class="p">(</span><span class="n">selected_values</span><span class="p">)</span>
-        <span class="n">candidate_cost</span><span class="p">,</span> <span class="n">candidate_weights</span><span class="p">,</span> <span class="n">_candidate_row_scale</span> <span class="o">=</span> <span class="n">_robustify</span><span class="p">(</span>
-            <span class="n">candidate_residual</span><span class="p">,</span>
-            <span class="n">problem</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="n">actual_decrease</span> <span class="o">=</span> <span class="n">_robust_decrease</span><span class="p">(</span>
-            <span class="n">model</span><span class="o">.</span><span class="n">residual</span><span class="p">,</span>
-            <span class="n">candidate_residual</span><span class="p">,</span>
-            <span class="n">problem</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">,</span>
-        <span class="p">)</span>
+        <span class="n">candidate_residual</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">_error_at</span><span class="p">(</span><span class="n">selected_values</span><span class="p">)</span>
+        <span class="n">candidate_cost</span><span class="p">,</span> <span class="n">candidate_weights</span><span class="p">,</span> <span class="n">_candidate_row_scale</span> <span class="o">=</span> <span class="n">_robustify</span><span class="p">(</span><span class="n">candidate_residual</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
+        <span class="n">actual_decrease</span> <span class="o">=</span> <span class="n">_robust_decrease</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">residual</span><span class="p">,</span> <span class="n">candidate_residual</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
         <span class="n">gain_ratio</span> <span class="o">=</span> <span class="n">actual_decrease</span> <span class="o">/</span> <span class="n">prediction</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">finfo</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">cost</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span>
         <span class="n">candidate_finite</span> <span class="o">=</span> <span class="n">_robust_finite</span><span class="p">(</span><span class="n">candidate_residual</span><span class="p">,</span> <span class="n">candidate_cost</span><span class="p">,</span> <span class="n">candidate_weights</span><span class="p">)</span>
         <span class="n">accept</span> <span class="o">=</span> <span class="p">(</span>
@@ -1247,7 +1234,7 @@
         <span class="n">failed_model</span> <span class="o">=</span> <span class="n">movable_element</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">model</span><span class="o">.</span><span class="n">finite</span>
         <span class="n">failure_status</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
             <span class="n">failed_factor</span> <span class="o">|</span> <span class="n">failed_model</span><span class="p">,</span>
-            <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">current_status</span><span class="p">,</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">FAILED</span><span class="o">.</span><span class="n">value</span><span class="p">),</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">current_status</span><span class="p">,</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">FAILED</span><span class="o">.</span><span class="n">value</span><span class="p">),</span>
             <span class="n">current_status</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">taken_step</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">accept</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">selected_step</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">selected_step</span><span class="p">))</span>
@@ -1265,10 +1252,12 @@
         <span class="p">)</span>
         <span class="n">next_status</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
             <span class="n">tolerance_converged</span><span class="p">,</span>
-            <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">failure_status</span><span class="p">,</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">CONVERGED</span><span class="o">.</span><span class="n">value</span><span class="p">),</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">failure_status</span><span class="p">,</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">CONVERGED</span><span class="o">.</span><span class="n">value</span><span class="p">),</span>
             <span class="n">failure_status</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">converged</span> <span class="o">=</span> <span class="p">(</span><span class="n">next_status</span> <span class="o">==</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">CONVERGED</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">next_status</span> <span class="o">==</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">STALLED_AT_BOUNDS</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">converged</span> <span class="o">=</span> <span class="p">(</span><span class="n">next_status</span> <span class="o">==</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">CONVERGED</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span>
+            <span class="n">next_status</span> <span class="o">==</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">STALLED_AT_BOUNDS</span><span class="o">.</span><span class="n">value</span>
+        <span class="p">)</span>
         <span class="n">iterations</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">iterations</span> <span class="o">+</span> <span class="n">movable_element</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">state</span><span class="o">.</span><span class="n">iterations</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
         <span class="n">next_state</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">_replace</span><span class="p">(</span>
             <span class="n">residual</span><span class="o">=</span><span class="n">next_residual</span><span class="p">,</span>
@@ -1291,49 +1280,48 @@
             <span class="n">converged</span><span class="o">=</span><span class="n">converged</span><span class="p">,</span>
             <span class="c1"># Step/decrease termination is a valid numerical stop, but only</span>
             <span class="c1"># the final-point KKT evaluation may make it implicit-eligible.</span>
-            <span class="n">implicit_valid</span><span class="o">=</span><span class="p">(</span><span class="n">next_status</span> <span class="o">==</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">CONVERGED</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
-            <span class="o">&amp;</span> <span class="p">(</span><span class="n">terminal_now</span> <span class="o">==</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">CONVERGED</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+            <span class="n">implicit_valid</span><span class="o">=</span><span class="p">(</span><span class="n">next_status</span> <span class="o">==</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">CONVERGED</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+            <span class="o">&amp;</span> <span class="p">(</span><span class="n">terminal_now</span> <span class="o">==</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">CONVERGED</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
             <span class="o">&amp;</span> <span class="n">model</span><span class="o">.</span><span class="n">finite</span><span class="p">,</span>
             <span class="n">status</span><span class="o">=</span><span class="n">next_status</span><span class="p">,</span>
             <span class="n">iterations</span><span class="o">=</span><span class="n">iterations</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="k">return</span> <span class="n">next_values</span><span class="p">,</span> <span class="n">next_state</span></div>
+        <span class="k">return</span> <span class="n">next_values</span><span class="p">,</span> <span class="n">next_state</span>
 
-
-<div class="viewcode-block" id="LevenbergMarquardt.finalize">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.finalize">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">finalize</span><span class="p">(</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_finalize</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">values</span><span class="p">:</span> <span class="n">Values</span><span class="p">,</span>
-        <span class="n">state</span><span class="p">:</span> <span class="n">LMState</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">_TensorValues</span><span class="p">,</span>
+        <span class="n">state</span><span class="p">:</span> <span class="n">_LMIterationState</span><span class="p">,</span>
         <span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">create_graph</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Values</span><span class="p">,</span> <span class="n">LMState</span><span class="p">]:</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">_TensorValues</span><span class="p">,</span> <span class="n">_LMIterationState</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Canonical final-point evaluation for consistent terminal artifacts.&quot;&quot;&quot;</span>
         <span class="n">decision</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_linearization</span><span class="p">(</span><span class="n">problem</span><span class="p">)</span>
         <span class="n">bounds</span> <span class="o">=</span> <span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">bound_state_index</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">bound_lower</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">bound_upper</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">bounded_mask</span><span class="p">)</span>
         <span class="n">model</span> <span class="o">=</span> <span class="n">_linearize_model</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">problem</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">decision</span><span class="p">,</span> <span class="n">bounds</span><span class="p">,</span> <span class="n">create_graph</span><span class="p">)</span>
         <span class="n">terminal</span> <span class="o">=</span> <span class="n">_terminal_status</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gtol</span><span class="p">)</span>
-        <span class="n">preserve_terminal_failure</span> <span class="o">=</span> <span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">FAILED</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">MAXITER</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">preserve_terminal_failure</span> <span class="o">=</span> <span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">FAILED</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">MAXITER</span><span class="o">.</span><span class="n">value</span>
+        <span class="p">)</span>
         <span class="n">same_terminal_artifacts</span> <span class="o">=</span> <span class="p">(</span>
             <span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">residual</span> <span class="o">==</span> <span class="n">state</span><span class="o">.</span><span class="n">residual</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
             <span class="o">&amp;</span> <span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">robust_weights</span> <span class="o">==</span> <span class="n">state</span><span class="o">.</span><span class="n">robust_weights</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
             <span class="o">&amp;</span> <span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">cost</span> <span class="o">==</span> <span class="n">state</span><span class="o">.</span><span class="n">cost</span><span class="p">)</span>
         <span class="p">)</span>
         <span class="n">preserve_tolerance_convergence</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">CONVERGED</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">state</span><span class="o">.</span><span class="n">implicit_valid</span> <span class="o">&amp;</span> <span class="n">same_terminal_artifacts</span>
+            <span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">CONVERGED</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">state</span><span class="o">.</span><span class="n">implicit_valid</span> <span class="o">&amp;</span> <span class="n">same_terminal_artifacts</span>
         <span class="p">)</span>
         <span class="n">status</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
-            <span class="n">terminal</span> <span class="o">!=</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">RUNNING</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+            <span class="n">terminal</span> <span class="o">!=</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">RUNNING</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
             <span class="n">terminal</span><span class="p">,</span>
             <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
                 <span class="n">preserve_terminal_failure</span> <span class="o">|</span> <span class="n">preserve_tolerance_convergence</span><span class="p">,</span>
                 <span class="n">state</span><span class="o">.</span><span class="n">status</span><span class="p">,</span>
-                <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">RUNNING</span><span class="o">.</span><span class="n">value</span><span class="p">),</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">RUNNING</span><span class="o">.</span><span class="n">value</span><span class="p">),</span>
             <span class="p">),</span>
         <span class="p">)</span>
-        <span class="n">converged</span> <span class="o">=</span> <span class="p">(</span><span class="n">status</span> <span class="o">==</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">CONVERGED</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">status</span> <span class="o">==</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">STALLED_AT_BOUNDS</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">converged</span> <span class="o">=</span> <span class="p">(</span><span class="n">status</span> <span class="o">==</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">CONVERGED</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">status</span> <span class="o">==</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">STALLED_AT_BOUNDS</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">values</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">_replace</span><span class="p">(</span>
             <span class="n">residual</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">residual</span><span class="p">,</span>
             <span class="n">robust_weights</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">robust_weights</span><span class="p">,</span>
@@ -1343,22 +1331,21 @@
             <span class="n">projected_grad_norm</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">projected_grad_norm</span><span class="p">,</span>
             <span class="n">active_mask</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">active_mask</span><span class="p">,</span>
             <span class="n">converged</span><span class="o">=</span><span class="n">converged</span><span class="p">,</span>
-            <span class="n">implicit_valid</span><span class="o">=</span><span class="p">(</span><span class="n">terminal</span> <span class="o">==</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">CONVERGED</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">model</span><span class="o">.</span><span class="n">finite</span><span class="p">,</span>
+            <span class="n">implicit_valid</span><span class="o">=</span><span class="p">(</span><span class="n">terminal</span> <span class="o">==</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">CONVERGED</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">model</span><span class="o">.</span><span class="n">finite</span><span class="p">,</span>
             <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span>
-        <span class="p">)</span></div>
+        <span class="p">)</span>
 
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_warm_start</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">:</span> <span class="n">Values</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">LMState</span><span class="p">,</span> <span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">LMState</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_warm_start</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">:</span> <span class="n">_TensorValues</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">_LMIterationState</span><span class="p">,</span> <span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_LMIterationState</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Refresh changed targets while retaining the previous damping state.&quot;&quot;&quot;</span>
-        <span class="n">fresh</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">init_state</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
+        <span class="n">fresh</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_init_state</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;mu&quot;</span><span class="p">,</span> <span class="s2">&quot;increase_factor&quot;</span><span class="p">):</span>
             <span class="n">retained</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
             <span class="n">expected</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">fresh</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">retained</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">expected</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;warm-start state batch shape does not match Values&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;warm-start state batch shape does not match _TensorValues&quot;</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">retained</span><span class="o">.</span><span class="n">dtype</span> <span class="o">!=</span> <span class="n">expected</span><span class="o">.</span><span class="n">dtype</span> <span class="ow">or</span> <span class="n">retained</span><span class="o">.</span><span class="n">device</span> <span class="o">!=</span> <span class="n">expected</span><span class="o">.</span><span class="n">device</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                    <span class="s2">&quot;warm-start damping tensors must share Values&#39; dtype and device; &quot;</span>
+                    <span class="s2">&quot;warm-start damping tensors must share _TensorValues&#39; dtype and device; &quot;</span>
                     <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> is (</span><span class="si">{</span><span class="n">retained</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">retained</span><span class="o">.</span><span class="n">device</span><span class="si">}</span><span class="s2">) but expected &quot;</span>
                     <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">expected</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">expected</span><span class="o">.</span><span class="n">device</span><span class="si">}</span><span class="s2">)&quot;</span>
                 <span class="p">)</span>
@@ -1370,91 +1357,117 @@
             <span class="p">),</span>
         <span class="p">)</span>
 
-<div class="viewcode-block" id="LevenbergMarquardt.run">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.run">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
+<div class="viewcode-block" id="LevenbergMarquardt.reset">
+<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.reset">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_seen_update_serial</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">problem</span><span class="o">.</span><span class="n">_update_serial</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_ensure_state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_LMIterationState</span><span class="p">:</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="n">_detach</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">problem</span><span class="o">.</span><span class="n">_trainable_values</span><span class="p">())</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_init_state</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">problem</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_seen_update_serial</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">problem</span><span class="o">.</span><span class="n">_update_serial</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_warm_start</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">problem</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_init_state</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">problem</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_seen_update_serial</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">problem</span><span class="o">.</span><span class="n">_update_serial</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_info</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="n">_LMIterationState</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">OptimizerInfo</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">OptimizerInfo</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">detach</span><span class="p">(),</span> <span class="n">state</span><span class="o">.</span><span class="n">iterations</span><span class="o">.</span><span class="n">detach</span><span class="p">(),</span> <span class="n">state</span><span class="o">.</span><span class="n">cost</span><span class="o">.</span><span class="n">detach</span><span class="p">())</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_initial_info</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">OptimizerInfo</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ensure_state</span><span class="p">())</span>
+
+<div class="viewcode-block" id="LevenbergMarquardt.step">
+<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.step">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">OptimizerInfo</span><span class="p">:</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_state</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">bool</span><span class="p">((</span><span class="n">state</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">RUNNING</span><span class="o">.</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()):</span>  <span class="c1"># bench-ok: eager step boundary</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_info</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="n">_detach</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">problem</span><span class="o">.</span><span class="n">_trainable_values</span><span class="p">())</span>
+        <span class="n">values</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">problem</span><span class="p">)</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="n">_detach</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="n">_detach_state</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">problem</span><span class="o">.</span><span class="n">_set_trainable</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">detach</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="n">state</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_info</span><span class="p">(</span><span class="n">state</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LevenbergMarquardt.optimize">
+<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.optimize">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">optimize</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">values</span><span class="p">:</span> <span class="n">Values</span><span class="p">,</span>
-        <span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">,</span>
-        <span class="n">state</span><span class="p">:</span> <span class="n">LMState</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Values</span><span class="p">,</span> <span class="n">LMState</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run the detached eager loop, optionally retaining warm-start damping.&quot;&quot;&quot;</span>
-        <span class="n">current_values</span> <span class="o">=</span> <span class="n">detach_values</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
-        <span class="n">current_state</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">init_state</span><span class="p">(</span><span class="n">current_values</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">state</span> <span class="ow">is</span> <span class="kc">None</span>
-            <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_warm_start</span><span class="p">(</span><span class="n">current_values</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
-        <span class="p">)</span>
-        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_iter</span><span class="p">):</span>
-            <span class="k">if</span> <span class="nb">bool</span><span class="p">((</span><span class="n">current_state</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">RUNNING</span><span class="o">.</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()):</span>  <span class="c1"># bench-ok: eager loop boundary sync</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">differentiate</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;implicit&quot;</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">implicit_config</span><span class="p">:</span> <span class="n">ImplicitDiffConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">OptimizerInfo</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">differentiate</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">{</span><span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;implicit&quot;</span><span class="p">}:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;differentiate must be None or &#39;implicit&#39;&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">differentiate</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">implicit_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;implicit_config must only be used with differentiate=&#39;implicit&#39;&quot;</span><span class="p">)</span>
+
+        <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_state</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_iterations</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">bool</span><span class="p">((</span><span class="n">state</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">RUNNING</span><span class="o">.</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()):</span>  <span class="c1"># bench-ok: eager boundary sync</span>
                 <span class="k">break</span>
-            <span class="n">current_values</span><span class="p">,</span> <span class="n">current_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">current_values</span><span class="p">,</span> <span class="n">current_state</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
-            <span class="n">current_values</span> <span class="o">=</span> <span class="n">detach_values</span><span class="p">(</span><span class="n">current_values</span><span class="p">)</span>
-            <span class="n">current_state</span> <span class="o">=</span> <span class="n">_detach_state</span><span class="p">(</span><span class="n">current_state</span><span class="p">)</span>
-        <span class="n">current_values</span><span class="p">,</span> <span class="n">current_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">finalize</span><span class="p">(</span><span class="n">current_values</span><span class="p">,</span> <span class="n">current_state</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
-        <span class="n">running</span> <span class="o">=</span> <span class="n">current_state</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">RUNNING</span><span class="o">.</span><span class="n">value</span>
-        <span class="n">current_state</span> <span class="o">=</span> <span class="n">current_state</span><span class="o">.</span><span class="n">_replace</span><span class="p">(</span>
+            <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+            <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span>
+            <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                <span class="n">converged</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">converged</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">())</span>  <span class="c1"># bench-ok: eager verbose reporting</span>
+                <span class="nb">print</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;iteration=</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">iterations</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">())</span><span class="si">}</span><span class="s2"> &quot;</span>  <span class="c1"># bench-ok: eager verbose reporting</span>
+                    <span class="sa">f</span><span class="s2">&quot;cost=</span><span class="si">{</span><span class="nb">float</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">cost</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">())</span><span class="si">:</span><span class="s2">.6g</span><span class="si">}</span><span class="s2"> &quot;</span>  <span class="c1"># bench-ok: eager verbose reporting</span>
+                    <span class="sa">f</span><span class="s2">&quot;converged=</span><span class="si">{</span><span class="n">converged</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">info</span><span class="o">.</span><span class="n">converged</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+
+        <span class="n">values</span> <span class="o">=</span> <span class="n">_detach</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">problem</span><span class="o">.</span><span class="n">_trainable_values</span><span class="p">())</span>
+        <span class="n">values</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_finalize</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">problem</span><span class="p">)</span>
+        <span class="n">running</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">RUNNING</span><span class="o">.</span><span class="n">value</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">_replace</span><span class="p">(</span>
             <span class="n">status</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
                 <span class="n">running</span><span class="p">,</span>
-                <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">current_state</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">MAXITER</span><span class="o">.</span><span class="n">value</span><span class="p">),</span>
-                <span class="n">current_state</span><span class="o">.</span><span class="n">status</span><span class="p">,</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">MAXITER</span><span class="o">.</span><span class="n">value</span><span class="p">),</span>
+                <span class="n">state</span><span class="o">.</span><span class="n">status</span><span class="p">,</span>
             <span class="p">),</span>
-            <span class="n">converged</span><span class="o">=</span><span class="n">current_state</span><span class="o">.</span><span class="n">converged</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">running</span><span class="p">,</span>
-            <span class="n">implicit_valid</span><span class="o">=</span><span class="n">current_state</span><span class="o">.</span><span class="n">implicit_valid</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">running</span><span class="p">,</span>
+            <span class="n">converged</span><span class="o">=</span><span class="n">state</span><span class="o">.</span><span class="n">converged</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">running</span><span class="p">,</span>
+            <span class="n">implicit_valid</span><span class="o">=</span><span class="n">state</span><span class="o">.</span><span class="n">implicit_valid</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">running</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="k">return</span> <span class="n">detach_values</span><span class="p">(</span><span class="n">current_values</span><span class="p">),</span> <span class="n">_detach_state</span><span class="p">(</span><span class="n">current_state</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="LevenbergMarquardt.solve">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.solve">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">solve</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">values</span><span class="p">:</span> <span class="n">Values</span><span class="p">,</span>
-        <span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">,</span>
-        <span class="n">state</span><span class="p">:</span> <span class="n">LMState</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="o">*</span><span class="p">,</span>
-        <span class="n">differentiate</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;detached&quot;</span><span class="p">,</span> <span class="s2">&quot;implicit&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;detached&quot;</span><span class="p">,</span>
-        <span class="n">implicit_config</span><span class="p">:</span> <span class="n">ImplicitDiffConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Values</span><span class="p">,</span> <span class="n">LMState</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Solve detached by default, or attach the guarded implicit backward.&quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">differentiate</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;detached&quot;</span><span class="p">,</span> <span class="s2">&quot;implicit&quot;</span><span class="p">}:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;differentiate must be &#39;detached&#39; or &#39;implicit&#39;&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">differentiate</span> <span class="o">==</span> <span class="s2">&quot;detached&quot;</span> <span class="ow">and</span> <span class="n">implicit_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;implicit_config is only used with differentiate=&#39;implicit&#39;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="n">_detach_state</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">problem</span><span class="o">.</span><span class="n">_set_trainable</span><span class="p">(</span><span class="n">_detach</span><span class="p">(</span><span class="n">values</span><span class="p">),</span> <span class="n">detach</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">differentiate</span> <span class="o">==</span> <span class="s2">&quot;implicit&quot;</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">.implicit</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_implicit_input_roles</span>  <span class="c1"># noqa: PLC0415</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">.implicit</span><span class="w"> </span><span class="kn">import</span> <span class="n">_attach_implicit_gradients</span>  <span class="c1"># noqa: PLC0415</span>
 
-            <span class="n">validate_implicit_input_roles</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
-
-        <span class="n">terminal_values</span><span class="p">,</span> <span class="n">terminal_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">problem</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">differentiate</span> <span class="o">==</span> <span class="s2">&quot;detached&quot;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">terminal_values</span><span class="p">,</span> <span class="n">terminal_state</span>
-
-        <span class="kn">from</span><span class="w"> </span><span class="nn">.implicit</span><span class="w"> </span><span class="kn">import</span> <span class="n">attach_implicit_gradients</span>  <span class="c1"># noqa: PLC0415</span>
-
-        <span class="n">decision</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_linearization</span><span class="p">(</span><span class="n">problem</span><span class="p">)</span>
-        <span class="n">differentiable_values</span> <span class="o">=</span> <span class="n">attach_implicit_gradients</span><span class="p">(</span>
-            <span class="n">terminal_values</span><span class="p">,</span>
-            <span class="n">terminal_state</span><span class="p">,</span>
-            <span class="n">problem</span><span class="p">,</span>
-            <span class="n">default_kernel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">,</span>
-            <span class="n">forward_linearization</span><span class="o">=</span><span class="n">decision</span><span class="o">.</span><span class="n">used</span><span class="p">,</span>
-            <span class="n">config</span><span class="o">=</span><span class="n">implicit_config</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="k">return</span> <span class="n">differentiable_values</span><span class="p">,</span> <span class="n">terminal_state</span></div>
+            <span class="n">decision</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_linearization</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">problem</span><span class="p">)</span>
+            <span class="n">differentiable</span> <span class="o">=</span> <span class="n">_attach_implicit_gradients</span><span class="p">(</span>
+                <span class="n">_detach</span><span class="p">(</span><span class="n">values</span><span class="p">),</span>
+                <span class="n">state</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">problem</span><span class="p">,</span>
+                <span class="n">forward_linearization</span><span class="o">=</span><span class="n">decision</span><span class="o">.</span><span class="n">used</span><span class="p">,</span>
+                <span class="n">config</span><span class="o">=</span><span class="n">implicit_config</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">problem</span><span class="o">.</span><span class="n">_set_trainable</span><span class="p">(</span><span class="n">differentiable</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="p">)</span></div>
 </div>
 
 
 
 <div class="viewcode-block" id="GaussNewton">
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.GaussNewton">[docs]</a>
-<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">GaussNewton</span><span class="p">(</span><span class="n">LevenbergMarquardt</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Gauss--Newton preset using LM&#39;s guarded acceptance update.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Gauss--Newton preset using LM&#39;s guarded acceptance step.&quot;&quot;&quot;</span>
 
-    <span class="n">damping_parameter</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-9</span>
-    <span class="n">fixed_damping</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span></div>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;damping&quot;</span><span class="p">,</span> <span class="mf">1e-9</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;fixed_damping&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">problem</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
 </pre></div>
 

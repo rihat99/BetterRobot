@@ -57,7 +57,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -193,7 +193,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/viewer.html">Viewer</a></li>
@@ -246,6 +246,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -284,12 +285,10 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -555,70 +554,74 @@
                   
   <section id="own-your-optimization-loop">
 <h1>Own your optimization loop<a class="headerlink" href="#own-your-optimization-loop" title="Link to this heading">#</a></h1>
-<p><code class="xref py py-class docutils literal notranslate"><span class="pre">better_robot.optim.LevenbergMarquardt</span></code> offers both a complete eager
-driver and three smaller lifecycle methods. Use <code class="docutils literal notranslate"><span class="pre">run</span></code> for an ordinary solve.
-Use <code class="docutils literal notranslate"><span class="pre">init_state</span></code>, <code class="docutils literal notranslate"><span class="pre">update</span></code>, and <code class="docutils literal notranslate"><span class="pre">finalize</span></code> when your application must schedule
-one solver step at a time, inspect state between steps, or interleave other
-work.</p>
-<p>The complete example below fits the line <code class="docutils literal notranslate"><span class="pre">y</span> <span class="pre">=</span> <span class="pre">m</span> <span class="pre">x</span> <span class="pre">+</span> <span class="pre">c</span></code> while owning the loop.</p>
+<p><code class="xref py py-class docutils literal notranslate"><span class="pre">better_robot.optim.LevenbergMarquardt</span></code> owns one
+<code class="xref py py-class docutils literal notranslate"><span class="pre">better_robot.optim.Problem</span></code>. Call <code class="docutils literal notranslate"><span class="pre">optimize()</span></code> for a complete eager
+solve or <code class="docutils literal notranslate"><span class="pre">step()</span></code> when your application must schedule one iteration at a time,
+inspect public diagnostics, or interleave other work. Solved tensors live in
+the variables; <code class="docutils literal notranslate"><span class="pre">OptimizerInfo</span></code> reports per-element status, iterations, cost,
+and convergence.</p>
+<p>The complete example below fits the line <code class="docutils literal notranslate"><span class="pre">y</span> <span class="pre">=</span> <span class="pre">m</span> <span class="pre">x</span> <span class="pre">+</span> <span class="pre">c</span></code> while owning the first
+solve’s loop, then warm-starts after the observations change.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim</span><span class="w"> </span><span class="kn">import</span> <span class="n">LMStatus</span><span class="p">,</span> <span class="n">LevenbergMarquardt</span><span class="p">,</span> <span class="n">Problem</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">LevenbergMarquardt</span><span class="p">,</span>
+    <span class="n">OptimizerStatus</span><span class="p">,</span>
+    <span class="n">Problem</span><span class="p">,</span>
+    <span class="n">Variable</span><span class="p">,</span>
+    <span class="n">residual</span><span class="p">,</span>
+<span class="p">)</span>
 
-<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">])</span>
-<span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">,</span> <span class="mf">7.0</span><span class="p">])</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">,</span> <span class="mf">7.0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="n">theta</span> <span class="o">=</span> <span class="n">Variable</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;theta&quot;</span><span class="p">)</span>
+<span class="n">observations</span> <span class="o">=</span> <span class="n">Variable</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;observations&quot;</span><span class="p">,</span> <span class="n">trainable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">line_error</span><span class="p">(</span><span class="n">ctx</span><span class="p">):</span>
-    <span class="n">m</span> <span class="o">=</span> <span class="n">ctx</span><span class="p">[</span><span class="s2">&quot;theta&quot;</span><span class="p">][</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">1</span><span class="p">]</span>
-    <span class="n">c</span> <span class="o">=</span> <span class="n">ctx</span><span class="p">[</span><span class="s2">&quot;theta&quot;</span><span class="p">][</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span>
-    <span class="k">return</span> <span class="n">m</span> <span class="o">*</span> <span class="n">x</span> <span class="o">+</span> <span class="n">c</span> <span class="o">-</span> <span class="n">ctx</span><span class="p">[</span><span class="s2">&quot;observations&quot;</span><span class="p">]</span>
+<span class="nd">@residual</span><span class="p">(</span><span class="n">theta</span><span class="p">,</span> <span class="n">observations</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;line_error&quot;</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">line_error</span><span class="p">(</span><span class="n">parameters</span><span class="p">,</span> <span class="n">measured</span><span class="p">):</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">parameters</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">parameters</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">m</span> <span class="o">*</span> <span class="n">x</span> <span class="o">+</span> <span class="n">c</span> <span class="o">-</span> <span class="n">measured</span>
 
 
-<span class="n">problem</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">(</span><span class="n">parameters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;observations&quot;</span><span class="p">:</span> <span class="n">y</span><span class="p">})</span>
-<span class="n">problem</span><span class="o">.</span><span class="n">add_variable</span><span class="p">(</span><span class="s2">&quot;theta&quot;</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,))</span>
-<span class="n">problem</span><span class="o">.</span><span class="n">add_residual</span><span class="p">(</span><span class="n">line_error</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+<span class="n">problem</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">([</span><span class="n">line_error</span><span class="p">])</span>
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">LevenbergMarquardt</span><span class="p">(</span>
+    <span class="n">problem</span><span class="p">,</span>
+    <span class="n">max_iterations</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+    <span class="n">tolerance</span><span class="o">=</span><span class="mf">1e-9</span><span class="p">,</span>
+<span class="p">)</span>
 
-<span class="n">solver</span> <span class="o">=</span> <span class="n">LevenbergMarquardt</span><span class="p">(</span><span class="n">max_iter</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
-<span class="n">values</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;theta&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">2</span><span class="p">)}</span>
-<span class="n">state</span> <span class="o">=</span> <span class="n">solver</span><span class="o">.</span><span class="n">init_state</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
-
-<span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">solver</span><span class="o">.</span><span class="n">max_iter</span><span class="p">):</span>
-    <span class="k">if</span> <span class="nb">bool</span><span class="p">((</span><span class="n">state</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">LMStatus</span><span class="o">.</span><span class="n">RUNNING</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()):</span>
+<span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">optimizer</span><span class="o">.</span><span class="n">max_iterations</span><span class="p">):</span>
+    <span class="n">info</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">bool</span><span class="p">((</span><span class="n">info</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">OptimizerStatus</span><span class="o">.</span><span class="n">RUNNING</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()):</span>
         <span class="k">break</span>
-    <span class="n">values</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="n">solver</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
 
-<span class="n">values</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="n">solver</span><span class="o">.</span><span class="n">finalize</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
-<span class="n">torch</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_close</span><span class="p">(</span>
-    <span class="n">values</span><span class="p">[</span><span class="s2">&quot;theta&quot;</span><span class="p">],</span>
-    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">2.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">]),</span>
-    <span class="n">atol</span><span class="o">=</span><span class="mf">2e-4</span><span class="p">,</span>
-    <span class="n">rtol</span><span class="o">=</span><span class="mf">2e-4</span><span class="p">,</span>
-<span class="p">)</span>
+<span class="nb">print</span><span class="p">([</span><span class="nb">round</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">theta</span><span class="o">.</span><span class="n">tensor</span><span class="o">.</span><span class="n">tolist</span><span class="p">()])</span>
 
-<span class="c1"># Reuse the previous damping state after the observations change.</span>
-<span class="n">shifted</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">(</span>
-    <span class="nb">vars</span><span class="o">=</span><span class="n">problem</span><span class="o">.</span><span class="n">vars</span><span class="p">,</span>
-    <span class="n">residuals</span><span class="o">=</span><span class="n">problem</span><span class="o">.</span><span class="n">residuals</span><span class="p">,</span>
-    <span class="n">parameters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;observations&quot;</span><span class="p">:</span> <span class="n">y</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">},</span>
-<span class="p">)</span>
-<span class="n">values</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="n">solver</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">shifted</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="n">state</span><span class="p">)</span>
-<span class="n">torch</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_close</span><span class="p">(</span>
-    <span class="n">values</span><span class="p">[</span><span class="s2">&quot;theta&quot;</span><span class="p">],</span>
-    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">2.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">]),</span>
-    <span class="n">atol</span><span class="o">=</span><span class="mf">2e-4</span><span class="p">,</span>
-    <span class="n">rtol</span><span class="o">=</span><span class="mf">2e-4</span><span class="p">,</span>
-<span class="p">)</span>
+<span class="c1"># Updating a referenced static variable refreshes the problem while LM keeps</span>
+<span class="c1"># compatible damping state and starts from theta&#39;s current value.</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;observations&quot;</span><span class="p">:</span> <span class="n">y</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">})</span>
+<span class="n">info</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">optimize</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">([</span><span class="nb">round</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">theta</span><span class="o">.</span><span class="n">tensor</span><span class="o">.</span><span class="n">tolist</span><span class="p">()])</span>
+<span class="nb">print</span><span class="p">(</span><span class="nb">bool</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">converged</span><span class="p">))</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">LMState</span></code> stores one tensor value per batch element, including damping,
-iterations, cost, convergence, and status. The <code class="docutils literal notranslate"><span class="pre">bool(...)</span></code> check above is an
-intentional eager synchronization point owned by this Python loop. Keep the
-condition in tensors if a compiled caller owns the stepping schedule.</p>
-<p>Passing <code class="docutils literal notranslate"><span class="pre">state=</span></code> to <code class="docutils literal notranslate"><span class="pre">run</span></code> or <code class="docutils literal notranslate"><span class="pre">solve</span></code> refreshes the residual artifacts for the
-new problem while retaining compatible damping information. Pass the previous
-<code class="docutils literal notranslate"><span class="pre">values</span></code> separately when you also want to warm-start the solution itself.</p>
-<p>Always call <code class="docutils literal notranslate"><span class="pre">finalize</span></code> after a manual loop so cost, residual, gradient, and
-status describe the final values rather than the point before the last update.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>[2.0, 1.0]
+[2.0, 2.0]
+True
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">bool(...)</span></code> condition is an intentional eager synchronization point owned
+by this Python loop. Keep per-element decisions in tensors inside compiled
+math. LM’s private iteration remains fixed-shape and synchronization-free.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Problem.update()</span></code> atomically replaces current variable tensors and invalidates
+shared node memos. The next LM call refreshes terminal artifacts and retains
+compatible damping information. Call <code class="docutils literal notranslate"><span class="pre">optimizer.reset()</span></code> when you instead
+want fresh optimizer state; it deliberately keeps the variables’ current
+values.</p>
+<p><code class="docutils literal notranslate"><span class="pre">step()</span></code> returns diagnostics for that iteration. <code class="docutils literal notranslate"><span class="pre">optimize()</span></code> is the canonical
+complete driver: it stops when every batch element is terminal or the budget
+is exhausted and performs the final-point refresh before returning.</p>
 </section>
 
 
@@ -685,7 +688,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>

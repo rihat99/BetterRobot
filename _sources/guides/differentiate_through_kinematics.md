@@ -33,8 +33,13 @@ def hand_position(q):
 q = model.q_neutral.clone()
 position_jacobian = torch.func.jacrev(hand_position)(q)
 
-assert position_jacobian.shape == (3, model.nq)
-assert torch.isfinite(position_jacobian).all()
+print(position_jacobian.shape)
+print(bool(torch.isfinite(position_jacobian).all()))
+```
+
+```{testoutput}
+torch.Size([3, 8])
+True
 ```
 
 The raw passes trust their caller. Keep `q`, `ModelValues`, dtype, device, and
@@ -46,3 +51,10 @@ maps a tangent velocity to a spatial twist. Use
 `better_robot.get_frame_jacobian` when that physical mapping is what you need;
 use `torch.func` when you need the derivative of a particular tensor-valued
 calculation.
+
+Optimization uses the tangent interpretation. A `RobotVariable` owns `q` and
+its `Model.integrate`/`Model.difference` geometry; residuals reference that
+variable (or a shared `RobotState` node), and `Problem` Jacobian columns have
+width `nv`. Graph-carrying targets belong in static `Variable` objects when an
+implicit optimizer backward should differentiate the solved configuration
+with respect to them.

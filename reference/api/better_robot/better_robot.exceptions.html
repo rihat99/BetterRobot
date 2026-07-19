@@ -57,7 +57,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -193,7 +193,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
@@ -246,6 +246,7 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -284,12 +285,10 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -604,7 +603,7 @@ by <code class="docutils literal notranslate"><span class="pre">warnings.filterw
 <dl class="py exception">
 <dt class="sig sig-object py" id="better_robot.exceptions.BetterRobotError">
 <em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">BetterRobotError</span></span><a class="reference internal" href="../../../_modules/better_robot/exceptions.html#BetterRobotError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.exceptions.BetterRobotError" title="Link to this definition">#</a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/exceptions.html#Exception" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Exception</span></code></a></p>
+<dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">Exception</span></code></p>
 <p>Root of every exception raised by <code class="docutils literal notranslate"><span class="pre">better_robot</span></code>.</p>
 <p>Catch this to distinguish library errors from arbitrary exceptions
 bubbling up from user code or from <code class="docutils literal notranslate"><span class="pre">torch</span></code> internals.</p>
@@ -613,7 +612,7 @@ bubbling up from user code or from <code class="docutils literal notranslate"><s
 <dl class="py exception">
 <dt class="sig sig-object py" id="better_robot.exceptions.ModelInconsistencyError">
 <em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ModelInconsistencyError</span></span><a class="reference internal" href="../../../_modules/better_robot/exceptions.html#ModelInconsistencyError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.exceptions.ModelInconsistencyError" title="Link to this definition">#</a></dt>
-<dd><p>Bases: <a class="reference internal" href="#better_robot.exceptions.BetterRobotError" title="better_robot.exceptions.BetterRobotError"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.exceptions.BetterRobotError</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ValueError</span></code></a></p>
+<dd><p>Bases: <a class="reference internal" href="#better_robot.exceptions.BetterRobotError" title="better_robot.exceptions.BetterRobotError"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.exceptions.BetterRobotError</span></code></a>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">ValueError</span></code></p>
 <p>Parsed <code class="docutils literal notranslate"><span class="pre">Model</span></code> violates one of the topology invariants.</p>
 <p>Invariants (see <code class="docutils literal notranslate"><span class="pre">docs/conventions/contracts.md</span> <span class="pre">§1.5</span></code>):</p>
 <ul class="simple">
@@ -628,7 +627,7 @@ bubbling up from user code or from <code class="docutils literal notranslate"><s
 <dl class="py exception">
 <dt class="sig sig-object py" id="better_robot.exceptions.DeviceMismatchError">
 <em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DeviceMismatchError</span></span><a class="reference internal" href="../../../_modules/better_robot/exceptions.html#DeviceMismatchError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.exceptions.DeviceMismatchError" title="Link to this definition">#</a></dt>
-<dd><p>Bases: <a class="reference internal" href="#better_robot.exceptions.BetterRobotError" title="better_robot.exceptions.BetterRobotError"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.exceptions.BetterRobotError</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ValueError</span></code></a></p>
+<dd><p>Bases: <a class="reference internal" href="#better_robot.exceptions.BetterRobotError" title="better_robot.exceptions.BetterRobotError"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.exceptions.BetterRobotError</span></code></a>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">ValueError</span></code></p>
 <p>A <code class="docutils literal notranslate"><span class="pre">q</span></code> / <code class="docutils literal notranslate"><span class="pre">v</span></code> / <code class="docutils literal notranslate"><span class="pre">tau</span></code> tensor lives on a different device than
 the <code class="docutils literal notranslate"><span class="pre">Model</span></code>.</p>
 <p>Remediation: <code class="docutils literal notranslate"><span class="pre">model.to(q.device)</span></code> or <code class="docutils literal notranslate"><span class="pre">q.to(model.device)</span></code>.</p>
@@ -637,7 +636,7 @@ the <code class="docutils literal notranslate"><span class="pre">Model</span></c
 <dl class="py exception">
 <dt class="sig sig-object py" id="better_robot.exceptions.DtypeMismatchError">
 <em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DtypeMismatchError</span></span><a class="reference internal" href="../../../_modules/better_robot/exceptions.html#DtypeMismatchError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.exceptions.DtypeMismatchError" title="Link to this definition">#</a></dt>
-<dd><p>Bases: <a class="reference internal" href="#better_robot.exceptions.BetterRobotError" title="better_robot.exceptions.BetterRobotError"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.exceptions.BetterRobotError</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ValueError</span></code></a></p>
+<dd><p>Bases: <a class="reference internal" href="#better_robot.exceptions.BetterRobotError" title="better_robot.exceptions.BetterRobotError"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.exceptions.BetterRobotError</span></code></a>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">ValueError</span></code></p>
 <p>A query tensor has a dtype incompatible with the model’s dtype.</p>
 <p><code class="docutils literal notranslate"><span class="pre">float16</span></code> is unsupported anywhere in the library. Cast to
 <code class="docutils literal notranslate"><span class="pre">float32</span></code> or <code class="docutils literal notranslate"><span class="pre">float64</span></code> before the call.</p>
@@ -646,7 +645,7 @@ the <code class="docutils literal notranslate"><span class="pre">Model</span></c
 <dl class="py exception">
 <dt class="sig sig-object py" id="better_robot.exceptions.QuaternionNormError">
 <em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">QuaternionNormError</span></span><a class="reference internal" href="../../../_modules/better_robot/exceptions.html#QuaternionNormError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.exceptions.QuaternionNormError" title="Link to this definition">#</a></dt>
-<dd><p>Bases: <a class="reference internal" href="#better_robot.exceptions.BetterRobotError" title="better_robot.exceptions.BetterRobotError"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.exceptions.BetterRobotError</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ValueError</span></code></a></p>
+<dd><p>Bases: <a class="reference internal" href="#better_robot.exceptions.BetterRobotError" title="better_robot.exceptions.BetterRobotError"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.exceptions.BetterRobotError</span></code></a>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">ValueError</span></code></p>
 <p>Input quaternion’s norm is outside <code class="docutils literal notranslate"><span class="pre">[0.9,</span> <span class="pre">1.1]</span></code>.</p>
 <p>Norms inside that window are re-normalised silently (floating-point
 drift tolerance). Outside it, the input is clearly not meant to be a
@@ -656,7 +655,7 @@ unit quaternion and the library refuses to guess.</p>
 <dl class="py exception">
 <dt class="sig sig-object py" id="better_robot.exceptions.ShapeError">
 <em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ShapeError</span></span><a class="reference internal" href="../../../_modules/better_robot/exceptions.html#ShapeError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.exceptions.ShapeError" title="Link to this definition">#</a></dt>
-<dd><p>Bases: <a class="reference internal" href="#better_robot.exceptions.BetterRobotError" title="better_robot.exceptions.BetterRobotError"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.exceptions.BetterRobotError</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ValueError</span></code></a></p>
+<dd><p>Bases: <a class="reference internal" href="#better_robot.exceptions.BetterRobotError" title="better_robot.exceptions.BetterRobotError"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.exceptions.BetterRobotError</span></code></a>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">ValueError</span></code></p>
 <p>A public input has the wrong trailing-axis size.</p>
 <p>The message names the offending argument and the expected shape.</p>
 </dd></dl>
@@ -664,7 +663,7 @@ unit quaternion and the library refuses to guess.</p>
 <dl class="py exception">
 <dt class="sig sig-object py" id="better_robot.exceptions.ConvergenceError">
 <em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ConvergenceError</span></span><a class="reference internal" href="../../../_modules/better_robot/exceptions.html#ConvergenceError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.exceptions.ConvergenceError" title="Link to this definition">#</a></dt>
-<dd><p>Bases: <a class="reference internal" href="#better_robot.exceptions.BetterRobotError" title="better_robot.exceptions.BetterRobotError"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.exceptions.BetterRobotError</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/exceptions.html#RuntimeError" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RuntimeError</span></code></a></p>
+<dd><p>Bases: <a class="reference internal" href="#better_robot.exceptions.BetterRobotError" title="better_robot.exceptions.BetterRobotError"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.exceptions.BetterRobotError</span></code></a>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">RuntimeError</span></code></p>
 <p>Optimizer exited without reaching the requested tolerance.</p>
 <p>Not always a bug: inspect the returned solver state for final diagnostics.
 <code class="docutils literal notranslate"><span class="pre">solve_ik</span></code> returns a non-converged
@@ -675,7 +674,7 @@ into this exception.</p>
 <dl class="py exception">
 <dt class="sig sig-object py" id="better_robot.exceptions.BackendNotAvailableError">
 <em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">BackendNotAvailableError</span></span><a class="reference internal" href="../../../_modules/better_robot/exceptions.html#BackendNotAvailableError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.exceptions.BackendNotAvailableError" title="Link to this definition">#</a></dt>
-<dd><p>Bases: <a class="reference internal" href="#better_robot.exceptions.BetterRobotError" title="better_robot.exceptions.BetterRobotError"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.exceptions.BetterRobotError</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ImportError" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ImportError</span></code></a></p>
+<dd><p>Bases: <a class="reference internal" href="#better_robot.exceptions.BetterRobotError" title="better_robot.exceptions.BetterRobotError"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.exceptions.BetterRobotError</span></code></a>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">ImportError</span></code></p>
 <p>An optional integration dependency is not importable.</p>
 <p>Example::</p>
 <div class="highlight-none notranslate"><div class="highlight"><pre><span></span>load(&quot;robot.urdf&quot;)  # raises if the optional `yourdfpy` parser is absent
@@ -688,7 +687,7 @@ public import; it is not evidence of a runtime compute-backend registry.</p>
 <dl class="py exception">
 <dt class="sig sig-object py" id="better_robot.exceptions.StaleCacheError">
 <em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">StaleCacheError</span></span><a class="reference internal" href="../../../_modules/better_robot/exceptions.html#StaleCacheError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.exceptions.StaleCacheError" title="Link to this definition">#</a></dt>
-<dd><p>Bases: <a class="reference internal" href="#better_robot.exceptions.BetterRobotError" title="better_robot.exceptions.BetterRobotError"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.exceptions.BetterRobotError</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/exceptions.html#RuntimeError" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RuntimeError</span></code></a></p>
+<dd><p>Bases: <a class="reference internal" href="#better_robot.exceptions.BetterRobotError" title="better_robot.exceptions.BetterRobotError"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.exceptions.BetterRobotError</span></code></a>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">RuntimeError</span></code></p>
 <p>A <code class="docutils literal notranslate"><span class="pre">Data</span></code> cache field was read at a stricter <code class="docutils literal notranslate"><span class="pre">KinematicsLevel</span></code>
 than has been computed.</p>
 <p>Remediation: call the relevant kinematics function (<code class="docutils literal notranslate"><span class="pre">forward_kinematics</span></code>
@@ -701,7 +700,7 @@ too low.</p>
 <dl class="py exception">
 <dt class="sig sig-object py" id="better_robot.exceptions.UnsupportedJointError">
 <em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">UnsupportedJointError</span></span><a class="reference internal" href="../../../_modules/better_robot/exceptions.html#UnsupportedJointError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.exceptions.UnsupportedJointError" title="Link to this definition">#</a></dt>
-<dd><p>Bases: <a class="reference internal" href="#better_robot.exceptions.BetterRobotError" title="better_robot.exceptions.BetterRobotError"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.exceptions.BetterRobotError</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ValueError</span></code></a></p>
+<dd><p>Bases: <a class="reference internal" href="#better_robot.exceptions.BetterRobotError" title="better_robot.exceptions.BetterRobotError"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.exceptions.BetterRobotError</span></code></a>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">ValueError</span></code></p>
 <p>URDF/MJCF declared a joint kind without a built-in <code class="docutils literal notranslate"><span class="pre">JointModel</span></code>.</p>
 <p>Register a custom <code class="docutils literal notranslate"><span class="pre">JointModel</span></code> — see <code class="docutils literal notranslate"><span class="pre">docs/conventions/extension.md</span> <span class="pre">§2</span></code>.</p>
 </dd></dl>
@@ -709,7 +708,7 @@ too low.</p>
 <dl class="py exception">
 <dt class="sig sig-object py" id="better_robot.exceptions.SingularityWarning">
 <em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SingularityWarning</span></span><a class="reference internal" href="../../../_modules/better_robot/exceptions.html#SingularityWarning"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.exceptions.SingularityWarning" title="Link to this definition">#</a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/exceptions.html#UserWarning" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">UserWarning</span></code></a></p>
+<dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">UserWarning</span></code></p>
 <p>Emitted when a Jacobian’s condition number exceeds <code class="docutils literal notranslate"><span class="pre">1e12</span></code>.</p>
 <p>This is a warning, not an error: kinematics continues with the
 best-effort result and <code class="docutils literal notranslate"><span class="pre">optim</span></code> falls back to damped solves.</p>
@@ -816,7 +815,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>

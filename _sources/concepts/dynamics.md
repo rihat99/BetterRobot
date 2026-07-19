@@ -47,6 +47,44 @@ quantity.
 is no separate public Coriolis matrix because most callers need its product
 with velocity, not the matrix.
 
+A one-joint arm makes the gravity term visible:
+
+```{testcode}
+import torch
+from better_robot.dynamics import crba, rnea
+from better_robot.io import ModelBuilder, build_model
+
+builder = ModelBuilder("one_joint_dynamics")
+builder.add_body("base", mass=1.0, inertia=torch.eye(3) * 0.1)
+builder.add_body(
+    "link",
+    mass=1.0,
+    com=torch.tensor([0.5, 0.0, 0.0]),
+    inertia=torch.eye(3) * 0.05,
+)
+builder.add_revolute_y("joint", parent="base", child="link", lower=-3.14, upper=3.14)
+model = build_model(builder.finalize(), dtype=torch.float64)
+q = model.q_neutral
+zero = torch.zeros(model.nv, dtype=q.dtype)
+gravity_torque = rnea(model, q, zero, zero)
+print("gravity torque:", gravity_torque.round(decimals=3).tolist())
+```
+
+```{testoutput}
+gravity torque: [-4.905]
+```
+
+CRBA returns one mass-matrix row and column for that one tangent coordinate:
+
+```{testcode}
+mass_matrix = crba(model, q)
+print("mass matrix shape:", tuple(mass_matrix.shape))
+```
+
+```{testoutput}
+mass matrix shape: (1, 1)
+```
+
 ## Return values and workspaces
 
 Public dynamics functions return their main tensor. They allocate temporary
@@ -77,8 +115,7 @@ h_g = A_g(q)\,v.
 
 `compute_centroidal_map` returns `A_g`, and
 `compute_centroidal_momentum` returns `h_g`. `ccrba` computes both and returns
-`CCRBAResult` with fields `centroidal_map` and `momentum`; the result can also
-be unpacked as a two-tuple.
+a frozen `CCRBAResult` dataclass with fields `centroidal_map` and `momentum`.
 
 `center_of_mass` returns position and can populate velocity when `v` is
 provided. Center-of-mass acceleration is not implemented; passing `a` reaches

@@ -245,6 +245,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -283,12 +284,10 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -488,17 +487,17 @@
                 <article class="bd-article">
                   
   <h1>Source code for better_robot.tasks.ik</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;Whole-body inverse kinematics as a named-block optimization preset.</span>
+<span></span><span class="sd">&quot;&quot;&quot;Whole-body inverse kinematics as an object-referenced optimization preset.</span>
 
 <span class="sd">The task facade owns no solver loop. It assembles one ``q`` variable on the</span>
-<span class="sd">robot-configuration manifold, installs the built-in kinematic residuals and a</span>
-<span class="sd">lazy robot-state provider, then runs a public named-block solver.</span>
+<span class="sd">robot-configuration manifold, installs the built-in kinematic residuals, and</span>
+<span class="sd">runs a public optimizer.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">replace</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Literal</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Literal</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 
@@ -509,12 +508,12 @@
     <span class="n">GaussNewton</span><span class="p">,</span>
     <span class="n">JacobianStrategy</span><span class="p">,</span>
     <span class="n">LevenbergMarquardt</span><span class="p">,</span>
+    <span class="n">OptimizerInfo</span><span class="p">,</span>
     <span class="n">Problem</span><span class="p">,</span>
-    <span class="n">ResidualItem</span><span class="p">,</span>
-    <span class="n">RobotConfig</span><span class="p">,</span>
-    <span class="n">RobotStateProvider</span><span class="p">,</span>
-    <span class="n">VarSpec</span><span class="p">,</span>
-    <span class="n">run_first_order</span><span class="p">,</span>
+    <span class="n">Residual</span><span class="p">,</span>
+    <span class="n">RobotVariable</span><span class="p">,</span>
+    <span class="n">TorchOptimizer</span><span class="p">,</span>
+    <span class="n">Variable</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..optim</span><span class="w"> </span><span class="kn">import</span> <span class="n">Cauchy</span><span class="p">,</span> <span class="n">Cholesky</span><span class="p">,</span> <span class="n">Huber</span><span class="p">,</span> <span class="n">L2</span><span class="p">,</span> <span class="n">Tukey</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..residuals.limits</span><span class="w"> </span><span class="kn">import</span> <span class="n">JointPositionLimit</span>
@@ -562,11 +561,11 @@
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.tasks.ik.html#better_robot.tasks.ik.OptimizerConfig">[docs]</a>
 <span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">OptimizerConfig</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Named-block solver selection and hyperparameters.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Optimizer selection and hyperparameters.</span>
 
 <span class="sd">    ``lm_then_adam`` runs LM followed by the ``torch.optim`` adapter. Batched</span>
-<span class="sd">    L-BFGS is deliberately not exposed by the named-block</span>
-<span class="sd">    stack yet; the retained ``lbfgs`` spellings fail with an actionable error.</span>
+<span class="sd">    L-BFGS is deliberately not exposed by the task facade yet; the retained</span>
+<span class="sd">    ``lbfgs`` spellings fail with an actionable error.</span>
 <span class="sd">    Linear-solver and Jacobian settings apply to LM/GN phases; damping applies</span>
 <span class="sd">    only to configurations with an LM phase.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -642,7 +641,7 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_make_linear_solver</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a fresh named-block linear solver.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a fresh linear solver.&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_LINEAR_SOLVERS</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown linear_solver </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2">; expected one of </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">_LINEAR_SOLVERS</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">_LINEAR_SOLVERS</span><span class="p">[</span><span class="n">name</span><span class="p">]()</span>
@@ -683,48 +682,25 @@
         <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_state_iterations</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="s2">&quot;iterations&quot;</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">state</span><span class="o">.</span><span class="n">iterations</span>
-    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="s2">&quot;step&quot;</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">state</span><span class="o">.</span><span class="n">step</span>
-    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;solver state </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">state</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> has no iteration tensor&quot;</span><span class="p">)</span>
-
-
 <span class="k">def</span><span class="w"> </span><span class="nf">_public_diagnostics</span><span class="p">(</span>
-    <span class="n">states</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
-    <span class="n">exemplar</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">infos</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">OptimizerInfo</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">bool</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
-    <span class="n">nonempty</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">state</span> <span class="k">for</span> <span class="n">state</span> <span class="ow">in</span> <span class="n">states</span> <span class="k">if</span> <span class="n">state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">nonempty</span><span class="p">:</span>
-        <span class="n">batch_shape</span> <span class="o">=</span> <span class="n">exemplar</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-        <span class="n">iterations</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">batch_shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">int64</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">exemplar</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-        <span class="n">converged</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">batch_shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">bool</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">exemplar</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">iterations</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
-            <span class="p">(</span><span class="n">_state_iterations</span><span class="p">(</span><span class="n">state</span><span class="p">)</span> <span class="k">for</span> <span class="n">state</span> <span class="ow">in</span> <span class="n">nonempty</span><span class="p">),</span>
-            <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">_state_iterations</span><span class="p">(</span><span class="n">nonempty</span><span class="p">[</span><span class="mi">0</span><span class="p">])),</span>
-        <span class="p">)</span>
-        <span class="n">converged</span> <span class="o">=</span> <span class="n">nonempty</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">converged</span>
+    <span class="n">iterations</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
+        <span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">iterations</span> <span class="k">for</span> <span class="n">info</span> <span class="ow">in</span> <span class="n">infos</span><span class="p">),</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">infos</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">iterations</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">converged</span> <span class="o">=</span> <span class="n">infos</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">converged</span>
     <span class="k">if</span> <span class="n">iterations</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
         <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">iterations</span><span class="p">),</span> <span class="nb">bool</span><span class="p">(</span><span class="n">converged</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">iterations</span><span class="p">,</span> <span class="n">converged</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_refinement_problem</span><span class="p">(</span><span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">,</span> <span class="n">disabled_items</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Problem</span><span class="p">:</span>
-    <span class="n">known</span> <span class="o">=</span> <span class="p">{</span><span class="n">item</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">problem</span><span class="o">.</span><span class="n">residuals</span><span class="p">}</span>
-    <span class="n">unknown</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">disabled_items</span><span class="p">)</span> <span class="o">-</span> <span class="n">known</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_refinement_residuals</span><span class="p">(</span><span class="n">problem</span><span class="p">:</span> <span class="n">Problem</span><span class="p">,</span> <span class="n">disabled_items</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Residual</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
+    <span class="n">known</span> <span class="o">=</span> <span class="p">{</span><span class="n">residual</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">residual</span> <span class="k">for</span> <span class="n">residual</span> <span class="ow">in</span> <span class="n">problem</span><span class="o">.</span><span class="n">residuals</span><span class="p">}</span>
+    <span class="n">unknown</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">disabled_items</span><span class="p">)</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">known</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">unknown</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;refine_disabled_items contains unknown residual names </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">unknown</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">Problem</span><span class="p">(</span>
-        <span class="nb">vars</span><span class="o">=</span><span class="n">problem</span><span class="o">.</span><span class="n">vars</span><span class="p">,</span>
-        <span class="n">residuals</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span>
-            <span class="n">replace</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span> <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="n">disabled_items</span> <span class="k">else</span> <span class="n">item</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">problem</span><span class="o">.</span><span class="n">residuals</span>
-        <span class="p">),</span>
-        <span class="n">providers</span><span class="o">=</span><span class="n">problem</span><span class="o">.</span><span class="n">providers</span><span class="p">,</span>
-        <span class="n">parameters</span><span class="o">=</span><span class="n">problem</span><span class="o">.</span><span class="n">parameters</span><span class="p">,</span>
-        <span class="n">differentiable_parameters</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">problem</span><span class="o">.</span><span class="n">parameter_gradients</span><span class="p">),</span>
-    <span class="p">)</span>
+    <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">known</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">disabled_items</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="solve_ik">
@@ -761,142 +737,133 @@
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;differentiable=True requires optimizer_cfg.optimizer=&#39;lm&#39;&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">optimizer</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;lbfgs&quot;</span><span class="p">,</span> <span class="s2">&quot;lm_then_lbfgs&quot;</span><span class="p">}:</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
-            <span class="s2">&quot;Batched named-block L-BFGS is deferred because per-element line &quot;</span>
-            <span class="s2">&quot;search/history reset semantics are not implemented. Use &#39;adam&#39; &quot;</span>
-            <span class="s2">&quot;or &#39;lm_then_adam&#39;.&quot;</span>
+            <span class="s2">&quot;Batched L-BFGS is deferred because its global line search and &quot;</span>
+            <span class="s2">&quot;history couple batch elements. Use &#39;adam&#39; or &#39;lm_then_adam&#39;.&quot;</span>
         <span class="p">)</span>
 
     <span class="n">start</span> <span class="o">=</span> <span class="n">initial_q</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span> <span class="k">if</span> <span class="n">initial_q</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">model</span><span class="o">.</span><span class="n">q_neutral</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
     <span class="n">active_q_rest</span> <span class="o">=</span> <span class="n">cost_cfg</span><span class="o">.</span><span class="n">q_rest</span> <span class="k">if</span> <span class="n">cost_cfg</span><span class="o">.</span><span class="n">rest_weight</span> <span class="o">&gt;</span> <span class="mf">0.0</span> <span class="k">else</span> <span class="kc">None</span>
     <span class="n">start</span> <span class="o">=</span> <span class="n">_broadcast_initial_configuration</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">targets</span><span class="p">,</span> <span class="n">active_q_rest</span><span class="p">)</span>
-    <span class="n">manifold</span> <span class="o">=</span> <span class="n">RobotConfig</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
-    <span class="n">bounds</span> <span class="o">=</span> <span class="n">manifold</span><span class="o">.</span><span class="n">joint_bounds</span><span class="p">()</span>
+    <span class="n">q_variable</span> <span class="o">=</span> <span class="n">RobotVariable</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;q&quot;</span><span class="p">,</span> <span class="n">bounds</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="c1"># The task preset starts inside its declared joint box; several shipped</span>
-    <span class="c1"># neutral configurations lie outside it (notably Panda joint 4).</span>
-    <span class="n">start</span> <span class="o">=</span> <span class="n">manifold</span><span class="o">.</span><span class="n">project</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">bounds</span><span class="p">)</span>
+    <span class="c1"># neutral configurations lie outside it (notably Panda joint 4). A zero</span>
+    <span class="c1"># retraction also normalizes any unit-coordinate representatives.</span>
+    <span class="n">q_variable</span><span class="o">.</span><span class="n">tensor</span> <span class="o">=</span> <span class="n">q_variable</span><span class="o">.</span><span class="n">retract</span><span class="p">(</span>
+        <span class="n">q_variable</span><span class="o">.</span><span class="n">tensor</span><span class="o">.</span><span class="n">new_zeros</span><span class="p">(</span><span class="o">*</span><span class="n">q_variable</span><span class="o">.</span><span class="n">batch_shape</span><span class="p">,</span> <span class="n">q_variable</span><span class="o">.</span><span class="n">free_dim</span><span class="p">),</span>
+    <span class="p">)</span>
 
     <span class="n">kernel</span> <span class="o">=</span> <span class="n">_make_robust_kernel</span><span class="p">(</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">kernel</span><span class="p">)</span>
-    <span class="n">residuals</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">ResidualItem</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="n">parameters</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="n">differentiable_parameters</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">residuals</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Residual</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">target_index</span><span class="p">,</span> <span class="p">(</span><span class="n">frame_name</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">targets</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
         <span class="n">frame_id</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">frame_id</span><span class="p">(</span><span class="n">frame_name</span><span class="p">)</span>
         <span class="n">item_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;pose_</span><span class="si">{</span><span class="n">frame_name</span><span class="si">}</span><span class="s2">&quot;</span>
         <span class="n">target_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;target_pose_</span><span class="si">{</span><span class="n">target_index</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="n">parameters</span><span class="p">[</span><span class="n">target_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">target</span>
-        <span class="n">differentiable_parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">target_name</span><span class="p">)</span>
+        <span class="n">target_variable</span> <span class="o">=</span> <span class="n">Variable</span><span class="p">(</span>
+            <span class="n">target</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">target_name</span><span class="p">,</span>
+            <span class="n">trainable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">batch_ndim</span><span class="o">=</span><span class="n">target</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span>
         <span class="n">residuals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-            <span class="n">ResidualItem</span><span class="p">(</span>
-                <span class="n">item_name</span><span class="p">,</span>
-                <span class="n">PoseResidual</span><span class="p">(</span>
-                    <span class="n">frame_id</span><span class="o">=</span><span class="n">frame_id</span><span class="p">,</span>
-                    <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
-                    <span class="n">pos_weight</span><span class="o">=</span><span class="n">cost_cfg</span><span class="o">.</span><span class="n">pos_weight</span><span class="p">,</span>
-                    <span class="n">ori_weight</span><span class="o">=</span><span class="n">cost_cfg</span><span class="o">.</span><span class="n">ori_weight</span><span class="p">,</span>
-                    <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span>
-                    <span class="n">name</span><span class="o">=</span><span class="n">item_name</span><span class="p">,</span>
-                    <span class="n">target_name</span><span class="o">=</span><span class="n">target_name</span><span class="p">,</span>
-                <span class="p">),</span>
+            <span class="n">PoseResidual</span><span class="p">(</span>
+                <span class="n">q_variable</span><span class="p">,</span>
+                <span class="n">frame_id</span><span class="o">=</span><span class="n">frame_id</span><span class="p">,</span>
+                <span class="n">target</span><span class="o">=</span><span class="n">target_variable</span><span class="p">,</span>
+                <span class="n">pos_weight</span><span class="o">=</span><span class="n">cost_cfg</span><span class="o">.</span><span class="n">pos_weight</span><span class="p">,</span>
+                <span class="n">ori_weight</span><span class="o">=</span><span class="n">cost_cfg</span><span class="o">.</span><span class="n">ori_weight</span><span class="p">,</span>
                 <span class="n">weight</span><span class="o">=</span><span class="n">cost_cfg</span><span class="o">.</span><span class="n">pose_weight</span><span class="p">,</span>
                 <span class="n">kernel</span><span class="o">=</span><span class="n">kernel</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">item_name</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="p">)</span>
     <span class="k">if</span> <span class="n">cost_cfg</span><span class="o">.</span><span class="n">limit_weight</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
         <span class="n">residuals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-            <span class="n">ResidualItem</span><span class="p">(</span>
-                <span class="s2">&quot;limits&quot;</span><span class="p">,</span>
-                <span class="n">JointPositionLimit</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;limits&quot;</span><span class="p">),</span>
+            <span class="n">JointPositionLimit</span><span class="p">(</span>
+                <span class="n">q_variable</span><span class="p">,</span>
                 <span class="n">weight</span><span class="o">=</span><span class="n">cost_cfg</span><span class="o">.</span><span class="n">limit_weight</span><span class="p">,</span>
                 <span class="n">kernel</span><span class="o">=</span><span class="n">kernel</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;limits&quot;</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="p">)</span>
     <span class="n">q_rest</span> <span class="o">=</span> <span class="n">cost_cfg</span><span class="o">.</span><span class="n">q_rest</span> <span class="k">if</span> <span class="n">cost_cfg</span><span class="o">.</span><span class="n">q_rest</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">model</span><span class="o">.</span><span class="n">q_neutral</span>
     <span class="k">if</span> <span class="n">cost_cfg</span><span class="o">.</span><span class="n">rest_weight</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
-        <span class="n">rest_target_name</span> <span class="o">=</span> <span class="s2">&quot;target_rest&quot;</span>
-        <span class="n">parameters</span><span class="p">[</span><span class="n">rest_target_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">q_rest</span>
-        <span class="n">differentiable_parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rest_target_name</span><span class="p">)</span>
+        <span class="n">rest_variable</span> <span class="o">=</span> <span class="n">Variable</span><span class="p">(</span>
+            <span class="n">q_rest</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;target_rest&quot;</span><span class="p">,</span>
+            <span class="n">trainable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">batch_ndim</span><span class="o">=</span><span class="n">q_rest</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span>
         <span class="n">residuals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-            <span class="n">ResidualItem</span><span class="p">(</span>
-                <span class="s2">&quot;rest&quot;</span><span class="p">,</span>
-                <span class="n">RestResidual</span><span class="p">(</span>
-                    <span class="n">model</span><span class="p">,</span>
-                    <span class="n">q_rest</span><span class="p">,</span>
-                    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;rest&quot;</span><span class="p">,</span>
-                    <span class="n">target_name</span><span class="o">=</span><span class="n">rest_target_name</span><span class="p">,</span>
-                <span class="p">),</span>
+            <span class="n">RestResidual</span><span class="p">(</span>
+                <span class="n">q_variable</span><span class="p">,</span>
+                <span class="n">rest_variable</span><span class="p">,</span>
                 <span class="n">weight</span><span class="o">=</span><span class="n">cost_cfg</span><span class="o">.</span><span class="n">rest_weight</span><span class="p">,</span>
                 <span class="n">kernel</span><span class="o">=</span><span class="n">kernel</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;rest&quot;</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="p">)</span>
-    <span class="n">problem</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">(</span>
-        <span class="nb">vars</span><span class="o">=</span><span class="p">(</span>
-            <span class="n">VarSpec</span><span class="p">(</span>
-                <span class="s2">&quot;q&quot;</span><span class="p">,</span>
-                <span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">nq</span><span class="p">,),</span>
-                <span class="n">manifold</span><span class="o">=</span><span class="n">manifold</span><span class="p">,</span>
-                <span class="n">bounds</span><span class="o">=</span><span class="n">bounds</span><span class="p">,</span>
-            <span class="p">),</span>
-        <span class="p">),</span>
-        <span class="n">residuals</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">residuals</span><span class="p">),</span>
-        <span class="n">providers</span><span class="o">=</span><span class="p">(</span><span class="n">RobotStateProvider</span><span class="p">(</span><span class="n">model</span><span class="p">),),</span>
-        <span class="n">parameters</span><span class="o">=</span><span class="n">parameters</span><span class="p">,</span>
-        <span class="n">differentiable_parameters</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">differentiable_parameters</span><span class="p">),</span>
-    <span class="p">)</span>
-    <span class="n">values</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;q&quot;</span><span class="p">:</span> <span class="n">start</span><span class="p">}</span>
+    <span class="n">problem</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">(</span><span class="n">residuals</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">==</span> <span class="s2">&quot;adam&quot;</span><span class="p">:</span>
-        <span class="n">values</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="n">run_first_order</span><span class="p">(</span>
-            <span class="n">values</span><span class="p">,</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="n">TorchOptimizer</span><span class="p">(</span>
             <span class="n">problem</span><span class="p">,</span>
-            <span class="k">lambda</span> <span class="n">params</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">1e-2</span><span class="p">),</span>
-            <span class="n">max_iter</span><span class="o">=</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">max_iter</span><span class="p">,</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">,</span>
+            <span class="n">lr</span><span class="o">=</span><span class="mf">1e-2</span><span class="p">,</span>
+            <span class="n">max_iterations</span><span class="o">=</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">max_iter</span><span class="p">,</span>
             <span class="n">tolerance</span><span class="o">=</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">tol</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="n">states</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">state</span><span class="p">,)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">optimize</span><span class="p">()</span>
+        <span class="n">infos</span> <span class="o">=</span> <span class="p">(</span><span class="n">info</span><span class="p">,)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">jacobian_strategy</span> <span class="o">=</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">jacobian_strategy</span>
         <span class="n">common</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s2">&quot;gtol&quot;</span><span class="p">:</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">tol</span><span class="p">,</span>
-            <span class="s2">&quot;linear_solver&quot;</span><span class="p">:</span> <span class="n">_make_linear_solver</span><span class="p">(</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">linear_solver</span><span class="p">),</span>
-            <span class="s2">&quot;kernel&quot;</span><span class="p">:</span> <span class="n">kernel</span><span class="p">,</span>
-            <span class="s2">&quot;jacobian_strategy&quot;</span><span class="p">:</span> <span class="n">jacobian_strategy</span><span class="p">,</span>
+            <span class="s2">&quot;tolerance&quot;</span><span class="p">:</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">tol</span><span class="p">,</span>
+            <span class="s2">&quot;solver&quot;</span><span class="p">:</span> <span class="n">_make_linear_solver</span><span class="p">(</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">linear_solver</span><span class="p">),</span>
+            <span class="s2">&quot;jacobian_strategy&quot;</span><span class="p">:</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">jacobian_strategy</span><span class="p">,</span>
         <span class="p">}</span>
         <span class="k">if</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">==</span> <span class="s2">&quot;lm&quot;</span><span class="p">:</span>
             <span class="n">solver</span> <span class="o">=</span> <span class="n">LevenbergMarquardt</span><span class="p">(</span>
-                <span class="n">max_iter</span><span class="o">=</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">max_iter</span><span class="p">,</span>
+                <span class="n">problem</span><span class="p">,</span>
+                <span class="n">max_iterations</span><span class="o">=</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">max_iter</span><span class="p">,</span>
                 <span class="o">**</span><span class="n">common</span><span class="p">,</span>
                 <span class="n">fixed_damping</span><span class="o">=</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">damping</span> <span class="o">==</span> <span class="s2">&quot;constant&quot;</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="k">if</span> <span class="n">differentiable</span><span class="p">:</span>
-                <span class="n">values</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="n">solver</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">problem</span><span class="p">,</span> <span class="n">differentiate</span><span class="o">=</span><span class="s2">&quot;implicit&quot;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">values</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="n">solver</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
-            <span class="n">states</span> <span class="o">=</span> <span class="p">(</span><span class="n">state</span><span class="p">,)</span>
+            <span class="n">info</span> <span class="o">=</span> <span class="n">solver</span><span class="o">.</span><span class="n">optimize</span><span class="p">(</span><span class="n">differentiate</span><span class="o">=</span><span class="s2">&quot;implicit&quot;</span> <span class="k">if</span> <span class="n">differentiable</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">infos</span> <span class="o">=</span> <span class="p">(</span><span class="n">info</span><span class="p">,)</span>
         <span class="k">elif</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">==</span> <span class="s2">&quot;gn&quot;</span><span class="p">:</span>
-            <span class="n">solver</span> <span class="o">=</span> <span class="n">GaussNewton</span><span class="p">(</span><span class="n">max_iter</span><span class="o">=</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">max_iter</span><span class="p">,</span> <span class="o">**</span><span class="n">common</span><span class="p">)</span>
-            <span class="n">values</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="n">solver</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
-            <span class="n">states</span> <span class="o">=</span> <span class="p">(</span><span class="n">state</span><span class="p">,)</span>
+            <span class="n">info</span> <span class="o">=</span> <span class="n">GaussNewton</span><span class="p">(</span>
+                <span class="n">problem</span><span class="p">,</span>
+                <span class="n">max_iterations</span><span class="o">=</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">max_iter</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">common</span><span class="p">,</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">optimize</span><span class="p">()</span>
+            <span class="n">infos</span> <span class="o">=</span> <span class="p">(</span><span class="n">info</span><span class="p">,)</span>
         <span class="k">else</span><span class="p">:</span>  <span class="c1"># only lm_then_adam remains after boundary validation</span>
             <span class="n">coarse_iters</span> <span class="o">=</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">max_iter</span> <span class="o">//</span> <span class="mi">2</span>
             <span class="n">refine_iters</span> <span class="o">=</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">max_iter</span> <span class="o">-</span> <span class="n">coarse_iters</span>
-            <span class="n">values</span><span class="p">,</span> <span class="n">coarse_state</span> <span class="o">=</span> <span class="n">LevenbergMarquardt</span><span class="p">(</span>
-                <span class="n">max_iter</span><span class="o">=</span><span class="n">coarse_iters</span><span class="p">,</span>
+            <span class="n">disabled</span> <span class="o">=</span> <span class="n">_refinement_residuals</span><span class="p">(</span><span class="n">problem</span><span class="p">,</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">refine_disabled_items</span><span class="p">)</span>
+            <span class="n">coarse_info</span> <span class="o">=</span> <span class="n">LevenbergMarquardt</span><span class="p">(</span>
+                <span class="n">problem</span><span class="p">,</span>
+                <span class="n">max_iterations</span><span class="o">=</span><span class="n">coarse_iters</span><span class="p">,</span>
                 <span class="o">**</span><span class="n">common</span><span class="p">,</span>
                 <span class="n">fixed_damping</span><span class="o">=</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">damping</span> <span class="o">==</span> <span class="s2">&quot;constant&quot;</span><span class="p">,</span>
-            <span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">problem</span><span class="p">)</span>
-            <span class="n">refinement</span> <span class="o">=</span> <span class="n">_refinement_problem</span><span class="p">(</span><span class="n">problem</span><span class="p">,</span> <span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">refine_disabled_items</span><span class="p">)</span>
-            <span class="n">values</span><span class="p">,</span> <span class="n">refine_state</span> <span class="o">=</span> <span class="n">run_first_order</span><span class="p">(</span>
-                <span class="n">values</span><span class="p">,</span>
-                <span class="n">refinement</span><span class="p">,</span>
-                <span class="k">lambda</span> <span class="n">params</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">1e-2</span><span class="p">),</span>
-                <span class="n">max_iter</span><span class="o">=</span><span class="n">refine_iters</span><span class="p">,</span>
-                <span class="n">tolerance</span><span class="o">=</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">tol</span><span class="p">,</span>
-            <span class="p">)</span>
-            <span class="n">states</span> <span class="o">=</span> <span class="p">(</span><span class="n">coarse_state</span><span class="p">,</span> <span class="n">refine_state</span><span class="p">)</span>
-    <span class="n">iterations</span><span class="p">,</span> <span class="n">converged</span> <span class="o">=</span> <span class="n">_public_diagnostics</span><span class="p">(</span><span class="n">states</span><span class="p">,</span> <span class="n">values</span><span class="p">[</span><span class="s2">&quot;q&quot;</span><span class="p">])</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">optimize</span><span class="p">()</span>
+            <span class="n">original_weights</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">residual</span><span class="o">.</span><span class="n">weight</span> <span class="k">for</span> <span class="n">residual</span> <span class="ow">in</span> <span class="n">disabled</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">residual</span> <span class="ow">in</span> <span class="n">disabled</span><span class="p">:</span>
+                    <span class="n">residual</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="mf">0.0</span>
+                <span class="n">refine_info</span> <span class="o">=</span> <span class="n">TorchOptimizer</span><span class="p">(</span>
+                    <span class="n">problem</span><span class="p">,</span>
+                    <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">,</span>
+                    <span class="n">lr</span><span class="o">=</span><span class="mf">1e-2</span><span class="p">,</span>
+                    <span class="n">max_iterations</span><span class="o">=</span><span class="n">refine_iters</span><span class="p">,</span>
+                    <span class="n">tolerance</span><span class="o">=</span><span class="n">optimizer_cfg</span><span class="o">.</span><span class="n">tol</span><span class="p">,</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">optimize</span><span class="p">()</span>
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">residual</span><span class="p">,</span> <span class="n">weight</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">disabled</span><span class="p">,</span> <span class="n">original_weights</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+                    <span class="n">residual</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="n">weight</span>
+            <span class="n">infos</span> <span class="o">=</span> <span class="p">(</span><span class="n">coarse_info</span><span class="p">,</span> <span class="n">refine_info</span><span class="p">)</span>
+    <span class="n">iterations</span><span class="p">,</span> <span class="n">converged</span> <span class="o">=</span> <span class="n">_public_diagnostics</span><span class="p">(</span><span class="n">infos</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">IKResult</span><span class="p">(</span>
-        <span class="n">q</span><span class="o">=</span><span class="n">values</span><span class="p">[</span><span class="s2">&quot;q&quot;</span><span class="p">],</span>
-        <span class="n">residual</span><span class="o">=</span><span class="n">problem</span><span class="o">.</span><span class="n">residual</span><span class="p">(</span><span class="n">values</span><span class="p">),</span>
+        <span class="n">q</span><span class="o">=</span><span class="n">q_variable</span><span class="o">.</span><span class="n">tensor</span><span class="p">,</span>
+        <span class="n">residual</span><span class="o">=</span><span class="n">problem</span><span class="o">.</span><span class="n">error</span><span class="p">(),</span>
         <span class="n">iters</span><span class="o">=</span><span class="n">iterations</span><span class="p">,</span>
         <span class="n">converged</span><span class="o">=</span><span class="n">converged</span><span class="p">,</span>
         <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span>

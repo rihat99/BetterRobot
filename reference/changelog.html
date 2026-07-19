@@ -56,7 +56,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -192,7 +192,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/viewer.html">Viewer</a></li>
@@ -245,6 +245,7 @@
 <li class="toctree-l4"><a class="reference internal" href="api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/better_robot/better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -283,12 +284,10 @@
 <li class="toctree-l4"><a class="reference internal" href="api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -583,15 +582,15 @@ Format: <a class="reference external" href="https://keepachangelog.com/en/1.1.0/
 <section id="unreleased">
 <h3>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h3>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">Problem.add_variable</span></code> and <code class="docutils literal notranslate"><span class="pre">Problem.add_residual</span></code> now build least-squares
-problems directly from named variables and residual callables. <code class="docutils literal notranslate"><span class="pre">VarSpec</span></code>
-and <code class="docutils literal notranslate"><span class="pre">ResidualItem</span></code> remain available when explicit records are useful.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">solve_trajopt</span></code> now takes a sequence of <code class="docutils literal notranslate"><span class="pre">ResidualItem</span></code> objects through its
-<code class="docutils literal notranslate"><span class="pre">residuals=</span></code> argument. Callers choose active terms by passing only those
-items; robust kernels, weights, and grouping remain attached to each item.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Problem</span></code> now freezes a graph of residual objects and the variables and nodes
+they reference. Variable subclasses own their tensor and geometry; residuals
+own their weights, robust groups, and dependencies.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">solve_trajopt</span></code> now accepts residual objects or trajectory-variable residual
+factories. Callers may supply their own <code class="docutils literal notranslate"><span class="pre">RobotVariable</span></code>, and optimizer
+factories receive and own the assembled <code class="docutils literal notranslate"><span class="pre">Problem</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt</span></code> and <code class="docutils literal notranslate"><span class="pre">GaussNewton</span></code> now share one dense or block-banded
-path. <code class="docutils literal notranslate"><span class="pre">run_first_order</span></code> adapts the same <code class="docutils literal notranslate"><span class="pre">Problem</span></code> to a standard
-<code class="docutils literal notranslate"><span class="pre">torch.optim.Optimizer</span></code>, and eligible converged solves can request guarded
+path. <code class="docutils literal notranslate"><span class="pre">TorchOptimizer</span></code> adapts the same <code class="docutils literal notranslate"><span class="pre">Problem</span></code> to a standard
+<code class="docutils literal notranslate"><span class="pre">torch.optim.Optimizer</span></code>; eligible converged LM solves can request guarded
 implicit differentiation.</p></li>
 <li><p>Temporal variables and residual patterns can route trajectory problems
 through block-banded Cholesky. Problems without complete temporal structure
@@ -606,35 +605,39 @@ returns. Ordinary task solves remain detached where documented.</p></li>
 <li><p>Public functions validate tensor shape, dtype, and device once. Model values
 are checked when attached to a model instead of during every kinematics or
 dynamics call, and public input errors now use consistent wording.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">ccrba</span></code> now returns <code class="docutils literal notranslate"><span class="pre">CCRBAResult</span></code>, which names the centroidal map and
-momentum while retaining tuple unpacking.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ccrba</span></code> now returns a frozen <code class="docutils literal notranslate"><span class="pre">CCRBAResult</span></code> dataclass with named centroidal-map
+and momentum fields; tuple unpacking is removed.</p></li>
 <li><p>The former optimization object hierarchy and import paths were removed,
 including <code class="docutils literal notranslate"><span class="pre">CostStack</span></code>, <code class="docutils literal notranslate"><span class="pre">CostItem</span></code>, <code class="docutils literal notranslate"><span class="pre">CostKind</span></code>, <code class="docutils literal notranslate"><span class="pre">LeastSquaresProblem</span></code>,
 <code class="docutils literal notranslate"><span class="pre">Optimizer</span></code>, <code class="docutils literal notranslate"><span class="pre">OptimizationResult</span></code>, <code class="docutils literal notranslate"><span class="pre">SolverState</span></code>, <code class="docutils literal notranslate"><span class="pre">SolverStatus</span></code>, the custom
 <code class="docutils literal notranslate"><span class="pre">Adam</span></code> state machine, L-BFGS and multi-stage wrappers, damping strategies,
 phase records, and the <code class="docutils literal notranslate"><span class="pre">better_robot.costs</span></code> package. Every removed symbol
 and its supported replacement is listed in the
-<a class="reference external" href="https://github.com/rihat99/BetterRobot/blob/dev/plan/migration_ledger.md">migration details</a>.</p></li>
+<a class="reference external" href="https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md">migration details</a>.</p></li>
 <li><p>Scalar objectives, <code class="docutils literal notranslate"><span class="pre">ResidualState</span></code>, residual-owned Jacobian hooks,
 <code class="docutils literal notranslate"><span class="pre">ResidualSpec</span></code>, provider <code class="docutils literal notranslate"><span class="pre">inputs</span></code> declarations, and the root/kinematics
 <code class="docutils literal notranslate"><span class="pre">JacobianStrategy</span></code> export were removed or replaced by the single callable
 residual protocol. Exact replacements are in the
-<a class="reference external" href="https://github.com/rihat99/BetterRobot/blob/dev/plan/migration_ledger.md">migration details</a>.</p></li>
+<a class="reference external" href="https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md">migration details</a>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">LSTSQ</span></code>, the rank-deficient Cholesky fallback, <code class="docutils literal notranslate"><span class="pre">NormalCG</span></code>, <code class="docutils literal notranslate"><span class="pre">NormalOperator</span></code>,
 matrix-free routing, pure linear-solve diagnostics, and nested
 <code class="docutils literal notranslate"><span class="pre">optim.blocks</span></code>, <code class="docutils literal notranslate"><span class="pre">optim.kernels.*</span></code>, <code class="docutils literal notranslate"><span class="pre">optim.solvers.*</span></code>, and <code class="docutils literal notranslate"><span class="pre">optim.structure</span></code>
 import paths were removed. Dense and declared temporal routes replace them;
-the <a class="reference external" href="https://github.com/rihat99/BetterRobot/blob/dev/plan/migration_ledger.md">migration details</a>
+the <a class="reference external" href="https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md">migration details</a>
 cover each surface.</p></li>
 <li><p>Unimplemented public dynamics exports (<code class="docutils literal notranslate"><span class="pre">compute_minverse</span></code>,
 <code class="docutils literal notranslate"><span class="pre">compute_coriolis_matrix</span></code>, centroidal dynamics derivatives, three dynamics
 integrators, and <code class="docutils literal notranslate"><span class="pre">nle</span></code>) and residual exports (<code class="docutils literal notranslate"><span class="pre">YoshikawaResidual</span></code>, collision
 residuals, and <code class="docutils literal notranslate"><span class="pre">JointAccelLimit</span></code>) were removed. Their supported alternatives
 are listed in the
-<a class="reference external" href="https://github.com/rihat99/BetterRobot/blob/dev/plan/migration_ledger.md">migration details</a>.</p></li>
+<a class="reference external" href="https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md">migration details</a>.</p></li>
+<li><p>Raise-only jerk and nullspace residual exports, the unsupported angular
+contact-consistency option, and the unused public model-value batch-shape
+wrapper were removed. Supported alternatives are recorded in the
+<a class="reference external" href="https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md">migration details</a>.</p></li>
 <li><p>The unused <code class="docutils literal notranslate"><span class="pre">ReferenceFrame</span></code> enum was replaced by the literal frame strings
 accepted by the Jacobian API; see the
-<a class="reference external" href="https://github.com/rihat99/BetterRobot/blob/dev/plan/migration_ledger.md">migration details</a>.</p></li>
+<a class="reference external" href="https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md">migration details</a>.</p></li>
 <li><p>Fused Warp forward kinematics remains an explicit GPU alternative with
 forward and gradient parity coverage; PyTorch remains the default path.</p></li>
 <li><p>Tutorials now introduce the robotics concepts they use, guides show complete
@@ -645,6 +648,8 @@ reference matches the current public API.</p></li>
 <section id="v0-2-0-2026-04-11">
 <h3>v0.2.0 — 2026-04-11<a class="headerlink" href="#v0-2-0-2026-04-11" title="Link to this heading">#</a></h3>
 <p>The first stable release of the PyTorch-native BetterRobot stack.</p>
+<p>The public API list below is historical and superseded; see <a class="reference internal" href="#unreleased">Unreleased</a>
+and the current <a class="reference external" href="https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md">migration details</a>.</p>
 <section id="highlights">
 <h4>Highlights<a class="headerlink" href="#highlights" title="Link to this heading">#</a></h4>
 <ul class="simple">
@@ -800,7 +805,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>

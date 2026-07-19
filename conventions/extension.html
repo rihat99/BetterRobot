@@ -57,7 +57,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -193,7 +193,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/viewer.html">Viewer</a></li>
@@ -246,6 +246,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -284,12 +285,10 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -553,8 +552,9 @@
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#quick-map">Quick map</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#residuals">Residuals</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#shared-nodes">Shared nodes</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#joint-models">Joint models</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#nonlinear-solvers">Nonlinear solvers</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#nonlinear-optimizers">Nonlinear optimizers</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#linear-solvers">Linear solvers</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#robust-kernels">Robust kernels</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parser-formats">Parser formats</a></li>
@@ -591,33 +591,36 @@ dictionary is a public plugin API.</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p>add an objective</p></td>
-<td><p>residual callable, usually wrapped by <code class="docutils literal notranslate"><span class="pre">ResidualItem</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Residual</span></code> subclass or <code class="docutils literal notranslate"><span class="pre">&#64;residual</span></code> tensor function</p></td>
 </tr>
 <tr class="row-odd"><td><p>add a robot joint</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">JointModel</span></code> protocol and <code class="docutils literal notranslate"><span class="pre">ModelBuilder</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>add a first-order optimizer</p></td>
-<td><p>a <code class="docutils literal notranslate"><span class="pre">torch.optim.Optimizer</span></code> factory</p></td>
+<tr class="row-even"><td><p>add shared residual work</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Node</span></code> subclass</p></td>
 </tr>
-<tr class="row-odd"><td><p>add a least-squares solver</p></td>
-<td><p>call a solver object directly</p></td>
+<tr class="row-odd"><td><p>add a first-order optimizer</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">TorchOptimizer</span></code> with a <code class="docutils literal notranslate"><span class="pre">torch.optim.Optimizer</span></code> class or factory</p></td>
 </tr>
-<tr class="row-even"><td><p>add a linear solver</p></td>
+<tr class="row-even"><td><p>add a nonlinear optimizer</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Optimizer</span></code> subclass owning one <code class="docutils literal notranslate"><span class="pre">Problem</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>add a linear solver</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">LinearSolver</span></code> protocol</p></td>
 </tr>
-<tr class="row-odd"><td><p>add a robust loss</p></td>
+<tr class="row-even"><td><p>add a robust loss</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">RobustKernel</span></code> protocol</p></td>
 </tr>
-<tr class="row-even"><td><p>add a file format</p></td>
+<tr class="row-odd"><td><p>add a file format</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">register_parser(suffix,</span> <span class="pre">function)</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>add a viewer mode</p></td>
+<tr class="row-even"><td><p>add a viewer mode</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">RenderMode</span></code> protocol and <code class="docutils literal notranslate"><span class="pre">Scene.add_mode</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>add an asset source</p></td>
+<tr class="row-odd"><td><p>add an asset source</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">AssetResolver</span></code> protocol</p></td>
 </tr>
-<tr class="row-odd"><td><p>add a fused compute implementation</p></td>
+<tr class="row-even"><td><p>add a fused compute implementation</p></td>
 <td><p>internal branch at one complete pass</p></td>
 </tr>
 </tbody>
@@ -626,7 +629,8 @@ dictionary is a public plugin API.</p>
 </section>
 <section id="residuals">
 <h2>Residuals<a class="headerlink" href="#residuals" title="Link to this heading">#</a></h2>
-<p>Start with <a class="reference internal" href="../guides/custom_residual.html"><span class="doc">Write a custom residual</span></a>. A residual declares:</p>
+<p>Start with <a class="reference internal" href="../guides/custom_residual.html"><span class="doc">Write a custom residual</span></a>. A residual subclasses <code class="docutils literal notranslate"><span class="pre">Residual</span></code>
+and declares:</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Member</p></th>
@@ -637,40 +641,59 @@ dictionary is a public plugin API.</p>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">name</span></code></p></td>
 <td><p>stable diagnostic name</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">reads</span></code></p></td>
-<td><p>context entries needed by the calculation</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">variables</span></code></p></td>
+<td><p>ordered object references read by the residual</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">dim</span></code></p></td>
 <td><p>fixed number of output rows</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">__call__(ctx)</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">weight</span></code>, <code class="docutils literal notranslate"><span class="pre">kernel</span></code>, <code class="docutils literal notranslate"><span class="pre">group_size</span></code></p></td>
+<td><p>row scaling and robust grouping</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">error()</span></code></p></td>
 <td><p>returns <code class="docutils literal notranslate"><span class="pre">(B...,</span> <span class="pre">dim)</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">jacobian_blocks(ctx)</span></code></p></td>
-<td><p>optional complete analytic blocks</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">jacobian()</span></code></p></td>
+<td><p>optional complete reduced-tangent blocks</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 <p>For example:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim</span><span class="w"> </span><span class="kn">import</span> <span class="n">Problem</span><span class="p">,</span> <span class="n">Residual</span><span class="p">,</span> <span class="n">Variable</span>
 
 
-<span class="k">class</span><span class="w"> </span><span class="nc">PointAtOrigin</span><span class="p">:</span>
-    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;point_at_origin&quot;</span>
-    <span class="n">reads</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;point&quot;</span><span class="p">,)</span>
-    <span class="n">dim</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">PointAtOrigin</span><span class="p">(</span><span class="n">Residual</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">point</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">point</span> <span class="o">=</span> <span class="n">point</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">point</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;point_at_origin&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">ctx</span><span class="p">[</span><span class="s2">&quot;point&quot;</span><span class="p">]</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">error</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">point</span><span class="o">.</span><span class="n">tensor</span>
+
+
+<span class="n">point</span> <span class="o">=</span> <span class="n">Variable</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;point&quot;</span><span class="p">)</span>
+<span class="n">problem</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">([</span><span class="n">PointAtOrigin</span><span class="p">(</span><span class="n">point</span><span class="p">)])</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">problem</span><span class="o">.</span><span class="n">error</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
 </pre></div>
 </div>
-<p>Add an instance explicitly with <code class="docutils literal notranslate"><span class="pre">Problem.add_residual</span></code> or wrap it in a
-<code class="docutils literal notranslate"><span class="pre">ResidualItem</span></code>. The item owns its weight and robust kernel. There is no
-process-wide residual registry.</p>
-<p>A provider may compute shared context entries lazily. It declares <code class="docutils literal notranslate"><span class="pre">name</span></code>,
-<code class="docutils literal notranslate"><span class="pre">reads</span></code>, <code class="docutils literal notranslate"><span class="pre">outputs</span></code>, and <code class="docutils literal notranslate"><span class="pre">__call__(ctx)</span></code>. Provider caches last for one
-problem evaluation only.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>[1.0, 1.0, 1.0]
+</pre></div>
+</div>
+<p>Pass residual instances to <code class="docutils literal notranslate"><span class="pre">Problem</span></code>; it harvests their variable and node
+references. The <code class="docutils literal notranslate"><span class="pre">&#64;residual(variable,</span> <span class="pre">...,</span> <span class="pre">dim=...)</span></code> adapter is the concise
+choice when automatic differentiation is sufficient. There is no process-wide
+residual registry.</p>
+</section>
+<section id="shared-nodes">
+<h2>Shared nodes<a class="headerlink" href="#shared-nodes" title="Link to this heading">#</a></h2>
+<p>A <code class="docutils literal notranslate"><span class="pre">Node</span></code> computes shared work lazily from variables supplied to its
+constructor. Implement <code class="docutils literal notranslate"><span class="pre">compute()</span></code>, and optionally an identity-only
+<code class="docutils literal notranslate"><span class="pre">merge_key</span></code> when equivalent instances may share one memo. Residuals list the
+nodes they use in <code class="docutils literal notranslate"><span class="pre">nodes</span></code> and call <code class="docutils literal notranslate"><span class="pre">node.value()</span></code>. <code class="docutils literal notranslate"><span class="pre">Problem</span></code> invalidates all
+node memos at evaluation boundaries, so graph-bearing values never leak from
+one candidate to another. <code class="docutils literal notranslate"><span class="pre">RobotState</span></code> is the built-in FK example.</p>
 </section>
 <section id="joint-models">
 <h2>Joint models<a class="headerlink" href="#joint-models" title="Link to this heading">#</a></h2>
@@ -718,10 +741,9 @@ which is correct only for joints with the corresponding constant behavior.</p>
 <code class="docutils literal notranslate"><span class="pre">JointKind</span></code> literal lists built-ins and does not become open merely because
 runtime construction accepts a custom string.</p>
 </section>
-<section id="nonlinear-solvers">
-<h2>Nonlinear solvers<a class="headerlink" href="#nonlinear-solvers" title="Link to this heading">#</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt</span></code> and <code class="docutils literal notranslate"><span class="pre">GaussNewton</span></code> expose the lifecycle used by direct
-callers:</p>
+<section id="nonlinear-optimizers">
+<h2>Nonlinear optimizers<a class="headerlink" href="#nonlinear-optimizers" title="Link to this heading">#</a></h2>
+<p>Every <code class="docutils literal notranslate"><span class="pre">Optimizer</span></code> owns a <code class="docutils literal notranslate"><span class="pre">Problem</span></code> and exposes this public lifecycle:</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Method</p></th>
@@ -729,50 +751,61 @@ callers:</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">init_state(values,</span> <span class="pre">problem)</span></code></p></td>
-<td><p>validate the solve and create tensor state</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">step()</span></code></p></td>
+<td><p>update referenced trainable variables once and return <code class="docutils literal notranslate"><span class="pre">OptimizerInfo</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">update(values,</span> <span class="pre">state,</span> <span class="pre">problem)</span></code></p></td>
-<td><p>perform one fixed-shape step</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">optimize()</span></code></p></td>
+<td><p>run the eager loop and return final public diagnostics</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">finalize(values,</span> <span class="pre">state,</span> <span class="pre">problem)</span></code></p></td>
-<td><p>refresh diagnostics at the returned point</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">run(values,</span> <span class="pre">problem,</span> <span class="pre">state=None)</span></code></p></td>
-<td><p>run the detached eager loop</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">solve(...,</span> <span class="pre">differentiate=...)</span></code></p></td>
-<td><p>choose detached or eligible implicit differentiation</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">reset()</span></code></p></td>
+<td><p>clear optimizer state while retaining variable values</p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>A prior state can warm-start solver state. Task helpers do not discover custom
-solver classes; call a custom solver directly.</p>
-<p>For first-order methods, pass a standard optimizer factory to
-<code class="docutils literal notranslate"><span class="pre">run_first_order</span></code>. BetterRobot owns tangent retraction and bounds while
-PyTorch owns Adam, SGD, or another compatible update rule.</p>
+<p>Subclass <code class="docutils literal notranslate"><span class="pre">Optimizer</span></code> for a genuinely different nonlinear driver and implement
+<code class="docutils literal notranslate"><span class="pre">step</span></code>, <code class="docutils literal notranslate"><span class="pre">reset</span></code>, and the initial-info hook. Solved values remain on variables;
+the shared <code class="docutils literal notranslate"><span class="pre">OptimizerInfo</span></code> contains status, iterations, cost, and derived
+convergence. Task helpers accept custom optimizer factories only where their
+documented signature says so; otherwise call the custom optimizer directly.</p>
+<p>For first-order methods, construct <code class="docutils literal notranslate"><span class="pre">TorchOptimizer(problem,</span> <span class="pre">optimizer_cls,</span> <span class="pre">**kwargs)</span></code>. BetterRobot owns tangent retraction and bounds while PyTorch owns
+Adam, SGD, or another compatible update rule.</p>
 <p>The generated <a class="reference internal" href="../reference/api/better_robot/better_robot.optim.html"><span class="doc">better_robot.optim</span></a> page is
 the exact signature reference. The least-squares reasoning and damping
-intuition live in <a class="reference internal" href="../concepts/residuals_costs_and_solvers.html"><span class="doc">Residuals, Costs, and Solvers</span></a>.</p>
+intuition live in <a class="reference internal" href="../concepts/residuals_costs_and_solvers.html"><span class="doc">Residuals, Costs, and Optimizers</span></a>.</p>
 </section>
 <section id="linear-solvers">
 <h2>Linear solvers<a class="headerlink" href="#linear-solvers" title="Link to this heading">#</a></h2>
-<p>A <code class="docutils literal notranslate"><span class="pre">LinearSolver</span></code> implements:</p>
+<p>A <code class="docutils literal notranslate"><span class="pre">LinearSolver</span></code> implements a <code class="docutils literal notranslate"><span class="pre">solve</span></code> method:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">solve</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">ridge</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DenseSolver</span><span class="p">:</span>
+    <span class="n">supported_systems</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="s2">&quot;dense&quot;</span><span class="p">})</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">solve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">ridge</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">matrix</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">ridge</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">as_tensor</span><span class="p">(</span><span class="n">ridge</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">A</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">A</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+            <span class="n">matrix</span><span class="o">.</span><span class="n">diagonal</span><span class="p">(</span><span class="n">dim1</span><span class="o">=-</span><span class="mi">2</span><span class="p">,</span> <span class="n">dim2</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">add_</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+
+
+<span class="n">A</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">3.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">]])</span>
+<span class="n">b</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">9.0</span><span class="p">,</span> <span class="mf">8.0</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">DenseSolver</span><span class="p">()</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
+</pre></div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>[2.0, 3.0]
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">b</span></code> has shape <code class="docutils literal notranslate"><span class="pre">(B...,</span> <span class="pre">n)</span></code>; <code class="docutils literal notranslate"><span class="pre">ridge</span></code> is a scalar, <code class="docutils literal notranslate"><span class="pre">(B...,)</span></code>, or
 <code class="docutils literal notranslate"><span class="pre">None</span></code>. A solver that supports only dense tensors can omit
 <code class="docutils literal notranslate"><span class="pre">supported_systems</span></code>. A solver that accepts block-banded storage declares
 <code class="docutils literal notranslate"><span class="pre">supported_systems</span> <span class="pre">=</span> <span class="pre">frozenset({&quot;banded&quot;})</span></code> or both supported forms.</p>
-<p>The built-ins are dense <code class="docutils literal notranslate"><span class="pre">Cholesky</span></code> and <code class="docutils literal notranslate"><span class="pre">BandedCholesky</span></code>. Do not claim a
-rank-deficient fallback unless the implementation and result diagnostics prove
-it.</p>
+<p>The built-ins are dense <code class="docutils literal notranslate"><span class="pre">Cholesky</span></code>, dense <code class="docutils literal notranslate"><span class="pre">LU</span></code>, and <code class="docutils literal notranslate"><span class="pre">BandedCholesky</span></code>. Do not
+claim a rank-deficient fallback unless the implementation and result
+diagnostics prove it.</p>
 </section>
 <section id="robust-kernels">
 <h2>Robust kernels<a class="headerlink" href="#robust-kernels" title="Link to this heading">#</a></h2>
@@ -780,7 +813,7 @@ it.</p>
 for the iteratively reweighted normal equations. Both methods preserve the
 input shape. BetterRobot uses <code class="docutils literal notranslate"><span class="pre">weight(s)</span> <span class="pre">=</span> <span class="pre">2</span> <span class="pre">*</span> <span class="pre">rho'(s)</span></code>.</p>
 <p>Built-ins are <code class="docutils literal notranslate"><span class="pre">L2</span></code>, <code class="docutils literal notranslate"><span class="pre">Huber</span></code>, <code class="docutils literal notranslate"><span class="pre">Cauchy</span></code>, <code class="docutils literal notranslate"><span class="pre">Tukey</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">GemanMcClure</span></code>. Pass a kernel on the residual item; there is no global
+<code class="docutils literal notranslate"><span class="pre">GemanMcClure</span></code>. Pass a kernel on the residual; there is no global
 kernel selector.</p>
 </section>
 <section id="parser-formats">
@@ -910,8 +943,9 @@ changes.</p></li>
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#quick-map">Quick map</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#residuals">Residuals</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#shared-nodes">Shared nodes</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#joint-models">Joint models</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#nonlinear-solvers">Nonlinear solvers</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#nonlinear-optimizers">Nonlinear optimizers</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#linear-solvers">Linear solvers</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#robust-kernels">Robust kernels</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parser-formats">Parser formats</a></li>
@@ -953,7 +987,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>

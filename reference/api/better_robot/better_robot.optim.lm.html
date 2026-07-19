@@ -53,11 +53,11 @@
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
     <link rel="next" title="better_robot.tasks" href="better_robot.tasks.html" />
-    <link rel="prev" title="better_robot.optim.first_order" href="better_robot.optim.first_order.html" />
+    <link rel="prev" title="better_robot.optim.variables" href="better_robot.optim.variables.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -193,7 +193,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
@@ -246,6 +246,7 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -284,12 +285,10 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4 current active"><a class="current reference internal" href="#"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -563,69 +562,14 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LinearizationDecision.detail"><code class="docutils literal notranslate"><span class="pre">LinearizationDecision.detail</span></code></a></li>
 </ul>
 </li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMStatus"><code class="docutils literal notranslate"><span class="pre">LMStatus</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMStatus.RUNNING"><code class="docutils literal notranslate"><span class="pre">LMStatus.RUNNING</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMStatus.CONVERGED"><code class="docutils literal notranslate"><span class="pre">LMStatus.CONVERGED</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMStatus.STALLED_AT_BOUNDS"><code class="docutils literal notranslate"><span class="pre">LMStatus.STALLED_AT_BOUNDS</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMStatus.MAXITER"><code class="docutils literal notranslate"><span class="pre">LMStatus.MAXITER</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMStatus.FAILED"><code class="docutils literal notranslate"><span class="pre">LMStatus.FAILED</span></code></a></li>
-</ul>
-</li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState"><code class="docutils literal notranslate"><span class="pre">LMState</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.residual"><code class="docutils literal notranslate"><span class="pre">LMState.residual</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.robust_weights"><code class="docutils literal notranslate"><span class="pre">LMState.robust_weights</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.cost"><code class="docutils literal notranslate"><span class="pre">LMState.cost</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.mu"><code class="docutils literal notranslate"><span class="pre">LMState.mu</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.increase_factor"><code class="docutils literal notranslate"><span class="pre">LMState.increase_factor</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.gain_ratio"><code class="docutils literal notranslate"><span class="pre">LMState.gain_ratio</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.gradient"><code class="docutils literal notranslate"><span class="pre">LMState.gradient</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.grad_norm"><code class="docutils literal notranslate"><span class="pre">LMState.grad_norm</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.projected_grad_norm"><code class="docutils literal notranslate"><span class="pre">LMState.projected_grad_norm</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.step_norm"><code class="docutils literal notranslate"><span class="pre">LMState.step_norm</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.relative_decrease"><code class="docutils literal notranslate"><span class="pre">LMState.relative_decrease</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.active_mask"><code class="docutils literal notranslate"><span class="pre">LMState.active_mask</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.factorization_ok"><code class="docutils literal notranslate"><span class="pre">LMState.factorization_ok</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.converged"><code class="docutils literal notranslate"><span class="pre">LMState.converged</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.implicit_valid"><code class="docutils literal notranslate"><span class="pre">LMState.implicit_valid</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.status"><code class="docutils literal notranslate"><span class="pre">LMState.status</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.iterations"><code class="docutils literal notranslate"><span class="pre">LMState.iterations</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.scale"><code class="docutils literal notranslate"><span class="pre">LMState.scale</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.bound_state_index"><code class="docutils literal notranslate"><span class="pre">LMState.bound_state_index</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.bound_lower"><code class="docutils literal notranslate"><span class="pre">LMState.bound_lower</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.bound_upper"><code class="docutils literal notranslate"><span class="pre">LMState.bound_upper</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.bounded_mask"><code class="docutils literal notranslate"><span class="pre">LMState.bounded_mask</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.kkt_norm"><code class="docutils literal notranslate"><span class="pre">LMState.kkt_norm</span></code></a></li>
-</ul>
-</li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.max_iter"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.max_iter</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.gtol"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.gtol</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.xtol"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.xtol</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.ftol"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.ftol</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.damping_parameter"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.damping_parameter</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.mu_min"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.mu_min</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.mu_max"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.mu_max</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.increase_factor_max"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.increase_factor_max</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.bound_tolerance"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.bound_tolerance</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.linear_solver"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.linear_solver</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.linearization"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.linearization</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.kernel"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.kernel</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.jacobian_strategy"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.jacobian_strategy</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.fixed_damping"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.fixed_damping</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.block_step_limits"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.block_step_limits</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.resolve_linearization"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.resolve_linearization()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.init_state"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.init_state()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.update"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.update()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.finalize"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.finalize()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.run"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.run()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.solve"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.solve()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.reset"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.reset()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.step"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.step()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.optimize"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.optimize()</span></code></a></li>
 </ul>
 </li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.GaussNewton"><code class="docutils literal notranslate"><span class="pre">GaussNewton</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.GaussNewton.damping_parameter"><code class="docutils literal notranslate"><span class="pre">GaussNewton.damping_parameter</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.GaussNewton.fixed_damping"><code class="docutils literal notranslate"><span class="pre">GaussNewton.fixed_damping</span></code></a></li>
-</ul>
-</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.GaussNewton"><code class="docutils literal notranslate"><span class="pre">GaussNewton</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -653,17 +597,11 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.optim.lm.LinearizationDecision" title="better_robot.optim.lm.LinearizationDecision"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LinearizationDecision</span></code></a></p></td>
 <td><p>Resolved dense or block-banded linearization route.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#better_robot.optim.lm.LMStatus" title="better_robot.optim.lm.LMStatus"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LMStatus</span></code></a></p></td>
-<td><p>Per-element terminal status stored as <code class="docutils literal notranslate"><span class="pre">torch.int8</span></code>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.optim.lm.LMState" title="better_robot.optim.lm.LMState"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LMState</span></code></a></p></td>
-<td><p>Fixed-structure tensor state for arbitrary leading batch axes.</p></td>
-</tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#better_robot.optim.lm.LevenbergMarquardt" title="better_robot.optim.lm.LevenbergMarquardt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LevenbergMarquardt</span></code></a></p></td>
-<td><p>Batched projected active-set LM over named-block problems.</p></td>
+<td><p>Batched projected active-set LM that owns one problem.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.optim.lm.GaussNewton" title="better_robot.optim.lm.GaussNewton"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GaussNewton</span></code></a></p></td>
-<td><p>Gauss–Newton preset using LM’s guarded acceptance update.</p></td>
+<td><p>Gauss–Newton preset using LM’s guarded acceptance step.</p></td>
 </tr>
 </tbody>
 </table>
@@ -684,7 +622,7 @@
 <h3>API<a class="headerlink" href="#api" title="Link to this heading">#</a></h3>
 <dl class="py data">
 <dt class="sig sig-object py" id="better_robot.optim.lm.LinearizationMode">
-<span class="sig-name descname"><span class="pre">LinearizationMode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.TypeAlias" title="(in Python v3.14)"><span class="pre">TypeAlias</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LinearizationMode" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">LinearizationMode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">TypeAlias</span></em><a class="headerlink" href="#better_robot.optim.lm.LinearizationMode" title="Link to this definition">#</a></dt>
 <dd><p>None</p>
 </dd></dl>
 
@@ -700,7 +638,7 @@
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.optim.lm.LinearizationDecision.used">
-<span class="sig-name descname"><span class="pre">used</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.14)"><span class="pre">Literal</span></a><span class="p"><span class="pre">[</span></span><span class="pre">dense</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">banded</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#better_robot.optim.lm.LinearizationDecision.used" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">used</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">dense</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">banded</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#better_robot.optim.lm.LinearizationDecision.used" title="Link to this definition">#</a></dt>
 <dd><p>None</p>
 </dd></dl>
 
@@ -712,288 +650,17 @@
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.optim.lm.LinearizationDecision.detail">
-<span class="sig-name descname"><span class="pre">detail</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LinearizationDecision.detail" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">detail</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#better_robot.optim.lm.LinearizationDecision.detail" title="Link to this definition">#</a></dt>
 <dd><p>None</p>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMStatus">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">LMStatus</span></span><a class="reference internal" href="../../../_modules/better_robot/optim/lm.html#LMStatus"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.lm.LMStatus" title="Link to this definition">#</a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/enum.html#enum.IntEnum" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">enum.IntEnum</span></code></a></p>
-<p>Per-element terminal status stored as <code class="docutils literal notranslate"><span class="pre">torch.int8</span></code>.</p>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMStatus.RUNNING">
-<span class="sig-name descname"><span class="pre">RUNNING</span></span><a class="headerlink" href="#better_robot.optim.lm.LMStatus.RUNNING" title="Link to this definition">#</a></dt>
-<dd><p>0</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMStatus.CONVERGED">
-<span class="sig-name descname"><span class="pre">CONVERGED</span></span><a class="headerlink" href="#better_robot.optim.lm.LMStatus.CONVERGED" title="Link to this definition">#</a></dt>
-<dd><p>1</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMStatus.STALLED_AT_BOUNDS">
-<span class="sig-name descname"><span class="pre">STALLED_AT_BOUNDS</span></span><a class="headerlink" href="#better_robot.optim.lm.LMStatus.STALLED_AT_BOUNDS" title="Link to this definition">#</a></dt>
-<dd><p>2</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMStatus.MAXITER">
-<span class="sig-name descname"><span class="pre">MAXITER</span></span><a class="headerlink" href="#better_robot.optim.lm.LMStatus.MAXITER" title="Link to this definition">#</a></dt>
-<dd><p>3</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMStatus.FAILED">
-<span class="sig-name descname"><span class="pre">FAILED</span></span><a class="headerlink" href="#better_robot.optim.lm.LMStatus.FAILED" title="Link to this definition">#</a></dt>
-<dd><p>4</p>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">LMState</span></span><a class="reference internal" href="../../../_modules/better_robot/optim/lm.html#LMState"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.lm.LMState" title="Link to this definition">#</a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.NamedTuple" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">typing.NamedTuple</span></code></a></p>
-<p>Fixed-structure tensor state for arbitrary leading batch axes.</p>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.residual">
-<span class="sig-name descname"><span class="pre">residual</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.residual" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.robust_weights">
-<span class="sig-name descname"><span class="pre">robust_weights</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.robust_weights" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.cost">
-<span class="sig-name descname"><span class="pre">cost</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.cost" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.mu">
-<span class="sig-name descname"><span class="pre">mu</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.mu" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.increase_factor">
-<span class="sig-name descname"><span class="pre">increase_factor</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.increase_factor" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.gain_ratio">
-<span class="sig-name descname"><span class="pre">gain_ratio</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.gain_ratio" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.gradient">
-<span class="sig-name descname"><span class="pre">gradient</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.gradient" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.grad_norm">
-<span class="sig-name descname"><span class="pre">grad_norm</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.grad_norm" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.projected_grad_norm">
-<span class="sig-name descname"><span class="pre">projected_grad_norm</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.projected_grad_norm" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.step_norm">
-<span class="sig-name descname"><span class="pre">step_norm</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.step_norm" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.relative_decrease">
-<span class="sig-name descname"><span class="pre">relative_decrease</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.relative_decrease" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.active_mask">
-<span class="sig-name descname"><span class="pre">active_mask</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.active_mask" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.factorization_ok">
-<span class="sig-name descname"><span class="pre">factorization_ok</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.factorization_ok" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.converged">
-<span class="sig-name descname"><span class="pre">converged</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.converged" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.implicit_valid">
-<span class="sig-name descname"><span class="pre">implicit_valid</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.implicit_valid" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.status">
-<span class="sig-name descname"><span class="pre">status</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.status" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.iterations">
-<span class="sig-name descname"><span class="pre">iterations</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.iterations" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.scale">
-<span class="sig-name descname"><span class="pre">scale</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.scale" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.bound_state_index">
-<span class="sig-name descname"><span class="pre">bound_state_index</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.bound_state_index" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.bound_lower">
-<span class="sig-name descname"><span class="pre">bound_lower</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.bound_lower" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.bound_upper">
-<span class="sig-name descname"><span class="pre">bound_upper</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.bound_upper" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.bounded_mask">
-<span class="sig-name descname"><span class="pre">bounded_mask</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.bounded_mask" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py property">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LMState.kkt_norm">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">kkt_norm</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LMState.kkt_norm" title="Link to this definition">#</a></dt>
-<dd><p>Alias for the projected-gradient infinity norm.</p>
 </dd></dl>
 
 </dd></dl>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">LevenbergMarquardt</span></span><a class="reference internal" href="../../../_modules/better_robot/optim/lm.html#LevenbergMarquardt"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt" title="Link to this definition">#</a></dt>
-<dd><p>Batched projected active-set LM over named-block problems.</p>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.max_iter">
-<span class="sig-name descname"><span class="pre">max_iter</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.max_iter" title="Link to this definition">#</a></dt>
-<dd><p>50</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.gtol">
-<span class="sig-name descname"><span class="pre">gtol</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.gtol" title="Link to this definition">#</a></dt>
-<dd><p>1e-06</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.xtol">
-<span class="sig-name descname"><span class="pre">xtol</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.xtol" title="Link to this definition">#</a></dt>
-<dd><p>1e-09</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.ftol">
-<span class="sig-name descname"><span class="pre">ftol</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.ftol" title="Link to this definition">#</a></dt>
-<dd><p>1e-09</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.damping_parameter">
-<span class="sig-name descname"><span class="pre">damping_parameter</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.damping_parameter" title="Link to this definition">#</a></dt>
-<dd><p>0.0001</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.mu_min">
-<span class="sig-name descname"><span class="pre">mu_min</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.mu_min" title="Link to this definition">#</a></dt>
-<dd><p>1e-12</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.mu_max">
-<span class="sig-name descname"><span class="pre">mu_max</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.mu_max" title="Link to this definition">#</a></dt>
-<dd><p>‘float(…)’</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.increase_factor_max">
-<span class="sig-name descname"><span class="pre">increase_factor_max</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.increase_factor_max" title="Link to this definition">#</a></dt>
-<dd><p>‘float(…)’</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.bound_tolerance">
-<span class="sig-name descname"><span class="pre">bound_tolerance</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.bound_tolerance" title="Link to this definition">#</a></dt>
-<dd><p>1e-07</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.linear_solver">
-<span class="sig-name descname"><span class="pre">linear_solver</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="better_robot.optim.solvers.html#better_robot.optim.solvers.LinearSolver" title="better_robot.optim.solvers.LinearSolver"><span class="pre">better_robot.optim.solvers.LinearSolver</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.linear_solver" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.linearization">
-<span class="sig-name descname"><span class="pre">linearization</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">better_robot.optim.lm.LinearizationMode</span></em><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.linearization" title="Link to this definition">#</a></dt>
-<dd><p>‘auto’</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.kernel">
-<span class="sig-name descname"><span class="pre">kernel</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="better_robot.optim.kernels.html#better_robot.optim.kernels.RobustKernel" title="better_robot.optim.kernels.RobustKernel"><span class="pre">better_robot.optim.kernels.RobustKernel</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.kernel" title="Link to this definition">#</a></dt>
-<dd><p>‘field(…)’</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.jacobian_strategy">
-<span class="sig-name descname"><span class="pre">jacobian_strategy</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">better_robot.optim.problem.JacobianStrategy</span></em><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.jacobian_strategy" title="Link to this definition">#</a></dt>
-<dd><p>‘auto’</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.fixed_damping">
-<span class="sig-name descname"><span class="pre">fixed_damping</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></em><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.fixed_damping" title="Link to this definition">#</a></dt>
-<dd><p>False</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.block_step_limits">
-<span class="sig-name descname"><span class="pre">block_step_limits</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.block_step_limits" title="Link to this definition">#</a></dt>
-<dd><p>()</p>
-</dd></dl>
-
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">LevenbergMarquardt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">problem</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.optim.problem.html#better_robot.optim.problem.Problem" title="better_robot.optim.problem.Problem"><span class="pre">better_robot.optim.problem.Problem</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">solver</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">auto</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="better_robot.optim.solvers.html#better_robot.optim.solvers.LinearSolver" title="better_robot.optim.solvers.LinearSolver"><span class="pre">better_robot.optim.solvers.LinearSolver</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_iterations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tolerance</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1e-06</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step_tolerance</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1e-09</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_tolerance</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1e-09</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">damping</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mu_min</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1e-12</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mu_max</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">float(2**32)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">increase_factor_max</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">float(2**32)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bound_tolerance</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1e-07</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">linearization</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.optim.lm.LinearizationMode</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">jacobian_strategy</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.optim.problem.JacobianStrategy</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fixed_damping</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">block_step_limits</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/optim/lm.html#LevenbergMarquardt"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="better_robot.optim.optimizers.html#better_robot.optim.optimizers.Optimizer" title="better_robot.optim.optimizers.Optimizer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.optim.optimizers.Optimizer</span></code></a></p>
+<p>Batched projected active-set LM that owns one problem.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.resolve_linearization">
 <span class="sig-name descname"><span class="pre">resolve_linearization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">problem</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.optim.problem.html#better_robot.optim.problem.Problem" title="better_robot.optim.problem.Problem"><span class="pre">better_robot.optim.problem.Problem</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#better_robot.optim.lm.LinearizationDecision" title="better_robot.optim.lm.LinearizationDecision"><span class="pre">better_robot.optim.lm.LinearizationDecision</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/lm.html#LevenbergMarquardt.resolve_linearization"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.resolve_linearization" title="Link to this definition">#</a></dt>
@@ -1001,56 +668,27 @@
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.init_state">
-<span class="sig-name descname"><span class="pre">init_state</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.optim.variables.Values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">problem</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.optim.problem.html#better_robot.optim.problem.Problem" title="better_robot.optim.problem.Problem"><span class="pre">better_robot.optim.problem.Problem</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">create_graph</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#better_robot.optim.lm.LMState" title="better_robot.optim.lm.LMState"><span class="pre">better_robot.optim.lm.LMState</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/lm.html#LevenbergMarquardt.init_state"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.init_state" title="Link to this definition">#</a></dt>
-<dd><p>Validate a solve boundary and evaluate its initial linearization.</p>
-</dd></dl>
+<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.reset">
+<span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/lm.html#LevenbergMarquardt.reset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.reset" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.update">
-<span class="sig-name descname"><span class="pre">update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.optim.variables.Values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#better_robot.optim.lm.LMState" title="better_robot.optim.lm.LMState"><span class="pre">better_robot.optim.lm.LMState</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">problem</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.optim.problem.html#better_robot.optim.problem.Problem" title="better_robot.optim.problem.Problem"><span class="pre">better_robot.optim.problem.Problem</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">create_graph</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><span class="pre">better_robot.optim.variables.Values</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#better_robot.optim.lm.LMState" title="better_robot.optim.lm.LMState"><span class="pre">better_robot.optim.lm.LMState</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/lm.html#LevenbergMarquardt.update"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.update" title="Link to this definition">#</a></dt>
-<dd><p>Apply one pure, sync-free, fixed-shape batched LM update.</p>
-<p><code class="docutils literal notranslate"><span class="pre">create_graph=True</span></code> is the explicit small-problem unrolled oracle;
-the default step and :meth:<code class="docutils literal notranslate"><span class="pre">run</span></code> retain no Jacobian graph.</p>
-</dd></dl>
+<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.step">
+<span class="sig-name descname"><span class="pre">step</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="better_robot.optim.optimizers.html#better_robot.optim.optimizers.OptimizerInfo" title="better_robot.optim.optimizers.OptimizerInfo"><span class="pre">better_robot.optim.optimizers.OptimizerInfo</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/lm.html#LevenbergMarquardt.step"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.step" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.finalize">
-<span class="sig-name descname"><span class="pre">finalize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.optim.variables.Values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#better_robot.optim.lm.LMState" title="better_robot.optim.lm.LMState"><span class="pre">better_robot.optim.lm.LMState</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">problem</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.optim.problem.html#better_robot.optim.problem.Problem" title="better_robot.optim.problem.Problem"><span class="pre">better_robot.optim.problem.Problem</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">create_graph</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><span class="pre">better_robot.optim.variables.Values</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#better_robot.optim.lm.LMState" title="better_robot.optim.lm.LMState"><span class="pre">better_robot.optim.lm.LMState</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/lm.html#LevenbergMarquardt.finalize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.finalize" title="Link to this definition">#</a></dt>
-<dd><p>Canonical final-point evaluation for consistent terminal artifacts.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.run">
-<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.optim.variables.Values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">problem</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.optim.problem.html#better_robot.optim.problem.Problem" title="better_robot.optim.problem.Problem"><span class="pre">better_robot.optim.problem.Problem</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#better_robot.optim.lm.LMState" title="better_robot.optim.lm.LMState"><span class="pre">better_robot.optim.lm.LMState</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><span class="pre">better_robot.optim.variables.Values</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#better_robot.optim.lm.LMState" title="better_robot.optim.lm.LMState"><span class="pre">better_robot.optim.lm.LMState</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/lm.html#LevenbergMarquardt.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.run" title="Link to this definition">#</a></dt>
-<dd><p>Run the detached eager loop, optionally retaining warm-start damping.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.solve">
-<span class="sig-name descname"><span class="pre">solve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.optim.variables.Values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">problem</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.optim.problem.html#better_robot.optim.problem.Problem" title="better_robot.optim.problem.Problem"><span class="pre">better_robot.optim.problem.Problem</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#better_robot.optim.lm.LMState" title="better_robot.optim.lm.LMState"><span class="pre">better_robot.optim.lm.LMState</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">differentiate</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.14)"><span class="pre">Literal</span></a><span class="p"><span class="pre">[</span></span><span class="pre">detached</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">implicit</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'detached'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">implicit_config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.optim.implicit.html#better_robot.optim.implicit.ImplicitDiffConfig" title="better_robot.optim.implicit.ImplicitDiffConfig"><span class="pre">better_robot.optim.implicit.ImplicitDiffConfig</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><span class="pre">better_robot.optim.variables.Values</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#better_robot.optim.lm.LMState" title="better_robot.optim.lm.LMState"><span class="pre">better_robot.optim.lm.LMState</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/lm.html#LevenbergMarquardt.solve"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.solve" title="Link to this definition">#</a></dt>
-<dd><p>Solve detached by default, or attach the guarded implicit backward.</p>
-</dd></dl>
+<dt class="sig sig-object py" id="better_robot.optim.lm.LevenbergMarquardt.optimize">
+<span class="sig-name descname"><span class="pre">optimize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">differentiate</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">implicit</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">implicit_config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.optim.implicit.html#better_robot.optim.implicit.ImplicitDiffConfig" title="better_robot.optim.implicit.ImplicitDiffConfig"><span class="pre">better_robot.optim.implicit.ImplicitDiffConfig</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="better_robot.optim.optimizers.html#better_robot.optim.optimizers.OptimizerInfo" title="better_robot.optim.optimizers.OptimizerInfo"><span class="pre">better_robot.optim.optimizers.OptimizerInfo</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/lm.html#LevenbergMarquardt.optimize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.lm.LevenbergMarquardt.optimize" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
 
 </dd></dl>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="better_robot.optim.lm.GaussNewton">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">GaussNewton</span></span><a class="reference internal" href="../../../_modules/better_robot/optim/lm.html#GaussNewton"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.lm.GaussNewton" title="Link to this definition">#</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">GaussNewton</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">problem</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.optim.problem.html#better_robot.optim.problem.Problem" title="better_robot.optim.problem.Problem"><span class="pre">better_robot.optim.problem.Problem</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/optim/lm.html#GaussNewton"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.lm.GaussNewton" title="Link to this definition">#</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#better_robot.optim.lm.LevenbergMarquardt" title="better_robot.optim.lm.LevenbergMarquardt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.optim.lm.LevenbergMarquardt</span></code></a></p>
-<p>Gauss–Newton preset using LM’s guarded acceptance update.</p>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.GaussNewton.damping_parameter">
-<span class="sig-name descname"><span class="pre">damping_parameter</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#better_robot.optim.lm.GaussNewton.damping_parameter" title="Link to this definition">#</a></dt>
-<dd><p>1e-09</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.lm.GaussNewton.fixed_damping">
-<span class="sig-name descname"><span class="pre">fixed_damping</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></em><a class="headerlink" href="#better_robot.optim.lm.GaussNewton.fixed_damping" title="Link to this definition">#</a></dt>
-<dd><p>True</p>
-</dd></dl>
-
+<p>Gauss–Newton preset using LM’s guarded acceptance step.</p>
 </dd></dl>
 
 </section>
@@ -1069,12 +707,12 @@ the default step and :meth:<code class="docutils literal notranslate"><span clas
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="better_robot.optim.first_order.html"
+       href="better_robot.optim.variables.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></p>
+        <p class="prev-next-title"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></p>
       </div>
     </a>
     <a class="right-next"
@@ -1116,69 +754,14 @@ the default step and :meth:<code class="docutils literal notranslate"><span clas
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LinearizationDecision.detail"><code class="docutils literal notranslate"><span class="pre">LinearizationDecision.detail</span></code></a></li>
 </ul>
 </li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMStatus"><code class="docutils literal notranslate"><span class="pre">LMStatus</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMStatus.RUNNING"><code class="docutils literal notranslate"><span class="pre">LMStatus.RUNNING</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMStatus.CONVERGED"><code class="docutils literal notranslate"><span class="pre">LMStatus.CONVERGED</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMStatus.STALLED_AT_BOUNDS"><code class="docutils literal notranslate"><span class="pre">LMStatus.STALLED_AT_BOUNDS</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMStatus.MAXITER"><code class="docutils literal notranslate"><span class="pre">LMStatus.MAXITER</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMStatus.FAILED"><code class="docutils literal notranslate"><span class="pre">LMStatus.FAILED</span></code></a></li>
-</ul>
-</li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState"><code class="docutils literal notranslate"><span class="pre">LMState</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.residual"><code class="docutils literal notranslate"><span class="pre">LMState.residual</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.robust_weights"><code class="docutils literal notranslate"><span class="pre">LMState.robust_weights</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.cost"><code class="docutils literal notranslate"><span class="pre">LMState.cost</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.mu"><code class="docutils literal notranslate"><span class="pre">LMState.mu</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.increase_factor"><code class="docutils literal notranslate"><span class="pre">LMState.increase_factor</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.gain_ratio"><code class="docutils literal notranslate"><span class="pre">LMState.gain_ratio</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.gradient"><code class="docutils literal notranslate"><span class="pre">LMState.gradient</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.grad_norm"><code class="docutils literal notranslate"><span class="pre">LMState.grad_norm</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.projected_grad_norm"><code class="docutils literal notranslate"><span class="pre">LMState.projected_grad_norm</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.step_norm"><code class="docutils literal notranslate"><span class="pre">LMState.step_norm</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.relative_decrease"><code class="docutils literal notranslate"><span class="pre">LMState.relative_decrease</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.active_mask"><code class="docutils literal notranslate"><span class="pre">LMState.active_mask</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.factorization_ok"><code class="docutils literal notranslate"><span class="pre">LMState.factorization_ok</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.converged"><code class="docutils literal notranslate"><span class="pre">LMState.converged</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.implicit_valid"><code class="docutils literal notranslate"><span class="pre">LMState.implicit_valid</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.status"><code class="docutils literal notranslate"><span class="pre">LMState.status</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.iterations"><code class="docutils literal notranslate"><span class="pre">LMState.iterations</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.scale"><code class="docutils literal notranslate"><span class="pre">LMState.scale</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.bound_state_index"><code class="docutils literal notranslate"><span class="pre">LMState.bound_state_index</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.bound_lower"><code class="docutils literal notranslate"><span class="pre">LMState.bound_lower</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.bound_upper"><code class="docutils literal notranslate"><span class="pre">LMState.bound_upper</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.bounded_mask"><code class="docutils literal notranslate"><span class="pre">LMState.bounded_mask</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LMState.kkt_norm"><code class="docutils literal notranslate"><span class="pre">LMState.kkt_norm</span></code></a></li>
-</ul>
-</li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.max_iter"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.max_iter</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.gtol"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.gtol</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.xtol"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.xtol</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.ftol"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.ftol</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.damping_parameter"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.damping_parameter</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.mu_min"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.mu_min</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.mu_max"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.mu_max</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.increase_factor_max"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.increase_factor_max</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.bound_tolerance"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.bound_tolerance</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.linear_solver"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.linear_solver</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.linearization"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.linearization</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.kernel"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.kernel</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.jacobian_strategy"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.jacobian_strategy</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.fixed_damping"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.fixed_damping</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.block_step_limits"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.block_step_limits</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.resolve_linearization"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.resolve_linearization()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.init_state"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.init_state()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.update"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.update()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.finalize"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.finalize()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.run"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.run()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.solve"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.solve()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.reset"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.reset()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.step"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.step()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.LevenbergMarquardt.optimize"><code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt.optimize()</span></code></a></li>
 </ul>
 </li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.GaussNewton"><code class="docutils literal notranslate"><span class="pre">GaussNewton</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.GaussNewton.damping_parameter"><code class="docutils literal notranslate"><span class="pre">GaussNewton.damping_parameter</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.GaussNewton.fixed_damping"><code class="docutils literal notranslate"><span class="pre">GaussNewton.fixed_damping</span></code></a></li>
-</ul>
-</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.lm.GaussNewton"><code class="docutils literal notranslate"><span class="pre">GaussNewton</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -1216,7 +799,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>

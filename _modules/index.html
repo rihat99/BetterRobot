@@ -54,7 +54,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -192,7 +192,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/viewer.html">Viewer</a></li>
@@ -245,6 +245,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -283,12 +284,10 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -538,14 +537,12 @@
 <li><a href="better_robot/lie/so3.html">better_robot.lie.so3</a></li>
 <li><a href="better_robot/lie/tangents.html">better_robot.lie.tangents</a></li>
 <li><a href="better_robot/lie/types.html">better_robot.lie.types</a></li>
-<li><a href="better_robot/optim/autograd.html">better_robot.optim.autograd</a></li>
-<li><a href="better_robot/optim/first_order.html">better_robot.optim.first_order</a></li>
 <li><a href="better_robot/optim/implicit.html">better_robot.optim.implicit</a></li>
 <li><a href="better_robot/optim/kernels.html">better_robot.optim.kernels</a></li>
 <li><a href="better_robot/optim/lm.html">better_robot.optim.lm</a></li>
 <li><a href="better_robot/optim/manifolds.html">better_robot.optim.manifolds</a></li>
+<li><a href="better_robot/optim/optimizers.html">better_robot.optim.optimizers</a></li>
 <li><a href="better_robot/optim/problem.html">better_robot.optim.problem</a></li>
-<li><a href="better_robot/optim/providers.html">better_robot.optim.providers</a></li>
 <li><a href="better_robot/optim/solvers.html">better_robot.optim.solvers</a></li>
 <li><a href="better_robot/optim/temporal.html">better_robot.optim.temporal</a></li>
 <li><a href="better_robot/optim/variables.html">better_robot.optim.variables</a></li>
@@ -554,6 +551,7 @@
 <li><a href="better_robot/residuals/contact.html">better_robot.residuals.contact</a></li>
 <li><a href="better_robot/residuals/human.html">better_robot.residuals.human</a></li>
 <li><a href="better_robot/residuals/limits.html">better_robot.residuals.limits</a></li>
+<li><a href="better_robot/residuals/nodes.html">better_robot.residuals.nodes</a></li>
 <li><a href="better_robot/residuals/pose.html">better_robot.residuals.pose</a></li>
 <li><a href="better_robot/residuals/projection.html">better_robot.residuals.projection</a></li>
 <li><a href="better_robot/residuals/regularization.html">better_robot.residuals.regularization</a></li>
@@ -591,7 +589,6 @@
 <li><a href="better_robot/viewer/themes.html">better_robot.viewer.themes</a></li>
 <li><a href="better_robot/viewer/trajectory_player.html">better_robot.viewer.trajectory_player</a></li>
 <li><a href="better_robot/viewer/visualizer.html">better_robot.viewer.visualizer</a></li>
-<li><a href="builtins.html">builtins</a></li>
 </ul>
 
                 </article>
@@ -639,7 +636,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>

@@ -57,7 +57,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -193,7 +193,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/viewer.html">Viewer</a></li>
@@ -246,6 +246,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -284,12 +285,10 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -698,11 +697,10 @@ comparison, not a production speed path.</p>
 <h3>Dense and temporal least squares<a class="headerlink" href="#dense-and-temporal-least-squares" title="Link to this heading">#</a></h3>
 <p>Dense Cholesky is the correctness path for LM and Gauss–Newton. A problem
 with one declared temporal variable and compatible temporal residuals can use
-block-banded normal storage. The solver never infers structure from numerical
+block-banded normal storage. The optimizer never infers structure from numerical
 zeros, and an ineligible problem falls back to dense work.</p>
-<p><code class="docutils literal notranslate"><span class="pre">run_first_order</span></code> differentiates the scalar objective and lets
-<code class="docutils literal notranslate"><span class="pre">torch.optim</span></code> update persistent tangent buffers; it does not assemble a
-dense Jacobian.</p>
+<p><code class="docutils literal notranslate"><span class="pre">TorchOptimizer</span></code> differentiates the scalar objective and lets <code class="docutils literal notranslate"><span class="pre">torch.optim</span></code>
+update persistent tangent buffers; it does not assemble a dense Jacobian.</p>
 </section>
 </section>
 <section id="compilation">
@@ -710,7 +708,7 @@ dense Jacobian.</p>
 <p>BetterRobot does not decorate public functions with <code class="docutils literal notranslate"><span class="pre">torch.compile</span></code>.
 <code class="docutils literal notranslate"><span class="pre">forward_kinematics_raw</span></code> is tested with an explicit caller-side
 <code class="docutils literal notranslate"><span class="pre">torch.compile(...,</span> <span class="pre">fullgraph=True)</span></code> wrapper. Model creation, <code class="docutils literal notranslate"><span class="pre">Data</span></code>
-allocation, and public solver loops remain eager.</p>
+allocation, and public optimizer loops remain eager.</p>
 <p>PyTorch may specialize on shape, dtype, device, layout, topology, and compiler
 options. Cold compilation belongs in a cold-start measurement; do not hide it
 inside a warmed timing.</p>
@@ -730,15 +728,15 @@ stream, and benchmark evidence.</p>
 </section>
 <section id="cuda-graphs">
 <h2>CUDA graphs<a class="headerlink" href="#cuda-graphs" title="Link to this heading">#</a></h2>
-<p>No public captured solver loop ships. A fixed-shape <code class="docutils literal notranslate"><span class="pre">update</span></code> method is not
-enough by itself: capture also needs stable storage, warmup, invalidation,
+<p>No public captured optimizer loop ships. LM’s private fixed-shape iteration is
+not enough by itself: capture also needs stable storage, warmup, invalidation,
 replay parity, and a forward/backward lifetime. An experimental caller owns
 those pieces until a complete path is implemented and measured.</p>
 </section>
 <section id="hot-path-source-rules">
 <h2>Hot-path source rules<a class="headerlink" href="#hot-path-source-rules" title="Link to this heading">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">tests/contract/test_hot_path_lint.py</span></code> checks selected kinematics, dynamics,
-Lie, residual, and solver files.</p>
+Lie, residual, and optimization files.</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Pattern</p></th>
@@ -943,7 +941,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>

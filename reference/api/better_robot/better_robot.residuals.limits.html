@@ -57,7 +57,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -193,7 +193,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
@@ -246,6 +246,7 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4 current active"><a class="current reference internal" href="#"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -284,12 +285,10 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -555,14 +554,14 @@
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#classes">Classes</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#api">API</a><ul class="nav section-nav flex-column">
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointPositionLimit"><code class="docutils literal notranslate"><span class="pre">JointPositionLimit</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointPositionLimit.name"><code class="docutils literal notranslate"><span class="pre">JointPositionLimit.name</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointPositionLimit.reads"><code class="docutils literal notranslate"><span class="pre">JointPositionLimit.reads</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointPositionLimit.jacobian_blocks"><code class="docutils literal notranslate"><span class="pre">JointPositionLimit.jacobian_blocks()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointPositionLimit.error"><code class="docutils literal notranslate"><span class="pre">JointPositionLimit.error()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointPositionLimit.temporal_structure"><code class="docutils literal notranslate"><span class="pre">JointPositionLimit.temporal_structure()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointPositionLimit.temporal_jacobian_blocks"><code class="docutils literal notranslate"><span class="pre">JointPositionLimit.temporal_jacobian_blocks()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointPositionLimit.jacobian"><code class="docutils literal notranslate"><span class="pre">JointPositionLimit.jacobian()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointVelocityLimit"><code class="docutils literal notranslate"><span class="pre">JointVelocityLimit</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointVelocityLimit.name"><code class="docutils literal notranslate"><span class="pre">JointVelocityLimit.name</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointVelocityLimit.reads"><code class="docutils literal notranslate"><span class="pre">JointVelocityLimit.reads</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointVelocityLimit.error"><code class="docutils literal notranslate"><span class="pre">JointVelocityLimit.error()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -582,10 +581,7 @@
                   
   <section id="module-better_robot.residuals.limits">
 <span id="better-robot-residuals-limits"></span><h1><a class="reference internal" href="#module-better_robot.residuals.limits" title="better_robot.residuals.limits"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a><a class="headerlink" href="#module-better_robot.residuals.limits" title="Link to this heading">#</a></h1>
-<p>Joint position / velocity / acceleration limit residuals.</p>
-<p>Uses a clamped penalty — zero inside limits, positive outside. This is
-what replaces the current <code class="docutils literal notranslate"><span class="pre">costs/limits.py</span></code> <code class="docutils literal notranslate"><span class="pre">torch.clamp(min=0)</span></code> pattern.</p>
-<p>See <code class="docutils literal notranslate"><span class="pre">docs/concepts/residuals_costs_and_solvers.md</span></code>.</p>
+<p>Joint position and velocity limit residuals.</p>
 <section id="module-contents">
 <h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading">#</a></h2>
 <section id="classes">
@@ -593,10 +589,10 @@ what replaces the current <code class="docutils literal notranslate"><span class
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table table-left">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.residuals.limits.JointPositionLimit" title="better_robot.residuals.limits.JointPositionLimit"><code class="xref py py-obj docutils literal notranslate"><span class="pre">JointPositionLimit</span></code></a></p></td>
-<td><p>One-sided clamped penalty on joint position limits.</p></td>
+<td><p>One-sided clamped penalty on a robot variable’s position limits.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#better_robot.residuals.limits.JointVelocityLimit" title="better_robot.residuals.limits.JointVelocityLimit"><code class="xref py py-obj docutils literal notranslate"><span class="pre">JointVelocityLimit</span></code></a></p></td>
-<td><p>One-sided clamped penalty on joint velocity limits. <code class="docutils literal notranslate"><span class="pre">dim</span> <span class="pre">=</span> <span class="pre">2</span> <span class="pre">*</span> <span class="pre">nv</span></code>.</p></td>
+<td><p>One-sided clamped penalty on a velocity-valued Variable.</p></td>
 </tr>
 </tbody>
 </table>
@@ -606,53 +602,40 @@ what replaces the current <code class="docutils literal notranslate"><span class
 <h3>API<a class="headerlink" href="#api" title="Link to this heading">#</a></h3>
 <dl class="py class">
 <dt class="sig sig-object py" id="better_robot.residuals.limits.JointPositionLimit">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">JointPositionLimit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.data_model.model.html#better_robot.data_model.model.Model" title="better_robot.data_model.model.Model"><span class="pre">better_robot.data_model.model.Model</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'joint_position_limit'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/residuals/limits.html#JointPositionLimit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.limits.JointPositionLimit" title="Link to this definition">#</a></dt>
-<dd><p>One-sided clamped penalty on joint position limits.</p>
-<p><code class="docutils literal notranslate"><span class="pre">r</span> <span class="pre">=</span> <span class="pre">[clamp(lower</span> <span class="pre">-</span> <span class="pre">q,</span> <span class="pre">min=0);</span> <span class="pre">clamp(q</span> <span class="pre">-</span> <span class="pre">upper,</span> <span class="pre">min=0)]</span> <span class="pre">*</span> <span class="pre">weight</span></code></p>
-<p><code class="docutils literal notranslate"><span class="pre">dim</span> <span class="pre">=</span> <span class="pre">2</span> <span class="pre">*</span> <span class="pre">nq</span></code> (lower violations concatenated with upper violations).
-The analytic Jacobian is taken in <strong>tangent space</strong> <code class="docutils literal notranslate"><span class="pre">nv</span></code> via a
-precomputed <code class="docutils literal notranslate"><span class="pre">(nq,</span> <span class="pre">nv)</span></code> <code class="docutils literal notranslate"><span class="pre">dq/dv</span></code> projection. For single-DOF joints
-<code class="docutils literal notranslate"><span class="pre">nq</span> <span class="pre">==</span> <span class="pre">nv</span></code> and the projection is identity-per-joint. For joints with
-<code class="docutils literal notranslate"><span class="pre">nq</span> <span class="pre">!=</span> <span class="pre">nv</span></code> (free-flyer, spherical, planar, unbounded) the projection
-rows are zero — their position limits are always ±inf (or ±1 on unit
-components that never actually violate) so the gradient there is zero
-anyway, and this keeps the tangent-space contract consistent for
-floating-base robots.</p>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.residuals.limits.JointPositionLimit.name">
-<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#better_robot.residuals.limits.JointPositionLimit.name" title="Link to this definition">#</a></dt>
-<dd><p>‘joint_position_limit’</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.residuals.limits.JointPositionLimit.reads">
-<span class="sig-name descname"><span class="pre">reads</span></span><a class="headerlink" href="#better_robot.residuals.limits.JointPositionLimit.reads" title="Link to this definition">#</a></dt>
-<dd><p>(‘q’,)</p>
-</dd></dl>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">JointPositionLimit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.residuals._variables.RobotVariableLike</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">knot</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.residuals.base.html#better_robot.residuals.base.Weight" title="better_robot.residuals.base.Weight"><span class="pre">better_robot.residuals.base.Weight</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">numbers.Real</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">object</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'joint_position_limit'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/residuals/limits.html#JointPositionLimit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.limits.JointPositionLimit" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="better_robot.residuals.base.html#better_robot.residuals.base.Residual" title="better_robot.residuals.base.Residual"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.residuals.base.Residual</span></code></a></p>
+<p>One-sided clamped penalty on a robot variable’s position limits.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="better_robot.residuals.limits.JointPositionLimit.error">
+<span class="sig-name descname"><span class="pre">error</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">torch.Tensor</span></span></span><a class="reference internal" href="../../../_modules/better_robot/residuals/limits.html#JointPositionLimit.error"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.limits.JointPositionLimit.error" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="better_robot.residuals.limits.JointPositionLimit.jacobian_blocks">
-<span class="sig-name descname"><span class="pre">jacobian_blocks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://trimesh.org/trimesh.typed.html#trimesh.typed.Mapping" title="(in trimesh)"><span class="pre">collections.abc.Mapping</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/better_robot/residuals/limits.html#JointPositionLimit.jacobian_blocks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.limits.JointPositionLimit.jacobian_blocks" title="Link to this definition">#</a></dt>
-<dd><p>Return the mask-reduced analytic <code class="docutils literal notranslate"><span class="pre">q</span></code> block.</p>
-</dd></dl>
+<dt class="sig sig-object py" id="better_robot.residuals.limits.JointPositionLimit.temporal_structure">
+<span class="sig-name descname"><span class="pre">temporal_structure</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">variable</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.residuals._variables.RobotVariableLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="better_robot.residuals.structure.html#better_robot.residuals.structure.TemporalPattern" title="better_robot.residuals.structure.TemporalPattern"><span class="pre">better_robot.residuals.structure.TemporalPattern</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="reference internal" href="../../../_modules/better_robot/residuals/limits.html#JointPositionLimit.temporal_structure"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.limits.JointPositionLimit.temporal_structure" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="better_robot.residuals.limits.JointPositionLimit.temporal_jacobian_blocks">
+<span class="sig-name descname"><span class="pre">temporal_jacobian_blocks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">variable</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.residuals._variables.RobotVariableLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">collections.abc.Mapping</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/better_robot/residuals/limits.html#JointPositionLimit.temporal_jacobian_blocks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.limits.JointPositionLimit.temporal_jacobian_blocks" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="better_robot.residuals.limits.JointPositionLimit.jacobian">
+<span class="sig-name descname"><span class="pre">jacobian</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/better_robot/residuals/limits.html#JointPositionLimit.jacobian"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.limits.JointPositionLimit.jacobian" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
 
 </dd></dl>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="better_robot.residuals.limits.JointVelocityLimit">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">JointVelocityLimit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.data_model.model.html#better_robot.data_model.model.Model" title="better_robot.data_model.model.Model"><span class="pre">better_robot.data_model.model.Model</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/residuals/limits.html#JointVelocityLimit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.limits.JointVelocityLimit" title="Link to this definition">#</a></dt>
-<dd><p>One-sided clamped penalty on joint velocity limits. <code class="docutils literal notranslate"><span class="pre">dim</span> <span class="pre">=</span> <span class="pre">2</span> <span class="pre">*</span> <span class="pre">nv</span></code>.</p>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.residuals.limits.JointVelocityLimit.name">
-<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#better_robot.residuals.limits.JointVelocityLimit.name" title="Link to this definition">#</a></dt>
-<dd><p>‘joint_velocity_limit’</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.residuals.limits.JointVelocityLimit.reads">
-<span class="sig-name descname"><span class="pre">reads</span></span><a class="headerlink" href="#better_robot.residuals.limits.JointVelocityLimit.reads" title="Link to this definition">#</a></dt>
-<dd><p>(‘q’, ‘data’)</p>
-</dd></dl>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">JointVelocityLimit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">velocity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.residuals._variables.ShapedVariableLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">better_robot.residuals._variables.ShapedVariableLike</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.residuals.base.html#better_robot.residuals.base.Weight" title="better_robot.residuals.base.Weight"><span class="pre">better_robot.residuals.base.Weight</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">numbers.Real</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">object</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'joint_velocity_limit'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/residuals/limits.html#JointVelocityLimit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.limits.JointVelocityLimit" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="better_robot.residuals.base.html#better_robot.residuals.base.Residual" title="better_robot.residuals.base.Residual"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.residuals.base.Residual</span></code></a></p>
+<p>One-sided clamped penalty on a velocity-valued Variable.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="better_robot.residuals.limits.JointVelocityLimit.error">
+<span class="sig-name descname"><span class="pre">error</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">torch.Tensor</span></span></span><a class="reference internal" href="../../../_modules/better_robot/residuals/limits.html#JointVelocityLimit.error"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.limits.JointVelocityLimit.error" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
 
 </dd></dl>
 
@@ -711,14 +694,14 @@ floating-base robots.</p>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#classes">Classes</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#api">API</a><ul class="nav section-nav flex-column">
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointPositionLimit"><code class="docutils literal notranslate"><span class="pre">JointPositionLimit</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointPositionLimit.name"><code class="docutils literal notranslate"><span class="pre">JointPositionLimit.name</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointPositionLimit.reads"><code class="docutils literal notranslate"><span class="pre">JointPositionLimit.reads</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointPositionLimit.jacobian_blocks"><code class="docutils literal notranslate"><span class="pre">JointPositionLimit.jacobian_blocks()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointPositionLimit.error"><code class="docutils literal notranslate"><span class="pre">JointPositionLimit.error()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointPositionLimit.temporal_structure"><code class="docutils literal notranslate"><span class="pre">JointPositionLimit.temporal_structure()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointPositionLimit.temporal_jacobian_blocks"><code class="docutils literal notranslate"><span class="pre">JointPositionLimit.temporal_jacobian_blocks()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointPositionLimit.jacobian"><code class="docutils literal notranslate"><span class="pre">JointPositionLimit.jacobian()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointVelocityLimit"><code class="docutils literal notranslate"><span class="pre">JointVelocityLimit</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointVelocityLimit.name"><code class="docutils literal notranslate"><span class="pre">JointVelocityLimit.name</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointVelocityLimit.reads"><code class="docutils literal notranslate"><span class="pre">JointVelocityLimit.reads</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.limits.JointVelocityLimit.error"><code class="docutils literal notranslate"><span class="pre">JointVelocityLimit.error()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -758,7 +741,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>

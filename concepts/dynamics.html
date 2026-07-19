@@ -53,12 +53,12 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'concepts/dynamics';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Residuals, Costs, and Solvers" href="residuals_costs_and_solvers.html" />
+    <link rel="next" title="Residuals, Costs, and Optimizers" href="residuals_costs_and_solvers.html" />
     <link rel="prev" title="Kinematics and Jacobians" href="kinematics_and_jacobians.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -194,7 +194,7 @@
 <li class="toctree-l2"><a class="reference internal" href="lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="viewer.html">Viewer</a></li>
@@ -247,6 +247,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -285,12 +286,10 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -607,6 +606,38 @@ quantity.</p>
 <code class="docutils literal notranslate"><span class="pre">compute_generalized_gravity(model,</span> <span class="pre">q)</span></code> returns its gravity-only part. There
 is no separate public Coriolis matrix because most callers need its product
 with velocity, not the matrix.</p>
+<p>A one-joint arm makes the gravity term visible:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.dynamics</span><span class="w"> </span><span class="kn">import</span> <span class="n">crba</span><span class="p">,</span> <span class="n">rnea</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModelBuilder</span><span class="p">,</span> <span class="n">build_model</span>
+
+<span class="n">builder</span> <span class="o">=</span> <span class="n">ModelBuilder</span><span class="p">(</span><span class="s2">&quot;one_joint_dynamics&quot;</span><span class="p">)</span>
+<span class="n">builder</span><span class="o">.</span><span class="n">add_body</span><span class="p">(</span><span class="s2">&quot;base&quot;</span><span class="p">,</span> <span class="n">mass</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">inertia</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="mf">0.1</span><span class="p">)</span>
+<span class="n">builder</span><span class="o">.</span><span class="n">add_body</span><span class="p">(</span>
+    <span class="s2">&quot;link&quot;</span><span class="p">,</span>
+    <span class="n">mass</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">com</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]),</span>
+    <span class="n">inertia</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="mf">0.05</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">builder</span><span class="o">.</span><span class="n">add_revolute_y</span><span class="p">(</span><span class="s2">&quot;joint&quot;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="s2">&quot;base&quot;</span><span class="p">,</span> <span class="n">child</span><span class="o">=</span><span class="s2">&quot;link&quot;</span><span class="p">,</span> <span class="n">lower</span><span class="o">=-</span><span class="mf">3.14</span><span class="p">,</span> <span class="n">upper</span><span class="o">=</span><span class="mf">3.14</span><span class="p">)</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">build_model</span><span class="p">(</span><span class="n">builder</span><span class="o">.</span><span class="n">finalize</span><span class="p">(),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="n">q</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">q_neutral</span>
+<span class="n">zero</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">nv</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">q</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+<span class="n">gravity_torque</span> <span class="o">=</span> <span class="n">rnea</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">zero</span><span class="p">,</span> <span class="n">zero</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;gravity torque:&quot;</span><span class="p">,</span> <span class="n">gravity_torque</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">decimals</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
+</pre></div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>gravity torque: [-4.905]
+</pre></div>
+</div>
+<p>CRBA returns one mass-matrix row and column for that one tangent coordinate:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">mass_matrix</span> <span class="o">=</span> <span class="n">crba</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;mass matrix shape:&quot;</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">mass_matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+</pre></div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>mass matrix shape: (1, 1)
+</pre></div>
+</div>
 </section>
 <section id="return-values-and-workspaces">
 <h2>Return values and workspaces<a class="headerlink" href="#return-values-and-workspaces" title="Link to this heading">#</a></h2>
@@ -632,8 +663,7 @@ total spatial momentum about its center of mass:</p>
 \[h_g = A_g(q)\,v.\]</div>
 <p><code class="docutils literal notranslate"><span class="pre">compute_centroidal_map</span></code> returns <code class="docutils literal notranslate"><span class="pre">A_g</span></code>, and
 <code class="docutils literal notranslate"><span class="pre">compute_centroidal_momentum</span></code> returns <code class="docutils literal notranslate"><span class="pre">h_g</span></code>. <code class="docutils literal notranslate"><span class="pre">ccrba</span></code> computes both and returns
-<code class="docutils literal notranslate"><span class="pre">CCRBAResult</span></code> with fields <code class="docutils literal notranslate"><span class="pre">centroidal_map</span></code> and <code class="docutils literal notranslate"><span class="pre">momentum</span></code>; the result can also
-be unpacked as a two-tuple.</p>
+a frozen <code class="docutils literal notranslate"><span class="pre">CCRBAResult</span></code> dataclass with fields <code class="docutils literal notranslate"><span class="pre">centroidal_map</span></code> and <code class="docutils literal notranslate"><span class="pre">momentum</span></code>.</p>
 <p><code class="docutils literal notranslate"><span class="pre">center_of_mass</span></code> returns position and can populate velocity when <code class="docutils literal notranslate"><span class="pre">v</span></code> is
 provided. Center-of-mass acceleration is not implemented; passing <code class="docutils literal notranslate"><span class="pre">a</span></code> reaches
 an explicit guard listed in the <a class="reference internal" href="../reference/roadmap.html"><span class="doc">Roadmap</span></a>.</p>
@@ -670,7 +700,7 @@ common floating dtypes. Autograd tests cover gradients through the public and
 raw passes. Those tests, rather than a second implementation, are the
 correctness anchor.</p>
 <p>Read <a class="reference internal" href="kinematics_and_jacobians.html"><span class="doc">Kinematics and Jacobians</span></a> for the poses and frames used inside the
-recursions, or <a class="reference internal" href="residuals_costs_and_solvers.html"><span class="doc">Residuals, Costs, and Solvers</span></a> for using dynamics inside an
+recursions, or <a class="reference internal" href="residuals_costs_and_solvers.html"><span class="doc">Residuals, Costs, and Optimizers</span></a> for using dynamics inside an
 estimation problem.</p>
 </section>
 </section>
@@ -700,7 +730,7 @@ estimation problem.</p>
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Residuals, Costs, and Solvers</p>
+        <p class="prev-next-title">Residuals, Costs, and Optimizers</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -761,7 +791,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>

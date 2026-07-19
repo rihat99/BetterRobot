@@ -245,6 +245,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -283,12 +284,10 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -492,101 +491,119 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mapping</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">numbers</span><span class="w"> </span><span class="kn">import</span> <span class="n">Real</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">.._validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_tensor</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">._point_cloud</span><span class="w"> </span><span class="kn">import</span> <span class="n">_detached_nearest</span><span class="p">,</span> <span class="n">_validate_clouds</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._variables</span><span class="w"> </span><span class="kn">import</span> <span class="n">VariableLike</span> <span class="k">as</span> <span class="n">_VariableLike</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">variables</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">Residual</span><span class="p">,</span> <span class="n">Weight</span>
 
 
 <div class="viewcode-block" id="MaskedChamferResidual">
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.chamfer.html#better_robot.residuals.chamfer.MaskedChamferResidual">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">MaskedChamferResidual</span><span class="p">:</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">MaskedChamferResidual</span><span class="p">(</span><span class="n">Residual</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Bidirectional nearest-distance rows for padded per-frame clouds.</span>
 
-<span class="sd">    Inputs follow the accepted padded convention: point tensors have shape</span>
-<span class="sd">    ``(B..., frames, count, coordinates)`` and validity masks have shape</span>
-<span class="sd">    ``(B..., frames, count)``.  Output rows are source-to-target distances</span>
-<span class="sd">    followed by target-to-source distances, with invalid padding represented</span>
-<span class="sd">    by finite zeros.  Set ``bidirectional=False`` for source-to-target only.</span>
-
-<span class="sd">    Nearest-neighbour indices are selected from detached pairwise distances.</span>
-<span class="sd">    Distances are reconstructed from the matched graph-carrying points, so</span>
-<span class="sd">    gradients reach only the selected correspondence.  ``vertex_weights``,</span>
-<span class="sd">    when named, multiply source-to-target residual amplitudes.</span>
+<span class="sd">    Point tensors end in ``(frames, count, 3)`` and validity masks end in</span>
+<span class="sd">    ``(frames, count)``. Invalid padding produces finite zero rows. Nearest</span>
+<span class="sd">    indices are detached while distances retain gradients to the selected</span>
+<span class="sd">    points. ``vertex_weights`` are domain confidence multipliers, distinct</span>
+<span class="sd">    from the optimizer-level ``weight`` inherited from :class:`Residual`.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">frames</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">source_count</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">target_count</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">source</span><span class="p">:</span> <span class="n">_VariableLike</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">target</span><span class="p">:</span> <span class="n">_VariableLike</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">source_validity</span><span class="p">:</span> <span class="n">_VariableLike</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">target_validity</span><span class="p">:</span> <span class="n">_VariableLike</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">source</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;points&quot;</span><span class="p">,</span>
-        <span class="n">target</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;target_points&quot;</span><span class="p">,</span>
-        <span class="n">source_validity</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;point_validity&quot;</span><span class="p">,</span>
-        <span class="n">target_validity</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;target_validity&quot;</span><span class="p">,</span>
-        <span class="n">vertex_weights</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">vertex_weights</span><span class="p">:</span> <span class="n">_VariableLike</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">bidirectional</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4096</span><span class="p">,</span>
+        <span class="n">weight</span><span class="p">:</span> <span class="n">Weight</span> <span class="o">|</span> <span class="n">Real</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">kernel</span><span class="p">:</span> <span class="nb">object</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;masked_chamfer&quot;</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span>
-            <span class="p">(</span><span class="s2">&quot;frames&quot;</span><span class="p">,</span> <span class="n">frames</span><span class="p">),</span>
-            <span class="p">(</span><span class="s2">&quot;source_count&quot;</span><span class="p">,</span> <span class="n">source_count</span><span class="p">),</span>
-            <span class="p">(</span><span class="s2">&quot;target_count&quot;</span><span class="p">,</span> <span class="n">target_count</span><span class="p">),</span>
-        <span class="p">):</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="n">value</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2"> must be a positive integer, got </span><span class="si">{</span><span class="n">value</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="n">names</span> <span class="o">=</span> <span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">source_validity</span><span class="p">,</span> <span class="n">target_validity</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">value</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">names</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;point and validity context names must be non-empty strings&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">names</span><span class="p">))</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;point and validity context names must be unique&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">vertex_weights</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">vertex_weights</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">vertex_weights</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;vertex_weights must be a non-empty context name or None&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">vertex_weights</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">vertex_weights</span> <span class="ow">in</span> <span class="n">names</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;vertex_weights must name a distinct context entry&quot;</span><span class="p">)</span>
+        <span class="n">source_tensor</span> <span class="o">=</span> <span class="n">check_tensor</span><span class="p">(</span><span class="s2">&quot;source&quot;</span><span class="p">,</span> <span class="n">value</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="s2">&quot;source&quot;</span><span class="p">),</span> <span class="n">floating</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">target_tensor</span> <span class="o">=</span> <span class="n">check_tensor</span><span class="p">(</span>
+            <span class="s2">&quot;target&quot;</span><span class="p">,</span>
+            <span class="n">value</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="s2">&quot;target&quot;</span><span class="p">),</span>
+            <span class="n">floating</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">source_tensor</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span>
+            <span class="n">device</span><span class="o">=</span><span class="n">source_tensor</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">source_tensor</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">3</span> <span class="ow">or</span> <span class="n">source_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;source must end in (frames, count, 3), got </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">source_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">target_tensor</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">3</span> <span class="ow">or</span> <span class="n">target_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;target must end in (frames, count, 3), got </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">target_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">frames</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">source_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">])</span>
+        <span class="n">source_count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">source_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
+        <span class="n">target_count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">target_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">frames</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">source_count</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">target_count</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;point-cloud frame and padded point axes must be non-empty&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">target_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span> <span class="o">!=</span> <span class="n">frames</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;source and target must have the same frames axis, got </span><span class="si">{</span><span class="n">frames</span><span class="si">}</span><span class="s2"> and </span><span class="si">{</span><span class="n">target_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+        <span class="n">check_tensor</span><span class="p">(</span>
+            <span class="s2">&quot;source_validity&quot;</span><span class="p">,</span>
+            <span class="n">value</span><span class="p">(</span><span class="n">source_validity</span><span class="p">,</span> <span class="s2">&quot;source_validity&quot;</span><span class="p">),</span>
+            <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">frames</span><span class="p">,</span> <span class="n">source_count</span><span class="p">),</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">bool</span><span class="p">,</span>
+            <span class="n">device</span><span class="o">=</span><span class="n">source_tensor</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">check_tensor</span><span class="p">(</span>
+            <span class="s2">&quot;target_validity&quot;</span><span class="p">,</span>
+            <span class="n">value</span><span class="p">(</span><span class="n">target_validity</span><span class="p">,</span> <span class="s2">&quot;target_validity&quot;</span><span class="p">),</span>
+            <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">frames</span><span class="p">,</span> <span class="n">target_count</span><span class="p">),</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">bool</span><span class="p">,</span>
+            <span class="n">device</span><span class="o">=</span><span class="n">source_tensor</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">vertex_weights</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">check_tensor</span><span class="p">(</span>
+                <span class="s2">&quot;vertex_weights&quot;</span><span class="p">,</span>
+                <span class="n">value</span><span class="p">(</span><span class="n">vertex_weights</span><span class="p">,</span> <span class="s2">&quot;vertex_weights&quot;</span><span class="p">),</span>
+                <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">frames</span><span class="p">,</span> <span class="n">source_count</span><span class="p">),</span>
+                <span class="n">floating</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="n">source_tensor</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span>
+                <span class="n">device</span><span class="o">=</span><span class="n">source_tensor</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+            <span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">bidirectional</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;bidirectional must be bool&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chunk_size</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chunk_size</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="n">chunk_size</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;chunk_size must be a positive integer, got </span><span class="si">{</span><span class="n">chunk_size</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">name</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;name must be a non-empty string&quot;</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">frames</span> <span class="o">=</span> <span class="n">frames</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">source_count</span> <span class="o">=</span> <span class="n">source_count</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">target_count</span> <span class="o">=</span> <span class="n">target_count</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">source</span> <span class="o">=</span> <span class="n">source</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">target</span> <span class="o">=</span> <span class="n">target</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">source_validity</span> <span class="o">=</span> <span class="n">source_validity</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">target_validity</span> <span class="o">=</span> <span class="n">target_validity</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">vertex_weights</span> <span class="o">=</span> <span class="n">vertex_weights</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">frames</span> <span class="o">=</span> <span class="n">frames</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">source_count</span> <span class="o">=</span> <span class="n">source_count</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">target_count</span> <span class="o">=</span> <span class="n">target_count</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">bidirectional</span> <span class="o">=</span> <span class="n">bidirectional</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">chunk_size</span> <span class="o">=</span> <span class="n">chunk_size</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">reads</span> <span class="o">=</span> <span class="p">(</span><span class="o">*</span><span class="n">names</span><span class="p">,</span> <span class="o">*</span><span class="p">((</span><span class="n">vertex_weights</span><span class="p">,)</span> <span class="k">if</span> <span class="n">vertex_weights</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">()))</span>
         <span class="n">rows_per_frame</span> <span class="o">=</span> <span class="n">source_count</span> <span class="o">+</span> <span class="p">(</span><span class="n">target_count</span> <span class="k">if</span> <span class="n">bidirectional</span> <span class="k">else</span> <span class="mi">0</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">=</span> <span class="n">frames</span> <span class="o">*</span> <span class="n">rows_per_frame</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="n">clouds</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">ctx</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="p">],</span>
-            <span class="n">ctx</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="p">],</span>
-            <span class="n">ctx</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">source_validity</span><span class="p">],</span>
-            <span class="n">ctx</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">target_validity</span><span class="p">],</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="o">*</span><span class="n">variables</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">source_validity</span><span class="p">,</span> <span class="n">target_validity</span><span class="p">,</span> <span class="n">vertex_weights</span><span class="p">),</span>
+            <span class="n">dim</span><span class="o">=</span><span class="n">frames</span> <span class="o">*</span> <span class="n">rows_per_frame</span><span class="p">,</span>
+            <span class="n">weight</span><span class="o">=</span><span class="n">weight</span><span class="p">,</span>
+            <span class="n">kernel</span><span class="o">=</span><span class="n">kernel</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">event_shape</span> <span class="ow">in</span> <span class="p">(</span>
-            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">clouds</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">source_count</span><span class="p">,</span> <span class="mi">3</span><span class="p">)),</span>
-            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="n">clouds</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_count</span><span class="p">,</span> <span class="mi">3</span><span class="p">)),</span>
-            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">source_validity</span><span class="p">,</span> <span class="n">clouds</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">source_count</span><span class="p">)),</span>
-            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">target_validity</span><span class="p">,</span> <span class="n">clouds</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_count</span><span class="p">)),</span>
-        <span class="p">):</span>
-            <span class="n">check_tensor</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="n">event_shape</span><span class="p">)</span>
-        <span class="n">source</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">source_validity</span><span class="p">,</span> <span class="n">target_validity</span> <span class="o">=</span> <span class="n">_validate_clouds</span><span class="p">(</span><span class="o">*</span><span class="n">clouds</span><span class="p">)</span>
 
+<div class="viewcode-block" id="MaskedChamferResidual.error">
+<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.chamfer.html#better_robot.residuals.chamfer.MaskedChamferResidual.error">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">error</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="n">source</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">source_validity</span><span class="p">,</span> <span class="n">target_validity</span> <span class="o">=</span> <span class="n">_validate_clouds</span><span class="p">(</span>
+            <span class="n">value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="s2">&quot;source&quot;</span><span class="p">),</span>
+            <span class="n">value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="s2">&quot;target&quot;</span><span class="p">),</span>
+            <span class="n">value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">source_validity</span><span class="p">,</span> <span class="s2">&quot;source_validity&quot;</span><span class="p">),</span>
+            <span class="n">value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">target_validity</span><span class="p">,</span> <span class="s2">&quot;target_validity&quot;</span><span class="p">),</span>
+        <span class="p">)</span>
         <span class="n">forward</span> <span class="o">=</span> <span class="n">_detached_nearest</span><span class="p">(</span>
             <span class="n">source</span><span class="p">,</span>
             <span class="n">target</span><span class="p">,</span>
@@ -595,28 +612,30 @@
             <span class="n">chunk_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_size</span><span class="p">,</span>
         <span class="p">)</span><span class="o">.</span><span class="n">distance</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">vertex_weights</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">weights</span> <span class="o">=</span> <span class="n">ctx</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">vertex_weights</span><span class="p">]</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">weights</span><span class="o">.</span><span class="n">is_floating_point</span><span class="p">():</span>
-                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">vertex_weights</span><span class="si">}</span><span class="s2"> must be a floating torch.Tensor&quot;</span><span class="p">)</span>
-            <span class="n">suffix</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">source_count</span><span class="p">)</span>
-            <span class="k">if</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">weights</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:])</span> <span class="o">!=</span> <span class="n">suffix</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">vertex_weights</span><span class="si">}</span><span class="s2"> must end in </span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">weights</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">weights</span><span class="o">.</span><span class="n">dtype</span> <span class="o">!=</span> <span class="n">forward</span><span class="o">.</span><span class="n">dtype</span> <span class="ow">or</span> <span class="n">weights</span><span class="o">.</span><span class="n">device</span> <span class="o">!=</span> <span class="n">forward</span><span class="o">.</span><span class="n">device</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">vertex_weights</span><span class="si">}</span><span class="s2"> must share point dtype/device&quot;</span><span class="p">)</span>
+            <span class="n">weights</span> <span class="o">=</span> <span class="n">check_tensor</span><span class="p">(</span>
+                <span class="s2">&quot;vertex_weights&quot;</span><span class="p">,</span>
+                <span class="n">value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vertex_weights</span><span class="p">,</span> <span class="s2">&quot;vertex_weights&quot;</span><span class="p">),</span>
+                <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">source_count</span><span class="p">),</span>
+                <span class="n">floating</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="n">forward</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span>
+                <span class="n">device</span><span class="o">=</span><span class="n">forward</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+            <span class="p">)</span>
             <span class="n">forward</span> <span class="o">=</span> <span class="n">forward</span> <span class="o">*</span> <span class="n">weights</span>
 
         <span class="n">rows</span> <span class="o">=</span> <span class="p">[</span><span class="n">forward</span><span class="p">]</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bidirectional</span><span class="p">:</span>
-            <span class="n">reverse</span> <span class="o">=</span> <span class="n">_detached_nearest</span><span class="p">(</span>
-                <span class="n">target</span><span class="p">,</span>
-                <span class="n">source</span><span class="p">,</span>
-                <span class="n">query_validity</span><span class="o">=</span><span class="n">target_validity</span><span class="p">,</span>
-                <span class="n">reference_validity</span><span class="o">=</span><span class="n">source_validity</span><span class="p">,</span>
-                <span class="n">chunk_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_size</span><span class="p">,</span>
-            <span class="p">)</span><span class="o">.</span><span class="n">distance</span>
-            <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">reverse</span><span class="p">)</span>
+            <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">_detached_nearest</span><span class="p">(</span>
+                    <span class="n">target</span><span class="p">,</span>
+                    <span class="n">source</span><span class="p">,</span>
+                    <span class="n">query_validity</span><span class="o">=</span><span class="n">target_validity</span><span class="p">,</span>
+                    <span class="n">reference_validity</span><span class="o">=</span><span class="n">source_validity</span><span class="p">,</span>
+                    <span class="n">chunk_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_size</span><span class="p">,</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">distance</span>
+            <span class="p">)</span>
         <span class="n">combined</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">combined</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">*</span><span class="n">combined</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">)</span></div>
+</div>
 
 
 

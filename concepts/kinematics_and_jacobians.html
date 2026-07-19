@@ -58,7 +58,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -194,7 +194,7 @@
 <li class="toctree-l2"><a class="reference internal" href="lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="viewer.html">Viewer</a></li>
@@ -247,6 +247,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -285,12 +286,10 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -592,14 +591,23 @@ transforms before it can propagate velocities and forces.</p>
 <p>A configuration <code class="docutils literal notranslate"><span class="pre">q</span></code> stores the position of every independent joint. Forward
 kinematics, usually shortened to <strong>FK</strong>, walks from each parent joint to its
 children and composes transforms along the tree.</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>data = better_robot.forward_kinematics(
-    model,
-    q,
-    compute_frames=True,
-)
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot</span><span class="w"> </span><span class="kn">import</span> <span class="n">forward_kinematics</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModelBuilder</span><span class="p">,</span> <span class="n">build_model</span>
 
-joint_poses = data.joint_pose_world   # (..., njoints, 7)
-frame_poses = data.frame_pose_world   # (..., nframes, 7)
+<span class="n">builder</span> <span class="o">=</span> <span class="n">ModelBuilder</span><span class="p">(</span><span class="s2">&quot;one_joint_kinematics&quot;</span><span class="p">)</span>
+<span class="n">builder</span><span class="o">.</span><span class="n">add_body</span><span class="p">(</span><span class="s2">&quot;base&quot;</span><span class="p">)</span>
+<span class="n">builder</span><span class="o">.</span><span class="n">add_body</span><span class="p">(</span><span class="s2">&quot;link&quot;</span><span class="p">)</span>
+<span class="n">builder</span><span class="o">.</span><span class="n">add_revolute_z</span><span class="p">(</span><span class="s2">&quot;joint&quot;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="s2">&quot;base&quot;</span><span class="p">,</span> <span class="n">child</span><span class="o">=</span><span class="s2">&quot;link&quot;</span><span class="p">,</span> <span class="n">lower</span><span class="o">=-</span><span class="mf">3.14</span><span class="p">,</span> <span class="n">upper</span><span class="o">=</span><span class="mf">3.14</span><span class="p">)</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">build_model</span><span class="p">(</span><span class="n">builder</span><span class="o">.</span><span class="n">finalize</span><span class="p">(),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="n">q</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">q_neutral</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">forward_kinematics</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">compute_frames</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;joint poses:&quot;</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">joint_pose_world</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;frame poses:&quot;</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">frame_pose_world</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+</pre></div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>joint poses: (3, 7)
+frame poses: (3, 7)
 </pre></div>
 </div>
 <p>The final axis of each pose is
@@ -607,9 +615,18 @@ frame_poses = data.frame_pose_world   # (..., nframes, 7)
 the robot or search for a configuration; it answers where the model would be
 for the <code class="docutils literal notranslate"><span class="pre">q</span></code> it was given.</p>
 <p>Every joint supplies a transform from its parent at the current joint slice.
-The tree recurrence is:</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>joint_pose_local[j] = fixed_placement[j] * joint_transform(j, q[j])
-joint_pose_world[j] = joint_pose_world[parent[j]] * joint_pose_local[j]
+The local pose composes its fixed placement with the current joint transform;
+the world pose then composes that result with its parent’s world pose. Those
+poses feed the frame-Jacobian pass directly:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.kinematics</span><span class="w"> </span><span class="kn">import</span> <span class="n">compute_joint_jacobians</span><span class="p">,</span> <span class="n">get_frame_jacobian</span>
+
+<span class="n">compute_joint_jacobians</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+<span class="n">frame_id</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">frame_id</span><span class="p">(</span><span class="s2">&quot;body_link&quot;</span><span class="p">)</span>
+<span class="n">frame_jacobian</span> <span class="o">=</span> <span class="n">get_frame_jacobian</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">frame_id</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;frame Jacobian shape:&quot;</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">frame_jacobian</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+</pre></div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>frame Jacobian shape: (6, 1)
 </pre></div>
 </div>
 <p>A fixed-base and a floating-base model use the same recurrence. The latter
@@ -753,6 +770,7 @@ differentiate their forward calls.</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">forward_kinematics_raw</span></code> returns world and local joint placements.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">frame_placements_raw</span></code> returns world frame placements.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">joint_jacobians_raw</span></code> returns all joint Jacobians.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frame_jacobian_raw</span></code> returns one frame Jacobian in the requested reference frame.</p></li>
 </ul>
 <p>These functions do not mutate <code class="docutils literal notranslate"><span class="pre">Data</span></code>, which makes them convenient inside a
 larger differentiable function. Public wrappers validate call inputs and fill
@@ -787,7 +805,7 @@ tensors and are compared for value and gradient parity. See
 <ul class="simple">
 <li><p><a class="reference internal" href="lie_and_spatial.html"><span class="doc">Rotations, Poses, and Spatial Motion</span></a> explains SE(3), tangents, and logarithm Jacobians.</p></li>
 <li><p><a class="reference internal" href="dynamics.html"><span class="doc">Dynamics</span></a> adds velocities, accelerations, forces, and inertias.</p></li>
-<li><p><a class="reference internal" href="residuals_costs_and_solvers.html"><span class="doc">Residuals, Costs, and Solvers</span></a> shows how Jacobians drive least-squares
+<li><p><a class="reference internal" href="residuals_costs_and_solvers.html"><span class="doc">Residuals, Costs, and Optimizers</span></a> shows how Jacobians drive least-squares
 optimization.</p></li>
 <li><p><a class="reference internal" href="../guides/differentiate_through_kinematics.html"><span class="doc">Differentiate through kinematics</span></a> gives the practical autograd
 recipe.</p></li>
@@ -891,7 +909,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>

@@ -192,7 +192,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../concepts/viewer.html">Viewer</a></li>
@@ -245,6 +245,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -283,12 +284,10 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -498,6 +497,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClassVar</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 
@@ -559,162 +559,67 @@
 <span class="n">_AXIS_Z</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">])</span>
 
 
+<span class="k">class</span><span class="w"> </span><span class="nc">_Revolute</span><span class="p">:</span>
+    <span class="n">_joint_axis</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_axis_for_ops</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_joint_axis</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">joint_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_revolute_transform</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_axis_for_ops</span><span class="p">(),</span> <span class="n">q_slice</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">joint_motion_subspace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_revolute_subspace</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_axis_for_ops</span><span class="p">(),</span> <span class="n">q_slice</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">joint_velocity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">,</span> <span class="n">v_slice</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_revolute_velocity</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_axis_for_ops</span><span class="p">(),</span> <span class="n">q_slice</span><span class="p">,</span> <span class="n">v_slice</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">integrate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">,</span> <span class="n">v_slice</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_revolute_integrate</span><span class="p">(</span><span class="n">q_slice</span><span class="p">,</span> <span class="n">v_slice</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">difference</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q0_slice</span><span class="p">,</span> <span class="n">q1_slice</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_revolute_difference</span><span class="p">(</span><span class="n">q0_slice</span><span class="p">,</span> <span class="n">q1_slice</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">random_configuration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_revolute_random</span><span class="p">(</span><span class="n">generator</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">neutral</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+
 <div class="viewcode-block" id="JointRX">
 <a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRX">[docs]</a>
 <span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">JointRX</span><span class="p">:</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">JointRX</span><span class="p">(</span><span class="n">_Revolute</span><span class="p">):</span>
     <span class="n">kind</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;revolute_rx&quot;</span>
     <span class="n">nq</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="n">nv</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="n">axis</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-
-<div class="viewcode-block" id="JointRX.joint_transform">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRX.joint_transform">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">joint_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_transform</span><span class="p">(</span><span class="n">_AXIS_X</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRX.joint_motion_subspace">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRX.joint_motion_subspace">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">joint_motion_subspace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_subspace</span><span class="p">(</span><span class="n">_AXIS_X</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRX.joint_velocity">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRX.joint_velocity">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">joint_velocity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">,</span> <span class="n">v_slice</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_velocity</span><span class="p">(</span><span class="n">_AXIS_X</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">,</span> <span class="n">v_slice</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRX.integrate">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRX.integrate">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">integrate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">,</span> <span class="n">v_slice</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_integrate</span><span class="p">(</span><span class="n">q_slice</span><span class="p">,</span> <span class="n">v_slice</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRX.difference">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRX.difference">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">difference</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q0_slice</span><span class="p">,</span> <span class="n">q1_slice</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_difference</span><span class="p">(</span><span class="n">q0_slice</span><span class="p">,</span> <span class="n">q1_slice</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRX.random_configuration">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRX.random_configuration">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">random_configuration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_random</span><span class="p">(</span><span class="n">generator</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRX.neutral">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRX.neutral">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">neutral</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span></div>
-</div>
+    <span class="n">_joint_axis</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="n">_AXIS_X</span></div>
 
 
 
 <div class="viewcode-block" id="JointRY">
 <a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRY">[docs]</a>
 <span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">JointRY</span><span class="p">:</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">JointRY</span><span class="p">(</span><span class="n">_Revolute</span><span class="p">):</span>
     <span class="n">kind</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;revolute_ry&quot;</span>
     <span class="n">nq</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="n">nv</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="n">axis</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-
-<div class="viewcode-block" id="JointRY.joint_transform">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRY.joint_transform">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">joint_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_transform</span><span class="p">(</span><span class="n">_AXIS_Y</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRY.joint_motion_subspace">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRY.joint_motion_subspace">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">joint_motion_subspace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_subspace</span><span class="p">(</span><span class="n">_AXIS_Y</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRY.joint_velocity">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRY.joint_velocity">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">joint_velocity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">,</span> <span class="n">v_slice</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_velocity</span><span class="p">(</span><span class="n">_AXIS_Y</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">,</span> <span class="n">v_slice</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRY.integrate">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRY.integrate">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">integrate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">,</span> <span class="n">v_slice</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_integrate</span><span class="p">(</span><span class="n">q_slice</span><span class="p">,</span> <span class="n">v_slice</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRY.difference">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRY.difference">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">difference</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q0_slice</span><span class="p">,</span> <span class="n">q1_slice</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_difference</span><span class="p">(</span><span class="n">q0_slice</span><span class="p">,</span> <span class="n">q1_slice</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRY.random_configuration">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRY.random_configuration">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">random_configuration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_random</span><span class="p">(</span><span class="n">generator</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRY.neutral">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRY.neutral">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">neutral</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span></div>
-</div>
+    <span class="n">_joint_axis</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="n">_AXIS_Y</span></div>
 
 
 
 <div class="viewcode-block" id="JointRZ">
 <a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRZ">[docs]</a>
 <span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">JointRZ</span><span class="p">:</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">JointRZ</span><span class="p">(</span><span class="n">_Revolute</span><span class="p">):</span>
     <span class="n">kind</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;revolute_rz&quot;</span>
     <span class="n">nq</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="n">nv</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="n">axis</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-
-<div class="viewcode-block" id="JointRZ.joint_transform">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRZ.joint_transform">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">joint_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_transform</span><span class="p">(</span><span class="n">_AXIS_Z</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRZ.joint_motion_subspace">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRZ.joint_motion_subspace">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">joint_motion_subspace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_subspace</span><span class="p">(</span><span class="n">_AXIS_Z</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRZ.joint_velocity">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRZ.joint_velocity">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">joint_velocity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">,</span> <span class="n">v_slice</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_velocity</span><span class="p">(</span><span class="n">_AXIS_Z</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">,</span> <span class="n">v_slice</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRZ.integrate">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRZ.integrate">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">integrate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">,</span> <span class="n">v_slice</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_integrate</span><span class="p">(</span><span class="n">q_slice</span><span class="p">,</span> <span class="n">v_slice</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRZ.difference">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRZ.difference">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">difference</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q0_slice</span><span class="p">,</span> <span class="n">q1_slice</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_difference</span><span class="p">(</span><span class="n">q0_slice</span><span class="p">,</span> <span class="n">q1_slice</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRZ.random_configuration">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRZ.random_configuration">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">random_configuration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_random</span><span class="p">(</span><span class="n">generator</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRZ.neutral">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRZ.neutral">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">neutral</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span></div>
-</div>
+    <span class="n">_joint_axis</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="n">_AXIS_Z</span></div>
 
 
 
@@ -724,7 +629,7 @@
 <div class="viewcode-block" id="JointRevoluteUnaligned">
 <a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned">[docs]</a>
 <span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">JointRevoluteUnaligned</span><span class="p">:</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">JointRevoluteUnaligned</span><span class="p">(</span><span class="n">_Revolute</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Revolute joint with an arbitrary 3-vector axis.&quot;&quot;&quot;</span>
 
     <span class="n">axis</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]))</span>
@@ -732,47 +637,8 @@
     <span class="n">nq</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="n">nv</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
 
-<div class="viewcode-block" id="JointRevoluteUnaligned.joint_transform">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_transform">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">joint_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_transform</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">axis</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRevoluteUnaligned.joint_motion_subspace">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_motion_subspace">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">joint_motion_subspace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_subspace</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">axis</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRevoluteUnaligned.joint_velocity">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_velocity">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">joint_velocity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">,</span> <span class="n">v_slice</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_velocity</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">axis</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">,</span> <span class="n">v_slice</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRevoluteUnaligned.integrate">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.integrate">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">integrate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_slice</span><span class="p">,</span> <span class="n">v_slice</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_integrate</span><span class="p">(</span><span class="n">q_slice</span><span class="p">,</span> <span class="n">v_slice</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRevoluteUnaligned.difference">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.difference">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">difference</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q0_slice</span><span class="p">,</span> <span class="n">q1_slice</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_difference</span><span class="p">(</span><span class="n">q0_slice</span><span class="p">,</span> <span class="n">q1_slice</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRevoluteUnaligned.random_configuration">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.random_configuration">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">random_configuration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_revolute_random</span><span class="p">(</span><span class="n">generator</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="JointRevoluteUnaligned.neutral">
-<a class="viewcode-back" href="../../../../reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.neutral">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">neutral</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span></div>
-</div>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_axis_for_ops</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">axis</span></div>
 
 
 

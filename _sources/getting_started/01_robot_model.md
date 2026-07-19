@@ -25,11 +25,15 @@ model = br.load(panda_description.URDF_PATH)
 q = model.q_neutral
 hand_frame = model.frame_id("body_panda_hand")
 
-assert q.shape == (model.nq,)
-assert len(model.joint_names) == model.njoints
-assert len(model.body_names) == model.nbodies
-assert len(model.frame_names) == model.nframes
-assert model.frame_names[hand_frame] == "body_panda_hand"
+print(q.shape)
+print((model.njoints, model.nbodies, model.nframes))
+print(model.frame_names[hand_frame])
+```
+
+```{testoutput}
+torch.Size([8])
+(14, 14, 14)
+body_panda_hand
 ```
 
 `model.q_neutral` is a valid resting configuration on the model's device and

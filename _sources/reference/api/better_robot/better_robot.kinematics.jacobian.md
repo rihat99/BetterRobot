@@ -31,6 +31,10 @@
   - ```{autodoc2-docstring} better_robot.kinematics.jacobian.joint_jacobians_raw
     :summary:
     ```
+* - {py:obj}`frame_jacobian_raw <better_robot.kinematics.jacobian.frame_jacobian_raw>`
+  - ```{autodoc2-docstring} better_robot.kinematics.jacobian.frame_jacobian_raw
+    :summary:
+    ```
 * - {py:obj}`compute_joint_jacobians <better_robot.kinematics.jacobian.compute_joint_jacobians>`
   - ```{autodoc2-docstring} better_robot.kinematics.jacobian.compute_joint_jacobians
     :summary:
@@ -70,6 +74,13 @@
 :canonical: better_robot.kinematics.jacobian.joint_jacobians_raw
 
 ```{autodoc2-docstring} better_robot.kinematics.jacobian.joint_jacobians_raw
+```
+````
+
+````{py:function} frame_jacobian_raw(structure: better_robot.data_model.model_structure.ModelStructure, values: better_robot.data_model.model_values.ModelValues, q: torch.Tensor, joint_pose_world: torch.Tensor, frame_id: int, *, reference: better_robot.kinematics.jacobian._ReferenceFrame = 'local_world_aligned', joint_jacobians: torch.Tensor | None = None) -> torch.Tensor
+:canonical: better_robot.kinematics.jacobian.frame_jacobian_raw
+
+```{autodoc2-docstring} better_robot.kinematics.jacobian.frame_jacobian_raw
 ```
 ````
 

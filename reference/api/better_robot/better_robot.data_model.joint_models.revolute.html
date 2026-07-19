@@ -57,7 +57,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -193,7 +193,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
@@ -246,6 +246,7 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -284,12 +285,10 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -559,13 +558,6 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRX.nq"><code class="docutils literal notranslate"><span class="pre">JointRX.nq</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRX.nv"><code class="docutils literal notranslate"><span class="pre">JointRX.nv</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRX.axis"><code class="docutils literal notranslate"><span class="pre">JointRX.axis</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRX.joint_transform"><code class="docutils literal notranslate"><span class="pre">JointRX.joint_transform()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRX.joint_motion_subspace"><code class="docutils literal notranslate"><span class="pre">JointRX.joint_motion_subspace()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRX.joint_velocity"><code class="docutils literal notranslate"><span class="pre">JointRX.joint_velocity()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRX.integrate"><code class="docutils literal notranslate"><span class="pre">JointRX.integrate()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRX.difference"><code class="docutils literal notranslate"><span class="pre">JointRX.difference()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRX.random_configuration"><code class="docutils literal notranslate"><span class="pre">JointRX.random_configuration()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRX.neutral"><code class="docutils literal notranslate"><span class="pre">JointRX.neutral()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRY"><code class="docutils literal notranslate"><span class="pre">JointRY</span></code></a><ul class="nav section-nav flex-column">
@@ -573,13 +565,6 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRY.nq"><code class="docutils literal notranslate"><span class="pre">JointRY.nq</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRY.nv"><code class="docutils literal notranslate"><span class="pre">JointRY.nv</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRY.axis"><code class="docutils literal notranslate"><span class="pre">JointRY.axis</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRY.joint_transform"><code class="docutils literal notranslate"><span class="pre">JointRY.joint_transform()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRY.joint_motion_subspace"><code class="docutils literal notranslate"><span class="pre">JointRY.joint_motion_subspace()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRY.joint_velocity"><code class="docutils literal notranslate"><span class="pre">JointRY.joint_velocity()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRY.integrate"><code class="docutils literal notranslate"><span class="pre">JointRY.integrate()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRY.difference"><code class="docutils literal notranslate"><span class="pre">JointRY.difference()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRY.random_configuration"><code class="docutils literal notranslate"><span class="pre">JointRY.random_configuration()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRY.neutral"><code class="docutils literal notranslate"><span class="pre">JointRY.neutral()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRZ"><code class="docutils literal notranslate"><span class="pre">JointRZ</span></code></a><ul class="nav section-nav flex-column">
@@ -587,13 +572,6 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRZ.nq"><code class="docutils literal notranslate"><span class="pre">JointRZ.nq</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRZ.nv"><code class="docutils literal notranslate"><span class="pre">JointRZ.nv</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRZ.axis"><code class="docutils literal notranslate"><span class="pre">JointRZ.axis</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRZ.joint_transform"><code class="docutils literal notranslate"><span class="pre">JointRZ.joint_transform()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRZ.joint_motion_subspace"><code class="docutils literal notranslate"><span class="pre">JointRZ.joint_motion_subspace()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRZ.joint_velocity"><code class="docutils literal notranslate"><span class="pre">JointRZ.joint_velocity()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRZ.integrate"><code class="docutils literal notranslate"><span class="pre">JointRZ.integrate()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRZ.difference"><code class="docutils literal notranslate"><span class="pre">JointRZ.difference()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRZ.random_configuration"><code class="docutils literal notranslate"><span class="pre">JointRZ.random_configuration()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRZ.neutral"><code class="docutils literal notranslate"><span class="pre">JointRZ.neutral()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnaligned</span></code></a><ul class="nav section-nav flex-column">
@@ -601,13 +579,6 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.kind"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnaligned.kind</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.nq"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnaligned.nq</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.nv"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnaligned.nv</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_transform"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnaligned.joint_transform()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_motion_subspace"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnaligned.joint_motion_subspace()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_velocity"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnaligned.joint_velocity()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.integrate"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnaligned.integrate()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.difference"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnaligned.difference()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.random_configuration"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnaligned.random_configuration()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.neutral"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnaligned.neutral()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnbounded</span></code></a><ul class="nav section-nav flex-column">
@@ -675,257 +646,121 @@
 <dl class="py class">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRX">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">JointRX</span></span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRX"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRX" title="Link to this definition">#</a></dt>
-<dd><dl class="py attribute">
+<dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.data_model.joint_models.revolute._Revolute</span></code></p>
+<dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRX.kind">
-<span class="sig-name descname"><span class="pre">kind</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRX.kind" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">kind</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRX.kind" title="Link to this definition">#</a></dt>
 <dd><p>‘revolute_rx’</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRX.nq">
-<span class="sig-name descname"><span class="pre">nq</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRX.nq" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">nq</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRX.nq" title="Link to this definition">#</a></dt>
 <dd><p>1</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRX.nv">
-<span class="sig-name descname"><span class="pre">nv</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRX.nv" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">nv</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRX.nv" title="Link to this definition">#</a></dt>
 <dd><p>1</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRX.axis">
-<span class="sig-name descname"><span class="pre">axis</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRX.axis" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">axis</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">torch.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRX.axis" title="Link to this definition">#</a></dt>
 <dd><p>None</p>
 </dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRX.joint_transform">
-<span class="sig-name descname"><span class="pre">joint_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRX.joint_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRX.joint_transform" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRX.joint_motion_subspace">
-<span class="sig-name descname"><span class="pre">joint_motion_subspace</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRX.joint_motion_subspace"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRX.joint_motion_subspace" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRX.joint_velocity">
-<span class="sig-name descname"><span class="pre">joint_velocity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRX.joint_velocity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRX.joint_velocity" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRX.integrate">
-<span class="sig-name descname"><span class="pre">integrate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRX.integrate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRX.integrate" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRX.difference">
-<span class="sig-name descname"><span class="pre">difference</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q0_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q1_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRX.difference"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRX.difference" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRX.random_configuration">
-<span class="sig-name descname"><span class="pre">random_configuration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">generator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lower</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upper</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRX.random_configuration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRX.random_configuration" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRX.neutral">
-<span class="sig-name descname"><span class="pre">neutral</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRX.neutral"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRX.neutral" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
 
 </dd></dl>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRY">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">JointRY</span></span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRY"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRY" title="Link to this definition">#</a></dt>
-<dd><dl class="py attribute">
+<dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.data_model.joint_models.revolute._Revolute</span></code></p>
+<dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRY.kind">
-<span class="sig-name descname"><span class="pre">kind</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRY.kind" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">kind</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRY.kind" title="Link to this definition">#</a></dt>
 <dd><p>‘revolute_ry’</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRY.nq">
-<span class="sig-name descname"><span class="pre">nq</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRY.nq" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">nq</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRY.nq" title="Link to this definition">#</a></dt>
 <dd><p>1</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRY.nv">
-<span class="sig-name descname"><span class="pre">nv</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRY.nv" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">nv</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRY.nv" title="Link to this definition">#</a></dt>
 <dd><p>1</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRY.axis">
-<span class="sig-name descname"><span class="pre">axis</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRY.axis" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">axis</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">torch.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRY.axis" title="Link to this definition">#</a></dt>
 <dd><p>None</p>
 </dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRY.joint_transform">
-<span class="sig-name descname"><span class="pre">joint_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRY.joint_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRY.joint_transform" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRY.joint_motion_subspace">
-<span class="sig-name descname"><span class="pre">joint_motion_subspace</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRY.joint_motion_subspace"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRY.joint_motion_subspace" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRY.joint_velocity">
-<span class="sig-name descname"><span class="pre">joint_velocity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRY.joint_velocity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRY.joint_velocity" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRY.integrate">
-<span class="sig-name descname"><span class="pre">integrate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRY.integrate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRY.integrate" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRY.difference">
-<span class="sig-name descname"><span class="pre">difference</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q0_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q1_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRY.difference"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRY.difference" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRY.random_configuration">
-<span class="sig-name descname"><span class="pre">random_configuration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">generator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lower</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upper</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRY.random_configuration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRY.random_configuration" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRY.neutral">
-<span class="sig-name descname"><span class="pre">neutral</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRY.neutral"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRY.neutral" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
 
 </dd></dl>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRZ">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">JointRZ</span></span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRZ"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRZ" title="Link to this definition">#</a></dt>
-<dd><dl class="py attribute">
+<dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.data_model.joint_models.revolute._Revolute</span></code></p>
+<dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRZ.kind">
-<span class="sig-name descname"><span class="pre">kind</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRZ.kind" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">kind</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRZ.kind" title="Link to this definition">#</a></dt>
 <dd><p>‘revolute_rz’</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRZ.nq">
-<span class="sig-name descname"><span class="pre">nq</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRZ.nq" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">nq</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRZ.nq" title="Link to this definition">#</a></dt>
 <dd><p>1</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRZ.nv">
-<span class="sig-name descname"><span class="pre">nv</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRZ.nv" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">nv</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRZ.nv" title="Link to this definition">#</a></dt>
 <dd><p>1</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRZ.axis">
-<span class="sig-name descname"><span class="pre">axis</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRZ.axis" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">axis</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">torch.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRZ.axis" title="Link to this definition">#</a></dt>
 <dd><p>None</p>
 </dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRZ.joint_transform">
-<span class="sig-name descname"><span class="pre">joint_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRZ.joint_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRZ.joint_transform" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRZ.joint_motion_subspace">
-<span class="sig-name descname"><span class="pre">joint_motion_subspace</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRZ.joint_motion_subspace"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRZ.joint_motion_subspace" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRZ.joint_velocity">
-<span class="sig-name descname"><span class="pre">joint_velocity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRZ.joint_velocity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRZ.joint_velocity" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRZ.integrate">
-<span class="sig-name descname"><span class="pre">integrate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRZ.integrate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRZ.integrate" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRZ.difference">
-<span class="sig-name descname"><span class="pre">difference</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q0_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q1_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRZ.difference"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRZ.difference" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRZ.random_configuration">
-<span class="sig-name descname"><span class="pre">random_configuration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">generator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lower</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upper</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRZ.random_configuration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRZ.random_configuration" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRZ.neutral">
-<span class="sig-name descname"><span class="pre">neutral</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRZ.neutral"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRZ.neutral" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
 
 </dd></dl>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">JointRevoluteUnaligned</span></span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRevoluteUnaligned"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned" title="Link to this definition">#</a></dt>
-<dd><p>Revolute joint with an arbitrary 3-vector axis.</p>
+<dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.data_model.joint_models.revolute._Revolute</span></code></p>
+<p>Revolute joint with an arbitrary 3-vector axis.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.axis">
-<span class="sig-name descname"><span class="pre">axis</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.axis" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">axis</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.axis" title="Link to this definition">#</a></dt>
 <dd><p>‘field(…)’</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.kind">
-<span class="sig-name descname"><span class="pre">kind</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.kind" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">kind</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.kind" title="Link to this definition">#</a></dt>
 <dd><p>‘revolute_unaligned’</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.nq">
-<span class="sig-name descname"><span class="pre">nq</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.nq" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">nq</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.nq" title="Link to this definition">#</a></dt>
 <dd><p>1</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.nv">
-<span class="sig-name descname"><span class="pre">nv</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.nv" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">nv</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.nv" title="Link to this definition">#</a></dt>
 <dd><p>1</p>
 </dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_transform">
-<span class="sig-name descname"><span class="pre">joint_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRevoluteUnaligned.joint_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_transform" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_motion_subspace">
-<span class="sig-name descname"><span class="pre">joint_motion_subspace</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRevoluteUnaligned.joint_motion_subspace"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_motion_subspace" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_velocity">
-<span class="sig-name descname"><span class="pre">joint_velocity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRevoluteUnaligned.joint_velocity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_velocity" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.integrate">
-<span class="sig-name descname"><span class="pre">integrate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRevoluteUnaligned.integrate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.integrate" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.difference">
-<span class="sig-name descname"><span class="pre">difference</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q0_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q1_slice</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRevoluteUnaligned.difference"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.difference" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.random_configuration">
-<span class="sig-name descname"><span class="pre">random_configuration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">generator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lower</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upper</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRevoluteUnaligned.random_configuration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.random_configuration" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.neutral">
-<span class="sig-name descname"><span class="pre">neutral</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRevoluteUnaligned.neutral"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.neutral" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
 
 </dd></dl>
 
@@ -936,31 +771,31 @@
 <p><code class="docutils literal notranslate"><span class="pre">nq</span> <span class="pre">=</span> <span class="pre">2</span></code>, <code class="docutils literal notranslate"><span class="pre">nv</span> <span class="pre">=</span> <span class="pre">1</span></code>. No position limit (unit circle).</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.axis">
-<span class="sig-name descname"><span class="pre">axis</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.axis" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">axis</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.axis" title="Link to this definition">#</a></dt>
 <dd><p>‘field(…)’</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.kind">
-<span class="sig-name descname"><span class="pre">kind</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.kind" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">kind</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.kind" title="Link to this definition">#</a></dt>
 <dd><p>‘revolute_unbounded’</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.nq">
-<span class="sig-name descname"><span class="pre">nq</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.nq" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">nq</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.nq" title="Link to this definition">#</a></dt>
 <dd><p>2</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.nv">
-<span class="sig-name descname"><span class="pre">nv</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.nv" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">nv</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.nv" title="Link to this definition">#</a></dt>
 <dd><p>1</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.joint_transform">
-<span class="sig-name descname"><span class="pre">joint_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRevoluteUnbounded.joint_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.joint_transform" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">joint_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">torch.Tensor</span></span></span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRevoluteUnbounded.joint_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.joint_transform" title="Link to this definition">#</a></dt>
 <dd><p>q_slice = (B…, 2) = [cos θ, sin θ] → SE3 rotation by θ.</p>
 </dd></dl>
 
@@ -976,25 +811,25 @@
 
 <dl class="py method">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.integrate">
-<span class="sig-name descname"><span class="pre">integrate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_slice</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRevoluteUnbounded.integrate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.integrate" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">integrate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q_slice</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_slice</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">torch.Tensor</span></span></span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRevoluteUnbounded.integrate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.integrate" title="Link to this definition">#</a></dt>
 <dd><p>Retraction on unit circle: new_angle = old_angle + dtheta.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.difference">
-<span class="sig-name descname"><span class="pre">difference</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q0_slice</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">q1_slice</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRevoluteUnbounded.difference"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.difference" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">difference</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q0_slice</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q1_slice</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">torch.Tensor</span></span></span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRevoluteUnbounded.difference"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.difference" title="Link to this definition">#</a></dt>
 <dd><p>θ1 - θ0 extracted from (cos,sin) representation.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.random_configuration">
-<span class="sig-name descname"><span class="pre">random_configuration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">generator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lower</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upper</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRevoluteUnbounded.random_configuration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.random_configuration" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">random_configuration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">generator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lower</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upper</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">torch.Tensor</span></span></span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRevoluteUnbounded.random_configuration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.random_configuration" title="Link to this definition">#</a></dt>
 <dd><p>Uniform angle on the full circle [−π, π].</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.neutral">
-<span class="sig-name descname"><span class="pre">neutral</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRevoluteUnbounded.neutral"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.neutral" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">neutral</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">torch.Tensor</span></span></span><a class="reference internal" href="../../../_modules/better_robot/data_model/joint_models/revolute.html#JointRevoluteUnbounded.neutral"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.neutral" title="Link to this definition">#</a></dt>
 <dd><p>Identity: θ = 0 → [1, 0].</p>
 </dd></dl>
 
@@ -1059,13 +894,6 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRX.nq"><code class="docutils literal notranslate"><span class="pre">JointRX.nq</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRX.nv"><code class="docutils literal notranslate"><span class="pre">JointRX.nv</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRX.axis"><code class="docutils literal notranslate"><span class="pre">JointRX.axis</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRX.joint_transform"><code class="docutils literal notranslate"><span class="pre">JointRX.joint_transform()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRX.joint_motion_subspace"><code class="docutils literal notranslate"><span class="pre">JointRX.joint_motion_subspace()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRX.joint_velocity"><code class="docutils literal notranslate"><span class="pre">JointRX.joint_velocity()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRX.integrate"><code class="docutils literal notranslate"><span class="pre">JointRX.integrate()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRX.difference"><code class="docutils literal notranslate"><span class="pre">JointRX.difference()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRX.random_configuration"><code class="docutils literal notranslate"><span class="pre">JointRX.random_configuration()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRX.neutral"><code class="docutils literal notranslate"><span class="pre">JointRX.neutral()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRY"><code class="docutils literal notranslate"><span class="pre">JointRY</span></code></a><ul class="nav section-nav flex-column">
@@ -1073,13 +901,6 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRY.nq"><code class="docutils literal notranslate"><span class="pre">JointRY.nq</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRY.nv"><code class="docutils literal notranslate"><span class="pre">JointRY.nv</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRY.axis"><code class="docutils literal notranslate"><span class="pre">JointRY.axis</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRY.joint_transform"><code class="docutils literal notranslate"><span class="pre">JointRY.joint_transform()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRY.joint_motion_subspace"><code class="docutils literal notranslate"><span class="pre">JointRY.joint_motion_subspace()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRY.joint_velocity"><code class="docutils literal notranslate"><span class="pre">JointRY.joint_velocity()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRY.integrate"><code class="docutils literal notranslate"><span class="pre">JointRY.integrate()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRY.difference"><code class="docutils literal notranslate"><span class="pre">JointRY.difference()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRY.random_configuration"><code class="docutils literal notranslate"><span class="pre">JointRY.random_configuration()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRY.neutral"><code class="docutils literal notranslate"><span class="pre">JointRY.neutral()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRZ"><code class="docutils literal notranslate"><span class="pre">JointRZ</span></code></a><ul class="nav section-nav flex-column">
@@ -1087,13 +908,6 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRZ.nq"><code class="docutils literal notranslate"><span class="pre">JointRZ.nq</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRZ.nv"><code class="docutils literal notranslate"><span class="pre">JointRZ.nv</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRZ.axis"><code class="docutils literal notranslate"><span class="pre">JointRZ.axis</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRZ.joint_transform"><code class="docutils literal notranslate"><span class="pre">JointRZ.joint_transform()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRZ.joint_motion_subspace"><code class="docutils literal notranslate"><span class="pre">JointRZ.joint_motion_subspace()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRZ.joint_velocity"><code class="docutils literal notranslate"><span class="pre">JointRZ.joint_velocity()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRZ.integrate"><code class="docutils literal notranslate"><span class="pre">JointRZ.integrate()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRZ.difference"><code class="docutils literal notranslate"><span class="pre">JointRZ.difference()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRZ.random_configuration"><code class="docutils literal notranslate"><span class="pre">JointRZ.random_configuration()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRZ.neutral"><code class="docutils literal notranslate"><span class="pre">JointRZ.neutral()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnaligned</span></code></a><ul class="nav section-nav flex-column">
@@ -1101,13 +915,6 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.kind"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnaligned.kind</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.nq"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnaligned.nq</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.nv"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnaligned.nv</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_transform"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnaligned.joint_transform()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_motion_subspace"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnaligned.joint_motion_subspace()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_velocity"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnaligned.joint_velocity()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.integrate"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnaligned.integrate()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.difference"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnaligned.difference()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.random_configuration"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnaligned.random_configuration()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.neutral"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnaligned.neutral()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded"><code class="docutils literal notranslate"><span class="pre">JointRevoluteUnbounded</span></code></a><ul class="nav section-nav flex-column">
@@ -1161,7 +968,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>

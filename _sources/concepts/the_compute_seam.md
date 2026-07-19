@@ -50,16 +50,40 @@ consume the structure/value pair and trust that attachment boundary. This is
 also useful for functional differentiation: a raw pass takes all of its tensor
 inputs explicitly instead of closing over a mutable workspace.
 
+Spatial inertia matrices are derived from the current packed
+`ModelValues.body_inertias` tensor on every dynamics pass. `ModelValues` does
+not carry an independently replaceable spatial-inertia cache, so functional
+updates such as `dataclasses.replace` cannot retain stale physics or sever the
+gradient route to replacement inertias.
+
 ## Raw passes return values
 
-Tensor-only passes return frozen result records. For example:
+Tensor-only passes return frozen result records. This small CPU model exercises
+both kinematics and dynamics through that seam:
 
-```text
+```{testcode}
+import torch
+from better_robot.dynamics import rnea_raw
+from better_robot.io import ModelBuilder, build_model
+from better_robot.kinematics import forward_kinematics_raw
+
+builder = ModelBuilder("raw_passes")
+builder.add_body("base", mass=1.0, inertia=torch.eye(3) * 0.1)
+builder.add_body("link", mass=1.0, inertia=torch.eye(3) * 0.05)
+builder.add_revolute_z("joint", parent="base", child="link", lower=-3.14, upper=3.14)
+model = build_model(builder.finalize(), dtype=torch.float64)
+q = model.q_neutral
+v = torch.zeros(model.nv, dtype=q.dtype)
+a = torch.zeros_like(v)
 fk = forward_kinematics_raw(model.structure, model.values, q)
-joint_pose_world = fk.joint_pose_world
-
 rnea_result = rnea_raw(model.structure, model.values, q, v, a)
-tau = rnea_result.tau
+print("raw FK shape:", tuple(fk.joint_pose_world.shape))
+print("raw RNEA shape:", tuple(rnea_result.tau.shape))
+```
+
+```{testoutput}
+raw FK shape: (3, 7)
+raw RNEA shape: (1,)
 ```
 
 The public wrappers call the same mathematical pass and then populate `Data`
@@ -106,10 +130,24 @@ freeze data-dependent behavior into a compiled graph.
 
 The only shipped fused pass is an opt-in forward-kinematics implementation in
 [NVIDIA Warp](https://nvidia.github.io/warp/stable/index.html). Callers select
-it explicitly:
+it explicitly. This CPU example exercises the selector and verifies reference
+parity:
 
-```text
-data = forward_kinematics(model, q, compute_frames=True, use_warp=True)
+```{testcode}
+import contextlib
+import io
+
+from better_robot import forward_kinematics
+
+with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+    data = forward_kinematics(model, q, compute_frames=True, use_warp=True)
+
+same_result = torch.allclose(data.joint_pose_world, fk.joint_pose_world)
+print("selected result matches raw:", bool(same_result))
+```
+
+```{testoutput}
+selected result matches raw: True
 ```
 
 For an eligible CUDA model, dtype, and layout, the wrapper uses the fused FK

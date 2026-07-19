@@ -192,7 +192,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
@@ -245,6 +245,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -283,12 +284,10 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -488,29 +487,28 @@
                 <article class="bd-article">
                   
   <h1>Source code for better_robot.residuals.scene_sdf</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;Point-cloud signed-distance provider and reusable penalty residuals.&quot;&quot;&quot;</span>
+<span></span><span class="sd">&quot;&quot;&quot;Shared point-cloud signed-distance state and reusable penalty residuals.&quot;&quot;&quot;</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mapping</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">numbers</span><span class="w"> </span><span class="kn">import</span> <span class="n">Real</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">.._validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_tensor</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">._point_cloud</span><span class="w"> </span><span class="kn">import</span> <span class="n">_detached_nearest</span><span class="p">,</span> <span class="n">_gather_rows</span><span class="p">,</span> <span class="n">_validate_clouds</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._variables</span><span class="w"> </span><span class="kn">import</span> <span class="n">VariableLike</span> <span class="k">as</span> <span class="n">_VariableLike</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">variables</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">Residual</span><span class="p">,</span> <span class="n">Weight</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.nodes</span><span class="w"> </span><span class="kn">import</span> <span class="n">Node</span>
 
 
 <div class="viewcode-block" id="SceneSDFResult">
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneSDFResult">[docs]</a>
 <span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">SceneSDFResult</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fixed-shape outputs shared by all scene signed-distance heads.</span>
-
-<span class="sd">    All fields have shape ``(B..., frames, query_points)``. ``has_point``</span>
-<span class="sd">    is boolean; the other fields preserve the query-point floating dtype.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fixed-shape outputs shared by all scene signed-distance heads.&quot;&quot;&quot;</span>
 
     <span class="n">signed_distance</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
     <span class="n">dmin</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
@@ -519,95 +517,91 @@
 
 
 
-<div class="viewcode-block" id="SceneSDFProvider">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneSDFProvider">[docs]</a>
-<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">SceneSDFProvider</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Approximate point-cloud SDF with one detached nearest-neighbour pass.</span>
+<div class="viewcode-block" id="SceneSDFState">
+<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneSDFState">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SceneSDFState</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Approximate point-cloud SDF cached for one evaluation epoch.</span>
 
-<span class="sd">    Queries and scenes use the padded ``(tensor, validity_mask)`` convention.</span>
-<span class="sd">    Scene normals orient the unsigned nearest distance.  Both nearest indices</span>
-<span class="sd">    and the side-of-surface sign are detached discrete choices; distance is</span>
-<span class="sd">    reconstructed from graph-carrying query/scene points.  ``confidence`` is</span>
-<span class="sd">    the absolute normal alignment, optionally multiplied by a gathered scene</span>
-<span class="sd">    confidence table.</span>
+<span class="sd">    This multi-input node is never identity-merged. Reuse is explicit: pass</span>
+<span class="sd">    the same :class:`SceneSDFState` object to every penalty residual that</span>
+<span class="sd">    should share one detached nearest-neighbour computation.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">query_points</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;scene_query_points&quot;</span>
-    <span class="n">query_validity</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;scene_query_validity&quot;</span>
-    <span class="n">scene_points</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;scene_points&quot;</span>
-    <span class="n">scene_normals</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;scene_normals&quot;</span>
-    <span class="n">scene_validity</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;scene_validity&quot;</span>
-    <span class="n">scene_confidence</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">output</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;scene_sdf&quot;</span>
-    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;scene_sdf_provider&quot;</span>
-    <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4096</span>
-    <span class="n">eps</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-8</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">query_points</span><span class="p">:</span> <span class="n">_VariableLike</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">query_validity</span><span class="p">:</span> <span class="n">_VariableLike</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">scene_points</span><span class="p">:</span> <span class="n">_VariableLike</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">scene_normals</span><span class="p">:</span> <span class="n">_VariableLike</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">scene_validity</span><span class="p">:</span> <span class="n">_VariableLike</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">scene_confidence</span><span class="p">:</span> <span class="n">_VariableLike</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4096</span><span class="p">,</span>
+        <span class="n">eps</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-8</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">query_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">query_validity</span> <span class="o">=</span> <span class="n">query_points</span><span class="p">,</span> <span class="n">query_validity</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scene_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">scene_normals</span> <span class="o">=</span> <span class="n">scene_points</span><span class="p">,</span> <span class="n">scene_normals</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scene_validity</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">scene_confidence</span> <span class="o">=</span> <span class="n">scene_validity</span><span class="p">,</span> <span class="n">scene_confidence</span>
+        <span class="n">query</span><span class="p">,</span> <span class="n">_scene</span><span class="p">,</span> <span class="n">_query_validity</span><span class="p">,</span> <span class="n">_scene_validity</span><span class="p">,</span> <span class="n">_normals</span><span class="p">,</span> <span class="n">_confidence</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chunk_size</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chunk_size</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="n">chunk_size</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;chunk_size must be a positive integer, got </span><span class="si">{</span><span class="n">chunk_size</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">eps</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">math</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">eps</span><span class="p">)</span> <span class="ow">or</span> <span class="n">eps</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;eps must be a positive finite float, got </span><span class="si">{</span><span class="n">eps</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">required</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">query_points</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">query_validity</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">scene_points</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">scene_normals</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">scene_validity</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">frames</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">query</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">points</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">query</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chunk_size</span> <span class="o">=</span> <span class="n">chunk_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eps</span> <span class="o">=</span> <span class="n">eps</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="o">*</span><span class="n">variables</span><span class="p">(</span>
+                <span class="n">query_points</span><span class="p">,</span>
+                <span class="n">query_validity</span><span class="p">,</span>
+                <span class="n">scene_points</span><span class="p">,</span>
+                <span class="n">scene_normals</span><span class="p">,</span>
+                <span class="n">scene_validity</span><span class="p">,</span>
+                <span class="n">scene_confidence</span><span class="p">,</span>
+            <span class="p">)</span>
         <span class="p">)</span>
-        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">value</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">required</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;scene SDF context names must be non-empty strings&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">required</span><span class="p">))</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">required</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;scene SDF input context names must be unique&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scene_confidence</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span>
-            <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scene_confidence</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">scene_confidence</span>
-        <span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;scene_confidence must be a non-empty context name or None&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scene_confidence</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">scene_confidence</span> <span class="ow">in</span> <span class="n">required</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;scene_confidence must name a distinct context entry&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;output must be a non-empty string&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;name must be a non-empty string&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_size</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_size</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_size</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;chunk_size must be a positive integer, got </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_size</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;eps must be a positive float, got </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-    <span class="nd">@property</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">reads</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
-        <span class="n">base</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">query_points</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">query_validity</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">scene_points</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">scene_normals</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">scene_validity</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="k">return</span> <span class="p">(</span><span class="o">*</span><span class="n">base</span><span class="p">,</span> <span class="o">*</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">scene_confidence</span><span class="p">,)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scene_confidence</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">()))</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output</span><span class="p">,)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">SceneSDFResult</span><span class="p">]:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">query</span><span class="p">,</span> <span class="n">scene</span><span class="p">,</span> <span class="n">query_validity</span><span class="p">,</span> <span class="n">scene_validity</span> <span class="o">=</span> <span class="n">_validate_clouds</span><span class="p">(</span>
-            <span class="n">ctx</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">query_points</span><span class="p">],</span>
-            <span class="n">ctx</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">scene_points</span><span class="p">],</span>
-            <span class="n">ctx</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">query_validity</span><span class="p">],</span>
-            <span class="n">ctx</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">scene_validity</span><span class="p">],</span>
+            <span class="n">value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">query_points</span><span class="p">,</span> <span class="s2">&quot;query_points&quot;</span><span class="p">),</span>
+            <span class="n">value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scene_points</span><span class="p">,</span> <span class="s2">&quot;scene_points&quot;</span><span class="p">),</span>
+            <span class="n">value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">query_validity</span><span class="p">,</span> <span class="s2">&quot;query_validity&quot;</span><span class="p">),</span>
+            <span class="n">value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scene_validity</span><span class="p">,</span> <span class="s2">&quot;scene_validity&quot;</span><span class="p">),</span>
         <span class="p">)</span>
+        <span class="k">if</span> <span class="n">query</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;query_points must include a frames axis, got </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">query</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">normals</span> <span class="o">=</span> <span class="n">check_tensor</span><span class="p">(</span>
+            <span class="s2">&quot;scene_normals&quot;</span><span class="p">,</span>
+            <span class="n">value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scene_normals</span><span class="p">,</span> <span class="s2">&quot;scene_normals&quot;</span><span class="p">),</span>
+            <span class="n">shape</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">scene</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]),</span>
+            <span class="n">floating</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">query</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span>
+            <span class="n">device</span><span class="o">=</span><span class="n">query</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">confidence</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scene_confidence</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">confidence</span> <span class="o">=</span> <span class="n">check_tensor</span><span class="p">(</span>
+                <span class="s2">&quot;scene_confidence&quot;</span><span class="p">,</span>
+                <span class="n">value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scene_confidence</span><span class="p">,</span> <span class="s2">&quot;scene_confidence&quot;</span><span class="p">),</span>
+                <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">scene</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">],),</span>
+                <span class="n">floating</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="n">query</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span>
+                <span class="n">device</span><span class="o">=</span><span class="n">query</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">query</span><span class="p">,</span> <span class="n">scene</span><span class="p">,</span> <span class="n">query_validity</span><span class="p">,</span> <span class="n">scene_validity</span><span class="p">,</span> <span class="n">normals</span><span class="p">,</span> <span class="n">confidence</span>
+
+<div class="viewcode-block" id="SceneSDFState.compute">
+<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneSDFState.compute">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SceneSDFResult</span><span class="p">:</span>
+        <span class="n">query</span><span class="p">,</span> <span class="n">scene</span><span class="p">,</span> <span class="n">query_validity</span><span class="p">,</span> <span class="n">scene_validity</span><span class="p">,</span> <span class="n">normals</span><span class="p">,</span> <span class="n">scene_confidence</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">()</span>
         <span class="n">correspondence</span> <span class="o">=</span> <span class="n">_detached_nearest</span><span class="p">(</span>
             <span class="n">query</span><span class="p">,</span>
             <span class="n">scene</span><span class="p">,</span>
             <span class="n">query_validity</span><span class="o">=</span><span class="n">query_validity</span><span class="p">,</span>
             <span class="n">reference_validity</span><span class="o">=</span><span class="n">scene_validity</span><span class="p">,</span>
             <span class="n">chunk_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_size</span><span class="p">,</span>
-        <span class="p">)</span>
-
-        <span class="n">normals</span> <span class="o">=</span> <span class="n">check_tensor</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">scene_normals</span><span class="p">,</span>
-            <span class="n">ctx</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">scene_normals</span><span class="p">],</span>
-            <span class="n">shape</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">scene</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]),</span>
-            <span class="n">floating</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="n">dtype</span><span class="o">=</span><span class="n">query</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span>
-            <span class="n">device</span><span class="o">=</span><span class="n">query</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">nearest_normal</span> <span class="o">=</span> <span class="n">_gather_rows</span><span class="p">(</span><span class="n">normals</span><span class="p">,</span> <span class="n">correspondence</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
         <span class="n">nearest_normal</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
@@ -619,9 +613,6 @@
         <span class="n">normal_norm</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">vector_norm</span><span class="p">(</span><span class="n">nearest_normal</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">unit_normal</span> <span class="o">=</span> <span class="n">nearest_normal</span> <span class="o">/</span> <span class="n">normal_norm</span><span class="o">.</span><span class="n">clamp_min</span><span class="p">(</span><span class="n">epsilon</span><span class="p">)</span>
         <span class="n">normal_projection</span> <span class="o">=</span> <span class="p">(</span><span class="n">correspondence</span><span class="o">.</span><span class="n">delta</span> <span class="o">*</span> <span class="n">unit_normal</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
-
-        <span class="c1"># Side selection is as discrete as the NN identity.  Keeping its sign</span>
-        <span class="c1"># detached avoids gradients through a branch while dmin remains live.</span>
         <span class="n">sign</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
             <span class="n">normal_projection</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="p">,</span>
             <span class="o">-</span><span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">normal_projection</span><span class="p">),</span>
@@ -631,74 +622,55 @@
         <span class="n">confidence</span> <span class="o">=</span> <span class="n">normal_projection</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span> <span class="o">/</span> <span class="n">correspondence</span><span class="o">.</span><span class="n">distance</span><span class="o">.</span><span class="n">clamp_min</span><span class="p">(</span><span class="n">epsilon</span><span class="p">)</span>
         <span class="n">confidence</span> <span class="o">=</span> <span class="n">confidence</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scene_confidence</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">scene_confidence</span> <span class="o">=</span> <span class="n">check_tensor</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">scene_confidence</span><span class="p">,</span>
-                <span class="n">ctx</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">scene_confidence</span><span class="p">],</span>
-                <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">scene</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">],),</span>
-                <span class="n">floating</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">dtype</span><span class="o">=</span><span class="n">query</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span>
-                <span class="n">device</span><span class="o">=</span><span class="n">query</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
-            <span class="p">)</span>
-            <span class="n">gathered_confidence</span> <span class="o">=</span> <span class="n">_gather_rows</span><span class="p">(</span>
-                <span class="n">scene_confidence</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span>
-                <span class="n">correspondence</span><span class="o">.</span><span class="n">index</span><span class="p">,</span>
-            <span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-            <span class="n">gathered_confidence</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
-                <span class="n">correspondence</span><span class="o">.</span><span class="n">valid</span><span class="p">,</span>
-                <span class="n">gathered_confidence</span><span class="p">,</span>
-                <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">gathered_confidence</span><span class="p">),</span>
-            <span class="p">)</span>
-            <span class="n">confidence</span> <span class="o">=</span> <span class="n">confidence</span> <span class="o">*</span> <span class="n">gathered_confidence</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">scene_confidence</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">gathered</span> <span class="o">=</span> <span class="n">_gather_rows</span><span class="p">(</span><span class="n">scene_confidence</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">correspondence</span><span class="o">.</span><span class="n">index</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">gathered</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">correspondence</span><span class="o">.</span><span class="n">valid</span><span class="p">,</span> <span class="n">gathered</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">gathered</span><span class="p">))</span>
+            <span class="n">confidence</span> <span class="o">=</span> <span class="n">confidence</span> <span class="o">*</span> <span class="n">gathered</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
 
         <span class="n">valid</span> <span class="o">=</span> <span class="n">correspondence</span><span class="o">.</span><span class="n">valid</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">normal_norm</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">epsilon</span><span class="p">)</span>
         <span class="n">zeros</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">correspondence</span><span class="o">.</span><span class="n">distance</span><span class="p">)</span>
-        <span class="n">result</span> <span class="o">=</span> <span class="n">SceneSDFResult</span><span class="p">(</span>
+        <span class="k">return</span> <span class="n">SceneSDFResult</span><span class="p">(</span>
             <span class="n">signed_distance</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">valid</span><span class="p">,</span> <span class="n">signed_distance</span><span class="p">,</span> <span class="n">zeros</span><span class="p">),</span>
             <span class="n">dmin</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">valid</span><span class="p">,</span> <span class="n">correspondence</span><span class="o">.</span><span class="n">distance</span><span class="p">,</span> <span class="n">zeros</span><span class="p">),</span>
             <span class="n">confidence</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">valid</span><span class="p">,</span> <span class="n">confidence</span><span class="p">,</span> <span class="n">zeros</span><span class="p">),</span>
             <span class="n">has_point</span><span class="o">=</span><span class="n">valid</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="k">return</span> <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">output</span><span class="p">:</span> <span class="n">result</span><span class="p">}</span></div>
+        <span class="p">)</span></div>
+</div>
 
 
 
-<span class="k">class</span><span class="w"> </span><span class="nc">_ScenePenaltyResidual</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Common fixed-shape validation and confidence masking for three heads.&quot;&quot;&quot;</span>
-
+<span class="k">class</span><span class="w"> </span><span class="nc">_ScenePenaltyResidual</span><span class="p">(</span><span class="n">Residual</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">frames</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">points</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">state</span><span class="p">:</span> <span class="n">SceneSDFState</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">scene_sdf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">weight</span><span class="p">:</span> <span class="n">Weight</span> <span class="o">|</span> <span class="n">Real</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">kernel</span><span class="p">:</span> <span class="nb">object</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">((</span><span class="s2">&quot;frames&quot;</span><span class="p">,</span> <span class="n">frames</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;points&quot;</span><span class="p">,</span> <span class="n">points</span><span class="p">)):</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="n">value</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2"> must be a positive integer, got </span><span class="si">{</span><span class="n">value</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">scene_sdf</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">scene_sdf</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;scene_sdf must be a non-empty context name&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">name</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;name must be a non-empty string&quot;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">frames</span> <span class="o">=</span> <span class="n">frames</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">points</span> <span class="o">=</span> <span class="n">points</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">reads</span> <span class="o">=</span> <span class="p">(</span><span class="n">scene_sdf</span><span class="p">,)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">=</span> <span class="n">frames</span> <span class="o">*</span> <span class="n">points</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">SceneSDFState</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;state must be a SceneSDFState, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">state</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span> <span class="o">=</span> <span class="p">(</span><span class="n">state</span><span class="p">,)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">frames</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">frames</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">points</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">points</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">frames</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">,</span>
+            <span class="n">weight</span><span class="o">=</span><span class="n">weight</span><span class="p">,</span>
+            <span class="n">kernel</span><span class="o">=</span><span class="n">kernel</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+        <span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">SceneSDFResult</span><span class="p">:</span>
-        <span class="n">result</span> <span class="o">=</span> <span class="n">ctx</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">reads</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">SceneSDFResult</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">reads</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> must be a SceneSDFResult&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_result</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SceneSDFResult</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">_checked_value</span><span class="p">(</span><span class="n">SceneSDFResult</span><span class="p">)</span>
         <span class="n">suffix</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span>
+        <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">tensor</span> <span class="ow">in</span> <span class="p">(</span>
             <span class="p">(</span><span class="s2">&quot;signed_distance&quot;</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">signed_distance</span><span class="p">),</span>
             <span class="p">(</span><span class="s2">&quot;dmin&quot;</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">dmin</span><span class="p">),</span>
             <span class="p">(</span><span class="s2">&quot;confidence&quot;</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">confidence</span><span class="p">),</span>
             <span class="p">(</span><span class="s2">&quot;has_point&quot;</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">has_point</span><span class="p">),</span>
         <span class="p">):</span>
-            <span class="n">check_tensor</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;SceneSDFResult.</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="n">suffix</span><span class="p">)</span>
+            <span class="n">check_tensor</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;SceneSDFResult.</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">tensor</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="n">suffix</span><span class="p">)</span>
         <span class="n">check_tensor</span><span class="p">(</span><span class="s2">&quot;SceneSDFResult.has_point&quot;</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">has_point</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">bool</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">result</span>
 
@@ -715,17 +687,20 @@
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">frames</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">points</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">state</span><span class="p">:</span> <span class="n">SceneSDFState</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">scene_sdf</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;scene_sdf&quot;</span><span class="p">,</span>
+        <span class="n">weight</span><span class="p">:</span> <span class="n">Weight</span> <span class="o">|</span> <span class="n">Real</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">kernel</span><span class="p">:</span> <span class="nb">object</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;scene_penetration&quot;</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">frames</span><span class="p">,</span> <span class="n">points</span><span class="p">,</span> <span class="n">scene_sdf</span><span class="o">=</span><span class="n">scene_sdf</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="n">weight</span><span class="p">,</span> <span class="n">kernel</span><span class="o">=</span><span class="n">kernel</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_result</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span>
+<div class="viewcode-block" id="ScenePenetrationResidual.error">
+<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.ScenePenetrationResidual.error">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">error</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_result</span><span class="p">()</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_finish</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="o">-</span><span class="n">result</span><span class="o">.</span><span class="n">signed_distance</span><span class="p">))</span></div>
+</div>
 
 
 
@@ -736,22 +711,25 @@
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">frames</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">points</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">state</span><span class="p">:</span> <span class="n">SceneSDFState</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">target_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
-        <span class="n">scene_sdf</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;scene_sdf&quot;</span><span class="p">,</span>
+        <span class="n">weight</span><span class="p">:</span> <span class="n">Weight</span> <span class="o">|</span> <span class="n">Real</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">kernel</span><span class="p">:</span> <span class="nb">object</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;scene_attraction&quot;</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">target_distance</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;target_distance must be float&quot;</span><span class="p">)</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">frames</span><span class="p">,</span> <span class="n">points</span><span class="p">,</span> <span class="n">scene_sdf</span><span class="o">=</span><span class="n">scene_sdf</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">target_distance</span> <span class="o">=</span> <span class="n">target_distance</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="n">weight</span><span class="p">,</span> <span class="n">kernel</span><span class="o">=</span><span class="n">kernel</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_result</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span>
+<div class="viewcode-block" id="SceneAttractionResidual.error">
+<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneAttractionResidual.error">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">error</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_result</span><span class="p">()</span>
         <span class="n">penalty</span> <span class="o">=</span> <span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">signed_distance</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_distance</span><span class="p">)</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_finish</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">penalty</span><span class="p">)</span></div>
+</div>
 
 
 
@@ -762,21 +740,24 @@
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">frames</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">points</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">state</span><span class="p">:</span> <span class="n">SceneSDFState</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">clearance</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-        <span class="n">scene_sdf</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;scene_sdf&quot;</span><span class="p">,</span>
+        <span class="n">weight</span><span class="p">:</span> <span class="n">Weight</span> <span class="o">|</span> <span class="n">Real</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">kernel</span><span class="p">:</span> <span class="nb">object</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;scene_clearance&quot;</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">clearance</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">or</span> <span class="n">clearance</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;clearance must be a non-negative float&quot;</span><span class="p">)</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">frames</span><span class="p">,</span> <span class="n">points</span><span class="p">,</span> <span class="n">scene_sdf</span><span class="o">=</span><span class="n">scene_sdf</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">clearance</span> <span class="o">=</span> <span class="n">clearance</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="n">weight</span><span class="p">,</span> <span class="n">kernel</span><span class="o">=</span><span class="n">kernel</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_result</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span>
+<div class="viewcode-block" id="SceneClearanceResidual.error">
+<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneClearanceResidual.error">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">error</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_result</span><span class="p">()</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_finish</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">signed_distance</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">clearance</span><span class="p">))</span></div>
+</div>
 
 
 
@@ -784,8 +765,8 @@
     <span class="s2">&quot;SceneAttractionResidual&quot;</span><span class="p">,</span>
     <span class="s2">&quot;SceneClearanceResidual&quot;</span><span class="p">,</span>
     <span class="s2">&quot;ScenePenetrationResidual&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;SceneSDFProvider&quot;</span><span class="p">,</span>
     <span class="s2">&quot;SceneSDFResult&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;SceneSDFState&quot;</span><span class="p">,</span>
 <span class="p">]</span>
 </pre></div>
 

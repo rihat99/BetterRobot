@@ -42,6 +42,8 @@
 `````{py:class} JointRX
 :canonical: better_robot.data_model.joint_models.revolute.JointRX
 
+Bases: {py:obj}`better_robot.data_model.joint_models.revolute._Revolute`
+
 ```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRX
 ```
 
@@ -89,66 +91,12 @@
 
 ````
 
-````{py:method} joint_transform(q_slice)
-:canonical: better_robot.data_model.joint_models.revolute.JointRX.joint_transform
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRX.joint_transform
-```
-
-````
-
-````{py:method} joint_motion_subspace(q_slice)
-:canonical: better_robot.data_model.joint_models.revolute.JointRX.joint_motion_subspace
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRX.joint_motion_subspace
-```
-
-````
-
-````{py:method} joint_velocity(q_slice, v_slice)
-:canonical: better_robot.data_model.joint_models.revolute.JointRX.joint_velocity
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRX.joint_velocity
-```
-
-````
-
-````{py:method} integrate(q_slice, v_slice)
-:canonical: better_robot.data_model.joint_models.revolute.JointRX.integrate
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRX.integrate
-```
-
-````
-
-````{py:method} difference(q0_slice, q1_slice)
-:canonical: better_robot.data_model.joint_models.revolute.JointRX.difference
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRX.difference
-```
-
-````
-
-````{py:method} random_configuration(generator, lower, upper)
-:canonical: better_robot.data_model.joint_models.revolute.JointRX.random_configuration
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRX.random_configuration
-```
-
-````
-
-````{py:method} neutral()
-:canonical: better_robot.data_model.joint_models.revolute.JointRX.neutral
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRX.neutral
-```
-
-````
-
 `````
 
 `````{py:class} JointRY
 :canonical: better_robot.data_model.joint_models.revolute.JointRY
+
+Bases: {py:obj}`better_robot.data_model.joint_models.revolute._Revolute`
 
 ```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRY
 ```
@@ -197,66 +145,12 @@
 
 ````
 
-````{py:method} joint_transform(q_slice)
-:canonical: better_robot.data_model.joint_models.revolute.JointRY.joint_transform
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRY.joint_transform
-```
-
-````
-
-````{py:method} joint_motion_subspace(q_slice)
-:canonical: better_robot.data_model.joint_models.revolute.JointRY.joint_motion_subspace
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRY.joint_motion_subspace
-```
-
-````
-
-````{py:method} joint_velocity(q_slice, v_slice)
-:canonical: better_robot.data_model.joint_models.revolute.JointRY.joint_velocity
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRY.joint_velocity
-```
-
-````
-
-````{py:method} integrate(q_slice, v_slice)
-:canonical: better_robot.data_model.joint_models.revolute.JointRY.integrate
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRY.integrate
-```
-
-````
-
-````{py:method} difference(q0_slice, q1_slice)
-:canonical: better_robot.data_model.joint_models.revolute.JointRY.difference
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRY.difference
-```
-
-````
-
-````{py:method} random_configuration(generator, lower, upper)
-:canonical: better_robot.data_model.joint_models.revolute.JointRY.random_configuration
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRY.random_configuration
-```
-
-````
-
-````{py:method} neutral()
-:canonical: better_robot.data_model.joint_models.revolute.JointRY.neutral
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRY.neutral
-```
-
-````
-
 `````
 
 `````{py:class} JointRZ
 :canonical: better_robot.data_model.joint_models.revolute.JointRZ
+
+Bases: {py:obj}`better_robot.data_model.joint_models.revolute._Revolute`
 
 ```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRZ
 ```
@@ -305,66 +199,12 @@
 
 ````
 
-````{py:method} joint_transform(q_slice)
-:canonical: better_robot.data_model.joint_models.revolute.JointRZ.joint_transform
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRZ.joint_transform
-```
-
-````
-
-````{py:method} joint_motion_subspace(q_slice)
-:canonical: better_robot.data_model.joint_models.revolute.JointRZ.joint_motion_subspace
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRZ.joint_motion_subspace
-```
-
-````
-
-````{py:method} joint_velocity(q_slice, v_slice)
-:canonical: better_robot.data_model.joint_models.revolute.JointRZ.joint_velocity
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRZ.joint_velocity
-```
-
-````
-
-````{py:method} integrate(q_slice, v_slice)
-:canonical: better_robot.data_model.joint_models.revolute.JointRZ.integrate
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRZ.integrate
-```
-
-````
-
-````{py:method} difference(q0_slice, q1_slice)
-:canonical: better_robot.data_model.joint_models.revolute.JointRZ.difference
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRZ.difference
-```
-
-````
-
-````{py:method} random_configuration(generator, lower, upper)
-:canonical: better_robot.data_model.joint_models.revolute.JointRZ.random_configuration
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRZ.random_configuration
-```
-
-````
-
-````{py:method} neutral()
-:canonical: better_robot.data_model.joint_models.revolute.JointRZ.neutral
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRZ.neutral
-```
-
-````
-
 `````
 
 `````{py:class} JointRevoluteUnaligned
 :canonical: better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned
+
+Bases: {py:obj}`better_robot.data_model.joint_models.revolute._Revolute`
 
 ```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned
 ```
@@ -409,62 +249,6 @@
    1
 
 ```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.nv
-```
-
-````
-
-````{py:method} joint_transform(q_slice)
-:canonical: better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_transform
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_transform
-```
-
-````
-
-````{py:method} joint_motion_subspace(q_slice)
-:canonical: better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_motion_subspace
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_motion_subspace
-```
-
-````
-
-````{py:method} joint_velocity(q_slice, v_slice)
-:canonical: better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_velocity
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_velocity
-```
-
-````
-
-````{py:method} integrate(q_slice, v_slice)
-:canonical: better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.integrate
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.integrate
-```
-
-````
-
-````{py:method} difference(q0_slice, q1_slice)
-:canonical: better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.difference
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.difference
-```
-
-````
-
-````{py:method} random_configuration(generator, lower, upper)
-:canonical: better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.random_configuration
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.random_configuration
-```
-
-````
-
-````{py:method} neutral()
-:canonical: better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.neutral
-
-```{autodoc2-docstring} better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.neutral
 ```
 
 ````

@@ -245,6 +245,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -283,12 +284,10 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -488,30 +487,20 @@
                 <article class="bd-article">
                   
   <h1>Source code for better_robot.optim.manifolds</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;State manifolds and feasible state-space retraction.&quot;&quot;&quot;</span>
+<span></span><span class="sd">&quot;&quot;&quot;State-coordinate bounds shared by optimization variables.&quot;&quot;&quot;</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">reduce</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">operator</span><span class="w"> </span><span class="kn">import</span> <span class="n">mul</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Protocol</span><span class="p">,</span> <span class="n">runtime_checkable</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-
-<span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Model</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">..lie</span><span class="w"> </span><span class="kn">import</span> <span class="n">se3</span><span class="p">,</span> <span class="n">so3</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_numel</span><span class="p">(</span><span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-    <span class="k">return</span> <span class="n">reduce</span><span class="p">(</span><span class="n">mul</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="Bounds">
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Bounds">[docs]</a>
 <span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">Bounds</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Box constraints in full state coordinates.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Validated lower and upper box limits in full state coordinates.&quot;&quot;&quot;</span>
 
     <span class="n">lower</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
     <span class="n">upper</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
@@ -527,286 +516,14 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Bounds lower and upper must have the same dtype and device&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">lower</span><span class="o">.</span><span class="n">is_floating_point</span><span class="p">():</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Bounds lower and upper must use a floating dtype&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lower</span><span class="p">)))</span> <span class="ow">or</span> <span class="nb">bool</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">upper</span><span class="p">))):</span>
+        <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lower</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">())</span> <span class="ow">or</span> <span class="nb">bool</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">upper</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">()):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Bounds lower and upper must not contain NaN&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lower</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">upper</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="nb">bool</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">lower</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">upper</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">()):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Bounds lower must be &lt;= upper at every state coordinate&quot;</span><span class="p">)</span></div>
 
 
 
-<div class="viewcode-block" id="Manifold">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Manifold">[docs]</a>
-<span class="nd">@runtime_checkable</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">Manifold</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
-<div class="viewcode-block" id="Manifold.retract">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Manifold.retract">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">retract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">dv</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span></div>
-
-<div class="viewcode-block" id="Manifold.difference">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Manifold.difference">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">difference</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x0</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">x1</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span></div>
-
-<div class="viewcode-block" id="Manifold.tangent_dim">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Manifold.tangent_dim">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">tangent_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span> <span class="o">...</span></div>
-
-<div class="viewcode-block" id="Manifold.project">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Manifold.project">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">project</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">bounds</span><span class="p">:</span> <span class="n">Bounds</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span> <span class="o">...</span></div>
-
-<div class="viewcode-block" id="Manifold.validate_bounds">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Manifold.validate_bounds">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">validate_bounds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bounds</span><span class="p">:</span> <span class="n">Bounds</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span></div>
-</div>
-
-
-
-<div class="viewcode-block" id="Euclidean">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Euclidean">[docs]</a>
-<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">Euclidean</span><span class="p">:</span>
-<div class="viewcode-block" id="Euclidean.retract">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Euclidean.retract">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">retract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">dv</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">x</span> <span class="o">+</span> <span class="n">dv</span></div>
-
-
-<div class="viewcode-block" id="Euclidean.difference">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Euclidean.difference">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">difference</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x0</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">x1</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">x1</span> <span class="o">-</span> <span class="n">x0</span></div>
-
-
-<div class="viewcode-block" id="Euclidean.tangent_dim">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Euclidean.tangent_dim">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">tangent_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">_numel</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="Euclidean.project">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Euclidean.project">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">project</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">bounds</span><span class="p">:</span> <span class="n">Bounds</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">x</span> <span class="k">if</span> <span class="n">bounds</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">torch</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">bounds</span><span class="o">.</span><span class="n">upper</span><span class="p">),</span> <span class="n">bounds</span><span class="o">.</span><span class="n">lower</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="Euclidean.validate_bounds">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Euclidean.validate_bounds">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">validate_bounds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bounds</span><span class="p">:</span> <span class="n">Bounds</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">del</span> <span class="n">bounds</span><span class="p">,</span> <span class="n">name</span></div>
-</div>
-
-
-
-<span class="n">_GROUP_BOUNDS_ERROR</span> <span class="o">=</span> <span class="p">(</span>
-    <span class="s2">&quot;</span><span class="si">{kind}</span><span class="s2"> variable blocks have no meaningful global box bound — neither in &quot;</span>
-    <span class="s2">&quot;state space nor in tangent space. Express rotation limits as residuals &quot;</span>
-    <span class="s2">&quot;(for example JointRotationPrior or SwingTwistLimitResidual), or use &quot;</span>
-    <span class="s2">&quot;RobotConfig with joint &quot;</span>
-    <span class="s2">&quot;limits. Got bounds=</span><span class="si">{bounds!r}</span><span class="s2"> on VarSpec </span><span class="si">{name!r}</span><span class="s2">.&quot;</span>
-<span class="p">)</span>
-
-
-<div class="viewcode-block" id="SO3Manifold">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SO3Manifold">[docs]</a>
-<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">SO3Manifold</span><span class="p">:</span>
-<div class="viewcode-block" id="SO3Manifold.retract">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SO3Manifold.retract">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">retract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">dv</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">so3</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">so3</span><span class="o">.</span><span class="n">compose</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">so3</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">dv</span><span class="p">)))</span></div>
-
-
-<div class="viewcode-block" id="SO3Manifold.difference">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SO3Manifold.difference">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">difference</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x0</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">x1</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">so3</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">so3</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">so3</span><span class="o">.</span><span class="n">compose</span><span class="p">(</span><span class="n">so3</span><span class="o">.</span><span class="n">inverse</span><span class="p">(</span><span class="n">x0</span><span class="p">),</span> <span class="n">x1</span><span class="p">)))</span></div>
-
-
-<div class="viewcode-block" id="SO3Manifold.tangent_dim">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SO3Manifold.tangent_dim">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">tangent_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">shape</span> <span class="ow">or</span> <span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">4</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;SO3 event shape must end in 4, got </span><span class="si">{</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">_numel</span><span class="p">(</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="mi">3</span></div>
-
-
-<div class="viewcode-block" id="SO3Manifold.project">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SO3Manifold.project">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">project</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">bounds</span><span class="p">:</span> <span class="n">Bounds</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="k">del</span> <span class="n">bounds</span>
-        <span class="k">return</span> <span class="n">so3</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">x</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="SO3Manifold.validate_bounds">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SO3Manifold.validate_bounds">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">validate_bounds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bounds</span><span class="p">:</span> <span class="n">Bounds</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">bounds</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">_GROUP_BOUNDS_ERROR</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">kind</span><span class="o">=</span><span class="s2">&quot;SO3&quot;</span><span class="p">,</span> <span class="n">bounds</span><span class="o">=</span><span class="n">bounds</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">))</span></div>
-</div>
-
-
-
-<div class="viewcode-block" id="SE3Manifold">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SE3Manifold">[docs]</a>
-<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">SE3Manifold</span><span class="p">:</span>
-<div class="viewcode-block" id="SE3Manifold.retract">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SE3Manifold.retract">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">retract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">dv</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">se3</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">se3</span><span class="o">.</span><span class="n">compose</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">se3</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">dv</span><span class="p">)))</span></div>
-
-
-<div class="viewcode-block" id="SE3Manifold.difference">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SE3Manifold.difference">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">difference</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x0</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">x1</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">se3</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">se3</span><span class="o">.</span><span class="n">compose</span><span class="p">(</span><span class="n">se3</span><span class="o">.</span><span class="n">inverse</span><span class="p">(</span><span class="n">x0</span><span class="p">),</span> <span class="n">x1</span><span class="p">))</span></div>
-
-
-<div class="viewcode-block" id="SE3Manifold.tangent_dim">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SE3Manifold.tangent_dim">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">tangent_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">shape</span> <span class="ow">or</span> <span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">7</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;SE3 event shape must end in 7, got </span><span class="si">{</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">_numel</span><span class="p">(</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="mi">6</span></div>
-
-
-<div class="viewcode-block" id="SE3Manifold.project">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SE3Manifold.project">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">project</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">bounds</span><span class="p">:</span> <span class="n">Bounds</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="k">del</span> <span class="n">bounds</span>
-        <span class="k">return</span> <span class="n">se3</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">x</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="SE3Manifold.validate_bounds">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SE3Manifold.validate_bounds">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">validate_bounds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bounds</span><span class="p">:</span> <span class="n">Bounds</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">bounds</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">_GROUP_BOUNDS_ERROR</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">kind</span><span class="o">=</span><span class="s2">&quot;SE3&quot;</span><span class="p">,</span> <span class="n">bounds</span><span class="o">=</span><span class="n">bounds</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">))</span></div>
-</div>
-
-
-
-<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">_JointCoordinateLayout</span><span class="p">:</span>
-    <span class="n">box_mask</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
-    <span class="n">unit_ranges</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span>
-    <span class="n">q_for_v</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
-    <span class="n">unsafe_q</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_joint_coordinate_layout</span><span class="p">(</span><span class="n">joint</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_JointCoordinateLayout</span><span class="p">:</span>
-    <span class="n">kind</span> <span class="o">=</span> <span class="n">joint</span><span class="o">.</span><span class="n">kind</span>
-    <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;composite&quot;</span><span class="p">:</span>
-        <span class="n">box_mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">unit_ranges</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">q_for_v</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">unsafe_q</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">q_offset</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">joint</span><span class="o">.</span><span class="n">sub_joints</span><span class="p">:</span>
-            <span class="n">layout</span> <span class="o">=</span> <span class="n">_joint_coordinate_layout</span><span class="p">(</span><span class="n">child</span><span class="p">)</span>
-            <span class="n">box_mask</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">box_mask</span><span class="p">)</span>
-            <span class="n">unit_ranges</span><span class="o">.</span><span class="n">extend</span><span class="p">((</span><span class="n">q_offset</span> <span class="o">+</span> <span class="n">start</span><span class="p">,</span> <span class="n">q_offset</span> <span class="o">+</span> <span class="n">stop</span><span class="p">)</span> <span class="k">for</span> <span class="n">start</span><span class="p">,</span> <span class="n">stop</span> <span class="ow">in</span> <span class="n">layout</span><span class="o">.</span><span class="n">unit_ranges</span><span class="p">)</span>
-            <span class="n">q_for_v</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">q_offset</span> <span class="o">+</span> <span class="n">index</span> <span class="k">if</span> <span class="n">index</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="k">else</span> <span class="o">-</span><span class="mi">1</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">layout</span><span class="o">.</span><span class="n">q_for_v</span><span class="p">)</span>
-            <span class="n">unsafe_q</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">q_offset</span> <span class="o">+</span> <span class="n">index</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">layout</span><span class="o">.</span><span class="n">unsafe_q</span><span class="p">)</span>
-            <span class="n">q_offset</span> <span class="o">+=</span> <span class="n">child</span><span class="o">.</span><span class="n">nq</span>
-        <span class="k">return</span> <span class="n">_JointCoordinateLayout</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">box_mask</span><span class="p">),</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">unit_ranges</span><span class="p">),</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">q_for_v</span><span class="p">),</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">unsafe_q</span><span class="p">))</span>
-
-    <span class="n">box_mask</span> <span class="o">=</span> <span class="p">(</span><span class="kc">False</span><span class="p">,)</span> <span class="o">*</span> <span class="n">joint</span><span class="o">.</span><span class="n">nq</span>
-    <span class="n">unit_ranges</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>
-    <span class="n">q_for_v</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,)</span> <span class="o">*</span> <span class="n">joint</span><span class="o">.</span><span class="n">nv</span>
-    <span class="n">unsafe_q</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>
-    <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;free_flyer&quot;</span><span class="p">:</span>
-        <span class="n">box_mask</span><span class="p">,</span> <span class="n">unit_ranges</span><span class="p">,</span> <span class="n">unsafe_q</span> <span class="o">=</span> <span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span> <span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">7</span><span class="p">),),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;spherical&quot;</span><span class="p">:</span>
-        <span class="n">unit_ranges</span> <span class="o">=</span> <span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">),)</span>
-    <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;planar&quot;</span><span class="p">:</span>
-        <span class="n">box_mask</span><span class="p">,</span> <span class="n">unit_ranges</span><span class="p">,</span> <span class="n">q_for_v</span> <span class="o">=</span> <span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span> <span class="p">((</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">),),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;revolute_unbounded&quot;</span><span class="p">:</span>
-        <span class="n">unit_ranges</span> <span class="o">=</span> <span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">),)</span>
-    <span class="k">elif</span> <span class="n">kind</span><span class="o">.</span><span class="n">startswith</span><span class="p">((</span><span class="s2">&quot;revolute&quot;</span><span class="p">,</span> <span class="s2">&quot;prismatic&quot;</span><span class="p">))</span> <span class="ow">or</span> <span class="n">kind</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;helical&quot;</span><span class="p">,</span> <span class="s2">&quot;translation&quot;</span><span class="p">}:</span>
-        <span class="n">box_mask</span><span class="p">,</span> <span class="n">q_for_v</span> <span class="o">=</span> <span class="p">(</span><span class="kc">True</span><span class="p">,)</span> <span class="o">*</span> <span class="n">joint</span><span class="o">.</span><span class="n">nq</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">joint</span><span class="o">.</span><span class="n">nv</span><span class="p">))</span>
-    <span class="k">return</span> <span class="n">_JointCoordinateLayout</span><span class="p">(</span><span class="n">box_mask</span><span class="p">,</span> <span class="n">unit_ranges</span><span class="p">,</span> <span class="n">q_for_v</span><span class="p">,</span> <span class="n">unsafe_q</span><span class="p">)</span>
-
-
-<div class="viewcode-block" id="RobotConfig">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.RobotConfig">[docs]</a>
-<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">RobotConfig</span><span class="p">:</span>
-    <span class="n">model</span><span class="p">:</span> <span class="n">Model</span>
-
-<div class="viewcode-block" id="RobotConfig.retract">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.RobotConfig.retract">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">retract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">dv</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">integrate</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dv</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="RobotConfig.difference">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.RobotConfig.difference">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">difference</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x0</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">x1</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="n">x0</span><span class="p">,</span> <span class="n">x1</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="RobotConfig.tangent_dim">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.RobotConfig.tangent_dim">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">tangent_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">shape</span> <span class="ow">or</span> <span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">nq</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;RobotConfig event shape must end in model.nq=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">nq</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">_numel</span><span class="p">(</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">nv</span></div>
-
-
-    <span class="nd">@property</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">box_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="n">mask</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">nq</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">bool</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">joint</span><span class="p">,</span> <span class="n">nq_joint</span><span class="p">,</span> <span class="n">iq</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">joint_models</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">nqs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">idx_qs</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">nq_joint</span><span class="p">:</span>
-                <span class="n">mask</span><span class="p">[</span><span class="n">iq</span> <span class="p">:</span> <span class="n">iq</span> <span class="o">+</span> <span class="n">nq_joint</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">_joint_coordinate_layout</span><span class="p">(</span><span class="n">joint</span><span class="p">)</span><span class="o">.</span><span class="n">box_mask</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">mask</span>
-
-<div class="viewcode-block" id="RobotConfig.joint_bounds">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.RobotConfig.joint_bounds">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">joint_bounds</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Bounds</span><span class="p">:</span>
-        <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">lower_pos_limit</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">upper_pos_limit</span>
-        <span class="n">box</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">box_mask</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">lower</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">Bounds</span><span class="p">(</span>
-            <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">box</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">lower</span><span class="p">,</span> <span class="o">-</span><span class="n">torch</span><span class="o">.</span><span class="n">inf</span><span class="p">)),</span>
-            <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">box</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">upper</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">inf</span><span class="p">)),</span>
-        <span class="p">)</span></div>
-
-
-    <span class="nd">@property</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">unit_coordinate_slices</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">slice</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
-        <span class="n">ranges</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">joint</span><span class="p">,</span> <span class="n">nq_joint</span><span class="p">,</span> <span class="n">iq</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">joint_models</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">nqs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">idx_qs</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">nq_joint</span><span class="p">:</span>
-                <span class="n">ranges</span><span class="o">.</span><span class="n">extend</span><span class="p">((</span><span class="n">iq</span> <span class="o">+</span> <span class="n">start</span><span class="p">,</span> <span class="n">iq</span> <span class="o">+</span> <span class="n">stop</span><span class="p">)</span> <span class="k">for</span> <span class="n">start</span><span class="p">,</span> <span class="n">stop</span> <span class="ow">in</span> <span class="n">_joint_coordinate_layout</span><span class="p">(</span><span class="n">joint</span><span class="p">)</span><span class="o">.</span><span class="n">unit_ranges</span><span class="p">)</span>
-        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">slice</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="p">)</span> <span class="k">for</span> <span class="n">start</span><span class="p">,</span> <span class="n">stop</span> <span class="ow">in</span> <span class="n">ranges</span><span class="p">)</span>
-
-<div class="viewcode-block" id="RobotConfig.validate_bounds">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.RobotConfig.validate_bounds">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">validate_bounds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bounds</span><span class="p">:</span> <span class="n">Bounds</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">bounds</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span>
-        <span class="k">if</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">bounds</span><span class="o">.</span><span class="n">lower</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">nq</span><span class="p">,):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Bounds on RobotConfig VarSpec </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> must be nq-shaped (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">nq</span><span class="si">}</span><span class="s2">,), &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;got </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">bounds</span><span class="o">.</span><span class="n">lower</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="p">)</span>
-        <span class="n">protected</span> <span class="o">=</span> <span class="o">~</span><span class="bp">self</span><span class="o">.</span><span class="n">box_mask</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">bounds</span><span class="o">.</span><span class="n">lower</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-        <span class="n">valid</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">isneginf</span><span class="p">(</span><span class="n">bounds</span><span class="o">.</span><span class="n">lower</span><span class="p">[</span><span class="n">protected</span><span class="p">])</span><span class="o">.</span><span class="n">all</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">torch</span><span class="o">.</span><span class="n">isposinf</span><span class="p">(</span><span class="n">bounds</span><span class="o">.</span><span class="n">upper</span><span class="p">[</span><span class="n">protected</span><span class="p">])</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">bool</span><span class="p">(</span><span class="n">valid</span><span class="p">):</span>
-            <span class="n">indices</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">protected</span><span class="p">,</span> <span class="n">as_tuple</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;RobotConfig VarSpec </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> bounds must be (-inf, +inf) on non-box manifold coordinates &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">indices</span><span class="si">}</span><span class="s2">; quaternion/unit-circle coordinates are never clamped&quot;</span>
-            <span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="RobotConfig.project">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.RobotConfig.project">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">project</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">bounds</span><span class="p">:</span> <span class="n">Bounds</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">x</span> <span class="k">if</span> <span class="n">bounds</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">torch</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">bounds</span><span class="o">.</span><span class="n">upper</span><span class="p">),</span> <span class="n">bounds</span><span class="o">.</span><span class="n">lower</span><span class="p">)</span></div>
-</div>
-
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Bounds&quot;</span><span class="p">]</span>
 </pre></div>
 
                 </article>

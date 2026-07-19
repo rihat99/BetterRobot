@@ -29,12 +29,13 @@ python -m pip install '.[demos]'
 ```
 
 This example loads a Franka Panda, makes a reachable target from a known joint
-configuration, and asks inverse kinematics to recover it.
+configuration, and optimizes a robot configuration to recover it.
 
 <!-- front-page-example:start -->
-```python
+```{testcode}
 import better_robot as br
-from better_robot.tasks.ik import IKCostConfig, OptimizerConfig
+from better_robot.optim import LevenbergMarquardt, Problem, RobotVariable
+from better_robot.residuals import PoseResidual
 from robot_descriptions import panda_description
 
 model = br.load(panda_description.URDF_PATH)
@@ -45,21 +46,32 @@ target_pose = br.forward_kinematics(
     model, q_goal, compute_frames=True
 ).frame_pose_world[model.frame_id("body_panda_hand")].clone()
 
-result = br.solve_ik(
-    model,
-    {"body_panda_hand": target_pose},
-    initial_q=q0,
-    cost_cfg=IKCostConfig(limit_weight=0.0, rest_weight=0.0),
-    optimizer_cfg=OptimizerConfig(max_iter=100),
+q = RobotVariable(model, q0, bounds=True)
+reach = PoseResidual(
+    q, frame="body_panda_hand", target=target_pose
 )
+problem = Problem([reach])
+optimizer = LevenbergMarquardt(problem, max_iterations=100)
+info = optimizer.optimize()
 
-result.q  # (nq,) joint solution
-result.frame_pose("body_panda_hand")  # (7,) pose at the solution
+solution = br.forward_kinematics(model, q.tensor, compute_frames=True)
+solution_pose = solution.frame_pose_world[model.frame_id("body_panda_hand")]
+
+print(bool(info.converged))
+print(q.tensor.shape)
+print(solution_pose.shape)
+```
+
+```{testoutput}
+True
+torch.Size([8])
+torch.Size([7])
 ```
 <!-- front-page-example:end -->
 
-`result.converged` tells you whether the solver met its stopping rule. The
-result still contains the final candidate when it does not converge.
+`info.converged` tells you whether the optimizer met its stopping rule. The
+variable's `q.tensor` still contains the final candidate when it does not
+converge.
 
 ## Learn in the order you need
 

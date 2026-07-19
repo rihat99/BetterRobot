@@ -27,67 +27,52 @@
 
 ### API
 
-`````{py:class} JointPositionLimit(model: better_robot.data_model.model.Model, *, weight: float = 1.0, name: str = 'joint_position_limit')
+`````{py:class} JointPositionLimit(q: better_robot.residuals._variables.RobotVariableLike, *, knot: int | None = None, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'joint_position_limit')
 :canonical: better_robot.residuals.limits.JointPositionLimit
+
+Bases: {py:obj}`better_robot.residuals.base.Residual`
 
 ```{autodoc2-docstring} better_robot.residuals.limits.JointPositionLimit
 ```
 
-````{py:attribute} name
-:canonical: better_robot.residuals.limits.JointPositionLimit.name
-:type: str
-:value: >
-   'joint_position_limit'
+````{py:method} error() -> torch.Tensor
+:canonical: better_robot.residuals.limits.JointPositionLimit.error
 
-```{autodoc2-docstring} better_robot.residuals.limits.JointPositionLimit.name
+````
+
+````{py:method} temporal_structure(variable: better_robot.residuals._variables.RobotVariableLike | str) -> better_robot.residuals.structure.TemporalPattern | None
+:canonical: better_robot.residuals.limits.JointPositionLimit.temporal_structure
+
+```{autodoc2-docstring} better_robot.residuals.limits.JointPositionLimit.temporal_structure
 ```
 
 ````
 
-````{py:attribute} reads
-:canonical: better_robot.residuals.limits.JointPositionLimit.reads
-:value: >
-   ('q',)
+````{py:method} temporal_jacobian_blocks(variable: better_robot.residuals._variables.RobotVariableLike | str) -> collections.abc.Mapping[int, torch.Tensor]
+:canonical: better_robot.residuals.limits.JointPositionLimit.temporal_jacobian_blocks
 
-```{autodoc2-docstring} better_robot.residuals.limits.JointPositionLimit.reads
+```{autodoc2-docstring} better_robot.residuals.limits.JointPositionLimit.temporal_jacobian_blocks
 ```
 
 ````
 
-````{py:method} jacobian_blocks(ctx: collections.abc.Mapping[str, typing.Any]) -> dict[str, torch.Tensor]
-:canonical: better_robot.residuals.limits.JointPositionLimit.jacobian_blocks
-
-```{autodoc2-docstring} better_robot.residuals.limits.JointPositionLimit.jacobian_blocks
-```
+````{py:method} jacobian() -> tuple[torch.Tensor, ...]
+:canonical: better_robot.residuals.limits.JointPositionLimit.jacobian
 
 ````
 
 `````
 
-`````{py:class} JointVelocityLimit(model: better_robot.data_model.model.Model, *, weight: float = 1.0)
+`````{py:class} JointVelocityLimit(velocity: better_robot.residuals._variables.ShapedVariableLike, limit: torch.Tensor | better_robot.residuals._variables.ShapedVariableLike, *, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'joint_velocity_limit')
 :canonical: better_robot.residuals.limits.JointVelocityLimit
+
+Bases: {py:obj}`better_robot.residuals.base.Residual`
 
 ```{autodoc2-docstring} better_robot.residuals.limits.JointVelocityLimit
 ```
 
-````{py:attribute} name
-:canonical: better_robot.residuals.limits.JointVelocityLimit.name
-:type: str
-:value: >
-   'joint_velocity_limit'
-
-```{autodoc2-docstring} better_robot.residuals.limits.JointVelocityLimit.name
-```
-
-````
-
-````{py:attribute} reads
-:canonical: better_robot.residuals.limits.JointVelocityLimit.reads
-:value: >
-   ('q', 'data')
-
-```{autodoc2-docstring} better_robot.residuals.limits.JointVelocityLimit.reads
-```
+````{py:method} error() -> torch.Tensor
+:canonical: better_robot.residuals.limits.JointVelocityLimit.error
 
 ````
 

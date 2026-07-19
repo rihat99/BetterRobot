@@ -192,7 +192,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
@@ -245,6 +245,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -283,12 +284,10 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -488,28 +487,25 @@
                 <article class="bd-article">
                   
   <h1>Source code for better_robot.residuals.projection</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;Camera-thin pinhole projection residual over model frame-table rows.</span>
-
-<span class="sd">Operational frames, marker sites, and body frames share the model&#39;s frame</span>
-<span class="sd">table. :class:`ProjectionResidual` therefore needs only frame-row indices;</span>
-<span class="sd">there is no separate vertex or landmark kinematics path.</span>
-<span class="sd">&quot;&quot;&quot;</span>
+<span></span><span class="sd">&quot;&quot;&quot;Camera-thin pinhole projection residual over model frame-table rows.&quot;&quot;&quot;</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mapping</span><span class="p">,</span> <span class="n">Sequence</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Sequence</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">numbers</span><span class="w"> </span><span class="kn">import</span> <span class="n">Real</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">.._validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_tensor</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Model</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Data</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..kinematics.jacobian</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_frame_jacobian</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._variables</span><span class="w"> </span><span class="kn">import</span> <span class="n">RobotVariableLike</span> <span class="k">as</span> <span class="n">_RobotVariableLike</span><span class="p">,</span> <span class="n">VariableLike</span> <span class="k">as</span> <span class="n">_VariableLike</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">variables</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">Residual</span><span class="p">,</span> <span class="n">Weight</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.nodes</span><span class="w"> </span><span class="kn">import</span> <span class="n">RobotState</span><span class="p">,</span> <span class="n">robot_state</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_transform_points</span><span class="p">(</span><span class="n">points_world</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">extrinsics</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply a world-to-camera homogeneous transform to ``(..., N, 3)`` points.&quot;&quot;&quot;</span>
     <span class="n">rotation</span> <span class="o">=</span> <span class="n">extrinsics</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
     <span class="n">translation</span> <span class="o">=</span> <span class="n">extrinsics</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
     <span class="n">rotated</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">rotation</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">),</span> <span class="n">points_world</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
@@ -522,11 +518,7 @@
     <span class="o">*</span><span class="p">,</span>
     <span class="n">min_depth</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Project ``(..., N, 3)`` camera points, clamping depth from below.&quot;&quot;&quot;</span>
-    <span class="n">homogeneous</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span>
-        <span class="n">intrinsics</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">),</span>
-        <span class="n">points_camera</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span>
-    <span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">homogeneous</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">intrinsics</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">),</span> <span class="n">points_camera</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
     <span class="n">depth</span> <span class="o">=</span> <span class="n">points_camera</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">clamp_min</span><span class="p">(</span><span class="n">min_depth</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">homogeneous</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="n">depth</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
@@ -537,30 +529,15 @@
     <span class="o">*</span><span class="p">,</span>
     <span class="n">min_depth</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return ``d(project(points_camera))/d(points_camera)``.</span>
-
-<span class="sd">    The denominator is camera-space ``z``. Below ``min_depth`` it is a</span>
-<span class="sd">    constant, matching :func:`_project_points` and keeping behind-camera</span>
-<span class="sd">    rows finite.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">homogeneous</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span>
-        <span class="n">intrinsics</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">),</span>
-        <span class="n">points_camera</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span>
-    <span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">homogeneous</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">intrinsics</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">),</span> <span class="n">points_camera</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
     <span class="n">numerator</span> <span class="o">=</span> <span class="n">homogeneous</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="mi">2</span><span class="p">]</span>
     <span class="n">depth_raw</span> <span class="o">=</span> <span class="n">points_camera</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
     <span class="n">depth</span> <span class="o">=</span> <span class="n">depth_raw</span><span class="o">.</span><span class="n">clamp_min</span><span class="p">(</span><span class="n">min_depth</span><span class="p">)</span>
     <span class="n">numerator_jacobian</span> <span class="o">=</span> <span class="n">intrinsics</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="mi">2</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">)</span>
-
     <span class="n">depth_axis</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
-        <span class="p">(</span>
-            <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">depth_raw</span><span class="p">),</span>
-            <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">depth_raw</span><span class="p">),</span>
-            <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">depth_raw</span><span class="p">),</span>
-        <span class="p">),</span>
+        <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">depth_raw</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">depth_raw</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">depth_raw</span><span class="p">)),</span>
         <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="c1"># ``clamp_min`` chooses the identity derivative at the boundary.</span>
     <span class="n">depth_active</span> <span class="o">=</span> <span class="p">(</span><span class="n">depth_raw</span> <span class="o">&gt;=</span> <span class="n">min_depth</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">points_camera</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
     <span class="n">denominator_term</span> <span class="o">=</span> <span class="p">(</span>
         <span class="n">numerator</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
@@ -581,7 +558,7 @@
             <span class="n">torch</span><span class="o">.</span><span class="n">uint8</span><span class="p">,</span>
         <span class="p">}:</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;point_ids tensor must be one-dimensional with an integer dtype&quot;</span><span class="p">)</span>
-        <span class="n">raw_ids</span> <span class="o">=</span> <span class="n">point_ids</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>  <span class="c1"># bench-ok: one-time static frame-id metadata</span>
+        <span class="n">raw_ids</span> <span class="o">=</span> <span class="n">point_ids</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>  <span class="c1"># bench-ok: one-time static metadata</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">raw_ids</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">point_ids</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">raw_ids</span><span class="p">:</span>
@@ -591,170 +568,79 @@
     <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">raw_ids</span><span class="p">)</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_validate_parameter_names</span><span class="p">(</span><span class="n">names</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
-    <span class="n">declared</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">names</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">continue</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">value</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2"> must be a non-empty string or None&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">value</span> <span class="o">==</span> <span class="s2">&quot;data&quot;</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2"> cannot use the reserved provider output &#39;data&#39;&quot;</span><span class="p">)</span>
-        <span class="n">declared</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">declared</span><span class="p">))</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">declared</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;ProjectionResidual parameter names must be unique&quot;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">declared</span><span class="p">)</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_context_tensor</span><span class="p">(</span>
-    <span class="n">ctx</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
-    <span class="n">fallback</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">parameter_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="k">return</span> <span class="n">fallback</span> <span class="k">if</span> <span class="n">parameter_name</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">ctx</span><span class="p">[</span><span class="n">parameter_name</span><span class="p">]</span>
-
-
 <div class="viewcode-block" id="ProjectionResidual">
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.projection.html#better_robot.residuals.projection.ProjectionResidual">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">ProjectionResidual</span><span class="p">:</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ProjectionResidual</span><span class="p">(</span><span class="n">Residual</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Pinhole reprojection error for frame, marker, or site rows.</span>
 
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    model</span>
-<span class="sd">        Model whose frame table owns ``point_ids``.</span>
-<span class="sd">    point_ids</span>
-<span class="sd">        One-dimensional sequence of frame-table row indices. Body frames and</span>
-<span class="sd">        marker/site operational frames use the same path.</span>
-<span class="sd">    K</span>
-<span class="sd">        Camera intrinsics with shape ``(..., 3, 3)``.</span>
-<span class="sd">    extrinsics</span>
-<span class="sd">        World-to-camera homogeneous transform with shape ``(..., 4, 4)``.</span>
-<span class="sd">    target_px</span>
-<span class="sd">        Target pixels with shape ``(..., N, 2)``.</span>
-<span class="sd">    weights</span>
-<span class="sd">        Optional confidence multipliers with shape ``(..., N)``. These are</span>
-<span class="sd">        ordinary raw-residual multipliers; robust weighting belongs on the</span>
-<span class="sd">        surrounding ``ResidualItem`` with ``group_size=2``.</span>
-<span class="sd">    valid_mask</span>
-<span class="sd">        Optional boolean mask with shape ``(..., N)``. Invalid points produce</span>
-<span class="sd">        two finite zero rows.</span>
-<span class="sd">    K_name, extrinsics_name, target_name, weights_name, valid_mask_name</span>
-<span class="sd">        Optional names for resolving the corresponding tensors from a</span>
-<span class="sd">        :class:`~better_robot.optim.Problem` context. Named tensors take</span>
-<span class="sd">        precedence over their constructor fallbacks and are included in</span>
-<span class="sd">        ``reads``, making differentiable observations explicit.</span>
-<span class="sd">    min_depth</span>
-<span class="sd">        Positive camera-space depth floor. Points at or behind the floor are</span>
-<span class="sd">        projected with the clamped denominator instead of producing NaNs.</span>
-
-<span class="sd">    Notes</span>
-<span class="sd">    -----</span>
-<span class="sd">    All observation tensors are fixed-size and may carry leading batch axes.</span>
-<span class="sd">    Variable-size point sets must be padded and represented by</span>
-<span class="sd">    ``valid_mask``. This class intentionally does not define a camera object</span>
-<span class="sd">    or visibility policy.</span>
+<span class="sd">    Observation tensors may be bare constants or Variables. ``weights`` and</span>
+<span class="sd">    ``valid_mask`` are domain confidence/mask multipliers. The singular</span>
+<span class="sd">    optimizer ``weight`` is applied once by :class:`Residual`, and robust</span>
+<span class="sd">    kernels consume one two-row group per projected point.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="n">reads</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;data&quot;</span><span class="p">,)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span>
+        <span class="n">q_or_state</span><span class="p">:</span> <span class="n">_RobotVariableLike</span> <span class="o">|</span> <span class="n">RobotState</span><span class="p">,</span>
         <span class="n">point_ids</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-        <span class="n">K</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-        <span class="n">extrinsics</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-        <span class="n">target_px</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">K</span><span class="p">:</span> <span class="n">_VariableLike</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">extrinsics</span><span class="p">:</span> <span class="n">_VariableLike</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">target_px</span><span class="p">:</span> <span class="n">_VariableLike</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">weights</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">valid_mask</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">K_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">extrinsics_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">target_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">weights_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">valid_mask_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">weights</span><span class="p">:</span> <span class="n">_VariableLike</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">valid_mask</span><span class="p">:</span> <span class="n">_VariableLike</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">min_depth</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0e-6</span><span class="p">,</span>
+        <span class="n">weight</span><span class="p">:</span> <span class="n">Weight</span> <span class="o">|</span> <span class="n">Real</span> <span class="o">|</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">kernel</span><span class="p">:</span> <span class="nb">object</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;projection&quot;</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">q</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="n">robot_state</span><span class="p">(</span><span class="n">q_or_state</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="s2">&quot;gather_tangent&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;q must be a RobotVariable-like object, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">q</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="n">ids</span> <span class="o">=</span> <span class="n">_normalize_point_ids</span><span class="p">(</span><span class="n">point_ids</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">point_id</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">point_id</span> <span class="o">&gt;=</span> <span class="n">model</span><span class="o">.</span><span class="n">nframes</span> <span class="k">for</span> <span class="n">point_id</span> <span class="ow">in</span> <span class="n">ids</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;point_ids must index model frame rows in [0, </span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="n">nframes</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
-        <span class="n">count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">ids</span><span class="p">)</span>
-        <span class="n">K</span> <span class="o">=</span> <span class="n">check_tensor</span><span class="p">(</span><span class="s2">&quot;K&quot;</span><span class="p">,</span> <span class="n">K</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">floating</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="n">extrinsics</span> <span class="o">=</span> <span class="n">check_tensor</span><span class="p">(</span><span class="s2">&quot;extrinsics&quot;</span><span class="p">,</span> <span class="n">extrinsics</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">floating</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">K</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">K</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-        <span class="n">target_px</span> <span class="o">=</span> <span class="n">check_tensor</span><span class="p">(</span>
-            <span class="s2">&quot;target_px&quot;</span><span class="p">,</span> <span class="n">target_px</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">count</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">floating</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">K</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">K</span><span class="o">.</span><span class="n">device</span>
-        <span class="p">)</span>
-        <span class="k">if</span> <span class="n">weights</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">weights</span> <span class="o">=</span> <span class="n">check_tensor</span><span class="p">(</span><span class="s2">&quot;weights&quot;</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">count</span><span class="p">,),</span> <span class="n">floating</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">K</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">K</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-            <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">weights</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="p">)):</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;weights must be non-negative&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">valid_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">valid_mask</span> <span class="o">=</span> <span class="n">check_tensor</span><span class="p">(</span><span class="s2">&quot;valid_mask&quot;</span><span class="p">,</span> <span class="n">valid_mask</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">count</span><span class="p">,),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">bool</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">K</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">point_id</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">point_id</span> <span class="o">&gt;=</span> <span class="n">q</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">nframes</span> <span class="k">for</span> <span class="n">point_id</span> <span class="ow">in</span> <span class="n">ids</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;point_ids must index model frame rows in [0, </span><span class="si">{</span><span class="n">q</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">nframes</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">point_ids</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">extrinsics</span> <span class="o">=</span> <span class="n">ids</span><span class="p">,</span> <span class="n">K</span><span class="p">,</span> <span class="n">extrinsics</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">target_px</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">valid_mask</span> <span class="o">=</span> <span class="n">target_px</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">valid_mask</span>
+        <span class="n">_intrinsics</span><span class="p">,</span> <span class="n">camera</span><span class="p">,</span> <span class="n">_target</span><span class="p">,</span> <span class="n">_weights</span><span class="p">,</span> <span class="n">_validity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_camera_tensors</span><span class="p">()</span>
         <span class="n">min_depth</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">min_depth</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">math</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">min_depth</span><span class="p">)</span> <span class="ow">or</span> <span class="n">min_depth</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;min_depth must be finite and positive, got </span><span class="si">{</span><span class="n">min_depth</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">name</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;name must be a non-empty string&quot;</span><span class="p">)</span>
-        <span class="n">declared_parameters</span> <span class="o">=</span> <span class="n">_validate_parameter_names</span><span class="p">(</span>
-            <span class="p">{</span>
-                <span class="s2">&quot;K_name&quot;</span><span class="p">:</span> <span class="n">K_name</span><span class="p">,</span>
-                <span class="s2">&quot;extrinsics_name&quot;</span><span class="p">:</span> <span class="n">extrinsics_name</span><span class="p">,</span>
-                <span class="s2">&quot;target_name&quot;</span><span class="p">:</span> <span class="n">target_name</span><span class="p">,</span>
-                <span class="s2">&quot;weights_name&quot;</span><span class="p">:</span> <span class="n">weights_name</span><span class="p">,</span>
-                <span class="s2">&quot;valid_mask_name&quot;</span><span class="p">:</span> <span class="n">valid_mask_name</span><span class="p">,</span>
-            <span class="p">}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span> <span class="o">=</span> <span class="p">(</span><span class="n">state</span><span class="p">,)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">q</span> <span class="o">=</span> <span class="n">q</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">q</span><span class="o">.</span><span class="n">model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_point_ids</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">ids</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">camera</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_depth</span> <span class="o">=</span> <span class="n">min_depth</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="o">*</span><span class="n">variables</span><span class="p">(</span><span class="n">K</span><span class="p">,</span> <span class="n">extrinsics</span><span class="p">,</span> <span class="n">target_px</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">valid_mask</span><span class="p">),</span>
+            <span class="n">dim</span><span class="o">=</span><span class="mi">2</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">ids</span><span class="p">),</span>
+            <span class="n">weight</span><span class="o">=</span><span class="n">weight</span><span class="p">,</span>
+            <span class="n">kernel</span><span class="o">=</span><span class="n">kernel</span><span class="p">,</span>
+            <span class="n">group_size</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
         <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">reads</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="o">*</span><span class="n">declared_parameters</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">point_ids</span> <span class="o">=</span> <span class="n">ids</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_point_ids</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">ids</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">q_neutral</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">K</span> <span class="o">=</span> <span class="n">K</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">extrinsics</span> <span class="o">=</span> <span class="n">extrinsics</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">target_px</span> <span class="o">=</span> <span class="n">target_px</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">=</span> <span class="n">weights</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">valid_mask</span> <span class="o">=</span> <span class="n">valid_mask</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">K_name</span> <span class="o">=</span> <span class="n">K_name</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">extrinsics_name</span> <span class="o">=</span> <span class="n">extrinsics_name</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">target_name</span> <span class="o">=</span> <span class="n">target_name</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">weights_name</span> <span class="o">=</span> <span class="n">weights_name</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">valid_mask_name</span> <span class="o">=</span> <span class="n">valid_mask_name</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">min_depth</span> <span class="o">=</span> <span class="n">min_depth</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">count</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_frame_points</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="n">ctx</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">]</span>
-        <span class="n">frame_pose_world</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">&quot;frame_pose_world&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">frame_pose_world</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;ProjectionResidual requires RobotStateProvider FK with frame placements&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">frame_pose_world</span><span class="o">.</span><span class="n">index_select</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_point_ids</span><span class="p">)[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_frame_points</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Data</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">frame_pose_world</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;ProjectionResidual requires FK frame placements&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">data</span><span class="o">.</span><span class="n">frame_pose_world</span><span class="o">.</span><span class="n">index_select</span><span class="p">(</span>
+            <span class="o">-</span><span class="mi">2</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_point_ids</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">frame_pose_world</span><span class="o">.</span><span class="n">device</span><span class="p">),</span>
+        <span class="p">)[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_camera_tensors</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">ctx</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
-        <span class="n">exemplar</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span>
-        <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-        <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-        <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-        <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="p">]:</span>
+        <span class="n">exemplar</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
         <span class="n">count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">point_ids</span><span class="p">)</span>
-        <span class="n">intrinsics</span> <span class="o">=</span> <span class="n">_context_tensor</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">K_name</span><span class="p">)</span>
-        <span class="n">extrinsics</span> <span class="o">=</span> <span class="n">_context_tensor</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">extrinsics</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">extrinsics_name</span><span class="p">)</span>
-        <span class="n">target_px</span> <span class="o">=</span> <span class="n">_context_tensor</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_px</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_name</span><span class="p">)</span>
-        <span class="n">weights</span> <span class="o">=</span> <span class="n">_context_tensor</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights_name</span><span class="p">)</span>
-        <span class="n">valid_mask</span> <span class="o">=</span> <span class="n">_context_tensor</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">valid_mask</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">valid_mask_name</span><span class="p">)</span>
-        <span class="k">assert</span> <span class="n">intrinsics</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">extrinsics</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">target_px</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-        <span class="n">intrinsics</span> <span class="o">=</span> <span class="n">check_tensor</span><span class="p">(</span>
-            <span class="s2">&quot;K&quot;</span><span class="p">,</span> <span class="n">intrinsics</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">floating</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">exemplar</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">exemplar</span><span class="o">.</span><span class="n">device</span>
-        <span class="p">)</span>
+        <span class="n">options</span> <span class="o">=</span> <span class="p">{}</span> <span class="k">if</span> <span class="n">exemplar</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">{</span><span class="s2">&quot;dtype&quot;</span><span class="p">:</span> <span class="n">exemplar</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="s2">&quot;device&quot;</span><span class="p">:</span> <span class="n">exemplar</span><span class="o">.</span><span class="n">device</span><span class="p">}</span>
+        <span class="n">intrinsics</span> <span class="o">=</span> <span class="n">check_tensor</span><span class="p">(</span><span class="s2">&quot;K&quot;</span><span class="p">,</span> <span class="n">value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="p">,</span> <span class="s2">&quot;K&quot;</span><span class="p">),</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">floating</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span>
+        <span class="n">exemplar</span> <span class="o">=</span> <span class="n">intrinsics</span>
         <span class="n">extrinsics</span> <span class="o">=</span> <span class="n">check_tensor</span><span class="p">(</span>
             <span class="s2">&quot;extrinsics&quot;</span><span class="p">,</span>
-            <span class="n">extrinsics</span><span class="p">,</span>
+            <span class="n">value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">extrinsics</span><span class="p">,</span> <span class="s2">&quot;extrinsics&quot;</span><span class="p">),</span>
             <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
             <span class="n">floating</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="n">dtype</span><span class="o">=</span><span class="n">exemplar</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span>
@@ -762,16 +648,17 @@
         <span class="p">)</span>
         <span class="n">target_px</span> <span class="o">=</span> <span class="n">check_tensor</span><span class="p">(</span>
             <span class="s2">&quot;target_px&quot;</span><span class="p">,</span>
-            <span class="n">target_px</span><span class="p">,</span>
+            <span class="n">value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">target_px</span><span class="p">,</span> <span class="s2">&quot;target_px&quot;</span><span class="p">),</span>
             <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">count</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
             <span class="n">floating</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="n">dtype</span><span class="o">=</span><span class="n">exemplar</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span>
             <span class="n">device</span><span class="o">=</span><span class="n">exemplar</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="k">if</span> <span class="n">weights</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">weights</span> <span class="o">=</span> <span class="n">check_tensor</span><span class="p">(</span>
                 <span class="s2">&quot;weights&quot;</span><span class="p">,</span>
-                <span class="n">weights</span><span class="p">,</span>
+                <span class="n">value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">,</span> <span class="s2">&quot;weights&quot;</span><span class="p">),</span>
                 <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">count</span><span class="p">,),</span>
                 <span class="n">floating</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                 <span class="n">dtype</span><span class="o">=</span><span class="n">exemplar</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span>
@@ -779,9 +666,14 @@
             <span class="p">)</span>
             <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">weights</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="p">)):</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;weights must be non-negative&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">valid_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">valid_mask</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">valid_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">valid_mask</span> <span class="o">=</span> <span class="n">check_tensor</span><span class="p">(</span>
-                <span class="s2">&quot;valid_mask&quot;</span><span class="p">,</span> <span class="n">valid_mask</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">count</span><span class="p">,),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">bool</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">exemplar</span><span class="o">.</span><span class="n">device</span>
+                <span class="s2">&quot;valid_mask&quot;</span><span class="p">,</span>
+                <span class="n">value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">valid_mask</span><span class="p">,</span> <span class="s2">&quot;valid_mask&quot;</span><span class="p">),</span>
+                <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">count</span><span class="p">,),</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">bool</span><span class="p">,</span>
+                <span class="n">device</span><span class="o">=</span><span class="n">exemplar</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="k">return</span> <span class="n">intrinsics</span><span class="p">,</span> <span class="n">extrinsics</span><span class="p">,</span> <span class="n">target_px</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">valid_mask</span>
 
@@ -801,69 +693,45 @@
             <span class="n">active</span> <span class="o">=</span> <span class="n">active</span> <span class="o">&amp;</span> <span class="n">valid_mask</span>
         <span class="k">return</span> <span class="n">multiplier</span><span class="p">,</span> <span class="n">active</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="n">points_world</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_frame_points</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span>
-        <span class="n">intrinsics</span><span class="p">,</span> <span class="n">extrinsics</span><span class="p">,</span> <span class="n">target_px</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">valid_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_camera_tensors</span><span class="p">(</span>
-            <span class="n">ctx</span><span class="p">,</span>
-            <span class="n">points_world</span><span class="p">,</span>
-        <span class="p">)</span>
+<div class="viewcode-block" id="ProjectionResidual.error">
+<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.projection.html#better_robot.residuals.projection.ProjectionResidual.error">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">error</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">_checked_value</span><span class="p">(</span><span class="n">Data</span><span class="p">)</span>
+        <span class="n">points_world</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_frame_points</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">intrinsics</span><span class="p">,</span> <span class="n">extrinsics</span><span class="p">,</span> <span class="n">target_px</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">valid_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_camera_tensors</span><span class="p">(</span><span class="n">points_world</span><span class="p">)</span>
         <span class="n">points_camera</span> <span class="o">=</span> <span class="n">_transform_points</span><span class="p">(</span><span class="n">points_world</span><span class="p">,</span> <span class="n">extrinsics</span><span class="p">)</span>
-        <span class="n">predicted_px</span> <span class="o">=</span> <span class="n">_project_points</span><span class="p">(</span>
-            <span class="n">points_camera</span><span class="p">,</span>
-            <span class="n">intrinsics</span><span class="p">,</span>
-            <span class="n">min_depth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">min_depth</span><span class="p">,</span>
-        <span class="p">)</span>
+        <span class="n">predicted_px</span> <span class="o">=</span> <span class="n">_project_points</span><span class="p">(</span><span class="n">points_camera</span><span class="p">,</span> <span class="n">intrinsics</span><span class="p">,</span> <span class="n">min_depth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">min_depth</span><span class="p">)</span>
         <span class="n">multiplier</span><span class="p">,</span> <span class="n">active</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_multipliers</span><span class="p">(</span><span class="n">predicted_px</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">weights</span><span class="p">,</span> <span class="n">valid_mask</span><span class="p">)</span>
         <span class="n">rows</span> <span class="o">=</span> <span class="p">(</span><span class="n">predicted_px</span> <span class="o">-</span> <span class="n">target_px</span><span class="p">)</span> <span class="o">*</span> <span class="n">multiplier</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
         <span class="n">rows</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">active</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">rows</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">rows</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">rows</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">*</span><span class="n">rows</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">rows</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">*</span><span class="n">rows</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="ProjectionResidual.jacobian_blocks">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.projection.html#better_robot.residuals.projection.ProjectionResidual.jacobian_blocks">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">jacobian_blocks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the complete mask-reduced analytic ``q`` Jacobian block.&quot;&quot;&quot;</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="n">ctx</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">]</span>
-        <span class="n">points_world</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_frame_points</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span>
-        <span class="n">intrinsics</span><span class="p">,</span> <span class="n">extrinsics</span><span class="p">,</span> <span class="n">_target_px</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">valid_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_camera_tensors</span><span class="p">(</span>
-            <span class="n">ctx</span><span class="p">,</span>
-            <span class="n">points_world</span><span class="p">,</span>
-        <span class="p">)</span>
+
+<div class="viewcode-block" id="ProjectionResidual.jacobian">
+<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.projection.html#better_robot.residuals.projection.ProjectionResidual.jacobian">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">jacobian</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">variable</span><span class="o">.</span><span class="n">trainable</span> <span class="k">for</span> <span class="n">variable</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">variables</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">q</span><span class="o">.</span><span class="n">trainable</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">()</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">_checked_value</span><span class="p">(</span><span class="n">Data</span><span class="p">)</span>
+        <span class="n">points_world</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_frame_points</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">intrinsics</span><span class="p">,</span> <span class="n">extrinsics</span><span class="p">,</span> <span class="n">_target_px</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">valid_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_camera_tensors</span><span class="p">(</span><span class="n">points_world</span><span class="p">)</span>
         <span class="n">points_camera</span> <span class="o">=</span> <span class="n">_transform_points</span><span class="p">(</span><span class="n">points_world</span><span class="p">,</span> <span class="n">extrinsics</span><span class="p">)</span>
-
         <span class="n">frame_jacobians</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
-            <span class="p">[</span>
-                <span class="n">get_frame_jacobian</span><span class="p">(</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span>
-                    <span class="n">data</span><span class="p">,</span>
-                    <span class="n">point_id</span><span class="p">,</span>
-                <span class="p">)</span>
-                <span class="k">for</span> <span class="n">point_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">point_ids</span>
-            <span class="p">],</span>
+            <span class="p">[</span><span class="n">get_frame_jacobian</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">point_id</span><span class="p">)</span> <span class="k">for</span> <span class="n">point_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">point_ids</span><span class="p">],</span>
             <span class="n">dim</span><span class="o">=-</span><span class="mi">3</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">point_jacobians_world</span> <span class="o">=</span> <span class="n">frame_jacobians</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">,</span> <span class="p">:]</span>
         <span class="n">rotation</span> <span class="o">=</span> <span class="n">extrinsics</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
-        <span class="n">point_jacobians_camera</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span>
-            <span class="n">rotation</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">),</span>
-            <span class="n">point_jacobians_world</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="n">pixel_from_camera</span> <span class="o">=</span> <span class="n">_projection_jacobian</span><span class="p">(</span>
-            <span class="n">points_camera</span><span class="p">,</span>
-            <span class="n">intrinsics</span><span class="p">,</span>
-            <span class="n">min_depth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">min_depth</span><span class="p">,</span>
-        <span class="p">)</span>
+        <span class="n">point_jacobians_camera</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">rotation</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">),</span> <span class="n">point_jacobians_world</span><span class="p">)</span>
+        <span class="n">pixel_from_camera</span> <span class="o">=</span> <span class="n">_projection_jacobian</span><span class="p">(</span><span class="n">points_camera</span><span class="p">,</span> <span class="n">intrinsics</span><span class="p">,</span> <span class="n">min_depth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">min_depth</span><span class="p">)</span>
         <span class="n">full</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">pixel_from_camera</span><span class="p">,</span> <span class="n">point_jacobians_camera</span><span class="p">)</span>
         <span class="n">multiplier</span><span class="p">,</span> <span class="n">active</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_multipliers</span><span class="p">(</span><span class="n">points_camera</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">weights</span><span class="p">,</span> <span class="n">valid_mask</span><span class="p">)</span>
         <span class="n">full</span> <span class="o">=</span> <span class="n">full</span> <span class="o">*</span> <span class="n">multiplier</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-        <span class="n">full</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
-            <span class="n">active</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span>
-            <span class="n">full</span><span class="p">,</span>
-            <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">full</span><span class="p">),</span>
-        <span class="p">)</span>
+        <span class="n">full</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">active</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">full</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">full</span><span class="p">))</span>
         <span class="n">full</span> <span class="o">=</span> <span class="n">full</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">*</span><span class="n">full</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">nv</span><span class="p">)</span>
-
-        <span class="n">indices</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">free_indices</span><span class="p">(</span><span class="s2">&quot;q&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="n">full</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;q&quot;</span><span class="p">:</span> <span class="n">full</span><span class="o">.</span><span class="n">index_select</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">indices</span><span class="p">)}</span></div>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">q</span><span class="o">.</span><span class="n">gather_tangent</span><span class="p">(</span><span class="n">full</span><span class="p">),)</span></div>
 </div>
 
 

@@ -245,6 +245,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -283,12 +284,10 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -488,202 +487,106 @@
                 <article class="bd-article">
                   
   <h1>Source code for better_robot.residuals.temporal</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;``TimeIndexedResidual`` — wrap a point-in-time residual for trajectory state.</span>
-
-<span class="sd">Most residuals (``PoseResidual``, ``JointPositionLimit``) operate on a</span>
-<span class="sd">single configuration. When the optimization variable is a whole trajectory</span>
-<span class="sd">``(T, nq)``, we need to slice out a single timestep, call the inner</span>
-<span class="sd">residual, and — for the analytic Jacobian — scatter the resulting block</span>
-<span class="sd">into the correct columns of a ``(dim_inner, T*nv)`` matrix.</span>
-
-<span class="sd">See ``docs/concepts/residuals_costs_and_solvers.md``.</span>
-<span class="sd">&quot;&quot;&quot;</span>
+<span></span><span class="sd">&quot;&quot;&quot;Time-local adapter for object-referenced trajectory residuals.&quot;&quot;&quot;</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Iterator</span><span class="p">,</span> <span class="n">Mapping</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">fields</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mapping</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">cast</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Data</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">._temporal_jacobian</span><span class="w"> </span><span class="kn">import</span> <span class="n">dense_temporal_jacobian</span><span class="p">,</span> <span class="n">temporal_free_indices</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">_configuration</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._temporal_jacobian</span><span class="w"> </span><span class="kn">import</span> <span class="n">dense_temporal_residual</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._variables</span><span class="w"> </span><span class="kn">import</span> <span class="n">TemporalLike</span><span class="p">,</span> <span class="n">TemporalVariableLike</span> <span class="k">as</span> <span class="n">_TemporalVariable</span><span class="p">,</span> <span class="n">matches</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">Residual</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.structure</span><span class="w"> </span><span class="kn">import</span> <span class="n">TemporalPattern</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_slice_data</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">Data</span><span class="p">,</span> <span class="n">t_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Data</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Slice one trajectory knot while preserving populated FK caches.&quot;&quot;&quot;</span>
-    <span class="n">time_axis</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">batch_shape</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
-    <span class="k">if</span> <span class="n">time_axis</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;TimeIndexedResidual Data must carry a trajectory batch axis&quot;</span><span class="p">)</span>
-    <span class="n">values</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="k">for</span> <span class="n">descriptor</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">(</span><span class="n">Data</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">descriptor</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;_kinematics_level&quot;</span><span class="p">:</span>
-            <span class="k">continue</span>
-        <span class="n">value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">descriptor</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-        <span class="n">values</span><span class="p">[</span><span class="n">descriptor</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">time_axis</span><span class="p">,</span> <span class="n">t_idx</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="k">else</span> <span class="n">value</span>
-    <span class="n">sliced</span> <span class="o">=</span> <span class="n">Data</span><span class="p">(</span><span class="o">**</span><span class="n">values</span><span class="p">)</span>
-    <span class="nb">object</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="n">sliced</span><span class="p">,</span> <span class="s2">&quot;_kinematics_level&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">_kinematics_level</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">sliced</span>
-
-
-<span class="k">class</span><span class="w"> </span><span class="nc">_TimeSliceContext</span><span class="p">(</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Evaluation-context view with trajectory ``q``/``data`` sliced.&quot;&quot;&quot;</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">t_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_ctx</span> <span class="o">=</span> <span class="n">ctx</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_t_idx</span> <span class="o">=</span> <span class="n">t_idx</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">:</span> <span class="n">Data</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">key</span> <span class="o">==</span> <span class="s2">&quot;q&quot;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ctx</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="o">...</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_t_idx</span><span class="p">,</span> <span class="p">:]</span>
-        <span class="k">if</span> <span class="n">key</span> <span class="o">==</span> <span class="s2">&quot;data&quot;</span><span class="p">:</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ctx</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">Data</span><span class="p">):</span>
-                    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;data must be Data, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">_slice_data</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_t_idx</span><span class="p">)</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ctx</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ctx</span><span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ctx</span><span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">free_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variable_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="n">q</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ctx</span><span class="p">[</span><span class="n">variable_name</span><span class="p">]</span>
-        <span class="k">return</span> <span class="n">temporal_free_indices</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ctx</span><span class="p">,</span> <span class="n">variable_name</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">q</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="TimeIndexedResidual">
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.temporal.html#better_robot.residuals.temporal.TimeIndexedResidual">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">TimeIndexedResidual</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Evaluate an inner residual at a single timestep of a trajectory state.</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TimeIndexedResidual</span><span class="p">(</span><span class="n">Residual</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Evaluate a time-local residual at one knot of its trajectory variable.</span>
 
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    inner : Residual</span>
-<span class="sd">        Single-configuration residual (e.g. ``PoseResidual``,</span>
-<span class="sd">        ``JointPositionLimit``).</span>
-<span class="sd">    t_idx : int</span>
-<span class="sd">        Timestep to evaluate at.</span>
-<span class="sd">    name : str | None</span>
-<span class="sd">        Override the default name ``f&quot;{inner.name}_t{t_idx}&quot;``.</span>
+<span class="sd">    The wrapped residual must expose the private knot primitives implemented by</span>
+<span class="sd">    the built-in pose and limit residuals. New user residuals should generally</span>
+<span class="sd">    accept ``knot=`` directly instead of using this adapter.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">inner</span><span class="p">,</span>
+        <span class="n">inner</span><span class="p">:</span> <span class="n">Residual</span><span class="p">,</span>
         <span class="n">t_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">horizon</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">inner</span><span class="p">,</span> <span class="n">Residual</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;inner must be a Residual, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">inner</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">temporal</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">variable</span> <span class="k">for</span> <span class="n">variable</span> <span class="ow">in</span> <span class="n">inner</span><span class="o">.</span><span class="n">variables</span> <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">variable</span><span class="p">,</span> <span class="s2">&quot;time_axis&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">temporal</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">temporal</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">TemporalLike</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;inner must reference exactly one Variable with time_axis=0&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">inner</span><span class="p">,</span> <span class="s2">&quot;_error_at&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span>
+            <span class="nb">getattr</span><span class="p">(</span><span class="n">inner</span><span class="p">,</span> <span class="s2">&quot;_reduced_jacobian_at&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;inner must support built-in knot error and Jacobian primitives&quot;</span><span class="p">)</span>
+        <span class="n">q</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">_TemporalVariable</span><span class="p">,</span> <span class="n">temporal</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t_idx</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t_idx</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;t_idx must be an int, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">t_idx</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="o">-</span><span class="n">q</span><span class="o">.</span><span class="n">time_length</span> <span class="o">&lt;=</span> <span class="n">t_idx</span> <span class="o">&lt;</span> <span class="n">q</span><span class="o">.</span><span class="n">time_length</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;t_idx=</span><span class="si">{</span><span class="n">t_idx</span><span class="si">}</span><span class="s2"> must index trajectory length </span><span class="si">{</span><span class="n">q</span><span class="o">.</span><span class="n">time_length</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">inner</span> <span class="o">=</span> <span class="n">inner</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">t_idx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">t_idx</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span> <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">inner</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">_t</span><span class="si">{</span><span class="n">t_idx</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">inner</span><span class="o">.</span><span class="n">dim</span><span class="p">)</span>
-        <span class="n">inner_reads</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">inner</span><span class="p">,</span> <span class="s2">&quot;reads&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">reads</span> <span class="o">=</span> <span class="n">inner_reads</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">inner_reads</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span> <span class="k">else</span> <span class="p">(</span><span class="s2">&quot;q&quot;</span><span class="p">,</span> <span class="s2">&quot;data&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">horizon</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">horizon</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">horizon</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
-                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;TimeIndexedResidual horizon must be an int or None&quot;</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">horizon</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;TimeIndexedResidual horizon must be positive&quot;</span><span class="p">)</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">t_idx</span> <span class="o">&lt;</span> <span class="n">horizon</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;TimeIndexedResidual t_idx=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">t_idx</span><span class="si">}</span><span class="s2"> out of range for T=</span><span class="si">{</span><span class="n">horizon</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">horizon</span> <span class="o">=</span> <span class="n">horizon</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">q</span> <span class="o">=</span> <span class="n">q</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t_idx</span> <span class="o">=</span> <span class="n">t_idx</span> <span class="o">%</span> <span class="n">q</span><span class="o">.</span><span class="n">time_length</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">horizon</span> <span class="o">=</span> <span class="n">q</span><span class="o">.</span><span class="n">time_length</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">inner</span><span class="p">,</span> <span class="s2">&quot;nodes&quot;</span><span class="p">,</span> <span class="p">()))</span>
+        <span class="n">dim</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">inner</span><span class="p">,</span> <span class="s2">&quot;_knot_dim&quot;</span><span class="p">,</span> <span class="n">inner</span><span class="o">.</span><span class="n">dim</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="o">*</span><span class="n">inner</span><span class="o">.</span><span class="n">variables</span><span class="p">,</span>
+            <span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span>
+            <span class="n">weight</span><span class="o">=</span><span class="n">inner</span><span class="o">.</span><span class="n">weight</span><span class="p">,</span>
+            <span class="n">kernel</span><span class="o">=</span><span class="n">inner</span><span class="o">.</span><span class="n">kernel</span><span class="p">,</span>
+            <span class="n">group_size</span><span class="o">=</span><span class="n">inner</span><span class="o">.</span><span class="n">group_size</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">name</span> <span class="ow">or</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">inner</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">_t</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">t_idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_trajectory_q</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">ctx</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
-        <span class="n">q</span> <span class="o">=</span> <span class="n">_configuration</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">horizon</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;TimeIndexedResidual requires horizon=... for problem use&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">q</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>  <span class="c1"># bench-ok: trajectory-shape contract validation</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;TimeIndexedResidual expects (B..., T, nq); got </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="n">T</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
-        <span class="k">if</span> <span class="n">T</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">horizon</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;trajectory horizon </span><span class="si">{</span><span class="n">T</span><span class="si">}</span><span class="s2"> != declared horizon </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">horizon</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">q</span><span class="p">,</span> <span class="n">T</span>
+<div class="viewcode-block" id="TimeIndexedResidual.error">
+<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.temporal.html#better_robot.residuals.temporal.TimeIndexedResidual.error">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">error</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inner</span><span class="o">.</span><span class="n">_error_at</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">t_idx</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">or</span> <span class="n">output</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">:</span>
+            <span class="n">actual</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="k">else</span> <span class="nb">type</span><span class="p">(</span><span class="n">output</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;inner knot error must end in </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="n">actual</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">output</span></div>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_slice_input</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">ctx</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_trajectory_q</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">_TimeSliceContext</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">t_idx</span><span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inner</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_slice_input</span><span class="p">(</span><span class="n">ctx</span><span class="p">))</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">or</span> <span class="n">r</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">r</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">:</span>
-            <span class="n">actual</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="k">else</span> <span class="nb">type</span><span class="p">(</span><span class="n">r</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;inner residual must return (..., </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="si">}</span><span class="s2">), got </span><span class="si">{</span><span class="n">actual</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">r</span>
 
 <div class="viewcode-block" id="TimeIndexedResidual.temporal_structure">
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.temporal.html#better_robot.residuals.temporal.TimeIndexedResidual.temporal_structure">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">temporal_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variable_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TemporalPattern</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">variable_name</span> <span class="o">!=</span> <span class="s2">&quot;q&quot;</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">horizon</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">temporal_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variable</span><span class="p">:</span> <span class="n">_TemporalVariable</span> <span class="o">|</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TemporalPattern</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">matches</span><span class="p">(</span><span class="n">variable</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">q</span><span class="p">):</span>
             <span class="k">return</span> <span class="kc">None</span>
-        <span class="k">return</span> <span class="n">TemporalPattern</span><span class="p">(</span>
-            <span class="n">rows</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-            <span class="n">row_width</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">,</span>
-            <span class="n">row_origin</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">t_idx</span><span class="p">,</span>
-            <span class="n">offsets</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,),</span>
-        <span class="p">)</span></div>
+        <span class="k">return</span> <span class="n">TemporalPattern</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">t_idx</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,))</span></div>
 
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_inner_reduced_block</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-        <span class="n">sliced</span> <span class="o">=</span> <span class="n">_TimeSliceContext</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">t_idx</span><span class="p">)</span>
-        <span class="n">analytic</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inner</span><span class="p">,</span> <span class="s2">&quot;jacobian_blocks&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="n">analytic</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;TimeIndexedResidual inner residual has no analytic q block&quot;</span><span class="p">)</span>
-        <span class="n">blocks</span> <span class="o">=</span> <span class="n">analytic</span><span class="p">(</span><span class="n">sliced</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">set</span><span class="p">(</span><span class="n">blocks</span><span class="p">)</span> <span class="o">!=</span> <span class="p">{</span><span class="s2">&quot;q&quot;</span><span class="p">}:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;TimeIndexedResidual inner analytic blocks must contain exactly &#39;q&#39;&quot;</span><span class="p">)</span>
-        <span class="n">block</span> <span class="o">=</span> <span class="n">blocks</span><span class="p">[</span><span class="s2">&quot;q&quot;</span><span class="p">]</span>
-        <span class="n">q</span> <span class="o">=</span> <span class="n">ctx</span><span class="p">[</span><span class="s2">&quot;q&quot;</span><span class="p">]</span>
-        <span class="k">return</span> <span class="n">block</span> <span class="o">+</span> <span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span> <span class="o">*</span> <span class="mf">0.0</span><span class="p">)[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
 
 <div class="viewcode-block" id="TimeIndexedResidual.temporal_jacobian_blocks">
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.temporal.html#better_robot.residuals.temporal.TimeIndexedResidual.temporal_jacobian_blocks">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">temporal_jacobian_blocks</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">ctx</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
-        <span class="n">variable_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">variable</span><span class="p">:</span> <span class="n">_TemporalVariable</span> <span class="o">|</span> <span class="nb">str</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
-        <span class="k">if</span> <span class="n">variable_name</span> <span class="o">!=</span> <span class="s2">&quot;q&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">matches</span><span class="p">(</span><span class="n">variable</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">q</span><span class="p">):</span>
             <span class="k">return</span> <span class="p">{}</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_trajectory_q</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span>
-        <span class="k">return</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inner_reduced_block</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">)}</span></div>
+        <span class="n">block</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inner</span><span class="o">.</span><span class="n">_reduced_jacobian_at</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">t_idx</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="n">block</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">)}</span></div>
 
 
-<div class="viewcode-block" id="TimeIndexedResidual.jacobian_blocks">
-<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.temporal.html#better_robot.residuals.temporal.TimeIndexedResidual.jacobian_blocks">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">jacobian_blocks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inner</span><span class="p">,</span> <span class="s2">&quot;jacobian_blocks&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)):</span>
-            <span class="c1"># Returning no blocks lets Problem&#39;s auto/jacrev/jacfwd dispatch</span>
-            <span class="c1"># differentiate the wrapper itself.</span>
-            <span class="k">return</span> <span class="p">{}</span>
-        <span class="n">pattern</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">temporal_structure</span><span class="p">(</span><span class="s2">&quot;q&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">pattern</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;TimeIndexedResidual requires horizon=... for problem use&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="p">{</span>
-            <span class="s2">&quot;q&quot;</span><span class="p">:</span> <span class="n">dense_temporal_jacobian</span><span class="p">(</span>
-                <span class="n">pattern</span><span class="p">,</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">temporal_jacobian_blocks</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="s2">&quot;q&quot;</span><span class="p">),</span>
-                <span class="n">horizon</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">horizon</span><span class="p">,</span>
-            <span class="p">)</span>
-        <span class="p">}</span></div>
+<div class="viewcode-block" id="TimeIndexedResidual.jacobian">
+<a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.residuals.temporal.html#better_robot.residuals.temporal.TimeIndexedResidual.jacobian">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">jacobian</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="n">dense_temporal_residual</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">q</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">horizon</span><span class="p">)</span></div>
 </div>
 
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;TimeIndexedResidual&quot;</span><span class="p">]</span>
 </pre></div>
 
                 </article>

@@ -23,10 +23,17 @@
 
 ### API
 
-````{py:class} MaskedChamferResidual(frames: int, source_count: int, target_count: int, *, source: str = 'points', target: str = 'target_points', source_validity: str = 'point_validity', target_validity: str = 'target_validity', vertex_weights: str | None = None, bidirectional: bool = True, chunk_size: int = 4096, name: str = 'masked_chamfer')
+`````{py:class} MaskedChamferResidual(source: better_robot.residuals._variables.VariableLike | torch.Tensor, target: better_robot.residuals._variables.VariableLike | torch.Tensor, source_validity: better_robot.residuals._variables.VariableLike | torch.Tensor, target_validity: better_robot.residuals._variables.VariableLike | torch.Tensor, *, vertex_weights: better_robot.residuals._variables.VariableLike | torch.Tensor | None = None, bidirectional: bool = True, chunk_size: int = 4096, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'masked_chamfer')
 :canonical: better_robot.residuals.chamfer.MaskedChamferResidual
+
+Bases: {py:obj}`better_robot.residuals.base.Residual`
 
 ```{autodoc2-docstring} better_robot.residuals.chamfer.MaskedChamferResidual
 ```
 
+````{py:method} error() -> torch.Tensor
+:canonical: better_robot.residuals.chamfer.MaskedChamferResidual.error
+
 ````
+
+`````

@@ -57,7 +57,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -195,7 +195,7 @@
 <li class="toctree-l2"><a class="reference internal" href="concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="concepts/viewer.html">Viewer</a></li>
@@ -248,6 +248,7 @@
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -286,12 +287,10 @@
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -597,10 +596,11 @@ python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </sp
 </pre></div>
 </div>
 <p>This example loads a Franka Panda, makes a reachable target from a known joint
-configuration, and asks inverse kinematics to recover it.</p>
+configuration, and optimizes a robot configuration to recover it.</p>
 <!-- front-page-example:start -->
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">better_robot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">br</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.tasks.ik</span><span class="w"> </span><span class="kn">import</span> <span class="n">IKCostConfig</span><span class="p">,</span> <span class="n">OptimizerConfig</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim</span><span class="w"> </span><span class="kn">import</span> <span class="n">LevenbergMarquardt</span><span class="p">,</span> <span class="n">Problem</span><span class="p">,</span> <span class="n">RobotVariable</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.residuals</span><span class="w"> </span><span class="kn">import</span> <span class="n">PoseResidual</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">robot_descriptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">panda_description</span>
 
 <span class="n">model</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">panda_description</span><span class="o">.</span><span class="n">URDF_PATH</span><span class="p">)</span>
@@ -611,21 +611,31 @@ configuration, and asks inverse kinematics to recover it.</p>
     <span class="n">model</span><span class="p">,</span> <span class="n">q_goal</span><span class="p">,</span> <span class="n">compute_frames</span><span class="o">=</span><span class="kc">True</span>
 <span class="p">)</span><span class="o">.</span><span class="n">frame_pose_world</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">frame_id</span><span class="p">(</span><span class="s2">&quot;body_panda_hand&quot;</span><span class="p">)]</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
 
-<span class="n">result</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">solve_ik</span><span class="p">(</span>
-    <span class="n">model</span><span class="p">,</span>
-    <span class="p">{</span><span class="s2">&quot;body_panda_hand&quot;</span><span class="p">:</span> <span class="n">target_pose</span><span class="p">},</span>
-    <span class="n">initial_q</span><span class="o">=</span><span class="n">q0</span><span class="p">,</span>
-    <span class="n">cost_cfg</span><span class="o">=</span><span class="n">IKCostConfig</span><span class="p">(</span><span class="n">limit_weight</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">rest_weight</span><span class="o">=</span><span class="mf">0.0</span><span class="p">),</span>
-    <span class="n">optimizer_cfg</span><span class="o">=</span><span class="n">OptimizerConfig</span><span class="p">(</span><span class="n">max_iter</span><span class="o">=</span><span class="mi">100</span><span class="p">),</span>
+<span class="n">q</span> <span class="o">=</span> <span class="n">RobotVariable</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">q0</span><span class="p">,</span> <span class="n">bounds</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">reach</span> <span class="o">=</span> <span class="n">PoseResidual</span><span class="p">(</span>
+    <span class="n">q</span><span class="p">,</span> <span class="n">frame</span><span class="o">=</span><span class="s2">&quot;body_panda_hand&quot;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target_pose</span>
 <span class="p">)</span>
+<span class="n">problem</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">([</span><span class="n">reach</span><span class="p">])</span>
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">LevenbergMarquardt</span><span class="p">(</span><span class="n">problem</span><span class="p">,</span> <span class="n">max_iterations</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+<span class="n">info</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">optimize</span><span class="p">()</span>
 
-<span class="n">result</span><span class="o">.</span><span class="n">q</span>  <span class="c1"># (nq,) joint solution</span>
-<span class="n">result</span><span class="o">.</span><span class="n">frame_pose</span><span class="p">(</span><span class="s2">&quot;body_panda_hand&quot;</span><span class="p">)</span>  <span class="c1"># (7,) pose at the solution</span>
+<span class="n">solution</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">forward_kinematics</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">q</span><span class="o">.</span><span class="n">tensor</span><span class="p">,</span> <span class="n">compute_frames</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">solution_pose</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">frame_pose_world</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">frame_id</span><span class="p">(</span><span class="s2">&quot;body_panda_hand&quot;</span><span class="p">)]</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="nb">bool</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">converged</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">solution_pose</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>True
+torch.Size([8])
+torch.Size([7])
 </pre></div>
 </div>
 <!-- front-page-example:end -->
-<p><code class="docutils literal notranslate"><span class="pre">result.converged</span></code> tells you whether the solver met its stopping rule. The
-result still contains the final candidate when it does not converge.</p>
+<p><code class="docutils literal notranslate"><span class="pre">info.converged</span></code> tells you whether the optimizer met its stopping rule. The
+variable’s <code class="docutils literal notranslate"><span class="pre">q.tensor</span></code> still contains the final candidate when it does not
+converge.</p>
 </section>
 <section id="learn-in-the-order-you-need">
 <h2>Learn in the order you need<a class="headerlink" href="#learn-in-the-order-you-need" title="Link to this heading">#</a></h2>
@@ -680,7 +690,7 @@ are new to you.</p></li>
 <li class="toctree-l2"><a class="reference internal" href="concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="concepts/viewer.html">Viewer</a></li>
@@ -793,7 +803,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>

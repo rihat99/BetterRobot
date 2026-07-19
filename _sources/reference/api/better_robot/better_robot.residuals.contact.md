@@ -23,34 +23,20 @@
 
 ### API
 
-`````{py:class} ContactConsistencyResidual(model: better_robot.data_model.model.Model, frame_ids: tuple[int, ...], contact_weights: torch.Tensor, *, dt: float, weight: float = 1.0, angular: bool = False, name: str = 'contact_consistency')
+`````{py:class} ContactConsistencyResidual(q_or_state: better_robot.residuals._variables.RobotVariableLike | better_robot.residuals.nodes.RobotState, frame_ids: tuple[int, ...], contact_weights: better_robot.residuals._variables.VariableLike | torch.Tensor, *, dt: float, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'contact_consistency')
 :canonical: better_robot.residuals.contact.ContactConsistencyResidual
+
+Bases: {py:obj}`better_robot.residuals.base.Residual`
 
 ```{autodoc2-docstring} better_robot.residuals.contact.ContactConsistencyResidual
 ```
 
-````{py:attribute} name
-:canonical: better_robot.residuals.contact.ContactConsistencyResidual.name
-:type: str
-:value: >
-   'contact_consistency'
-
-```{autodoc2-docstring} better_robot.residuals.contact.ContactConsistencyResidual.name
-```
+````{py:method} error() -> torch.Tensor
+:canonical: better_robot.residuals.contact.ContactConsistencyResidual.error
 
 ````
 
-````{py:attribute} reads
-:canonical: better_robot.residuals.contact.ContactConsistencyResidual.reads
-:value: >
-   ('q', 'data')
-
-```{autodoc2-docstring} better_robot.residuals.contact.ContactConsistencyResidual.reads
-```
-
-````
-
-````{py:method} temporal_structure(variable_name: str) -> better_robot.residuals.structure.TemporalPattern | None
+````{py:method} temporal_structure(variable: better_robot.residuals._variables.RobotVariableLike | str) -> better_robot.residuals.structure.TemporalPattern | None
 :canonical: better_robot.residuals.contact.ContactConsistencyResidual.temporal_structure
 
 ```{autodoc2-docstring} better_robot.residuals.contact.ContactConsistencyResidual.temporal_structure
@@ -58,7 +44,7 @@
 
 ````
 
-````{py:method} temporal_jacobian_blocks(ctx: collections.abc.Mapping[str, typing.Any], variable_name: str) -> collections.abc.Mapping[int, torch.Tensor]
+````{py:method} temporal_jacobian_blocks(variable: better_robot.residuals._variables.RobotVariableLike | str) -> collections.abc.Mapping[int, torch.Tensor]
 :canonical: better_robot.residuals.contact.ContactConsistencyResidual.temporal_jacobian_blocks
 
 ```{autodoc2-docstring} better_robot.residuals.contact.ContactConsistencyResidual.temporal_jacobian_blocks
@@ -66,11 +52,8 @@
 
 ````
 
-````{py:method} jacobian_blocks(ctx: collections.abc.Mapping[str, typing.Any]) -> dict[str, torch.Tensor]
-:canonical: better_robot.residuals.contact.ContactConsistencyResidual.jacobian_blocks
-
-```{autodoc2-docstring} better_robot.residuals.contact.ContactConsistencyResidual.jacobian_blocks
-```
+````{py:method} jacobian() -> tuple[torch.Tensor, ...] | None
+:canonical: better_robot.residuals.contact.ContactConsistencyResidual.jacobian
 
 ````
 

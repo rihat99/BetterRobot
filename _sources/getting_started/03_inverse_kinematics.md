@@ -33,9 +33,15 @@ result = br.solve_ik(
     optimizer_cfg=OptimizerConfig(max_iter=100),
 )
 
-assert result.converged
-assert result.q.shape == (model.nq,)
-assert result.frame_pose(frame_name).shape == (7,)
+print(bool(result.converged))
+print(result.q.shape)
+print(result.frame_pose(frame_name).shape)
+```
+
+```{testoutput}
+True
+torch.Size([8])
+torch.Size([7])
 ```
 
 Targets use the same `[x, y, z, qx, qy, qz, qw]` layout as FK. The dictionary
@@ -46,5 +52,11 @@ check `result.converged` before treating it as a solution. `result.iters` and
 The optional configuration objects tune weights and stopping behavior. You do
 not need them for a first solve; they are shown above only to make this small
 generated target especially easy to recover.
+
+The facade builds the same public graph available to direct optimization
+callers: one bounded `RobotVariable`, static target `Variable` objects,
+kinematic residuals with shared `RobotState` nodes, a harvested `Problem`, and
+an object-owned optimizer. Set `differentiable=True` only when an LM solution
+must carry the guarded implicit gradient back to graph-carrying targets.
 
 Floating-base robots use the same call, as shown in {doc}`04_floating_base`.

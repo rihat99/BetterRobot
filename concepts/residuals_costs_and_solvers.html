@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Residuals, Costs, and Solvers &#8212; BetterRobot</title>
+    <title>Residuals, Costs, and Optimizers &#8212; BetterRobot</title>
   
   
   
@@ -58,7 +58,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -194,7 +194,7 @@
 <li class="toctree-l2"><a class="reference internal" href="lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="dynamics.html">Dynamics</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="viewer.html">Viewer</a></li>
@@ -247,6 +247,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -285,12 +286,10 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -542,7 +541,7 @@
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>Residuals, Costs, and Solvers</h1>
+    <h1>Residuals, Costs, and Optimizers</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -553,14 +552,14 @@
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#from-an-error-to-least-squares">From an error to least squares</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#a-residual-is-a-small-callable">A residual is a small callable</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problems-have-named-variables">Problems have named variables</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#providers-share-expensive-work">Providers share expensive work</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#a-residual-holds-its-dependencies">A residual holds its dependencies</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problems-harvest-an-object-graph">Problems harvest an object graph</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#nodes-share-expensive-work">Nodes share expensive work</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#built-in-residual-families">Built-in residual families</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#robust-losses">Robust losses</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#gauss-newton-in-plain-words">Gauss–Newton in plain words</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#levenberg-marquardt-and-damping">Levenberg–Marquardt and damping</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#owning-the-solver-loop">Owning the solver loop</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#owning-the-optimizer-loop">Owning the optimizer loop</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dense-and-temporal-linearization">Dense and temporal linearization</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#first-order-optimization">First-order optimization</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#differentiating-a-solution">Differentiating a solution</a></li>
@@ -577,8 +576,8 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="residuals-costs-and-solvers">
-<h1>Residuals, Costs, and Solvers<a class="headerlink" href="#residuals-costs-and-solvers" title="Link to this heading">#</a></h1>
+  <section id="residuals-costs-and-optimizers">
+<h1>Residuals, Costs, and Optimizers<a class="headerlink" href="#residuals-costs-and-optimizers" title="Link to this heading">#</a></h1>
 <p>Optimization turns several imperfect requirements into one configuration that
 balances them. A hand should reach a target, joints should stay within limits,
 and a trajectory should remain smooth. BetterRobot expresses each requirement
@@ -607,82 +606,97 @@ shape.</p>
 guide</a> is a useful independent
 reference for residuals, parameter groups, bounds, and robust losses.</p>
 </section>
-<section id="a-residual-is-a-small-callable">
-<h2>A residual is a small callable<a class="headerlink" href="#a-residual-is-a-small-callable" title="Link to this heading">#</a></h2>
-<p>A residual declares a name, a fixed output width, the context entries it
-reads, and a call:</p>
+<section id="a-residual-holds-its-dependencies">
+<h2>A residual holds its dependencies<a class="headerlink" href="#a-residual-holds-its-dependencies" title="Link to this heading">#</a></h2>
+<p>A residual owns references to every variable it reads, plus its name, fixed
+output width, weight, robust kernel, and grouping. The <code class="docutils literal notranslate"><span class="pre">&#64;residual</span></code> adapter is
+enough for a small tensor function:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim</span><span class="w"> </span><span class="kn">import</span> <span class="n">Variable</span><span class="p">,</span> <span class="n">residual</span>
 
-<span class="k">class</span><span class="w"> </span><span class="nc">PositionError</span><span class="p">:</span>
-    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;position&quot;</span>
-    <span class="n">reads</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;target&quot;</span><span class="p">)</span>
-    <span class="n">dim</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">Variable</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">]),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;x&quot;</span><span class="p">)</span>
+<span class="n">target</span> <span class="o">=</span> <span class="n">Variable</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;target&quot;</span><span class="p">,</span> <span class="n">trainable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">ctx</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">ctx</span><span class="p">[</span><span class="s2">&quot;target&quot;</span><span class="p">]</span>
 
-<span class="n">error</span> <span class="o">=</span> <span class="n">PositionError</span><span class="p">()</span>
-<span class="n">actual</span> <span class="o">=</span> <span class="n">error</span><span class="p">({</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">]),</span> <span class="s2">&quot;target&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">3</span><span class="p">)})</span>
-<span class="n">torch</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_close</span><span class="p">(</span><span class="n">actual</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">]))</span>
+<span class="nd">@residual</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;position&quot;</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">position_error</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">desired</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">value</span> <span class="o">-</span> <span class="n">desired</span>
+
+
+<span class="n">actual</span> <span class="o">=</span> <span class="n">position_error</span><span class="o">.</span><span class="n">error</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">actual</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
+</pre></div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>[0.0, 1.0, 2.0]
 </pre></div>
 </div>
 <p>The returned tensor ends in <code class="docutils literal notranslate"><span class="pre">(dim,)</span></code> and may have leading batch axes. Fixed
-width matters: Jacobian rows, robust groups, and solver state keep the same
+width matters: Jacobian rows, robust groups, and optimizer storage keep the same
 meaning at every evaluation. Variable-size observations are padded and paired
 with validity masks rather than changing the residual dimension.</p>
-<p>An optional <code class="docutils literal notranslate"><span class="pre">jacobian_blocks(ctx)</span></code> method supplies derivatives for selected
-variables. Without it, <code class="docutils literal notranslate"><span class="pre">Problem</span></code> uses automatic differentiation. Finite
-differences are available only as an explicit debugging strategy. See
+<p>An optional <code class="docutils literal notranslate"><span class="pre">jacobian()</span></code> method returns complete reduced-tangent blocks in
+dependency order. Without it, <code class="docutils literal notranslate"><span class="pre">Problem</span></code> uses automatic differentiation.
+Finite differences are available only as an explicit debugging strategy. See
 <a class="reference internal" href="kinematics_and_jacobians.html"><span class="doc">Kinematics and Jacobians</span></a> for the distinction and for the documented
 small-step approximations used by a few built-in blocks.</p>
 </section>
-<section id="problems-have-named-variables">
-<h2>Problems have named variables<a class="headerlink" href="#problems-have-named-variables" title="Link to this heading">#</a></h2>
-<p>A <code class="docutils literal notranslate"><span class="pre">Problem</span></code> owns:</p>
+<section id="problems-harvest-an-object-graph">
+<h2>Problems harvest an object graph<a class="headerlink" href="#problems-harvest-an-object-graph" title="Link to this heading">#</a></h2>
+<p>A <code class="docutils literal notranslate"><span class="pre">Problem</span></code> freezes and lays out:</p>
 <ul class="simple">
-<li><p>variables and their manifolds, bounds, masks, and event shapes;</p></li>
-<li><p>residual items with weights and robust grouping;</p></li>
-<li><p>constant or differentiable parameter tensors; and</p></li>
-<li><p>providers for shared evaluation work.</p></li>
+<li><p>trainable and static variables referenced by residuals or nodes;</p></li>
+<li><p>fixed residual rows, weights, kernels, and robust groups; and</p></li>
+<li><p>evaluation-scoped nodes for shared computation.</p></li>
 </ul>
-<p>Names remove manual packing. A robot configuration can use <code class="docutils literal notranslate"><span class="pre">RobotConfig</span></code>, an
-object pose can use <code class="docutils literal notranslate"><span class="pre">SE3Manifold</span></code>, and camera intrinsics can remain Euclidean.
-The problem lays out tangent columns internally and returns updates under the
-same names.</p>
-<p>A plain callable is enough for a small Euclidean problem. This complete line
-fit is executed by the documentation test target:</p>
+<p>Each <code class="docutils literal notranslate"><span class="pre">Variable</span></code> owns its tensor and geometry. Use <code class="docutils literal notranslate"><span class="pre">RobotVariable</span></code> for a robot
+configuration, <code class="docutils literal notranslate"><span class="pre">SE3Variable</span></code> for an object pose, and plain <code class="docutils literal notranslate"><span class="pre">Variable</span></code> for a
+Euclidean block such as camera intrinsics. Stable names make diagnostics and
+atomic <code class="docutils literal notranslate"><span class="pre">Problem.update()</span></code> calls readable without a separate packing schema.</p>
+<p>A decorated tensor function is enough for a small Euclidean problem. This
+complete line fit is executed by the documentation test target:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim</span><span class="w"> </span><span class="kn">import</span> <span class="n">Problem</span><span class="p">,</span> <span class="n">LevenbergMarquardt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim</span><span class="w"> </span><span class="kn">import</span> <span class="n">LevenbergMarquardt</span><span class="p">,</span> <span class="n">Problem</span><span class="p">,</span> <span class="n">Variable</span><span class="p">,</span> <span class="n">residual</span>
 
-<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">1.</span><span class="p">,</span> <span class="mf">2.</span><span class="p">,</span> <span class="mf">3.</span><span class="p">]);</span> <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">3.</span><span class="p">,</span> <span class="mf">5.</span><span class="p">,</span> <span class="mf">7.</span><span class="p">])</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">1.</span><span class="p">,</span> <span class="mf">2.</span><span class="p">,</span> <span class="mf">3.</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">3.</span><span class="p">,</span> <span class="mf">5.</span><span class="p">,</span> <span class="mf">7.</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="n">theta</span> <span class="o">=</span> <span class="n">Variable</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;theta&quot;</span><span class="p">)</span>
+<span class="n">observations</span> <span class="o">=</span> <span class="n">Variable</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;observations&quot;</span><span class="p">,</span> <span class="n">trainable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="n">ctx</span><span class="p">):</span>
-    <span class="n">m</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="n">ctx</span><span class="p">[</span><span class="s2">&quot;theta&quot;</span><span class="p">][</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="n">ctx</span><span class="p">[</span><span class="s2">&quot;theta&quot;</span><span class="p">][</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span>
-    <span class="k">return</span> <span class="n">m</span> <span class="o">*</span> <span class="n">x</span> <span class="o">+</span> <span class="n">c</span> <span class="o">-</span> <span class="n">y</span>
 
-<span class="n">problem</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">()</span>
-<span class="n">problem</span><span class="o">.</span><span class="n">add_variable</span><span class="p">(</span><span class="s2">&quot;theta&quot;</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,))</span>               <span class="c1"># Euclidean by default</span>
-<span class="n">problem</span><span class="o">.</span><span class="n">add_residual</span><span class="p">(</span><span class="n">fit</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>                        <span class="c1"># plain callable is enough</span>
-<span class="n">values</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="n">LevenbergMarquardt</span><span class="p">()</span><span class="o">.</span><span class="n">run</span><span class="p">({</span><span class="s2">&quot;theta&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">2</span><span class="p">)},</span> <span class="n">problem</span><span class="p">)</span>
+<span class="nd">@residual</span><span class="p">(</span><span class="n">theta</span><span class="p">,</span> <span class="n">observations</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="n">parameters</span><span class="p">,</span> <span class="n">measured</span><span class="p">):</span>
+    <span class="n">m</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="n">parameters</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="n">parameters</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">m</span> <span class="o">*</span> <span class="n">x</span> <span class="o">+</span> <span class="n">c</span> <span class="o">-</span> <span class="n">measured</span>
+
+
+<span class="n">problem</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">([</span><span class="n">fit</span><span class="p">])</span>
+<span class="n">info</span> <span class="o">=</span> <span class="n">LevenbergMarquardt</span><span class="p">(</span>
+    <span class="n">problem</span><span class="p">,</span>
+    <span class="n">max_iterations</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+    <span class="n">tolerance</span><span class="o">=</span><span class="mf">1e-9</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">optimize</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;solution:&quot;</span><span class="p">,</span> <span class="n">theta</span><span class="o">.</span><span class="n">tensor</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">decimals</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;converged:&quot;</span><span class="p">,</span> <span class="nb">bool</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">converged</span><span class="p">))</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">add_variable</span></code> creates a variable specification. <code class="docutils literal notranslate"><span class="pre">add_residual</span></code> wraps the
-callable in a residual item. Advanced construction can create <code class="docutils literal notranslate"><span class="pre">VarSpec</span></code> and
-<code class="docutils literal notranslate"><span class="pre">ResidualItem</span></code> values directly.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>solution: [2.0, 1.0]
+converged: True
+</pre></div>
+</div>
+<p>Subclass <code class="docutils literal notranslate"><span class="pre">Residual</span></code> when an error term needs analytic or temporal blocks, a
+custom weight, or a shared node.</p>
 </section>
-<section id="providers-share-expensive-work">
-<h2>Providers share expensive work<a class="headerlink" href="#providers-share-expensive-work" title="Link to this heading">#</a></h2>
+<section id="nodes-share-expensive-work">
+<h2>Nodes share expensive work<a class="headerlink" href="#nodes-share-expensive-work" title="Link to this heading">#</a></h2>
 <p>Several robot residuals need the same forward kinematics. Recomputing it in
 each residual would be wasteful and could produce inconsistent cache state.
-A provider declares what it reads and which context values it produces.
-<code class="docutils literal notranslate"><span class="pre">RobotStateProvider</span></code>, for example, produces <code class="docutils literal notranslate"><span class="pre">data</span></code> once for one problem
-evaluation.</p>
-<p>Provider outputs are cached only inside that evaluation. The next candidate
-configuration gets a fresh context. Recursive resolution supports providers
-that depend on other providers, while cycles raise a direct error.</p>
-<p>When a problem has one <code class="docutils literal notranslate"><span class="pre">RobotConfig</span></code> variable and a residual reads <code class="docutils literal notranslate"><span class="pre">data</span></code>, the
-usual robot-state provider is supplied automatically if no explicit provider
-already produces it.</p>
+A <code class="docutils literal notranslate"><span class="pre">Node</span></code> holds its input variables and computes a lazy value. <code class="docutils literal notranslate"><span class="pre">RobotState</span></code>,
+for example, owns one <code class="docutils literal notranslate"><span class="pre">RobotVariable</span></code> reference and provides FK data.</p>
+<p>A residual lists shared nodes in <code class="docutils literal notranslate"><span class="pre">nodes</span></code> and reads <code class="docutils literal notranslate"><span class="pre">node.value()</span></code> in
+<code class="docutils literal notranslate"><span class="pre">error()</span></code> or <code class="docutils literal notranslate"><span class="pre">jacobian()</span></code>. <code class="docutils literal notranslate"><span class="pre">Problem</span></code> merges compatible nodes when it freezes,
+invalidates their memos at every evaluation boundary, and therefore computes
+shared graph-bearing work at most once per evaluation without carrying it to
+the next candidate.</p>
 </section>
 <section id="built-in-residual-families">
 <h2>Built-in residual families<a class="headerlink" href="#built-in-residual-families" title="Link to this heading">#</a></h2>
@@ -710,7 +724,7 @@ already produces it.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">ProjectionResidual</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>Padded point sets</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">MaskedChamferResidual</span></code>, <code class="docutils literal notranslate"><span class="pre">SceneSDFProvider</span></code> and its penetration, attraction, and clearance residuals</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MaskedChamferResidual</span></code>, <code class="docutils literal notranslate"><span class="pre">SceneSDFState</span></code> and its penetration, attraction, and clearance residuals</p></td>
 </tr>
 <tr class="row-even"><td><p>Spherical-joint limits</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">SwingTwistLimitResidual</span></code></p></td>
@@ -718,11 +732,11 @@ already produces it.</p>
 </tbody>
 </table>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">JerkResidual</span></code> and <code class="docutils literal notranslate"><span class="pre">NullspaceResidual</span></code> are explicit placeholders that raise
-<code class="docutils literal notranslate"><span class="pre">NotImplementedError</span></code>; they are not live behavior.</p>
-<p>Residual weights belong to the surrounding <code class="docutils literal notranslate"><span class="pre">ResidualItem</span></code>. A weight of zero
-as a Python number skips that item. Tensor weights may vary over the execution
-batch while preserving its shape, dtype, and device.</p>
+<p>Every residual listed above is live. Unimplemented residual ideas are omitted
+from the API until their mathematical and temporal contracts are defined.</p>
+<p>Residual weights live on the <code class="docutils literal notranslate"><span class="pre">Residual</span></code> itself. A Python numeric zero skips
+that residual. Tensor weights remain graph-visible and may vary over the
+execution batch while preserving shape, dtype, and device.</p>
 </section>
 <section id="robust-losses">
 <h2>Robust losses<a class="headerlink" href="#robust-losses" title="Link to this heading">#</a></h2>
@@ -762,30 +776,44 @@ a trial is poor or the linear solve is unhealthy, it increases damping and
 tries more cautiously. Bounds use a projected active set, and manifold steps
 are retracted back to valid configurations.</p>
 <p><code class="docutils literal notranslate"><span class="pre">GaussNewton</span></code> is a fixed, very-low-damping preset of the same guarded update.
-BetterRobot owns these solvers because batched independent damping,
+BetterRobot owns these optimizers because batched independent damping,
 manifold-aware updates, robust rows, and bounds are central robotics behavior.
 First-order optimizers are delegated to <code class="docutils literal notranslate"><span class="pre">torch.optim</span></code> instead.</p>
 </section>
-<section id="owning-the-solver-loop">
-<h2>Owning the solver loop<a class="headerlink" href="#owning-the-solver-loop" title="Link to this heading">#</a></h2>
-<p>LM exposes the lifecycle needed for warm starts or an application-controlled
-loop:</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>from better_robot.optim import LevenbergMarquardt
-
-solver = LevenbergMarquardt(max_iter=50, gtol=1e-6)
-state = solver.init_state(values, problem)
-values, state = solver.update(values, state, problem)
-values, state = solver.finalize(values, state, problem)
+<section id="owning-the-optimizer-loop">
+<h2>Owning the optimizer loop<a class="headerlink" href="#owning-the-optimizer-loop" title="Link to this heading">#</a></h2>
+<p>Every optimizer owns one problem. <code class="docutils literal notranslate"><span class="pre">step()</span></code> advances referenced variables once;
+<code class="docutils literal notranslate"><span class="pre">optimize()</span></code> runs the complete eager loop:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">problem</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;theta&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">theta</span><span class="o">.</span><span class="n">tensor</span><span class="p">)})</span>
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">LevenbergMarquardt</span><span class="p">(</span>
+    <span class="n">problem</span><span class="p">,</span>
+    <span class="n">max_iterations</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+    <span class="n">tolerance</span><span class="o">=</span><span class="mf">1e-9</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">initial_cost</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">objective</span><span class="p">()</span>
+<span class="n">step_info</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;one step reduced cost:&quot;</span><span class="p">,</span> <span class="nb">bool</span><span class="p">((</span><span class="n">step_info</span><span class="o">.</span><span class="n">cost</span> <span class="o">&lt;</span> <span class="n">initial_cost</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()))</span>
+</pre></div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>one step reduced cost: True
 </pre></div>
 </div>
 <p>For an ordinary detached solve:</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>values, state = solver.run(values, problem)
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">info</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">optimize</span><span class="p">()</span>
+<span class="n">solution</span> <span class="o">=</span> <span class="n">theta</span><span class="o">.</span><span class="n">tensor</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;detached solution:&quot;</span><span class="p">,</span> <span class="n">solution</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">decimals</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;converged:&quot;</span><span class="p">,</span> <span class="nb">bool</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">converged</span><span class="p">))</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">LMState</span></code> contains tensor-valued damping, costs, convergence flags, status,
-and iteration counts for every batch element. Passing a previous terminal
-state to <code class="docutils literal notranslate"><span class="pre">run</span></code> preserves suitable damping information as a warm start; the
-problem and values are validated again.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>detached solution: [2.0, 1.0]
+converged: True
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">OptimizerInfo</span></code> contains only per-element status, iterations, cost, and a
+derived convergence flag. Detailed LM state is private. <code class="docutils literal notranslate"><span class="pre">Problem.update()</span></code>
+changes current variable tensors atomically; LM refreshes the changed graph
+while retaining compatible damping. <code class="docutils literal notranslate"><span class="pre">optimizer.reset()</span></code> clears optimizer
+state but deliberately retains current variable values.</p>
 <p>An initially non-finite model is reported as failed. A non-finite trial is
 rejected rather than installed as the new value. Exhausting the iteration
 budget returns the final candidate with a non-converged status.</p>
@@ -811,37 +839,80 @@ caller and a verified elimination design, not from guessing structure.</p>
 </section>
 <section id="first-order-optimization">
 <h2>First-order optimization<a class="headerlink" href="#first-order-optimization" title="Link to this heading">#</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">run_first_order</span></code> adapts the same problem to an ordinary
-<code class="docutils literal notranslate"><span class="pre">torch.optim.Optimizer</span></code>:</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>from better_robot.optim import run_first_order
+<p><code class="docutils literal notranslate"><span class="pre">TorchOptimizer</span></code> adapts the same problem to an ordinary
+<code class="docutils literal notranslate"><span class="pre">torch.optim.Optimizer</span></code> class or factory:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim</span><span class="w"> </span><span class="kn">import</span> <span class="n">TorchOptimizer</span>
 
-values, result = run_first_order(
-    values,
-    problem,
-    lambda parameters: torch.optim.Adam(parameters, lr=1e-2),
-    max_iter=100,
-    tolerance=1e-6,
-)
+<span class="n">adam_value</span> <span class="o">=</span> <span class="n">Variable</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">0.0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;adam_value&quot;</span><span class="p">)</span>
+<span class="n">adam_target</span> <span class="o">=</span> <span class="n">Variable</span><span class="p">(</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">3.0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">),</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;adam_target&quot;</span><span class="p">,</span>
+    <span class="n">trainable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<span class="nd">@residual</span><span class="p">(</span><span class="n">adam_value</span><span class="p">,</span> <span class="n">adam_target</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">adam_error</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">desired</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">value</span> <span class="o">-</span> <span class="n">desired</span>
+
+
+<span class="n">adam_problem</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">([</span><span class="n">adam_error</span><span class="p">])</span>
+<span class="n">adam</span> <span class="o">=</span> <span class="n">TorchOptimizer</span><span class="p">(</span>
+    <span class="n">adam_problem</span><span class="p">,</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">,</span>
+    <span class="n">lr</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+    <span class="n">max_iterations</span><span class="o">=</span><span class="mi">250</span><span class="p">,</span>
+    <span class="n">tolerance</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">adam_info</span> <span class="o">=</span> <span class="n">adam</span><span class="o">.</span><span class="n">optimize</span><span class="p">()</span>
+<span class="n">near_target</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">adam_value</span><span class="o">.</span><span class="n">tensor</span><span class="p">,</span> <span class="n">adam_target</span><span class="o">.</span><span class="n">tensor</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Adam reached target:&quot;</span><span class="p">,</span> <span class="nb">bool</span><span class="p">(</span><span class="n">near_target</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Adam converged:&quot;</span><span class="p">,</span> <span class="nb">bool</span><span class="p">(</span><span class="n">adam_info</span><span class="o">.</span><span class="n">converged</span><span class="p">))</span>
+</pre></div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Adam reached target: True
+Adam converged: True
 </pre></div>
 </div>
 <p>The adapter keeps tangent buffers, lets the Torch optimizer update them,
-retracts the result onto each manifold, and rebases the buffers without
+retracts through each variable’s geometry, and rebases the buffers without
 discarding optimizer state. Adam, SGD, or another compatible optimizer can be
 selected by the factory. BetterRobot does not reimplement their moment rules.</p>
 </section>
 <section id="differentiating-a-solution">
 <h2>Differentiating a solution<a class="headerlink" href="#differentiating-a-solution" title="Link to this heading">#</a></h2>
-<p>The default solver result is detached. Eligible converged problems can request
-a guarded implicit derivative:</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>values, state = solver.solve(values, problem, differentiate=&quot;implicit&quot;)
-loss = values[&quot;q&quot;].square().sum()
-loss.backward()
+<p>The default optimizer result is detached. Eligible converged problems can
+request a guarded implicit derivative:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">target_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">2.0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">q</span> <span class="o">=</span> <span class="n">Variable</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;q&quot;</span><span class="p">)</span>
+<span class="n">target</span> <span class="o">=</span> <span class="n">Variable</span><span class="p">(</span><span class="n">target_tensor</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;implicit_target&quot;</span><span class="p">,</span> <span class="n">trainable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+
+<span class="nd">@residual</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">target_error</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">desired</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">value</span> <span class="o">-</span> <span class="n">desired</span>
+
+
+<span class="n">implicit_problem</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">([</span><span class="n">target_error</span><span class="p">])</span>
+<span class="n">lm</span> <span class="o">=</span> <span class="n">LevenbergMarquardt</span><span class="p">(</span><span class="n">implicit_problem</span><span class="p">,</span> <span class="n">max_iterations</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">tolerance</span><span class="o">=</span><span class="mf">1e-10</span><span class="p">)</span>
+<span class="n">implicit_info</span> <span class="o">=</span> <span class="n">lm</span><span class="o">.</span><span class="n">optimize</span><span class="p">(</span><span class="n">differentiate</span><span class="o">=</span><span class="s2">&quot;implicit&quot;</span><span class="p">)</span>
+<span class="n">loss</span> <span class="o">=</span> <span class="n">q</span><span class="o">.</span><span class="n">tensor</span><span class="o">.</span><span class="n">square</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+<span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;implicit solution:&quot;</span><span class="p">,</span> <span class="n">q</span><span class="o">.</span><span class="n">tensor</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">decimals</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;target gradient:&quot;</span><span class="p">,</span> <span class="n">target_tensor</span><span class="o">.</span><span class="n">grad</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">decimals</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;implicit converged:&quot;</span><span class="p">,</span> <span class="nb">bool</span><span class="p">(</span><span class="n">implicit_info</span><span class="o">.</span><span class="n">converged</span><span class="p">))</span>
 </pre></div>
 </div>
-<p>The backward path checks convergence, active bounds, quaternion branch cuts,
-robust-loss kinks, problem size, and linearization support. If those
-assumptions do not hold, it raises <code class="docutils literal notranslate"><span class="pre">ImplicitDifferentiationError</span></code> instead of
-returning a derivative that looks plausible but is not justified.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>implicit solution: [2.0]
+target gradient: [4.0]
+implicit converged: True
+</pre></div>
+</div>
+<p>Graph-carrying static variables are the differentiable inputs. The backward
+path checks convergence, active bounds, quaternion branch cuts, robust-loss
+kinks, problem size, and linearization support. If those assumptions do not
+hold, it raises <code class="docutils literal notranslate"><span class="pre">ImplicitDifferentiationError</span></code> instead of returning a
+derivative that looks plausible but is not justified.</p>
 </section>
 <section id="common-mistakes">
 <h2>Common mistakes<a class="headerlink" href="#common-mistakes" title="Link to this heading">#</a></h2>
@@ -916,14 +987,14 @@ ownership.</p></li>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#from-an-error-to-least-squares">From an error to least squares</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#a-residual-is-a-small-callable">A residual is a small callable</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problems-have-named-variables">Problems have named variables</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#providers-share-expensive-work">Providers share expensive work</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#a-residual-holds-its-dependencies">A residual holds its dependencies</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problems-harvest-an-object-graph">Problems harvest an object graph</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#nodes-share-expensive-work">Nodes share expensive work</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#built-in-residual-families">Built-in residual families</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#robust-losses">Robust losses</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#gauss-newton-in-plain-words">Gauss–Newton in plain words</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#levenberg-marquardt-and-damping">Levenberg–Marquardt and damping</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#owning-the-solver-loop">Owning the solver loop</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#owning-the-optimizer-loop">Owning the optimizer loop</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dense-and-temporal-linearization">Dense and temporal linearization</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#first-order-optimization">First-order optimization</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#differentiating-a-solution">Differentiating a solution</a></li>
@@ -962,7 +1033,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>

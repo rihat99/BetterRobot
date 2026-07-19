@@ -57,7 +57,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -193,7 +193,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
@@ -246,6 +246,7 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -284,12 +285,10 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -561,24 +560,22 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFResult.has_point"><code class="docutils literal notranslate"><span class="pre">SceneSDFResult.has_point</span></code></a></li>
 </ul>
 </li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.query_points"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.query_points</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.query_validity"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.query_validity</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.scene_points"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.scene_points</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.scene_normals"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.scene_normals</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.scene_validity"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.scene_validity</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.scene_confidence"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.scene_confidence</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.output"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.output</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.name"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.name</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.chunk_size"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.chunk_size</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.eps"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.eps</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.reads"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.reads</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.outputs"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.outputs</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFState"><code class="docutils literal notranslate"><span class="pre">SceneSDFState</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFState.compute"><code class="docutils literal notranslate"><span class="pre">SceneSDFState.compute()</span></code></a></li>
 </ul>
 </li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.ScenePenetrationResidual"><code class="docutils literal notranslate"><span class="pre">ScenePenetrationResidual</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneAttractionResidual"><code class="docutils literal notranslate"><span class="pre">SceneAttractionResidual</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneClearanceResidual"><code class="docutils literal notranslate"><span class="pre">SceneClearanceResidual</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.ScenePenetrationResidual"><code class="docutils literal notranslate"><span class="pre">ScenePenetrationResidual</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.ScenePenetrationResidual.error"><code class="docutils literal notranslate"><span class="pre">ScenePenetrationResidual.error()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneAttractionResidual"><code class="docutils literal notranslate"><span class="pre">SceneAttractionResidual</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneAttractionResidual.error"><code class="docutils literal notranslate"><span class="pre">SceneAttractionResidual.error()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneClearanceResidual"><code class="docutils literal notranslate"><span class="pre">SceneClearanceResidual</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneClearanceResidual.error"><code class="docutils literal notranslate"><span class="pre">SceneClearanceResidual.error()</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -596,7 +593,7 @@
                   
   <section id="module-better_robot.residuals.scene_sdf">
 <span id="better-robot-residuals-scene-sdf"></span><h1><a class="reference internal" href="#module-better_robot.residuals.scene_sdf" title="better_robot.residuals.scene_sdf"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.scene_sdf</span></code></a><a class="headerlink" href="#module-better_robot.residuals.scene_sdf" title="Link to this heading">#</a></h1>
-<p>Point-cloud signed-distance provider and reusable penalty residuals.</p>
+<p>Shared point-cloud signed-distance state and reusable penalty residuals.</p>
 <section id="module-contents">
 <h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading">#</a></h2>
 <section id="classes">
@@ -606,8 +603,8 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.residuals.scene_sdf.SceneSDFResult" title="better_robot.residuals.scene_sdf.SceneSDFResult"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SceneSDFResult</span></code></a></p></td>
 <td><p>Fixed-shape outputs shared by all scene signed-distance heads.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#better_robot.residuals.scene_sdf.SceneSDFProvider" title="better_robot.residuals.scene_sdf.SceneSDFProvider"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SceneSDFProvider</span></code></a></p></td>
-<td><p>Approximate point-cloud SDF with one detached nearest-neighbour pass.</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#better_robot.residuals.scene_sdf.SceneSDFState" title="better_robot.residuals.scene_sdf.SceneSDFState"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SceneSDFState</span></code></a></p></td>
+<td><p>Approximate point-cloud SDF cached for one evaluation epoch.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.residuals.scene_sdf.ScenePenetrationResidual" title="better_robot.residuals.scene_sdf.ScenePenetrationResidual"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ScenePenetrationResidual</span></code></a></p></td>
 <td><p>Positive signed depth for query points behind the scene surface.</p></td>
@@ -628,135 +625,81 @@
 <dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneSDFResult">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SceneSDFResult</span></span><a class="reference internal" href="../../../_modules/better_robot/residuals/scene_sdf.html#SceneSDFResult"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFResult" title="Link to this definition">#</a></dt>
 <dd><p>Fixed-shape outputs shared by all scene signed-distance heads.</p>
-<p>All fields have shape <code class="docutils literal notranslate"><span class="pre">(B...,</span> <span class="pre">frames,</span> <span class="pre">query_points)</span></code>. <code class="docutils literal notranslate"><span class="pre">has_point</span></code>
-is boolean; the other fields preserve the query-point floating dtype.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneSDFResult.signed_distance">
-<span class="sig-name descname"><span class="pre">signed_distance</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFResult.signed_distance" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">signed_distance</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></em><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFResult.signed_distance" title="Link to this definition">#</a></dt>
 <dd><p>None</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneSDFResult.dmin">
-<span class="sig-name descname"><span class="pre">dmin</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFResult.dmin" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">dmin</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></em><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFResult.dmin" title="Link to this definition">#</a></dt>
 <dd><p>None</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneSDFResult.confidence">
-<span class="sig-name descname"><span class="pre">confidence</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFResult.confidence" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">confidence</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></em><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFResult.confidence" title="Link to this definition">#</a></dt>
 <dd><p>None</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneSDFResult.has_point">
-<span class="sig-name descname"><span class="pre">has_point</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFResult.has_point" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">has_point</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></em><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFResult.has_point" title="Link to this definition">#</a></dt>
 <dd><p>None</p>
 </dd></dl>
 
 </dd></dl>
 
 <dl class="py class">
-<dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneSDFProvider">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SceneSDFProvider</span></span><a class="reference internal" href="../../../_modules/better_robot/residuals/scene_sdf.html#SceneSDFProvider"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFProvider" title="Link to this definition">#</a></dt>
-<dd><p>Approximate point-cloud SDF with one detached nearest-neighbour pass.</p>
-<p>Queries and scenes use the padded <code class="docutils literal notranslate"><span class="pre">(tensor,</span> <span class="pre">validity_mask)</span></code> convention.
-Scene normals orient the unsigned nearest distance.  Both nearest indices
-and the side-of-surface sign are detached discrete choices; distance is
-reconstructed from graph-carrying query/scene points.  <code class="docutils literal notranslate"><span class="pre">confidence</span></code> is
-the absolute normal alignment, optionally multiplied by a gathered scene
-confidence table.</p>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneSDFProvider.query_points">
-<span class="sig-name descname"><span class="pre">query_points</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.query_points" title="Link to this definition">#</a></dt>
-<dd><p>‘scene_query_points’</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneSDFProvider.query_validity">
-<span class="sig-name descname"><span class="pre">query_validity</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.query_validity" title="Link to this definition">#</a></dt>
-<dd><p>‘scene_query_validity’</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneSDFProvider.scene_points">
-<span class="sig-name descname"><span class="pre">scene_points</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.scene_points" title="Link to this definition">#</a></dt>
-<dd><p>‘scene_points’</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneSDFProvider.scene_normals">
-<span class="sig-name descname"><span class="pre">scene_normals</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.scene_normals" title="Link to this definition">#</a></dt>
-<dd><p>‘scene_normals’</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneSDFProvider.scene_validity">
-<span class="sig-name descname"><span class="pre">scene_validity</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.scene_validity" title="Link to this definition">#</a></dt>
-<dd><p>‘scene_validity’</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneSDFProvider.scene_confidence">
-<span class="sig-name descname"><span class="pre">scene_confidence</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.scene_confidence" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneSDFProvider.output">
-<span class="sig-name descname"><span class="pre">output</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.output" title="Link to this definition">#</a></dt>
-<dd><p>‘scene_sdf’</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneSDFProvider.name">
-<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.name" title="Link to this definition">#</a></dt>
-<dd><p>‘scene_sdf_provider’</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneSDFProvider.chunk_size">
-<span class="sig-name descname"><span class="pre">chunk_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.chunk_size" title="Link to this definition">#</a></dt>
-<dd><p>4096</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneSDFProvider.eps">
-<span class="sig-name descname"><span class="pre">eps</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.eps" title="Link to this definition">#</a></dt>
-<dd><p>1e-08</p>
-</dd></dl>
-
-<dl class="py property">
-<dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneSDFProvider.reads">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">reads</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.reads" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py property">
-<dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneSDFProvider.outputs">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">outputs</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.outputs" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneSDFState">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SceneSDFState</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">query_points</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.residuals._variables.VariableLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">query_validity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.residuals._variables.VariableLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scene_points</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.residuals._variables.VariableLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scene_normals</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.residuals._variables.VariableLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scene_validity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.residuals._variables.VariableLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scene_confidence</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.residuals._variables.VariableLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">4096</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eps</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1e-08</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/residuals/scene_sdf.html#SceneSDFState"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFState" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="better_robot.residuals.nodes.html#better_robot.residuals.nodes.Node" title="better_robot.residuals.nodes.Node"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.residuals.nodes.Node</span></code></a></p>
+<p>Approximate point-cloud SDF cached for one evaluation epoch.</p>
+<p>This multi-input node is never identity-merged. Reuse is explicit: pass
+the same :class:<code class="docutils literal notranslate"><span class="pre">SceneSDFState</span></code> object to every penalty residual that
+should share one detached nearest-neighbour computation.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneSDFState.compute">
+<span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#better_robot.residuals.scene_sdf.SceneSDFResult" title="better_robot.residuals.scene_sdf.SceneSDFResult"><span class="pre">better_robot.residuals.scene_sdf.SceneSDFResult</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/residuals/scene_sdf.html#SceneSDFState.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneSDFState.compute" title="Link to this definition">#</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.ScenePenetrationResidual">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ScenePenetrationResidual</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">frames</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">points</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scene_sdf</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'scene_sdf'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'scene_penetration'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/residuals/scene_sdf.html#ScenePenetrationResidual"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.scene_sdf.ScenePenetrationResidual" title="Link to this definition">#</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ScenePenetrationResidual</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#better_robot.residuals.scene_sdf.SceneSDFState" title="better_robot.residuals.scene_sdf.SceneSDFState"><span class="pre">better_robot.residuals.scene_sdf.SceneSDFState</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.residuals.base.html#better_robot.residuals.base.Weight" title="better_robot.residuals.base.Weight"><span class="pre">better_robot.residuals.base.Weight</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">numbers.Real</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">object</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'scene_penetration'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/residuals/scene_sdf.html#ScenePenetrationResidual"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.scene_sdf.ScenePenetrationResidual" title="Link to this definition">#</a></dt>
 <dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.residuals.scene_sdf._ScenePenaltyResidual</span></code></p>
 <p>Positive signed depth for query points behind the scene surface.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.ScenePenetrationResidual.error">
+<span class="sig-name descname"><span class="pre">error</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">torch.Tensor</span></span></span><a class="reference internal" href="../../../_modules/better_robot/residuals/scene_sdf.html#ScenePenetrationResidual.error"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.scene_sdf.ScenePenetrationResidual.error" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneAttractionResidual">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SceneAttractionResidual</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">frames</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">points</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_distance</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scene_sdf</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'scene_sdf'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'scene_attraction'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/residuals/scene_sdf.html#SceneAttractionResidual"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneAttractionResidual" title="Link to this definition">#</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SceneAttractionResidual</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#better_robot.residuals.scene_sdf.SceneSDFState" title="better_robot.residuals.scene_sdf.SceneSDFState"><span class="pre">better_robot.residuals.scene_sdf.SceneSDFState</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_distance</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.residuals.base.html#better_robot.residuals.base.Weight" title="better_robot.residuals.base.Weight"><span class="pre">better_robot.residuals.base.Weight</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">numbers.Real</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">object</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'scene_attraction'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/residuals/scene_sdf.html#SceneAttractionResidual"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneAttractionResidual" title="Link to this definition">#</a></dt>
 <dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.residuals.scene_sdf._ScenePenaltyResidual</span></code></p>
 <p>Absolute signed-distance error toward a requested surface offset.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneAttractionResidual.error">
+<span class="sig-name descname"><span class="pre">error</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">torch.Tensor</span></span></span><a class="reference internal" href="../../../_modules/better_robot/residuals/scene_sdf.html#SceneAttractionResidual.error"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneAttractionResidual.error" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneClearanceResidual">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SceneClearanceResidual</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">frames</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">points</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clearance</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">scene_sdf</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'scene_sdf'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'scene_clearance'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/residuals/scene_sdf.html#SceneClearanceResidual"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneClearanceResidual" title="Link to this definition">#</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SceneClearanceResidual</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#better_robot.residuals.scene_sdf.SceneSDFState" title="better_robot.residuals.scene_sdf.SceneSDFState"><span class="pre">better_robot.residuals.scene_sdf.SceneSDFState</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clearance</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.residuals.base.html#better_robot.residuals.base.Weight" title="better_robot.residuals.base.Weight"><span class="pre">better_robot.residuals.base.Weight</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">numbers.Real</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">object</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'scene_clearance'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/residuals/scene_sdf.html#SceneClearanceResidual"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneClearanceResidual" title="Link to this definition">#</a></dt>
 <dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.residuals.scene_sdf._ScenePenaltyResidual</span></code></p>
 <p>One-sided excess above an allowed positive signed clearance.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="better_robot.residuals.scene_sdf.SceneClearanceResidual.error">
+<span class="sig-name descname"><span class="pre">error</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">torch.Tensor</span></span></span><a class="reference internal" href="../../../_modules/better_robot/residuals/scene_sdf.html#SceneClearanceResidual.error"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.scene_sdf.SceneClearanceResidual.error" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 </section>
@@ -820,24 +763,22 @@ confidence table.</p>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFResult.has_point"><code class="docutils literal notranslate"><span class="pre">SceneSDFResult.has_point</span></code></a></li>
 </ul>
 </li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.query_points"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.query_points</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.query_validity"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.query_validity</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.scene_points"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.scene_points</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.scene_normals"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.scene_normals</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.scene_validity"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.scene_validity</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.scene_confidence"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.scene_confidence</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.output"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.output</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.name"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.name</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.chunk_size"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.chunk_size</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.eps"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.eps</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.reads"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.reads</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFProvider.outputs"><code class="docutils literal notranslate"><span class="pre">SceneSDFProvider.outputs</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFState"><code class="docutils literal notranslate"><span class="pre">SceneSDFState</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneSDFState.compute"><code class="docutils literal notranslate"><span class="pre">SceneSDFState.compute()</span></code></a></li>
 </ul>
 </li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.ScenePenetrationResidual"><code class="docutils literal notranslate"><span class="pre">ScenePenetrationResidual</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneAttractionResidual"><code class="docutils literal notranslate"><span class="pre">SceneAttractionResidual</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneClearanceResidual"><code class="docutils literal notranslate"><span class="pre">SceneClearanceResidual</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.ScenePenetrationResidual"><code class="docutils literal notranslate"><span class="pre">ScenePenetrationResidual</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.ScenePenetrationResidual.error"><code class="docutils literal notranslate"><span class="pre">ScenePenetrationResidual.error()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneAttractionResidual"><code class="docutils literal notranslate"><span class="pre">SceneAttractionResidual</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneAttractionResidual.error"><code class="docutils literal notranslate"><span class="pre">SceneAttractionResidual.error()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneClearanceResidual"><code class="docutils literal notranslate"><span class="pre">SceneClearanceResidual</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.scene_sdf.SceneClearanceResidual.error"><code class="docutils literal notranslate"><span class="pre">SceneClearanceResidual.error()</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -875,7 +816,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>

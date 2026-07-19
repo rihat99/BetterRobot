@@ -213,29 +213,10 @@
 
 ````
 
-````{py:attribute} body_inertias_6x6
-:canonical: better_robot.data_model.model_values.ModelValues.body_inertias_6x6
-:type: torch.Tensor | None
-:value: >
-   None
-
-```{autodoc2-docstring} better_robot.data_model.model_values.ModelValues.body_inertias_6x6
-```
-
-````
-
 ````{py:method} validate(structure: better_robot.data_model.model_structure.ModelStructure) -> None
 :canonical: better_robot.data_model.model_values.ModelValues.validate
 
 ```{autodoc2-docstring} better_robot.data_model.model_values.ModelValues.validate
-```
-
-````
-
-````{py:method} execution_batch_shape(structure: better_robot.data_model.model_structure.ModelStructure, q: torch.Tensor) -> tuple[int, ...]
-:canonical: better_robot.data_model.model_values.ModelValues.execution_batch_shape
-
-```{autodoc2-docstring} better_robot.data_model.model_values.ModelValues.execution_batch_shape
 ```
 
 ````

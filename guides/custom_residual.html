@@ -57,7 +57,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -193,7 +193,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/viewer.html">Viewer</a></li>
@@ -246,6 +246,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -284,12 +285,10 @@
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -570,75 +569,85 @@
 position target might return three errors; a signed-distance term might return
 one error per sampled point. BetterRobot squares and combines those rows for
 least-squares optimization.</p>
-<p>You do not need to subclass a library base class. A residual object declares:</p>
+<p>Subclass <code class="xref py py-class docutils literal notranslate"><span class="pre">better_robot.optim.Residual</span></code>, keep direct references to the
+variables or nodes it reads, and implement <code class="docutils literal notranslate"><span class="pre">error()</span></code>. The base constructor
+declares:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">name</span></code>, unique within one problem;</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">reads</span></code>, the context entries it uses;</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">dim</span></code>, the fixed number of output rows; and</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">__call__(ctx)</span></code>, which returns a tensor shaped <code class="docutils literal notranslate"><span class="pre">(*batch,</span> <span class="pre">dim)</span></code>.</p></li>
+<li><p>the variables, weight, robust kernel, and robust <code class="docutils literal notranslate"><span class="pre">group_size</span></code>.</p></li>
 </ul>
 <p>This residual turns negative signed distances into positive penetration
 depths. The example also evaluates the exact class through a public
 <code class="xref py py-class docutils literal notranslate"><span class="pre">better_robot.optim.Problem</span></code>.</p>
 <!-- custom-residual-example:start -->
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim</span><span class="w"> </span><span class="kn">import</span> <span class="n">Problem</span><span class="p">,</span> <span class="n">ResidualItem</span><span class="p">,</span> <span class="n">VarSpec</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.optim</span><span class="w"> </span><span class="kn">import</span> <span class="n">Problem</span><span class="p">,</span> <span class="n">Residual</span><span class="p">,</span> <span class="n">Variable</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">better_robot.residuals</span><span class="w"> </span><span class="kn">import</span> <span class="n">Node</span>
 
 
-<span class="k">class</span><span class="w"> </span><span class="nc">PenetrationResidual</span><span class="p">:</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">PenetrationResidual</span><span class="p">(</span><span class="n">Residual</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Positive depth for samples lying behind a surface.&quot;&quot;&quot;</span>
 
-    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;penetration&quot;</span>
-    <span class="n">reads</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;signed_distance&quot;</span><span class="p">,)</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signed_distance</span><span class="p">:</span> <span class="n">Node</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">time</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">points</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">signed_distance</span> <span class="o">=</span> <span class="n">signed_distance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span> <span class="o">=</span> <span class="p">(</span><span class="n">signed_distance</span><span class="p">,)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="o">*</span><span class="n">signed_distance</span><span class="o">.</span><span class="n">variables</span><span class="p">,</span>
+            <span class="n">dim</span><span class="o">=</span><span class="n">time</span> <span class="o">*</span> <span class="n">points</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;penetration&quot;</span><span class="p">,</span>
+            <span class="n">weight</span><span class="o">=</span><span class="n">weight</span><span class="p">,</span>
+        <span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">time</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">points</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">=</span> <span class="n">time</span> <span class="o">*</span> <span class="n">points</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
-        <span class="n">signed</span> <span class="o">=</span> <span class="n">ctx</span><span class="p">[</span><span class="s2">&quot;signed_distance&quot;</span><span class="p">]</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">error</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">signed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">signed_distance</span><span class="o">.</span><span class="n">value</span><span class="p">()[</span><span class="s2">&quot;signed_distance&quot;</span><span class="p">]</span>
         <span class="n">penetration</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="o">-</span><span class="n">signed</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">penetration</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">*</span><span class="n">signed</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">)</span>
 
 
-<span class="n">signed_distance</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="o">-</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.4</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">]])</span>
-<span class="n">residual</span> <span class="o">=</span> <span class="n">PenetrationResidual</span><span class="p">(</span><span class="n">time</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">points</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-<span class="n">problem</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">(</span>
-    <span class="nb">vars</span><span class="o">=</span><span class="p">(</span><span class="n">VarSpec</span><span class="p">(</span><span class="s2">&quot;dummy&quot;</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,)),),</span>
-    <span class="n">residuals</span><span class="o">=</span><span class="p">(</span><span class="n">ResidualItem</span><span class="p">(</span><span class="s2">&quot;penetration&quot;</span><span class="p">,</span> <span class="n">residual</span><span class="p">),),</span>
-    <span class="n">parameters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;signed_distance&quot;</span><span class="p">:</span> <span class="n">signed_distance</span><span class="p">},</span>
-<span class="p">)</span>
-<span class="n">rows</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">residual</span><span class="p">({</span><span class="s2">&quot;dummy&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">)})</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SignedDistance</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">distance</span> <span class="o">=</span> <span class="n">Variable</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;signed_distance&quot;</span><span class="p">,</span> <span class="n">trainable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">distance</span><span class="p">)</span>
 
-<span class="n">torch</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_close</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]))</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;signed_distance&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">distance</span><span class="o">.</span><span class="n">tensor</span><span class="p">}</span>
+
+
+<span class="n">signed_distance</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="o">-</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.4</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="n">residual</span> <span class="o">=</span> <span class="n">PenetrationResidual</span><span class="p">(</span><span class="n">SignedDistance</span><span class="p">(</span><span class="n">signed_distance</span><span class="p">),</span> <span class="n">time</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">points</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">problem</span> <span class="o">=</span> <span class="n">Problem</span><span class="p">([</span><span class="n">residual</span><span class="p">])</span>
+<span class="n">rows</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">error</span><span class="p">()</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">rows</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
 </pre></div>
 </div>
 <!-- custom-residual-example:end -->
-<p>The <code class="docutils literal notranslate"><span class="pre">dummy</span></code> variable only makes this tiny example a complete optimization
-problem; a real residual normally reads an optimized variable or a provider
-output. <code class="docutils literal notranslate"><span class="pre">reads</span></code> tells BetterRobot which variables can affect each Jacobian
-block. It is a structural declaration, so keep it accurate even though the
-context behaves like a mapping.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>[0.2, 0.0, 0.4, 0.0]
+</pre></div>
+</div>
+<p>The example uses a static variable because it only evaluates rows. In an
+optimization, the node would reference trainable variables instead; the
+problem discovers those references through the residual’s object graph.</p>
 <section id="shared-calculations">
 <h2>Shared calculations<a class="headerlink" href="#shared-calculations" title="Link to this heading">#</a></h2>
 <p>If several residuals need the same expensive calculation, put that work in a
-provider. A provider declares its own <code class="docutils literal notranslate"><span class="pre">reads</span></code> plus one or more <code class="docutils literal notranslate"><span class="pre">outputs</span></code>.
-BetterRobot computes a requested provider once during one problem evaluation
-and shares the result. Kinematics is the common example: several frame errors
-can reuse one FK pass.</p>
-<p>Do not cache a provider result on the residual object. A cached tensor can
-belong to an old input or an old autograd graph. Let the evaluation context own
-that short-lived cache.</p>
+<code class="xref py py-class docutils literal notranslate"><span class="pre">better_robot.residuals.Node</span></code>. BetterRobot computes a referenced node
+once during one problem evaluation and shares the result. Kinematics is the
+common example: several frame errors can reuse one FK pass.</p>
+<p>Do not cache a computed tensor on the residual object. A cached tensor can
+belong to an old input or an old autograd graph. <code class="docutils literal notranslate"><span class="pre">Node.value()</span></code> owns the
+evaluation-epoch memo and invalidates it between graph evaluations.</p>
 </section>
 <section id="jacobians-and-robust-groups">
 <h2>Jacobians and robust groups<a class="headerlink" href="#jacobians-and-robust-groups" title="Link to this heading">#</a></h2>
-<p>PyTorch automatic differentiation is the default. Add
-<code class="docutils literal notranslate"><span class="pre">jacobian_blocks(ctx)</span></code> only when you have a complete, tested analytic formula.
-Compare every analytic block with <code class="docutils literal notranslate"><span class="pre">jacrev</span></code> or <code class="docutils literal notranslate"><span class="pre">jacfwd</span></code> before relying on it.</p>
-<p><code class="docutils literal notranslate"><span class="pre">ResidualItem.group_size</span></code> says which consecutive rows form one robust group.
+<p>PyTorch automatic differentiation is the default. Override <code class="docutils literal notranslate"><span class="pre">jacobian()</span></code> only
+when you have a complete, tested analytic formula. Return blocks in the same
+order as the residual’s trainable variable references, and compare them with
+<code class="docutils literal notranslate"><span class="pre">jacrev</span></code> or <code class="docutils literal notranslate"><span class="pre">jacfwd</span></code> before relying on them.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Residual.group_size</span></code> says which consecutive rows form one robust group.
 Scalar penetration depths use the default <code class="docutils literal notranslate"><span class="pre">1</span></code>. A flattened list of 3D point
-errors can use <code class="docutils literal notranslate"><span class="pre">group_size=3</span></code>. Non-default groups require direct
-<code class="docutils literal notranslate"><span class="pre">ResidualItem(...,</span> <span class="pre">group_size=3)</span></code> construction; <code class="docutils literal notranslate"><span class="pre">Problem.add_residual</span></code> is the
-short path for the default scalar grouping.</p>
+errors can pass <code class="docutils literal notranslate"><span class="pre">group_size=3</span></code> to <code class="docutils literal notranslate"><span class="pre">Residual.__init__</span></code>.</p>
 <p>Variable-size observations still need a fixed output shape. Pad to a declared
 maximum and return finite zero rows for missing observations. Reserve NaN rows
 for a genuinely invalid batch element, not ordinary padding.</p>
@@ -727,7 +736,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>

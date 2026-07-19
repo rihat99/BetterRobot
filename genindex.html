@@ -54,7 +54,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -192,7 +192,7 @@
 <li class="toctree-l2"><a class="reference internal" href="concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="concepts/viewer.html">Viewer</a></li>
@@ -245,6 +245,7 @@
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -283,12 +284,10 @@
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -514,7 +513,6 @@
  | <a href="#U"><strong>U</strong></a>
  | <a href="#V"><strong>V</strong></a>
  | <a href="#W"><strong>W</strong></a>
- | <a href="#X"><strong>X</strong></a>
  | <a href="#Z"><strong>Z</strong></a>
  
 </div>
@@ -553,12 +551,6 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.spatial.ops.html#better_robot.spatial.ops.act_motion">act_motion() (in module better_robot.spatial.ops)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.implicit.html#better_robot.optim.implicit.ImplicitTerminalState.active_mask">active_mask (ImplicitTerminalState attribute)</a>
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.active_mask">(LMState attribute)</a>
-</li>
-      </ul></li>
       <li><a href="reference/api/better_robot/better_robot.spatial.ops.html#better_robot.spatial.ops.ad">ad() (in module better_robot.spatial.ops)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.spatial.ops.html#better_robot.spatial.ops.ad_star">ad_star() (in module better_robot.spatial.ops)</a>
@@ -669,14 +661,14 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.io.parsers.programmatic.html#better_robot.io.parsers.programmatic.ModelBuilder.add_prismatic_y">add_prismatic_y() (ModelBuilder method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference/api/better_robot/better_robot.io.parsers.programmatic.html#better_robot.io.parsers.programmatic.ModelBuilder.add_prismatic_z">add_prismatic_z() (ModelBuilder method)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.Problem.add_residual">add_residual() (Problem method)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.io.parsers.programmatic.html#better_robot.io.parsers.programmatic.ModelBuilder.add_revolute">add_revolute() (ModelBuilder method)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference/api/better_robot/better_robot.io.parsers.programmatic.html#better_robot.io.parsers.programmatic.ModelBuilder.add_revolute_x">add_revolute_x() (ModelBuilder method)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.io.parsers.programmatic.html#better_robot.io.parsers.programmatic.ModelBuilder.add_revolute_y">add_revolute_y() (ModelBuilder method)</a>
@@ -701,8 +693,6 @@
         <li><a href="reference/api/better_robot/better_robot.viewer.renderers.viser_backend.html#better_robot.viewer.renderers.viser_backend.ViserBackend.add_transform_control">(ViserBackend method)</a>
 </li>
       </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.Problem.add_variable">add_variable() (Problem method)</a>
-</li>
       <li><a href="reference/api/better_robot/better_robot.lie.se3.html#better_robot.lie.se3.adjoint">adjoint() (in module better_robot.lie.se3)</a>
 
       <ul>
@@ -729,10 +719,26 @@
         <li><a href="reference/api/better_robot/better_robot.spatial.motion.html#better_robot.spatial.motion.Motion.angular">(Motion property)</a>
 </li>
       </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.spatial.inertia.html#better_robot.spatial.inertia.Inertia.apply">apply() (Inertia method)</a>
+      <li><a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.DiagonalWeight.apply">apply() (DiagonalWeight method)</a>
+
+      <ul>
+        <li><a href="reference/api/better_robot/better_robot.spatial.inertia.html#better_robot.spatial.inertia.Inertia.apply">(Inertia method)</a>
 </li>
+        <li><a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.ScaleWeight.apply">(ScaleWeight method)</a>
+</li>
+        <li><a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.Weight.apply">(Weight method)</a>
+</li>
+      </ul></li>
       <li><a href="reference/api/better_robot/better_robot.lie.se3.html#better_robot.lie.se3.apply_base">apply_base() (in module better_robot.lie.se3)</a>
 </li>
+      <li><a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.DiagonalWeight.apply_jacobian">apply_jacobian() (DiagonalWeight method)</a>
+
+      <ul>
+        <li><a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.ScaleWeight.apply_jacobian">(ScaleWeight method)</a>
+</li>
+        <li><a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.Weight.apply_jacobian">(Weight method)</a>
+</li>
+      </ul></li>
       <li><a href="reference/api/better_robot/better_robot.viewer.renderers.testing.html#better_robot.viewer.renderers.testing.Call.args">args (Call attribute)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.data_model.model.html#better_robot.data_model.model.Model.armature">armature (Model attribute)</a>
@@ -761,8 +767,6 @@
         <li><a href="reference/api/better_robot/better_robot.viewer.render_modes.urdf_mesh.html#better_robot.viewer.render_modes.urdf_mesh.URDFMeshMode.attach">(URDFMeshMode method)</a>
 </li>
       </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.implicit.html#better_robot.optim.implicit.attach_implicit_gradients">attach_implicit_gradients() (in module better_robot.optim.implicit)</a>
-</li>
       <li><a href="reference/api/better_robot/better_robot.viewer.scene.html#better_robot.viewer.scene.Scene.available_modes">available_modes() (Scene method)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.viewer.themes.html#better_robot.viewer.themes.Theme.axes_length">axes_length (Theme attribute)</a>
@@ -850,8 +854,10 @@
 </li>
         <li><a href="reference/api/better_robot/better_robot.tasks.trajectory.html#better_robot.tasks.trajectory.Trajectory.batch_shape">(Trajectory property)</a>
 </li>
+        <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.Variable.batch_shape">(Variable property)</a>
+</li>
       </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec.batch_shape">batch_shape() (VarSpec method)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.Variable.batch_shape_of">batch_shape_of() (Variable method)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.tasks.trajectory.html#better_robot.tasks.trajectory.Trajectory.batch_size">batch_size (Trajectory property)</a>
 </li>
@@ -1276,26 +1282,14 @@
 </li>
       </ul></li>
       <li>
-    better_robot.optim.autograd
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.autograd.html#module-better_robot.optim.autograd">module</a>
-</li>
-      </ul></li>
-      <li>
-    better_robot.optim.first_order
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.first_order.html#module-better_robot.optim.first_order">module</a>
-</li>
-      </ul></li>
-      <li>
     better_robot.optim.implicit
 
       <ul>
         <li><a href="reference/api/better_robot/better_robot.optim.implicit.html#module-better_robot.optim.implicit">module</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     better_robot.optim.kernels
 
@@ -1310,8 +1304,6 @@
         <li><a href="reference/api/better_robot/better_robot.optim.lm.html#module-better_robot.optim.lm">module</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     better_robot.optim.manifolds
 
@@ -1320,17 +1312,17 @@
 </li>
       </ul></li>
       <li>
+    better_robot.optim.optimizers
+
+      <ul>
+        <li><a href="reference/api/better_robot/better_robot.optim.optimizers.html#module-better_robot.optim.optimizers">module</a>
+</li>
+      </ul></li>
+      <li>
     better_robot.optim.problem
 
       <ul>
         <li><a href="reference/api/better_robot/better_robot.optim.problem.html#module-better_robot.optim.problem">module</a>
-</li>
-      </ul></li>
-      <li>
-    better_robot.optim.providers
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.providers.html#module-better_robot.optim.providers">module</a>
 </li>
       </ul></li>
       <li>
@@ -1394,6 +1386,13 @@
 
       <ul>
         <li><a href="reference/api/better_robot/better_robot.residuals.limits.html#module-better_robot.residuals.limits">module</a>
+</li>
+      </ul></li>
+      <li>
+    better_robot.residuals.nodes
+
+      <ul>
+        <li><a href="reference/api/better_robot/better_robot.residuals.nodes.html#module-better_robot.residuals.nodes">module</a>
 </li>
       </ul></li>
       <li>
@@ -1691,8 +1690,6 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.optim.temporal.html#better_robot.optim.temporal.BlockBandedMatrix.block_size">block_size (BlockBandedMatrix property)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.block_step_limits">block_step_limits (LevenbergMarquardt attribute)</a>
-</li>
       <li><a href="reference/api/better_robot/better_robot.optim.temporal.html#better_robot.optim.temporal.BlockBandedMatrix">BlockBandedMatrix (class in better_robot.optim.temporal)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.io.ir.html#better_robot.io.ir.IRModel.bodies">bodies (IRModel attribute)</a>
@@ -1709,8 +1706,6 @@
         <li><a href="reference/api/better_robot/better_robot.data_model.model_values.html#better_robot.data_model.model_values.ModelValues.body_inertias">(ModelValues attribute)</a>
 </li>
       </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.data_model.model_values.html#better_robot.data_model.model_values.ModelValues.body_inertias_6x6">body_inertias_6x6 (ModelValues attribute)</a>
-</li>
       <li><a href="reference/api/better_robot/better_robot.data_model.model.html#better_robot.data_model.model.Model.body_name_to_id">body_name_to_id (Model attribute)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.data_model.model.html#better_robot.data_model.model.Model.body_names">body_names (Model attribute)</a>
@@ -1719,39 +1714,11 @@
         <li><a href="reference/api/better_robot/better_robot.data_model.model_structure.html#better_robot.data_model.model_structure.ModelStructure.body_names">(ModelStructure attribute)</a>
 </li>
       </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.implicit.html#better_robot.optim.implicit.ImplicitTerminalState.bound_lower">bound_lower (ImplicitTerminalState attribute)</a>
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.bound_lower">(LMState attribute)</a>
-</li>
-      </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.implicit.html#better_robot.optim.implicit.ImplicitTerminalState.bound_state_index">bound_state_index (ImplicitTerminalState attribute)</a>
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.bound_state_index">(LMState attribute)</a>
-</li>
-      </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.bound_tolerance">bound_tolerance (LevenbergMarquardt attribute)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.implicit.html#better_robot.optim.implicit.ImplicitTerminalState.bound_upper">bound_upper (ImplicitTerminalState attribute)</a>
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.bound_upper">(LMState attribute)</a>
-</li>
-      </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.implicit.html#better_robot.optim.implicit.ImplicitTerminalState.bounded_mask">bounded_mask (ImplicitTerminalState attribute)</a>
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.bounded_mask">(LMState attribute)</a>
-</li>
-      </ul></li>
       <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Bounds">Bounds (class in better_robot.optim.manifolds)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec.bounds">bounds (VarSpec attribute)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.collision.geometry.html#better_robot.collision.geometry.Box">Box (class in better_robot.collision.geometry)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.RobotConfig.box_mask">box_mask (RobotConfig property)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.RobotVariable.box_mask">box_mask (RobotVariable property)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.optim.solvers.html#better_robot.optim.solvers.LinearSolveStatus.BREAKDOWN">BREAKDOWN (LinearSolveStatus attribute)</a>
 </li>
@@ -1831,8 +1798,6 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.optim.solvers.html#better_robot.optim.solvers.Cholesky">Cholesky (class in better_robot.optim.solvers)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneSDFProvider.chunk_size">chunk_size (SceneSDFProvider attribute)</a>
-</li>
       <li><a href="reference/api/better_robot/better_robot.data_model.data.html#better_robot.data_model.data.Data.clone">clone() (Data method)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.viewer.visualizer.html#better_robot.viewer.visualizer.Visualizer.close">close() (Visualizer method)</a>
@@ -1875,6 +1840,14 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.io.assets.html#better_robot.io.assets.CompositeResolver">CompositeResolver (class in better_robot.io.assets)</a>
 </li>
+      <li><a href="reference/api/better_robot/better_robot.residuals.nodes.html#better_robot.residuals.nodes.Node.compute">compute() (Node method)</a>
+
+      <ul>
+        <li><a href="reference/api/better_robot/better_robot.residuals.nodes.html#better_robot.residuals.nodes.RobotState.compute">(RobotState method)</a>
+</li>
+        <li><a href="reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneSDFState.compute">(SceneSDFState method)</a>
+</li>
+      </ul></li>
       <li><a href="reference/api/better_robot/better_robot.dynamics.derivatives.html#better_robot.dynamics.derivatives.compute_aba_derivatives">compute_aba_derivatives() (in module better_robot.dynamics.derivatives)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.dynamics.centroidal.html#better_robot.dynamics.centroidal.compute_centroidal_map">compute_centroidal_map() (in module better_robot.dynamics.centroidal)</a>
@@ -1900,16 +1873,14 @@
       <li><a href="reference/api/better_robot/better_robot.tasks.contact_forces.html#better_robot.tasks.contact_forces.ContactForceResult.converged">converged (ContactForceResult attribute)</a>
 
       <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.first_order.html#better_robot.optim.first_order.FirstOrderResult.converged">(FirstOrderResult attribute)</a>
-</li>
         <li><a href="reference/api/better_robot/better_robot.tasks.ik.html#better_robot.tasks.ik.IKResult.converged">(IKResult attribute)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.optim.solvers.html#better_robot.optim.solvers.LinearSolveResult.converged">(LinearSolveResult attribute)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.converged">(LMState attribute)</a>
+        <li><a href="reference/api/better_robot/better_robot.optim.optimizers.html#better_robot.optim.optimizers.OptimizerInfo.converged">(OptimizerInfo property)</a>
 </li>
       </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMStatus.CONVERGED">CONVERGED (LMStatus attribute)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.optimizers.html#better_robot.optim.optimizers.OptimizerStatus.CONVERGED">CONVERGED (OptimizerStatus attribute)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.tasks.trajopt.html#better_robot.tasks.trajopt.TrajOptResult.converged">converged (TrajOptResult attribute)</a>
 </li>
@@ -1920,9 +1891,7 @@
       <li><a href="reference/api/better_robot/better_robot.tasks.contact_forces.html#better_robot.tasks.contact_forces.ContactForceResult.cost">cost (ContactForceResult attribute)</a>
 
       <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.first_order.html#better_robot.optim.first_order.FirstOrderResult.cost">(FirstOrderResult attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.cost">(LMState attribute)</a>
+        <li><a href="reference/api/better_robot/better_robot.optim.optimizers.html#better_robot.optim.optimizers.OptimizerInfo.cost">(OptimizerInfo attribute)</a>
 </li>
       </ul></li>
       <li><a href="reference/api/better_robot/better_robot.dynamics.crba.html#better_robot.dynamics.crba.crba">crba() (in module better_robot.dynamics.crba)</a>
@@ -1959,12 +1928,6 @@
         <li><a href="reference/api/better_robot/better_robot.data_model.model_values.html#better_robot.data_model.model_values.ModelValues.damping">(ModelValues attribute)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.tasks.ik.html#better_robot.tasks.ik.OptimizerConfig.damping">(OptimizerConfig attribute)</a>
-</li>
-      </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.GaussNewton.damping_parameter">damping_parameter (GaussNewton attribute)</a>
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.damping_parameter">(LevenbergMarquardt attribute)</a>
 </li>
       </ul></li>
       <li><a href="reference/api/better_robot/better_robot.data_model.data.html#better_robot.data_model.data.Data">Data (class in better_robot.data_model.data)</a>
@@ -2025,27 +1988,27 @@
         <li><a href="reference/api/better_robot/better_robot.viewer.render_modes.urdf_mesh.html#better_robot.viewer.render_modes.urdf_mesh.URDFMeshMode.detach">(URDFMeshMode method)</a>
 </li>
       </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.detach_values">detach_values() (in module better_robot.optim.variables)</a>
-</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LinearizationDecision.detail">detail (LinearizationDecision attribute)</a>
 
       <ul>
         <li><a href="reference/api/better_robot/better_robot.optim.temporal.html#better_robot.optim.temporal.TemporalAnalysis.detail">(TemporalAnalysis attribute)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference/api/better_robot/better_robot.exceptions.html#better_robot.exceptions.DeviceMismatchError">DeviceMismatchError</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.optim.temporal.html#better_robot.optim.temporal.BlockBandedMatrix.diagonal">diagonal() (BlockBandedMatrix method)</a>
 </li>
+      <li><a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.DiagonalWeight">DiagonalWeight (class in better_robot.residuals.base)</a>
+</li>
       <li><a href="reference/api/better_robot/better_robot.dynamics.state_manifold.html#better_robot.dynamics.state_manifold.StateMultibody.diff">diff() (StateMultibody method)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Euclidean.difference">difference() (Euclidean method)</a>
+      <li><a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.Difference">Difference (class in better_robot.residuals.base)</a>
+</li>
+      <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.composite.html#better_robot.data_model.joint_models.composite.JointComposite.difference">difference() (JointComposite method)</a>
 
       <ul>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.composite.html#better_robot.data_model.joint_models.composite.JointComposite.difference">(JointComposite method)</a>
-</li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.fixed.html#better_robot.data_model.joint_models.fixed.JointFixed.difference">(JointFixed method)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.free_flyer.html#better_robot.data_model.joint_models.free_flyer.JointFreeFlyer.difference">(JointFreeFlyer method)</a>
@@ -2058,15 +2021,7 @@
 </li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.planar.html#better_robot.data_model.joint_models.planar.JointPlanar.difference">(JointPlanar method)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.difference">(JointRevoluteUnaligned method)</a>
-</li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.difference">(JointRevoluteUnbounded method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRX.difference">(JointRX method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRY.difference">(JointRY method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRZ.difference">(JointRZ method)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.spherical.html#better_robot.data_model.joint_models.spherical.JointSpherical.difference">(JointSpherical method)</a>
 </li>
@@ -2074,27 +2029,11 @@
 </li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.fixed.html#better_robot.data_model.joint_models.fixed.JointUniverse.difference">(JointUniverse method)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Manifold.difference">(Manifold method)</a>
-</li>
         <li><a href="reference/api/better_robot/better_robot.data_model.model.html#better_robot.data_model.model.Model.difference">(Model method)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.Problem.difference">(Problem method)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.RobotConfig.difference">(RobotConfig method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SE3Manifold.difference">(SE3Manifold method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SO3Manifold.difference">(SO3Manifold method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec.difference">(VarSpec method)</a>
-</li>
-      </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.Problem.differentiable_external_parameters">differentiable_external_parameters (Problem property)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.residuals.smoothness.html#better_robot.residuals.smoothness.JerkResidual.dim">dim (JerkResidual attribute)</a>
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.Residual.dim">(Residual attribute)</a>, <a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.Residual.dim">[1]</a>
+        <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.Variable.difference">(Variable method)</a>
 </li>
       </ul></li>
       <li><a href="reference/api/better_robot/better_robot.optim.temporal.html#better_robot.optim.temporal.TemporalAnalysis.direct_eligible">direct_eligible (TemporalAnalysis attribute)</a>
@@ -2123,15 +2062,47 @@
       </ul></li>
       <li><a href="reference/api/better_robot/better_robot.optim.temporal.html#better_robot.optim.temporal.LinearizationReason.ELIGIBLE_BANDED">ELIGIBLE_BANDED (LinearizationReason attribute)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneSDFProvider.eps">eps (SceneSDFProvider attribute)</a>
+      <li><a href="reference/api/better_robot/better_robot.residuals.smoothness.html#better_robot.residuals.smoothness.AccelerationResidual.error">error() (AccelerationResidual method)</a>
+
+      <ul>
+        <li><a href="reference/api/better_robot/better_robot.residuals.contact.html#better_robot.residuals.contact.ContactConsistencyResidual.error">(ContactConsistencyResidual method)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Euclidean">Euclidean (class in better_robot.optim.manifolds)</a>
+        <li><a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.Difference.error">(Difference method)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.providers.html#better_robot.optim.providers.EvaluationContext">EvaluationContext (class in better_robot.optim.providers)</a>
+        <li><a href="reference/api/better_robot/better_robot.residuals.limits.html#better_robot.residuals.limits.JointPositionLimit.error">(JointPositionLimit method)</a>
 </li>
+        <li><a href="reference/api/better_robot/better_robot.residuals.regularization.html#better_robot.residuals.regularization.JointRotationPrior.error">(JointRotationPrior method)</a>
+</li>
+        <li><a href="reference/api/better_robot/better_robot.residuals.limits.html#better_robot.residuals.limits.JointVelocityLimit.error">(JointVelocityLimit method)</a>
+</li>
+        <li><a href="reference/api/better_robot/better_robot.residuals.chamfer.html#better_robot.residuals.chamfer.MaskedChamferResidual.error">(MaskedChamferResidual method)</a>
+</li>
+        <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.Problem.error">(Problem method)</a>
+</li>
+        <li><a href="reference/api/better_robot/better_robot.residuals.projection.html#better_robot.residuals.projection.ProjectionResidual.error">(ProjectionResidual method)</a>
+</li>
+        <li><a href="reference/api/better_robot/better_robot.residuals.regularization.html#better_robot.residuals.regularization.ReferenceTrajectoryResidual.error">(ReferenceTrajectoryResidual method)</a>
+</li>
+        <li><a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.Residual.error">(Residual method)</a>
+</li>
+        <li><a href="reference/api/better_robot/better_robot.residuals.regularization.html#better_robot.residuals.regularization.RestResidual.error">(RestResidual method)</a>
+</li>
+        <li><a href="reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneAttractionResidual.error">(SceneAttractionResidual method)</a>
+</li>
+        <li><a href="reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneClearanceResidual.error">(SceneClearanceResidual method)</a>
+</li>
+        <li><a href="reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.ScenePenetrationResidual.error">(ScenePenetrationResidual method)</a>
+</li>
+        <li><a href="reference/api/better_robot/better_robot.residuals.human.html#better_robot.residuals.human.SwingTwistLimitResidual.error">(SwingTwistLimitResidual method)</a>
+</li>
+        <li><a href="reference/api/better_robot/better_robot.residuals.temporal.html#better_robot.residuals.temporal.TimeIndexedResidual.error">(TimeIndexedResidual method)</a>
+</li>
+        <li><a href="reference/api/better_robot/better_robot.residuals.smoothness.html#better_robot.residuals.smoothness.VelocityResidual.error">(VelocityResidual method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference/api/better_robot/better_robot.data_model.execution_batch.html#better_robot.data_model.execution_batch.ExecutionInput.event_shape">event_shape (ExecutionInput attribute)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.data_model.model_values.html#better_robot.data_model.model_values.ModelValues.execution_batch_shape">execution_batch_shape() (ModelValues method)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.data_model.execution_batch.html#better_robot.data_model.execution_batch.ExecutionBatch">ExecutionBatch (class in better_robot.data_model.execution_batch)</a>
 </li>
@@ -2147,8 +2118,6 @@
         <li><a href="reference/api/better_robot/better_robot.lie.types.html#better_robot.lie.types.SO3.exp">(SO3 class method)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference/api/better_robot/better_robot.tasks.parameterization.html#better_robot.tasks.parameterization.BSplineTrajectory.expand">expand() (BSplineTrajectory method)</a>
 
       <ul>
@@ -2162,12 +2131,10 @@
       <li><a href="reference/api/better_robot/better_robot.data_model.reduced_coordinates.html#better_robot.data_model.reduced_coordinates.expand_tangent">expand_tangent() (in module better_robot.data_model.reduced_coordinates)</a>
 
       <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec.expand_tangent">(VarSpec method)</a>
+        <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.Variable.expand_tangent">(Variable method)</a>
 </li>
       </ul></li>
       <li><a href="reference/api/better_robot/better_robot.optim.temporal.html#better_robot.optim.temporal.LinearizationReason.EXPLICIT_DENSE_SOLVER">EXPLICIT_DENSE_SOLVER (LinearizationReason attribute)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.Problem.external_parameters">external_parameters (Problem property)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.tasks.trajectory.html#better_robot.tasks.trajectory.Trajectory.extras">extras (Trajectory attribute)</a>
 </li>
@@ -2177,20 +2144,14 @@
 <h2 id="F">F</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.factorization_ok">factorization_ok (LMState attribute)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMStatus.FAILED">FAILED (LMStatus attribute)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.optimizers.html#better_robot.optim.optimizers.OptimizerStatus.FAILED">FAILED (OptimizerStatus attribute)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.tasks.contact_forces.html#better_robot.tasks.contact_forces.ContactForceResult.fext_local">fext_local (ContactForceResult attribute)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.io.assets.html#better_robot.io.assets.FilesystemResolver">FilesystemResolver (class in better_robot.io.assets)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.finalize">finalize() (LevenbergMarquardt method)</a>
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.io.parsers.programmatic.html#better_robot.io.parsers.programmatic.ModelBuilder.finalize">(ModelBuilder method)</a>
+      <li><a href="reference/api/better_robot/better_robot.io.parsers.programmatic.html#better_robot.io.parsers.programmatic.ModelBuilder.finalize">finalize() (ModelBuilder method)</a>
 </li>
-      </ul></li>
       <li><a href="reference/api/better_robot/better_robot.optim.temporal.html#better_robot.optim.temporal.BlockBandedMatrix.finite">finite (BlockBandedMatrix property)</a>
 
       <ul>
@@ -2199,16 +2160,8 @@
         <li><a href="reference/api/better_robot/better_robot.optim.temporal.html#better_robot.optim.temporal.StructuredNormal.finite">(StructuredNormal attribute)</a>
 </li>
       </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.first_order.html#better_robot.optim.first_order.FirstOrderResult">FirstOrderResult (class in better_robot.optim.first_order)</a>
-</li>
       <li><a href="reference/api/better_robot/better_robot.data_model.joint.html#better_robot.data_model.joint.Joint.FIXED">FIXED (Joint attribute)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.GaussNewton.fixed_damping">fixed_damping (GaussNewton attribute)</a>
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.fixed_damping">(LevenbergMarquardt attribute)</a>
-</li>
-      </ul></li>
       <li><a href="reference/api/better_robot/better_robot.tasks.ik.html#better_robot.tasks.ik.IKResult.fk">fk() (IKResult method)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.kinematics.forward.html#better_robot.kinematics.forward.FKResult">FKResult (class in better_robot.kinematics.forward)</a>
@@ -2231,13 +2184,13 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.kinematics.forward.html#better_robot.kinematics.forward.forward_kinematics_raw">forward_kinematics_raw() (in module better_robot.kinematics.forward)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.implicit.html#better_robot.optim.implicit.ForwardLinearization">ForwardLinearization (in module better_robot.optim.implicit)</a>
-</li>
       <li><a href="reference/api/better_robot/better_robot.data_model.frame.html#better_robot.data_model.frame.Frame">Frame (class in better_robot.data_model.frame)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.data_model.model.html#better_robot.data_model.model.Model.frame_id">frame_id() (Model method)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.collision.robot_collision.html#better_robot.collision.robot_collision.RobotCollision.frame_ids">frame_ids (RobotCollision attribute)</a>
+</li>
+      <li><a href="reference/api/better_robot/better_robot.kinematics.jacobian.html#better_robot.kinematics.jacobian.frame_jacobian_raw">frame_jacobian_raw() (in module better_robot.kinematics.jacobian)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.data_model.model.html#better_robot.data_model.model.Model.frame_name_to_id">frame_name_to_id (Model attribute)</a>
 </li>
@@ -2259,14 +2212,14 @@
         <li><a href="reference/api/better_robot/better_robot.tasks.ik.html#better_robot.tasks.ik.IKResult.frame_pose">(IKResult method)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference/api/better_robot/better_robot.data_model.data.html#better_robot.data_model.data.Data.frame_pose_world">frame_pose_world (Data attribute)</a>
 
       <ul>
         <li><a href="reference/api/better_robot/better_robot.kinematics.forward.html#better_robot.kinematics.forward.FramePlacementsResult.frame_pose_world">(FramePlacementsResult attribute)</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference/api/better_robot/better_robot.data_model.frame.html#better_robot.data_model.frame.Frame.frame_type">frame_type (Frame attribute)</a>
 
       <ul>
@@ -2285,15 +2238,13 @@
       </ul></li>
       <li><a href="reference/api/better_robot/better_robot.data_model.frame.html#better_robot.data_model.frame.FrameType">FrameType (in module better_robot.data_model.frame)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec.free_dim">free_dim (VarSpec property)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.Variable.free_dim">free_dim (Variable property)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.data_model.joint.html#better_robot.data_model.joint.Joint.FREE_FLYER">FREE_FLYER (Joint attribute)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec.free_indices">free_indices (VarSpec property)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.Variable.free_indices">free_indices (Variable property)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.providers.html#better_robot.optim.providers.EvaluationContext.free_indices">free_indices() (EvaluationContext method)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec.free_scale">free_scale (VarSpec property)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.Variable.free_scale">free_scale (Variable property)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.data_model.model.html#better_robot.data_model.model.Model.friction">friction (Model attribute)</a>
 
@@ -2343,7 +2294,7 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.lie.se3.html#better_robot.lie.se3.from_translation">from_translation() (in module better_robot.lie.se3)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.ftol">ftol (LevenbergMarquardt attribute)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.Problem.frozen">frozen (Problem property)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -2351,11 +2302,9 @@
 <h2 id="G">G</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.gain_ratio">gain_ratio (LMState attribute)</a>
-</li>
       <li><a href="reference/api/better_robot/better_robot.data_model.execution_batch.html#better_robot.data_model.execution_batch.ExecutionInput.gather">gather() (ExecutionInput method)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec.gather_tangent">gather_tangent() (VarSpec method)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.Variable.gather_tangent">gather_tangent() (Variable method)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.GaussNewton">GaussNewton (class in better_robot.optim.lm)</a>
 </li>
@@ -2381,18 +2330,10 @@
         <li><a href="reference/api/better_robot/better_robot.data_model.model.html#better_robot.data_model.model.Model.get_support">(Model method)</a>
 </li>
       </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.grad_norm">grad_norm (LMState attribute)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="reference/api/better_robot/better_robot.optim.implicit.html#better_robot.optim.implicit.ImplicitTerminalState.gradient">gradient (ImplicitTerminalState attribute)</a>
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.gradient">(LMState attribute)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.temporal.html#better_robot.optim.temporal.StructuredNormal.gradient">gradient (StructuredNormal attribute)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.optim.temporal.html#better_robot.optim.temporal.StructuredNormal.gradient">(StructuredNormal attribute)</a>
-</li>
-      </ul></li>
       <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.Problem.gradient">gradient() (Problem method)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.io.ir.html#better_robot.io.ir.IRModel.gravity">gravity (IRModel attribute)</a>
@@ -2412,10 +2353,6 @@
       <li><a href="reference/api/better_robot/better_robot.viewer.themes.html#better_robot.viewer.themes.Theme.grid_size">grid_size (Theme attribute)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.viewer.overlays.grid.html#better_robot.viewer.overlays.grid.GridOverlay">GridOverlay (class in better_robot.viewer.overlays.grid)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.ResidualItem.group_size">group_size (ResidualItem attribute)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.gtol">gtol (LevenbergMarquardt attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -2505,21 +2442,9 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.tasks.ik.html#better_robot.tasks.ik.IKResult">IKResult (class in better_robot.tasks.ik)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.implicit.html#better_robot.optim.implicit.ImplicitTerminalState.implicit_valid">implicit_valid (ImplicitTerminalState attribute)</a>
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.implicit_valid">(LMState attribute)</a>
-</li>
-      </ul></li>
       <li><a href="reference/api/better_robot/better_robot.optim.implicit.html#better_robot.optim.implicit.ImplicitDiffConfig">ImplicitDiffConfig (class in better_robot.optim.implicit)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.optim.implicit.html#better_robot.optim.implicit.ImplicitDifferentiationError">ImplicitDifferentiationError</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.implicit.html#better_robot.optim.implicit.ImplicitTerminalState">ImplicitTerminalState (class in better_robot.optim.implicit)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.increase_factor">increase_factor (LMState attribute)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.increase_factor_max">increase_factor_max (LevenbergMarquardt attribute)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.spatial.inertia.html#better_robot.spatial.inertia.Inertia">Inertia (class in better_robot.spatial.inertia)</a>
 </li>
@@ -2537,8 +2462,6 @@
         <li><a href="reference/api/better_robot/better_robot.tasks.parameterization.html#better_robot.tasks.parameterization.TrajectoryParameterization.init">(TrajectoryParameterization method)</a>
 </li>
       </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.init_state">init_state() (LevenbergMarquardt method)</a>
-</li>
       <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.composite.html#better_robot.data_model.joint_models.composite.JointComposite.integrate">integrate() (JointComposite method)</a>
 
       <ul>
@@ -2554,15 +2477,7 @@
 </li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.planar.html#better_robot.data_model.joint_models.planar.JointPlanar.integrate">(JointPlanar method)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.integrate">(JointRevoluteUnaligned method)</a>
-</li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.integrate">(JointRevoluteUnbounded method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRX.integrate">(JointRX method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRY.integrate">(JointRY method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRZ.integrate">(JointRZ method)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.spherical.html#better_robot.data_model.joint_models.spherical.JointSpherical.integrate">(JointSpherical method)</a>
 </li>
@@ -2619,6 +2534,12 @@
         <li><a href="reference/api/better_robot/better_robot.viewer.render_modes.urdf_mesh.html#better_robot.viewer.render_modes.urdf_mesh.URDFMeshMode.is_available">(URDFMeshMode class method)</a>
 </li>
       </ul></li>
+      <li><a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.ScaleWeight.is_inactive">is_inactive() (ScaleWeight method)</a>
+
+      <ul>
+        <li><a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.Weight.is_inactive">(Weight method)</a>
+</li>
+      </ul></li>
       <li><a href="reference/api/better_robot/better_robot.viewer.renderers.testing.html#better_robot.viewer.renderers.testing.MockBackend.is_interactive">is_interactive (MockBackend attribute)</a>
 
       <ul>
@@ -2630,7 +2551,7 @@
       <li><a href="reference/api/better_robot/better_robot.optim.solvers.html#better_robot.optim.solvers.LinearSolveResult.iterations">iterations (LinearSolveResult attribute)</a>
 
       <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.iterations">(LMState attribute)</a>
+        <li><a href="reference/api/better_robot/better_robot.optim.optimizers.html#better_robot.optim.optimizers.OptimizerInfo.iterations">(OptimizerInfo attribute)</a>
 </li>
       </ul></li>
       <li><a href="reference/api/better_robot/better_robot.tasks.contact_forces.html#better_robot.tasks.contact_forces.ContactForceResult.iters">iters (ContactForceResult attribute)</a>
@@ -2647,45 +2568,31 @@
 <h2 id="J">J</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="reference/api/better_robot/better_robot.residuals.smoothness.html#better_robot.residuals.smoothness.AccelerationResidual.jacobian_blocks">jacobian_blocks() (AccelerationResidual method)</a>
+      <li><a href="reference/api/better_robot/better_robot.residuals.contact.html#better_robot.residuals.contact.ContactConsistencyResidual.jacobian">jacobian() (ContactConsistencyResidual method)</a>
 
       <ul>
-        <li><a href="reference/api/better_robot/better_robot.residuals.contact.html#better_robot.residuals.contact.ContactConsistencyResidual.jacobian_blocks">(ContactConsistencyResidual method)</a>
+        <li><a href="reference/api/better_robot/better_robot.residuals.limits.html#better_robot.residuals.limits.JointPositionLimit.jacobian">(JointPositionLimit method)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.limits.html#better_robot.residuals.limits.JointPositionLimit.jacobian_blocks">(JointPositionLimit method)</a>
+        <li><a href="reference/api/better_robot/better_robot.residuals.projection.html#better_robot.residuals.projection.ProjectionResidual.jacobian">(ProjectionResidual method)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.pose.html#better_robot.residuals.pose.OrientationResidual.jacobian_blocks">(OrientationResidual method)</a>
+        <li><a href="reference/api/better_robot/better_robot.residuals.regularization.html#better_robot.residuals.regularization.ReferenceTrajectoryResidual.jacobian">(ReferenceTrajectoryResidual method)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.pose.html#better_robot.residuals.pose.PoseResidual.jacobian_blocks">(PoseResidual method)</a>
+        <li><a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.Residual.jacobian">(Residual method)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.pose.html#better_robot.residuals.pose.PositionResidual.jacobian_blocks">(PositionResidual method)</a>
+        <li><a href="reference/api/better_robot/better_robot.residuals.regularization.html#better_robot.residuals.regularization.RestResidual.jacobian">(RestResidual method)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.Problem.jacobian_blocks">(Problem method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.projection.html#better_robot.residuals.projection.ProjectionResidual.jacobian_blocks">(ProjectionResidual method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.regularization.html#better_robot.residuals.regularization.ReferenceTrajectoryResidual.jacobian_blocks">(ReferenceTrajectoryResidual method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.regularization.html#better_robot.residuals.regularization.RestResidual.jacobian_blocks">(RestResidual method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.temporal.html#better_robot.residuals.temporal.TimeIndexedResidual.jacobian_blocks">(TimeIndexedResidual method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.smoothness.html#better_robot.residuals.smoothness.VelocityResidual.jacobian_blocks">(VelocityResidual method)</a>
+        <li><a href="reference/api/better_robot/better_robot.residuals.temporal.html#better_robot.residuals.temporal.TimeIndexedResidual.jacobian">(TimeIndexedResidual method)</a>
 </li>
       </ul></li>
+      <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.Problem.jacobian_blocks">jacobian_blocks() (Problem method)</a>
+</li>
       <li><a href="reference/api/better_robot/better_robot.dynamics.state_manifold.html#better_robot.dynamics.state_manifold.StateMultibody.jacobian_diff">jacobian_diff() (StateMultibody method)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.dynamics.state_manifold.html#better_robot.dynamics.state_manifold.StateMultibody.jacobian_integrate">jacobian_integrate() (StateMultibody method)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.jacobian_strategy">jacobian_strategy (LevenbergMarquardt attribute)</a>
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.tasks.ik.html#better_robot.tasks.ik.OptimizerConfig.jacobian_strategy">(OptimizerConfig attribute)</a>
+      <li><a href="reference/api/better_robot/better_robot.tasks.ik.html#better_robot.tasks.ik.OptimizerConfig.jacobian_strategy">jacobian_strategy (OptimizerConfig attribute)</a>
 </li>
-      </ul></li>
       <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.JacobianStrategy">JacobianStrategy (in module better_robot.optim.problem)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.residuals.smoothness.html#better_robot.residuals.smoothness.JerkResidual">JerkResidual (class in better_robot.residuals.smoothness)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.data_model.joint.html#better_robot.data_model.joint.Joint">Joint (class in better_robot.data_model.joint)</a>
 </li>
@@ -2703,7 +2610,7 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.base.html#better_robot.data_model.joint_models.base.joint_bias_acceleration">joint_bias_acceleration() (in module better_robot.data_model.joint_models.base)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.RobotConfig.joint_bounds">joint_bounds() (RobotConfig method)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.RobotVariable.joint_bounds">joint_bounds() (RobotVariable method)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.viewer.themes.html#better_robot.viewer.themes.Theme.joint_colour">joint_colour (Theme attribute)</a>
 </li>
@@ -2756,15 +2663,7 @@
 </li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.planar.html#better_robot.data_model.joint_models.planar.JointPlanar.joint_motion_subspace">(JointPlanar method)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_motion_subspace">(JointRevoluteUnaligned method)</a>
-</li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.joint_motion_subspace">(JointRevoluteUnbounded method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRX.joint_motion_subspace">(JointRX method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRY.joint_motion_subspace">(JointRY method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRZ.joint_motion_subspace">(JointRZ method)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.spherical.html#better_robot.data_model.joint_models.spherical.JointSpherical.joint_motion_subspace">(JointSpherical method)</a>
 </li>
@@ -2854,15 +2753,7 @@
 </li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.planar.html#better_robot.data_model.joint_models.planar.JointPlanar.joint_transform">(JointPlanar method)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_transform">(JointRevoluteUnaligned method)</a>
-</li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.joint_transform">(JointRevoluteUnbounded method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRX.joint_transform">(JointRX method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRY.joint_transform">(JointRY method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRZ.joint_transform">(JointRZ method)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.spherical.html#better_robot.data_model.joint_models.spherical.JointSpherical.joint_transform">(JointSpherical method)</a>
 </li>
@@ -2886,15 +2777,7 @@
 </li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.planar.html#better_robot.data_model.joint_models.planar.JointPlanar.joint_velocity">(JointPlanar method)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.joint_velocity">(JointRevoluteUnaligned method)</a>
-</li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.joint_velocity">(JointRevoluteUnbounded method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRX.joint_velocity">(JointRX method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRY.joint_velocity">(JointRY method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRZ.joint_velocity">(JointRZ method)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.spherical.html#better_robot.data_model.joint_models.spherical.JointSpherical.joint_velocity">(JointSpherical method)</a>
 </li>
@@ -2971,14 +2854,8 @@
 <h2 id="K">K</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.kernel">kernel (LevenbergMarquardt attribute)</a>
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.tasks.ik.html#better_robot.tasks.ik.OptimizerConfig.kernel">(OptimizerConfig attribute)</a>
+      <li><a href="reference/api/better_robot/better_robot.tasks.ik.html#better_robot.tasks.ik.OptimizerConfig.kernel">kernel (OptimizerConfig attribute)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.ResidualItem.kernel">(ResidualItem attribute)</a>
-</li>
-      </ul></li>
       <li><a href="reference/api/better_robot/better_robot.io.ir.html#better_robot.io.ir.IRGeom.kind">kind (IRGeom attribute)</a>
 
       <ul>
@@ -3025,8 +2902,6 @@
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.kkt_norm">kkt_norm (LMState property)</a>
-</li>
       <li><a href="reference/api/better_robot/better_robot.tasks.parameterization.html#better_robot.tasks.parameterization.KnotTrajectory">KnotTrajectory (class in better_robot.tasks.parameterization)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.viewer.renderers.testing.html#better_robot.viewer.renderers.testing.Call.kwargs">kwargs (Call attribute)</a>
@@ -3061,13 +2936,7 @@
         <li><a href="reference/api/better_robot/better_robot.spatial.motion.html#better_robot.spatial.motion.Motion.linear">(Motion property)</a>
 </li>
       </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.linear_solver">linear_solver (LevenbergMarquardt attribute)</a>
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.tasks.ik.html#better_robot.tasks.ik.OptimizerConfig.linear_solver">(OptimizerConfig attribute)</a>
-</li>
-      </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.linearization">linearization (LevenbergMarquardt attribute)</a>
+      <li><a href="reference/api/better_robot/better_robot.tasks.ik.html#better_robot.tasks.ik.OptimizerConfig.linear_solver">linear_solver (OptimizerConfig attribute)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.tasks.trajopt.html#better_robot.tasks.trajopt.TrajOptResult.linearization_detail">linearization_detail (TrajOptResult attribute)</a>
 </li>
@@ -3097,10 +2966,6 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.viewer.overlays.targets.html#better_robot.viewer.overlays.targets.TargetsOverlay.live_targets">live_targets() (TargetsOverlay method)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState">LMState (class in better_robot.optim.lm)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMStatus">LMStatus (class in better_robot.optim.lm)</a>
-</li>
       <li><a href="reference/api/better_robot/better_robot.io.html#better_robot.io.load">load() (in module better_robot.io)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.collision.robot_collision.html#better_robot.collision.robot_collision.RobotCollision.local_a">local_a (RobotCollision attribute)</a>
@@ -3129,6 +2994,8 @@
         <li><a href="reference/api/better_robot/better_robot.data_model.model_values.html#better_robot.data_model.model_values.ModelValues.lower_pos_limit">(ModelValues attribute)</a>
 </li>
       </ul></li>
+      <li><a href="reference/api/better_robot/better_robot.optim.solvers.html#better_robot.optim.solvers.LU">LU (class in better_robot.optim.solvers)</a>
+</li>
   </ul></td>
 </tr></table>
 
@@ -3138,10 +3005,6 @@
       <li><a href="reference/api/better_robot/better_robot.io.builders.smpl_like.html#better_robot.io.builders.smpl_like.make_smpl_like_body">make_smpl_like_body() (in module better_robot.io.builders.smpl_like)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.io.builders.smpl_like.html#better_robot.io.builders.smpl_like.make_smpl_like_model">make_smpl_like_model() (in module better_robot.io.builders.smpl_like)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Manifold">Manifold (class in better_robot.optim.manifolds)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec.manifold">manifold (VarSpec attribute)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.data_model.model_structure.html#better_robot.data_model.model_structure.ModelStructure.manifold_euclidean_joint_ids">manifold_euclidean_joint_ids (ModelStructure attribute)</a>
 </li>
@@ -3183,8 +3046,6 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.data_model.model_structure.html#better_robot.data_model.model_structure.ModelStructure.manifold_unbounded_v_indices">manifold_unbounded_v_indices (ModelStructure attribute)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec.mask">mask (VarSpec attribute)</a>
-</li>
       <li><a href="reference/api/better_robot/better_robot.residuals.chamfer.html#better_robot.residuals.chamfer.MaskedChamferResidual">MaskedChamferResidual (class in better_robot.residuals.chamfer)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.spatial.inertia.html#better_robot.spatial.inertia.Inertia.mass">mass (Inertia property)</a>
@@ -3203,14 +3064,18 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.optim.implicit.html#better_robot.optim.implicit.ImplicitDiffConfig.max_dense_tangent_dim">max_dense_tangent_dim (ImplicitDiffConfig attribute)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.max_iter">max_iter (LevenbergMarquardt attribute)</a>
-</li>
       <li><a href="reference/api/better_robot/better_robot.optim.solvers.html#better_robot.optim.solvers.LinearSolveStatus.MAX_ITER">MAX_ITER (LinearSolveStatus attribute)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.tasks.ik.html#better_robot.tasks.ik.OptimizerConfig.max_iter">max_iter (OptimizerConfig attribute)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMStatus.MAXITER">MAXITER (LMStatus attribute)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.optimizers.html#better_robot.optim.optimizers.OptimizerStatus.MAXITER">MAXITER (OptimizerStatus attribute)</a>
 </li>
+      <li><a href="reference/api/better_robot/better_robot.residuals.nodes.html#better_robot.residuals.nodes.Node.merge_key">merge_key (Node property)</a>
+
+      <ul>
+        <li><a href="reference/api/better_robot/better_robot.residuals.nodes.html#better_robot.residuals.nodes.RobotState.merge_key">(RobotState property)</a>
+</li>
+      </ul></li>
       <li><a href="reference/api/better_robot/better_robot.io.ir.html#better_robot.io.ir.IRModel.meta">meta (IRModel attribute)</a>
 
       <ul>
@@ -3263,10 +3128,6 @@
 
       <ul>
         <li><a href="reference/api/better_robot/better_robot.tasks.ik.html#better_robot.tasks.ik.IKResult.model">(IKResult attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.RobotConfig.model">(RobotConfig attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.providers.html#better_robot.optim.providers.RobotStateProvider.model">(RobotStateProvider attribute)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.tasks.trajopt.html#better_robot.tasks.trajopt.TrajOptResult.model">(TrajOptResult attribute)</a>
 </li>
@@ -3405,10 +3266,6 @@
 </li>
         <li><a href="reference/api/better_robot/better_robot.optim.html#module-better_robot.optim">better_robot.optim</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.optim.autograd.html#module-better_robot.optim.autograd">better_robot.optim.autograd</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.first_order.html#module-better_robot.optim.first_order">better_robot.optim.first_order</a>
-</li>
         <li><a href="reference/api/better_robot/better_robot.optim.implicit.html#module-better_robot.optim.implicit">better_robot.optim.implicit</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.optim.kernels.html#module-better_robot.optim.kernels">better_robot.optim.kernels</a>
@@ -3417,9 +3274,9 @@
 </li>
         <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#module-better_robot.optim.manifolds">better_robot.optim.manifolds</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.optim.problem.html#module-better_robot.optim.problem">better_robot.optim.problem</a>
+        <li><a href="reference/api/better_robot/better_robot.optim.optimizers.html#module-better_robot.optim.optimizers">better_robot.optim.optimizers</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.optim.providers.html#module-better_robot.optim.providers">better_robot.optim.providers</a>
+        <li><a href="reference/api/better_robot/better_robot.optim.problem.html#module-better_robot.optim.problem">better_robot.optim.problem</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.optim.solvers.html#module-better_robot.optim.solvers">better_robot.optim.solvers</a>
 </li>
@@ -3438,6 +3295,8 @@
         <li><a href="reference/api/better_robot/better_robot.residuals.human.html#module-better_robot.residuals.human">better_robot.residuals.human</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.residuals.limits.html#module-better_robot.residuals.limits">better_robot.residuals.limits</a>
+</li>
+        <li><a href="reference/api/better_robot/better_robot.residuals.nodes.html#module-better_robot.residuals.nodes">better_robot.residuals.nodes</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.residuals.pose.html#module-better_robot.residuals.pose">better_robot.residuals.pose</a>
 </li>
@@ -3532,12 +3391,6 @@
       </ul></li>
       <li><a href="reference/api/better_robot/better_robot.spatial.motion.html#better_robot.spatial.motion.Motion">Motion (class in better_robot.spatial.motion)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.mu">mu (LMState attribute)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.mu_max">mu_max (LevenbergMarquardt attribute)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.mu_min">mu_min (LevenbergMarquardt attribute)</a>
-</li>
       <li><a href="reference/api/better_robot/better_robot.optim.temporal.html#better_robot.optim.temporal.LinearizationReason.MULTIPLE_OPTIMIZED_VARIABLES">MULTIPLE_OPTIMIZED_VARIABLES (LinearizationReason attribute)</a>
 </li>
   </ul></td>
@@ -3546,13 +3399,9 @@
 <h2 id="N">N</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="reference/api/better_robot/better_robot.residuals.smoothness.html#better_robot.residuals.smoothness.AccelerationResidual.name">name (AccelerationResidual attribute)</a>
+      <li><a href="reference/api/better_robot/better_robot.data_model.body.html#better_robot.data_model.body.Body.name">name (Body attribute)</a>
 
       <ul>
-        <li><a href="reference/api/better_robot/better_robot.data_model.body.html#better_robot.data_model.body.Body.name">(Body attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.contact.html#better_robot.residuals.contact.ContactConsistencyResidual.name">(ContactConsistencyResidual attribute)</a>
-</li>
         <li><a href="reference/api/better_robot/better_robot.viewer.overlays.force_vectors.html#better_robot.viewer.overlays.force_vectors.ForceVectorsOverlay.name">(ForceVectorsOverlay attribute)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.data_model.frame.html#better_robot.data_model.frame.Frame.name">(Frame attribute)</a>
@@ -3569,51 +3418,19 @@
 </li>
         <li><a href="reference/api/better_robot/better_robot.io.ir.html#better_robot.io.ir.IRModel.name">(IRModel attribute)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.smoothness.html#better_robot.residuals.smoothness.JerkResidual.name">(JerkResidual attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.limits.html#better_robot.residuals.limits.JointPositionLimit.name">(JointPositionLimit attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.limits.html#better_robot.residuals.limits.JointVelocityLimit.name">(JointVelocityLimit attribute)</a>
-</li>
         <li><a href="reference/api/better_robot/better_robot.data_model.model.html#better_robot.data_model.model.Model.name">(Model attribute)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.data_model.model_structure.html#better_robot.data_model.model_structure.ModelStructure.name">(ModelStructure attribute)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.regularization.html#better_robot.residuals.regularization.NullspaceResidual.name">(NullspaceResidual attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.pose.html#better_robot.residuals.pose.OrientationResidual.name">(OrientationResidual attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.pose.html#better_robot.residuals.pose.PoseResidual.name">(PoseResidual attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.pose.html#better_robot.residuals.pose.PositionResidual.name">(PositionResidual attribute)</a>
-</li>
         <li><a href="reference/api/better_robot/better_robot.viewer.primitive.html#better_robot.viewer.primitive.PrimitiveHandle.name">(PrimitiveHandle attribute)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.optim.providers.html#better_robot.optim.providers.Provider.name">(Provider attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.regularization.html#better_robot.residuals.regularization.ReferenceTrajectoryResidual.name">(ReferenceTrajectoryResidual attribute)</a>
-</li>
         <li><a href="reference/api/better_robot/better_robot.viewer.render_modes.base.html#better_robot.viewer.render_modes.base.RenderMode.name">(RenderMode attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.Residual.name">(Residual attribute)</a>, <a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.Residual.name">[1]</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.ResidualItem.name">(ResidualItem attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.regularization.html#better_robot.residuals.regularization.RestResidual.name">(RestResidual attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.providers.html#better_robot.optim.providers.RobotStateProvider.name">(RobotStateProvider attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneSDFProvider.name">(SceneSDFProvider attribute)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.viewer.render_modes.skeleton.html#better_robot.viewer.render_modes.skeleton.SkeletonMode.name">(SkeletonMode attribute)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.viewer.overlays.targets.html#better_robot.viewer.overlays.targets.TargetsOverlay.name">(TargetsOverlay attribute)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.viewer.render_modes.urdf_mesh.html#better_robot.viewer.render_modes.urdf_mesh.URDFMeshMode.name">(URDFMeshMode attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec.name">(VarSpec attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.smoothness.html#better_robot.residuals.smoothness.VelocityResidual.name">(VelocityResidual attribute)</a>
 </li>
       </ul></li>
       <li><a href="reference/api/better_robot/better_robot.viewer.render_modes.base.html#better_robot.viewer.render_modes.base.RenderContext.namespace">namespace (RenderContext attribute)</a>
@@ -3639,15 +3456,7 @@
 </li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.planar.html#better_robot.data_model.joint_models.planar.JointPlanar.neutral">(JointPlanar method)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.neutral">(JointRevoluteUnaligned method)</a>
-</li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.neutral">(JointRevoluteUnbounded method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRX.neutral">(JointRX method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRY.neutral">(JointRY method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRZ.neutral">(JointRZ method)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.spherical.html#better_robot.data_model.joint_models.spherical.JointSpherical.neutral">(JointSpherical method)</a>
 </li>
@@ -3669,6 +3478,8 @@
 </li>
       </ul></li>
       <li><a href="reference/api/better_robot/better_robot.optim.temporal.html#better_robot.optim.temporal.LinearizationReason.NO_TIME_VARIABLE">NO_TIME_VARIABLE (LinearizationReason attribute)</a>
+</li>
+      <li><a href="reference/api/better_robot/better_robot.residuals.nodes.html#better_robot.residuals.nodes.Node">Node (class in better_robot.residuals.nodes)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.optim.solvers.html#better_robot.optim.solvers.LinearSolveStatus.NONFINITE">NONFINITE (LinearSolveStatus attribute)</a>
 </li>
@@ -3694,8 +3505,6 @@
         <li><a href="reference/api/better_robot/better_robot.lie.types.html#better_robot.lie.types.SO3.normalize">(SO3 method)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference/api/better_robot/better_robot.optim.solvers.html#better_robot.optim.solvers.LinearSolveStatus.NOT_SPD">NOT_SPD (LinearSolveStatus attribute)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.composite.html#better_robot.data_model.joint_models.composite.JointComposite.nq">nq (JointComposite attribute)</a>
@@ -3742,6 +3551,8 @@
         <li><a href="reference/api/better_robot/better_robot.data_model.model_structure.html#better_robot.data_model.model_structure.ModelStructure.nq">(ModelStructure attribute)</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference/api/better_robot/better_robot.data_model.model.html#better_robot.data_model.model.Model.nq_full">nq_full (Model attribute)</a>
 
       <ul>
@@ -3763,8 +3574,6 @@
       <li><a href="reference/api/better_robot/better_robot.data_model.model_structure.html#better_robot.data_model.model_structure.ModelStructure.nqs_full_tensor">nqs_full_tensor (ModelStructure attribute)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.data_model.model_structure.html#better_robot.data_model.model_structure.ModelStructure.nqs_tensor">nqs_tensor (ModelStructure attribute)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.residuals.regularization.html#better_robot.residuals.regularization.NullspaceResidual">NullspaceResidual (class in better_robot.residuals.regularization)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.tasks.trajectory.html#better_robot.tasks.trajectory.Trajectory.num_knots">num_knots (Trajectory property)</a>
 </li>
@@ -3848,36 +3657,36 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.optim.solvers.html#better_robot.optim.solvers.LinearSolveResult.ok">ok (LinearSolveResult attribute)</a>
 </li>
+      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.optimize">optimize() (LevenbergMarquardt method)</a>
+
+      <ul>
+        <li><a href="reference/api/better_robot/better_robot.optim.optimizers.html#better_robot.optim.optimizers.Optimizer.optimize">(Optimizer method)</a>
+</li>
+        <li><a href="reference/api/better_robot/better_robot.optim.optimizers.html#better_robot.optim.optimizers.TorchOptimizer.optimize">(TorchOptimizer method)</a>
+</li>
+      </ul></li>
+      <li><a href="reference/api/better_robot/better_robot.optim.optimizers.html#better_robot.optim.optimizers.Optimizer">Optimizer (class in better_robot.optim.optimizers)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference/api/better_robot/better_robot.tasks.ik.html#better_robot.tasks.ik.OptimizerConfig.optimizer">optimizer (OptimizerConfig attribute)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.tasks.ik.html#better_robot.tasks.ik.OptimizerConfig">OptimizerConfig (class in better_robot.tasks.ik)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.first_order.html#better_robot.optim.first_order.OptimizerFactory">OptimizerFactory (in module better_robot.optim.first_order)</a>
+      <li><a href="reference/api/better_robot/better_robot.tasks.trajopt.html#better_robot.tasks.trajopt.OptimizerFactory">OptimizerFactory (in module better_robot.tasks.trajopt)</a>
+</li>
+      <li><a href="reference/api/better_robot/better_robot.optim.optimizers.html#better_robot.optim.optimizers.OptimizerInfo">OptimizerInfo (class in better_robot.optim.optimizers)</a>
+</li>
+      <li><a href="reference/api/better_robot/better_robot.optim.optimizers.html#better_robot.optim.optimizers.OptimizerStatus">OptimizerStatus (class in better_robot.optim.optimizers)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.tasks.ik.html#better_robot.tasks.ik.IKCostConfig.ori_weight">ori_weight (IKCostConfig attribute)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference/api/better_robot/better_robot.residuals.pose.html#better_robot.residuals.pose.OrientationResidual">OrientationResidual (class in better_robot.residuals.pose)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.io.ir.html#better_robot.io.ir.IRGeom.origin">origin (IRGeom attribute)</a>
 
       <ul>
         <li><a href="reference/api/better_robot/better_robot.io.ir.html#better_robot.io.ir.IRJoint.origin">(IRJoint attribute)</a>
-</li>
-      </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.providers.html#better_robot.optim.providers.RobotStateProvider.output">output (RobotStateProvider attribute)</a>
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneSDFProvider.output">(SceneSDFProvider attribute)</a>
-</li>
-      </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.providers.html#better_robot.optim.providers.Provider.outputs">outputs (Provider attribute)</a>
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.providers.html#better_robot.optim.providers.RobotStateProvider.outputs">(RobotStateProvider property)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneSDFProvider.outputs">(SceneSDFProvider property)</a>
 </li>
       </ul></li>
   </ul></td>
@@ -3920,8 +3729,6 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.optim.temporal.html#better_robot.optim.temporal.TemporalAnalysis.patterns">patterns (TemporalAnalysis attribute)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.autograd.html#better_robot.optim.autograd.perturb_values">perturb_values() (in module better_robot.optim.autograd)</a>
-</li>
       <li><a href="reference/api/better_robot/better_robot.io.ir.html#better_robot.io.ir.IRJoint.pitch">pitch (IRJoint attribute)</a>
 
       <ul>
@@ -3930,14 +3737,14 @@
       </ul></li>
       <li><a href="reference/api/better_robot/better_robot.io.ir.html#better_robot.io.ir.IRFrame.placement">placement (IRFrame attribute)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference/api/better_robot/better_robot.data_model.joint.html#better_robot.data_model.joint.Joint.PLANAR">PLANAR (Joint attribute)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.collision.geometry.html#better_robot.collision.geometry.Plane">Plane (class in better_robot.collision.geometry)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.viewer.trajectory_player.html#better_robot.viewer.trajectory_player.TrajectoryPlayer.play">play() (TrajectoryPlayer method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference/api/better_robot/better_robot.collision.closest_pts.html#better_robot.collision.closest_pts.point_to_segment">point_to_segment() (in module better_robot.collision.closest_pts)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.tasks.ik.html#better_robot.tasks.ik.IKCostConfig.pos_weight">pos_weight (IKCostConfig attribute)</a>
@@ -3962,27 +3769,9 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.Problem">Problem (class in better_robot.optim.problem)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Euclidean.project">project() (Euclidean method)</a>
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Manifold.project">(Manifold method)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.Variable.project">project() (Variable method)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.RobotConfig.project">(RobotConfig method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SE3Manifold.project">(SE3Manifold method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SO3Manifold.project">(SO3Manifold method)</a>
-</li>
-      </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.implicit.html#better_robot.optim.implicit.ImplicitTerminalState.projected_grad_norm">projected_grad_norm (ImplicitTerminalState attribute)</a>
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.projected_grad_norm">(LMState attribute)</a>
-</li>
-      </ul></li>
       <li><a href="reference/api/better_robot/better_robot.residuals.projection.html#better_robot.residuals.projection.ProjectionResidual">ProjectionResidual (class in better_robot.residuals.projection)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.providers.html#better_robot.optim.providers.Provider">Provider (class in better_robot.optim.providers)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -4030,10 +3819,6 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.exceptions.html#better_robot.exceptions.QuaternionNormError">QuaternionNormError</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneSDFProvider.query_points">query_points (SceneSDFProvider attribute)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneSDFProvider.query_validity">query_validity (SceneSDFProvider attribute)</a>
-</li>
   </ul></td>
 </tr></table>
 
@@ -4063,15 +3848,7 @@
 </li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.planar.html#better_robot.data_model.joint_models.planar.JointPlanar.random_configuration">(JointPlanar method)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRevoluteUnaligned.random_configuration">(JointRevoluteUnaligned method)</a>
-</li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRevoluteUnbounded.random_configuration">(JointRevoluteUnbounded method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRX.random_configuration">(JointRX method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRY.random_configuration">(JointRY method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.revolute.html#better_robot.data_model.joint_models.revolute.JointRZ.random_configuration">(JointRZ method)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.spherical.html#better_robot.data_model.joint_models.spherical.JointSpherical.random_configuration">(JointSpherical method)</a>
 </li>
@@ -4080,46 +3857,6 @@
         <li><a href="reference/api/better_robot/better_robot.data_model.joint_models.fixed.html#better_robot.data_model.joint_models.fixed.JointUniverse.random_configuration">(JointUniverse method)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.data_model.model.html#better_robot.data_model.model.Model.random_configuration">(Model method)</a>
-</li>
-      </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.residuals.smoothness.html#better_robot.residuals.smoothness.AccelerationResidual.reads">reads (AccelerationResidual attribute)</a>
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.residuals.contact.html#better_robot.residuals.contact.ContactConsistencyResidual.reads">(ContactConsistencyResidual attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.smoothness.html#better_robot.residuals.smoothness.JerkResidual.reads">(JerkResidual attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.limits.html#better_robot.residuals.limits.JointPositionLimit.reads">(JointPositionLimit attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.regularization.html#better_robot.residuals.regularization.JointRotationPrior.reads">(JointRotationPrior attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.limits.html#better_robot.residuals.limits.JointVelocityLimit.reads">(JointVelocityLimit attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.regularization.html#better_robot.residuals.regularization.NullspaceResidual.reads">(NullspaceResidual attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.pose.html#better_robot.residuals.pose.OrientationResidual.reads">(OrientationResidual attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.pose.html#better_robot.residuals.pose.PoseResidual.reads">(PoseResidual attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.pose.html#better_robot.residuals.pose.PositionResidual.reads">(PositionResidual attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.projection.html#better_robot.residuals.projection.ProjectionResidual.reads">(ProjectionResidual attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.providers.html#better_robot.optim.providers.Provider.reads">(Provider attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.regularization.html#better_robot.residuals.regularization.ReferenceTrajectoryResidual.reads">(ReferenceTrajectoryResidual attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.Residual.reads">(Residual attribute)</a>, <a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.Residual.reads">[1]</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.regularization.html#better_robot.residuals.regularization.RestResidual.reads">(RestResidual attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.providers.html#better_robot.optim.providers.RobotStateProvider.reads">(RobotStateProvider property)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneSDFProvider.reads">(SceneSDFProvider property)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.human.html#better_robot.residuals.human.SwingTwistLimitResidual.reads">(SwingTwistLimitResidual attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.smoothness.html#better_robot.residuals.smoothness.VelocityResidual.reads">(VelocityResidual attribute)</a>
 </li>
       </ul></li>
       <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LinearizationDecision.reason">reason (LinearizationDecision attribute)</a>
@@ -4150,8 +3887,6 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.io.html#better_robot.io.register_parser">register_parser() (in module better_robot.io)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.relative_decrease">relative_decrease (LMState attribute)</a>
-</li>
       <li><a href="reference/api/better_robot/better_robot.optim.solvers.html#better_robot.optim.solvers.LinearSolveResult.relative_residual">relative_residual (LinearSolveResult attribute)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.viewer.renderers.testing.html#better_robot.viewer.renderers.testing.MockBackend.remove">remove() (MockBackend method)</a>
@@ -4176,39 +3911,37 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.data_model.data.html#better_robot.data_model.data.Data.require">require() (Data method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference/api/better_robot/better_robot.tasks.trajectory.html#better_robot.tasks.trajectory.Trajectory.resample">resample() (Trajectory method)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.data_model.data.html#better_robot.data_model.data.Data.reset">reset() (Data method)</a>
 
       <ul>
+        <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.reset">(LevenbergMarquardt method)</a>
+</li>
         <li><a href="reference/api/better_robot/better_robot.viewer.renderers.testing.html#better_robot.viewer.renderers.testing.MockBackend.reset">(MockBackend method)</a>
 </li>
-      </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.Residual">Residual (class in better_robot.optim.problem)</a>
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.Residual">(class in better_robot.residuals.base)</a>
+        <li><a href="reference/api/better_robot/better_robot.optim.optimizers.html#better_robot.optim.optimizers.Optimizer.reset">(Optimizer method)</a>
+</li>
+        <li><a href="reference/api/better_robot/better_robot.optim.optimizers.html#better_robot.optim.optimizers.TorchOptimizer.reset">(TorchOptimizer method)</a>
 </li>
       </ul></li>
+      <li><a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.Residual">Residual (class in better_robot.residuals.base)</a>
+</li>
       <li><a href="reference/api/better_robot/better_robot.tasks.contact_forces.html#better_robot.tasks.contact_forces.ContactForceResult.residual">residual (ContactForceResult attribute)</a>
 
       <ul>
         <li><a href="reference/api/better_robot/better_robot.tasks.ik.html#better_robot.tasks.ik.IKResult.residual">(IKResult attribute)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.residual">(LMState attribute)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.ResidualItem.residual">(ResidualItem attribute)</a>
-</li>
         <li><a href="reference/api/better_robot/better_robot.tasks.trajopt.html#better_robot.tasks.trajopt.TrajOptResult.residual">(TrajOptResult attribute)</a>
 </li>
       </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.Problem.residual">residual() (Problem method)</a>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.residual">residual() (in module better_robot.residuals.base)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.optim.solvers.html#better_robot.optim.solvers.LinearSolveResult.residual_norm">residual_norm (LinearSolveResult attribute)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.ResidualItem">ResidualItem (class in better_robot.optim.problem)</a>
+      <li><a href="reference/api/better_robot/better_robot.tasks.trajopt.html#better_robot.tasks.trajopt.ResidualFactory">ResidualFactory (in module better_robot.tasks.trajopt)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.io.assets.html#better_robot.io.assets.AssetResolver.resolve">resolve() (AssetResolver method)</a>
 
@@ -4228,20 +3961,10 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.residuals.regularization.html#better_robot.residuals.regularization.RestResidual">RestResidual (class in better_robot.residuals.regularization)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Euclidean.retract">retract() (Euclidean method)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.Problem.retract">retract() (Problem method)</a>
 
       <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Manifold.retract">(Manifold method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.Problem.retract">(Problem method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.RobotConfig.retract">(RobotConfig method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SE3Manifold.retract">(SE3Manifold method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SO3Manifold.retract">(SO3Manifold method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec.retract">(VarSpec method)</a>
+        <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.Variable.retract">(Variable method)</a>
 </li>
       </ul></li>
       <li><a href="reference/api/better_robot/better_robot.data_model.joint.html#better_robot.data_model.joint.Joint.REVOLUTE_RX">REVOLUTE_RX (Joint attribute)</a>
@@ -4284,13 +4007,13 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.dynamics.rnea.html#better_robot.dynamics.rnea.RNEAResult">RNEAResult (class in better_robot.dynamics.rnea)</a>
 </li>
+      <li><a href="reference/api/better_robot/better_robot.residuals.nodes.html#better_robot.residuals.nodes.robot_state">robot_state() (in module better_robot.residuals.nodes)</a>
+</li>
       <li><a href="reference/api/better_robot/better_robot.collision.robot_collision.html#better_robot.collision.robot_collision.RobotCollision">RobotCollision (class in better_robot.collision.robot_collision)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.RobotConfig">RobotConfig (class in better_robot.optim.manifolds)</a>
+      <li><a href="reference/api/better_robot/better_robot.residuals.nodes.html#better_robot.residuals.nodes.RobotState">RobotState (class in better_robot.residuals.nodes)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.providers.html#better_robot.optim.providers.RobotStateProvider">RobotStateProvider (class in better_robot.optim.providers)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.robust_weights">robust_weights (LMState attribute)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.RobotVariable">RobotVariable (class in better_robot.optim.variables)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.optim.kernels.html#better_robot.optim.kernels.RobustKernel">RobustKernel (class in better_robot.optim.kernels)</a>
 </li>
@@ -4314,11 +4037,7 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.residuals.structure.html#better_robot.residuals.structure.TemporalPattern.rows">rows (TemporalPattern attribute)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.run">run() (LevenbergMarquardt method)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.first_order.html#better_robot.optim.first_order.run_first_order">run_first_order() (in module better_robot.optim.first_order)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMStatus.RUNNING">RUNNING (LMStatus attribute)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.optimizers.html#better_robot.optim.optimizers.OptimizerStatus.RUNNING">RUNNING (OptimizerStatus attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -4326,25 +4045,13 @@
 <h2 id="S">S</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.scale">scale (LMState attribute)</a>
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec.scale">(VarSpec attribute)</a>
-</li>
-      </ul></li>
       <li><a href="reference/api/better_robot/better_robot.optim.temporal.html#better_robot.optim.temporal.BlockBandedMatrix.scaled_restricted">scaled_restricted() (BlockBandedMatrix method)</a>
+</li>
+      <li><a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.ScaleWeight">ScaleWeight (class in better_robot.residuals.base)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.viewer.scene.html#better_robot.viewer.scene.Scene">Scene (class in better_robot.viewer.scene)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.viewer.visualizer.html#better_robot.viewer.visualizer.Visualizer.scene">scene() (Visualizer method)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneSDFProvider.scene_confidence">scene_confidence (SceneSDFProvider attribute)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneSDFProvider.scene_normals">scene_normals (SceneSDFProvider attribute)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneSDFProvider.scene_points">scene_points (SceneSDFProvider attribute)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneSDFProvider.scene_validity">scene_validity (SceneSDFProvider attribute)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneAttractionResidual">SceneAttractionResidual (class in better_robot.residuals.scene_sdf)</a>
 </li>
@@ -4352,9 +4059,9 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.ScenePenetrationResidual">ScenePenetrationResidual (class in better_robot.residuals.scene_sdf)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneSDFProvider">SceneSDFProvider (class in better_robot.residuals.scene_sdf)</a>
-</li>
       <li><a href="reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneSDFResult">SceneSDFResult (class in better_robot.residuals.scene_sdf)</a>
+</li>
+      <li><a href="reference/api/better_robot/better_robot.residuals.scene_sdf.html#better_robot.residuals.scene_sdf.SceneSDFState">SceneSDFState (class in better_robot.residuals.scene_sdf)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.lie.se3.html#better_robot.lie.se3.sclerp">sclerp() (in module better_robot.lie.se3)</a>
 </li>
@@ -4368,7 +4075,7 @@
         <li><a href="reference/api/better_robot/better_robot.spatial.motion.html#better_robot.spatial.motion.Motion.se3_action">(Motion method)</a>
 </li>
       </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SE3Manifold">SE3Manifold (class in better_robot.optim.manifolds)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.SE3Variable">SE3Variable (class in better_robot.optim.variables)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.viewer.trajectory_player.html#better_robot.viewer.trajectory_player.TrajectoryPlayer.seek_frame">seek_frame() (TrajectoryPlayer method)</a>
 </li>
@@ -4430,8 +4137,6 @@
         <li><a href="reference/api/better_robot/better_robot.viewer.renderers.viser_backend.html#better_robot.viewer.renderers.viser_backend.ViserBackend.set_visible">(ViserBackend method)</a>
 </li>
       </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec.shape">shape (VarSpec attribute)</a>
-</li>
       <li><a href="reference/api/better_robot/better_robot.exceptions.html#better_robot.exceptions.ShapeError">ShapeError</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.viewer.visualizer.html#better_robot.viewer.visualizer.Visualizer.show">show() (Visualizer method)</a>
@@ -4446,8 +4151,6 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.exceptions.html#better_robot.exceptions.SingularityWarning">SingularityWarning</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference/api/better_robot/better_robot.optim.temporal.html#better_robot.optim.temporal.BlockBandedMatrix.size">size (BlockBandedMatrix property)</a>
 
       <ul>
@@ -4458,13 +4161,15 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.lie.so3.html#better_robot.lie.so3.slerp">slerp() (in module better_robot.lie.so3)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference/api/better_robot/better_robot.tasks.trajectory.html#better_robot.tasks.trajectory.Trajectory.slice">slice() (Trajectory method)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.tasks.smoothing.html#better_robot.tasks.smoothing.smooth_trajectory">smooth_trajectory() (in module better_robot.tasks.smoothing)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.lie.types.html#better_robot.lie.types.SO3">SO3 (class in better_robot.lie.types)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SO3Manifold">SO3Manifold (class in better_robot.optim.manifolds)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.SO3Variable">SO3Variable (class in better_robot.optim.variables)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.optim.solvers.html#better_robot.optim.solvers.LinearSolveResult.solution">solution (LinearSolveResult attribute)</a>
 </li>
@@ -4473,9 +4178,9 @@
       <ul>
         <li><a href="reference/api/better_robot/better_robot.optim.solvers.html#better_robot.optim.solvers.Cholesky.solve">(Cholesky method)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.solve">(LevenbergMarquardt method)</a>
-</li>
         <li><a href="reference/api/better_robot/better_robot.optim.solvers.html#better_robot.optim.solvers.LinearSolver.solve">(LinearSolver method)</a>
+</li>
+        <li><a href="reference/api/better_robot/better_robot.optim.solvers.html#better_robot.optim.solvers.LU.solve">(LU method)</a>
 </li>
       </ul></li>
       <li><a href="reference/api/better_robot/better_robot.tasks.contact_forces.html#better_robot.tasks.contact_forces.solve_contact_forces">solve_contact_forces() (in module better_robot.tasks.contact_forces)</a>
@@ -4491,6 +4196,8 @@
 </li>
         <li><a href="reference/api/better_robot/better_robot.optim.solvers.html#better_robot.optim.solvers.InformativeLinearSolver.solve_with_info">(InformativeLinearSolver method)</a>
 </li>
+        <li><a href="reference/api/better_robot/better_robot.optim.solvers.html#better_robot.optim.solvers.LU.solve_with_info">(LU method)</a>
+</li>
       </ul></li>
       <li><a href="reference/api/better_robot/better_robot.data_model.model_values.html#better_robot.data_model.model_values.ModelValues.spatial_inertias">spatial_inertias() (ModelValues method)</a>
 </li>
@@ -4500,26 +4207,28 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.exceptions.html#better_robot.exceptions.StaleCacheError">StaleCacheError</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMStatus.STALLED_AT_BOUNDS">STALLED_AT_BOUNDS (LMStatus attribute)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.optimizers.html#better_robot.optim.optimizers.OptimizerStatus.STALLED_AT_BOUNDS">STALLED_AT_BOUNDS (OptimizerStatus attribute)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.dynamics.state_manifold.html#better_robot.dynamics.state_manifold.StateMultibody">StateMultibody (class in better_robot.dynamics.state_manifold)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.tasks.contact_forces.html#better_robot.tasks.contact_forces.ContactForceResult.status">status (ContactForceResult attribute)</a>
 
       <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.implicit.html#better_robot.optim.implicit.ImplicitTerminalState.status">(ImplicitTerminalState attribute)</a>
-</li>
         <li><a href="reference/api/better_robot/better_robot.optim.solvers.html#better_robot.optim.solvers.LinearSolveResult.status">(LinearSolveResult attribute)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.status">(LMState attribute)</a>
+        <li><a href="reference/api/better_robot/better_robot.optim.optimizers.html#better_robot.optim.optimizers.OptimizerInfo.status">(OptimizerInfo attribute)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.tasks.trajopt.html#better_robot.tasks.trajopt.TrajOptResult.status">(TrajOptResult attribute)</a>
 </li>
       </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.first_order.html#better_robot.optim.first_order.FirstOrderResult.step">step (FirstOrderResult attribute)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.step">step() (LevenbergMarquardt method)</a>
+
+      <ul>
+        <li><a href="reference/api/better_robot/better_robot.optim.optimizers.html#better_robot.optim.optimizers.Optimizer.step">(Optimizer method)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LMState.step_norm">step_norm (LMState attribute)</a>
+        <li><a href="reference/api/better_robot/better_robot.optim.optimizers.html#better_robot.optim.optimizers.TorchOptimizer.step">(TorchOptimizer method)</a>
 </li>
+      </ul></li>
       <li><a href="reference/api/better_robot/better_robot.data_model.model.html#better_robot.data_model.model.Model.structure">structure (Model attribute)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.Problem.structured_normal">structured_normal() (Problem method)</a>
@@ -4548,6 +4257,8 @@
 
       <ul>
         <li><a href="reference/api/better_robot/better_robot.optim.solvers.html#better_robot.optim.solvers.Cholesky.supported_systems">(Cholesky attribute)</a>
+</li>
+        <li><a href="reference/api/better_robot/better_robot.optim.solvers.html#better_robot.optim.solvers.LU.supported_systems">(LU attribute)</a>
 </li>
       </ul></li>
       <li><a href="reference/api/better_robot/better_robot.data_model.model.html#better_robot.data_model.model.Model.supports">supports (Model attribute)</a>
@@ -4578,18 +4289,14 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference/api/better_robot/better_robot.tasks.trajectory.html#better_robot.tasks.trajectory.Trajectory.t">t (Trajectory attribute)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec.tangent_dim">tangent_dim (VarSpec property)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Euclidean.tangent_dim">tangent_dim() (Euclidean method)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.RobotVariable.tangent_dim">tangent_dim() (RobotVariable method)</a>
 
       <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Manifold.tangent_dim">(Manifold method)</a>
+        <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.SE3Variable.tangent_dim">(SE3Variable method)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.RobotConfig.tangent_dim">(RobotConfig method)</a>
+        <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.SO3Variable.tangent_dim">(SO3Variable method)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SE3Manifold.tangent_dim">(SE3Manifold method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SO3Manifold.tangent_dim">(SO3Manifold method)</a>
+        <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.Variable.tangent_dim">(Variable method)</a>
 </li>
       </ul></li>
       <li><a href="reference/api/better_robot/better_robot.tasks.parameterization.html#better_robot.tasks.parameterization.BSplineTrajectory.tangent_dim_per_step">tangent_dim_per_step() (BSplineTrajectory method)</a>
@@ -4600,8 +4307,6 @@
         <li><a href="reference/api/better_robot/better_robot.tasks.parameterization.html#better_robot.tasks.parameterization.TrajectoryParameterization.tangent_dim_per_step">(TrajectoryParameterization method)</a>
 </li>
       </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.autograd.html#better_robot.optim.autograd.tangent_grad">tangent_grad() (in module better_robot.optim.autograd)</a>
-</li>
       <li><a href="reference/api/better_robot/better_robot.optim.temporal.html#better_robot.optim.temporal.TemporalAnalysis.tangent_width">tangent_width (TemporalAnalysis attribute)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.viewer.overlays.targets.html#better_robot.viewer.overlays.targets.TargetsOverlay.targets">targets (TargetsOverlay property)</a>
@@ -4616,39 +4321,33 @@
         <li><a href="reference/api/better_robot/better_robot.tasks.trajectory.html#better_robot.tasks.trajectory.Trajectory.tau">(Trajectory attribute)</a>
 </li>
       </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec.temporal_free_indices">temporal_free_indices (VarSpec property)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.Variable.temporal_free_indices">temporal_free_indices (Variable property)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.providers.html#better_robot.optim.providers.EvaluationContext.temporal_free_indices">temporal_free_indices() (EvaluationContext method)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.residuals.smoothness.html#better_robot.residuals.smoothness.AccelerationResidual.temporal_jacobian_blocks">temporal_jacobian_blocks() (AccelerationResidual method)</a>
+      <li><a href="reference/api/better_robot/better_robot.residuals.contact.html#better_robot.residuals.contact.ContactConsistencyResidual.temporal_jacobian_blocks">temporal_jacobian_blocks() (ContactConsistencyResidual method)</a>
 
       <ul>
-        <li><a href="reference/api/better_robot/better_robot.residuals.contact.html#better_robot.residuals.contact.ContactConsistencyResidual.temporal_jacobian_blocks">(ContactConsistencyResidual method)</a>
+        <li><a href="reference/api/better_robot/better_robot.residuals.limits.html#better_robot.residuals.limits.JointPositionLimit.temporal_jacobian_blocks">(JointPositionLimit method)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.residuals.regularization.html#better_robot.residuals.regularization.ReferenceTrajectoryResidual.temporal_jacobian_blocks">(ReferenceTrajectoryResidual method)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.residuals.temporal.html#better_robot.residuals.temporal.TimeIndexedResidual.temporal_jacobian_blocks">(TimeIndexedResidual method)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.smoothness.html#better_robot.residuals.smoothness.VelocityResidual.temporal_jacobian_blocks">(VelocityResidual method)</a>
-</li>
       </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec.temporal_mask_is_separable">temporal_mask_is_separable (VarSpec property)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.Variable.temporal_mask_is_separable">temporal_mask_is_separable (Variable property)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec.temporal_reduced_width">temporal_reduced_width (VarSpec property)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.Variable.temporal_reduced_width">temporal_reduced_width (Variable property)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.residuals.smoothness.html#better_robot.residuals.smoothness.AccelerationResidual.temporal_structure">temporal_structure() (AccelerationResidual method)</a>
+      <li><a href="reference/api/better_robot/better_robot.residuals.contact.html#better_robot.residuals.contact.ContactConsistencyResidual.temporal_structure">temporal_structure() (ContactConsistencyResidual method)</a>
 
       <ul>
-        <li><a href="reference/api/better_robot/better_robot.residuals.contact.html#better_robot.residuals.contact.ContactConsistencyResidual.temporal_structure">(ContactConsistencyResidual method)</a>
+        <li><a href="reference/api/better_robot/better_robot.residuals.limits.html#better_robot.residuals.limits.JointPositionLimit.temporal_structure">(JointPositionLimit method)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.residuals.regularization.html#better_robot.residuals.regularization.ReferenceTrajectoryResidual.temporal_structure">(ReferenceTrajectoryResidual method)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.residuals.temporal.html#better_robot.residuals.temporal.TimeIndexedResidual.temporal_structure">(TimeIndexedResidual method)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.residuals.smoothness.html#better_robot.residuals.smoothness.VelocityResidual.temporal_structure">(VelocityResidual method)</a>
-</li>
       </ul></li>
-      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec.temporal_tangent_width">temporal_tangent_width (VarSpec property)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.Variable.temporal_tangent_width">temporal_tangent_width (Variable property)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.optim.temporal.html#better_robot.optim.temporal.TemporalAnalysis">TemporalAnalysis (class in better_robot.optim.temporal)</a>
 </li>
@@ -4662,20 +4361,18 @@
         <li><a href="reference/api/better_robot/better_robot.lie.types.html#better_robot.lie.types.SO3.tensor">(SO3 attribute)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference/api/better_robot/better_robot.viewer.themes.html#better_robot.viewer.themes.Theme">Theme (class in better_robot.viewer.themes)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference/api/better_robot/better_robot.viewer.render_modes.base.html#better_robot.viewer.render_modes.base.RenderContext.theme">theme (RenderContext attribute)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec.time_axis">time_axis (VarSpec attribute)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.optim.temporal.html#better_robot.optim.temporal.BlockBandedMatrix.time_length">time_length (BlockBandedMatrix property)</a>
 
       <ul>
         <li><a href="reference/api/better_robot/better_robot.optim.temporal.html#better_robot.optim.temporal.TemporalAnalysis.time_length">(TemporalAnalysis attribute)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec.time_length">(VarSpec property)</a>
+        <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.Variable.time_length">(Variable property)</a>
 </li>
       </ul></li>
       <li><a href="reference/api/better_robot/better_robot.residuals.temporal.html#better_robot.residuals.temporal.TimeIndexedResidual">TimeIndexedResidual (class in better_robot.residuals.temporal)</a>
@@ -4714,6 +4411,8 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.data_model.topology.html#better_robot.data_model.topology.topo_sort">topo_sort() (in module better_robot.data_model.topology)</a>
 </li>
+      <li><a href="reference/api/better_robot/better_robot.optim.optimizers.html#better_robot.optim.optimizers.TorchOptimizer">TorchOptimizer (class in better_robot.optim.optimizers)</a>
+</li>
       <li><a href="reference/api/better_robot/better_robot.tasks.contact_forces.html#better_robot.tasks.contact_forces.ContactForceWeights.torque_smooth">torque_smooth (ContactForceWeights attribute)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.dynamics.centroidal.html#better_robot.dynamics.centroidal.CentroidalResult.total_mass">total_mass (CentroidalResult attribute)</a>
@@ -4750,7 +4449,7 @@
 </li>
       <li><a href="reference/api/better_robot/better_robot.data_model.execution_batch.html#better_robot.data_model.execution_batch.ExecutionBatch.unflatten">unflatten() (ExecutionBatch method)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.RobotConfig.unit_coordinate_slices">unit_coordinate_slices (RobotConfig property)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.RobotVariable.unit_coordinate_slices">unit_coordinate_slices (RobotVariable property)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.data_model.joint.html#better_robot.data_model.joint.Joint.UNIVERSE">UNIVERSE (Joint attribute)</a>
 </li>
@@ -4763,7 +4462,7 @@
 </li>
         <li><a href="reference/api/better_robot/better_robot.viewer.overlays.grid.html#better_robot.viewer.overlays.grid.GridOverlay.update">(GridOverlay method)</a>
 </li>
-        <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.update">(LevenbergMarquardt method)</a>
+        <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.Problem.update">(Problem method)</a>
 </li>
         <li><a href="reference/api/better_robot/better_robot.viewer.render_modes.base.html#better_robot.viewer.render_modes.base.RenderMode.update">(RenderMode method)</a>
 </li>
@@ -4822,37 +4521,23 @@
       </ul></li>
       <li><a href="reference/api/better_robot/better_robot.data_model.model_values.html#better_robot.data_model.model_values.ModelValues.validate">validate() (ModelValues method)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Euclidean.validate_bounds">validate_bounds() (Euclidean method)</a>
-
-      <ul>
-        <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.Manifold.validate_bounds">(Manifold method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.RobotConfig.validate_bounds">(RobotConfig method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SE3Manifold.validate_bounds">(SE3Manifold method)</a>
-</li>
-        <li><a href="reference/api/better_robot/better_robot.optim.manifolds.html#better_robot.optim.manifolds.SO3Manifold.validate_bounds">(SO3Manifold method)</a>
-</li>
-      </ul></li>
       <li><a href="reference/api/better_robot/better_robot.data_model.model_structure.html#better_robot.data_model.model_structure.ModelStructure.validate_consistency">validate_consistency() (ModelStructure method)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.implicit.html#better_robot.optim.implicit.validate_implicit_input_roles">validate_implicit_input_roles() (in module better_robot.optim.implicit)</a>
+      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.Variable.validate_value">validate_value() (Variable method)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec.validate_value">validate_value() (VarSpec method)</a>
+      <li><a href="reference/api/better_robot/better_robot.residuals.nodes.html#better_robot.residuals.nodes.Node.value">value() (Node method)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.data_model.execution_batch.html#better_robot.data_model.execution_batch.ExecutionBatch.values">values (ExecutionBatch attribute)</a>
+
+      <ul>
+        <li><a href="reference/api/better_robot/better_robot.data_model.model.html#better_robot.data_model.model.Model.values">(Model attribute)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.Values">Values (in module better_robot.optim.variables)</a>
+      </ul></li>
+      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.Variable">Variable (class in better_robot.optim.variables)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="reference/api/better_robot/better_robot.data_model.model.html#better_robot.data_model.model.Model.values">values (Model attribute)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.providers.html#better_robot.optim.providers.RobotStateProvider.var">var (RobotStateProvider attribute)</a>
-</li>
       <li><a href="reference/api/better_robot/better_robot.optim.temporal.html#better_robot.optim.temporal.TemporalAnalysis.variable_name">variable_name (TemporalAnalysis attribute)</a>
-</li>
-      <li><a href="reference/api/better_robot/better_robot.optim.variables.html#better_robot.optim.variables.VarSpec">VarSpec (class in better_robot.optim.variables)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.lie.tangents.html#better_robot.lie.tangents.vee_se3">vee_se3() (in module better_robot.lie.tangents)</a>
 </li>
@@ -4884,9 +4569,9 @@
 <h2 id="W">W</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.Weight">Weight (in module better_robot.optim.problem)</a>
+      <li><a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.Weight">Weight (class in better_robot.residuals.base)</a>
 </li>
-      <li><a href="reference/api/better_robot/better_robot.optim.problem.html#better_robot.optim.problem.ResidualItem.weight">weight (ResidualItem attribute)</a>
+      <li><a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.Residual.weight">weight (Residual property)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.optim.kernels.html#better_robot.optim.kernels.Cauchy.weight">weight() (Cauchy method)</a>
 
@@ -4904,6 +4589,8 @@
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="reference/api/better_robot/better_robot.residuals.base.html#better_robot.residuals.base.Residual.weighted_error">weighted_error() (Residual method)</a>
+</li>
       <li><a href="reference/api/better_robot/better_robot.tasks.trajectory.html#better_robot.tasks.trajectory.Trajectory.with_batch_dims">with_batch_dims() (Trajectory method)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.data_model.model.html#better_robot.data_model.model.Model.with_values">with_values() (Model method)</a>
@@ -4911,14 +4598,6 @@
       <li><a href="reference/api/better_robot/better_robot.collision.robot_collision.html#better_robot.collision.robot_collision.RobotCollision.world_capsules">world_capsules() (RobotCollision method)</a>
 </li>
       <li><a href="reference/api/better_robot/better_robot.collision.robot_collision.html#better_robot.collision.robot_collision.RobotCollision.world_distances">world_distances() (RobotCollision method)</a>
-</li>
-  </ul></td>
-</tr></table>
-
-<h2 id="X">X</h2>
-<table style="width: 100%" class="indextable genindextable"><tr>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="reference/api/better_robot/better_robot.optim.lm.html#better_robot.optim.lm.LevenbergMarquardt.xtol">xtol (LevenbergMarquardt attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -4994,7 +4673,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>

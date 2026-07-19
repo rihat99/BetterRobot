@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>better_robot.optim.autograd &#8212; BetterRobot</title>
+    <title>better_robot.residuals.nodes &#8212; BetterRobot</title>
   
   
   
@@ -49,15 +49,15 @@
     <script src="../../../_static/copybutton.js?v=c57da192"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../../../_static/design-tabs.js?v=f930bc37"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'reference/api/better_robot/better_robot.optim.autograd';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'reference/api/better_robot/better_robot.residuals.nodes';</script>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
-    <link rel="next" title="better_robot.optim.problem" href="better_robot.optim.problem.html" />
-    <link rel="prev" title="better_robot.optim.solvers" href="better_robot.optim.solvers.html" />
+    <link rel="next" title="better_robot.residuals.regularization" href="better_robot.residuals.regularization.html" />
+    <link rel="prev" title="better_robot.residuals.chamfer" href="better_robot.residuals.chamfer.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -193,7 +193,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
@@ -239,13 +239,14 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.viewer.themes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.viewer.themes</span></code></a></li>
 </ul>
 </details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="better_robot.residuals.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 current active has-children"><a class="reference internal" href="better_robot.residuals.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals</span></code></a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.base.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.base</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.human.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.human</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4 current active"><a class="current reference internal" href="#"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -279,17 +280,15 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.dynamics.derivatives.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.derivatives</span></code></a></li>
 </ul>
 </details></li>
-<li class="toctree-l3 current active has-children"><a class="reference internal" href="better_robot.optim.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim</span></code></a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l3 has-children"><a class="reference internal" href="better_robot.optim.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.implicit.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.implicit</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4 current active"><a class="current reference internal" href="#"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -418,7 +417,7 @@
       
       
       
-      <li><a href="https://github.com/rihat99/BetterRobot/edit/dev/docs/reference/api/better_robot/better_robot.optim.autograd.md" target="_blank"
+      <li><a href="https://github.com/rihat99/BetterRobot/edit/dev/docs/reference/api/better_robot/better_robot.residuals.nodes.md" target="_blank"
    class="btn btn-sm btn-source-edit-button dropdown-item"
    title="Suggest edit"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -435,7 +434,7 @@
       
       
       
-      <li><a href="https://github.com/rihat99/BetterRobot/issues/new?title=Issue%20on%20page%20%2Freference/api/better_robot/better_robot.optim.autograd.html&body=Your%20issue%20content%20here." target="_blank"
+      <li><a href="https://github.com/rihat99/BetterRobot/issues/new?title=Issue%20on%20page%20%2Freference/api/better_robot/better_robot.residuals.nodes.html&body=Your%20issue%20content%20here." target="_blank"
    class="btn btn-sm btn-source-issues-button dropdown-item"
    title="Open an issue"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -465,7 +464,7 @@
       
       
       
-      <li><a href="../../../_sources/reference/api/better_robot/better_robot.optim.autograd.md" target="_blank"
+      <li><a href="../../../_sources/reference/api/better_robot/better_robot.residuals.nodes.md" target="_blank"
    class="btn btn-sm btn-download-source-button dropdown-item"
    title="Download source file"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -541,7 +540,7 @@
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>better_robot.optim.autograd</h1>
+    <h1>better_robot.residuals.nodes</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -552,10 +551,21 @@
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#module-contents">Module Contents</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#classes">Classes</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#functions">Functions</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#api">API</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.autograd.perturb_values"><code class="docutils literal notranslate"><span class="pre">perturb_values()</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.autograd.tangent_grad"><code class="docutils literal notranslate"><span class="pre">tangent_grad()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.nodes.Node"><code class="docutils literal notranslate"><span class="pre">Node</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.nodes.Node.merge_key"><code class="docutils literal notranslate"><span class="pre">Node.merge_key</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.nodes.Node.value"><code class="docutils literal notranslate"><span class="pre">Node.value()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.nodes.Node.compute"><code class="docutils literal notranslate"><span class="pre">Node.compute()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.nodes.RobotState"><code class="docutils literal notranslate"><span class="pre">RobotState</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.nodes.RobotState.merge_key"><code class="docutils literal notranslate"><span class="pre">RobotState.merge_key</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.nodes.RobotState.compute"><code class="docutils literal notranslate"><span class="pre">RobotState.compute()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.nodes.robot_state"><code class="docutils literal notranslate"><span class="pre">robot_state()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -571,20 +581,31 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="module-better_robot.optim.autograd">
-<span id="better-robot-optim-autograd"></span><h1><a class="reference internal" href="#module-better_robot.optim.autograd" title="better_robot.optim.autograd"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a><a class="headerlink" href="#module-better_robot.optim.autograd" title="Link to this heading">#</a></h1>
-<p>Tangent-space autograd primitives shared by gradients and Jacobians.</p>
+  <section id="module-better_robot.residuals.nodes">
+<span id="better-robot-residuals-nodes"></span><h1><a class="reference internal" href="#module-better_robot.residuals.nodes" title="better_robot.residuals.nodes"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a><a class="headerlink" href="#module-better_robot.residuals.nodes" title="Link to this heading">#</a></h1>
+<p>Evaluation-epoch computation nodes shared by object-referenced residuals.</p>
 <section id="module-contents">
 <h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading">#</a></h2>
+<section id="classes">
+<h3>Classes<a class="headerlink" href="#classes" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table table-left">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.residuals.nodes.Node" title="better_robot.residuals.nodes.Node"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Node</span></code></a></p></td>
+<td><p>A lazy value whose graph-bearing memo is scoped to one evaluation epoch.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#better_robot.residuals.nodes.RobotState" title="better_robot.residuals.nodes.RobotState"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RobotState</span></code></a></p></td>
+<td><p>Lazy forward-kinematics bundle for one robot configuration variable.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
 <section id="functions">
 <h3>Functions<a class="headerlink" href="#functions" title="Link to this heading">#</a></h3>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table table-left">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.optim.autograd.perturb_values" title="better_robot.optim.autograd.perturb_values"><code class="xref py py-obj docutils literal notranslate"><span class="pre">perturb_values</span></code></a></p></td>
-<td><p>Retract each named value by its reduced tangent delta.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#better_robot.optim.autograd.tangent_grad" title="better_robot.optim.autograd.tangent_grad"><code class="xref py py-obj docutils literal notranslate"><span class="pre">tangent_grad</span></code></a></p></td>
-<td><p>Differentiate <code class="docutils literal notranslate"><span class="pre">f(values</span> <span class="pre">⊕</span> <span class="pre">delta)</span></code> at zero in reduced tangents.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.residuals.nodes.robot_state" title="better_robot.residuals.nodes.robot_state"><code class="xref py py-obj docutils literal notranslate"><span class="pre">robot_state</span></code></a></p></td>
+<td></td>
 </tr>
 </tbody>
 </table>
@@ -592,17 +613,52 @@
 </section>
 <section id="api">
 <h3>API<a class="headerlink" href="#api" title="Link to this heading">#</a></h3>
-<dl class="py function">
-<dt class="sig sig-object py" id="better_robot.optim.autograd.perturb_values">
-<span class="sig-name descname"><span class="pre">perturb_values</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">specs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="better_robot.optim.variables.html#better_robot.optim.variables.VarSpec" title="better_robot.optim.variables.VarSpec"><span class="pre">better_robot.optim.variables.VarSpec</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://trimesh.org/trimesh.typed.html#trimesh.typed.Mapping" title="(in trimesh)"><span class="pre">collections.abc.Mapping</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">deltas</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://trimesh.org/trimesh.typed.html#trimesh.typed.Mapping" title="(in trimesh)"><span class="pre">collections.abc.Mapping</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">better_robot.optim.variables.Values</span></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/autograd.html#perturb_values"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.autograd.perturb_values" title="Link to this definition">#</a></dt>
-<dd><p>Retract each named value by its reduced tangent delta.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="better_robot.residuals.nodes.Node">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Node</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">variables</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.residuals._variables.ValueLike</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/residuals/nodes.html#Node"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.nodes.Node" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">abc.ABC</span></code></p>
+<p>A lazy value whose graph-bearing memo is scoped to one evaluation epoch.</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="better_robot.residuals.nodes.Node.merge_key">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">merge_key</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">object</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#better_robot.residuals.nodes.Node.merge_key" title="Link to this definition">#</a></dt>
+<dd><p>Return an identity-only merge key, or <code class="docutils literal notranslate"><span class="pre">None</span></code> to disable merging.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="better_robot.residuals.nodes.Node.value">
+<span class="sig-name descname"><span class="pre">value</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/residuals/nodes.html#Node.value"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.nodes.Node.value" title="Link to this definition">#</a></dt>
+<dd><p>Return a fresh standalone value or the active evaluation’s memo.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="better_robot.residuals.nodes.Node.compute">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/residuals/nodes.html#Node.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.nodes.Node.compute" title="Link to this definition">#</a></dt>
+<dd><p>Compute this node from its current variable tensors.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="better_robot.residuals.nodes.RobotState">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">RobotState</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.residuals._variables.RobotValueLike</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/residuals/nodes.html#RobotState"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.nodes.RobotState" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#better_robot.residuals.nodes.Node" title="better_robot.residuals.nodes.Node"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.residuals.nodes.Node</span></code></a></p>
+<p>Lazy forward-kinematics bundle for one robot configuration variable.</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="better_robot.residuals.nodes.RobotState.merge_key">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">merge_key</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">object</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#better_robot.residuals.nodes.RobotState.merge_key" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="better_robot.residuals.nodes.RobotState.compute">
+<span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/residuals/nodes.html#RobotState.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.nodes.RobotState.compute" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="better_robot.optim.autograd.tangent_grad">
-<span class="sig-name descname"><span class="pre">tangent_grad</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://trimesh.org/trimesh.typed.html#trimesh.typed.Callable" title="(in trimesh)"><span class="pre">collections.abc.Callable</span></a><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">better_robot.optim.variables.Values</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">specs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="better_robot.optim.variables.html#better_robot.optim.variables.VarSpec" title="better_robot.optim.variables.VarSpec"><span class="pre">better_robot.optim.variables.VarSpec</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://trimesh.org/trimesh.typed.html#trimesh.typed.Mapping" title="(in trimesh)"><span class="pre">collections.abc.Mapping</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">create_graph</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">graph_inputs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://trimesh.org/trimesh.typed.html#trimesh.typed.Sequence" title="(in trimesh)"><span class="pre">collections.abc.Sequence</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">better_robot.optim.variables.Values</span></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/autograd.html#tangent_grad"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.autograd.tangent_grad" title="Link to this definition">#</a></dt>
-<dd><p>Differentiate <code class="docutils literal notranslate"><span class="pre">f(values</span> <span class="pre">⊕</span> <span class="pre">delta)</span></code> at zero in reduced tangents.</p>
-</dd></dl>
+<dt class="sig sig-object py" id="better_robot.residuals.nodes.robot_state">
+<span class="sig-name descname"><span class="pre">robot_state</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.residuals._variables.RobotVariableLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#better_robot.residuals.nodes.RobotState" title="better_robot.residuals.nodes.RobotState"><span class="pre">better_robot.residuals.nodes.RobotState</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">better_robot.residuals._variables.RobotVariableLike</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#better_robot.residuals.nodes.RobotState" title="better_robot.residuals.nodes.RobotState"><span class="pre">better_robot.residuals.nodes.RobotState</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/better_robot/residuals/nodes.html#robot_state"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.residuals.nodes.robot_state" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
 
 </section>
 </section>
@@ -620,20 +676,20 @@
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="better_robot.optim.solvers.html"
+       href="better_robot.residuals.chamfer.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></p>
+        <p class="prev-next-title"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></p>
       </div>
     </a>
     <a class="right-next"
-       href="better_robot.optim.problem.html"
+       href="better_robot.residuals.regularization.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></p>
+        <p class="prev-next-title"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -656,10 +712,21 @@
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#module-contents">Module Contents</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#classes">Classes</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#functions">Functions</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#api">API</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.autograd.perturb_values"><code class="docutils literal notranslate"><span class="pre">perturb_values()</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.autograd.tangent_grad"><code class="docutils literal notranslate"><span class="pre">tangent_grad()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.nodes.Node"><code class="docutils literal notranslate"><span class="pre">Node</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.nodes.Node.merge_key"><code class="docutils literal notranslate"><span class="pre">Node.merge_key</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.nodes.Node.value"><code class="docutils literal notranslate"><span class="pre">Node.value()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.nodes.Node.compute"><code class="docutils literal notranslate"><span class="pre">Node.compute()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.nodes.RobotState"><code class="docutils literal notranslate"><span class="pre">RobotState</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.nodes.RobotState.merge_key"><code class="docutils literal notranslate"><span class="pre">RobotState.merge_key</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.nodes.RobotState.compute"><code class="docutils literal notranslate"><span class="pre">RobotState.compute()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.residuals.nodes.robot_state"><code class="docutils literal notranslate"><span class="pre">robot_state()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -697,7 +764,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>

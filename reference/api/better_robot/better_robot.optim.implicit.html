@@ -57,7 +57,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -193,7 +193,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
@@ -246,6 +246,7 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -284,12 +285,10 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -553,30 +552,13 @@
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#module-contents">Module Contents</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#classes">Classes</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#functions">Functions</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#data">Data</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#api">API</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ForwardLinearization"><code class="docutils literal notranslate"><span class="pre">ForwardLinearization</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitDifferentiationError"><code class="docutils literal notranslate"><span class="pre">ImplicitDifferentiationError</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitDiffConfig"><code class="docutils literal notranslate"><span class="pre">ImplicitDiffConfig</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitDiffConfig.max_dense_tangent_dim"><code class="docutils literal notranslate"><span class="pre">ImplicitDiffConfig.max_dense_tangent_dim</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitDiffConfig.allow_banded_dense_backward"><code class="docutils literal notranslate"><span class="pre">ImplicitDiffConfig.allow_banded_dense_backward</span></code></a></li>
 </ul>
 </li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitTerminalState"><code class="docutils literal notranslate"><span class="pre">ImplicitTerminalState</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitTerminalState.status"><code class="docutils literal notranslate"><span class="pre">ImplicitTerminalState.status</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitTerminalState.implicit_valid"><code class="docutils literal notranslate"><span class="pre">ImplicitTerminalState.implicit_valid</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitTerminalState.active_mask"><code class="docutils literal notranslate"><span class="pre">ImplicitTerminalState.active_mask</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitTerminalState.gradient"><code class="docutils literal notranslate"><span class="pre">ImplicitTerminalState.gradient</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitTerminalState.projected_grad_norm"><code class="docutils literal notranslate"><span class="pre">ImplicitTerminalState.projected_grad_norm</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitTerminalState.bound_state_index"><code class="docutils literal notranslate"><span class="pre">ImplicitTerminalState.bound_state_index</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitTerminalState.bound_lower"><code class="docutils literal notranslate"><span class="pre">ImplicitTerminalState.bound_lower</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitTerminalState.bound_upper"><code class="docutils literal notranslate"><span class="pre">ImplicitTerminalState.bound_upper</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitTerminalState.bounded_mask"><code class="docutils literal notranslate"><span class="pre">ImplicitTerminalState.bounded_mask</span></code></a></li>
-</ul>
-</li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.validate_implicit_input_roles"><code class="docutils literal notranslate"><span class="pre">validate_implicit_input_roles()</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.attach_implicit_gradients"><code class="docutils literal notranslate"><span class="pre">attach_implicit_gradients()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -607,50 +589,16 @@ singular adjoint systems fail explicitly instead of returning a wrong gradient.<
 <tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.optim.implicit.ImplicitDiffConfig" title="better_robot.optim.implicit.ImplicitDiffConfig"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ImplicitDiffConfig</span></code></a></p></td>
 <td><p>Controls dense-backward size and structured-forward opt-in.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#better_robot.optim.implicit.ImplicitTerminalState" title="better_robot.optim.implicit.ImplicitTerminalState"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ImplicitTerminalState</span></code></a></p></td>
-<td><p>Terminal LM/GN tensors required by implicit differentiation.</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="functions">
-<h3>Functions<a class="headerlink" href="#functions" title="Link to this heading">#</a></h3>
-<div class="pst-scrollable-table-container"><table class="autosummary longtable table table-left">
-<tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.optim.implicit.validate_implicit_input_roles" title="better_robot.optim.implicit.validate_implicit_input_roles"><code class="xref py py-obj docutils literal notranslate"><span class="pre">validate_implicit_input_roles</span></code></a></p></td>
-<td><p>Require optimized values and named parameters to be distinct tensors.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#better_robot.optim.implicit.attach_implicit_gradients" title="better_robot.optim.implicit.attach_implicit_gradients"><code class="xref py py-obj docutils literal notranslate"><span class="pre">attach_implicit_gradients</span></code></a></p></td>
-<td><p>Attach an exact first-order implicit backward to terminal values.</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="data">
-<h3>Data<a class="headerlink" href="#data" title="Link to this heading">#</a></h3>
-<div class="pst-scrollable-table-container"><table class="autosummary longtable table table-left">
-<tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.optim.implicit.ForwardLinearization" title="better_robot.optim.implicit.ForwardLinearization"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ForwardLinearization</span></code></a></p></td>
-<td></td>
-</tr>
 </tbody>
 </table>
 </div>
 </section>
 <section id="api">
 <h3>API<a class="headerlink" href="#api" title="Link to this heading">#</a></h3>
-<dl class="py data">
-<dt class="sig sig-object py" id="better_robot.optim.implicit.ForwardLinearization">
-<span class="sig-name descname"><span class="pre">ForwardLinearization</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.TypeAlias" title="(in Python v3.14)"><span class="pre">TypeAlias</span></a></em><a class="headerlink" href="#better_robot.optim.implicit.ForwardLinearization" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
 <dl class="py exception">
 <dt class="sig sig-object py" id="better_robot.optim.implicit.ImplicitDifferentiationError">
-<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ImplicitDifferentiationError</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">invalid_indices</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">statuses</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/optim/implicit.html#ImplicitDifferentiationError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.implicit.ImplicitDifferentiationError" title="Link to this definition">#</a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/exceptions.html#RuntimeError" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RuntimeError</span></code></a></p>
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ImplicitDifferentiationError</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">invalid_indices</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">statuses</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/optim/implicit.html#ImplicitDifferentiationError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.implicit.ImplicitDifferentiationError" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">RuntimeError</span></code></p>
 <p>The requested implicit backward has no contract-valid gradient.</p>
 </dd></dl>
 
@@ -660,89 +608,16 @@ singular adjoint systems fail explicitly instead of returning a wrong gradient.<
 <dd><p>Controls dense-backward size and structured-forward opt-in.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.optim.implicit.ImplicitDiffConfig.max_dense_tangent_dim">
-<span class="sig-name descname"><span class="pre">max_dense_tangent_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#better_robot.optim.implicit.ImplicitDiffConfig.max_dense_tangent_dim" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">max_dense_tangent_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#better_robot.optim.implicit.ImplicitDiffConfig.max_dense_tangent_dim" title="Link to this definition">#</a></dt>
 <dd><p>512</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.optim.implicit.ImplicitDiffConfig.allow_banded_dense_backward">
-<span class="sig-name descname"><span class="pre">allow_banded_dense_backward</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></em><a class="headerlink" href="#better_robot.optim.implicit.ImplicitDiffConfig.allow_banded_dense_backward" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">allow_banded_dense_backward</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#better_robot.optim.implicit.ImplicitDiffConfig.allow_banded_dense_backward" title="Link to this definition">#</a></dt>
 <dd><p>False</p>
 </dd></dl>
 
-</dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="better_robot.optim.implicit.ImplicitTerminalState">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ImplicitTerminalState</span></span><a class="reference internal" href="../../../_modules/better_robot/optim/implicit.html#ImplicitTerminalState"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.implicit.ImplicitTerminalState" title="Link to this definition">#</a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Protocol" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">typing.Protocol</span></code></a></p>
-<p>Terminal LM/GN tensors required by implicit differentiation.</p>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.implicit.ImplicitTerminalState.status">
-<span class="sig-name descname"><span class="pre">status</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.implicit.ImplicitTerminalState.status" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.implicit.ImplicitTerminalState.implicit_valid">
-<span class="sig-name descname"><span class="pre">implicit_valid</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.implicit.ImplicitTerminalState.implicit_valid" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.implicit.ImplicitTerminalState.active_mask">
-<span class="sig-name descname"><span class="pre">active_mask</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.implicit.ImplicitTerminalState.active_mask" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.implicit.ImplicitTerminalState.gradient">
-<span class="sig-name descname"><span class="pre">gradient</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.implicit.ImplicitTerminalState.gradient" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.implicit.ImplicitTerminalState.projected_grad_norm">
-<span class="sig-name descname"><span class="pre">projected_grad_norm</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.implicit.ImplicitTerminalState.projected_grad_norm" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.implicit.ImplicitTerminalState.bound_state_index">
-<span class="sig-name descname"><span class="pre">bound_state_index</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.implicit.ImplicitTerminalState.bound_state_index" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.implicit.ImplicitTerminalState.bound_lower">
-<span class="sig-name descname"><span class="pre">bound_lower</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.implicit.ImplicitTerminalState.bound_lower" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.implicit.ImplicitTerminalState.bound_upper">
-<span class="sig-name descname"><span class="pre">bound_upper</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.implicit.ImplicitTerminalState.bound_upper" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.implicit.ImplicitTerminalState.bounded_mask">
-<span class="sig-name descname"><span class="pre">bounded_mask</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.implicit.ImplicitTerminalState.bounded_mask" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="better_robot.optim.implicit.validate_implicit_input_roles">
-<span class="sig-name descname"><span class="pre">validate_implicit_input_roles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://trimesh.org/trimesh.typed.html#trimesh.typed.Mapping" title="(in trimesh)"><span class="pre">collections.abc.Mapping</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">problem</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.optim.problem.html#better_robot.optim.problem.Problem" title="better_robot.optim.problem.Problem"><span class="pre">better_robot.optim.problem.Problem</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/implicit.html#validate_implicit_input_roles"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.implicit.validate_implicit_input_roles" title="Link to this definition">#</a></dt>
-<dd><p>Require optimized values and named parameters to be distinct tensors.</p>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="better_robot.optim.implicit.attach_implicit_gradients">
-<span class="sig-name descname"><span class="pre">attach_implicit_gradients</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">terminal_values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://trimesh.org/trimesh.typed.html#trimesh.typed.Mapping" title="(in trimesh)"><span class="pre">collections.abc.Mapping</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#better_robot.optim.implicit.ImplicitTerminalState" title="better_robot.optim.implicit.ImplicitTerminalState"><span class="pre">better_robot.optim.implicit.ImplicitTerminalState</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">problem</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.optim.problem.html#better_robot.optim.problem.Problem" title="better_robot.optim.problem.Problem"><span class="pre">better_robot.optim.problem.Problem</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_kernel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.optim.kernels.html#better_robot.optim.kernels.RobustKernel" title="better_robot.optim.kernels.RobustKernel"><span class="pre">better_robot.optim.kernels.RobustKernel</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forward_linearization</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.optim.implicit.ForwardLinearization</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'dense'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#better_robot.optim.implicit.ImplicitDiffConfig" title="better_robot.optim.implicit.ImplicitDiffConfig"><span class="pre">better_robot.optim.implicit.ImplicitDiffConfig</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">better_robot.optim.variables.Values</span></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/implicit.html#attach_implicit_gradients"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.implicit.attach_implicit_gradients" title="Link to this definition">#</a></dt>
-<dd><p>Attach an exact first-order implicit backward to terminal values.</p>
 </dd></dl>
 
 </section>
@@ -798,30 +673,13 @@ singular adjoint systems fail explicitly instead of returning a wrong gradient.<
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#module-contents">Module Contents</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#classes">Classes</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#functions">Functions</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#data">Data</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#api">API</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ForwardLinearization"><code class="docutils literal notranslate"><span class="pre">ForwardLinearization</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitDifferentiationError"><code class="docutils literal notranslate"><span class="pre">ImplicitDifferentiationError</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitDiffConfig"><code class="docutils literal notranslate"><span class="pre">ImplicitDiffConfig</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitDiffConfig.max_dense_tangent_dim"><code class="docutils literal notranslate"><span class="pre">ImplicitDiffConfig.max_dense_tangent_dim</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitDiffConfig.allow_banded_dense_backward"><code class="docutils literal notranslate"><span class="pre">ImplicitDiffConfig.allow_banded_dense_backward</span></code></a></li>
 </ul>
 </li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitTerminalState"><code class="docutils literal notranslate"><span class="pre">ImplicitTerminalState</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitTerminalState.status"><code class="docutils literal notranslate"><span class="pre">ImplicitTerminalState.status</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitTerminalState.implicit_valid"><code class="docutils literal notranslate"><span class="pre">ImplicitTerminalState.implicit_valid</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitTerminalState.active_mask"><code class="docutils literal notranslate"><span class="pre">ImplicitTerminalState.active_mask</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitTerminalState.gradient"><code class="docutils literal notranslate"><span class="pre">ImplicitTerminalState.gradient</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitTerminalState.projected_grad_norm"><code class="docutils literal notranslate"><span class="pre">ImplicitTerminalState.projected_grad_norm</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitTerminalState.bound_state_index"><code class="docutils literal notranslate"><span class="pre">ImplicitTerminalState.bound_state_index</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitTerminalState.bound_lower"><code class="docutils literal notranslate"><span class="pre">ImplicitTerminalState.bound_lower</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitTerminalState.bound_upper"><code class="docutils literal notranslate"><span class="pre">ImplicitTerminalState.bound_upper</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.ImplicitTerminalState.bounded_mask"><code class="docutils literal notranslate"><span class="pre">ImplicitTerminalState.bounded_mask</span></code></a></li>
-</ul>
-</li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.validate_implicit_input_roles"><code class="docutils literal notranslate"><span class="pre">validate_implicit_input_roles()</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.implicit.attach_implicit_gradients"><code class="docutils literal notranslate"><span class="pre">attach_implicit_gradients()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -859,7 +717,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>

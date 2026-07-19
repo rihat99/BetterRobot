@@ -57,7 +57,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -193,7 +193,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
@@ -246,6 +246,7 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -284,12 +285,10 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -554,6 +553,7 @@
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#module-contents">Module Contents</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#classes">Classes</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#functions">Functions</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#data">Data</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#api">API</a><ul class="nav section-nav flex-column">
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.tasks.trajopt.TrajOptResult"><code class="docutils literal notranslate"><span class="pre">TrajOptResult</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.tasks.trajopt.TrajOptResult.trajectory"><code class="docutils literal notranslate"><span class="pre">TrajOptResult.trajectory</span></code></a></li>
@@ -568,6 +568,8 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.tasks.trajopt.TrajOptResult.linearization_detail"><code class="docutils literal notranslate"><span class="pre">TrajOptResult.linearization_detail</span></code></a></li>
 </ul>
 </li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.tasks.trajopt.ResidualFactory"><code class="docutils literal notranslate"><span class="pre">ResidualFactory</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.tasks.trajopt.OptimizerFactory"><code class="docutils literal notranslate"><span class="pre">OptimizerFactory</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.tasks.trajopt.solve_trajopt"><code class="docutils literal notranslate"><span class="pre">solve_trajopt()</span></code></a></li>
 </ul>
 </li>
@@ -586,14 +588,7 @@
                   
   <section id="module-better_robot.tasks.trajopt">
 <span id="better-robot-tasks-trajopt"></span><h1><a class="reference internal" href="#module-better_robot.tasks.trajopt" title="better_robot.tasks.trajopt"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajopt</span></code></a><a class="headerlink" href="#module-better_robot.tasks.trajopt" title="Link to this heading">#</a></h1>
-<p>Kinematic trajectory optimization as a named-block problem preset.</p>
-<p>Residual items are adapted to one temporal <code class="docutils literal notranslate"><span class="pre">q</span></code> block. Solver ownership is
-otherwise entirely in :mod:<code class="docutils literal notranslate"><span class="pre">better_robot.optim</span></code>: this module contains no
-optimization loop or dense/structured dispatch of its own.</p>
-<p>Only :class:<code class="docutils literal notranslate"><span class="pre">~better_robot.tasks.parameterization.KnotTrajectory</span></code> is a safe
-robot parameterization today.  The numerical <code class="docutils literal notranslate"><span class="pre">BSplineTrajectory</span></code> utility is
-still rejected because component-wise interpolation is not a robot-manifold
-map and does not preserve bounds.</p>
+<p>Kinematic trajectory optimization over an object-referenced problem.</p>
 <section id="module-contents">
 <h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading">#</a></h2>
 <section id="classes">
@@ -601,7 +596,7 @@ map and does not preserve bounds.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table table-left">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.tasks.trajopt.TrajOptResult" title="better_robot.tasks.trajopt.TrajOptResult"><code class="xref py py-obj docutils literal notranslate"><span class="pre">TrajOptResult</span></code></a></p></td>
-<td><p>Result of an unbatched or independently batched trajectory solve.</p></td>
+<td><p>Solved trajectory, optimizer diagnostics, and linearization route.</p></td>
 </tr>
 </tbody>
 </table>
@@ -612,7 +607,21 @@ map and does not preserve bounds.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table table-left">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.tasks.trajopt.solve_trajopt" title="better_robot.tasks.trajopt.solve_trajopt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">solve_trajopt</span></code></a></p></td>
-<td><p>Solve one or an arbitrary leading batch of knot trajectories.</p></td>
+<td><p>Solve a knot trajectory using residual objects or <code class="docutils literal notranslate"><span class="pre">q</span> <span class="pre">-&gt;</span> <span class="pre">residual</span></code> factories.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="data">
+<h3>Data<a class="headerlink" href="#data" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table table-left">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.tasks.trajopt.ResidualFactory" title="better_robot.tasks.trajopt.ResidualFactory"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ResidualFactory</span></code></a></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#better_robot.tasks.trajopt.OptimizerFactory" title="better_robot.tasks.trajopt.OptimizerFactory"><code class="xref py py-obj docutils literal notranslate"><span class="pre">OptimizerFactory</span></code></a></p></td>
+<td></td>
 </tr>
 </tbody>
 </table>
@@ -623,12 +632,7 @@ map and does not preserve bounds.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="better_robot.tasks.trajopt.TrajOptResult">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">TrajOptResult</span></span><a class="reference internal" href="../../../_modules/better_robot/tasks/trajopt.html#TrajOptResult"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.tasks.trajopt.TrajOptResult" title="Link to this definition">#</a></dt>
-<dd><p>Result of an unbatched or independently batched trajectory solve.</p>
-<p>Historical unbatched calls retain <code class="docutils literal notranslate"><span class="pre">trajectory.q.shape</span> <span class="pre">==</span> <span class="pre">(1,</span> <span class="pre">T,</span> <span class="pre">nq)</span></code>.
-Batched calls preserve every leading batch axis and return tensor-valued
-per-element iteration and convergence diagnostics. Route metadata records
-a requested <code class="docutils literal notranslate"><span class="pre">auto</span></code>/<code class="docutils literal notranslate"><span class="pre">dense</span></code>/<code class="docutils literal notranslate"><span class="pre">structured</span></code> mode and the selected
-<code class="docutils literal notranslate"><span class="pre">dense</span></code> or <code class="docutils literal notranslate"><span class="pre">banded</span></code> implementation.</p>
+<dd><p>Solved trajectory, optimizer diagnostics, and linearization route.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.trajopt.TrajOptResult.trajectory">
 <span class="sig-name descname"><span class="pre">trajectory</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="better_robot.tasks.trajectory.html#better_robot.tasks.trajectory.Trajectory" title="better_robot.tasks.trajectory.Trajectory"><span class="pre">better_robot.tasks.trajectory.Trajectory</span></a></em><a class="headerlink" href="#better_robot.tasks.trajopt.TrajOptResult.trajectory" title="Link to this definition">#</a></dt>
@@ -637,25 +641,25 @@ a requested <code class="docutils literal notranslate"><span class="pre">auto</s
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.trajopt.TrajOptResult.residual">
-<span class="sig-name descname"><span class="pre">residual</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.tasks.trajopt.TrajOptResult.residual" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">residual</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></em><a class="headerlink" href="#better_robot.tasks.trajopt.TrajOptResult.residual" title="Link to this definition">#</a></dt>
 <dd><p>None</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.trajopt.TrajOptResult.iters">
-<span class="sig-name descname"><span class="pre">iters</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.tasks.trajopt.TrajOptResult.iters" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">iters</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></em><a class="headerlink" href="#better_robot.tasks.trajopt.TrajOptResult.iters" title="Link to this definition">#</a></dt>
 <dd><p>None</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.trajopt.TrajOptResult.converged">
-<span class="sig-name descname"><span class="pre">converged</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.tasks.trajopt.TrajOptResult.converged" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">converged</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></em><a class="headerlink" href="#better_robot.tasks.trajopt.TrajOptResult.converged" title="Link to this definition">#</a></dt>
 <dd><p>None</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.trajopt.TrajOptResult.status">
-<span class="sig-name descname"><span class="pre">status</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.tasks.trajopt.TrajOptResult.status" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">status</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></em><a class="headerlink" href="#better_robot.tasks.trajopt.TrajOptResult.status" title="Link to this definition">#</a></dt>
 <dd><p>None</p>
 </dd></dl>
 
@@ -673,7 +677,7 @@ a requested <code class="docutils literal notranslate"><span class="pre">auto</s
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.trajopt.TrajOptResult.linearization_used">
-<span class="sig-name descname"><span class="pre">linearization_used</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.14)"><span class="pre">Literal</span></a><span class="p"><span class="pre">[</span></span><span class="pre">dense</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">banded</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#better_robot.tasks.trajopt.TrajOptResult.linearization_used" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">linearization_used</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">dense</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">banded</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#better_robot.tasks.trajopt.TrajOptResult.linearization_used" title="Link to this definition">#</a></dt>
 <dd><p>None</p>
 </dd></dl>
 
@@ -685,19 +689,31 @@ a requested <code class="docutils literal notranslate"><span class="pre">auto</s
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.tasks.trajopt.TrajOptResult.linearization_detail">
-<span class="sig-name descname"><span class="pre">linearization_detail</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#better_robot.tasks.trajopt.TrajOptResult.linearization_detail" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">linearization_detail</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#better_robot.tasks.trajopt.TrajOptResult.linearization_detail" title="Link to this definition">#</a></dt>
 <dd><p>None</p>
 </dd></dl>
 
 </dd></dl>
 
+<dl class="py data">
+<dt class="sig sig-object py" id="better_robot.tasks.trajopt.ResidualFactory">
+<span class="sig-name descname"><span class="pre">ResidualFactory</span></span><a class="headerlink" href="#better_robot.tasks.trajopt.ResidualFactory" title="Link to this definition">#</a></dt>
+<dd><p>None</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="better_robot.tasks.trajopt.OptimizerFactory">
+<span class="sig-name descname"><span class="pre">OptimizerFactory</span></span><a class="headerlink" href="#better_robot.tasks.trajopt.OptimizerFactory" title="Link to this definition">#</a></dt>
+<dd><p>None</p>
+</dd></dl>
+
 <dl class="py function">
 <dt class="sig sig-object py" id="better_robot.tasks.trajopt.solve_trajopt">
-<span class="sig-name descname"><span class="pre">solve_trajopt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.data_model.model.html#better_robot.data_model.model.Model" title="better_robot.data_model.model.Model"><span class="pre">better_robot.data_model.model.Model</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">horizon</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_q_traj</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">residuals</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://trimesh.org/trimesh.typed.html#trimesh.typed.Sequence" title="(in trimesh)"><span class="pre">collections.abc.Sequence</span></a><span class="p"><span class="pre">[</span></span><span class="pre">better_robot.optim.ResidualItem</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optimizer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.optim.LevenbergMarquardt</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_iter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">jacobian_strategy</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.optim.JacobianStrategy</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lower</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upper</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parameterization</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.tasks.parameterization.html#better_robot.tasks.parameterization.KnotTrajectory" title="better_robot.tasks.parameterization.KnotTrajectory"><span class="pre">better_robot.tasks.parameterization.KnotTrajectory</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#better_robot.tasks.trajopt.TrajOptResult" title="better_robot.tasks.trajopt.TrajOptResult"><span class="pre">better_robot.tasks.trajopt.TrajOptResult</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/tasks/trajopt.html#solve_trajopt"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.tasks.trajopt.solve_trajopt" title="Link to this definition">#</a></dt>
-<dd><p>Solve one or an arbitrary leading batch of knot trajectories.</p>
-<p><code class="docutils literal notranslate"><span class="pre">initial_q_traj</span></code> is shaped <code class="docutils literal notranslate"><span class="pre">(B...,</span> <span class="pre">T,</span> <span class="pre">nq)</span></code>.  <code class="docutils literal notranslate"><span class="pre">optimizer=None</span></code>
-constructs route-aware named-block LM with <code class="docutils literal notranslate"><span class="pre">linearization=&quot;auto&quot;</span></code>;
-pass <code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt(linearization=&quot;dense&quot;)</span></code> for the dense oracle.</p>
+<span class="sig-name descname"><span class="pre">solve_trajopt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.data_model.model.html#better_robot.data_model.model.Model" title="better_robot.data_model.model.Model"><span class="pre">better_robot.data_model.model.Model</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_q_traj</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">better_robot.optim.RobotVariable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">residuals</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">collections.abc.Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">better_robot.optim.Residual</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">better_robot.tasks.trajopt.ResidualFactory</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optimizer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.tasks.trajopt.OptimizerFactory</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_iter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">jacobian_strategy</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.optim.JacobianStrategy</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lower</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upper</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parameterization</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.tasks.parameterization.html#better_robot.tasks.parameterization.KnotTrajectory" title="better_robot.tasks.parameterization.KnotTrajectory"><span class="pre">better_robot.tasks.parameterization.KnotTrajectory</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#better_robot.tasks.trajopt.TrajOptResult" title="better_robot.tasks.trajopt.TrajOptResult"><span class="pre">better_robot.tasks.trajopt.TrajOptResult</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/tasks/trajopt.html#solve_trajopt"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.tasks.trajopt.solve_trajopt" title="Link to this definition">#</a></dt>
+<dd><p>Solve a knot trajectory using residual objects or <code class="docutils literal notranslate"><span class="pre">q</span> <span class="pre">-&gt;</span> <span class="pre">residual</span></code> factories.</p>
+<p>A tensor input lets the facade construct <code class="docutils literal notranslate"><span class="pre">RobotVariable(...,</span> <span class="pre">time_axis=0)</span></code>; passing that variable directly lets callers own the graph.
+<code class="docutils literal notranslate"><span class="pre">optimizer</span></code> is a factory because the optimizer must be created after the
+residual graph has produced its :class:<code class="docutils literal notranslate"><span class="pre">Problem</span></code>.</p>
 </dd></dl>
 
 </section>
@@ -754,6 +770,7 @@ pass <code class="docutils literal notranslate"><span class="pre">LevenbergMarqu
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#module-contents">Module Contents</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#classes">Classes</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#functions">Functions</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#data">Data</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#api">API</a><ul class="nav section-nav flex-column">
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.tasks.trajopt.TrajOptResult"><code class="docutils literal notranslate"><span class="pre">TrajOptResult</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.tasks.trajopt.TrajOptResult.trajectory"><code class="docutils literal notranslate"><span class="pre">TrajOptResult.trajectory</span></code></a></li>
@@ -768,6 +785,8 @@ pass <code class="docutils literal notranslate"><span class="pre">LevenbergMarqu
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.tasks.trajopt.TrajOptResult.linearization_detail"><code class="docutils literal notranslate"><span class="pre">TrajOptResult.linearization_detail</span></code></a></li>
 </ul>
 </li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.tasks.trajopt.ResidualFactory"><code class="docutils literal notranslate"><span class="pre">ResidualFactory</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.tasks.trajopt.OptimizerFactory"><code class="docutils literal notranslate"><span class="pre">OptimizerFactory</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.tasks.trajopt.solve_trajopt"><code class="docutils literal notranslate"><span class="pre">solve_trajopt()</span></code></a></li>
 </ul>
 </li>
@@ -806,7 +825,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>

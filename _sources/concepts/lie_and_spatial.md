@@ -120,6 +120,18 @@ T_again = se3.exp(xi)
 
 R = so3.to_matrix(T_ab[..., 3:])
 q = so3.from_matrix(R)
+
+print(points_a.round(decimals=6).tolist())
+print(bool(torch.allclose(se3.compose(T_ab, T_ba), T_a)))
+print(bool(torch.allclose(T_again, T_ab)))
+print(bool(torch.allclose(so3.to_matrix(q), R)))
+```
+
+```{testoutput}
+[1.079401, 0.0, -0.208636]
+True
+True
+True
 ```
 
 The main operations are `identity`, `compose`, `inverse`, `act`, `exp`,
@@ -146,6 +158,14 @@ xi = torch.tensor([0.1, 0.0, 0.0, 0.0, 0.2, 0.0], dtype=torch.float64)
 Jr = tangents.right_jacobian_se3(xi)
 Jr_inv = tangents.right_jacobian_inv_se3(xi)
 Jl = tangents.left_jacobian_se3(xi)
+
+print((Jr.shape, Jr_inv.shape, Jl.shape))
+print(bool(torch.allclose(Jr @ Jr_inv, torch.eye(6, dtype=xi.dtype))))
+```
+
+```{testoutput}
+(torch.Size([6, 6]), torch.Size([6, 6]), torch.Size([6, 6]))
+True
 ```
 
 These are not robot frame Jacobians. They describe how a perturbation passes
@@ -208,6 +228,16 @@ source = torch.tensor(
 target = 2.0 * source + torch.tensor([0.5, -0.2, 0.3], dtype=torch.float64)
 weights = torch.ones(3, dtype=torch.float64)
 scale, rotation, translation = umeyama(source, target, weights)
+
+print(round(float(scale), 6))
+print(round(float(torch.linalg.det(rotation)), 6))
+print(translation.round(decimals=6).tolist())
+```
+
+```{testoutput}
+2.0
+1.0
+[0.5, -0.2, 0.3]
 ```
 
 The fitted rotation is proper: its determinant is `+1`. This is a data

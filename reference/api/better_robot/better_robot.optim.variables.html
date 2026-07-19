@@ -52,12 +52,12 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'reference/api/better_robot/better_robot.optim.variables';</script>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
-    <link rel="next" title="better_robot.optim.first_order" href="better_robot.optim.first_order.html" />
+    <link rel="next" title="better_robot.optim.lm" href="better_robot.optim.lm.html" />
     <link rel="prev" title="better_robot.optim.kernels" href="better_robot.optim.kernels.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -193,7 +193,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
@@ -246,6 +246,7 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.projection.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.projection</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.contact.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.contact</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
@@ -284,12 +285,10 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.autograd.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.autograd</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.providers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.providers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4 current active"><a class="current reference internal" href="#"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.first_order.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
 </ul>
 </details></li>
@@ -553,36 +552,42 @@
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#module-contents">Module Contents</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#classes">Classes</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#functions">Functions</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#data">Data</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#api">API</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Values"><code class="docutils literal notranslate"><span class="pre">Values</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec"><code class="docutils literal notranslate"><span class="pre">VarSpec</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.name"><code class="docutils literal notranslate"><span class="pre">VarSpec.name</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.shape"><code class="docutils literal notranslate"><span class="pre">VarSpec.shape</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.manifold"><code class="docutils literal notranslate"><span class="pre">VarSpec.manifold</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.bounds"><code class="docutils literal notranslate"><span class="pre">VarSpec.bounds</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.scale"><code class="docutils literal notranslate"><span class="pre">VarSpec.scale</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.mask"><code class="docutils literal notranslate"><span class="pre">VarSpec.mask</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.time_axis"><code class="docutils literal notranslate"><span class="pre">VarSpec.time_axis</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.tangent_dim"><code class="docutils literal notranslate"><span class="pre">VarSpec.tangent_dim</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.free_dim"><code class="docutils literal notranslate"><span class="pre">VarSpec.free_dim</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.free_indices"><code class="docutils literal notranslate"><span class="pre">VarSpec.free_indices</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.free_scale"><code class="docutils literal notranslate"><span class="pre">VarSpec.free_scale</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.time_length"><code class="docutils literal notranslate"><span class="pre">VarSpec.time_length</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.temporal_tangent_width"><code class="docutils literal notranslate"><span class="pre">VarSpec.temporal_tangent_width</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.temporal_mask_is_separable"><code class="docutils literal notranslate"><span class="pre">VarSpec.temporal_mask_is_separable</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.temporal_free_indices"><code class="docutils literal notranslate"><span class="pre">VarSpec.temporal_free_indices</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.temporal_reduced_width"><code class="docutils literal notranslate"><span class="pre">VarSpec.temporal_reduced_width</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.batch_shape"><code class="docutils literal notranslate"><span class="pre">VarSpec.batch_shape()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.validate_value"><code class="docutils literal notranslate"><span class="pre">VarSpec.validate_value()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.gather_tangent"><code class="docutils literal notranslate"><span class="pre">VarSpec.gather_tangent()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.expand_tangent"><code class="docutils literal notranslate"><span class="pre">VarSpec.expand_tangent()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.retract"><code class="docutils literal notranslate"><span class="pre">VarSpec.retract()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.difference"><code class="docutils literal notranslate"><span class="pre">VarSpec.difference()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable"><code class="docutils literal notranslate"><span class="pre">Variable</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.tangent_dim"><code class="docutils literal notranslate"><span class="pre">Variable.tangent_dim()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.free_dim"><code class="docutils literal notranslate"><span class="pre">Variable.free_dim</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.free_indices"><code class="docutils literal notranslate"><span class="pre">Variable.free_indices</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.free_scale"><code class="docutils literal notranslate"><span class="pre">Variable.free_scale</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.batch_shape"><code class="docutils literal notranslate"><span class="pre">Variable.batch_shape</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.batch_shape_of"><code class="docutils literal notranslate"><span class="pre">Variable.batch_shape_of()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.time_length"><code class="docutils literal notranslate"><span class="pre">Variable.time_length</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.temporal_tangent_width"><code class="docutils literal notranslate"><span class="pre">Variable.temporal_tangent_width</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.temporal_mask_is_separable"><code class="docutils literal notranslate"><span class="pre">Variable.temporal_mask_is_separable</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.temporal_free_indices"><code class="docutils literal notranslate"><span class="pre">Variable.temporal_free_indices</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.temporal_reduced_width"><code class="docutils literal notranslate"><span class="pre">Variable.temporal_reduced_width</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.validate_value"><code class="docutils literal notranslate"><span class="pre">Variable.validate_value()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.gather_tangent"><code class="docutils literal notranslate"><span class="pre">Variable.gather_tangent()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.expand_tangent"><code class="docutils literal notranslate"><span class="pre">Variable.expand_tangent()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.project"><code class="docutils literal notranslate"><span class="pre">Variable.project()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.retract"><code class="docutils literal notranslate"><span class="pre">Variable.retract()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.difference"><code class="docutils literal notranslate"><span class="pre">Variable.difference()</span></code></a></li>
 </ul>
 </li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.detach_values"><code class="docutils literal notranslate"><span class="pre">detach_values()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.SO3Variable"><code class="docutils literal notranslate"><span class="pre">SO3Variable</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.SO3Variable.tangent_dim"><code class="docutils literal notranslate"><span class="pre">SO3Variable.tangent_dim()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.SE3Variable"><code class="docutils literal notranslate"><span class="pre">SE3Variable</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.SE3Variable.tangent_dim"><code class="docutils literal notranslate"><span class="pre">SE3Variable.tangent_dim()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.RobotVariable"><code class="docutils literal notranslate"><span class="pre">RobotVariable</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.RobotVariable.box_mask"><code class="docutils literal notranslate"><span class="pre">RobotVariable.box_mask</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.RobotVariable.joint_bounds"><code class="docutils literal notranslate"><span class="pre">RobotVariable.joint_bounds()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.RobotVariable.unit_coordinate_slices"><code class="docutils literal notranslate"><span class="pre">RobotVariable.unit_coordinate_slices</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.RobotVariable.tangent_dim"><code class="docutils literal notranslate"><span class="pre">RobotVariable.tangent_dim()</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -607,30 +612,17 @@
 <h3>Classes<a class="headerlink" href="#classes" title="Link to this heading">#</a></h3>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table table-left">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.optim.variables.VarSpec" title="better_robot.optim.variables.VarSpec"><code class="xref py py-obj docutils literal notranslate"><span class="pre">VarSpec</span></code></a></p></td>
-<td><p>Static state event, manifold, bounds, and reduced tangent layout.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.optim.variables.Variable" title="better_robot.optim.variables.Variable"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Variable</span></code></a></p></td>
+<td><p>A Euclidean tensor variable with an owned value and reduced tangent layout.</p></td>
 </tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="functions">
-<h3>Functions<a class="headerlink" href="#functions" title="Link to this heading">#</a></h3>
-<div class="pst-scrollable-table-container"><table class="autosummary longtable table table-left">
-<tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.optim.variables.detach_values" title="better_robot.optim.variables.detach_values"><code class="xref py py-obj docutils literal notranslate"><span class="pre">detach_values</span></code></a></p></td>
-<td></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#better_robot.optim.variables.SO3Variable" title="better_robot.optim.variables.SO3Variable"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SO3Variable</span></code></a></p></td>
+<td><p>A unit-quaternion variable with a three-dimensional tangent.</p></td>
 </tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="data">
-<h3>Data<a class="headerlink" href="#data" title="Link to this heading">#</a></h3>
-<div class="pst-scrollable-table-container"><table class="autosummary longtable table table-left">
-<tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.optim.variables.Values" title="better_robot.optim.variables.Values"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Values</span></code></a></p></td>
-<td></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#better_robot.optim.variables.SE3Variable" title="better_robot.optim.variables.SE3Variable"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SE3Variable</span></code></a></p></td>
+<td><p>An SE(3) pose variable with a six-dimensional tangent.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#better_robot.optim.variables.RobotVariable" title="better_robot.optim.variables.RobotVariable"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RobotVariable</span></code></a></p></td>
+<td><p>A robot configuration variable using a model’s integrate/difference geometry.</p></td>
 </tr>
 </tbody>
 </table>
@@ -638,139 +630,151 @@
 </section>
 <section id="api">
 <h3>API<a class="headerlink" href="#api" title="Link to this heading">#</a></h3>
-<dl class="py data">
-<dt class="sig sig-object py" id="better_robot.optim.variables.Values">
-<span class="sig-name descname"><span class="pre">Values</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.TypeAlias" title="(in Python v3.14)"><span class="pre">TypeAlias</span></a></em><a class="headerlink" href="#better_robot.optim.variables.Values" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="better_robot.optim.variables.Variable">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Variable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tensor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trainable</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bounds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.optim.manifolds.html#better_robot.optim.manifolds.Bounds" title="better_robot.optim.manifolds.Bounds"><span class="pre">better_robot.optim.manifolds.Bounds</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_ndim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_axis</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#Variable"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.Variable" title="Link to this definition">#</a></dt>
+<dd><p>A Euclidean tensor variable with an owned value and reduced tangent layout.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="better_robot.optim.variables.Variable.tangent_dim">
+<span class="sig-name descname"><span class="pre">tangent_dim</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#Variable.tangent_dim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.Variable.tangent_dim" title="Link to this definition">#</a></dt>
+<dd><p>Return the full tangent width of one event.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="better_robot.optim.variables.Variable.free_dim">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">free_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#better_robot.optim.variables.Variable.free_dim" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="better_robot.optim.variables.Variable.free_indices">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">free_indices</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></em><a class="headerlink" href="#better_robot.optim.variables.Variable.free_indices" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="better_robot.optim.variables.Variable.free_scale">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">free_scale</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">torch.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#better_robot.optim.variables.Variable.free_scale" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="better_robot.optim.variables.Variable.batch_shape">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">batch_shape</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#better_robot.optim.variables.Variable.batch_shape" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="better_robot.optim.variables.Variable.batch_shape_of">
+<span class="sig-name descname"><span class="pre">batch_shape_of</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#Variable.batch_shape_of"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.Variable.batch_shape_of" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="better_robot.optim.variables.Variable.time_length">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">time_length</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#better_robot.optim.variables.Variable.time_length" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="better_robot.optim.variables.Variable.temporal_tangent_width">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">temporal_tangent_width</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#better_robot.optim.variables.Variable.temporal_tangent_width" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="better_robot.optim.variables.Variable.temporal_mask_is_separable">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">temporal_mask_is_separable</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#better_robot.optim.variables.Variable.temporal_mask_is_separable" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="better_robot.optim.variables.Variable.temporal_free_indices">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">temporal_free_indices</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></em><a class="headerlink" href="#better_robot.optim.variables.Variable.temporal_free_indices" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="better_robot.optim.variables.Variable.temporal_reduced_width">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">temporal_reduced_width</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#better_robot.optim.variables.Variable.temporal_reduced_width" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="better_robot.optim.variables.Variable.validate_value">
+<span class="sig-name descname"><span class="pre">validate_value</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#Variable.validate_value"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.Variable.validate_value" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="better_robot.optim.variables.Variable.gather_tangent">
+<span class="sig-name descname"><span class="pre">gather_tangent</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">full</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">torch.Tensor</span></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#Variable.gather_tangent"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.Variable.gather_tangent" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="better_robot.optim.variables.Variable.expand_tangent">
+<span class="sig-name descname"><span class="pre">expand_tangent</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">reduced</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">torch.Tensor</span></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#Variable.expand_tangent"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.Variable.expand_tangent" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="better_robot.optim.variables.Variable.project">
+<span class="sig-name descname"><span class="pre">project</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">torch.Tensor</span></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#Variable.project"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.Variable.project" title="Link to this definition">#</a></dt>
+<dd><p>Project a value onto this variable’s valid representation.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="better_robot.optim.variables.Variable.retract">
+<span class="sig-name descname"><span class="pre">retract</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">reduced_delta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">torch.Tensor</span></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#Variable.retract"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.Variable.retract" title="Link to this definition">#</a></dt>
+<dd><p>Retract <code class="docutils literal notranslate"><span class="pre">reduced_delta</span></code> from the current value without assigning it.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="better_robot.optim.variables.Variable.difference">
+<span class="sig-name descname"><span class="pre">difference</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">other</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">torch.Tensor</span></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#Variable.difference"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.Variable.difference" title="Link to this definition">#</a></dt>
+<dd><p>Return the tangent displacement from <code class="docutils literal notranslate"><span class="pre">other</span></code> to the current value.</p>
+</dd></dl>
+
 </dd></dl>
 
 <dl class="py class">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">VarSpec</span></span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#VarSpec"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.VarSpec" title="Link to this definition">#</a></dt>
-<dd><p>Static state event, manifold, bounds, and reduced tangent layout.</p>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec.name">
-<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#better_robot.optim.variables.VarSpec.name" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
+<dt class="sig sig-object py" id="better_robot.optim.variables.SO3Variable">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SO3Variable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tensor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trainable</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bounds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.optim.manifolds.html#better_robot.optim.manifolds.Bounds" title="better_robot.optim.manifolds.Bounds"><span class="pre">better_robot.optim.manifolds.Bounds</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_ndim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_axis</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#SO3Variable"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.SO3Variable" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#better_robot.optim.variables.Variable" title="better_robot.optim.variables.Variable"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.optim.variables.Variable</span></code></a></p>
+<p>A unit-quaternion variable with a three-dimensional tangent.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="better_robot.optim.variables.SO3Variable.tangent_dim">
+<span class="sig-name descname"><span class="pre">tangent_dim</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#SO3Variable.tangent_dim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.SO3Variable.tangent_dim" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec.shape">
-<span class="sig-name descname"><span class="pre">shape</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#better_robot.optim.variables.VarSpec.shape" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="better_robot.optim.variables.SE3Variable">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SE3Variable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tensor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trainable</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bounds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.optim.manifolds.html#better_robot.optim.manifolds.Bounds" title="better_robot.optim.manifolds.Bounds"><span class="pre">better_robot.optim.manifolds.Bounds</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_ndim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_axis</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#SE3Variable"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.SE3Variable" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#better_robot.optim.variables.Variable" title="better_robot.optim.variables.Variable"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.optim.variables.Variable</span></code></a></p>
+<p>An SE(3) pose variable with a six-dimensional tangent.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="better_robot.optim.variables.SE3Variable.tangent_dim">
+<span class="sig-name descname"><span class="pre">tangent_dim</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#SE3Variable.tangent_dim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.SE3Variable.tangent_dim" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec.manifold">
-<span class="sig-name descname"><span class="pre">manifold</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="better_robot.optim.manifolds.html#better_robot.optim.manifolds.Manifold" title="better_robot.optim.manifolds.Manifold"><span class="pre">better_robot.optim.manifolds.Manifold</span></a></em><a class="headerlink" href="#better_robot.optim.variables.VarSpec.manifold" title="Link to this definition">#</a></dt>
-<dd><p>‘field(…)’</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec.bounds">
-<span class="sig-name descname"><span class="pre">bounds</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="better_robot.optim.manifolds.html#better_robot.optim.manifolds.Bounds" title="better_robot.optim.manifolds.Bounds"><span class="pre">better_robot.optim.manifolds.Bounds</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#better_robot.optim.variables.VarSpec.bounds" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec.scale">
-<span class="sig-name descname"><span class="pre">scale</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#better_robot.optim.variables.VarSpec.scale" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec.mask">
-<span class="sig-name descname"><span class="pre">mask</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#better_robot.optim.variables.VarSpec.mask" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec.time_axis">
-<span class="sig-name descname"><span class="pre">time_axis</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#better_robot.optim.variables.VarSpec.time_axis" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
+<dl class="py class">
+<dt class="sig sig-object py" id="better_robot.optim.variables.RobotVariable">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">RobotVariable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.data_model.model.html#better_robot.data_model.model.Model" title="better_robot.data_model.model.Model"><span class="pre">better_robot.data_model.model.Model</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">tensor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trainable</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bounds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="better_robot.optim.manifolds.html#better_robot.optim.manifolds.Bounds" title="better_robot.optim.manifolds.Bounds"><span class="pre">better_robot.optim.manifolds.Bounds</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_ndim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_axis</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#RobotVariable"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.RobotVariable" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#better_robot.optim.variables.Variable" title="better_robot.optim.variables.Variable"><code class="xref py py-obj docutils literal notranslate"><span class="pre">better_robot.optim.variables.Variable</span></code></a></p>
+<p>A robot configuration variable using a model’s integrate/difference geometry.</p>
 <dl class="py property">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec.tangent_dim">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">tangent_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#better_robot.optim.variables.VarSpec.tangent_dim" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py property">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec.free_dim">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">free_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#better_robot.optim.variables.VarSpec.free_dim" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py property">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec.free_indices">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">free_indices</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.variables.VarSpec.free_indices" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py property">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec.free_scale">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">free_scale</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#better_robot.optim.variables.VarSpec.free_scale" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py property">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec.time_length">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">time_length</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#better_robot.optim.variables.VarSpec.time_length" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py property">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec.temporal_tangent_width">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">temporal_tangent_width</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#better_robot.optim.variables.VarSpec.temporal_tangent_width" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py property">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec.temporal_mask_is_separable">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">temporal_mask_is_separable</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></em><a class="headerlink" href="#better_robot.optim.variables.VarSpec.temporal_mask_is_separable" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py property">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec.temporal_free_indices">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">temporal_free_indices</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></em><a class="headerlink" href="#better_robot.optim.variables.VarSpec.temporal_free_indices" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py property">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec.temporal_reduced_width">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">temporal_reduced_width</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#better_robot.optim.variables.VarSpec.temporal_reduced_width" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object py" id="better_robot.optim.variables.RobotVariable.box_mask">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">box_mask</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">torch.Tensor</span></em><a class="headerlink" href="#better_robot.optim.variables.RobotVariable.box_mask" title="Link to this definition">#</a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec.batch_shape">
-<span class="sig-name descname"><span class="pre">batch_shape</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#VarSpec.batch_shape"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.VarSpec.batch_shape" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object py" id="better_robot.optim.variables.RobotVariable.joint_bounds">
+<span class="sig-name descname"><span class="pre">joint_bounds</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="better_robot.optim.manifolds.html#better_robot.optim.manifolds.Bounds" title="better_robot.optim.manifolds.Bounds"><span class="pre">better_robot.optim.manifolds.Bounds</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#RobotVariable.joint_bounds"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.RobotVariable.joint_bounds" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="better_robot.optim.variables.RobotVariable.unit_coordinate_slices">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">unit_coordinate_slices</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">slice</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#better_robot.optim.variables.RobotVariable.unit_coordinate_slices" title="Link to this definition">#</a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec.validate_value">
-<span class="sig-name descname"><span class="pre">validate_value</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#VarSpec.validate_value"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.VarSpec.validate_value" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec.gather_tangent">
-<span class="sig-name descname"><span class="pre">gather_tangent</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">full</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#VarSpec.gather_tangent"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.VarSpec.gather_tangent" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec.expand_tangent">
-<span class="sig-name descname"><span class="pre">expand_tangent</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">reduced</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#VarSpec.expand_tangent"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.VarSpec.expand_tangent" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec.retract">
-<span class="sig-name descname"><span class="pre">retract</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">reduced_delta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#VarSpec.retract"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.VarSpec.retract" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="better_robot.optim.variables.VarSpec.difference">
-<span class="sig-name descname"><span class="pre">difference</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">x1</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#VarSpec.difference"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.VarSpec.difference" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object py" id="better_robot.optim.variables.RobotVariable.tangent_dim">
+<span class="sig-name descname"><span class="pre">tangent_dim</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#RobotVariable.tangent_dim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.RobotVariable.tangent_dim" title="Link to this definition">#</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="better_robot.optim.variables.detach_values">
-<span class="sig-name descname"><span class="pre">detach_values</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">better_robot.optim.variables.Values</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">better_robot.optim.variables.Values</span></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/variables.html#detach_values"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.variables.detach_values" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
 
 </section>
 </section>
@@ -797,11 +801,11 @@
       </div>
     </a>
     <a class="right-next"
-       href="better_robot.optim.first_order.html"
+       href="better_robot.optim.lm.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.first_order</span></code></p>
+        <p class="prev-next-title"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -825,36 +829,42 @@
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#module-contents">Module Contents</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#classes">Classes</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#functions">Functions</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#data">Data</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#api">API</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Values"><code class="docutils literal notranslate"><span class="pre">Values</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec"><code class="docutils literal notranslate"><span class="pre">VarSpec</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.name"><code class="docutils literal notranslate"><span class="pre">VarSpec.name</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.shape"><code class="docutils literal notranslate"><span class="pre">VarSpec.shape</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.manifold"><code class="docutils literal notranslate"><span class="pre">VarSpec.manifold</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.bounds"><code class="docutils literal notranslate"><span class="pre">VarSpec.bounds</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.scale"><code class="docutils literal notranslate"><span class="pre">VarSpec.scale</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.mask"><code class="docutils literal notranslate"><span class="pre">VarSpec.mask</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.time_axis"><code class="docutils literal notranslate"><span class="pre">VarSpec.time_axis</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.tangent_dim"><code class="docutils literal notranslate"><span class="pre">VarSpec.tangent_dim</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.free_dim"><code class="docutils literal notranslate"><span class="pre">VarSpec.free_dim</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.free_indices"><code class="docutils literal notranslate"><span class="pre">VarSpec.free_indices</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.free_scale"><code class="docutils literal notranslate"><span class="pre">VarSpec.free_scale</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.time_length"><code class="docutils literal notranslate"><span class="pre">VarSpec.time_length</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.temporal_tangent_width"><code class="docutils literal notranslate"><span class="pre">VarSpec.temporal_tangent_width</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.temporal_mask_is_separable"><code class="docutils literal notranslate"><span class="pre">VarSpec.temporal_mask_is_separable</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.temporal_free_indices"><code class="docutils literal notranslate"><span class="pre">VarSpec.temporal_free_indices</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.temporal_reduced_width"><code class="docutils literal notranslate"><span class="pre">VarSpec.temporal_reduced_width</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.batch_shape"><code class="docutils literal notranslate"><span class="pre">VarSpec.batch_shape()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.validate_value"><code class="docutils literal notranslate"><span class="pre">VarSpec.validate_value()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.gather_tangent"><code class="docutils literal notranslate"><span class="pre">VarSpec.gather_tangent()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.expand_tangent"><code class="docutils literal notranslate"><span class="pre">VarSpec.expand_tangent()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.retract"><code class="docutils literal notranslate"><span class="pre">VarSpec.retract()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.VarSpec.difference"><code class="docutils literal notranslate"><span class="pre">VarSpec.difference()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable"><code class="docutils literal notranslate"><span class="pre">Variable</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.tangent_dim"><code class="docutils literal notranslate"><span class="pre">Variable.tangent_dim()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.free_dim"><code class="docutils literal notranslate"><span class="pre">Variable.free_dim</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.free_indices"><code class="docutils literal notranslate"><span class="pre">Variable.free_indices</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.free_scale"><code class="docutils literal notranslate"><span class="pre">Variable.free_scale</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.batch_shape"><code class="docutils literal notranslate"><span class="pre">Variable.batch_shape</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.batch_shape_of"><code class="docutils literal notranslate"><span class="pre">Variable.batch_shape_of()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.time_length"><code class="docutils literal notranslate"><span class="pre">Variable.time_length</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.temporal_tangent_width"><code class="docutils literal notranslate"><span class="pre">Variable.temporal_tangent_width</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.temporal_mask_is_separable"><code class="docutils literal notranslate"><span class="pre">Variable.temporal_mask_is_separable</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.temporal_free_indices"><code class="docutils literal notranslate"><span class="pre">Variable.temporal_free_indices</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.temporal_reduced_width"><code class="docutils literal notranslate"><span class="pre">Variable.temporal_reduced_width</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.validate_value"><code class="docutils literal notranslate"><span class="pre">Variable.validate_value()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.gather_tangent"><code class="docutils literal notranslate"><span class="pre">Variable.gather_tangent()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.expand_tangent"><code class="docutils literal notranslate"><span class="pre">Variable.expand_tangent()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.project"><code class="docutils literal notranslate"><span class="pre">Variable.project()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.retract"><code class="docutils literal notranslate"><span class="pre">Variable.retract()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.Variable.difference"><code class="docutils literal notranslate"><span class="pre">Variable.difference()</span></code></a></li>
 </ul>
 </li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.detach_values"><code class="docutils literal notranslate"><span class="pre">detach_values()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.SO3Variable"><code class="docutils literal notranslate"><span class="pre">SO3Variable</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.SO3Variable.tangent_dim"><code class="docutils literal notranslate"><span class="pre">SO3Variable.tangent_dim()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.SE3Variable"><code class="docutils literal notranslate"><span class="pre">SE3Variable</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.SE3Variable.tangent_dim"><code class="docutils literal notranslate"><span class="pre">SE3Variable.tangent_dim()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.RobotVariable"><code class="docutils literal notranslate"><span class="pre">RobotVariable</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.RobotVariable.box_mask"><code class="docutils literal notranslate"><span class="pre">RobotVariable.box_mask</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.RobotVariable.joint_bounds"><code class="docutils literal notranslate"><span class="pre">RobotVariable.joint_bounds()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.RobotVariable.unit_coordinate_slices"><code class="docutils literal notranslate"><span class="pre">RobotVariable.unit_coordinate_slices</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.variables.RobotVariable.tangent_dim"><code class="docutils literal notranslate"><span class="pre">RobotVariable.tangent_dim()</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -892,7 +902,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>
