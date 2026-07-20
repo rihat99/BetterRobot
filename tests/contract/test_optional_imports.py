@@ -27,7 +27,12 @@ RESTRICTED_OPTIONAL = {
     "viser": ("viewer/",),
     "robot_descriptions": (),  # test-only
     "pinocchio": (),  # test-only
-    "warp": ("kinematics/_warp_bridge.py", "kinematics/_warp_kernels.py"),
+    "warp": (
+        "kinematics/_warp_bridge.py",
+        "kinematics/_warp_kernels.py",
+        "dynamics/_warp_bridge.py",
+        "dynamics/_warp_kernels.py",
+    ),
 }
 
 
@@ -65,8 +70,5 @@ def test_no_unauthorized_optional_imports(file: Path) -> None:
         if mod in RESTRICTED_OPTIONAL and not _allowed(mod, file):
             violations.append(f"{file.name}:{lineno}: top-level `import {mod}`")
     if violations:
-        msg = (
-            "optional-dep imports outside their dedicated boundary:\n  "
-            + "\n  ".join(violations)
-        )
+        msg = "optional-dep imports outside their dedicated boundary:\n  " + "\n  ".join(violations)
         pytest.fail(msg)

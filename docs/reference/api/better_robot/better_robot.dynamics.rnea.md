@@ -128,7 +128,7 @@
 ```
 ````
 
-````{py:function} rnea(model: better_robot.data_model.model.Model, q: torch.Tensor, v: torch.Tensor, a: torch.Tensor, *, fext: torch.Tensor | None = None, data: better_robot.data_model.data.Data | None = None) -> torch.Tensor
+````{py:function} rnea(model: better_robot.data_model.model.Model, q: torch.Tensor, v: torch.Tensor, a: torch.Tensor, *, fext: torch.Tensor | None = None, data: better_robot.data_model.data.Data | None = None, use_warp: bool = False) -> torch.Tensor
 :canonical: better_robot.dynamics.rnea.rnea
 
 ```{autodoc2-docstring} better_robot.dynamics.rnea.rnea

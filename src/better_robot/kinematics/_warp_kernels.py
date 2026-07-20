@@ -59,6 +59,38 @@ def _compose_f64(a: wp.transformd, b: wp.transformd) -> wp.transformd:
 
 
 @wp.func
+def _scalar_joint_transform_f32(
+    kind: wp.int8,
+    coordinate: wp.float32,
+    axis: wp.vec3f,
+    pitch: wp.float32,
+) -> wp.transformf:
+    zero = wp.vec3f(0.0, 0.0, 0.0)
+    identity = wp.quatf(0.0, 0.0, 0.0, 1.0)
+    if kind == 2 or kind == 3 or kind == 4 or kind == 5:  # noqa: PLR1714 -- Warp has no set membership
+        return wp.transformf(zero, wp.quat_from_axis_angle(axis, coordinate))
+    if kind == 7 or kind == 8 or kind == 9 or kind == 10:  # noqa: PLR1714 -- Warp has no set membership
+        return wp.transformf(axis * coordinate, identity)
+    if kind == 15:
+        rotation_pose = wp.transformf(zero, wp.quat_from_axis_angle(axis, coordinate))
+        translation_pose = wp.transformf(axis * (pitch * coordinate), identity)
+        return _compose_f32(translation_pose, rotation_pose)
+    return wp.transformf(zero, identity)
+
+
+@wp.func
+def _normalize_quat_f32(q: wp.quatf) -> wp.quatf:
+    norm = wp.sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3])
+    denominator = wp.max(norm, wp.float32(1.0e-8))
+    return wp.quatf(
+        q[0] / denominator,
+        q[1] / denominator,
+        q[2] / denominator,
+        q[3] / denominator,
+    )
+
+
+@wp.func
 def _joint_transform_f32(  # noqa: PLR0911
     kind: wp.int8,
     q_row: int,
@@ -69,15 +101,15 @@ def _joint_transform_f32(  # noqa: PLR0911
 ) -> wp.transformf:
     zero = wp.vec3f(0.0, 0.0, 0.0)
     identity = wp.quatf(0.0, 0.0, 0.0, 1.0)
-    if kind == 2 or kind == 3 or kind == 4 or kind == 5:  # noqa: PLR1714 -- Warp does not support Python set membership
-        return wp.transformf(zero, wp.quat_from_axis_angle(axis, q[q_row, q_index]))
+    if kind == 2 or kind == 3 or kind == 4 or kind == 5:  # noqa: PLR1714 -- Warp has no set membership
+        return _scalar_joint_transform_f32(kind, q[q_row, q_index], axis, pitch)
     if kind == 6:
         angle = wp.atan2(q[q_row, q_index + 1], q[q_row, q_index])
         return wp.transformf(zero, wp.quat_from_axis_angle(axis, angle))
-    if kind == 7 or kind == 8 or kind == 9 or kind == 10:  # noqa: PLR1714 -- Warp does not support Python set membership
-        return wp.transformf(axis * q[q_row, q_index], identity)
+    if kind == 7 or kind == 8 or kind == 9 or kind == 10:  # noqa: PLR1714 -- Warp has no set membership
+        return _scalar_joint_transform_f32(kind, q[q_row, q_index], axis, pitch)
     if kind == 11:
-        rotation = wp.normalize(
+        rotation = _normalize_quat_f32(
             wp.quatf(
                 q[q_row, q_index],
                 q[q_row, q_index + 1],
@@ -92,7 +124,7 @@ def _joint_transform_f32(  # noqa: PLR0911
             q[q_row, q_index + 1],
             q[q_row, q_index + 2],
         )
-        rotation = wp.normalize(
+        rotation = _normalize_quat_f32(
             wp.quatf(
                 q[q_row, q_index + 3],
                 q[q_row, q_index + 4],
@@ -119,11 +151,40 @@ def _joint_transform_f32(  # noqa: PLR0911
             identity,
         )
     if kind == 15:
-        angle = q[q_row, q_index]
-        rotation_pose = wp.transformf(zero, wp.quat_from_axis_angle(axis, angle))
-        translation_pose = wp.transformf(axis * (pitch * angle), identity)
-        return _compose_f32(translation_pose, rotation_pose)
+        return _scalar_joint_transform_f32(kind, q[q_row, q_index], axis, pitch)
     return wp.transformf(zero, identity)
+
+
+@wp.func
+def _scalar_joint_transform_f64(
+    kind: wp.int8,
+    coordinate: wp.float64,
+    axis: wp.vec3d,
+    pitch: wp.float64,
+) -> wp.transformd:
+    zero = wp.vec3d(0.0, 0.0, 0.0)
+    identity = wp.quatd(0.0, 0.0, 0.0, 1.0)
+    if kind == 2 or kind == 3 or kind == 4 or kind == 5:  # noqa: PLR1714 -- Warp has no set membership
+        return wp.transformd(zero, wp.quat_from_axis_angle(axis, coordinate))
+    if kind == 7 or kind == 8 or kind == 9 or kind == 10:  # noqa: PLR1714 -- Warp has no set membership
+        return wp.transformd(axis * coordinate, identity)
+    if kind == 15:
+        rotation_pose = wp.transformd(zero, wp.quat_from_axis_angle(axis, coordinate))
+        translation_pose = wp.transformd(axis * (pitch * coordinate), identity)
+        return _compose_f64(translation_pose, rotation_pose)
+    return wp.transformd(zero, identity)
+
+
+@wp.func
+def _normalize_quat_f64(q: wp.quatd) -> wp.quatd:
+    norm = wp.sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3])
+    denominator = wp.max(norm, wp.float64(1.0e-8))
+    return wp.quatd(
+        q[0] / denominator,
+        q[1] / denominator,
+        q[2] / denominator,
+        q[3] / denominator,
+    )
 
 
 @wp.func
@@ -137,15 +198,15 @@ def _joint_transform_f64(  # noqa: PLR0911
 ) -> wp.transformd:
     zero = wp.vec3d(0.0, 0.0, 0.0)
     identity = wp.quatd(0.0, 0.0, 0.0, 1.0)
-    if kind == 2 or kind == 3 or kind == 4 or kind == 5:  # noqa: PLR1714 -- Warp does not support Python set membership
-        return wp.transformd(zero, wp.quat_from_axis_angle(axis, q[q_row, q_index]))
+    if kind == 2 or kind == 3 or kind == 4 or kind == 5:  # noqa: PLR1714 -- Warp has no set membership
+        return _scalar_joint_transform_f64(kind, q[q_row, q_index], axis, pitch)
     if kind == 6:
         angle = wp.atan2(q[q_row, q_index + 1], q[q_row, q_index])
         return wp.transformd(zero, wp.quat_from_axis_angle(axis, angle))
-    if kind == 7 or kind == 8 or kind == 9 or kind == 10:  # noqa: PLR1714 -- Warp does not support Python set membership
-        return wp.transformd(axis * q[q_row, q_index], identity)
+    if kind == 7 or kind == 8 or kind == 9 or kind == 10:  # noqa: PLR1714 -- Warp has no set membership
+        return _scalar_joint_transform_f64(kind, q[q_row, q_index], axis, pitch)
     if kind == 11:
-        rotation = wp.normalize(
+        rotation = _normalize_quat_f64(
             wp.quatd(
                 q[q_row, q_index],
                 q[q_row, q_index + 1],
@@ -160,7 +221,7 @@ def _joint_transform_f64(  # noqa: PLR0911
             q[q_row, q_index + 1],
             q[q_row, q_index + 2],
         )
-        rotation = wp.normalize(
+        rotation = _normalize_quat_f64(
             wp.quatd(
                 q[q_row, q_index + 3],
                 q[q_row, q_index + 4],
@@ -190,11 +251,100 @@ def _joint_transform_f64(  # noqa: PLR0911
             identity,
         )
     if kind == 15:
-        angle = q[q_row, q_index]
-        rotation_pose = wp.transformd(zero, wp.quat_from_axis_angle(axis, angle))
-        translation_pose = wp.transformd(axis * (pitch * angle), identity)
-        return _compose_f64(translation_pose, rotation_pose)
+        return _scalar_joint_transform_f64(kind, q[q_row, q_index], axis, pitch)
     return wp.transformd(zero, identity)
+
+
+@wp.func
+def _mimic_coordinate_f32(
+    q_row: int,
+    joint_index: int,
+    q: wp.array2d(dtype=wp.float32),
+    idx_qs_full: wp.array(dtype=wp.int32),
+    q_expansion: wp.array2d(dtype=wp.float32),
+    q_offsets: wp.array(dtype=wp.float32),
+    nq: int,
+) -> wp.float32:
+    full_index = idx_qs_full[joint_index]
+    coordinate = q_offsets[full_index]
+    for reduced_index in range(nq):
+        coordinate += q_expansion[full_index, reduced_index] * q[q_row, reduced_index]
+    return coordinate
+
+
+@wp.func
+def _joint_transform_reduced_f32(
+    kind: wp.int8,
+    q_row: int,
+    joint_index: int,
+    q: wp.array2d(dtype=wp.float32),
+    idx_qs: wp.array(dtype=wp.int32),
+    idx_qs_full: wp.array(dtype=wp.int32),
+    mimic_sources: wp.array(dtype=wp.int32),
+    q_expansion: wp.array2d(dtype=wp.float32),
+    q_offsets: wp.array(dtype=wp.float32),
+    nq: int,
+    axis: wp.vec3f,
+    pitch: wp.float32,
+) -> wp.transformf:
+    if mimic_sources[joint_index] != joint_index:
+        coordinate = _mimic_coordinate_f32(
+            q_row,
+            joint_index,
+            q,
+            idx_qs_full,
+            q_expansion,
+            q_offsets,
+            nq,
+        )
+        return _scalar_joint_transform_f32(kind, coordinate, axis, pitch)
+    return _joint_transform_f32(kind, q_row, idx_qs[joint_index], q, axis, pitch)
+
+
+@wp.func
+def _mimic_coordinate_f64(
+    q_row: int,
+    joint_index: int,
+    q: wp.array2d(dtype=wp.float64),
+    idx_qs_full: wp.array(dtype=wp.int32),
+    q_expansion: wp.array2d(dtype=wp.float64),
+    q_offsets: wp.array(dtype=wp.float64),
+    nq: int,
+) -> wp.float64:
+    full_index = idx_qs_full[joint_index]
+    coordinate = q_offsets[full_index]
+    for reduced_index in range(nq):
+        coordinate += q_expansion[full_index, reduced_index] * q[q_row, reduced_index]
+    return coordinate
+
+
+@wp.func
+def _joint_transform_reduced_f64(
+    kind: wp.int8,
+    q_row: int,
+    joint_index: int,
+    q: wp.array2d(dtype=wp.float64),
+    idx_qs: wp.array(dtype=wp.int32),
+    idx_qs_full: wp.array(dtype=wp.int32),
+    mimic_sources: wp.array(dtype=wp.int32),
+    q_expansion: wp.array2d(dtype=wp.float64),
+    q_offsets: wp.array(dtype=wp.float64),
+    nq: int,
+    axis: wp.vec3d,
+    pitch: wp.float64,
+) -> wp.transformd:
+    if mimic_sources[joint_index] != joint_index:
+        coordinate = _mimic_coordinate_f64(
+            q_row,
+            joint_index,
+            q,
+            idx_qs_full,
+            q_expansion,
+            q_offsets,
+            nq,
+        )
+        return _scalar_joint_transform_f64(kind, coordinate, axis, pitch)
+    return _joint_transform_f64(kind, q_row, idx_qs[joint_index], q, axis, pitch)
 
 
 @wp.kernel
@@ -208,11 +358,16 @@ def fk_frames_f32(
     topo_order: wp.array(dtype=wp.int32),
     kinds: wp.array(dtype=wp.int8),
     idx_qs: wp.array(dtype=wp.int32),
+    idx_qs_full: wp.array(dtype=wp.int32),
+    mimic_sources: wp.array(dtype=wp.int32),
+    q_expansion: wp.array2d(dtype=wp.float32),
+    q_offsets: wp.array(dtype=wp.float32),
     axes: wp.array(dtype=wp.vec3f),
     pitches: wp.array(dtype=wp.float32),
     frame_parents: wp.array(dtype=wp.int32),
     njoints: int,
     nframes: int,
+    nq: int,
     local_out: wp.array2d(dtype=wp.transformf),
     world_out: wp.array2d(dtype=wp.transformf),
     frame_out: wp.array2d(dtype=wp.transformf),
@@ -222,11 +377,17 @@ def fk_frames_f32(
     value_row = value_map[execution_index]
     for order_index in range(njoints):
         joint_index = topo_order[order_index]
-        joint_delta = _joint_transform_f32(
+        joint_delta = _joint_transform_reduced_f32(
             kinds[joint_index],
             q_row,
-            idx_qs[joint_index],
+            joint_index,
             q,
+            idx_qs,
+            idx_qs_full,
+            mimic_sources,
+            q_expansion,
+            q_offsets,
+            nq,
             axes[joint_index],
             pitches[joint_index],
         )
@@ -256,11 +417,16 @@ def fk_frames_f64(
     topo_order: wp.array(dtype=wp.int32),
     kinds: wp.array(dtype=wp.int8),
     idx_qs: wp.array(dtype=wp.int32),
+    idx_qs_full: wp.array(dtype=wp.int32),
+    mimic_sources: wp.array(dtype=wp.int32),
+    q_expansion: wp.array2d(dtype=wp.float64),
+    q_offsets: wp.array(dtype=wp.float64),
     axes: wp.array(dtype=wp.vec3d),
     pitches: wp.array(dtype=wp.float64),
     frame_parents: wp.array(dtype=wp.int32),
     njoints: int,
     nframes: int,
+    nq: int,
     local_out: wp.array2d(dtype=wp.transformd),
     world_out: wp.array2d(dtype=wp.transformd),
     frame_out: wp.array2d(dtype=wp.transformd),
@@ -270,11 +436,17 @@ def fk_frames_f64(
     value_row = value_map[execution_index]
     for order_index in range(njoints):
         joint_index = topo_order[order_index]
-        joint_delta = _joint_transform_f64(
+        joint_delta = _joint_transform_reduced_f64(
             kinds[joint_index],
             q_row,
-            idx_qs[joint_index],
+            joint_index,
             q,
+            idx_qs,
+            idx_qs_full,
+            mimic_sources,
+            q_expansion,
+            q_offsets,
+            nq,
             axes[joint_index],
             pitches[joint_index],
         )

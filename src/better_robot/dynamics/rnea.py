@@ -28,6 +28,7 @@ See ``docs/concepts/dynamics.md``.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import warnings
 
 import torch
 
@@ -43,6 +44,21 @@ from ..data_model.reduced_coordinates import (
 from ..kinematics.forward import forward_kinematics_raw
 from ..lie import se3
 from ._execution import prepare_dynamics_inputs
+
+
+_WARNED_WARP_RNEA_FALLBACKS: set[str] = set()
+
+
+def _warn_warp_rnea_fallback(reason_key: str, reason: str) -> None:
+    """Warn once when an explicit Warp RNEA request uses the Torch lane."""
+    if reason_key in _WARNED_WARP_RNEA_FALLBACKS:
+        return
+    _WARNED_WARP_RNEA_FALLBACKS.add(reason_key)
+    warnings.warn(
+        f"better_robot: use_warp=True requested the Warp RNEA lane, but {reason}; using the Torch RNEA lane instead.",
+        RuntimeWarning,
+        stacklevel=3,
+    )
 
 
 @dataclass(frozen=True)
@@ -252,8 +268,15 @@ def rnea(
     *,
     fext: torch.Tensor | None = None,
     data: Data | None = None,
+    use_warp: bool = False,
 ) -> torch.Tensor:
-    """Return inverse dynamics, optionally populating ``data`` in place."""
+    """Return inverse dynamics, optionally populating ``data`` in place.
+
+    Set ``use_warp=True`` to request the fused CUDA forward lane. Its backward
+    recomputes the canonical Torch RNEA pass, preserving first- and
+    higher-order derivatives. Unsupported requests warn once with the decline
+    reason and use the Torch lane.
+    """
 
     query_inputs: dict[str, tuple[torch.Tensor, tuple[int, ...]]] = {
         "v": (v, (model.nv,)),
@@ -275,7 +298,34 @@ def rnea(
     data.q = q
     data.v = v
     data.a = a
-    result = rnea_raw(model.structure, model.values, q, v, a, fext=fext)
+    result = None
+    if use_warp:
+        try:
+            from ._warp_bridge import try_warp_rnea  # noqa: PLC0415
+        except ModuleNotFoundError as error:
+            if error.name != "warp":
+                raise
+            if q.is_cuda and torch.cuda.is_current_stream_capturing():
+                raise RuntimeError(
+                    "better_robot: Warp RNEA is unavailable during CUDA graph capture; "
+                    "install the optional Warp runtime before capture or use the Torch "
+                    "lane outside capture."
+                ) from error
+            _warn_warp_rnea_fallback(
+                "runtime",
+                "the optional Warp runtime is unavailable",
+            )
+        else:
+            result = try_warp_rnea(
+                model.structure,
+                model.values,
+                q,
+                v,
+                a,
+                fext=fext,
+            )
+    if result is None:
+        result = rnea_raw(model.structure, model.values, q, v, a, fext=fext)
     data.tau = result.tau
     data.joint_pose_world = result.joint_pose_world
     data.joint_pose_local = result.joint_pose_local

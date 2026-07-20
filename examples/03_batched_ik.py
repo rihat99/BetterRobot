@@ -1,8 +1,9 @@
 """Solve about one thousand independent IK targets in one batched call.
 
 The example builds a tiny one-joint arm so the batching mechanics stay clear.
-It selects CUDA when available, falls back to CPU, and reports both the
-per-problem convergence rate and synchronized solve wall time.
+It defaults to CPU because a model this small is GPU launch-bound. CUDA and
+automatic selection remain available for comparison, and timings are
+synchronized on CUDA.
 
 Usage::
 
@@ -37,7 +38,12 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch-size", type=int, default=1000)
     parser.add_argument("--max-iterations", type=int, default=20)
-    parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
+    parser.add_argument(
+        "--device",
+        choices=("auto", "cpu", "cuda"),
+        default="cpu",
+        help="execution device; CPU is fastest for this tiny launch-bound model",
+    )
     args = parser.parse_args()
     if args.batch_size < 1:
         parser.error("--batch-size must be positive")
@@ -66,6 +72,8 @@ def main() -> None:
         torch.cuda.synchronize(device)
     elapsed = time.perf_counter() - started
 
+    if device.type == "cuda":
+        print("Note: this one-joint example is launch-bound; CPU is usually faster.")
     print(f"Device: {device.type}")
     print(f"Problems: {args.batch_size}")
     print(f"Convergence rate: {float(result.converged.float().mean()):.1%}")

@@ -5,10 +5,11 @@ a complete algorithm. The ordinary Torch implementation is the reference. A
 pass may also have a fused implementation when measurements justify it and
 value, gradient, stream, and fallback behavior are tested.
 
-The seam sits around a **whole pass** such as forward kinematics. It does not
-sit around each quaternion multiply or spatial cross product. That granularity
-keeps the public API simple and gives a fused kernel enough work to matter.
-See {ref}`decision-whole-pass` and {ref}`decision-warp-kernels`.
+The seam sits around a **whole pass** such as forward kinematics or inverse
+dynamics. It does not sit around each quaternion multiply or spatial cross
+product. That granularity keeps the public API simple and gives a fused kernel
+enough work to matter. See {ref}`decision-whole-pass` and
+{ref}`decision-warp-kernels`.
 
 ## One shape convention
 
@@ -126,12 +127,12 @@ model metadata, but a hot path should not turn tensor values into Python
 booleans or numbers. Such a conversion synchronizes an accelerator and can
 freeze data-dependent behavior into a compiled graph.
 
-## The current fused lane: forward kinematics
+## The current fused lanes
 
-The only shipped fused pass is an opt-in forward-kinematics implementation in
+Forward kinematics and RNEA have opt-in implementations in
 [NVIDIA Warp](https://nvidia.github.io/warp/stable/index.html). Callers select
-it explicitly. This CPU example exercises the selector and verifies reference
-parity:
+each lane explicitly on its public pass. This CPU example exercises the FK
+selector and verifies reference parity:
 
 ```{testcode}
 import contextlib
@@ -150,17 +151,26 @@ print("selected result matches raw:", bool(same_result))
 selected result matches raw: True
 ```
 
-For an eligible CUDA model, dtype, and layout, the wrapper uses the fused FK
-operation. Otherwise it falls back to the Torch pass. Ordinary calls do not
-select Warp automatically, and there is no process-wide compute selector.
+For an eligible CUDA model, dtype, and layout, the FK wrapper uses its fused
+operation. RNEA has the same pass-specific `use_warp=True` selector and its
+kernel includes the model's gravity, mimic relationships, and optional
+external forces. Ordinary calls do not select Warp automatically, and there
+is no process-wide compute selector.
 
-Other dynamics and Jacobian passes do not currently have Warp
+An explicit Warp request that cannot use its lane emits a one-shot fallback
+warning that names the reason, then preserves the result by running the Torch
+pass. Unsupported dtype, joint kind, layout, or broadcast materialization
+therefore remains visible without changing numerical semantics. During CUDA
+graph capture, a declined lane raises instead: recording an unexpected Torch
+fallback would make later replay behavior misleading.
+
+Other dynamics passes and the Jacobian passes do not currently have Warp
 implementations. The presence of a seam is not evidence that a second
 implementation exists.
 
 ## A functional custom operation
 
-The fused boundary is a pass-specific `torch.library.custom_op`. Torch owns
+Each fused boundary is a pass-specific `torch.library.custom_op`. Torch owns
 fresh output tensors, Warp views those tensors and the inputs without a copy,
 and the kernel launches on Torch's current CUDA stream.
 
@@ -171,13 +181,13 @@ would make those responsibilities ambiguous.
 
 ## Gradient ownership
 
-The current Warp FK forward kernel does not also claim ownership of the
-gradient. Its registered autograd formula recomputes the Torch FK table and
-uses that graph for the vector-Jacobian product. This costs more than a fused
-hand-written backward, but it has two important properties:
+The Warp FK and RNEA forward kernels do not also claim ownership of the
+gradient. Their registered autograd formulas recompute the corresponding
+Torch pass and use that graph for the vector-Jacobian product. This costs more
+than a fused hand-written backward, but it has two important properties:
 
-- derivatives of `q` and differentiable model placements match the reference;
-- higher-order derivatives follow the same direct Torch formulas.
+- derivatives of query and differentiable model tensors match the reference;
+- differentiation stays in the same direct Torch formulas as the reference.
 
 Warp views are created without deferred Warp gradients, which avoids two
 systems accumulating into the same input. A future fused backward would need
@@ -197,14 +207,31 @@ operations issued on a non-default stream remain correctly ordered.
 
 ## CUDA graph capture
 
-The private functional FK operation and its direct selection path have
-forward replay coverage under CUDA graphs. Unsupported input during capture
-raises instead of silently recording a different lane into the graph.
+The private functional FK operation and the direct FK and RNEA selection paths
+have forward replay coverage under CUDA graphs. Unsupported input during
+capture raises instead of silently recording a different lane into the graph.
+This does not imply that every future fused pass or public wrapper is
+capturable.
 
-That evidence has a deliberate boundary. The public FK wrapper is not claimed
-as an end-to-end captured solver interface, and the Torch-recomputed backward
-is not claimed as a captured hot backward loop. Capture support is described
-only for the path that is actually tested.
+That evidence has a deliberate boundary. The public FK and RNEA wrappers are
+not claimed as end-to-end captured solver interfaces, and the Torch-recomputed
+backward is not claimed as a captured hot backward loop. Capture support is
+described only for the paths that are actually tested.
+
+## Why workload size matters
+
+Eager Torch recursions issue many small operations as they traverse a robot.
+On a GPU, host dispatch and kernel launches can cost more than the arithmetic
+for a tiny model or a single query. More GPU cores do not fix that launch-bound
+case; a small CPU solve can be faster.
+
+Fusing a whole pass removes much of that dispatch cost. Conventional GPU
+batching also pays off once many independent robots or a trajectory horizon
+provide enough parallel tensor work. This is why large batches and
+trajectory-optimization-sized workloads are better GPU candidates than the
+one-joint teaching model in `examples/03_batched_ik.py`. The crossover still
+depends on topology, dtype, hardware, and whether backward work is included,
+so it is a measured property of a workload rather than a package-wide rule.
 
 ## When a fused pass is justified
 
@@ -228,6 +255,8 @@ surface is not justified for this project; the full trade is recorded in
 - Leading batch behavior does not depend on the chosen lane.
 - Torch is always the reference and fallback.
 - Lane selection is explicit and pass-specific.
+- A declined explicit request warns once, except during capture where it
+  raises.
 - No fused implementation is implied for a pass unless its public function
   documents one.
 - A performance claim is scoped to its measured hardware, dtype, batch, and

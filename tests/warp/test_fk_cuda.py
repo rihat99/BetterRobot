@@ -11,6 +11,7 @@ import torch
 
 pytest.importorskip("warp")
 
+from better_robot.io import load
 from better_robot.io.build_model import build_model
 from better_robot.io.builders.smpl_like import make_smpl_like_model
 from better_robot.io.parsers.programmatic import ModelBuilder
@@ -86,6 +87,43 @@ def _make_deep_model(dtype: torch.dtype, *, depth: int = 18):
     return build_model(builder.finalize(), dtype=dtype)
 
 
+def _make_panda_model(dtype: torch.dtype):
+    pytest.importorskip("robot_descriptions")
+    from robot_descriptions import panda_description  # noqa: PLC0415
+
+    return load(
+        panda_description.URDF_PATH,
+        device=torch.device("cuda:0"),
+        dtype=dtype,
+    )
+
+
+def _make_chained_mimic_model(dtype: torch.dtype):
+    builder = ModelBuilder("warp_cuda_mimic_chain")
+    root = builder.add_body("root")
+    source = builder.add_body("source")
+    target = builder.add_body("target")
+    chained = builder.add_body("chained")
+    builder.add_revolute_z("source_joint", parent=root, child=source)
+    builder.add_revolute_z(
+        "target_joint",
+        parent=source,
+        child=target,
+        mimic_source="source_joint",
+        mimic_multiplier=-0.5,
+        mimic_offset=0.1,
+    )
+    builder.add_revolute_z(
+        "chained_joint",
+        parent=target,
+        child=chained,
+        mimic_source="target_joint",
+        mimic_multiplier=2.0,
+        mimic_offset=-0.3,
+    )
+    return build_model(builder.finalize(), device=torch.device("cuda:0"), dtype=dtype)
+
+
 def _model_and_q(kind: str = "smpl", dtype: torch.dtype = torch.float32):
     device = torch.device("cuda:0")
     if kind == "smpl":
@@ -152,8 +190,11 @@ def _direct_inputs(model, q):
         structure.parents_tensor,
         structure.topo_order_tensor,
         structure.joint_kind_tensor,
-        structure.nqs_tensor,
         structure.idx_qs_tensor,
+        structure.idx_qs_full_tensor,
+        structure.mimic_source_tensor,
+        structure.q_expansion,
+        structure.q_offset,
         structure.joint_axes,
         structure.joint_pitches,
         structure.frame_parent_joints,
@@ -176,6 +217,66 @@ def test_cuda_forward_and_q_gradient_match_torch() -> None:
     expected_loss = sum(tensor.square().sum() for tensor in expected_outputs)
     expected_grad = torch.autograd.grad(expected_loss, q_ref)[0]
     torch.testing.assert_close(actual_grad, expected_grad, rtol=2e-5, atol=2e-6)
+
+
+@pytest.mark.parametrize("dtype", (torch.float32, torch.float64), ids=("fp32", "fp64"))
+def test_cuda_panda_mimic_forward_and_q_gradient_match_torch(dtype: torch.dtype) -> None:
+    model = _make_panda_model(dtype)
+    assert model.has_mimic
+    assert model.nq_full == model.nq + 1
+    tangent = torch.linspace(-0.03, 0.03, model.nv, dtype=dtype, device="cuda:0")
+    q_data = model.integrate(model.q_neutral, tangent).unsqueeze(0).contiguous()
+
+    q = q_data.detach().clone().requires_grad_()
+    result = try_warp_forward_kinematics(model.structure, model.values, q)
+    assert result is not None
+    actual = (result.world, result.local, result.frames)
+    actual_gradient = torch.autograd.grad(_weighted_loss(actual), q)[0]
+
+    q_reference = q_data.detach().clone().requires_grad_()
+    expected = _torch_outputs(model, q_reference)
+    expected_gradient = torch.autograd.grad(_weighted_loss(expected), q_reference)[0]
+
+    _assert_close_dtype(actual, expected, dtype)
+    _assert_close_dtype((actual_gradient,), (expected_gradient,), dtype)
+
+
+@pytest.mark.parametrize("dtype", (torch.float32, torch.float64), ids=("fp32", "fp64"))
+def test_cuda_degenerate_spherical_and_free_flyer_quaternions_match_torch(dtype: torch.dtype) -> None:
+    model, q = _model_and_q("smpl", dtype)
+    free_flyer = model.structure.joint_kind_codes.index(12)
+    spherical = model.structure.joint_kind_codes.index(11)
+    free_flyer_q = model.idx_qs[free_flyer]
+    spherical_q = model.idx_qs[spherical]
+    q[..., free_flyer_q + 3 : free_flyer_q + 7] = 0.0
+    q[..., spherical_q : spherical_q + 4] = q.new_tensor((1.0e-10, -2.0e-10, 3.0e-10, -4.0e-10))
+
+    result = try_warp_forward_kinematics(model.structure, model.values, q)
+    assert result is not None
+    _assert_close_dtype(
+        (result.world, result.local, result.frames),
+        _torch_outputs(model, q),
+        dtype,
+    )
+
+
+def test_cuda_chained_mimic_q_gradcheck_float32() -> None:
+    model = _make_chained_mimic_model(torch.float32)
+    q = torch.tensor([[0.3]], dtype=torch.float32, device="cuda:0", requires_grad=True)
+
+    def function(q_input):
+        result = try_warp_forward_kinematics(model.structure, model.values, q_input)
+        assert result is not None
+        return _weighted_loss((result.world, result.local, result.frames))
+
+    assert torch.autograd.gradcheck(
+        function,
+        (q,),
+        eps=1e-3,
+        atol=3e-3,
+        rtol=3e-2,
+        fast_mode=True,
+    )
 
 
 @pytest.mark.parametrize("dtype", (torch.float32, torch.float64), ids=("fp32", "fp64"))
@@ -390,8 +491,9 @@ def test_warp_layout_fallback_is_a_hard_error_only_during_capture(input_name: st
         assert placement_view.stride(-1) == 2
         values = dataclasses.replace(values, joint_placements=placement_view)
 
-    # Outside capture the opt-in probe keeps its established silent fallback.
-    assert try_warp_forward_kinematics(model.structure, values, q) is None
+    # Outside capture an explicit opt-in warns before using the Torch lane.
+    with pytest.warns(RuntimeWarning, match="do not have unit stride"):
+        assert try_warp_forward_kinematics(model.structure, values, q) is None
 
     expected = (
         f"better_robot: input {input_name!r} has an unsupported layout for the Warp FK lane "

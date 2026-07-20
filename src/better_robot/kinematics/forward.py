@@ -11,6 +11,7 @@ See ``docs/concepts/kinematics_and_jacobians.md``.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import warnings
 
 import torch
 
@@ -34,6 +35,20 @@ from ..lie import se3
 
 #: Tolerance used by the opt-in free-flyer quaternion debug check.
 _QUAT_NORM_TOL = 0.1
+_WARNED_WARP_FALLBACKS: set[str] = set()
+
+
+def _warn_warp_fallback(reason_key: str, reason: str) -> None:
+    """Warn once when an explicit Warp FK request uses the Torch lane."""
+
+    if reason_key in _WARNED_WARP_FALLBACKS:
+        return
+    _WARNED_WARP_FALLBACKS.add(reason_key)
+    warnings.warn(
+        f"better_robot: use_warp=True requested the Warp FK lane, but {reason}; using the Torch FK lane instead.",
+        RuntimeWarning,
+        stacklevel=3,
+    )
 
 
 @dataclass(frozen=True)
@@ -191,7 +206,7 @@ def forward_kinematics_raw(
     )
 
 
-def forward_kinematics(
+def forward_kinematics(  # noqa: PLR0912 - validates and routes one public FK request
     model: Model,
     q_or_data: torch.Tensor | Data,
     *,
@@ -218,7 +233,8 @@ def forward_kinematics(
     use_warp : bool
         Opt into the CUDA-validated fused Warp FK lane when the optional ``warp``
         extra, joint kinds, dtype, and layout are supported. Unsupported
-        inputs transparently use the torch lane.
+        inputs use the torch lane and emit a one-shot warning naming the
+        reason.
     Returns
     -------
     Data
@@ -258,10 +274,21 @@ def forward_kinematics(
     if use_warp:
         try:
             from ._warp_bridge import try_warp_forward_kinematics  # noqa: PLC0415
-
+        except ModuleNotFoundError as error:
+            if error.name != "warp":
+                raise
+            if q.is_cuda and torch.cuda.is_current_stream_capturing():
+                raise RuntimeError(
+                    "better_robot: Warp FK cannot fall back to the Torch lane while CUDA "
+                    "graph capture is active because the optional Warp runtime is unavailable. "
+                    "Install the Warp extra before capture, or disable graph capture."
+                ) from error
+            _warn_warp_fallback(
+                "optional-runtime",
+                "the optional Warp runtime is unavailable",
+            )
+        else:
             warp_result = try_warp_forward_kinematics(model.structure, model.values, q)
-        except ImportError:
-            warp_result = None
     if warp_result is None:
         fk_result = forward_kinematics_raw(model.structure, model.values, q)
         joint_pose_world = fk_result.joint_pose_world

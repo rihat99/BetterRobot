@@ -47,6 +47,7 @@ The Torch lane uses shared `joint_dispatch.joint_transform` and loops over
 the static `ModelStructure.topo_order` tuple, which unrolls cleanly for
 `torch.compile`. `use_warp=True` opts into the CUDA-validated fused whole-pass
 FK lane; it remains non-default pending owner review of backward performance.
-unsupported runtime, kind, dtype, or layout cases intentionally fall back to
-the Torch raw pass. There is no per-Lie-operation or process-global compute
+Unsupported runtime, kind, dtype, or layout cases fall back to the Torch raw
+pass with a one-shot warning naming the reason; a decline during CUDA graph
+capture raises. There is no per-Lie-operation or process-global compute
 selection.

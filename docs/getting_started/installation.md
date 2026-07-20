@@ -20,7 +20,7 @@ The core install includes the URDF loader. Add only the integrations you need:
 python -m pip install '.[demos]'    # robot_descriptions used by these tutorials
 python -m pip install '.[viewer]'   # interactive browser viewer
 python -m pip install '.[io-mjcf]'  # MJCF loading through MuJoCo
-python -m pip install '.[warp]'     # optional fused FK lane
+python -m pip install '.[warp]'     # optional fused FK and RNEA lanes
 ```
 
 Contributors can install the test and documentation tools with a reproducible

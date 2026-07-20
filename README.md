@@ -123,7 +123,7 @@ per-element solver state. See
 | `mujoco` | optional `io-mjcf` extra for MJCF loading |
 | `trimesh` | optional direct `meshes` extra for mesh APIs |
 | `robot_descriptions` | optional `demos` extra for Panda, G1, and other examples |
-| `warp-lang` | optional `warp` extra for the CUDA-validated, opt-in fused FK lane |
+| `warp-lang` | optional `warp` extra for the CUDA-validated, opt-in fused FK and RNEA lanes |
 
 ## License
 

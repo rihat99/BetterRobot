@@ -101,8 +101,8 @@ not during every query.
 result that has not been computed. Run the required kinematic pass and keep
 the returned `Data`.
 
-BetterRobot never changes `torch.set_num_threads`. CUDA work uses the
-caller's current PyTorch stream. The optional Warp FK path bridges that stream
+BetterRobot never changes `torch.set_num_threads`. CUDA work uses the caller's
+current PyTorch stream. The optional Warp FK and RNEA paths bridge that stream
 rather than choosing a separate default stream.
 
 For accelerator multiprocessing, use `spawn` and initialize each child

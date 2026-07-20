@@ -123,10 +123,12 @@ an explicit guard listed in the {doc}`/reference/roadmap`.
 
 ## Differentiation
 
-RNEA, ABA, CRBA, and CCRBA are written with differentiable PyTorch operations.
-Ordinary `loss.backward()` therefore differentiates through the calculation.
-The public raw variants accept `ModelStructure` and `ModelValues`, which also
-lets gradients flow to model parameters.
+The reference RNEA, ABA, CRBA, and CCRBA passes are written with differentiable
+PyTorch operations. Ordinary `loss.backward()` therefore differentiates
+through the calculation. RNEA also has an optional fused Warp forward lane whose
+backward recomputes the reference pass; see {doc}`the_compute_seam`. The public
+raw variants accept `ModelStructure` and `ModelValues`, which also lets
+gradients flow to model parameters.
 
 ## Configuration integration is not simulation
 

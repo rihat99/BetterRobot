@@ -61,8 +61,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The unused `ReferenceFrame` enum was replaced by the literal frame strings
   accepted by the Jacobian API; see the
   [migration details](https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md).
-- Fused Warp forward kinematics remains an explicit GPU alternative with
-  forward and gradient parity coverage; PyTorch remains the default path.
+- Fused Warp forward kinematics and inverse dynamics are explicit GPU
+  alternatives with forward and gradient parity coverage. Unsupported opt-in
+  requests warn before using the PyTorch reference path, which remains the
+  default.
 - Tutorials now introduce the robotics concepts they use, guides show complete
   tasks, concept chapters explain design trade-offs, and the generated
   reference matches the current public API.

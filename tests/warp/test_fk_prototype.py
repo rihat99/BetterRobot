@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+import builtins
 import dataclasses
 import math
+import warnings
 
 import pytest
 import torch
 from torch._subclasses.fake_tensor import FakeTensor, FakeTensorMode
 
-
 pytest.importorskip("warp")
 
+import better_robot.kinematics._warp_bridge as warp_bridge
+import better_robot.kinematics.forward as forward_module
 from better_robot.data_model.execution_batch import flatten_execution_batch
 from better_robot.io.build_model import build_model
 from better_robot.io.builders.smpl_like import make_smpl_like_model
@@ -162,6 +165,26 @@ def test_smpl_free_flyer_and_spherical_branching_matches_torch() -> None:
     )
 
 
+@pytest.mark.parametrize("dtype", (torch.float32, torch.float64), ids=("fp32", "fp64"))
+def test_degenerate_spherical_and_free_flyer_quaternions_match_torch(dtype: torch.dtype) -> None:
+    model = make_smpl_like_model(dtype=dtype)
+    q = model.q_neutral.clone()
+    free_flyer = model.structure.joint_kind_codes.index(12)
+    spherical = model.structure.joint_kind_codes.index(11)
+    free_flyer_q = model.idx_qs[free_flyer]
+    spherical_q = model.idx_qs[spherical]
+    q[free_flyer_q + 3 : free_flyer_q + 7] = 0.0
+    q[spherical_q : spherical_q + 4] = q.new_tensor((1.0e-10, -2.0e-10, 3.0e-10, -4.0e-10))
+
+    direct = try_warp_forward_kinematics(model.structure, model.values, q)
+    assert direct is not None
+    _assert_outputs_close(
+        _outputs(direct),
+        _torch_outputs(model, model.values, q),
+        dtype,
+    )
+
+
 def test_deep_chain_exceeds_sixteen_levels_and_matches_torch() -> None:
     model = _make_deep_chain()
     assert max(len(support) for support in model.supports) > 16
@@ -176,12 +199,19 @@ def test_deep_chain_exceeds_sixteen_levels_and_matches_torch() -> None:
     )
 
 
-def test_unsupported_layout_falls_back_without_copying() -> None:
+def test_unsupported_layout_fallback_warns_once_without_copying(monkeypatch) -> None:
+    monkeypatch.setattr(forward_module, "_WARNED_WARP_FALLBACKS", set())
     model = _make_branched_model(torch.float32)
     q_storage = torch.zeros(model.nq * 2, dtype=torch.float32)
     q = q_storage[::2]
     assert q.stride(-1) != 1
-    assert try_warp_forward_kinematics(model.structure, model.values, q) is None
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        assert try_warp_forward_kinematics(model.structure, model.values, q) is None
+        assert try_warp_forward_kinematics(model.structure, model.values, q) is None
+    fallbacks = [item for item in caught if issubclass(item.category, RuntimeWarning)]
+    assert len(fallbacks) == 1
+    assert "inputs ('q',) do not have unit stride" in str(fallbacks[0].message)
 
     q_batch = torch.zeros((3, 2, model.nq), dtype=torch.float32)
     placements = model.values.joint_placements.expand(3, 2, -1, -1).clone()
@@ -194,14 +224,31 @@ def test_unsupported_layout_falls_back_without_copying() -> None:
         joint_placements=placements,
         frame_placements=frames,
     )
-    assert try_warp_forward_kinematics(model.structure, values, q_batch) is None
+    with pytest.warns(RuntimeWarning, match="flattening would materialize"):
+        assert try_warp_forward_kinematics(model.structure, values, q_batch) is None
 
 
-def test_reduced_mimic_coordinates_explicitly_fall_back_to_torch() -> None:
-    builder = ModelBuilder("warp_mimic_fallback")
+def test_unknown_joint_kind_warns_and_falls_back() -> None:
+    model = _make_branched_model(torch.float32)
+    kind_codes = (*model.structure.joint_kind_codes[:-1], 99)
+    kind_tensor = model.structure.joint_kind_tensor.clone()
+    kind_tensor[-1] = 99
+    structure = dataclasses.replace(
+        model.structure,
+        joint_kind_codes=kind_codes,
+        joint_kind_tensor=kind_tensor,
+    )
+
+    with pytest.warns(RuntimeWarning, match="joint kind unsupported"):
+        assert try_warp_forward_kinematics(structure, model.values, torch.zeros(model.nq)) is None
+
+
+def test_chained_mimic_coordinates_run_on_warp_and_match_torch() -> None:
+    builder = ModelBuilder("warp_mimic_chain")
     root = builder.add_body("root")
     source = builder.add_body("source")
     target = builder.add_body("target")
+    chained = builder.add_body("chained")
     builder.add_revolute_z("source_joint", parent=root, child=source)
     builder.add_revolute_z(
         "target_joint",
@@ -211,12 +258,58 @@ def test_reduced_mimic_coordinates_explicitly_fall_back_to_torch() -> None:
         mimic_multiplier=-0.5,
         mimic_offset=0.1,
     )
+    builder.add_revolute_z(
+        "chained_joint",
+        parent=target,
+        child=chained,
+        mimic_source="target_joint",
+        mimic_multiplier=2.0,
+        mimic_offset=-0.3,
+    )
     model = build_model(builder.finalize())
-    q = torch.zeros(model.nq)
+    q = torch.tensor([0.4])
 
     assert model.has_mimic
-    assert try_warp_forward_kinematics(model.structure, model.values, q) is None
+    direct = try_warp_forward_kinematics(model.structure, model.values, q)
+    assert direct is not None
     actual = forward_kinematics(model, q, use_warp=True)
+    expected = forward_kinematics(model, q, use_warp=False)
+    torch.testing.assert_close(direct.world, expected.joint_pose_world)
+    torch.testing.assert_close(actual.joint_pose_world, expected.joint_pose_world)
+
+
+def test_public_opt_in_does_not_mask_import_error_from_bridge(monkeypatch) -> None:
+    model = _make_branched_model(torch.float32)
+    q = torch.zeros(model.nq)
+
+    def fail_inside_bridge(*_args):
+        raise ImportError("fault inside the installed Warp lane")
+
+    monkeypatch.setattr(warp_bridge, "try_warp_forward_kinematics", fail_inside_bridge)
+    with pytest.raises(ImportError, match="fault inside the installed Warp lane"):
+        forward_kinematics(model, q, use_warp=True)
+
+
+def test_missing_warp_cpu_fallback_does_not_probe_cuda_capture(monkeypatch) -> None:
+    model = _make_branched_model(torch.float32)
+    q = torch.zeros(model.nq)
+    import_function = builtins.__import__
+
+    def import_without_warp(name, global_vars=None, local_vars=None, fromlist=(), level=0):
+        package = None if global_vars is None else global_vars.get("__package__")
+        if name == "_warp_bridge" and package == "better_robot.kinematics":
+            raise ModuleNotFoundError("No module named 'warp'", name="warp")
+        return import_function(name, global_vars, local_vars, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", import_without_warp)
+    monkeypatch.setattr(forward_module, "_WARNED_WARP_FALLBACKS", set())
+
+    def fail_if_probed():
+        raise AssertionError("CPU fallback must not query CUDA capture state")
+
+    monkeypatch.setattr(torch.cuda, "is_current_stream_capturing", fail_if_probed)
+    with pytest.warns(RuntimeWarning, match="optional Warp runtime is unavailable"):
+        actual = forward_kinematics(model, q, use_warp=True)
     expected = forward_kinematics(model, q, use_warp=False)
     torch.testing.assert_close(actual.joint_pose_world, expected.joint_pose_world)
 
@@ -405,8 +498,11 @@ def _direct_custom_op_inputs(model):
         structure.parents_tensor,
         structure.topo_order_tensor,
         structure.joint_kind_tensor,
-        structure.nqs_tensor,
         structure.idx_qs_tensor,
+        structure.idx_qs_full_tensor,
+        structure.mimic_source_tensor,
+        structure.q_expansion,
+        structure.q_offset,
         structure.joint_axes,
         structure.joint_pitches,
         structure.frame_parent_joints,
@@ -440,8 +536,11 @@ def test_direct_custom_op_fake_and_compile_fullgraph() -> None:
         parents,
         topo_order,
         kinds,
-        nqs,
         idx_qs,
+        idx_qs_full,
+        mimic_sources,
+        q_expansion,
+        q_offsets,
         axes,
         pitches,
         frame_parents,
@@ -455,8 +554,11 @@ def test_direct_custom_op_fake_and_compile_fullgraph() -> None:
             parents,
             topo_order,
             kinds,
-            nqs,
             idx_qs,
+            idx_qs_full,
+            mimic_sources,
+            q_expansion,
+            q_offsets,
             axes,
             pitches,
             frame_parents,

@@ -25,9 +25,9 @@ PyTorch because the surrounding ecosystem we interoperate with (vision models, h
 learned priors) lives overwhelmingly in PyTorch, and crossing the JAX–PyTorch boundary in a hot
 loop costs more than either framework's advantages are worth.
 
-The honest cost: eager PyTorch is slow at short serial loops, and a kinematic-tree sweep is
-exactly that. We pay that cost deliberately and buy it back in two ways — `torch.compile` on the
-reference implementations, and the current opt-in fused FK lane where it helps (see below).
+The honest cost: eager PyTorch is slow at short serial loops, and a robot-tree sweep is exactly
+that. We pay that cost deliberately and buy it back in two ways — `torch.compile` on the
+reference implementations, and the opt-in fused FK and RNEA lanes where they help (see below).
 
 (decision-functional-lie)=
 ## Functional Lie operations, not tensor subclasses

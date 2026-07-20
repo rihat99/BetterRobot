@@ -43,7 +43,7 @@ Public wrappers validate shapes, dtype, device, and model attachment. Raw
 tensor passes below them trust validated inputs. `ModelStructure` holds static
 topology, `ModelValues` holds differentiable tensors, and mutable `Data` belongs
 to one query. Torch is the reference implementation. Optional acceleration is
-pass-specific; only forward kinematics currently has an opt-in Warp lane.
+pass-specific; forward kinematics and RNEA have opt-in Warp lanes.
 
 ## Numerical contracts
 

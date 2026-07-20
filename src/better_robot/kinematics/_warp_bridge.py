@@ -25,7 +25,14 @@ wp.config.kernel_cache_dir = os.environ.get("WARP_CACHE_PATH", "/tmp/betterrobot
 wp.init()
 
 from ._warp_kernels import fk_frames_f32, fk_frames_f64  # noqa: E402
-from .forward import forward_kinematics_raw, frame_placements_raw  # noqa: E402
+from .forward import (  # noqa: E402
+    _warn_warp_fallback,
+    forward_kinematics_raw,
+    frame_placements_raw,
+)
+
+
+_SUPPORTED_JOINT_KIND_CODES = frozenset(range(JOINT_KIND_CODES["helical"] + 1))
 
 
 def _vjp(
@@ -92,8 +99,11 @@ def _warp_fk_forward(
     parents: torch.Tensor,
     topo_order: torch.Tensor,
     kinds: torch.Tensor,
-    nqs: torch.Tensor,
     idx_qs: torch.Tensor,
+    idx_qs_full: torch.Tensor,
+    mimic_sources: torch.Tensor,
+    q_expansion: torch.Tensor,
+    q_offsets: torch.Tensor,
     axes: torch.Tensor,
     pitches: torch.Tensor,
     frame_parents: torch.Tensor,
@@ -121,11 +131,16 @@ def _warp_fk_forward(
         wp.from_torch(topo_order, dtype=wp.int32, requires_grad=False),
         wp.from_torch(kinds, dtype=wp.int8, requires_grad=False),
         wp.from_torch(idx_qs, dtype=wp.int32, requires_grad=False),
+        wp.from_torch(idx_qs_full, dtype=wp.int32, requires_grad=False),
+        wp.from_torch(mimic_sources, dtype=wp.int32, requires_grad=False),
+        wp.from_torch(q_expansion, dtype=scalar_dtype, requires_grad=False),
+        wp.from_torch(q_offsets, dtype=scalar_dtype, requires_grad=False),
         wp.from_torch(axes, dtype=axis_dtype, requires_grad=False),
         wp.from_torch(pitches, dtype=scalar_dtype, requires_grad=False),
         wp.from_torch(frame_parents, dtype=wp.int32, requires_grad=False),
         njoints,
         nframes,
+        q.shape[1],
     ]
     outputs = [
         wp.from_torch(local, dtype=transform_dtype, requires_grad=False),
@@ -154,8 +169,11 @@ def _warp_fk_forward_fake(
     parents,
     topo_order,
     kinds,
-    nqs,
     idx_qs,
+    idx_qs_full,
+    mimic_sources,
+    q_expansion,
+    q_offsets,
     axes,
     pitches,
     frame_parents,
@@ -195,8 +213,11 @@ class _WarpFKFunction(torch.autograd.Function):
             structure.parents_tensor.to(device=device),
             structure.topo_order_tensor.to(device=device),
             structure.joint_kind_tensor.to(device=device),
-            structure.nqs_tensor.to(device=device),
             structure.idx_qs_tensor.to(device=device),
+            structure.idx_qs_full_tensor.to(device=device),
+            structure.mimic_source_tensor.to(device=device),
+            structure.q_expansion.to(device=device, dtype=q.dtype),
+            structure.q_offset.to(device=device, dtype=q.dtype),
             structure.joint_axes.to(device=device, dtype=q.dtype),
             structure.joint_pitches.to(device=device, dtype=q.dtype),
             structure.frame_parent_joints.to(device=device),
@@ -248,7 +269,7 @@ def _raise_capture_layout_error(name: str, *capture_inputs: torch.Tensor) -> Non
 
 
 def _raise_capture_fallback(*capture_inputs: torch.Tensor, reason: str, remedy: str) -> None:
-    """Forbid an otherwise-silent Torch fallback during graph recording."""
+    """Forbid a Torch fallback during graph recording."""
     if _capture_is_active(*capture_inputs):
         raise RuntimeError(
             "better_robot: Warp FK cannot silently fall back to the Torch lane while CUDA "
@@ -263,18 +284,6 @@ def try_warp_forward_kinematics(  # noqa: PLR0911
 ) -> WarpFKResult | None:
     """Run the opt-in Warp lane, or return ``None`` for torch fallback."""
 
-    if structure.has_mimic:
-        # The frozen Warp ABI consumes one public q slice per concrete
-        # joint. Reduced mimic coordinates deliberately stay on the torch lane
-        # until a dedicated full-space expansion kernel is validated.
-        _raise_capture_fallback(
-            q,
-            values.joint_placements,
-            values.frame_placements,
-            reason="the model contains mimic joints",
-            remedy="Use a model without mimic joints for the captured Warp lane",
-        )
-        return None
     if q.dtype not in (torch.float32, torch.float64):
         _raise_capture_fallback(
             q,
@@ -283,14 +292,25 @@ def try_warp_forward_kinematics(  # noqa: PLR0911
             reason=f"q has unsupported dtype {q.dtype}",
             remedy="Convert q to float32 or float64 before capture",
         )
+        _warn_warp_fallback(
+            f"dtype:{q.dtype}",
+            f"q has unsupported dtype {q.dtype}",
+        )
         return None
-    if any(code < 0 or code == JOINT_KIND_CODES["composite"] for code in structure.joint_kind_codes):
+    if any(code not in _SUPPORTED_JOINT_KIND_CODES for code in structure.joint_kind_codes):
         _raise_capture_fallback(
             q,
             values.joint_placements,
             values.frame_placements,
             reason="the model contains a joint kind unsupported by the Warp ABI",
-            remedy="Use only fixed, revolute, continuous, prismatic, planar, or floating joints",
+            remedy=(
+                "Use only fixed, revolute, continuous, prismatic, spherical, "
+                "floating, planar, translation, or helical joints"
+            ),
+        )
+        _warn_warp_fallback(
+            "joint-kind",
+            "the model contains a joint kind unsupported by the Warp ABI",
         )
         return None
     layout_inputs = (
@@ -303,6 +323,11 @@ def try_warp_forward_kinematics(  # noqa: PLR0911
         capture_inputs = (q, values.joint_placements, values.frame_placements)
         for name, _ in unsupported_layout:
             _raise_capture_layout_error(name, *capture_inputs)
+        names = tuple(name for name, _ in unsupported_layout)
+        _warn_warp_fallback(
+            f"layout:{names}",
+            f"inputs {names} do not have unit stride on their trailing axis",
+        )
         return None
     if values.joint_placements.shape[:-2] != values.frame_placements.shape[:-2]:
         _raise_capture_fallback(
@@ -311,6 +336,10 @@ def try_warp_forward_kinematics(  # noqa: PLR0911
             values.frame_placements,
             reason="joint and frame placements have different batch shapes",
             remedy="Give joint and frame placements identical batch shapes before capture",
+        )
+        _warn_warp_fallback(
+            "placement-batch-shape",
+            "joint and frame placements have different batch shapes",
         )
         return None
 
@@ -343,6 +372,10 @@ def try_warp_forward_kinematics(  # noqa: PLR0911
             values.frame_placements,
             reason=f"flattening would materialize inputs {materialized}",
             remedy="Make those batch dimensions reshape-compatible before capture",
+        )
+        _warn_warp_fallback(
+            f"materialized:{materialized}",
+            f"flattening would materialize inputs {materialized}",
         )
         return None
 

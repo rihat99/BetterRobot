@@ -1,5 +1,11 @@
 # Order 04 — Warp: FK for every model, RNEA kernel, honest fallback
 
+> **Implementation log (2026-07-20):** Complete on `dev`; Panda mimic FK,
+> fused RNEA, honest fallback, and CPU-first tiny IK are implemented. Full CPU
+> (1,516), CUDA (43), and Warp (60) gates pass. Audit found spatial-order,
+> off-manifold quaternion, and zero-quaternion differences; exact Torch
+> semantics were restored, while readable f32/f64 twins were retained.
+
 Read `plan/README.md` and `DESIGN_RULES.md` first. Warp code is invisible to
 users; it is still held to full polish (DESIGN_RULES rule 12). Every kernel
 change lands with parity + gradcheck + timing evidence, measured on a pinned
