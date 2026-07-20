@@ -91,7 +91,7 @@
 
 `````
 
-`````{py:class} SceneSDFState(query_points: better_robot.residuals._variables.VariableLike | torch.Tensor, query_validity: better_robot.residuals._variables.VariableLike | torch.Tensor, scene_points: better_robot.residuals._variables.VariableLike | torch.Tensor, scene_normals: better_robot.residuals._variables.VariableLike | torch.Tensor, scene_validity: better_robot.residuals._variables.VariableLike | torch.Tensor, *, scene_confidence: better_robot.residuals._variables.VariableLike | torch.Tensor | None = None, chunk_size: int = 4096, eps: float = 1e-08)
+`````{py:class} SceneSDFState(query_points: better_robot.residuals.utils.VariableLike | torch.Tensor, query_validity: better_robot.residuals.utils.VariableLike | torch.Tensor, scene_points: better_robot.residuals.utils.VariableLike | torch.Tensor, scene_normals: better_robot.residuals.utils.VariableLike | torch.Tensor, scene_validity: better_robot.residuals.utils.VariableLike | torch.Tensor, *, scene_confidence: better_robot.residuals.utils.VariableLike | torch.Tensor | None = None, chunk_size: int = 4096, eps: float = 1e-08)
 :canonical: better_robot.residuals.scene_sdf.SceneSDFState
 
 Bases: {py:obj}`better_robot.residuals.nodes.Node`

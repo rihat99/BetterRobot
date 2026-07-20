@@ -54,7 +54,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -192,7 +192,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
@@ -247,6 +247,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.utils.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.utils</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.scene_sdf.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.scene_sdf</span></code></a></li>
@@ -270,32 +271,30 @@
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.integrators.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.integrators</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.crba.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.crba</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.rnea.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.rnea</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.aba.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.aba</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.centroidal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.centroidal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.state_manifold.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.state_manifold</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.derivatives.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.derivatives</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.implicit.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.implicit</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.utils.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.utils</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.ik.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.ik</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.parameterization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.parameterization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.trajectory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajectory</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.trajopt.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajopt</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.utils.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.utils</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.smoothing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.smoothing</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.contact_forces.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.contact_forces</span></code></a></li>
 </ul>
@@ -522,6 +521,8 @@
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.joint_models.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">JointModel</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Model</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.model_structure</span><span class="w"> </span><span class="kn">import</span> <span class="n">JOINT_KIND_CODES</span><span class="p">,</span> <span class="n">ModelStructure</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.model_values</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModelValues</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..data_model.topology</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_children</span><span class="p">,</span> <span class="n">build_subtrees</span><span class="p">,</span> <span class="n">build_supports</span><span class="p">,</span> <span class="n">topo_sort</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.ir</span><span class="w"> </span><span class="kn">import</span> <span class="n">IRBody</span><span class="p">,</span> <span class="n">IRJoint</span><span class="p">,</span> <span class="n">IRModel</span><span class="p">,</span> <span class="n">IRError</span>
 
@@ -542,6 +543,20 @@
     <span class="n">JointPZ</span><span class="p">,</span>
     <span class="n">JointPrismaticUnaligned</span><span class="p">,</span>
     <span class="n">JointHelical</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">_EUCLIDEAN_MANIFOLD_TYPES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span>
+    <span class="p">{</span>
+        <span class="n">JointRX</span><span class="p">,</span>
+        <span class="n">JointRY</span><span class="p">,</span>
+        <span class="n">JointRZ</span><span class="p">,</span>
+        <span class="n">JointRevoluteUnaligned</span><span class="p">,</span>
+        <span class="n">JointPX</span><span class="p">,</span>
+        <span class="n">JointPY</span><span class="p">,</span>
+        <span class="n">JointPZ</span><span class="p">,</span>
+        <span class="n">JointPrismaticUnaligned</span><span class="p">,</span>
+        <span class="n">JointTranslation</span><span class="p">,</span>
+        <span class="n">JointHelical</span><span class="p">,</span>
+    <span class="p">}</span>
 <span class="p">)</span>
 
 
@@ -626,6 +641,59 @@
         <span class="n">indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">offset</span><span class="p">)</span>
         <span class="n">offset</span> <span class="o">+=</span> <span class="n">width</span>
     <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">indices</span><span class="p">),</span> <span class="n">offset</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_matrix_slice_indices</span><span class="p">(</span>
+    <span class="n">joint_ids</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
+    <span class="n">starts</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
+    <span class="n">width</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">device</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+    <span class="n">indices</span> <span class="o">=</span> <span class="p">[</span><span class="n">starts</span><span class="p">[</span><span class="n">joint_id</span><span class="p">]</span> <span class="o">+</span> <span class="n">offset</span> <span class="k">for</span> <span class="n">joint_id</span> <span class="ow">in</span> <span class="n">joint_ids</span> <span class="k">for</span> <span class="n">offset</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">width</span><span class="p">)]</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">indices</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">joint_ids</span><span class="p">),</span> <span class="n">width</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_flat_slice_indices</span><span class="p">(</span>
+    <span class="n">joint_ids</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
+    <span class="n">starts</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
+    <span class="n">widths</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">device</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+    <span class="n">offsets</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">indices</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">joint_id</span> <span class="ow">in</span> <span class="n">joint_ids</span><span class="p">:</span>
+        <span class="n">indices</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">starts</span><span class="p">[</span><span class="n">joint_id</span><span class="p">],</span> <span class="n">starts</span><span class="p">[</span><span class="n">joint_id</span><span class="p">]</span> <span class="o">+</span> <span class="n">widths</span><span class="p">[</span><span class="n">joint_id</span><span class="p">]))</span>
+        <span class="n">offsets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">))</span>
+    <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">offsets</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">indices</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_flatten_rows</span><span class="p">(</span><span class="n">rows</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="o">...</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]:</span>
+    <span class="n">offsets</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">indices</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+        <span class="n">indices</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+        <span class="n">offsets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">offsets</span><span class="p">,</span> <span class="n">indices</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_joint_axis</span><span class="p">(</span><span class="n">joint</span><span class="p">:</span> <span class="n">JointModel</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+    <span class="n">aligned</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;revolute_rx&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+        <span class="s2">&quot;revolute_ry&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+        <span class="s2">&quot;revolute_rz&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+        <span class="s2">&quot;prismatic_px&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+        <span class="s2">&quot;prismatic_py&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+        <span class="s2">&quot;prismatic_pz&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="n">joint</span><span class="o">.</span><span class="n">kind</span> <span class="ow">in</span> <span class="n">aligned</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">aligned</span><span class="p">[</span><span class="n">joint</span><span class="o">.</span><span class="n">kind</span><span class="p">]</span>
+    <span class="n">axis</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">joint</span><span class="p">,</span> <span class="s2">&quot;axis&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">axis</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="n">axis</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+    <span class="k">return</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">values</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">values</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_build_mimic_reduction</span><span class="p">(</span>  <span class="c1"># noqa: PLR0912, PLR0913, PLR0915 - one build-time policy boundary</span>
@@ -807,7 +875,7 @@
     <span class="p">)</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_kind_to_joint_model</span><span class="p">(</span><span class="n">ir_joint</span><span class="p">:</span> <span class="n">IRJoint</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">JointModel</span><span class="p">:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_kind_to_joint_model</span><span class="p">(</span><span class="n">ir_joint</span><span class="p">:</span> <span class="n">IRJoint</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">JointModel</span><span class="p">:</span>  <span class="c1"># noqa: PLR0911, PLR0912</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Select a concrete ``JointModel`` from an ``IRJoint``.&quot;&quot;&quot;</span>
     <span class="n">kind</span> <span class="o">=</span> <span class="n">ir_joint</span><span class="o">.</span><span class="n">kind</span>
     <span class="n">axis</span> <span class="o">=</span> <span class="n">ir_joint</span><span class="o">.</span><span class="n">axis</span>
@@ -921,8 +989,8 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Pack ``IRBody`` inertia into [m, cx,cy,cz, Ixx,Iyy,Izz,Ixy,Ixz,Iyz].&quot;&quot;&quot;</span>
     <span class="n">m</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="nb">float</span><span class="p">(</span><span class="n">ir_body</span><span class="o">.</span><span class="n">mass</span><span class="p">)],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
     <span class="n">com</span> <span class="o">=</span> <span class="n">ir_body</span><span class="o">.</span><span class="n">com</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
-    <span class="n">I</span> <span class="o">=</span> <span class="n">ir_body</span><span class="o">.</span><span class="n">inertia</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
-    <span class="n">sym6</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">I</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">I</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">I</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">I</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">I</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">I</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]])</span>
+    <span class="n">inertia</span> <span class="o">=</span> <span class="n">ir_body</span><span class="o">.</span><span class="n">inertia</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">sym6</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">inertia</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">inertia</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">inertia</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">inertia</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">inertia</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">inertia</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]])</span>
     <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">m</span><span class="p">,</span> <span class="n">com</span><span class="p">,</span> <span class="n">sym6</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)])</span>
 
 
@@ -1009,7 +1077,7 @@
 
 <div class="viewcode-block" id="build_model">
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.io.build_model.html#better_robot.io.build_model.build_model">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">build_model</span><span class="p">(</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_model</span><span class="p">(</span>  <span class="c1"># noqa: PLR0912, PLR0915 - one audited IR packing boundary</span>
     <span class="n">ir</span><span class="p">:</span> <span class="n">IRModel</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">root_joint</span><span class="p">:</span> <span class="n">JointModel</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -1031,7 +1099,7 @@
 <span class="sd">    7.  Pack per-body inertias into the 10-vector form.</span>
 <span class="sd">    8.  Build frames (including ``body_&lt;name&gt;`` defaults).</span>
 <span class="sd">    9.  Build name → id dicts.</span>
-<span class="sd">    10. Return ``Model(frozen=True)``.</span>
+<span class="sd">    10. Return the frozen model wrapper.</span>
 
 <span class="sd">    **World-sentinel convention**: an ``IRJoint`` with ``parent_body=&quot;world&quot;``</span>
 <span class="sd">    signals that the joint connects to the universe (joint 0) directly.  That</span>
@@ -1398,8 +1466,102 @@
         <span class="n">nv_total</span><span class="o">=</span><span class="n">nv_full</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="c1"># ── 19. Return frozen Model ───────────────────────────────────────────────</span>
-    <span class="k">return</span> <span class="n">Model</span><span class="p">(</span>
+    <span class="c1"># ── 19. Pack the one canonical structure/value pair ───────────────────────</span>
+    <span class="n">model_device</span> <span class="o">=</span> <span class="n">joint_placements</span><span class="o">.</span><span class="n">device</span>
+    <span class="n">codes</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">JOINT_KIND_CODES</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">joint</span><span class="o">.</span><span class="n">kind</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">joint</span> <span class="ow">in</span> <span class="n">joint_models</span><span class="p">)</span>
+    <span class="n">axes</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">_joint_axis</span><span class="p">(</span><span class="n">joint</span><span class="p">)</span> <span class="k">for</span> <span class="n">joint</span> <span class="ow">in</span> <span class="n">joint_models</span><span class="p">],</span>
+        <span class="n">device</span><span class="o">=</span><span class="n">model_device</span><span class="p">,</span>
+        <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">pitches</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span>
+        <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">joint</span><span class="p">,</span> <span class="s2">&quot;pitch&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span> <span class="k">for</span> <span class="n">joint</span> <span class="ow">in</span> <span class="n">joint_models</span><span class="p">],</span>
+        <span class="n">device</span><span class="o">=</span><span class="n">model_device</span><span class="p">,</span>
+        <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">max_nv</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">nvs_full</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">motion_subspaces</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+        <span class="p">(</span><span class="n">n_model_joints</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="n">max_nv</span><span class="p">),</span>
+        <span class="n">device</span><span class="o">=</span><span class="n">model_device</span><span class="p">,</span>
+        <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">joint</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">joint_models</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">joint</span><span class="o">.</span><span class="n">nv</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">neutral</span> <span class="o">=</span> <span class="n">joint</span><span class="o">.</span><span class="n">neutral</span><span class="p">()</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="n">model_device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">subspace</span> <span class="o">=</span> <span class="n">joint</span><span class="o">.</span><span class="n">joint_motion_subspace</span><span class="p">(</span><span class="n">neutral</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="n">model_device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">motion_subspaces</span><span class="p">[</span><span class="n">index</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:</span> <span class="n">joint</span><span class="o">.</span><span class="n">nv</span><span class="p">]</span> <span class="o">=</span> <span class="n">subspace</span>
+
+    <span class="n">child_offsets</span><span class="p">,</span> <span class="n">child_indices</span> <span class="o">=</span> <span class="n">_flatten_rows</span><span class="p">(</span><span class="n">children</span><span class="p">)</span>
+    <span class="n">subtree_offsets</span><span class="p">,</span> <span class="n">subtree_indices</span> <span class="o">=</span> <span class="n">_flatten_rows</span><span class="p">(</span><span class="n">subtrees</span><span class="p">)</span>
+    <span class="n">support_offsets</span><span class="p">,</span> <span class="n">support_indices</span> <span class="o">=</span> <span class="n">_flatten_rows</span><span class="p">(</span><span class="n">supports</span><span class="p">)</span>
+
+    <span class="n">manifold_groups</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;euclidean&quot;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s2">&quot;spherical&quot;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s2">&quot;free_flyer&quot;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s2">&quot;unbounded&quot;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s2">&quot;planar&quot;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s2">&quot;fallback&quot;</span><span class="p">:</span> <span class="p">[],</span>
+    <span class="p">}</span>
+    <span class="k">for</span> <span class="n">joint_id</span><span class="p">,</span> <span class="n">joint</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">joint_models</span><span class="p">):</span>
+        <span class="n">public_nq</span> <span class="o">=</span> <span class="n">nqs</span><span class="p">[</span><span class="n">joint_id</span><span class="p">]</span>
+        <span class="n">public_nv</span> <span class="o">=</span> <span class="n">nvs</span><span class="p">[</span><span class="n">joint_id</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">public_nq</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">public_nv</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="n">public_nq</span> <span class="o">!=</span> <span class="n">joint</span><span class="o">.</span><span class="n">nq</span> <span class="ow">or</span> <span class="n">public_nv</span> <span class="o">!=</span> <span class="n">joint</span><span class="o">.</span><span class="n">nv</span><span class="p">:</span>
+            <span class="n">manifold_groups</span><span class="p">[</span><span class="s2">&quot;fallback&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">joint_id</span><span class="p">)</span>
+            <span class="k">continue</span>
+
+        <span class="n">joint_type</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">joint</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">joint_type</span> <span class="ow">in</span> <span class="n">_EUCLIDEAN_MANIFOLD_TYPES</span><span class="p">:</span>
+            <span class="n">manifold_groups</span><span class="p">[</span><span class="s2">&quot;euclidean&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">joint_id</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">joint_type</span> <span class="ow">is</span> <span class="n">JointSpherical</span><span class="p">:</span>
+            <span class="n">manifold_groups</span><span class="p">[</span><span class="s2">&quot;spherical&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">joint_id</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">joint_type</span> <span class="ow">is</span> <span class="n">JointFreeFlyer</span><span class="p">:</span>
+            <span class="n">manifold_groups</span><span class="p">[</span><span class="s2">&quot;free_flyer&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">joint_id</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">joint_type</span> <span class="ow">is</span> <span class="n">JointRevoluteUnbounded</span><span class="p">:</span>
+            <span class="n">manifold_groups</span><span class="p">[</span><span class="s2">&quot;unbounded&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">joint_id</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">joint_type</span> <span class="ow">is</span> <span class="n">JointPlanar</span><span class="p">:</span>
+            <span class="n">manifold_groups</span><span class="p">[</span><span class="s2">&quot;planar&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">joint_id</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">manifold_groups</span><span class="p">[</span><span class="s2">&quot;fallback&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">joint_id</span><span class="p">)</span>
+
+    <span class="n">euclidean_ids</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">manifold_groups</span><span class="p">[</span><span class="s2">&quot;euclidean&quot;</span><span class="p">])</span>
+    <span class="n">spherical_ids</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">manifold_groups</span><span class="p">[</span><span class="s2">&quot;spherical&quot;</span><span class="p">])</span>
+    <span class="n">free_flyer_ids</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">manifold_groups</span><span class="p">[</span><span class="s2">&quot;free_flyer&quot;</span><span class="p">])</span>
+    <span class="n">unbounded_ids</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">manifold_groups</span><span class="p">[</span><span class="s2">&quot;unbounded&quot;</span><span class="p">])</span>
+    <span class="n">planar_ids</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">manifold_groups</span><span class="p">[</span><span class="s2">&quot;planar&quot;</span><span class="p">])</span>
+    <span class="n">fallback_ids</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">manifold_groups</span><span class="p">[</span><span class="s2">&quot;fallback&quot;</span><span class="p">])</span>
+
+    <span class="n">_</span><span class="p">,</span> <span class="n">euclidean_q_indices</span> <span class="o">=</span> <span class="n">_flat_slice_indices</span><span class="p">(</span><span class="n">euclidean_ids</span><span class="p">,</span> <span class="n">idx_qs</span><span class="p">,</span> <span class="n">nqs</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">model_device</span><span class="p">)</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">euclidean_v_indices</span> <span class="o">=</span> <span class="n">_flat_slice_indices</span><span class="p">(</span><span class="n">euclidean_ids</span><span class="p">,</span> <span class="n">idx_vs</span><span class="p">,</span> <span class="n">nvs</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">model_device</span><span class="p">)</span>
+    <span class="n">spherical_q_indices</span> <span class="o">=</span> <span class="n">_matrix_slice_indices</span><span class="p">(</span><span class="n">spherical_ids</span><span class="p">,</span> <span class="n">idx_qs</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">model_device</span><span class="p">)</span>
+    <span class="n">spherical_v_indices</span> <span class="o">=</span> <span class="n">_matrix_slice_indices</span><span class="p">(</span><span class="n">spherical_ids</span><span class="p">,</span> <span class="n">idx_vs</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">model_device</span><span class="p">)</span>
+    <span class="n">free_flyer_q_indices</span> <span class="o">=</span> <span class="n">_matrix_slice_indices</span><span class="p">(</span><span class="n">free_flyer_ids</span><span class="p">,</span> <span class="n">idx_qs</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">model_device</span><span class="p">)</span>
+    <span class="n">free_flyer_v_indices</span> <span class="o">=</span> <span class="n">_matrix_slice_indices</span><span class="p">(</span><span class="n">free_flyer_ids</span><span class="p">,</span> <span class="n">idx_vs</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">model_device</span><span class="p">)</span>
+    <span class="n">unbounded_q_indices</span> <span class="o">=</span> <span class="n">_matrix_slice_indices</span><span class="p">(</span><span class="n">unbounded_ids</span><span class="p">,</span> <span class="n">idx_qs</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">model_device</span><span class="p">)</span>
+    <span class="n">unbounded_v_indices</span> <span class="o">=</span> <span class="n">_matrix_slice_indices</span><span class="p">(</span><span class="n">unbounded_ids</span><span class="p">,</span> <span class="n">idx_vs</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">model_device</span><span class="p">)</span>
+    <span class="n">planar_q_indices</span> <span class="o">=</span> <span class="n">_matrix_slice_indices</span><span class="p">(</span><span class="n">planar_ids</span><span class="p">,</span> <span class="n">idx_qs</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">model_device</span><span class="p">)</span>
+    <span class="n">planar_v_indices</span> <span class="o">=</span> <span class="n">_matrix_slice_indices</span><span class="p">(</span><span class="n">planar_ids</span><span class="p">,</span> <span class="n">idx_vs</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">model_device</span><span class="p">)</span>
+    <span class="n">fallback_q_offsets</span><span class="p">,</span> <span class="n">fallback_q_indices</span> <span class="o">=</span> <span class="n">_flat_slice_indices</span><span class="p">(</span>
+        <span class="n">fallback_ids</span><span class="p">,</span>
+        <span class="n">idx_qs</span><span class="p">,</span>
+        <span class="n">nqs</span><span class="p">,</span>
+        <span class="n">device</span><span class="o">=</span><span class="n">model_device</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">fallback_v_offsets</span><span class="p">,</span> <span class="n">fallback_v_indices</span> <span class="o">=</span> <span class="n">_flat_slice_indices</span><span class="p">(</span>
+        <span class="n">fallback_ids</span><span class="p">,</span>
+        <span class="n">idx_vs</span><span class="p">,</span>
+        <span class="n">nvs</span><span class="p">,</span>
+        <span class="n">device</span><span class="o">=</span><span class="n">model_device</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">i32</span><span class="p">(</span><span class="n">values</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">model_device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+
+    <span class="n">frame_parent_joint_ids</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">frame</span><span class="o">.</span><span class="n">parent_joint</span> <span class="k">for</span> <span class="n">frame</span> <span class="ow">in</span> <span class="n">frames</span><span class="p">)</span>
+    <span class="n">structure</span> <span class="o">=</span> <span class="n">ModelStructure</span><span class="p">(</span>
         <span class="n">njoints</span><span class="o">=</span><span class="n">n_model_joints</span><span class="p">,</span>
         <span class="n">nbodies</span><span class="o">=</span><span class="n">n_model_joints</span><span class="p">,</span>
         <span class="n">nframes</span><span class="o">=</span><span class="n">nframes</span><span class="p">,</span>
@@ -1414,12 +1576,13 @@
         <span class="n">joint_name_to_id</span><span class="o">=</span><span class="n">joint_name_to_id</span><span class="p">,</span>
         <span class="n">body_name_to_id</span><span class="o">=</span><span class="n">body_name_to_id</span><span class="p">,</span>
         <span class="n">frame_name_to_id</span><span class="o">=</span><span class="n">frame_name_to_id</span><span class="p">,</span>
+        <span class="n">frame_parent_joint_ids</span><span class="o">=</span><span class="n">frame_parent_joint_ids</span><span class="p">,</span>
+        <span class="n">frame_types</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">frame</span><span class="o">.</span><span class="n">frame_type</span> <span class="k">for</span> <span class="n">frame</span> <span class="ow">in</span> <span class="n">frames</span><span class="p">),</span>
         <span class="n">parents</span><span class="o">=</span><span class="n">parents</span><span class="p">,</span>
         <span class="n">children</span><span class="o">=</span><span class="n">children</span><span class="p">,</span>
         <span class="n">subtrees</span><span class="o">=</span><span class="n">subtrees</span><span class="p">,</span>
         <span class="n">supports</span><span class="o">=</span><span class="n">supports</span><span class="p">,</span>
         <span class="n">topo_order</span><span class="o">=</span><span class="n">topo_order</span><span class="p">,</span>
-        <span class="n">joint_models</span><span class="o">=</span><span class="n">joint_models</span><span class="p">,</span>
         <span class="n">nqs</span><span class="o">=</span><span class="n">nqs</span><span class="p">,</span>
         <span class="n">nvs</span><span class="o">=</span><span class="n">nvs</span><span class="p">,</span>
         <span class="n">idx_qs</span><span class="o">=</span><span class="n">idx_qs</span><span class="p">,</span>
@@ -1428,8 +1591,68 @@
         <span class="n">nvs_full</span><span class="o">=</span><span class="n">nvs_full</span><span class="p">,</span>
         <span class="n">idx_qs_full</span><span class="o">=</span><span class="n">idx_qs_full</span><span class="p">,</span>
         <span class="n">idx_vs_full</span><span class="o">=</span><span class="n">idx_vs_full</span><span class="p">,</span>
+        <span class="n">joint_models</span><span class="o">=</span><span class="n">joint_models</span><span class="p">,</span>
+        <span class="n">joint_kind_codes</span><span class="o">=</span><span class="n">codes</span><span class="p">,</span>
+        <span class="n">mimic_source</span><span class="o">=</span><span class="n">mimic_source</span><span class="p">,</span>
+        <span class="n">has_mimic</span><span class="o">=</span><span class="nb">bool</span><span class="p">(</span><span class="n">mimic_targets</span><span class="p">),</span>
+        <span class="n">manifold_euclidean_joint_ids</span><span class="o">=</span><span class="n">euclidean_ids</span><span class="p">,</span>
+        <span class="n">manifold_spherical_joint_ids</span><span class="o">=</span><span class="n">spherical_ids</span><span class="p">,</span>
+        <span class="n">manifold_free_flyer_joint_ids</span><span class="o">=</span><span class="n">free_flyer_ids</span><span class="p">,</span>
+        <span class="n">manifold_unbounded_joint_ids</span><span class="o">=</span><span class="n">unbounded_ids</span><span class="p">,</span>
+        <span class="n">manifold_planar_joint_ids</span><span class="o">=</span><span class="n">planar_ids</span><span class="p">,</span>
+        <span class="n">manifold_fallback_joint_ids</span><span class="o">=</span><span class="n">fallback_ids</span><span class="p">,</span>
+        <span class="n">manifold_fallback_q_offsets</span><span class="o">=</span><span class="n">fallback_q_offsets</span><span class="p">,</span>
+        <span class="n">manifold_fallback_v_offsets</span><span class="o">=</span><span class="n">fallback_v_offsets</span><span class="p">,</span>
+        <span class="n">joint_kind_tensor</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">codes</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">model_device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">int8</span><span class="p">),</span>
+        <span class="n">parents_tensor</span><span class="o">=</span><span class="n">i32</span><span class="p">(</span><span class="n">parents</span><span class="p">),</span>
+        <span class="n">topo_order_tensor</span><span class="o">=</span><span class="n">i32</span><span class="p">(</span><span class="n">topo_order</span><span class="p">),</span>
+        <span class="n">nqs_tensor</span><span class="o">=</span><span class="n">i32</span><span class="p">(</span><span class="n">nqs</span><span class="p">),</span>
+        <span class="n">nvs_tensor</span><span class="o">=</span><span class="n">i32</span><span class="p">(</span><span class="n">nvs</span><span class="p">),</span>
+        <span class="n">idx_qs_tensor</span><span class="o">=</span><span class="n">i32</span><span class="p">(</span><span class="n">idx_qs</span><span class="p">),</span>
+        <span class="n">idx_vs_tensor</span><span class="o">=</span><span class="n">i32</span><span class="p">(</span><span class="n">idx_vs</span><span class="p">),</span>
+        <span class="n">nqs_full_tensor</span><span class="o">=</span><span class="n">i32</span><span class="p">(</span><span class="n">nqs_full</span><span class="p">),</span>
+        <span class="n">nvs_full_tensor</span><span class="o">=</span><span class="n">i32</span><span class="p">(</span><span class="n">nvs_full</span><span class="p">),</span>
+        <span class="n">idx_qs_full_tensor</span><span class="o">=</span><span class="n">i32</span><span class="p">(</span><span class="n">idx_qs_full</span><span class="p">),</span>
+        <span class="n">idx_vs_full_tensor</span><span class="o">=</span><span class="n">i32</span><span class="p">(</span><span class="n">idx_vs_full</span><span class="p">),</span>
+        <span class="n">children_offsets</span><span class="o">=</span><span class="n">i32</span><span class="p">(</span><span class="n">child_offsets</span><span class="p">),</span>
+        <span class="n">children_indices</span><span class="o">=</span><span class="n">i32</span><span class="p">(</span><span class="n">child_indices</span><span class="p">),</span>
+        <span class="n">subtree_offsets</span><span class="o">=</span><span class="n">i32</span><span class="p">(</span><span class="n">subtree_offsets</span><span class="p">),</span>
+        <span class="n">subtree_indices</span><span class="o">=</span><span class="n">i32</span><span class="p">(</span><span class="n">subtree_indices</span><span class="p">),</span>
+        <span class="n">support_offsets</span><span class="o">=</span><span class="n">i32</span><span class="p">(</span><span class="n">support_offsets</span><span class="p">),</span>
+        <span class="n">support_indices</span><span class="o">=</span><span class="n">i32</span><span class="p">(</span><span class="n">support_indices</span><span class="p">),</span>
+        <span class="n">frame_parent_joints</span><span class="o">=</span><span class="n">i32</span><span class="p">(</span><span class="n">frame_parent_joint_ids</span><span class="p">),</span>
+        <span class="n">mimic_source_tensor</span><span class="o">=</span><span class="n">i32</span><span class="p">(</span><span class="n">mimic_source</span><span class="p">),</span>
+        <span class="n">q_expansion</span><span class="o">=</span><span class="n">q_expansion</span><span class="p">,</span>
+        <span class="n">q_offset</span><span class="o">=</span><span class="n">q_offset</span><span class="p">,</span>
+        <span class="n">v_expansion</span><span class="o">=</span><span class="n">v_expansion</span><span class="p">,</span>
+        <span class="n">manifold_euclidean_q_indices</span><span class="o">=</span><span class="n">euclidean_q_indices</span><span class="p">,</span>
+        <span class="n">manifold_euclidean_v_indices</span><span class="o">=</span><span class="n">euclidean_v_indices</span><span class="p">,</span>
+        <span class="n">manifold_spherical_q_indices</span><span class="o">=</span><span class="n">spherical_q_indices</span><span class="p">,</span>
+        <span class="n">manifold_spherical_v_indices</span><span class="o">=</span><span class="n">spherical_v_indices</span><span class="p">,</span>
+        <span class="n">manifold_free_flyer_q_indices</span><span class="o">=</span><span class="n">free_flyer_q_indices</span><span class="p">,</span>
+        <span class="n">manifold_free_flyer_v_indices</span><span class="o">=</span><span class="n">free_flyer_v_indices</span><span class="p">,</span>
+        <span class="n">manifold_unbounded_q_indices</span><span class="o">=</span><span class="n">unbounded_q_indices</span><span class="p">,</span>
+        <span class="n">manifold_unbounded_v_indices</span><span class="o">=</span><span class="n">unbounded_v_indices</span><span class="p">,</span>
+        <span class="n">manifold_planar_q_indices</span><span class="o">=</span><span class="n">planar_q_indices</span><span class="p">,</span>
+        <span class="n">manifold_planar_v_indices</span><span class="o">=</span><span class="n">planar_v_indices</span><span class="p">,</span>
+        <span class="n">manifold_fallback_q_indices</span><span class="o">=</span><span class="n">fallback_q_indices</span><span class="p">,</span>
+        <span class="n">manifold_fallback_v_indices</span><span class="o">=</span><span class="n">fallback_v_indices</span><span class="p">,</span>
+        <span class="n">joint_axes</span><span class="o">=</span><span class="n">axes</span><span class="p">,</span>
+        <span class="n">joint_pitches</span><span class="o">=</span><span class="n">pitches</span><span class="p">,</span>
+        <span class="n">joint_motion_subspaces</span><span class="o">=</span><span class="n">motion_subspaces</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">frame_placements</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">frame</span><span class="o">.</span><span class="n">joint_placement</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="n">model_device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span> <span class="k">for</span> <span class="n">frame</span> <span class="ow">in</span> <span class="n">frames</span><span class="p">],</span>
+            <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">frames</span>
+        <span class="k">else</span> <span class="n">joint_placements</span><span class="o">.</span><span class="n">new_empty</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">7</span><span class="p">))</span>
+    <span class="p">)</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="n">ModelValues</span><span class="p">(</span>
         <span class="n">joint_placements</span><span class="o">=</span><span class="n">joint_placements</span><span class="p">,</span>
         <span class="n">body_inertias</span><span class="o">=</span><span class="n">body_inertias</span><span class="p">,</span>
+        <span class="n">frame_placements</span><span class="o">=</span><span class="n">frame_placements</span><span class="p">,</span>
         <span class="n">lower_pos_limit</span><span class="o">=</span><span class="n">lower_pos_limit</span><span class="p">,</span>
         <span class="n">upper_pos_limit</span><span class="o">=</span><span class="n">upper_pos_limit</span><span class="p">,</span>
         <span class="n">velocity_limit</span><span class="o">=</span><span class="n">velocity_limit</span><span class="p">,</span>
@@ -1441,13 +1664,11 @@
         <span class="n">gravity</span><span class="o">=</span><span class="n">gravity</span><span class="p">,</span>
         <span class="n">mimic_multiplier</span><span class="o">=</span><span class="n">mimic_mult</span><span class="p">,</span>
         <span class="n">mimic_offset</span><span class="o">=</span><span class="n">mimic_off</span><span class="p">,</span>
-        <span class="n">mimic_source</span><span class="o">=</span><span class="n">mimic_source</span><span class="p">,</span>
-        <span class="n">q_expansion</span><span class="o">=</span><span class="n">q_expansion</span><span class="p">,</span>
-        <span class="n">q_offset</span><span class="o">=</span><span class="n">q_offset</span><span class="p">,</span>
-        <span class="n">v_expansion</span><span class="o">=</span><span class="n">v_expansion</span><span class="p">,</span>
-        <span class="n">has_mimic</span><span class="o">=</span><span class="nb">bool</span><span class="p">(</span><span class="n">mimic_targets</span><span class="p">),</span>
-        <span class="n">frames</span><span class="o">=</span><span class="n">frames</span><span class="p">,</span>
         <span class="n">q_neutral</span><span class="o">=</span><span class="n">q_neutral</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">Model</span><span class="p">(</span>
+        <span class="n">structure</span><span class="o">=</span><span class="n">structure</span><span class="p">,</span>
+        <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
         <span class="n">meta</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;ir&quot;</span><span class="p">:</span> <span class="n">ir</span><span class="p">,</span> <span class="o">**</span><span class="nb">dict</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">ir</span><span class="p">,</span> <span class="s2">&quot;meta&quot;</span><span class="p">,</span> <span class="p">{})</span> <span class="ow">or</span> <span class="p">{})},</span>
     <span class="p">)</span></div>
 
@@ -1498,7 +1719,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>

@@ -22,7 +22,7 @@ Optional features have named extras:
 | `io-mjcf` | `mujoco` | MJCF loading |
 | `meshes` | `trimesh` | direct mesh APIs |
 | `demos` | `robot_descriptions` | example robot assets |
-| `warp` | `warp-lang` | opt-in fused FK on supported CUDA systems |
+| `warp` | `warp-lang` | opt-in fused FK and RNEA on supported CUDA systems |
 | `dev` | test, docs, lint, type, and benchmark tools | repository development |
 
 `yourdfpy` currently brings in `trimesh` itself. That transitive install

@@ -31,7 +31,7 @@
 
 ### API
 
-`````{py:class} RestResidual(q: better_robot.residuals._variables.RobotVariableLike, q_rest: torch.Tensor | better_robot.residuals._variables.VariableLike, *, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'rest')
+`````{py:class} RestResidual(q: better_robot.residuals.utils.RobotVariableLike, q_rest: torch.Tensor | better_robot.residuals.utils.VariableLike, *, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'rest')
 :canonical: better_robot.residuals.regularization.RestResidual
 
 Bases: {py:obj}`better_robot.residuals.base.Residual`
@@ -51,7 +51,7 @@ Bases: {py:obj}`better_robot.residuals.base.Residual`
 
 `````
 
-`````{py:class} JointRotationPrior(q: better_robot.residuals._variables.RobotVariableLike, q_mean: torch.Tensor | better_robot.residuals._variables.VariableLike, per_joint_weight: torch.Tensor, *, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'joint_rotation_prior')
+`````{py:class} JointRotationPrior(q: better_robot.residuals.utils.RobotVariableLike, q_mean: torch.Tensor | better_robot.residuals.utils.VariableLike, per_joint_weight: torch.Tensor, *, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'joint_rotation_prior')
 :canonical: better_robot.residuals.regularization.JointRotationPrior
 
 Bases: {py:obj}`better_robot.residuals.base.Residual`
@@ -66,7 +66,7 @@ Bases: {py:obj}`better_robot.residuals.base.Residual`
 
 `````
 
-`````{py:class} ReferenceTrajectoryResidual(q: better_robot.residuals._variables.RobotVariableLike, q_ref: torch.Tensor | better_robot.residuals._variables.VariableLike, *, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, weight_per_frame: torch.Tensor | None = None, kernel: object | None = None, name: str = 'reference_trajectory')
+`````{py:class} ReferenceTrajectoryResidual(q: better_robot.residuals.utils.RobotVariableLike, q_ref: torch.Tensor | better_robot.residuals.utils.VariableLike, *, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, weight_per_frame: torch.Tensor | None = None, kernel: object | None = None, name: str = 'reference_trajectory')
 :canonical: better_robot.residuals.regularization.ReferenceTrajectoryResidual
 
 Bases: {py:obj}`better_robot.residuals.base.Residual`
@@ -79,7 +79,7 @@ Bases: {py:obj}`better_robot.residuals.base.Residual`
 
 ````
 
-````{py:method} temporal_structure(variable: better_robot.residuals._variables.RobotVariableLike | str) -> better_robot.residuals.structure.TemporalPattern | None
+````{py:method} temporal_structure(variable: better_robot.residuals.utils.RobotVariableLike | str) -> better_robot.residuals.structure.TemporalPattern | None
 :canonical: better_robot.residuals.regularization.ReferenceTrajectoryResidual.temporal_structure
 
 ```{autodoc2-docstring} better_robot.residuals.regularization.ReferenceTrajectoryResidual.temporal_structure
@@ -87,7 +87,7 @@ Bases: {py:obj}`better_robot.residuals.base.Residual`
 
 ````
 
-````{py:method} temporal_jacobian_blocks(variable: better_robot.residuals._variables.RobotVariableLike | str) -> collections.abc.Mapping[int, torch.Tensor]
+````{py:method} temporal_jacobian_blocks(variable: better_robot.residuals.utils.RobotVariableLike | str) -> collections.abc.Mapping[int, torch.Tensor]
 :canonical: better_robot.residuals.regularization.ReferenceTrajectoryResidual.temporal_jacobian_blocks
 
 ```{autodoc2-docstring} better_robot.residuals.regularization.ReferenceTrajectoryResidual.temporal_jacobian_blocks

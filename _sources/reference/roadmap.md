@@ -21,8 +21,6 @@ entries.
 - `src/better_robot/dynamics/centroidal.py`
 - `src/better_robot/io/build_model.py`
 - `src/better_robot/spatial/force.py`
-- `src/better_robot/tasks/ik.py`
-- `src/better_robot/tasks/trajopt.py`
 <!-- not-implemented-inventory:end -->
 
 ## Collision
@@ -61,9 +59,9 @@ design work rather than placeholder API. See
 semantics are not implemented. Use LM, Gauss--Newton, Adam, or the supported
 LM-then-Adam sequence.
 
-`solve_trajopt` accepts `KnotTrajectory`. `BSplineTrajectory` remains a
-Euclidean numerical utility; component interpolation is not a manifold-safe
-robot trajectory and cannot enforce robot state bounds correctly.
+Trajectory optimization is knot-based. A B-spline parameterization remains
+deferred because component interpolation is not manifold-safe and cannot
+enforce robot state bounds correctly.
 
 `solve_contact_forces` applies each fitted force at the selected joint origin
 as `[force, torque=0]`. It does not model an arbitrary offset contact point;
@@ -83,6 +81,42 @@ The following nearby surfaces are live:
 
 The generated {doc}`api/better_robot/better_robot` reference is the exact
 signature source.
+
+## Deferred directions
+
+Larger directions that are deliberately not in progress. Each entry names its
+precondition; none is started without an owner decision.
+
+- **Differentiable optimization as a module.** A `TheseusLayer`-style
+  `nn.Module` wrapping a whole solve, with backward-mode selection (unrolled,
+  implicit, truncated). The object-owned variables, detached `optimize()`, and
+  guarded implicit mode are the prepared substrate.
+- **Residual vectorization.** Grouping structurally identical residual
+  instances into one batched evaluation instead of N Python calls. Only
+  worthwhile for problems with many small residuals; measure first.
+- **Warp kernels beyond FK and RNEA.** Frame Jacobians, integrate/difference,
+  and whole-formulation kernels; a persistent CUDA-graph-captured solver
+  driver. Each kernel lands only with parity, gradcheck, and timing evidence.
+- **Optimizer extensions.** Matrix-free normal route for trajectories too long
+  for banded Cholesky; banded/operator implicit backward; Schur elimination
+  for trajectory-plus-shared blocks; batched per-element line-search L-BFGS.
+  Each waits for a demonstrated in-tree need.
+- **Dynamics derivatives and accessors.** `compute_minverse`, the Coriolis
+  matrix, centroidal derivatives, analytic RNEA/ABA derivatives
+  (Carpentier--Mansard), offset contact points with their `r × f` moment,
+  angular contact consistency, and named model-parameter accessors such as
+  link mass.
+- **Residual families.** Yoshikawa manipulability, nullspace regularization,
+  jerk smoothness, and acceleration limits; each needs its contract designed
+  first.
+- **Collision.** The package is a stub. The pending decision is to port a real
+  implementation or cut the package; a Torch oracle must exist before any
+  collision kernel.
+- **Trajectory representations.** Manifold-safe, bounds-aware B-splines. No
+  B-spline task surface ships until that contract is designed.
+- **External benchmarks and infrastructure.** Comparisons against
+  cuRobo-class libraries; CI on push and a GPU CI runner; viewer extras such
+  as recording and overlay traces.
 
 ## Finishing an entry
 

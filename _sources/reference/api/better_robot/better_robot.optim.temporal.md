@@ -94,16 +94,6 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ````
 
-````{py:attribute} NONSEPARABLE_MASK
-:canonical: better_robot.optim.temporal.LinearizationReason.NONSEPARABLE_MASK
-:value: >
-   'nonseparable_mask'
-
-```{autodoc2-docstring} better_robot.optim.temporal.LinearizationReason.NONSEPARABLE_MASK
-```
-
-````
-
 ````{py:attribute} UNDECLARED_TEMPORAL_RESIDUAL
 :canonical: better_robot.optim.temporal.LinearizationReason.UNDECLARED_TEMPORAL_RESIDUAL
 :value: >
@@ -214,17 +204,6 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
    None
 
 ```{autodoc2-docstring} better_robot.optim.temporal.TemporalAnalysis.tangent_width
-```
-
-````
-
-````{py:attribute} reduced_width
-:canonical: better_robot.optim.temporal.TemporalAnalysis.reduced_width
-:type: int | None
-:value: >
-   None
-
-```{autodoc2-docstring} better_robot.optim.temporal.TemporalAnalysis.reduced_width
 ```
 
 ````
@@ -358,10 +337,10 @@ Bases: {py:obj}`str`, {py:obj}`enum.Enum`
 
 ````
 
-````{py:method} scaled_restricted(scale: torch.Tensor, movable: torch.Tensor, diagonal: torch.Tensor) -> better_robot.optim.temporal.BlockBandedMatrix
-:canonical: better_robot.optim.temporal.BlockBandedMatrix.scaled_restricted
+````{py:method} restricted(movable: torch.Tensor, diagonal: torch.Tensor) -> better_robot.optim.temporal.BlockBandedMatrix
+:canonical: better_robot.optim.temporal.BlockBandedMatrix.restricted
 
-```{autodoc2-docstring} better_robot.optim.temporal.BlockBandedMatrix.scaled_restricted
+```{autodoc2-docstring} better_robot.optim.temporal.BlockBandedMatrix.restricted
 ```
 
 ````

@@ -46,6 +46,16 @@
 
 ````
 
+````{py:exception} AutodiffFallbackWarning()
+:canonical: better_robot.optim.problem.AutodiffFallbackWarning
+
+Bases: {py:obj}`RuntimeWarning`
+
+```{autodoc2-docstring} better_robot.optim.problem.AutodiffFallbackWarning
+```
+
+````
+
 `````{py:class} Problem(residuals: collections.abc.Sequence[better_robot.residuals.base.Residual] = ())
 :canonical: better_robot.optim.problem.Problem
 

@@ -52,7 +52,7 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'reference/api/better_robot/better_robot.optim.temporal';</script>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
-    <link rel="next" title="better_robot.optim.manifolds" href="better_robot.optim.manifolds.html" />
+    <link rel="next" title="better_robot.optim.solvers" href="better_robot.optim.solvers.html" />
     <link rel="prev" title="better_robot.optim.implicit" href="better_robot.optim.implicit.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -248,6 +248,7 @@
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.utils.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.utils</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.residuals.scene_sdf.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.scene_sdf</span></code></a></li>
@@ -271,32 +272,30 @@
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="better_robot.dynamics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.dynamics.integrators.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.integrators</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.dynamics.crba.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.crba</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.dynamics.rnea.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.rnea</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.dynamics.aba.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.aba</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.dynamics.centroidal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.centroidal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.dynamics.state_manifold.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.state_manifold</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.dynamics.derivatives.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.derivatives</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 current active has-children"><a class="reference internal" href="better_robot.optim.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim</span></code></a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.implicit.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.implicit</span></code></a></li>
 <li class="toctree-l4 current active"><a class="current reference internal" href="#"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.optim.utils.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.utils</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.tasks.ik.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.ik</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="better_robot.tasks.parameterization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.parameterization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.tasks.trajectory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajectory</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.tasks.trajopt.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajopt</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="better_robot.tasks.utils.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.utils</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.tasks.smoothing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.smoothing</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="better_robot.tasks.contact_forces.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.contact_forces</span></code></a></li>
 </ul>
@@ -559,7 +558,6 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.LinearizationReason.ELIGIBLE_BANDED"><code class="docutils literal notranslate"><span class="pre">LinearizationReason.ELIGIBLE_BANDED</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.LinearizationReason.NO_TIME_VARIABLE"><code class="docutils literal notranslate"><span class="pre">LinearizationReason.NO_TIME_VARIABLE</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.LinearizationReason.MULTIPLE_OPTIMIZED_VARIABLES"><code class="docutils literal notranslate"><span class="pre">LinearizationReason.MULTIPLE_OPTIMIZED_VARIABLES</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.LinearizationReason.NONSEPARABLE_MASK"><code class="docutils literal notranslate"><span class="pre">LinearizationReason.NONSEPARABLE_MASK</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.LinearizationReason.UNDECLARED_TEMPORAL_RESIDUAL"><code class="docutils literal notranslate"><span class="pre">LinearizationReason.UNDECLARED_TEMPORAL_RESIDUAL</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.LinearizationReason.MISSING_TEMPORAL_BLOCKS"><code class="docutils literal notranslate"><span class="pre">LinearizationReason.MISSING_TEMPORAL_BLOCKS</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.LinearizationReason.MIXED_OPTIMIZED_DEPENDENCY"><code class="docutils literal notranslate"><span class="pre">LinearizationReason.MIXED_OPTIMIZED_DEPENDENCY</span></code></a></li>
@@ -573,7 +571,6 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.TemporalAnalysis.variable_name"><code class="docutils literal notranslate"><span class="pre">TemporalAnalysis.variable_name</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.TemporalAnalysis.time_length"><code class="docutils literal notranslate"><span class="pre">TemporalAnalysis.time_length</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.TemporalAnalysis.tangent_width"><code class="docutils literal notranslate"><span class="pre">TemporalAnalysis.tangent_width</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.TemporalAnalysis.reduced_width"><code class="docutils literal notranslate"><span class="pre">TemporalAnalysis.reduced_width</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.TemporalAnalysis.bandwidth"><code class="docutils literal notranslate"><span class="pre">TemporalAnalysis.bandwidth</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.TemporalAnalysis.patterns"><code class="docutils literal notranslate"><span class="pre">TemporalAnalysis.patterns</span></code></a></li>
 </ul>
@@ -590,7 +587,7 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.BlockBandedMatrix.densify"><code class="docutils literal notranslate"><span class="pre">BlockBandedMatrix.densify()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.BlockBandedMatrix.matvec"><code class="docutils literal notranslate"><span class="pre">BlockBandedMatrix.matvec()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.BlockBandedMatrix.add_diagonal"><code class="docutils literal notranslate"><span class="pre">BlockBandedMatrix.add_diagonal()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.BlockBandedMatrix.scaled_restricted"><code class="docutils literal notranslate"><span class="pre">BlockBandedMatrix.scaled_restricted()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.BlockBandedMatrix.restricted"><code class="docutils literal notranslate"><span class="pre">BlockBandedMatrix.restricted()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.analyze_temporal_problem"><code class="docutils literal notranslate"><span class="pre">analyze_temporal_problem()</span></code></a></li>
@@ -690,12 +687,6 @@
 </dd></dl>
 
 <dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.temporal.LinearizationReason.NONSEPARABLE_MASK">
-<span class="sig-name descname"><span class="pre">NONSEPARABLE_MASK</span></span><a class="headerlink" href="#better_robot.optim.temporal.LinearizationReason.NONSEPARABLE_MASK" title="Link to this definition">#</a></dt>
-<dd><p>‘nonseparable_mask’</p>
-</dd></dl>
-
-<dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.optim.temporal.LinearizationReason.UNDECLARED_TEMPORAL_RESIDUAL">
 <span class="sig-name descname"><span class="pre">UNDECLARED_TEMPORAL_RESIDUAL</span></span><a class="headerlink" href="#better_robot.optim.temporal.LinearizationReason.UNDECLARED_TEMPORAL_RESIDUAL" title="Link to this definition">#</a></dt>
 <dd><p>‘undeclared_temporal_residual’</p>
@@ -757,12 +748,6 @@
 <dl class="py attribute">
 <dt class="sig sig-object py" id="better_robot.optim.temporal.TemporalAnalysis.tangent_width">
 <span class="sig-name descname"><span class="pre">tangent_width</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#better_robot.optim.temporal.TemporalAnalysis.tangent_width" title="Link to this definition">#</a></dt>
-<dd><p>None</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="better_robot.optim.temporal.TemporalAnalysis.reduced_width">
-<span class="sig-name descname"><span class="pre">reduced_width</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#better_robot.optim.temporal.TemporalAnalysis.reduced_width" title="Link to this definition">#</a></dt>
 <dd><p>None</p>
 </dd></dl>
 
@@ -842,9 +827,10 @@
 <dd></dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="better_robot.optim.temporal.BlockBandedMatrix.scaled_restricted">
-<span class="sig-name descname"><span class="pre">scaled_restricted</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">movable</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">diagonal</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#better_robot.optim.temporal.BlockBandedMatrix" title="better_robot.optim.temporal.BlockBandedMatrix"><span class="pre">better_robot.optim.temporal.BlockBandedMatrix</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/temporal.html#BlockBandedMatrix.scaled_restricted"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.temporal.BlockBandedMatrix.scaled_restricted" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
+<dt class="sig sig-object py" id="better_robot.optim.temporal.BlockBandedMatrix.restricted">
+<span class="sig-name descname"><span class="pre">restricted</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">movable</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">diagonal</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch.Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#better_robot.optim.temporal.BlockBandedMatrix" title="better_robot.optim.temporal.BlockBandedMatrix"><span class="pre">better_robot.optim.temporal.BlockBandedMatrix</span></a></span></span><a class="reference internal" href="../../../_modules/better_robot/optim/temporal.html#BlockBandedMatrix.restricted"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_robot.optim.temporal.BlockBandedMatrix.restricted" title="Link to this definition">#</a></dt>
+<dd><p>Apply an active-set restriction and replace the diagonal.</p>
+</dd></dl>
 
 </dd></dl>
 
@@ -928,11 +914,11 @@
       </div>
     </a>
     <a class="right-next"
-       href="better_robot.optim.manifolds.html"
+       href="better_robot.optim.solvers.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></p>
+        <p class="prev-next-title"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -963,7 +949,6 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.LinearizationReason.ELIGIBLE_BANDED"><code class="docutils literal notranslate"><span class="pre">LinearizationReason.ELIGIBLE_BANDED</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.LinearizationReason.NO_TIME_VARIABLE"><code class="docutils literal notranslate"><span class="pre">LinearizationReason.NO_TIME_VARIABLE</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.LinearizationReason.MULTIPLE_OPTIMIZED_VARIABLES"><code class="docutils literal notranslate"><span class="pre">LinearizationReason.MULTIPLE_OPTIMIZED_VARIABLES</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.LinearizationReason.NONSEPARABLE_MASK"><code class="docutils literal notranslate"><span class="pre">LinearizationReason.NONSEPARABLE_MASK</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.LinearizationReason.UNDECLARED_TEMPORAL_RESIDUAL"><code class="docutils literal notranslate"><span class="pre">LinearizationReason.UNDECLARED_TEMPORAL_RESIDUAL</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.LinearizationReason.MISSING_TEMPORAL_BLOCKS"><code class="docutils literal notranslate"><span class="pre">LinearizationReason.MISSING_TEMPORAL_BLOCKS</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.LinearizationReason.MIXED_OPTIMIZED_DEPENDENCY"><code class="docutils literal notranslate"><span class="pre">LinearizationReason.MIXED_OPTIMIZED_DEPENDENCY</span></code></a></li>
@@ -977,7 +962,6 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.TemporalAnalysis.variable_name"><code class="docutils literal notranslate"><span class="pre">TemporalAnalysis.variable_name</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.TemporalAnalysis.time_length"><code class="docutils literal notranslate"><span class="pre">TemporalAnalysis.time_length</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.TemporalAnalysis.tangent_width"><code class="docutils literal notranslate"><span class="pre">TemporalAnalysis.tangent_width</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.TemporalAnalysis.reduced_width"><code class="docutils literal notranslate"><span class="pre">TemporalAnalysis.reduced_width</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.TemporalAnalysis.bandwidth"><code class="docutils literal notranslate"><span class="pre">TemporalAnalysis.bandwidth</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.TemporalAnalysis.patterns"><code class="docutils literal notranslate"><span class="pre">TemporalAnalysis.patterns</span></code></a></li>
 </ul>
@@ -994,7 +978,7 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.BlockBandedMatrix.densify"><code class="docutils literal notranslate"><span class="pre">BlockBandedMatrix.densify()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.BlockBandedMatrix.matvec"><code class="docutils literal notranslate"><span class="pre">BlockBandedMatrix.matvec()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.BlockBandedMatrix.add_diagonal"><code class="docutils literal notranslate"><span class="pre">BlockBandedMatrix.add_diagonal()</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.BlockBandedMatrix.scaled_restricted"><code class="docutils literal notranslate"><span class="pre">BlockBandedMatrix.scaled_restricted()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.BlockBandedMatrix.restricted"><code class="docutils literal notranslate"><span class="pre">BlockBandedMatrix.restricted()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#better_robot.optim.temporal.analyze_temporal_problem"><code class="docutils literal notranslate"><span class="pre">analyze_temporal_problem()</span></code></a></li>

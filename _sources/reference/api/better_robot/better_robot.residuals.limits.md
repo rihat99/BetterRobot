@@ -27,7 +27,7 @@
 
 ### API
 
-`````{py:class} JointPositionLimit(q: better_robot.residuals._variables.RobotVariableLike, *, knot: int | None = None, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'joint_position_limit')
+`````{py:class} JointPositionLimit(q: better_robot.residuals.utils.RobotVariableLike, *, knot: int | None = None, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'joint_position_limit')
 :canonical: better_robot.residuals.limits.JointPositionLimit
 
 Bases: {py:obj}`better_robot.residuals.base.Residual`
@@ -40,7 +40,7 @@ Bases: {py:obj}`better_robot.residuals.base.Residual`
 
 ````
 
-````{py:method} temporal_structure(variable: better_robot.residuals._variables.RobotVariableLike | str) -> better_robot.residuals.structure.TemporalPattern | None
+````{py:method} temporal_structure(variable: better_robot.residuals.utils.RobotVariableLike | str) -> better_robot.residuals.structure.TemporalPattern | None
 :canonical: better_robot.residuals.limits.JointPositionLimit.temporal_structure
 
 ```{autodoc2-docstring} better_robot.residuals.limits.JointPositionLimit.temporal_structure
@@ -48,7 +48,7 @@ Bases: {py:obj}`better_robot.residuals.base.Residual`
 
 ````
 
-````{py:method} temporal_jacobian_blocks(variable: better_robot.residuals._variables.RobotVariableLike | str) -> collections.abc.Mapping[int, torch.Tensor]
+````{py:method} temporal_jacobian_blocks(variable: better_robot.residuals.utils.RobotVariableLike | str) -> collections.abc.Mapping[int, torch.Tensor]
 :canonical: better_robot.residuals.limits.JointPositionLimit.temporal_jacobian_blocks
 
 ```{autodoc2-docstring} better_robot.residuals.limits.JointPositionLimit.temporal_jacobian_blocks
@@ -63,7 +63,7 @@ Bases: {py:obj}`better_robot.residuals.base.Residual`
 
 `````
 
-`````{py:class} JointVelocityLimit(velocity: better_robot.residuals._variables.ShapedVariableLike, limit: torch.Tensor | better_robot.residuals._variables.ShapedVariableLike, *, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'joint_velocity_limit')
+`````{py:class} JointVelocityLimit(velocity: better_robot.residuals.utils.VariableLike, limit: torch.Tensor | better_robot.residuals.utils.VariableLike, *, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'joint_velocity_limit')
 :canonical: better_robot.residuals.limits.JointVelocityLimit
 
 Bases: {py:obj}`better_robot.residuals.base.Residual`

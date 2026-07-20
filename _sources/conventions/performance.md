@@ -88,17 +88,17 @@ inside a warmed timing.
 Set `TORCHINDUCTOR_CACHE_DIR` when a measurement needs an explicit compiler
 cache. BetterRobot does not choose a cache directory for the application.
 
-## Optional Warp FK
+## Optional Warp passes
 
-Warp replaces one complete FK pass, not individual Lie operations. The public
-boundary still accepts and returns Torch tensors. The Torch pass remains the
-default and numerical reference.
+Warp replaces one complete FK or RNEA pass, not individual Lie or spatial
+operations. The public boundary still accepts and returns Torch tensors. The
+Torch pass remains the default and numerical reference.
 
-The fused FK implementation has CUDA forward and gradient parity tests and is
-selected explicitly. It is not the default because its backward recomputes
-the Torch reference and that complete forward-plus-backward cost has not been
-measured. Every future fused pass needs its own eligibility, parity, gradient,
-stream, and benchmark evidence.
+The fused FK and RNEA implementations have CUDA forward and gradient parity
+tests and are selected explicitly. They are not the default because their
+backward recomputes the Torch reference, so a fast fused forward does not by
+itself prove a faster differentiable workload. Every future fused pass needs
+its own eligibility, parity, gradient, stream, and benchmark evidence.
 
 ## CUDA graphs
 

@@ -23,7 +23,7 @@
 
 ### API
 
-`````{py:class} ContactConsistencyResidual(q_or_state: better_robot.residuals._variables.RobotVariableLike | better_robot.residuals.nodes.RobotState, frame_ids: tuple[int, ...], contact_weights: better_robot.residuals._variables.VariableLike | torch.Tensor, *, dt: float, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'contact_consistency')
+`````{py:class} ContactConsistencyResidual(q_or_state: better_robot.residuals.utils.RobotVariableLike | better_robot.residuals.nodes.RobotState, frame_ids: tuple[int, ...], contact_weights: better_robot.residuals.utils.VariableLike | torch.Tensor, *, dt: float, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'contact_consistency')
 :canonical: better_robot.residuals.contact.ContactConsistencyResidual
 
 Bases: {py:obj}`better_robot.residuals.base.Residual`
@@ -36,7 +36,7 @@ Bases: {py:obj}`better_robot.residuals.base.Residual`
 
 ````
 
-````{py:method} temporal_structure(variable: better_robot.residuals._variables.RobotVariableLike | str) -> better_robot.residuals.structure.TemporalPattern | None
+````{py:method} temporal_structure(variable: better_robot.residuals.utils.RobotVariableLike | str) -> better_robot.residuals.structure.TemporalPattern | None
 :canonical: better_robot.residuals.contact.ContactConsistencyResidual.temporal_structure
 
 ```{autodoc2-docstring} better_robot.residuals.contact.ContactConsistencyResidual.temporal_structure
@@ -44,7 +44,7 @@ Bases: {py:obj}`better_robot.residuals.base.Residual`
 
 ````
 
-````{py:method} temporal_jacobian_blocks(variable: better_robot.residuals._variables.RobotVariableLike | str) -> collections.abc.Mapping[int, torch.Tensor]
+````{py:method} temporal_jacobian_blocks(variable: better_robot.residuals.utils.RobotVariableLike | str) -> collections.abc.Mapping[int, torch.Tensor]
 :canonical: better_robot.residuals.contact.ContactConsistencyResidual.temporal_jacobian_blocks
 
 ```{autodoc2-docstring} better_robot.residuals.contact.ContactConsistencyResidual.temporal_jacobian_blocks

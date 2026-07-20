@@ -45,20 +45,26 @@ operations functional is recorded in {ref}`decision-functional-lie`.
 
 ## Robot identity and query state
 
-`data_model` owns the robot itself. A `Model` holds topology, joint kinds,
-fixed placements, limits, inertias, and name-to-index tables. A `Data` object
-holds results for one execution batch: poses, velocities, Jacobians, and other
-quantities produced by algorithms.
+`data_model` owns the robot itself. A `Model` combines two sources of truth:
+`ModelStructure` holds topology, joint kinds, names, and index tables, while
+`ModelValues` holds placements, limits, inertias, gravity, and other tensors
+that may participate in differentiation. The familiar flat `Model` attributes
+are an explicit facade over those parts, not additional storage. A `Data`
+object holds results for one execution batch: poses, velocities, Jacobians,
+and other quantities produced by algorithms.
 
-The split lets many queries share one model without sharing mutable results.
-It also gives autograd a stable set of input tensors. See
-{doc}`model_and_data` and {ref}`decision-model-data`.
+Separating structure from values lets algorithms reuse topology while values
+are replaced, moved, batched, or differentiated. Keeping each field in one
+part also prevents a flat model and its raw-pass inputs from drifting apart.
+The further split from `Data` lets many queries share one model without
+sharing mutable results. See {doc}`model_and_data` and
+{ref}`decision-model-data`.
 
 Model construction has a separate boundary. `io` parses URDF, MJCF, or a
 programmatic builder into one intermediate representation, then
-`build_model` validates and packs it. Format-specific choices stop there;
-kinematics does not contain URDF cases. See {doc}`parsers_and_ir` and
-{ref}`decision-one-ir`.
+`build_model` validates it and constructs `ModelStructure` and `ModelValues`
+directly. Format-specific choices stop there; kinematics does not contain
+URDF cases. See {doc}`parsers_and_ir` and {ref}`decision-one-ir`.
 
 ## Algorithms consume the same model
 
@@ -83,7 +89,7 @@ example, reads frame placements and compares one frame with a target. The
 package may use kinematics or dynamics concepts, but it does not import the
 optimizer that will consume its output.
 
-`optim` owns variables, manifolds, bounds, residual composition, robust
+`optim` owns variables and their geometry, bounds, residual composition, robust
 losses, Jacobian selection, and solvers. A `Problem` can optimize several
 named variables, each with its own event shape and manifold. Providers place
 shared work such as forward kinematics into one evaluation context so several

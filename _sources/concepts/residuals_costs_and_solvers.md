@@ -69,9 +69,14 @@ width matters: Jacobian rows, robust groups, and optimizer storage keep the same
 meaning at every evaluation. Variable-size observations are padded and paired
 with validity masks rather than changing the residual dimension.
 
-An optional `jacobian()` method returns complete reduced-tangent blocks in
-dependency order. Without it, `Problem` uses automatic differentiation.
-Finite differences are available only as an explicit debugging strategy. See
+An optional `jacobian()` method returns complete tangent blocks in
+dependency order. Without it, the default `"auto"` strategy uses either
+`torch.func.jacrev` or `torch.func.jacfwd` and emits one
+`AutodiffFallbackWarning` per residual. The warning makes a potentially slower
+but numerically correct fallback visible and names the selected transform.
+Providing `jacobian()` or choosing an explicit differentiation strategy makes
+that trade-off intentional and suppresses the warning. Finite differences are
+available only as an explicit debugging strategy. See
 {doc}`kinematics_and_jacobians` for the distinction and for the documented
 small-step approximations used by a few built-in blocks.
 
@@ -266,9 +271,13 @@ building a dense matrix.
 
 `linearization="auto"` chooses the banded route only when the declared
 structure proves it is eligible; otherwise it records a reason and uses
-dense. `"structured"` requires eligibility and raises if the problem cannot
-honor it. There is no inference from numerical zeros, because a value that is
-zero today may be nonzero at the next iterate.
+dense. A residual that declares temporal structure without providing temporal
+Jacobian blocks emits one `AutodiffFallbackWarning` when this forces automatic
+dense routing. Providing the blocks or explicitly choosing dense linearization
+makes the cost visible and suppresses the warning. `"structured"` requires
+eligibility and raises if the problem cannot honor it. There is no inference
+from numerical zeros, because a value that is zero today may be nonzero at the
+next iterate.
 
 Problems with shared optimized variables outside the directly supported
 temporal form remain dense. A future sparse extension should start from a real

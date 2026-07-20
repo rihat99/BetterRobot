@@ -106,7 +106,7 @@
 
 `````
 
-`````{py:class} LevenbergMarquardt(problem: better_robot.optim.problem.Problem, *, solver: typing.Literal[auto] | better_robot.optim.solvers.LinearSolver = 'auto', max_iterations: int = 50, tolerance: float = 1e-06, step_tolerance: float = 1e-09, relative_tolerance: float = 1e-09, damping: float = 0.0001, mu_min: float = 1e-12, mu_max: float = float(2**32), increase_factor_max: float = float(2**32), bound_tolerance: float = 1e-07, linearization: better_robot.optim.lm.LinearizationMode = 'auto', jacobian_strategy: better_robot.optim.problem.JacobianStrategy = 'auto', fixed_damping: bool = False, block_step_limits: tuple[tuple[str, float], ...] = ())
+`````{py:class} LevenbergMarquardt(problem: better_robot.optim.problem.Problem, *, solver: typing.Literal[auto] | better_robot.optim.solvers.LinearSolver = 'auto', max_iterations: int = 50, tolerance: float = 1e-06, step_tolerance: float = 1e-09, relative_tolerance: float = 1e-09, damping: float = 0.0001, mu_min: float = 1e-12, mu_max: float = float(2**32), increase_factor_max: float = float(2**32), bound_tolerance: float = 1e-07, linearization: better_robot.optim.lm.LinearizationMode = 'auto', jacobian_strategy: better_robot.optim.problem.JacobianStrategy = 'auto', fixed_damping: bool = False)
 :canonical: better_robot.optim.lm.LevenbergMarquardt
 
 Bases: {py:obj}`better_robot.optim.optimizers.Optimizer`

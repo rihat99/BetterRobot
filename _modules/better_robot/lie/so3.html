@@ -54,7 +54,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2" />
-    <meta name="docbuild:last-update" content="Jul 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jul 20, 2026"/>
   </head>
   
   
@@ -192,7 +192,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/lie_and_spatial.html">Rotations, Poses, and Spatial Motion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/kinematics_and_jacobians.html">Kinematics and Jacobians</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/dynamics.html">Dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../concepts/residuals_costs_and_solvers.html">Residuals, Costs, and Optimizers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/the_compute_seam.html">The Compute Seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/parsers_and_ir.html">Parsers and the intermediate representation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../concepts/viewer.html">Viewer</a></li>
@@ -247,6 +247,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.chamfer.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.chamfer</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.nodes.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.nodes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.regularization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.regularization</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.utils.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.utils</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.limits.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.limits</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.structure.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.structure</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.residuals.scene_sdf.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.residuals.scene_sdf</span></code></a></li>
@@ -270,32 +271,30 @@
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.integrators.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.integrators</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.crba.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.crba</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.rnea.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.rnea</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.aba.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.aba</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.centroidal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.centroidal</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.state_manifold.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.state_manifold</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.dynamics.derivatives.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.dynamics.derivatives</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.implicit.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.implicit</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.temporal.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.temporal</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.manifolds.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.manifolds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.solvers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.solvers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.problem.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.problem</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.optimizers.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.optimizers</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.kernels.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.kernels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.variables.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.variables</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.lm.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.lm</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.optim.utils.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.optim.utils</span></code></a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks</span></code></a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.ik.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.ik</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.parameterization.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.parameterization</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.trajectory.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajectory</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.trajopt.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.trajopt</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.utils.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.utils</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.smoothing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.smoothing</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../reference/api/better_robot/better_robot.tasks.contact_forces.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">better_robot.tasks.contact_forces</span></code></a></li>
 </ul>
@@ -487,7 +486,7 @@
                 <article class="bd-article">
                   
   <h1>Source code for better_robot.lie.so3</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;SO3 group operations — pure functional facade over the torch implementation.</span>
+<span></span><span class="sd">&quot;&quot;&quot;SO3 group operations implemented directly with PyTorch tensors.</span>
 
 <span class="sd">Storage convention: ``(..., 4)`` unit quaternion ``[qx, qy, qz, qw]``</span>
 <span class="sd">(scalar-last). Tangent vectors are ``(..., 3)``.</span>
@@ -499,7 +498,106 @@
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">_impl</span>
+
+<span class="c1"># ``1 - cos(theta)`` loses significance much earlier in fp32 than fp64.</span>
+<span class="c1"># These cutoffs are on theta squared, not theta.</span>
+<span class="n">_TAYLOR_THETA2_FP32</span> <span class="o">=</span> <span class="mf">1e-5</span>
+<span class="n">_TAYLOR_THETA2_FP64</span> <span class="o">=</span> <span class="mf">1e-8</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_taylor_theta2</span><span class="p">(</span><span class="n">dtype</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the small-angle ``theta²`` cutoff for ``dtype``.</span>
+
+<span class="sd">    The dtype branch is static under ``torch.compile``. Lower-precision</span>
+<span class="sd">    floating dtypes use the fp32 cutoff rather than the fp64 one.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_TAYLOR_THETA2_FP64</span> <span class="k">if</span> <span class="n">dtype</span> <span class="o">==</span> <span class="n">torch</span><span class="o">.</span><span class="n">float64</span> <span class="k">else</span> <span class="n">_TAYLOR_THETA2_FP32</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_hat3</span><span class="p">(</span><span class="n">v</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the skew-symmetric ``3×3`` matrix for an ``(..., 3)`` vector.&quot;&quot;&quot;</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+        <span class="p">[</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">z</span><span class="p">,</span> <span class="o">-</span><span class="n">v</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">v</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">]],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">),</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">v</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">z</span><span class="p">,</span> <span class="o">-</span><span class="n">v</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">),</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="o">-</span><span class="n">v</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">v</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">z</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">,</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_quat_mul</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the Hamilton product of scalar-last quaternions ``a`` and ``b``.&quot;&quot;&quot;</span>
+    <span class="n">ax</span><span class="p">,</span> <span class="n">ay</span><span class="p">,</span> <span class="n">az</span><span class="p">,</span> <span class="n">aw</span> <span class="o">=</span> <span class="n">a</span><span class="o">.</span><span class="n">unbind</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">bx</span><span class="p">,</span> <span class="n">by</span><span class="p">,</span> <span class="n">bz</span><span class="p">,</span> <span class="n">bw</span> <span class="o">=</span> <span class="n">b</span><span class="o">.</span><span class="n">unbind</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">qx</span> <span class="o">=</span> <span class="n">aw</span> <span class="o">*</span> <span class="n">bx</span> <span class="o">+</span> <span class="n">ax</span> <span class="o">*</span> <span class="n">bw</span> <span class="o">+</span> <span class="n">ay</span> <span class="o">*</span> <span class="n">bz</span> <span class="o">-</span> <span class="n">az</span> <span class="o">*</span> <span class="n">by</span>
+    <span class="n">qy</span> <span class="o">=</span> <span class="n">aw</span> <span class="o">*</span> <span class="n">by</span> <span class="o">-</span> <span class="n">ax</span> <span class="o">*</span> <span class="n">bz</span> <span class="o">+</span> <span class="n">ay</span> <span class="o">*</span> <span class="n">bw</span> <span class="o">+</span> <span class="n">az</span> <span class="o">*</span> <span class="n">bx</span>
+    <span class="n">qz</span> <span class="o">=</span> <span class="n">aw</span> <span class="o">*</span> <span class="n">bz</span> <span class="o">+</span> <span class="n">ax</span> <span class="o">*</span> <span class="n">by</span> <span class="o">-</span> <span class="n">ay</span> <span class="o">*</span> <span class="n">bx</span> <span class="o">+</span> <span class="n">az</span> <span class="o">*</span> <span class="n">bw</span>
+    <span class="n">qw</span> <span class="o">=</span> <span class="n">aw</span> <span class="o">*</span> <span class="n">bw</span> <span class="o">-</span> <span class="n">ax</span> <span class="o">*</span> <span class="n">bx</span> <span class="o">-</span> <span class="n">ay</span> <span class="o">*</span> <span class="n">by</span> <span class="o">-</span> <span class="n">az</span> <span class="o">*</span> <span class="n">bz</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">qx</span><span class="p">,</span> <span class="n">qy</span><span class="p">,</span> <span class="n">qz</span><span class="p">,</span> <span class="n">qw</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_quat_to_matrix</span><span class="p">(</span><span class="n">q</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert scalar-last quaternions ``(..., 4)`` to rotation matrices.&quot;&quot;&quot;</span>
+    <span class="n">qx</span><span class="p">,</span> <span class="n">qy</span><span class="p">,</span> <span class="n">qz</span><span class="p">,</span> <span class="n">qw</span> <span class="o">=</span> <span class="n">q</span><span class="o">.</span><span class="n">unbind</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">xx</span><span class="p">,</span> <span class="n">yy</span><span class="p">,</span> <span class="n">zz</span> <span class="o">=</span> <span class="n">qx</span> <span class="o">*</span> <span class="n">qx</span><span class="p">,</span> <span class="n">qy</span> <span class="o">*</span> <span class="n">qy</span><span class="p">,</span> <span class="n">qz</span> <span class="o">*</span> <span class="n">qz</span>
+    <span class="n">xy</span><span class="p">,</span> <span class="n">xz</span><span class="p">,</span> <span class="n">yz</span> <span class="o">=</span> <span class="n">qx</span> <span class="o">*</span> <span class="n">qy</span><span class="p">,</span> <span class="n">qx</span> <span class="o">*</span> <span class="n">qz</span><span class="p">,</span> <span class="n">qy</span> <span class="o">*</span> <span class="n">qz</span>
+    <span class="n">wx</span><span class="p">,</span> <span class="n">wy</span><span class="p">,</span> <span class="n">wz</span> <span class="o">=</span> <span class="n">qw</span> <span class="o">*</span> <span class="n">qx</span><span class="p">,</span> <span class="n">qw</span> <span class="o">*</span> <span class="n">qy</span><span class="p">,</span> <span class="n">qw</span> <span class="o">*</span> <span class="n">qz</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+        <span class="p">[</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="mi">1</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">yy</span> <span class="o">+</span> <span class="n">zz</span><span class="p">),</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">xy</span> <span class="o">-</span> <span class="n">wz</span><span class="p">),</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">xz</span> <span class="o">+</span> <span class="n">wy</span><span class="p">)],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">),</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">xy</span> <span class="o">+</span> <span class="n">wz</span><span class="p">),</span> <span class="mi">1</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">xx</span> <span class="o">+</span> <span class="n">zz</span><span class="p">),</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">yz</span> <span class="o">-</span> <span class="n">wx</span><span class="p">)],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">),</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">xz</span> <span class="o">-</span> <span class="n">wy</span><span class="p">),</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">yz</span> <span class="o">+</span> <span class="n">wx</span><span class="p">),</span> <span class="mi">1</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">xx</span> <span class="o">+</span> <span class="n">yy</span><span class="p">)],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">,</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_matrix_to_quat</span><span class="p">(</span><span class="n">R</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert rotation matrices to stable scalar-last unit quaternions.</span>
+
+<span class="sd">    The Shepperd 1978 variant picks the largest diagonal component to avoid</span>
+<span class="sd">    cancellation as ``qw → 0`` and keeps every branch differentiable.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">m00</span><span class="p">,</span> <span class="n">m01</span><span class="p">,</span> <span class="n">m02</span> <span class="o">=</span> <span class="n">R</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">R</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">R</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+    <span class="n">m10</span><span class="p">,</span> <span class="n">m11</span><span class="p">,</span> <span class="n">m12</span> <span class="o">=</span> <span class="n">R</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">R</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">R</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+    <span class="n">m20</span><span class="p">,</span> <span class="n">m21</span><span class="p">,</span> <span class="n">m22</span> <span class="o">=</span> <span class="n">R</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">R</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">R</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+    <span class="n">trace</span> <span class="o">=</span> <span class="n">m00</span> <span class="o">+</span> <span class="n">m11</span> <span class="o">+</span> <span class="n">m22</span>
+
+    <span class="n">s1</span> <span class="o">=</span> <span class="p">(</span><span class="n">trace</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">)</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">1e-30</span><span class="p">)</span><span class="o">.</span><span class="n">sqrt</span><span class="p">()</span> <span class="o">*</span> <span class="mf">2.0</span>
+    <span class="n">qw1</span> <span class="o">=</span> <span class="mf">0.25</span> <span class="o">*</span> <span class="n">s1</span>
+    <span class="n">qx1</span> <span class="o">=</span> <span class="p">(</span><span class="n">m21</span> <span class="o">-</span> <span class="n">m12</span><span class="p">)</span> <span class="o">/</span> <span class="n">s1</span>
+    <span class="n">qy1</span> <span class="o">=</span> <span class="p">(</span><span class="n">m02</span> <span class="o">-</span> <span class="n">m20</span><span class="p">)</span> <span class="o">/</span> <span class="n">s1</span>
+    <span class="n">qz1</span> <span class="o">=</span> <span class="p">(</span><span class="n">m10</span> <span class="o">-</span> <span class="n">m01</span><span class="p">)</span> <span class="o">/</span> <span class="n">s1</span>
+
+    <span class="n">s2</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">m00</span> <span class="o">-</span> <span class="n">m11</span> <span class="o">-</span> <span class="n">m22</span><span class="p">)</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">1e-30</span><span class="p">)</span><span class="o">.</span><span class="n">sqrt</span><span class="p">()</span> <span class="o">*</span> <span class="mf">2.0</span>
+    <span class="n">qw2</span> <span class="o">=</span> <span class="p">(</span><span class="n">m21</span> <span class="o">-</span> <span class="n">m12</span><span class="p">)</span> <span class="o">/</span> <span class="n">s2</span>
+    <span class="n">qx2</span> <span class="o">=</span> <span class="mf">0.25</span> <span class="o">*</span> <span class="n">s2</span>
+    <span class="n">qy2</span> <span class="o">=</span> <span class="p">(</span><span class="n">m01</span> <span class="o">+</span> <span class="n">m10</span><span class="p">)</span> <span class="o">/</span> <span class="n">s2</span>
+    <span class="n">qz2</span> <span class="o">=</span> <span class="p">(</span><span class="n">m02</span> <span class="o">+</span> <span class="n">m20</span><span class="p">)</span> <span class="o">/</span> <span class="n">s2</span>
+
+    <span class="n">s3</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">m00</span> <span class="o">+</span> <span class="n">m11</span> <span class="o">-</span> <span class="n">m22</span><span class="p">)</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">1e-30</span><span class="p">)</span><span class="o">.</span><span class="n">sqrt</span><span class="p">()</span> <span class="o">*</span> <span class="mf">2.0</span>
+    <span class="n">qw3</span> <span class="o">=</span> <span class="p">(</span><span class="n">m02</span> <span class="o">-</span> <span class="n">m20</span><span class="p">)</span> <span class="o">/</span> <span class="n">s3</span>
+    <span class="n">qx3</span> <span class="o">=</span> <span class="p">(</span><span class="n">m01</span> <span class="o">+</span> <span class="n">m10</span><span class="p">)</span> <span class="o">/</span> <span class="n">s3</span>
+    <span class="n">qy3</span> <span class="o">=</span> <span class="mf">0.25</span> <span class="o">*</span> <span class="n">s3</span>
+    <span class="n">qz3</span> <span class="o">=</span> <span class="p">(</span><span class="n">m12</span> <span class="o">+</span> <span class="n">m21</span><span class="p">)</span> <span class="o">/</span> <span class="n">s3</span>
+
+    <span class="n">s4</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">m00</span> <span class="o">-</span> <span class="n">m11</span> <span class="o">+</span> <span class="n">m22</span><span class="p">)</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">1e-30</span><span class="p">)</span><span class="o">.</span><span class="n">sqrt</span><span class="p">()</span> <span class="o">*</span> <span class="mf">2.0</span>
+    <span class="n">qw4</span> <span class="o">=</span> <span class="p">(</span><span class="n">m10</span> <span class="o">-</span> <span class="n">m01</span><span class="p">)</span> <span class="o">/</span> <span class="n">s4</span>
+    <span class="n">qx4</span> <span class="o">=</span> <span class="p">(</span><span class="n">m02</span> <span class="o">+</span> <span class="n">m20</span><span class="p">)</span> <span class="o">/</span> <span class="n">s4</span>
+    <span class="n">qy4</span> <span class="o">=</span> <span class="p">(</span><span class="n">m12</span> <span class="o">+</span> <span class="n">m21</span><span class="p">)</span> <span class="o">/</span> <span class="n">s4</span>
+    <span class="n">qz4</span> <span class="o">=</span> <span class="mf">0.25</span> <span class="o">*</span> <span class="n">s4</span>
+
+    <span class="n">cond1</span> <span class="o">=</span> <span class="n">trace</span> <span class="o">&gt;</span> <span class="mi">0</span>
+    <span class="n">cond2</span> <span class="o">=</span> <span class="p">(</span><span class="n">m00</span> <span class="o">&gt;</span> <span class="n">m11</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">m00</span> <span class="o">&gt;</span> <span class="n">m22</span><span class="p">)</span>
+    <span class="n">cond3</span> <span class="o">=</span> <span class="n">m11</span> <span class="o">&gt;</span> <span class="n">m22</span>
+    <span class="n">qw</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">cond1</span><span class="p">,</span> <span class="n">qw1</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">cond2</span><span class="p">,</span> <span class="n">qw2</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">cond3</span><span class="p">,</span> <span class="n">qw3</span><span class="p">,</span> <span class="n">qw4</span><span class="p">)))</span>
+    <span class="n">qx</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">cond1</span><span class="p">,</span> <span class="n">qx1</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">cond2</span><span class="p">,</span> <span class="n">qx2</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">cond3</span><span class="p">,</span> <span class="n">qx3</span><span class="p">,</span> <span class="n">qx4</span><span class="p">)))</span>
+    <span class="n">qy</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">cond1</span><span class="p">,</span> <span class="n">qy1</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">cond2</span><span class="p">,</span> <span class="n">qy2</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">cond3</span><span class="p">,</span> <span class="n">qy3</span><span class="p">,</span> <span class="n">qy4</span><span class="p">)))</span>
+    <span class="n">qz</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">cond1</span><span class="p">,</span> <span class="n">qz1</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">cond2</span><span class="p">,</span> <span class="n">qz2</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">cond3</span><span class="p">,</span> <span class="n">qz3</span><span class="p">,</span> <span class="n">qz4</span><span class="p">)))</span>
+    <span class="n">q</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">qx</span><span class="p">,</span> <span class="n">qy</span><span class="p">,</span> <span class="n">qz</span><span class="p">,</span> <span class="n">qw</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">q</span> <span class="o">/</span> <span class="n">q</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">1e-12</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="identity">
@@ -511,7 +609,9 @@
     <span class="n">dtype</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Return an SO3 identity quaternion with the given batch shape.&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">_impl</span><span class="o">.</span><span class="n">so3_identity</span><span class="p">(</span><span class="n">batch_shape</span><span class="p">,</span> <span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span></div>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="o">*</span><span class="n">batch_shape</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">out</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="k">return</span> <span class="n">out</span></div>
 
 
 
@@ -519,7 +619,7 @@
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.lie.so3.html#better_robot.lie.so3.compose">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">compose</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;SO3 composition. ``(..., 4), (..., 4) → (..., 4)``.&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">_impl</span><span class="o">.</span><span class="n">so3_compose</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">_quat_mul</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span></div>
 
 
 
@@ -527,7 +627,7 @@
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.lie.so3.html#better_robot.lie.so3.inverse">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">inverse</span><span class="p">(</span><span class="n">q</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;SO3 inverse (quaternion conjugate for unit quats).&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">_impl</span><span class="o">.</span><span class="n">so3_inverse</span><span class="p">(</span><span class="n">q</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="o">-</span><span class="n">q</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">],</span> <span class="n">q</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">3</span><span class="p">:]],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span></div>
 
 
 
@@ -535,7 +635,19 @@
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.lie.so3.html#better_robot.lie.so3.log">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">log</span><span class="p">(</span><span class="n">q</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;SO3 → so3 tangent. ``(..., 4) → (..., 3)``.&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">_impl</span><span class="o">.</span><span class="n">so3_log</span><span class="p">(</span><span class="n">q</span><span class="p">)</span></div>
+    <span class="n">q</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">q</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">3</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">q</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
+    <span class="n">qxyz</span> <span class="o">=</span> <span class="n">q</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
+    <span class="n">qw</span> <span class="o">=</span> <span class="n">q</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">3</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span>
+    <span class="n">sin_half2</span> <span class="o">=</span> <span class="p">(</span><span class="n">qxyz</span> <span class="o">*</span> <span class="n">qxyz</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">use_taylor</span> <span class="o">=</span> <span class="n">sin_half2</span> <span class="o">&lt;</span> <span class="n">_taylor_theta2</span><span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span> <span class="o">/</span> <span class="mf">4.0</span>
+    <span class="n">sin_half2_safe</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">use_taylor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">sin_half2</span><span class="p">),</span> <span class="n">sin_half2</span><span class="p">)</span>
+    <span class="n">sin_half</span> <span class="o">=</span> <span class="n">sin_half2_safe</span><span class="o">.</span><span class="n">sqrt</span><span class="p">()</span>
+
+    <span class="n">theta</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">atan2</span><span class="p">(</span><span class="n">sin_half</span><span class="p">,</span> <span class="n">qw</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=-</span><span class="mf">1.0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">1.0</span><span class="p">))</span>
+    <span class="n">factor_full</span> <span class="o">=</span> <span class="n">theta</span> <span class="o">/</span> <span class="n">sin_half</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">1e-30</span><span class="p">)</span>
+    <span class="n">factor_taylor</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">+</span> <span class="n">sin_half2</span> <span class="o">*</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">/</span> <span class="mf">3.0</span><span class="p">)</span>
+    <span class="n">factor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">use_taylor</span><span class="p">,</span> <span class="n">factor_taylor</span><span class="p">,</span> <span class="n">factor_full</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">factor</span> <span class="o">*</span> <span class="n">qxyz</span></div>
 
 
 
@@ -543,7 +655,17 @@
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.lie.so3.html#better_robot.lie.so3.exp">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">exp</span><span class="p">(</span><span class="n">w</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;so3 tangent → SO3. ``(..., 3) → (..., 4)``.&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">_impl</span><span class="o">.</span><span class="n">so3_exp</span><span class="p">(</span><span class="n">w</span><span class="p">)</span></div>
+    <span class="n">theta2</span> <span class="o">=</span> <span class="p">(</span><span class="n">w</span> <span class="o">*</span> <span class="n">w</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">use_taylor</span> <span class="o">=</span> <span class="n">theta2</span> <span class="o">&lt;</span> <span class="n">_taylor_theta2</span><span class="p">(</span><span class="n">w</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">theta2_safe</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">use_taylor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">theta2</span><span class="p">),</span> <span class="n">theta2</span><span class="p">)</span>
+    <span class="n">theta</span> <span class="o">=</span> <span class="n">theta2_safe</span><span class="o">.</span><span class="n">sqrt</span><span class="p">()</span>
+    <span class="n">half</span> <span class="o">=</span> <span class="n">theta</span> <span class="o">/</span> <span class="mf">2.0</span>
+    <span class="n">sin_half_over_theta_full</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">half</span><span class="p">)</span> <span class="o">/</span> <span class="n">theta</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">1e-30</span><span class="p">)</span>
+    <span class="n">sin_half_over_theta_taylor</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">-</span> <span class="n">theta2</span> <span class="o">/</span> <span class="mf">48.0</span>
+    <span class="n">sin_half_over_theta</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">use_taylor</span><span class="p">,</span> <span class="n">sin_half_over_theta_taylor</span><span class="p">,</span> <span class="n">sin_half_over_theta_full</span><span class="p">)</span>
+    <span class="n">qxyz</span> <span class="o">=</span> <span class="n">sin_half_over_theta</span> <span class="o">*</span> <span class="n">w</span>
+    <span class="n">qw</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">use_taylor</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">theta2</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">half</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">qxyz</span><span class="p">,</span> <span class="n">qw</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span></div>
 
 
 
@@ -551,7 +673,12 @@
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.lie.so3.html#better_robot.lie.so3.act">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">act</span><span class="p">(</span><span class="n">q</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">p</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Rotate a point by a quaternion. ``q: (..., 4), p: (..., 3) → (..., 3)``.&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">_impl</span><span class="o">.</span><span class="n">so3_act</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">p</span><span class="p">)</span></div>
+    <span class="n">qxyz</span> <span class="o">=</span> <span class="n">q</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
+    <span class="n">qw</span> <span class="o">=</span> <span class="n">q</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">3</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span>
+    <span class="n">qxyz_b</span><span class="p">,</span> <span class="n">p_b</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">broadcast_tensors</span><span class="p">(</span><span class="n">qxyz</span><span class="p">,</span> <span class="n">p</span><span class="p">)</span>
+    <span class="n">qw_b</span> <span class="o">=</span> <span class="n">qw</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="n">p_b</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span><span class="p">,))</span>
+    <span class="n">cross1</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">qxyz_b</span><span class="p">,</span> <span class="n">p_b</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">qw_b</span> <span class="o">*</span> <span class="n">p_b</span>
+    <span class="k">return</span> <span class="n">p_b</span> <span class="o">+</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">qxyz_b</span><span class="p">,</span> <span class="n">cross1</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span></div>
 
 
 
@@ -559,7 +686,7 @@
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.lie.so3.html#better_robot.lie.so3.adjoint">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">adjoint</span><span class="p">(</span><span class="n">q</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;3×3 adjoint of SO3 — equals the rotation matrix. ``(..., 4) → (..., 3, 3)``.&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">_impl</span><span class="o">.</span><span class="n">so3_to_matrix</span><span class="p">(</span><span class="n">q</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">_quat_to_matrix</span><span class="p">(</span><span class="n">q</span><span class="p">)</span></div>
 
 
 
@@ -567,7 +694,7 @@
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.lie.so3.html#better_robot.lie.so3.from_matrix">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_matrix</span><span class="p">(</span><span class="n">R</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Rotation matrix → unit quaternion. ``(..., 3, 3) → (..., 4)``.&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">_impl</span><span class="o">.</span><span class="n">so3_from_matrix</span><span class="p">(</span><span class="n">R</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">_matrix_to_quat</span><span class="p">(</span><span class="n">R</span><span class="p">)</span></div>
 
 
 
@@ -575,7 +702,7 @@
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.lie.so3.html#better_robot.lie.so3.to_matrix">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">to_matrix</span><span class="p">(</span><span class="n">q</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Unit quaternion → rotation matrix. ``(..., 4) → (..., 3, 3)``.&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">_impl</span><span class="o">.</span><span class="n">so3_to_matrix</span><span class="p">(</span><span class="n">q</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">_quat_to_matrix</span><span class="p">(</span><span class="n">q</span><span class="p">)</span></div>
 
 
 
@@ -648,7 +775,14 @@
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.lie.so3.html#better_robot.lie.so3.from_axis_angle">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_axis_angle</span><span class="p">(</span><span class="n">axis</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">angle</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Unit quaternion from axis-angle. axis: (...,3) unit, angle: (...,) → (...,4).&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">_impl</span><span class="o">.</span><span class="n">so3_from_axis_angle</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="n">angle</span><span class="p">)</span></div>
+    <span class="c1"># Python ``2.0`` promotes a forward-mode fp32 tangent to fp64 on Torch</span>
+    <span class="c1"># 2.13, producing mixed dual tensors in FK under ``jacfwd``.</span>
+    <span class="n">half</span> <span class="o">=</span> <span class="n">angle</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">angle</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+    <span class="n">sin_h</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">half</span><span class="p">)</span>
+    <span class="n">cos_h</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">half</span><span class="p">)</span>
+    <span class="n">qxyz</span> <span class="o">=</span> <span class="n">sin_h</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">axis</span>
+    <span class="n">qw</span> <span class="o">=</span> <span class="n">cos_h</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">qxyz</span><span class="p">,</span> <span class="n">qw</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span></div>
 
 
 
@@ -656,7 +790,7 @@
 <a class="viewcode-back" href="../../../reference/api/better_robot/better_robot.lie.so3.html#better_robot.lie.so3.normalize">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">normalize</span><span class="p">(</span><span class="n">q</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Re-normalize the quaternion to unit length.&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">_impl</span><span class="o">.</span><span class="n">so3_normalize</span><span class="p">(</span><span class="n">q</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">q</span> <span class="o">/</span> <span class="n">q</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">)</span></div>
 
 
 
@@ -747,7 +881,7 @@ By BetterRobot contributors
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jul 19, 2026.
+  Last updated on Jul 20, 2026.
   <br/>
 </p>
   </div>

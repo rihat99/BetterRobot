@@ -78,7 +78,7 @@ common example: several frame errors can reuse one FK pass.
 
 Do not cache a computed tensor on the residual object. A cached tensor can
 belong to an old input or an old autograd graph. `Node.value()` owns the
-evaluation-epoch memo and invalidates it between graph evaluations.
+evaluation-scope memo and invalidates it between graph evaluations.
 
 ## Jacobians and robust groups
 
