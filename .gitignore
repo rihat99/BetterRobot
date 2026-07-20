@@ -15,3 +15,5 @@ build/
 docs/_build/
 
 references
+# Local agent instructions (owner machine only)
+DESIGN_RULES.md
