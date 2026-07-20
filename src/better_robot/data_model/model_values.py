@@ -14,7 +14,7 @@ from ..lie.tangents import hat_so3
 from .execution_batch import broadcast_execution_batch_shape
 
 if TYPE_CHECKING:
-    from .model import Model
+    from ..spatial.inertia import Inertia
     from .model_structure import ModelStructure
 
 
@@ -101,38 +101,12 @@ class ModelValues:
             ),
         )
 
-    @classmethod
-    def from_model(cls, model: "Model") -> "ModelValues":
-        if model.frames:
-            frames = torch.stack(
-                [
-                    frame.joint_placement.to(
-                        device=model.joint_placements.device,
-                        dtype=model.joint_placements.dtype,
-                    )
-                    for frame in model.frames
-                ],
-                dim=0,
-            )
-        else:
-            frames = model.joint_placements.new_empty((0, 7))
-        return cls(
-            joint_placements=model.joint_placements,
-            body_inertias=model.body_inertias,
-            frame_placements=frames,
-            lower_pos_limit=model.lower_pos_limit,
-            upper_pos_limit=model.upper_pos_limit,
-            velocity_limit=model.velocity_limit,
-            effort_limit=model.effort_limit,
-            rotor_inertia=model.rotor_inertia,
-            armature=model.armature,
-            friction=model.friction,
-            damping=model.damping,
-            gravity=model.gravity,
-            mimic_multiplier=model.mimic_multiplier,
-            mimic_offset=model.mimic_offset,
-            q_neutral=model.q_neutral,
-        )
+    def body_inertia(self, body_id: int) -> "Inertia":
+        """Return a typed view of one packed body inertia."""
+
+        from ..spatial.inertia import Inertia  # noqa: PLC0415 - typed lazy accessor
+
+        return Inertia(self.body_inertias[..., body_id, :])
 
     def spatial_inertias(self) -> torch.Tensor:
         """Derive spatial inertias from the current packed body inertias."""

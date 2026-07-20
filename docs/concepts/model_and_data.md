@@ -20,7 +20,7 @@ This split follows Pinocchio's successful `Model` / `Data` design. See the
 Python cannot stop in-place mutation of a tensor stored inside it. Treat a
 model as read-only after construction.
 
-The model has two views of its contents:
+The model stores its contents in two non-overlapping parts:
 
 - `ModelStructure` contains static topology and index tables. Python loops may
   walk this fixed structure, and `torch.compile` can specialize those loops.

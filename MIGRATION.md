@@ -123,3 +123,11 @@ surface changed again.
 | `better_robot.optim.manifolds.Bounds` | Import `Bounds` from `better_robot.optim` or `better_robot.optim.variables`. |
 | `LinearizationReason.NONSEPARABLE_MASK` and `TemporalAnalysis.reduced_width` | Tangent masks no longer participate in temporal analysis; inspect `tangent_width`. |
 | `BlockBandedMatrix.scaled_restricted` | Use `BlockBandedMatrix.restricted`; normalize residuals rather than variable steps. |
+
+## Removed by the model ownership redesign
+
+| Removed surface | Replacement |
+|---|---|
+| Flat `Model(njoints=..., joint_placements=..., ...)` construction | Use `build_model(...)`; low-level callers may pass `Model(structure=..., values=...)`. |
+| `ModelStructure.from_model(model)` | Use `model.structure`; construction code should build `ModelStructure` directly from validated topology and index tables. |
+| `ModelValues.from_model(model)` | Use `model.values`; construction code should build `ModelValues` directly from placements, inertias, limits, gravity, and mimic tensors. |

@@ -173,6 +173,61 @@
 
 ````
 
+````{py:attribute} joint_name_to_id
+:canonical: better_robot.data_model.model_structure.ModelStructure.joint_name_to_id
+:type: dict[str, int]
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.joint_name_to_id
+```
+
+````
+
+````{py:attribute} body_name_to_id
+:canonical: better_robot.data_model.model_structure.ModelStructure.body_name_to_id
+:type: dict[str, int]
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.body_name_to_id
+```
+
+````
+
+````{py:attribute} frame_name_to_id
+:canonical: better_robot.data_model.model_structure.ModelStructure.frame_name_to_id
+:type: dict[str, int]
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.frame_name_to_id
+```
+
+````
+
+````{py:attribute} frame_parent_joint_ids
+:canonical: better_robot.data_model.model_structure.ModelStructure.frame_parent_joint_ids
+:type: tuple[int, ...]
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.frame_parent_joint_ids
+```
+
+````
+
+````{py:attribute} frame_types
+:canonical: better_robot.data_model.model_structure.ModelStructure.frame_types
+:type: tuple[better_robot.data_model.frame.FrameType, ...]
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.frame_types
+```
+
+````
+
 ````{py:attribute} parents
 :canonical: better_robot.data_model.model_structure.ModelStructure.parents
 :type: tuple[int, ...]
@@ -855,11 +910,50 @@
 
 ````
 
-````{py:method} from_model(model: better_robot.data_model.model.Model) -> better_robot.data_model.model_structure.ModelStructure
-:canonical: better_robot.data_model.model_structure.ModelStructure.from_model
-:classmethod:
+````{py:method} joint_id(name: str) -> int
+:canonical: better_robot.data_model.model_structure.ModelStructure.joint_id
 
-```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.from_model
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.joint_id
+```
+
+````
+
+````{py:method} frame_id(name: str) -> int
+:canonical: better_robot.data_model.model_structure.ModelStructure.frame_id
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.frame_id
+```
+
+````
+
+````{py:method} body_id(name: str) -> int
+:canonical: better_robot.data_model.model_structure.ModelStructure.body_id
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.body_id
+```
+
+````
+
+````{py:method} get_subtree(joint_id: int) -> tuple[int, ...]
+:canonical: better_robot.data_model.model_structure.ModelStructure.get_subtree
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.get_subtree
+```
+
+````
+
+````{py:method} get_support(joint_id: int) -> tuple[int, ...]
+:canonical: better_robot.data_model.model_structure.ModelStructure.get_support
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.get_support
+```
+
+````
+
+````{py:method} q_permutation(other_joint_order: collections.abc.Sequence[str]) -> tuple[torch.Tensor, torch.Tensor]
+:canonical: better_robot.data_model.model_structure.ModelStructure.q_permutation
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.q_permutation
 ```
 
 ````

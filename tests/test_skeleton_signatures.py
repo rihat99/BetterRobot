@@ -55,26 +55,8 @@ def test_callables_are_callable() -> None:
 
 
 def test_model_has_frozen_dataclass_shape() -> None:
-    # Model is a frozen @dataclass — must expose the canonical field names.
-    model_cls = br.Model
-    fields = {f.name for f in model_cls.__dataclass_fields__.values()}
-    required = {
-        "njoints",
-        "nbodies",
-        "nframes",
-        "nq",
-        "nv",
-        "parents",
-        "topo_order",
-        "joint_models",
-        "idx_qs",
-        "idx_vs",
-        "joint_placements",
-        "lower_pos_limit",
-        "upper_pos_limit",
-    }
-    missing = required - fields
-    assert not missing, f"Model missing dataclass fields: {missing}"
+    fields = tuple(br.Model.__dataclass_fields__)
+    assert fields == ("structure", "values", "reference_configurations", "meta")
 
 
 def test_data_has_core_fields() -> None:

@@ -10,32 +10,15 @@ only place where the two representations are allowed to diverge, and
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Sequence
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Mapping
+from typing import Mapping
 
 import torch
 
-from .joint_models import (
-    JointFreeFlyer,
-    JointHelical,
-    JointPlanar,
-    JointPrismaticUnaligned,
-    JointPX,
-    JointPY,
-    JointPZ,
-    JointRevoluteUnaligned,
-    JointRevoluteUnbounded,
-    JointRX,
-    JointRY,
-    JointRZ,
-    JointSpherical,
-    JointTranslation,
-)
+from .frame import FrameType
 from .joint_models.base import JointModel
-
-if TYPE_CHECKING:
-    from .model import Model
 
 
 # Stable kernel ABI.  New kinds append codes; existing values never change.
@@ -63,55 +46,6 @@ JOINT_KIND_CODES: Mapping[str, int] = MappingProxyType(
 )
 
 
-# Exact classes are intentional. A programmatic/custom JointModel may inherit
-# from a built-in class while overriding its manifold semantics; such a joint
-# must stay on the per-joint fallback path.
-_EUCLIDEAN_MANIFOLD_TYPES = frozenset(
-    {
-        JointRX,
-        JointRY,
-        JointRZ,
-        JointRevoluteUnaligned,
-        JointPX,
-        JointPY,
-        JointPZ,
-        JointPrismaticUnaligned,
-        JointTranslation,
-        JointHelical,
-    }
-)
-
-
-def _matrix_slice_indices(
-    joint_ids: tuple[int, ...],
-    starts: tuple[int, ...],
-    width: int,
-    *,
-    device: torch.device,
-) -> torch.Tensor:
-    """Build a ``(len(joint_ids), width)`` device-local index table."""
-
-    indices = [starts[joint_id] + offset for joint_id in joint_ids for offset in range(width)]
-    return torch.tensor(indices, device=device, dtype=torch.long).reshape(len(joint_ids), width)
-
-
-def _flat_slice_indices(
-    joint_ids: tuple[int, ...],
-    starts: tuple[int, ...],
-    widths: tuple[int, ...],
-    *,
-    device: torch.device,
-) -> tuple[tuple[int, ...], torch.Tensor]:
-    """Build CSR-style offsets and flattened indices for variable-width joints."""
-
-    offsets = [0]
-    indices: list[int] = []
-    for joint_id in joint_ids:
-        indices.extend(range(starts[joint_id], starts[joint_id] + widths[joint_id]))
-        offsets.append(len(indices))
-    return tuple(offsets), torch.tensor(indices, device=device, dtype=torch.long)
-
-
 def _flatten_rows(rows: tuple[tuple[int, ...], ...]) -> tuple[list[int], list[int]]:
     offsets = [0]
     indices: list[int] = []
@@ -119,24 +53,6 @@ def _flatten_rows(rows: tuple[tuple[int, ...], ...]) -> tuple[list[int], list[in
         indices.extend(row)
         offsets.append(len(indices))
     return offsets, indices
-
-
-def _joint_axis(joint: JointModel) -> tuple[float, float, float]:
-    aligned = {
-        "revolute_rx": (1.0, 0.0, 0.0),
-        "revolute_ry": (0.0, 1.0, 0.0),
-        "revolute_rz": (0.0, 0.0, 1.0),
-        "prismatic_px": (1.0, 0.0, 0.0),
-        "prismatic_py": (0.0, 1.0, 0.0),
-        "prismatic_pz": (0.0, 0.0, 1.0),
-    }
-    if joint.kind in aligned:
-        return aligned[joint.kind]
-    axis = getattr(joint, "axis", None)
-    if axis is None:
-        return (0.0, 0.0, 0.0)
-    values = axis.detach().to(device="cpu", dtype=torch.float64).tolist()
-    return (float(values[0]), float(values[1]), float(values[2]))
 
 
 @dataclass(frozen=True)
@@ -155,6 +71,11 @@ class ModelStructure:
     joint_names: tuple[str, ...]
     body_names: tuple[str, ...]
     frame_names: tuple[str, ...]
+    joint_name_to_id: dict[str, int]
+    body_name_to_id: dict[str, int]
+    frame_name_to_id: dict[str, int]
+    frame_parent_joint_ids: tuple[int, ...]
+    frame_types: tuple[FrameType, ...]
 
     parents: tuple[int, ...]
     children: tuple[tuple[int, ...], ...]
@@ -223,179 +144,97 @@ class ModelStructure:
     joint_pitches: torch.Tensor
     joint_motion_subspaces: torch.Tensor
 
-    @classmethod
-    def from_model(  # noqa: PLR0915 - one audited topology packing boundary
-        cls,
-        model: "Model",
-    ) -> "ModelStructure":
-        device = model.joint_placements.device
-        dtype = model.joint_placements.dtype
-        # ``-1`` is the stable torch-only/custom-joint sentinel.  Device
-        # kernels reject/fallback on it without preventing Model construction.
-        codes = tuple(JOINT_KIND_CODES.get(joint.kind, -1) for joint in model.joint_models)
-        axes = torch.tensor(
-            [_joint_axis(joint) for joint in model.joint_models],
-            device=device,
-            dtype=dtype,
+    def __post_init__(self) -> None:
+        self.validate_consistency()
+
+    def joint_id(self, name: str) -> int:
+        """Return the integer id of the named joint."""
+
+        return self.joint_name_to_id[name]
+
+    def frame_id(self, name: str) -> int:
+        """Return the integer id of the named frame."""
+
+        return self.frame_name_to_id[name]
+
+    def body_id(self, name: str) -> int:
+        """Return the integer id of the named body."""
+
+        return self.body_name_to_id[name]
+
+    def get_subtree(self, joint_id: int) -> tuple[int, ...]:
+        """Return the subtree rooted at ``joint_id``."""
+
+        return self.subtrees[joint_id]
+
+    def get_support(self, joint_id: int) -> tuple[int, ...]:
+        """Return the joint chain from joint 0 to ``joint_id``."""
+
+        return self.supports[joint_id]
+
+    def q_permutation(
+        self,
+        other_joint_order: Sequence[str],
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Return q/v gather indices from an external joint-slice order.
+
+        The external vectors must concatenate the same public per-joint
+        ``nqs``/``nvs`` slices as this structure, in ``other_joint_order``.
+        Names for zero-DOF joints may be omitted. The returned tensors make
+        the remap a batched-safe gather over the trailing dimension.
+        """
+
+        order = tuple(other_joint_order)
+        seen: set[str] = set()
+        duplicates: list[str] = []
+        for name in order:
+            if name in seen and name not in duplicates:
+                duplicates.append(name)
+            seen.add(name)
+        if duplicates:
+            raise ValueError(f"other_joint_order contains duplicate joint names: {duplicates}")
+
+        unknown = [name for name in order if name not in self.joint_name_to_id]
+        if unknown:
+            raise ValueError(f"other_joint_order contains unknown joint names: {unknown}")
+
+        provided = set(order)
+        missing = [
+            name
+            for joint_id, name in enumerate(self.joint_names)
+            if (self.nqs[joint_id] > 0 or self.nvs[joint_id] > 0) and name not in provided
+        ]
+        if missing:
+            raise ValueError(f"other_joint_order is missing joints with public q/v slices: {missing}")
+
+        q_starts: dict[str, int] = {}
+        v_starts: dict[str, int] = {}
+        q_offset = 0
+        v_offset = 0
+        for name in order:
+            joint_id = self.joint_name_to_id[name]
+            q_starts[name] = q_offset
+            v_starts[name] = v_offset
+            q_offset += self.nqs[joint_id]
+            v_offset += self.nvs[joint_id]
+
+        perm_q: list[int] = []
+        perm_v: list[int] = []
+        for joint_id, name in enumerate(self.joint_names):
+            nq_joint = self.nqs[joint_id]
+            nv_joint = self.nvs[joint_id]
+            if nq_joint:
+                start = q_starts[name]
+                perm_q.extend(range(start, start + nq_joint))
+            if nv_joint:
+                start = v_starts[name]
+                perm_v.extend(range(start, start + nv_joint))
+
+        device = self.idx_qs_tensor.device
+        return (
+            torch.tensor(perm_q, dtype=torch.long, device=device),
+            torch.tensor(perm_v, dtype=torch.long, device=device),
         )
-        pitches = torch.tensor(
-            [float(getattr(joint, "pitch", 0.0)) for joint in model.joint_models],
-            device=device,
-            dtype=dtype,
-        )
-        max_nv = max(model.nvs_full, default=0)
-        motion_subspaces = torch.zeros((model.njoints, 6, max_nv), device=device, dtype=dtype)
-        for index, joint in enumerate(model.joint_models):
-            if joint.nv == 0:
-                continue
-            neutral = joint.neutral().to(device=device, dtype=dtype)
-            subspace = joint.joint_motion_subspace(neutral).to(device=device, dtype=dtype)
-            motion_subspaces[index, :, : joint.nv] = subspace
-        child_offsets, child_indices = _flatten_rows(model.children)
-        subtree_offsets, subtree_indices = _flatten_rows(model.subtrees)
-        support_offsets, support_indices = _flatten_rows(model.supports)
-
-        manifold_groups: dict[str, list[int]] = {
-            "euclidean": [],
-            "spherical": [],
-            "free_flyer": [],
-            "unbounded": [],
-            "planar": [],
-            "fallback": [],
-        }
-        for joint_id, joint in enumerate(model.joint_models):
-            public_nq = model.nqs[joint_id]
-            public_nv = model.nvs[joint_id]
-            if public_nq == 0 and public_nv == 0:
-                continue
-
-            # Reduced mimic targets have zero public widths. Any other public
-            # width mismatch is not a built-in manifold group and must retain
-            # the joint object's own dispatch semantics.
-            if public_nq != joint.nq or public_nv != joint.nv:
-                manifold_groups["fallback"].append(joint_id)
-                continue
-
-            joint_type = type(joint)
-            if joint_type in _EUCLIDEAN_MANIFOLD_TYPES:
-                manifold_groups["euclidean"].append(joint_id)
-            elif joint_type is JointSpherical:
-                manifold_groups["spherical"].append(joint_id)
-            elif joint_type is JointFreeFlyer:
-                manifold_groups["free_flyer"].append(joint_id)
-            elif joint_type is JointRevoluteUnbounded:
-                manifold_groups["unbounded"].append(joint_id)
-            elif joint_type is JointPlanar:
-                manifold_groups["planar"].append(joint_id)
-            else:
-                manifold_groups["fallback"].append(joint_id)
-
-        euclidean_ids = tuple(manifold_groups["euclidean"])
-        spherical_ids = tuple(manifold_groups["spherical"])
-        free_flyer_ids = tuple(manifold_groups["free_flyer"])
-        unbounded_ids = tuple(manifold_groups["unbounded"])
-        planar_ids = tuple(manifold_groups["planar"])
-        fallback_ids = tuple(manifold_groups["fallback"])
-
-        # Euclidean joints may be scalar or 3-DoF translation joints, so they
-        # use a flat table. The other built-in groups have fixed q/v widths.
-        _, euclidean_q_indices = _flat_slice_indices(euclidean_ids, model.idx_qs, model.nqs, device=device)
-        _, euclidean_v_indices = _flat_slice_indices(euclidean_ids, model.idx_vs, model.nvs, device=device)
-        spherical_q_indices = _matrix_slice_indices(spherical_ids, model.idx_qs, 4, device=device)
-        spherical_v_indices = _matrix_slice_indices(spherical_ids, model.idx_vs, 3, device=device)
-        free_flyer_q_indices = _matrix_slice_indices(free_flyer_ids, model.idx_qs, 7, device=device)
-        free_flyer_v_indices = _matrix_slice_indices(free_flyer_ids, model.idx_vs, 6, device=device)
-        unbounded_q_indices = _matrix_slice_indices(unbounded_ids, model.idx_qs, 2, device=device)
-        unbounded_v_indices = _matrix_slice_indices(unbounded_ids, model.idx_vs, 1, device=device)
-        planar_q_indices = _matrix_slice_indices(planar_ids, model.idx_qs, 4, device=device)
-        planar_v_indices = _matrix_slice_indices(planar_ids, model.idx_vs, 3, device=device)
-        fallback_q_offsets, fallback_q_indices = _flat_slice_indices(
-            fallback_ids, model.idx_qs, model.nqs, device=device
-        )
-        fallback_v_offsets, fallback_v_indices = _flat_slice_indices(
-            fallback_ids, model.idx_vs, model.nvs, device=device
-        )
-
-        def i32(values: list[int] | tuple[int, ...]) -> torch.Tensor:
-            return torch.tensor(values, device=device, dtype=torch.int32)
-
-        result = cls(
-            njoints=model.njoints,
-            nbodies=model.nbodies,
-            nframes=model.nframes,
-            nq=model.nq,
-            nv=model.nv,
-            nq_full=model.nq_full,
-            nv_full=model.nv_full,
-            name=model.name,
-            joint_names=model.joint_names,
-            body_names=model.body_names,
-            frame_names=model.frame_names,
-            parents=model.parents,
-            children=model.children,
-            subtrees=model.subtrees,
-            supports=model.supports,
-            topo_order=model.topo_order,
-            nqs=model.nqs,
-            nvs=model.nvs,
-            idx_qs=model.idx_qs,
-            idx_vs=model.idx_vs,
-            nqs_full=model.nqs_full,
-            nvs_full=model.nvs_full,
-            idx_qs_full=model.idx_qs_full,
-            idx_vs_full=model.idx_vs_full,
-            joint_models=model.joint_models,
-            joint_kind_codes=codes,
-            mimic_source=model.mimic_source,
-            has_mimic=model.has_mimic,
-            manifold_euclidean_joint_ids=euclidean_ids,
-            manifold_spherical_joint_ids=spherical_ids,
-            manifold_free_flyer_joint_ids=free_flyer_ids,
-            manifold_unbounded_joint_ids=unbounded_ids,
-            manifold_planar_joint_ids=planar_ids,
-            manifold_fallback_joint_ids=fallback_ids,
-            manifold_fallback_q_offsets=fallback_q_offsets,
-            manifold_fallback_v_offsets=fallback_v_offsets,
-            joint_kind_tensor=torch.tensor(codes, device=device, dtype=torch.int8),
-            parents_tensor=i32(model.parents),
-            topo_order_tensor=i32(model.topo_order),
-            nqs_tensor=i32(model.nqs),
-            nvs_tensor=i32(model.nvs),
-            idx_qs_tensor=i32(model.idx_qs),
-            idx_vs_tensor=i32(model.idx_vs),
-            nqs_full_tensor=i32(model.nqs_full),
-            nvs_full_tensor=i32(model.nvs_full),
-            idx_qs_full_tensor=i32(model.idx_qs_full),
-            idx_vs_full_tensor=i32(model.idx_vs_full),
-            children_offsets=i32(child_offsets),
-            children_indices=i32(child_indices),
-            subtree_offsets=i32(subtree_offsets),
-            subtree_indices=i32(subtree_indices),
-            support_offsets=i32(support_offsets),
-            support_indices=i32(support_indices),
-            frame_parent_joints=i32(tuple(frame.parent_joint for frame in model.frames)),
-            mimic_source_tensor=i32(model.mimic_source),
-            q_expansion=model.q_expansion,
-            q_offset=model.q_offset,
-            v_expansion=model.v_expansion,
-            manifold_euclidean_q_indices=euclidean_q_indices,
-            manifold_euclidean_v_indices=euclidean_v_indices,
-            manifold_spherical_q_indices=spherical_q_indices,
-            manifold_spherical_v_indices=spherical_v_indices,
-            manifold_free_flyer_q_indices=free_flyer_q_indices,
-            manifold_free_flyer_v_indices=free_flyer_v_indices,
-            manifold_unbounded_q_indices=unbounded_q_indices,
-            manifold_unbounded_v_indices=unbounded_v_indices,
-            manifold_planar_q_indices=planar_q_indices,
-            manifold_planar_v_indices=planar_v_indices,
-            manifold_fallback_q_indices=fallback_q_indices,
-            manifold_fallback_v_indices=fallback_v_indices,
-            joint_axes=axes,
-            joint_pitches=pitches,
-            joint_motion_subspaces=motion_subspaces,
-        )
-        result.validate_consistency()
-        return result
 
     def to(
         self,
@@ -404,14 +243,17 @@ class ModelStructure:
     ) -> "ModelStructure":
         """Move kernel tables; integer tables never undergo dtype casts."""
 
-        replacements: dict[str, torch.Tensor] = {}
-        for field in dataclasses.fields(self):
-            value = getattr(self, field.name)
-            if not isinstance(value, torch.Tensor):
-                continue
-            target_dtype = dtype if value.is_floating_point() else value.dtype
-            replacements[field.name] = value.to(device=device, dtype=target_dtype)
-        return dataclasses.replace(self, **replacements)
+        # Moving an already-validated table cannot change its contents. A
+        # trusted copy also keeps ``to("meta")`` valid and avoids a CUDA-to-CPU
+        # consistency scan after every device transfer.
+        result = object.__new__(type(self))
+        for structure_field in dataclasses.fields(self):
+            value = getattr(self, structure_field.name)
+            if isinstance(value, torch.Tensor):
+                target_dtype = dtype if value.is_floating_point() else value.dtype
+                value = value.to(device=device, dtype=target_dtype)
+            object.__setattr__(result, structure_field.name, value)
+        return result
 
     def validate_consistency(self) -> None:
         """Raise ``ValueError`` if static mirrors and device tables disagree."""
@@ -428,6 +270,7 @@ class ModelStructure:
             "idx_qs_full": (self.idx_qs_full_tensor, self.idx_qs_full),
             "idx_vs_full": (self.idx_vs_full_tensor, self.idx_vs_full),
             "joint kinds": (self.joint_kind_tensor, self.joint_kind_codes),
+            "frame parents": (self.frame_parent_joints, self.frame_parent_joint_ids),
             "mimic source": (self.mimic_source_tensor, self.mimic_source),
         }
         for name, (tensor, static) in checks.items():

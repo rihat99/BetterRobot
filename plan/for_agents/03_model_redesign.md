@@ -1,5 +1,10 @@
 # Order 03 — Model = ModelStructure + ModelValues, no triplication
 
+> **Implementation log (2026-07-20):** Complete on `dev`; `model.py` is
+> 555 → 305 lines and all CPU/CUDA/parity/autograd/docs gates are green.
+> Review restored mixed-device frame packing, structure validation, and
+> `to("meta")` parity. Numerical behavior is unchanged.
+
 Read `plan/README.md` and `DESIGN_RULES.md` first. This is the widest-churn
 order; the full gate, Pinocchio parity, and the autograd suite are the oracle
 at every step. No numerical behavior may change.

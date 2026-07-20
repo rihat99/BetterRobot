@@ -23,6 +23,14 @@ def model(request):
 
 def test_dual_topology_representations_are_consistent(model):
     structure = model.structure
+    assert tuple(field.name for field in dataclasses.fields(model)) == (
+        "structure",
+        "values",
+        "reference_configurations",
+        "meta",
+    )
+    assert model.joint_names is structure.joint_names
+    assert model.joint_placements is model.values.joint_placements
     structure.validate_consistency()
     assert tuple(structure.parents_tensor.cpu().tolist()) == model.parents
     assert tuple(structure.joint_kind_tensor.cpu().tolist()) == structure.joint_kind_codes
@@ -50,6 +58,18 @@ def test_dual_topology_representations_are_consistent(model):
         structure.joint_axes.cpu(),
         torch.tensor(expected_axes, dtype=structure.joint_axes.dtype),
     )
+
+
+def test_structure_replacement_rejects_inconsistent_static_and_device_tables(model):
+    with pytest.raises(ValueError, match="do not partition public q"):
+        dataclasses.replace(model.structure, nq=model.nq + 1)
+
+
+def test_model_to_meta_preserves_validated_structure_without_materializing_tables(model):
+    moved = model.to(device="meta")
+    assert moved.structure.parents is model.structure.parents
+    assert moved.structure.parents_tensor.device.type == "meta"
+    assert moved.values.joint_placements.device.type == "meta"
 
 
 def test_model_values_is_tensor_pytree_and_frames_move(model):

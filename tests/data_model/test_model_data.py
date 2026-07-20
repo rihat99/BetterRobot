@@ -4,85 +4,19 @@ import torch
 
 from better_robot.data_model.model import Model
 from better_robot.data_model.data import Data
-from better_robot.data_model.joint_models.fixed import JointUniverse, JointFixed
-from better_robot.data_model.joint_models.revolute import JointRZ
-from better_robot.data_model.topology import (
-    topo_sort,
-    build_children,
-    build_subtrees,
-    build_supports,
-)
+from better_robot.io.build_model import build_model
+from better_robot.io.parsers.programmatic import ModelBuilder
 
 
 def _make_simple_model() -> Model:
     """Minimal 3-joint model: universe → fixed → RZ → RZ."""
-    parents = (-1, 0, 1, 2)
-    joint_models = (JointUniverse(), JointFixed(), JointRZ(), JointRZ())
-    nqs = (0, 0, 1, 1)
-    nvs = (0, 0, 1, 1)
-
-    # idx_qs: cumulative sum of nqs
-    idx_qs = (0, 0, 0, 1)
-    idx_vs = (0, 0, 0, 1)
-    nq = 2
-    nv = 2
-
-    topo = topo_sort(parents)
-    children = build_children(parents)
-    subtrees = build_subtrees(parents)
-    supports = build_supports(parents)
-
-    n = len(parents)
-    return Model(
-        njoints=n,
-        nbodies=n,
-        nframes=0,
-        nq=nq,
-        nv=nv,
-        nq_full=nq,
-        nv_full=nv,
-        name="test",
-        joint_names=("universe", "base", "j1", "j2"),
-        body_names=("universe", "base", "j1", "j2"),
-        frame_names=(),
-        joint_name_to_id={"universe": 0, "base": 1, "j1": 2, "j2": 3},
-        body_name_to_id={"universe": 0, "base": 1, "j1": 2, "j2": 3},
-        frame_name_to_id={},
-        parents=parents,
-        children=children,
-        subtrees=subtrees,
-        supports=supports,
-        topo_order=topo,
-        joint_models=joint_models,
-        nqs=nqs,
-        nvs=nvs,
-        idx_qs=idx_qs,
-        idx_vs=idx_vs,
-        nqs_full=nqs,
-        nvs_full=nvs,
-        idx_qs_full=idx_qs,
-        idx_vs_full=idx_vs,
-        joint_placements=torch.zeros(n, 7),
-        body_inertias=torch.zeros(n, 10),
-        lower_pos_limit=torch.full((nq,), -3.14),
-        upper_pos_limit=torch.full((nq,), 3.14),
-        velocity_limit=torch.full((nv,), 10.0),
-        effort_limit=torch.full((nv,), 50.0),
-        rotor_inertia=torch.zeros(nv),
-        armature=torch.zeros(nv),
-        friction=torch.zeros(nv),
-        damping=torch.zeros(nv),
-        gravity=torch.zeros(6),
-        mimic_multiplier=torch.ones(n),
-        mimic_offset=torch.zeros(n),
-        mimic_source=tuple(range(n)),
-        q_expansion=torch.eye(nq),
-        q_offset=torch.zeros(nq),
-        v_expansion=torch.eye(nv),
-        has_mimic=False,
-        frames=(),
-        q_neutral=torch.zeros(nq),
-    )
+    builder = ModelBuilder("test")
+    base = builder.add_body("base")
+    link1 = builder.add_body("j1")
+    link2 = builder.add_body("j2")
+    builder.add_revolute_z("j1", parent=base, child=link1, lower=-3.14, upper=3.14)
+    builder.add_revolute_z("j2", parent=link1, child=link2, lower=-3.14, upper=3.14)
+    return build_model(builder.finalize())
 
 
 def test_model_joint_id():

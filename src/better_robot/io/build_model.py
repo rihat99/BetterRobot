@@ -33,6 +33,8 @@ from ..data_model.joint_models import (
 )
 from ..data_model.joint_models.base import JointModel
 from ..data_model.model import Model
+from ..data_model.model_structure import JOINT_KIND_CODES, ModelStructure
+from ..data_model.model_values import ModelValues
 from ..data_model.topology import build_children, build_subtrees, build_supports, topo_sort
 from .ir import IRBody, IRJoint, IRModel, IRError
 
@@ -53,6 +55,20 @@ _SUPPORTED_MIMIC_JOINTS = (
     JointPZ,
     JointPrismaticUnaligned,
     JointHelical,
+)
+_EUCLIDEAN_MANIFOLD_TYPES = frozenset(
+    {
+        JointRX,
+        JointRY,
+        JointRZ,
+        JointRevoluteUnaligned,
+        JointPX,
+        JointPY,
+        JointPZ,
+        JointPrismaticUnaligned,
+        JointTranslation,
+        JointHelical,
+    }
 )
 
 
@@ -137,6 +153,59 @@ def _cumulative_layout(widths: tuple[int, ...]) -> tuple[tuple[int, ...], int]:
         indices.append(offset)
         offset += width
     return tuple(indices), offset
+
+
+def _matrix_slice_indices(
+    joint_ids: tuple[int, ...],
+    starts: tuple[int, ...],
+    width: int,
+    *,
+    device: torch.device,
+) -> torch.Tensor:
+    indices = [starts[joint_id] + offset for joint_id in joint_ids for offset in range(width)]
+    return torch.tensor(indices, device=device, dtype=torch.long).reshape(len(joint_ids), width)
+
+
+def _flat_slice_indices(
+    joint_ids: tuple[int, ...],
+    starts: tuple[int, ...],
+    widths: tuple[int, ...],
+    *,
+    device: torch.device,
+) -> tuple[tuple[int, ...], torch.Tensor]:
+    offsets = [0]
+    indices: list[int] = []
+    for joint_id in joint_ids:
+        indices.extend(range(starts[joint_id], starts[joint_id] + widths[joint_id]))
+        offsets.append(len(indices))
+    return tuple(offsets), torch.tensor(indices, device=device, dtype=torch.long)
+
+
+def _flatten_rows(rows: tuple[tuple[int, ...], ...]) -> tuple[list[int], list[int]]:
+    offsets = [0]
+    indices: list[int] = []
+    for row in rows:
+        indices.extend(row)
+        offsets.append(len(indices))
+    return offsets, indices
+
+
+def _joint_axis(joint: JointModel) -> tuple[float, float, float]:
+    aligned = {
+        "revolute_rx": (1.0, 0.0, 0.0),
+        "revolute_ry": (0.0, 1.0, 0.0),
+        "revolute_rz": (0.0, 0.0, 1.0),
+        "prismatic_px": (1.0, 0.0, 0.0),
+        "prismatic_py": (0.0, 1.0, 0.0),
+        "prismatic_pz": (0.0, 0.0, 1.0),
+    }
+    if joint.kind in aligned:
+        return aligned[joint.kind]
+    axis = getattr(joint, "axis", None)
+    if axis is None:
+        return (0.0, 0.0, 0.0)
+    values = axis.detach().to(device="cpu", dtype=torch.float64).tolist()
+    return (float(values[0]), float(values[1]), float(values[2]))
 
 
 def _build_mimic_reduction(  # noqa: PLR0912, PLR0913, PLR0915 - one build-time policy boundary
@@ -318,7 +387,7 @@ def _build_mimic_reduction(  # noqa: PLR0912, PLR0913, PLR0915 - one build-time 
     )
 
 
-def _kind_to_joint_model(ir_joint: IRJoint) -> JointModel:
+def _kind_to_joint_model(ir_joint: IRJoint) -> JointModel:  # noqa: PLR0911, PLR0912
     """Select a concrete ``JointModel`` from an ``IRJoint``."""
     kind = ir_joint.kind
     axis = ir_joint.axis
@@ -432,8 +501,8 @@ def _pack_inertia(ir_body: IRBody, dtype: torch.dtype) -> torch.Tensor:
     """Pack ``IRBody`` inertia into [m, cx,cy,cz, Ixx,Iyy,Izz,Ixy,Ixz,Iyz]."""
     m = torch.tensor([float(ir_body.mass)], dtype=dtype)
     com = ir_body.com.to(dtype=dtype)
-    I = ir_body.inertia.to(dtype=dtype)
-    sym6 = torch.stack([I[0, 0], I[1, 1], I[2, 2], I[0, 1], I[0, 2], I[1, 2]])
+    inertia = ir_body.inertia.to(dtype=dtype)
+    sym6 = torch.stack([inertia[0, 0], inertia[1, 1], inertia[2, 2], inertia[0, 1], inertia[0, 2], inertia[1, 2]])
     return torch.cat([m, com, sym6.to(dtype=dtype)])
 
 
@@ -518,7 +587,7 @@ def _ir_stable_topo_sort(
 # ──────────────────────────────── main factory ───────────────────────────────
 
 
-def build_model(
+def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
     ir: IRModel,
     *,
     root_joint: JointModel | None = None,
@@ -540,7 +609,7 @@ def build_model(
     7.  Pack per-body inertias into the 10-vector form.
     8.  Build frames (including ``body_<name>`` defaults).
     9.  Build name → id dicts.
-    10. Return ``Model(frozen=True)``.
+    10. Return the frozen model wrapper.
 
     **World-sentinel convention**: an ``IRJoint`` with ``parent_body="world"``
     signals that the joint connects to the universe (joint 0) directly.  That
@@ -907,8 +976,102 @@ def build_model(
         nv_total=nv_full,
     )
 
-    # ── 19. Return frozen Model ───────────────────────────────────────────────
-    return Model(
+    # ── 19. Pack the one canonical structure/value pair ───────────────────────
+    model_device = joint_placements.device
+    codes = tuple(JOINT_KIND_CODES.get(joint.kind, -1) for joint in joint_models)
+    axes = torch.tensor(
+        [_joint_axis(joint) for joint in joint_models],
+        device=model_device,
+        dtype=dtype,
+    )
+    pitches = torch.tensor(
+        [float(getattr(joint, "pitch", 0.0)) for joint in joint_models],
+        device=model_device,
+        dtype=dtype,
+    )
+    max_nv = max(nvs_full, default=0)
+    motion_subspaces = torch.zeros(
+        (n_model_joints, 6, max_nv),
+        device=model_device,
+        dtype=dtype,
+    )
+    for index, joint in enumerate(joint_models):
+        if joint.nv == 0:
+            continue
+        neutral = joint.neutral().to(device=model_device, dtype=dtype)
+        subspace = joint.joint_motion_subspace(neutral).to(device=model_device, dtype=dtype)
+        motion_subspaces[index, :, : joint.nv] = subspace
+
+    child_offsets, child_indices = _flatten_rows(children)
+    subtree_offsets, subtree_indices = _flatten_rows(subtrees)
+    support_offsets, support_indices = _flatten_rows(supports)
+
+    manifold_groups: dict[str, list[int]] = {
+        "euclidean": [],
+        "spherical": [],
+        "free_flyer": [],
+        "unbounded": [],
+        "planar": [],
+        "fallback": [],
+    }
+    for joint_id, joint in enumerate(joint_models):
+        public_nq = nqs[joint_id]
+        public_nv = nvs[joint_id]
+        if public_nq == 0 and public_nv == 0:
+            continue
+        if public_nq != joint.nq or public_nv != joint.nv:
+            manifold_groups["fallback"].append(joint_id)
+            continue
+
+        joint_type = type(joint)
+        if joint_type in _EUCLIDEAN_MANIFOLD_TYPES:
+            manifold_groups["euclidean"].append(joint_id)
+        elif joint_type is JointSpherical:
+            manifold_groups["spherical"].append(joint_id)
+        elif joint_type is JointFreeFlyer:
+            manifold_groups["free_flyer"].append(joint_id)
+        elif joint_type is JointRevoluteUnbounded:
+            manifold_groups["unbounded"].append(joint_id)
+        elif joint_type is JointPlanar:
+            manifold_groups["planar"].append(joint_id)
+        else:
+            manifold_groups["fallback"].append(joint_id)
+
+    euclidean_ids = tuple(manifold_groups["euclidean"])
+    spherical_ids = tuple(manifold_groups["spherical"])
+    free_flyer_ids = tuple(manifold_groups["free_flyer"])
+    unbounded_ids = tuple(manifold_groups["unbounded"])
+    planar_ids = tuple(manifold_groups["planar"])
+    fallback_ids = tuple(manifold_groups["fallback"])
+
+    _, euclidean_q_indices = _flat_slice_indices(euclidean_ids, idx_qs, nqs, device=model_device)
+    _, euclidean_v_indices = _flat_slice_indices(euclidean_ids, idx_vs, nvs, device=model_device)
+    spherical_q_indices = _matrix_slice_indices(spherical_ids, idx_qs, 4, device=model_device)
+    spherical_v_indices = _matrix_slice_indices(spherical_ids, idx_vs, 3, device=model_device)
+    free_flyer_q_indices = _matrix_slice_indices(free_flyer_ids, idx_qs, 7, device=model_device)
+    free_flyer_v_indices = _matrix_slice_indices(free_flyer_ids, idx_vs, 6, device=model_device)
+    unbounded_q_indices = _matrix_slice_indices(unbounded_ids, idx_qs, 2, device=model_device)
+    unbounded_v_indices = _matrix_slice_indices(unbounded_ids, idx_vs, 1, device=model_device)
+    planar_q_indices = _matrix_slice_indices(planar_ids, idx_qs, 4, device=model_device)
+    planar_v_indices = _matrix_slice_indices(planar_ids, idx_vs, 3, device=model_device)
+    fallback_q_offsets, fallback_q_indices = _flat_slice_indices(
+        fallback_ids,
+        idx_qs,
+        nqs,
+        device=model_device,
+    )
+    fallback_v_offsets, fallback_v_indices = _flat_slice_indices(
+        fallback_ids,
+        idx_vs,
+        nvs,
+        device=model_device,
+    )
+
+    def i32(values: list[int] | tuple[int, ...]) -> torch.Tensor:
+        return torch.tensor(values, device=model_device, dtype=torch.int32)
+
+    frame_parent_joint_ids = tuple(frame.parent_joint for frame in frames)
+    structure = ModelStructure(
         njoints=n_model_joints,
         nbodies=n_model_joints,
         nframes=nframes,
@@ -923,12 +1086,13 @@ def build_model(
         joint_name_to_id=joint_name_to_id,
         body_name_to_id=body_name_to_id,
         frame_name_to_id=frame_name_to_id,
+        frame_parent_joint_ids=frame_parent_joint_ids,
+        frame_types=tuple(frame.frame_type for frame in frames),
         parents=parents,
         children=children,
         subtrees=subtrees,
         supports=supports,
         topo_order=topo_order,
-        joint_models=joint_models,
         nqs=nqs,
         nvs=nvs,
         idx_qs=idx_qs,
@@ -937,8 +1101,68 @@ def build_model(
         nvs_full=nvs_full,
         idx_qs_full=idx_qs_full,
         idx_vs_full=idx_vs_full,
+        joint_models=joint_models,
+        joint_kind_codes=codes,
+        mimic_source=mimic_source,
+        has_mimic=bool(mimic_targets),
+        manifold_euclidean_joint_ids=euclidean_ids,
+        manifold_spherical_joint_ids=spherical_ids,
+        manifold_free_flyer_joint_ids=free_flyer_ids,
+        manifold_unbounded_joint_ids=unbounded_ids,
+        manifold_planar_joint_ids=planar_ids,
+        manifold_fallback_joint_ids=fallback_ids,
+        manifold_fallback_q_offsets=fallback_q_offsets,
+        manifold_fallback_v_offsets=fallback_v_offsets,
+        joint_kind_tensor=torch.tensor(codes, device=model_device, dtype=torch.int8),
+        parents_tensor=i32(parents),
+        topo_order_tensor=i32(topo_order),
+        nqs_tensor=i32(nqs),
+        nvs_tensor=i32(nvs),
+        idx_qs_tensor=i32(idx_qs),
+        idx_vs_tensor=i32(idx_vs),
+        nqs_full_tensor=i32(nqs_full),
+        nvs_full_tensor=i32(nvs_full),
+        idx_qs_full_tensor=i32(idx_qs_full),
+        idx_vs_full_tensor=i32(idx_vs_full),
+        children_offsets=i32(child_offsets),
+        children_indices=i32(child_indices),
+        subtree_offsets=i32(subtree_offsets),
+        subtree_indices=i32(subtree_indices),
+        support_offsets=i32(support_offsets),
+        support_indices=i32(support_indices),
+        frame_parent_joints=i32(frame_parent_joint_ids),
+        mimic_source_tensor=i32(mimic_source),
+        q_expansion=q_expansion,
+        q_offset=q_offset,
+        v_expansion=v_expansion,
+        manifold_euclidean_q_indices=euclidean_q_indices,
+        manifold_euclidean_v_indices=euclidean_v_indices,
+        manifold_spherical_q_indices=spherical_q_indices,
+        manifold_spherical_v_indices=spherical_v_indices,
+        manifold_free_flyer_q_indices=free_flyer_q_indices,
+        manifold_free_flyer_v_indices=free_flyer_v_indices,
+        manifold_unbounded_q_indices=unbounded_q_indices,
+        manifold_unbounded_v_indices=unbounded_v_indices,
+        manifold_planar_q_indices=planar_q_indices,
+        manifold_planar_v_indices=planar_v_indices,
+        manifold_fallback_q_indices=fallback_q_indices,
+        manifold_fallback_v_indices=fallback_v_indices,
+        joint_axes=axes,
+        joint_pitches=pitches,
+        joint_motion_subspaces=motion_subspaces,
+    )
+    frame_placements = (
+        torch.stack(
+            [frame.joint_placement.to(device=model_device, dtype=dtype) for frame in frames],
+            dim=0,
+        )
+        if frames
+        else joint_placements.new_empty((0, 7))
+    )
+    values = ModelValues(
         joint_placements=joint_placements,
         body_inertias=body_inertias,
+        frame_placements=frame_placements,
         lower_pos_limit=lower_pos_limit,
         upper_pos_limit=upper_pos_limit,
         velocity_limit=velocity_limit,
@@ -950,12 +1174,10 @@ def build_model(
         gravity=gravity,
         mimic_multiplier=mimic_mult,
         mimic_offset=mimic_off,
-        mimic_source=mimic_source,
-        q_expansion=q_expansion,
-        q_offset=q_offset,
-        v_expansion=v_expansion,
-        has_mimic=bool(mimic_targets),
-        frames=frames,
         q_neutral=q_neutral,
+    )
+    return Model(
+        structure=structure,
+        values=values,
         meta={"ir": ir, **dict(getattr(ir, "meta", {}) or {})},
     )

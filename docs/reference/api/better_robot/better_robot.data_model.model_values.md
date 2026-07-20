@@ -221,11 +221,10 @@
 
 ````
 
-````{py:method} from_model(model: better_robot.data_model.model.Model) -> better_robot.data_model.model_values.ModelValues
-:canonical: better_robot.data_model.model_values.ModelValues.from_model
-:classmethod:
+````{py:method} body_inertia(body_id: int) -> better_robot.spatial.inertia.Inertia
+:canonical: better_robot.data_model.model_values.ModelValues.body_inertia
 
-```{autodoc2-docstring} better_robot.data_model.model_values.ModelValues.from_model
+```{autodoc2-docstring} better_robot.data_model.model_values.ModelValues.body_inertia
 ```
 
 ````

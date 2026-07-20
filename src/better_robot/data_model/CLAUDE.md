@@ -4,11 +4,17 @@
 workspace for one query. Do not share `Data` across concurrent evaluations or
 mutate model tensors in place.
 
-`ModelStructure` holds immutable topology and both Python and device tables.
-`ModelValues` holds differentiable placements, inertias, limits, gravity, and
-mimic tensors. Raw Torch passes consume this pair; optional whole-pass kernels
-use the same seam. `Model.with_values(...)` rebinds checked tensors while
-preserving structure, and `Model.to(...)` returns a moved copy.
+`Model` stores only `structure`, `values`, `reference_configurations`, and
+`meta`. Its flat attributes are explicit properties; never duplicate part
+fields on `Model` or replace them with `__getattr__` forwarding.
+
+`ModelStructure` owns immutable topology, names and lookup/traversal methods,
+coordinate permutations, and both Python and device index tables.
+`ModelValues` owns differentiable placements, inertias and inertia access,
+limits, gravity, and mimic tensors. Raw Torch passes consume this pair;
+optional whole-pass kernels use the same seam. Build both parts directly in
+`io/build_model.py`. `Model.with_values(...)` rebinds checked values while
+preserving structure, and `Model.to(...)` moves each part and wraps them.
 
 ## Coordinate rules
 
