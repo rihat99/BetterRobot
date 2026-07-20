@@ -268,13 +268,14 @@ def _raise_capture_layout_error(name: str, *capture_inputs: torch.Tensor) -> Non
         )
 
 
-def _raise_capture_fallback(*capture_inputs: torch.Tensor, reason: str, remedy: str) -> None:
-    """Forbid a Torch fallback during graph recording."""
+def _decline(reason_key: str, reason: str, *capture_inputs: torch.Tensor, remedy: str) -> None:
+    """Warn once before a Torch fallback, or forbid it during graph recording."""
     if _capture_is_active(*capture_inputs):
         raise RuntimeError(
             "better_robot: Warp FK cannot silently fall back to the Torch lane while CUDA "
             f"graph capture is active. {reason}. {remedy}, or disable graph capture."
         )
+    _warn_warp_fallback(reason_key, reason)
 
 
 def try_warp_forward_kinematics(  # noqa: PLR0911
@@ -285,32 +286,26 @@ def try_warp_forward_kinematics(  # noqa: PLR0911
     """Run the opt-in Warp lane, or return ``None`` for torch fallback."""
 
     if q.dtype not in (torch.float32, torch.float64):
-        _raise_capture_fallback(
+        _decline(
+            f"dtype:{q.dtype}",
+            f"q has unsupported dtype {q.dtype}",
             q,
             values.joint_placements,
             values.frame_placements,
-            reason=f"q has unsupported dtype {q.dtype}",
             remedy="Convert q to float32 or float64 before capture",
-        )
-        _warn_warp_fallback(
-            f"dtype:{q.dtype}",
-            f"q has unsupported dtype {q.dtype}",
         )
         return None
     if any(code not in _SUPPORTED_JOINT_KIND_CODES for code in structure.joint_kind_codes):
-        _raise_capture_fallback(
+        _decline(
+            "joint-kind",
+            "the model contains a joint kind unsupported by the Warp ABI",
             q,
             values.joint_placements,
             values.frame_placements,
-            reason="the model contains a joint kind unsupported by the Warp ABI",
             remedy=(
                 "Use only fixed, revolute, continuous, prismatic, spherical, "
                 "floating, planar, translation, or helical joints"
             ),
-        )
-        _warn_warp_fallback(
-            "joint-kind",
-            "the model contains a joint kind unsupported by the Warp ABI",
         )
         return None
     layout_inputs = (
@@ -330,16 +325,13 @@ def try_warp_forward_kinematics(  # noqa: PLR0911
         )
         return None
     if values.joint_placements.shape[:-2] != values.frame_placements.shape[:-2]:
-        _raise_capture_fallback(
+        _decline(
+            "placement-batch-shape",
+            "joint and frame placements have different batch shapes",
             q,
             values.joint_placements,
             values.frame_placements,
-            reason="joint and frame placements have different batch shapes",
             remedy="Give joint and frame placements identical batch shapes before capture",
-        )
-        _warn_warp_fallback(
-            "placement-batch-shape",
-            "joint and frame placements have different batch shapes",
         )
         return None
 
@@ -366,16 +358,13 @@ def try_warp_forward_kinematics(  # noqa: PLR0911
         if flattened.data_ptr() != original.data_ptr()
     )
     if materialized:
-        _raise_capture_fallback(
+        _decline(
+            f"materialized:{materialized}",
+            f"flattening would materialize inputs {materialized}",
             q,
             values.joint_placements,
             values.frame_placements,
-            reason=f"flattening would materialize inputs {materialized}",
             remedy="Make those batch dimensions reshape-compatible before capture",
-        )
-        _warn_warp_fallback(
-            f"materialized:{materialized}",
-            f"flattening would materialize inputs {materialized}",
         )
         return None
 

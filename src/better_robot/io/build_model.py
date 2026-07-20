@@ -33,7 +33,7 @@ from ..data_model.joint_models import (
 )
 from ..data_model.joint_models.base import JointModel
 from ..data_model.model import Model
-from ..data_model.model_structure import JOINT_KIND_CODES, ModelStructure
+from ..data_model.model_structure import JOINT_KIND_CODES, ModelStructure, _flatten_rows
 from ..data_model.model_values import ModelValues
 from ..data_model.topology import build_children, build_subtrees, build_supports, topo_sort
 from .ir import IRBody, IRJoint, IRModel, IRError
@@ -179,15 +179,6 @@ def _flat_slice_indices(
         indices.extend(range(starts[joint_id], starts[joint_id] + widths[joint_id]))
         offsets.append(len(indices))
     return tuple(offsets), torch.tensor(indices, device=device, dtype=torch.long)
-
-
-def _flatten_rows(rows: tuple[tuple[int, ...], ...]) -> tuple[list[int], list[int]]:
-    offsets = [0]
-    indices: list[int] = []
-    for row in rows:
-        indices.extend(row)
-        offsets.append(len(indices))
-    return offsets, indices
 
 
 def _joint_axis(joint: JointModel) -> tuple[float, float, float]:

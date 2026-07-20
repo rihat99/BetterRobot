@@ -958,6 +958,22 @@
 
 ````
 
+````{py:method} integrate(q: torch.Tensor, v: torch.Tensor) -> torch.Tensor
+:canonical: better_robot.data_model.model_structure.ModelStructure.integrate
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.integrate
+```
+
+````
+
+````{py:method} difference(q0: torch.Tensor, q1: torch.Tensor) -> torch.Tensor
+:canonical: better_robot.data_model.model_structure.ModelStructure.difference
+
+```{autodoc2-docstring} better_robot.data_model.model_structure.ModelStructure.difference
+```
+
+````
+
 ````{py:method} to(device: torch.device | str | None = None, dtype: torch.dtype | None = None) -> better_robot.data_model.model_structure.ModelStructure
 :canonical: better_robot.data_model.model_structure.ModelStructure.to
 

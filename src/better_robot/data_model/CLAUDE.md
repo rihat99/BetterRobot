@@ -9,7 +9,8 @@ mutate model tensors in place.
 fields on `Model` or replace them with `__getattr__` forwarding.
 
 `ModelStructure` owns immutable topology, names and lookup/traversal methods,
-coordinate permutations, and both Python and device index tables.
+coordinate permutations, the manifold `integrate`/`difference` operations, and
+both Python and device index tables.
 `ModelValues` owns differentiable placements, inertias and inertia access,
 limits, gravity, and mimic tensors. Raw Torch passes consume this pair;
 optional whole-pass kernels use the same seam. Build both parts directly in

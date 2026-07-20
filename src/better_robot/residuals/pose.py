@@ -29,8 +29,8 @@ from .structure import TemporalPattern
 def _get_frame_pose(model: Model, data: Data, frame_id: int) -> torch.Tensor:
     if data.frame_pose_world is not None:
         return data.frame_pose_world[..., frame_id, :]
-    frame = model.frames[frame_id]
-    parent = data.joint_pose_world[..., frame.parent_joint, :]
+    parent_joint = model.structure.frame_parent_joint_ids[frame_id]
+    parent = data.joint_pose_world[..., parent_joint, :]
     placement = model.values.frame_placements[..., frame_id, :]
     return se3.compose(parent, placement)
 

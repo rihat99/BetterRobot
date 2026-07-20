@@ -17,6 +17,8 @@ from typing import Mapping
 
 import torch
 
+from ..exceptions import DeviceMismatchError, ShapeError
+from ..lie import se3, so3
 from .frame import FrameType
 from .joint_models.base import JointModel
 
@@ -53,6 +55,21 @@ def _flatten_rows(rows: tuple[tuple[int, ...], ...]) -> tuple[list[int], list[in
         indices.extend(row)
         offsets.append(len(indices))
     return offsets, indices
+
+
+def _validate_manifold_tensor(
+    structure: "ModelStructure",
+    name: str,
+    value: torch.Tensor,
+    trailing_width: int,
+) -> None:
+    if value.ndim < 1 or value.shape[-1] != trailing_width:
+        raise ShapeError(f"{name} has shape {tuple(value.shape)}; expected trailing dimension {trailing_width}")
+    model_device = structure.idx_qs_tensor.device
+    if value.device != model_device:
+        raise DeviceMismatchError(
+            f"{name}.device={value.device} != model.device={model_device}; move the tensor or call model.to(...) first"
+        )
 
 
 @dataclass(frozen=True)
@@ -235,6 +252,159 @@ class ModelStructure:
             torch.tensor(perm_q, dtype=torch.long, device=device),
             torch.tensor(perm_v, dtype=torch.long, device=device),
         )
+
+    def integrate(self, q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
+        """Compute the universal manifold retraction ``q ⊕ v``."""
+
+        _validate_manifold_tensor(self, "q", q, self.nq)
+        _validate_manifold_tensor(self, "v", v, self.nv)
+        batch_shape = torch.broadcast_shapes(q.shape[:-1], v.shape[:-1])
+        result_dtype = torch.promote_types(q.dtype, v.dtype)
+        q_broadcast = q.to(dtype=result_dtype).expand(*batch_shape, self.nq)
+        v_broadcast = v.to(dtype=result_dtype).expand(*batch_shape, self.nv)
+        if self.nq == 0:
+            return q_broadcast.clone()
+
+        result = q_broadcast.clone()
+
+        q_indices = self.manifold_euclidean_q_indices
+        if q_indices.numel():
+            values = q_broadcast[..., q_indices] + v_broadcast[..., self.manifold_euclidean_v_indices]
+            result = result.index_copy(-1, q_indices, values)
+
+        q_indices = self.manifold_spherical_q_indices
+        if q_indices.numel():
+            q_group = q_broadcast[..., q_indices]
+            v_group = v_broadcast[..., self.manifold_spherical_v_indices]
+            values = so3.normalize(so3.compose(q_group, so3.exp(v_group)))
+            result = result.index_copy(-1, q_indices.reshape(-1), values.flatten(start_dim=-2))
+
+        q_indices = self.manifold_free_flyer_q_indices
+        if q_indices.numel():
+            q_group = q_broadcast[..., q_indices]
+            v_group = v_broadcast[..., self.manifold_free_flyer_v_indices]
+            values = se3.normalize(se3.compose(q_group, se3.exp(v_group)))
+            result = result.index_copy(-1, q_indices.reshape(-1), values.flatten(start_dim=-2))
+
+        q_indices = self.manifold_unbounded_q_indices
+        if q_indices.numel():
+            q_group = q_broadcast[..., q_indices]
+            v_group = v_broadcast[..., self.manifold_unbounded_v_indices]
+            theta = torch.atan2(q_group[..., 1], q_group[..., 0]) + v_group[..., 0]
+            values = torch.stack((torch.cos(theta), torch.sin(theta)), dim=-1)
+            result = result.index_copy(-1, q_indices.reshape(-1), values.flatten(start_dim=-2))
+
+        q_indices = self.manifold_planar_q_indices
+        if q_indices.numel():
+            q_group = q_broadcast[..., q_indices]
+            v_group = v_broadcast[..., self.manifold_planar_v_indices]
+            theta = torch.atan2(q_group[..., 3], q_group[..., 2]) + v_group[..., 2]
+            values = torch.stack(
+                (
+                    q_group[..., 0] + v_group[..., 0],
+                    q_group[..., 1] + v_group[..., 1],
+                    torch.cos(theta),
+                    torch.sin(theta),
+                ),
+                dim=-1,
+            )
+            result = result.index_copy(-1, q_indices.reshape(-1), values.flatten(start_dim=-2))
+
+        for fallback_index, joint_id in enumerate(self.manifold_fallback_joint_ids):
+            q_start = self.manifold_fallback_q_offsets[fallback_index]
+            q_stop = self.manifold_fallback_q_offsets[fallback_index + 1]
+            v_start = self.manifold_fallback_v_offsets[fallback_index]
+            v_stop = self.manifold_fallback_v_offsets[fallback_index + 1]
+            q_indices = self.manifold_fallback_q_indices[q_start:q_stop]
+            v_indices = self.manifold_fallback_v_indices[v_start:v_stop]
+            values = self.joint_models[joint_id].integrate(
+                q_broadcast[..., q_indices],
+                v_broadcast[..., v_indices],
+            )
+            result = result.index_copy(-1, q_indices, values)
+
+        return result
+
+    def difference(self, q0: torch.Tensor, q1: torch.Tensor) -> torch.Tensor:  # noqa: PLR0915
+        """Compute the universal tangent ``q1 ⊖ q0``."""
+
+        _validate_manifold_tensor(self, "q0", q0, self.nq)
+        _validate_manifold_tensor(self, "q1", q1, self.nq)
+        batch_shape = torch.broadcast_shapes(q0.shape[:-1], q1.shape[:-1])
+        result_dtype = torch.promote_types(q0.dtype, q1.dtype)
+        q0_broadcast = q0.to(dtype=result_dtype).expand(*batch_shape, self.nq)
+        q1_broadcast = q1.to(dtype=result_dtype).expand(*batch_shape, self.nq)
+        if self.nv == 0:
+            return q0_broadcast.new_zeros(*batch_shape, self.nv)
+
+        result = q0_broadcast.new_zeros(*batch_shape, self.nv)
+
+        v_indices = self.manifold_euclidean_v_indices
+        if v_indices.numel():
+            values = (
+                q1_broadcast[..., self.manifold_euclidean_q_indices]
+                - q0_broadcast[..., self.manifold_euclidean_q_indices]
+            )
+            result = result.index_copy(-1, v_indices, values)
+
+        q_indices = self.manifold_spherical_q_indices
+        if q_indices.numel():
+            q0_group = q0_broadcast[..., q_indices]
+            q1_group = q1_broadcast[..., q_indices]
+            delta = so3.compose(so3.inverse(q0_group), q1_group)
+            values = so3.log(so3.normalize(delta))
+            v_indices = self.manifold_spherical_v_indices
+            result = result.index_copy(-1, v_indices.reshape(-1), values.flatten(start_dim=-2))
+
+        q_indices = self.manifold_free_flyer_q_indices
+        if q_indices.numel():
+            q0_group = q0_broadcast[..., q_indices]
+            q1_group = q1_broadcast[..., q_indices]
+            values = se3.log(se3.compose(se3.inverse(q0_group), q1_group))
+            v_indices = self.manifold_free_flyer_v_indices
+            result = result.index_copy(-1, v_indices.reshape(-1), values.flatten(start_dim=-2))
+
+        q_indices = self.manifold_unbounded_q_indices
+        if q_indices.numel():
+            q0_group = q0_broadcast[..., q_indices]
+            q1_group = q1_broadcast[..., q_indices]
+            theta0 = torch.atan2(q0_group[..., 1], q0_group[..., 0])
+            theta1 = torch.atan2(q1_group[..., 1], q1_group[..., 0])
+            values = (theta1 - theta0).unsqueeze(-1)
+            v_indices = self.manifold_unbounded_v_indices
+            result = result.index_copy(-1, v_indices.reshape(-1), values.flatten(start_dim=-2))
+
+        q_indices = self.manifold_planar_q_indices
+        if q_indices.numel():
+            q0_group = q0_broadcast[..., q_indices]
+            q1_group = q1_broadcast[..., q_indices]
+            theta0 = torch.atan2(q0_group[..., 3], q0_group[..., 2])
+            theta1 = torch.atan2(q1_group[..., 3], q1_group[..., 2])
+            values = torch.stack(
+                (
+                    q1_group[..., 0] - q0_group[..., 0],
+                    q1_group[..., 1] - q0_group[..., 1],
+                    theta1 - theta0,
+                ),
+                dim=-1,
+            )
+            v_indices = self.manifold_planar_v_indices
+            result = result.index_copy(-1, v_indices.reshape(-1), values.flatten(start_dim=-2))
+
+        for fallback_index, joint_id in enumerate(self.manifold_fallback_joint_ids):
+            q_start = self.manifold_fallback_q_offsets[fallback_index]
+            q_stop = self.manifold_fallback_q_offsets[fallback_index + 1]
+            v_start = self.manifold_fallback_v_offsets[fallback_index]
+            v_stop = self.manifold_fallback_v_offsets[fallback_index + 1]
+            q_indices = self.manifold_fallback_q_indices[q_start:q_stop]
+            v_indices = self.manifold_fallback_v_indices[v_start:v_stop]
+            values = self.joint_models[joint_id].difference(
+                q0_broadcast[..., q_indices],
+                q1_broadcast[..., q_indices],
+            )
+            result = result.index_copy(-1, v_indices, values)
+
+        return result
 
     def to(
         self,

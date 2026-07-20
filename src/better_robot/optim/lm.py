@@ -70,11 +70,6 @@ class _LMIterationState(NamedTuple):
     bound_upper: torch.Tensor
     bounded_mask: torch.Tensor
 
-    @property
-    def kkt_norm(self) -> torch.Tensor:
-        """Alias for the projected-gradient infinity norm."""
-        return self.projected_grad_norm
-
 
 class _JacobianOperators(NamedTuple):
     jvp: Callable[[torch.Tensor], torch.Tensor]

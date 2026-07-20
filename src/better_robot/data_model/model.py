@@ -10,7 +10,6 @@ import torch
 
 from .._validation import check_tensor
 from ..lie import se3
-from . import _model_manifold
 from .frame import Frame
 from .joint_models.base import JointModel
 
@@ -224,15 +223,26 @@ class Model:
 
     def integrate(self, q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
         """Compute the universal manifold retraction ``q ⊕ v``."""
-        return _model_manifold.integrate(self, q, v)
+        return self.structure.integrate(q, v)
 
     def difference(self, q0: torch.Tensor, q1: torch.Tensor) -> torch.Tensor:
         """Compute the universal tangent ``q1 ⊖ q0``."""
-        return _model_manifold.difference(self, q0, q1)
+        return self.structure.difference(q0, q1)
 
     def random_configuration(self, generator: torch.Generator | None = None) -> torch.Tensor:
         """Return a random valid configuration of shape ``(nq,)``."""
-        return _model_manifold.random_configuration(self, generator)
+        parts: list[torch.Tensor] = []
+        for joint_id in range(self.njoints):
+            joint_nq = self.nqs[joint_id]
+            if joint_nq == 0:
+                continue
+            q_index = self.idx_qs[joint_id]
+            lower = self.lower_pos_limit[q_index : q_index + joint_nq]
+            upper = self.upper_pos_limit[q_index : q_index + joint_nq]
+            parts.append(self.joint_models[joint_id].random_configuration(generator, lower, upper))
+        if not parts:
+            return torch.zeros(self.nq)
+        return torch.cat(parts, dim=-1)
 
     def create_data(
         self,
