@@ -1,5 +1,10 @@
 # Order 02 — Test prune: delete verified duplicates, drop the `_v2` suffix
 
+> **Implementation log (2026-07-20):** Complete on `dev`; test Python is
+> 22,922 → 22,188 lines and the CPU gate is 1,537 → 1,502 passed. CUDA,
+> Pinocchio, contracts, and docs are green. Deviation: the surviving
+> `test_lm_v2.py` was also renamed because the order's explicit list omitted it.
+
 Read `plan/README.md` and `DESIGN_RULES.md` first. Assumes Order 01 landed
 (its feature deletions already removed their attached tests). Every row below
 was verified test-by-test in the 2026-07-20 audit (both sides of each

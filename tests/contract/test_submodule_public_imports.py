@@ -15,7 +15,7 @@ import pytest
 from better_robot import optim
 
 
-OPTIM_V2_PUBLIC: frozenset[str] = frozenset(
+OPTIM_PUBLIC: frozenset[str] = frozenset(
     {
         "AutodiffFallbackWarning",
         "Bounds",
@@ -134,8 +134,8 @@ SUBMODULE_PATHS: list[tuple[str, str]] = [
     ("better_robot.residuals", "SceneAttractionResidual"),
     ("better_robot.residuals", "SceneClearanceResidual"),
     ("better_robot.optim.kernels", "GemanMcClure"),
-    # Optimization API v2
-    *(("better_robot.optim", name) for name in sorted(OPTIM_V2_PUBLIC)),
+    # Optimization API
+    *(("better_robot.optim", name) for name in sorted(OPTIM_PUBLIC)),
     # exceptions
     ("better_robot.exceptions", "StaleCacheError"),
 ]
@@ -184,12 +184,12 @@ def test_symmetric3_is_submodule_only() -> None:
         from better_robot import Symmetric3  # noqa: F401, PLC0415
 
 
-def test_optim_v2_api_is_qualified_and_has_no_lie_name_collision() -> None:
-    assert OPTIM_V2_PUBLIC <= set(optim.__all__)
+def test_optim_api_is_qualified_and_has_no_lie_name_collision() -> None:
+    assert OPTIM_PUBLIC <= set(optim.__all__)
     assert not hasattr(optim, "SO3")
     assert not hasattr(optim, "SE3")
-    assert OPTIM_V2_PUBLIC.isdisjoint(better_robot.__all__)
-    for name in OPTIM_V2_PUBLIC:
+    assert OPTIM_PUBLIC.isdisjoint(better_robot.__all__)
+    for name in OPTIM_PUBLIC:
         assert not hasattr(better_robot, name)
 
 

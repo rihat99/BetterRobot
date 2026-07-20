@@ -1,4 +1,4 @@
-"""Ensure ``better_robot`` is importable when running tests_v2 directly.
+"""Ensure ``better_robot`` is importable when running tests directly.
 
 If the package has been installed via ``uv pip install -e .`` this conftest
 is a no-op; otherwise it prepends ``<repo>/src`` to ``sys.path`` so the

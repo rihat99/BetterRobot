@@ -1,4 +1,4 @@
-"""Object-graph Problem contracts for optimization API v2."""
+"""Object-graph Problem contracts for the optimization API."""
 
 from __future__ import annotations
 
@@ -41,27 +41,6 @@ class _PublicHookVariable(Variable):
 
     def difference(self, other: torch.Tensor) -> torch.Tensor:
         return (self.tensor - other) / 2.0
-
-
-def test_problem_harvests_references_and_runs_target_line_fit_residual() -> None:
-    samples = torch.tensor([0.0, 1.0, 2.0, 3.0])
-    observations = torch.tensor([1.0, 3.0, 5.0, 7.0])
-    theta = Variable(torch.zeros(2), name="theta")
-
-    @residual(theta, dim=4)
-    def line_fit(value: torch.Tensor) -> torch.Tensor:
-        slope, intercept = value[..., 0:1], value[..., 1:2]
-        return slope * samples + intercept - observations
-
-    problem = Problem([line_fit])
-
-    error = problem.error()
-    assert tuple(problem.variables) == ("theta",)
-    torch.testing.assert_close(error, -observations)
-    torch.testing.assert_close(
-        problem.dense_jacobian(strategy="jacrev"),
-        torch.stack((samples, torch.ones_like(samples)), dim=-1),
-    )
 
 
 def test_problem_routes_all_geometry_through_public_variable_hooks() -> None:
@@ -111,22 +90,6 @@ def test_analytic_weight_is_applied_once_to_error_and_rows() -> None:
 
     torch.testing.assert_close(problem.error(), torch.tensor([8.0, 18.0]))
     torch.testing.assert_close(problem.dense_jacobian(), torch.diag(torch.tensor([8.0, 12.0])))
-
-
-def test_static_variables_are_harvested_but_have_no_tangent_columns() -> None:
-    x = Variable(torch.tensor([1.5]), name="x")
-    target = Variable(torch.tensor([0.5], requires_grad=True), name="target", trainable=False)
-    item = _TwoVariableResidual(x, target)
-    item.dim = 1
-    problem = Problem([item])
-
-    problem.error()
-    assert tuple(problem.variables) == ("x", "target")
-    assert tuple(variable.name for variable in problem.vars) == ("x",)
-    assert problem.dense_jacobian().shape == (1, 1)
-    gradient = problem.gradient(create_graph=True)["x"]
-    target_vjp = torch.autograd.grad(gradient.sum(), target.tensor)[0]
-    torch.testing.assert_close(target_vjp, torch.tensor([2.0]))
 
 
 def test_update_validates_atomically_and_refreshes_current_values() -> None:

@@ -23,7 +23,7 @@ from better_robot.residuals.structure import TemporalPattern
 @pytest.fixture(scope="module")
 def model():
     placement = torch.tensor([0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
-    builder = ModelBuilder("pose_limits_v2")
+    builder = ModelBuilder("pose_limits")
     base = builder.add_body("base", mass=1.0)
     first = builder.add_body("first", mass=1.0)
     second = builder.add_body("second", mass=1.0)

@@ -1,4 +1,4 @@
-"""Evaluation-scoped node memoization and dependency contracts."""
+"""Node dependency and evaluation-scoped memoization contracts."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Focused contracts for the v2 optimizer interface and torch adapter."""
+"""Focused contracts for the optimizer interface and torch adapter."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def _target_problem(initial: torch.Tensor, target: torch.Tensor) -> tuple[Proble
     return Problem([target_error]), value
 
 
-def test_optimizer_base_defaults_match_v2_contract() -> None:
+def test_optimizer_base_defaults_match_public_contract() -> None:
     parameters = signature(Optimizer).parameters
     assert parameters["max_iterations"].default == 50
     assert parameters["tolerance"].default == 1e-8
@@ -40,32 +40,6 @@ def test_optimizer_status_and_info_have_one_shared_minimal_contract() -> None:
 
     assert [field.name for field in fields(info)] == ["status", "iterations", "cost"]
     assert info.converged.tolist() == [False, True, True]
-
-
-def test_adam_is_matrix_free_and_writes_the_solution_to_the_variable(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    target = torch.tensor([0.5, -0.25])
-    problem, value = _target_problem(torch.zeros_like(target), target)
-
-    def forbidden(*_args, **_kwargs):
-        raise AssertionError("TorchOptimizer assembled a Jacobian")
-
-    monkeypatch.setattr(Problem, "jacobian_blocks", forbidden)
-    monkeypatch.setattr(Problem, "dense_jacobian", forbidden)
-    optimizer = TorchOptimizer(
-        problem,
-        torch.optim.Adam,
-        lr=0.08,
-        max_iterations=250,
-        tolerance=1e-6,
-    )
-    info = optimizer.optimize()
-
-    assert bool(info.converged)
-    assert info.iterations.dtype == torch.int64
-    torch.testing.assert_close(value.tensor, target, atol=2e-5, rtol=2e-5)
-    torch.testing.assert_close(info.cost, problem.objective())
 
 
 def test_optimizer_and_buffers_persist_while_batch_elements_stop_independently() -> None:

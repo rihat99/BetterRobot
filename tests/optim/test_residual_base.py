@@ -1,4 +1,4 @@
-"""Contracts for v2 residuals and square-root-information weights."""
+"""Contracts for residuals and square-root-information weights."""
 
 from __future__ import annotations
 

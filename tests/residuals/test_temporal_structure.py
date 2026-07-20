@@ -10,12 +10,13 @@ import torch
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics.forward import forward_kinematics
-from better_robot.optim import Problem, Residual, RobotVariable
+from better_robot.optim import Problem, Residual, RobotVariable, Variable
 from better_robot.residuals import (
     AccelerationResidual,
     ContactConsistencyResidual,
     PositionResidual,
     ReferenceTrajectoryResidual,
+    RestResidual,
     TimeIndexedResidual,
     VelocityResidual,
 )
@@ -121,6 +122,32 @@ def test_smoothness_and_reference_named_blocks_match_dense_oracle(
     )
     densified = dense_temporal_jacobian(expected, temporal, horizon=5)
     torch.testing.assert_close(residual.jacobian()[0], densified)
+
+
+def test_reference_trajectory_uses_static_variable_and_central_weight(two_joint_model) -> None:
+    model = two_joint_model
+    q = _robot_trajectory(model, _trajectory(model, batch_shape=()))
+    reference = Variable(q.tensor.clone(), name="reference", trainable=False)
+    frame_weight = torch.linspace(0.5, 1.0, q.time_length, dtype=q.tensor.dtype)
+    residual = ReferenceTrajectoryResidual(q, reference, weight=0.3, weight_per_frame=frame_weight)
+
+    assert residual.variables == (q, reference)
+    assert residual.temporal_structure(q) == TemporalPattern(q.time_length, model.nv, 0, (0,))
+    torch.testing.assert_close(residual.error(), torch.zeros_like(residual.error()))
+    torch.testing.assert_close(residual.weighted_error(), residual.error() * 0.3)
+    assert residual.jacobian()[0].shape == (q.time_length * model.nv, q.free_dim)
+
+
+def test_rest_residual_reads_static_reference_object(two_joint_model) -> None:
+    model = two_joint_model
+    tangent = torch.tensor([0.2, -0.1], dtype=torch.float64)
+    q = RobotVariable(model, model.integrate(model.q_neutral, tangent), name="q")
+    rest = Variable(model.q_neutral.clone(), name="rest", trainable=False)
+    residual = RestResidual(q, rest, weight=0.5)
+
+    torch.testing.assert_close(residual.error(), tangent, atol=1e-12, rtol=1e-12)
+    torch.testing.assert_close(residual.weighted_error(), tangent * 0.5, atol=1e-12, rtol=1e-12)
+    assert residual.jacobian()[0].shape == (model.nv, q.free_dim)
 
 
 def test_constant_temporal_blocks_honor_create_graph(two_joint_model) -> None:

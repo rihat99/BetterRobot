@@ -1,4 +1,4 @@
-"""Contracts for the object-owned optimization variable hierarchy."""
+"""Optimization variable hierarchy contracts."""
 
 from __future__ import annotations
 
