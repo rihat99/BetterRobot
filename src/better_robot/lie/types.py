@@ -21,6 +21,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 import torch
 
+from . import se3, so3
+
 
 def _is_point(other: object) -> bool:
     return isinstance(other, torch.Tensor) and other.shape[-1:] == (3,)
@@ -45,45 +47,36 @@ class SO3:
         device: torch.device | None = None,
         dtype: torch.dtype = torch.float32,
     ) -> "SO3":
-        from . import so3 as _so3
-        return cls(_so3.identity(batch_shape=batch_shape, device=device, dtype=dtype))
+        return cls(so3.identity(batch_shape=batch_shape, device=device, dtype=dtype))
 
     @classmethod
     def exp(cls, w: torch.Tensor) -> "SO3":
         """``so3 → SO3``. ``w: (..., 3)``."""
-        from . import so3 as _so3
-        return cls(_so3.exp(w))
+        return cls(so3.exp(w))
 
     @classmethod
     def from_matrix(cls, R: torch.Tensor) -> "SO3":
-        from . import so3 as _so3
-        return cls(_so3.from_matrix(R))
+        return cls(so3.from_matrix(R))
 
     # ── methods ──────────────────────────────────────────────────────
 
     def inverse(self) -> "SO3":
-        from . import so3 as _so3
-        return SO3(_so3.inverse(self.tensor))
+        return SO3(so3.inverse(self.tensor))
 
     def log(self) -> torch.Tensor:
-        from . import so3 as _so3
-        return _so3.log(self.tensor)
+        return so3.log(self.tensor)
 
     def to_matrix(self) -> torch.Tensor:
-        from . import so3 as _so3
-        return _so3.to_matrix(self.tensor)
+        return so3.to_matrix(self.tensor)
 
     def normalize(self) -> "SO3":
-        from . import so3 as _so3
-        return SO3(_so3.normalize(self.tensor))
+        return SO3(so3.normalize(self.tensor))
 
     def compose(self, other: "SO3") -> "SO3":
-        from . import so3 as _so3
-        return SO3(_so3.compose(self.tensor, other.tensor))
+        return SO3(so3.compose(self.tensor, other.tensor))
 
     def act(self, p: torch.Tensor) -> torch.Tensor:
-        from . import so3 as _so3
-        return _so3.act(self.tensor, p)
+        return so3.act(self.tensor, p)
 
     # ── operators ────────────────────────────────────────────────────
 
@@ -122,14 +115,12 @@ class SE3:
         device: torch.device | None = None,
         dtype: torch.dtype = torch.float32,
     ) -> "SE3":
-        from . import se3 as _se3
-        return cls(_se3.identity(batch_shape=batch_shape, device=device, dtype=dtype))
+        return cls(se3.identity(batch_shape=batch_shape, device=device, dtype=dtype))
 
     @classmethod
     def exp(cls, xi: torch.Tensor) -> "SE3":
         """``se3 → SE3``. ``xi: (..., 6) [vx, vy, vz, wx, wy, wz]``."""
-        from . import se3 as _se3
-        return cls(_se3.exp(xi))
+        return cls(se3.exp(xi))
 
     # ── accessors ────────────────────────────────────────────────────
 
@@ -146,32 +137,25 @@ class SE3:
     # ── methods ──────────────────────────────────────────────────────
 
     def inverse(self) -> "SE3":
-        from . import se3 as _se3
-        return SE3(_se3.inverse(self.tensor))
+        return SE3(se3.inverse(self.tensor))
 
     def log(self) -> torch.Tensor:
-        from . import se3 as _se3
-        return _se3.log(self.tensor)
+        return se3.log(self.tensor)
 
     def adjoint(self) -> torch.Tensor:
-        from . import se3 as _se3
-        return _se3.adjoint(self.tensor)
+        return se3.adjoint(self.tensor)
 
     def adjoint_inv(self) -> torch.Tensor:
-        from . import se3 as _se3
-        return _se3.adjoint_inv(self.tensor)
+        return se3.adjoint_inv(self.tensor)
 
     def normalize(self) -> "SE3":
-        from . import se3 as _se3
-        return SE3(_se3.normalize(self.tensor))
+        return SE3(se3.normalize(self.tensor))
 
     def compose(self, other: "SE3") -> "SE3":
-        from . import se3 as _se3
-        return SE3(_se3.compose(self.tensor, other.tensor))
+        return SE3(se3.compose(self.tensor, other.tensor))
 
     def act(self, p: torch.Tensor) -> torch.Tensor:
-        from . import se3 as _se3
-        return _se3.act(self.tensor, p)
+        return se3.act(self.tensor, p)
 
     # ── operators ────────────────────────────────────────────────────
 

@@ -32,7 +32,6 @@ from better_robot.optim import (
     InformativeLinearSolver,
     L2,
     LinearSolver,
-    LU,
     RobotVariable,
     RobustKernel,
     Tukey,
@@ -89,7 +88,7 @@ def test_residual_instances_satisfy_abc(cls: type[Residual], robot_variable: Rob
 # ── Linear solvers ────────────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("cls", [Cholesky, LU, BandedCholesky])
+@pytest.mark.parametrize("cls", [Cholesky, BandedCholesky])
 def test_linear_solver_instances_satisfy_protocol(cls: type) -> None:
     assert isinstance(cls(), LinearSolver), cls.__name__
     assert isinstance(cls(), InformativeLinearSolver), cls.__name__

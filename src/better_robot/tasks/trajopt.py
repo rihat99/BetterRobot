@@ -22,8 +22,8 @@ from ..optim import (
     Residual,
     RobotVariable,
 )
-from .parameterization import KnotTrajectory
 from .trajectory import Trajectory
+from .utils import _hemisphere_align, _public_diagnostics
 
 
 @dataclass
@@ -78,22 +78,6 @@ def _configuration_bounds(
     )
 
 
-def _hemisphere_align_robot_trajectory(q: torch.Tensor, variable: RobotVariable) -> torch.Tensor:
-    aligned = q.clone()
-    for coordinate_slice in variable.unit_coordinate_slices:
-        start = 0 if coordinate_slice.start is None else coordinate_slice.start
-        stop = variable.model.nq if coordinate_slice.stop is None else coordinate_slice.stop
-        if stop - start != 4:
-            continue
-        quaternion = aligned[..., coordinate_slice]
-        adjacent_dot = (quaternion[..., 1:, :] * quaternion[..., :-1, :]).sum(dim=-1)
-        step_sign = torch.where(adjacent_dot < 0.0, -torch.ones_like(adjacent_dot), torch.ones_like(adjacent_dot))
-        first = torch.ones_like(quaternion[..., :1, 0])
-        signs = torch.cat((first, step_sign), dim=-1).cumprod(dim=-1).unsqueeze(-1)
-        aligned[..., coordinate_slice] = quaternion * signs
-    return aligned
-
-
 def _trajectory_variable(
     model: Model,
     initial: torch.Tensor | RobotVariable,
@@ -115,7 +99,7 @@ def _trajectory_variable(
             raise ValueError(f"initial_q_traj must end in (T, {model.nq}) with T > 0; got {tuple(initial.shape)}")
         bounds = _configuration_bounds(model, initial, lower, upper)
         variable = RobotVariable(model, initial.detach().clone(), name="q", bounds=bounds, time_axis=0)
-    variable.tensor = _hemisphere_align_robot_trajectory(variable.tensor, variable)
+    variable.tensor = _hemisphere_align(variable.tensor, variable.unit_coordinate_slices)
     zeros = variable.tensor.new_zeros(*variable.batch_shape, variable.free_dim)
     variable.tensor = variable.retract(zeros)
     return variable
@@ -141,14 +125,6 @@ def _prepare_residuals(
     return tuple(prepared)
 
 
-def _public_diagnostics(
-    info, exemplar: torch.Tensor
-) -> tuple[int | torch.Tensor, bool | torch.Tensor, int | torch.Tensor]:
-    if info.iterations.ndim == 0:
-        return int(info.iterations), bool(info.converged), int(info.status)
-    return info.iterations, info.converged, info.status
-
-
 def _non_lm_decision() -> LinearizationDecision:
     return LinearizationDecision(
         "dense",
@@ -169,7 +145,6 @@ def solve_trajopt(  # noqa: PLR0913
     jacobian_strategy: JacobianStrategy = "auto",
     lower: torch.Tensor | None = None,
     upper: torch.Tensor | None = None,
-    parameterization: KnotTrajectory | None = None,
 ) -> TrajOptResult:
     """Solve a knot trajectory using residual objects or ``q -> residual`` factories.
 
@@ -184,12 +159,6 @@ def solve_trajopt(  # noqa: PLR0913
         raise ValueError("max_iter must be a non-negative integer")
     if jacobian_strategy not in {"auto", "analytic", "jacrev", "jacfwd", "finite_difference"}:
         raise ValueError(f"Unknown jacobian_strategy {jacobian_strategy!r}")
-    parameterization = KnotTrajectory() if parameterization is None else parameterization
-    if not isinstance(parameterization, KnotTrajectory):
-        raise NotImplementedError(
-            "solve_trajopt supports only KnotTrajectory; component-space spline interpolation is not manifold-safe"
-        )
-
     q = _trajectory_variable(model, initial_q_traj, lower, upper)
     problem = Problem(_prepare_residuals(residuals, q))
     if optimizer is None:
@@ -209,9 +178,9 @@ def solve_trajopt(  # noqa: PLR0913
     decision = driver.resolve_linearization(problem) if isinstance(driver, LevenbergMarquardt) else _non_lm_decision()
     info = driver.optimize()
     residual = problem.error()
-    iterations, converged, status = _public_diagnostics(info, q.tensor)
+    iterations, converged, status = _public_diagnostics((info,))
 
-    q_result = _hemisphere_align_robot_trajectory(q.tensor, q)
+    q_result = _hemisphere_align(q.tensor, q.unit_coordinate_slices)
     batch_shape = tuple(q_result.shape[:-2])
     horizon = q.time_length
     t_axis = torch.arange(horizon, dtype=q_result.dtype, device=q_result.device) * float(dt)

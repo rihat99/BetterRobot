@@ -9,7 +9,6 @@ from better_robot.optim.solvers import (
     BandedCholesky,
     Cholesky,
     InformativeLinearSolver,
-    LU,
     LinearSolveStatus,
     LinearSolver,
 )
@@ -45,5 +44,3 @@ def test_new_solvers_preserve_structural_protocols() -> None:
     assert isinstance(BandedCholesky(), InformativeLinearSolver)
     assert isinstance(Cholesky(), LinearSolver)
     assert isinstance(Cholesky(), InformativeLinearSolver)
-    assert isinstance(LU(), LinearSolver)
-    assert isinstance(LU(), InformativeLinearSolver)

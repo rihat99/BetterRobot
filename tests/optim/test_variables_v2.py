@@ -6,8 +6,7 @@ import pytest
 import torch
 
 from better_robot.io import ModelBuilder, build_model
-from better_robot.optim.manifolds import Bounds
-from better_robot.optim.variables import RobotVariable, SE3Variable, SO3Variable, Variable
+from better_robot.optim.variables import Bounds, RobotVariable, SE3Variable, SO3Variable, Variable
 
 
 def _mixed_model():
@@ -64,26 +63,6 @@ def test_robot_variable_preserves_geometry_limits_and_trajectory_layout() -> Non
         variable._difference_from(variable.tensor, projected),
         model.difference(variable.tensor, projected).reshape(-1),
     )
-
-
-def test_mask_scale_and_static_metadata_are_constructor_validated() -> None:
-    variable = Variable(
-        torch.zeros(3),
-        name="x",
-        trainable=False,
-        mask=torch.tensor([True, False, True]),
-        scale=torch.tensor([2.0, 3.0, 4.0]),
-    )
-
-    assert not variable.trainable
-    assert variable.free_dim == 2
-    torch.testing.assert_close(variable.free_scale, torch.tensor([2.0, 4.0]))
-    torch.testing.assert_close(variable.retract(torch.tensor([0.5, -0.25])), torch.tensor([0.5, 0.0, -0.25]))
-
-    with pytest.raises(TypeError, match="mask must use torch.bool"):
-        Variable(torch.zeros(2), mask=torch.ones(2))
-    with pytest.raises(ValueError, match="scale and tensor must have the same dtype/device"):
-        Variable(torch.zeros(2), scale=torch.ones(2, dtype=torch.float64))
 
 
 def test_group_variables_reject_box_bounds() -> None:

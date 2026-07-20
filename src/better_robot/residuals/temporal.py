@@ -8,7 +8,7 @@ from typing import cast
 import torch
 
 from ._temporal_jacobian import dense_temporal_residual
-from ._variables import TemporalLike, TemporalVariableLike as _TemporalVariable, matches
+from .utils import RobotVariableLike as _TemporalVariable, TemporalLike, matches
 from .base import Residual
 from .structure import TemporalPattern
 
@@ -34,7 +34,7 @@ class TimeIndexedResidual(Residual):
         if len(temporal) != 1 or not isinstance(temporal[0], TemporalLike):
             raise ValueError("inner must reference exactly one Variable with time_axis=0")
         if not callable(getattr(inner, "_error_at", None)) or not callable(
-            getattr(inner, "_reduced_jacobian_at", None)
+            getattr(inner, "_tangent_jacobian_at", None)
         ):
             raise TypeError("inner must support built-in knot error and Jacobian primitives")
         q = cast(_TemporalVariable, temporal[0])
@@ -75,7 +75,7 @@ class TimeIndexedResidual(Residual):
     ) -> Mapping[int, torch.Tensor]:
         if not matches(variable, self.q):
             return {}
-        block = self.inner._reduced_jacobian_at(self.t_idx)
+        block = self.inner._tangent_jacobian_at(self.t_idx)
         return {0: block.unsqueeze(-3)}
 
     def jacobian(self) -> tuple[torch.Tensor, ...]:

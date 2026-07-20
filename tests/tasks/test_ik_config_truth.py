@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import warnings
+
 import pytest
 import torch
 
 from better_robot.data_model.model import Model
 from better_robot.io import ModelBuilder, build_model
 from better_robot.kinematics import forward_kinematics
+from better_robot.optim import AutodiffFallbackWarning
 from better_robot.tasks.ik import OptimizerConfig, solve_ik
 
 
@@ -38,6 +41,8 @@ def ik_case() -> tuple[Model, dict[str, torch.Tensor]]:
     ("config", "message"),
     [
         (OptimizerConfig(optimizer="newton"), "Unknown optimizer"),
+        (OptimizerConfig(optimizer="lbfgs"), "Unknown optimizer"),
+        (OptimizerConfig(optimizer="lm_then_lbfgs"), "Unknown optimizer"),
         (OptimizerConfig(linear_solver="qr"), "Unknown linear_solver"),
         (OptimizerConfig(damping="trust_region"), "Unknown damping"),
         (OptimizerConfig(kernel="geman_mcclure"), "Unknown kernel"),
@@ -55,26 +60,23 @@ def test_invalid_solver_knobs_fail_at_facade_boundary(
 
 
 @pytest.mark.parametrize(
-    ("config", "field"),
+    "config",
     [
-        (
-            OptimizerConfig(
-                optimizer="adam",
-                jacobian_strategy="analytic",
-            ),
-            "jacobian_strategy",
+        OptimizerConfig(
+            optimizer="adam",
+            jacobian_strategy="analytic",
+            max_iter=0,
         ),
-        (OptimizerConfig(optimizer="adam", damping="constant"), "damping"),
+        OptimizerConfig(optimizer="adam", damping="constant", max_iter=0),
     ],
 )
-def test_adam_rejects_unused_normal_equation_knobs(
+def test_adam_ignores_unused_normal_equation_knobs(
     ik_case: tuple[Model, dict[str, torch.Tensor]],
     config: OptimizerConfig,
-    field: str,
 ) -> None:
     model, targets = ik_case
-    with pytest.raises(ValueError, match=rf"optimizer='adam'.*{field}"):
-        solve_ik(model, targets, optimizer_cfg=config)
+    result = solve_ik(model, targets, optimizer_cfg=config)
+    assert result.q.shape == model.q_neutral.shape
 
 
 def test_adam_accepts_its_default_facade_configuration(
@@ -89,30 +91,41 @@ def test_adam_accepts_its_default_facade_configuration(
     assert result.q.shape == model.q_neutral.shape
 
 
-def test_gauss_newton_rejects_unused_damping_selector(
+def test_builtin_analytic_ik_graph_does_not_warn_about_autodiff(
     ik_case: tuple[Model, dict[str, torch.Tensor]],
 ) -> None:
     model, targets = ik_case
-    with pytest.raises(ValueError, match=r"optimizer='gn'.*damping"):
-        solve_ik(
-            model,
-            targets,
-            optimizer_cfg=OptimizerConfig(optimizer="gn", damping="constant"),
-        )
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", AutodiffFallbackWarning)
+        solve_ik(model, targets, optimizer_cfg=OptimizerConfig(max_iter=1))
+
+
+def test_gauss_newton_ignores_unused_damping_selector(
+    ik_case: tuple[Model, dict[str, torch.Tensor]],
+) -> None:
+    model, targets = ik_case
+    result = solve_ik(
+        model,
+        targets,
+        optimizer_cfg=OptimizerConfig(optimizer="gn", damping="constant", max_iter=0),
+    )
+    assert result.q.shape == model.q_neutral.shape
 
 
 @pytest.mark.parametrize("optimizer", ["lm", "gn", "adam"])
-def test_single_stage_optimizers_reject_refinement_only_items(
+def test_single_stage_optimizers_ignore_refinement_only_items(
     ik_case: tuple[Model, dict[str, torch.Tensor]],
     optimizer: str,
 ) -> None:
     model, targets = ik_case
     config = OptimizerConfig(
         optimizer=optimizer,
+        max_iter=0,
         refine_disabled_items=("rest",),
     )
-    with pytest.raises(ValueError, match="refine_disabled_items.*lm_then_adam"):
-        solve_ik(model, targets, optimizer_cfg=config)
+    result = solve_ik(model, targets, optimizer_cfg=config)
+    assert result.q.shape == model.q_neutral.shape
 
 
 def test_phased_optimizer_accepts_refinement_disabled_items(

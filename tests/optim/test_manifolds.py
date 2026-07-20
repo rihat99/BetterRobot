@@ -117,16 +117,6 @@ def test_robot_variable_rejects_bounds_on_quaternion_coordinates(floating_spheri
         RobotVariable(floating_spherical_model, bounds=Bounds(lower, bounds.upper))
 
 
-def test_mask_eliminates_fixed_tangent_coordinates() -> None:
-    variable = Variable(torch.zeros(4), mask=torch.tensor([True, False, True, False]))
-    reduced = torch.tensor([0.25, -0.5])
-    expanded = variable.expand_tangent(reduced)
-    assert variable.tangent_dim() == 4 and variable.free_indices.tolist() == [0, 2]
-    torch.testing.assert_close(expanded, torch.tensor([0.25, 0.0, -0.5, 0.0]))
-    torch.testing.assert_close(variable.gather_tangent(expanded), reduced)
-    torch.testing.assert_close(variable.retract(reduced), expanded)
-
-
 def test_scalar_event_shape_supports_independent_batch_axes() -> None:
     scalar = Variable(torch.tensor(1.0))
     torch.testing.assert_close(scalar.retract(torch.tensor([0.2])), torch.tensor(1.2))

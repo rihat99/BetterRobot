@@ -106,11 +106,10 @@ src/better_robot/
   io/            URDF/MJCF loading
 ```
 
-Named variable blocks, manifolds, residual items, and provider DAGs are public
-under `better_robot.optim`. Named-block Adam/LM/GN and the `solve_ik` and
+Named variables, residuals, and least-squares solvers are public under
+`better_robot.optim`. Torch/LM/GN optimizers and the `solve_ik` and
 knot-based `solve_trajopt` task facades preserve leading batch axes with
-per-element solver state. The flat solver stack remains available for direct
-compatibility callers. See
+per-element solver state. See
 [Write a custom residual](docs/guides/custom_residual.md).
 
 ## Dependencies

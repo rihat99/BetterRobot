@@ -17,7 +17,6 @@ from better_robot.optim import (
     Residual,
 )
 from better_robot.residuals.regularization import ReferenceTrajectoryResidual
-from better_robot.tasks.parameterization import BSplineTrajectory
 from better_robot.tasks.trajopt import solve_trajopt
 
 
@@ -219,17 +218,17 @@ def test_auto_falls_back_to_dense_for_undeclared_temporal_item() -> None:
     assert "undeclared" in result.linearization_detail
 
 
-def test_bspline_fails_actionably() -> None:
+def test_parameterization_keyword_is_not_supported() -> None:
     model = _fixed_arm()
     horizon = 5
     seed = model.q_neutral.expand(horizon, -1).clone()
     reference = seed.clone()
 
-    with pytest.raises(NotImplementedError, match="component-space.*not manifold-safe"):
+    with pytest.raises(TypeError, match="unexpected keyword argument 'parameterization'"):
         solve_trajopt(
             model,
             dt=0.05,
             initial_q_traj=seed,
             residuals=_reference_residuals(reference),
-            parameterization=BSplineTrajectory(num_control_points=4),
+            parameterization=object(),  # type: ignore[call-arg]
         )

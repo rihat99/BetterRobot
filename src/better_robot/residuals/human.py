@@ -16,7 +16,7 @@ import torch
 
 from .._validation import check_tensor
 from ..lie import so3
-from ._variables import RobotValueLike as _RobotVariableLike, VariableLike
+from .utils import RobotValueLike as _RobotVariableLike, VariableLike
 from .base import Residual, Weight
 
 

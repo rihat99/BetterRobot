@@ -17,16 +17,19 @@ from .solvers import (
     Cholesky,
     LinearSolver,
 )
-from ._solver_common import _blend_values, _state_coordinates
 from .implicit import ImplicitDiffConfig
 from .optimizers import Optimizer, OptimizerInfo, OptimizerStatus
 from .problem import JacobianStrategy, Problem, _check_strategy, _detach
-from .temporal import BlockBandedMatrix, LinearizationReason
+from .temporal import BlockBandedMatrix, LinearizationReason, _warn_missing_temporal_blocks
 from .variables import RobotVariable, _joint_layout
+from .utils import _blend_values, _state_coordinates
 
 LinearizationMode: TypeAlias = Literal["auto", "dense", "structured"]
 _TensorValues: TypeAlias = dict[str, torch.Tensor]
 _DEFAULT_KERNEL = L2()
+
+
+# State records
 
 
 @dataclass(frozen=True)
@@ -62,7 +65,6 @@ class _LMIterationState(NamedTuple):
     implicit_valid: torch.Tensor
     status: torch.Tensor
     iterations: torch.Tensor
-    scale: torch.Tensor
     bound_state_index: torch.Tensor
     bound_lower: torch.Tensor
     bound_upper: torch.Tensor
@@ -93,6 +95,9 @@ class _LinearizedLeastSquares(NamedTuple):
     finite: torch.Tensor
 
 
+# Tangent layout and projection
+
+
 def _max_abs(vector: torch.Tensor) -> torch.Tensor:
     return vector.abs().amax(dim=-1)
 
@@ -101,19 +106,16 @@ def _split_step(step: torch.Tensor, problem: Problem) -> _TensorValues:
     return {spec.name: step[..., problem.column_offsets[spec.name]] for spec in problem.vars}
 
 
-def _difference_reduced(
+def _difference_tangent(
     x0: _TensorValues,
     x1: _TensorValues,
     problem: Problem,
 ) -> torch.Tensor:
-    full = problem.difference(x0, x1)
-    return torch.cat(
-        tuple(spec.gather_tangent(full[spec.name]) for spec in problem.vars),
-        dim=-1,
-    )
+    difference = problem.difference(x0, x1)
+    return torch.cat(tuple(difference[variable.name] for variable in problem.vars), dim=-1)
 
 
-def _retract_reduced(
+def _retract_tangent(
     values: _TensorValues,
     step: torch.Tensor,
     problem: Problem,
@@ -121,55 +123,9 @@ def _retract_reduced(
     return problem.retract(values, _split_step(step, problem))
 
 
-def _project_step(
-    values: _TensorValues, step: torch.Tensor, problem: Problem, limits: tuple[tuple[str, float], ...]
-) -> tuple[_TensorValues, torch.Tensor]:
-    proposed = _retract_reduced(values, _limit_block_step_norms(step, problem, limits), problem)
-    return proposed, _difference_reduced(values, proposed, problem)
-
-
-def _limit_block_step_norms(
-    step: torch.Tensor,
-    problem: Problem,
-    limits: tuple[tuple[str, float], ...],
-) -> torch.Tensor:
-    """Clamp configured physical tangent-block norms without tensor branching."""
-    if not limits:
-        return step
-    by_name = dict(limits)
-    blocks: list[torch.Tensor] = []
-    for spec in problem.vars:
-        block = step[..., problem.column_offsets[spec.name]]
-        limit = by_name.get(spec.name)
-        if limit is not None and spec.free_dim:
-            norm = torch.linalg.vector_norm(block, dim=-1, keepdim=True)
-            denominator = norm.clamp_min(torch.finfo(step.dtype).tiny)
-            multiplier = (limit / denominator).clamp(max=1.0)
-            block = block * multiplier
-        blocks.append(block)
-    return torch.cat(blocks, dim=-1)
-
-
-def _validate_block_step_limits(limits: tuple[tuple[str, float], ...]) -> None:
-    if not isinstance(limits, tuple):
-        raise TypeError("block_step_limits must be a tuple of (block_name, max_norm) pairs")
-    seen: set[str] = set()
-    for entry in limits:
-        if not isinstance(entry, tuple) or len(entry) != 2:
-            raise TypeError("block_step_limits must be a tuple of (block_name, max_norm) pairs")
-        block_name, max_norm = entry
-        if not isinstance(block_name, str) or not block_name:
-            raise TypeError("block_step_limits block names must be non-empty strings")
-        if block_name in seen:
-            raise ValueError(f"duplicate block_step_limits entry for {block_name!r}")
-        seen.add(block_name)
-        if (
-            isinstance(max_norm, (bool, torch.Tensor))
-            or not isinstance(max_norm, (int, float))
-            or not math.isfinite(float(max_norm))
-            or float(max_norm) <= 0.0
-        ):
-            raise ValueError(f"block_step_limits max norm for {block_name!r} must be a finite positive Python number")
+def _project_step(values: _TensorValues, step: torch.Tensor, problem: Problem) -> tuple[_TensorValues, torch.Tensor]:
+    proposed = _retract_tangent(values, step, problem)
+    return proposed, _difference_tangent(values, proposed, problem)
 
 
 def _detach_state(state: _LMIterationState) -> _LMIterationState:
@@ -179,11 +135,10 @@ def _detach_state(state: _LMIterationState) -> _LMIterationState:
 def _static_layout(  # noqa: PLR0912 - handles the finite supported variable layouts
     values: _TensorValues,
     problem: Problem,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Build scale and state-box-to-tangent maps once at the public boundary."""
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Build state-box-to-tangent maps once at the public boundary."""
     exemplar = values[problem.vars[0].name]
     nt = problem.tangent_dim_total
-    scale = exemplar.new_ones(nt)
     state_index = torch.full((nt,), -1, dtype=torch.long, device=exemplar.device)
     lower = exemplar.new_full((nt,), -torch.inf)
     upper = exemplar.new_full((nt,), torch.inf)
@@ -191,10 +146,6 @@ def _static_layout(  # noqa: PLR0912 - handles the finite supported variable lay
 
     for spec in problem.vars:
         column = problem.column_offsets[spec.name]
-        free_indices = spec.free_indices.to(device=exemplar.device)
-        if spec.free_scale is not None:
-            scale[column] = spec.free_scale.to(device=exemplar.device)
-
         tangent_dim = spec.tangent_dim()
         full_mapping = torch.full(
             (tangent_dim,),
@@ -256,13 +207,16 @@ def _static_layout(  # noqa: PLR0912 - handles the finite supported variable lay
                         full_lower[tangent_index] = spec.bounds.lower[local_q]
                         full_upper[tangent_index] = spec.bounds.upper[local_q]
 
-        state_index[column] = full_mapping.index_select(0, free_indices)
-        lower[column] = full_lower.index_select(0, free_indices)
-        upper[column] = full_upper.index_select(0, free_indices)
+        state_index[column] = full_mapping
+        lower[column] = full_lower
+        upper[column] = full_upper
         state_offset += reduce(mul, spec.shape, 1)
 
     bounded = torch.isfinite(lower) | torch.isfinite(upper)
-    return scale, state_index, lower, upper, bounded
+    return state_index, lower, upper, bounded
+
+
+# Robust objective and IRLS
 
 
 def _robustify(
@@ -313,6 +267,9 @@ def _robust_finite(residual: torch.Tensor, cost: torch.Tensor, weights: torch.Te
     )
 
 
+# Linearization and routing
+
+
 def _active_mask(
     values: _TensorValues,
     gradient: torch.Tensor,
@@ -337,12 +294,12 @@ def _projected_gradient(
     problem: Problem,
     bounded: torch.Tensor,
 ) -> torch.Tensor:
-    projected = _retract_reduced(values, -gradient, problem)
+    projected = _retract_tangent(values, -gradient, problem)
     # P(x - g) - x is the projected *descent* direction; negate it so the
     # stored vector follows the ordinary-gradient sign on bounded axes. Group
     # group variables are unbounded and can wrap a large tangent
     # through log(exp(.)); retain their raw gradient instead.
-    projected_box_gradient = -_difference_reduced(values, projected, problem)
+    projected_box_gradient = -_difference_tangent(values, projected, problem)
     return torch.where(bounded, projected_box_gradient, gradient)
 
 
@@ -429,6 +386,9 @@ def _terminal_status(model: _LinearizedLeastSquares, gtol: float) -> torch.Tenso
     return torch.where(~model.finite, failed, torch.where(satisfies_kkt, success, running))
 
 
+# Solver drivers
+
+
 class LevenbergMarquardt(Optimizer):
     """Batched projected active-set LM that owns one problem."""
 
@@ -449,7 +409,6 @@ class LevenbergMarquardt(Optimizer):
         linearization: LinearizationMode = "auto",
         jacobian_strategy: JacobianStrategy = "auto",
         fixed_damping: bool = False,
-        block_step_limits: tuple[tuple[str, float], ...] = (),
     ) -> None:
         super().__init__(problem, max_iterations=max_iterations, tolerance=tolerance)
         if solver == "auto":
@@ -470,12 +429,10 @@ class LevenbergMarquardt(Optimizer):
         self.linearization = linearization
         self.jacobian_strategy = jacobian_strategy
         self.fixed_damping = fixed_damping
-        self.block_step_limits = block_step_limits
         self._state: _LMIterationState | None = None
         self._seen_update_serial = problem._update_serial
         if not isinstance(self.fixed_damping, bool):
             raise TypeError("fixed_damping must be a static bool")
-        _validate_block_step_limits(self.block_step_limits)
         for name in (
             "gtol",
             "xtol",
@@ -530,6 +487,8 @@ class LevenbergMarquardt(Optimizer):
                     LinearizationReason.ELIGIBLE_BANDED,
                     "validated temporal blocks use the automatic banded route",
                 )
+            if analysis.reason is LinearizationReason.MISSING_TEMPORAL_BLOCKS:
+                _warn_missing_temporal_blocks(problem)
             return choice("dense", analysis.reason, analysis.detail)
         if analysis.direct_eligible and "banded" in supported:
             return choice(
@@ -544,6 +503,8 @@ class LevenbergMarquardt(Optimizer):
                 if analysis.direct_eligible
                 else analysis.detail
             )
+            if reason is LinearizationReason.MISSING_TEMPORAL_BLOCKS:
+                _warn_missing_temporal_blocks(problem)
             return choice("dense", reason, detail)
         raise ValueError(
             f"incompatible_solver: explicit linear solver supports none of the eligible systems {sorted(supported)}"
@@ -564,23 +525,14 @@ class LevenbergMarquardt(Optimizer):
             raise TypeError("create_graph must be a static bool")
         if not problem.residuals:
             raise ValueError(f"{type(self).__name__} requires at least one residual vector")
-        limited_names = {name for name, _limit in self.block_step_limits}
-        unknown_step_limits = limited_names - {spec.name for spec in problem.vars}
-        if unknown_step_limits:
-            raise ValueError(f"block_step_limits contain unknown variable names {sorted(unknown_step_limits)}")
-        fixed_step_limits = {spec.name for spec in problem.vars if spec.name in limited_names and spec.free_dim == 0}
-        if fixed_step_limits:
-            raise ValueError(
-                "block_step_limits require blocks with at least one free tangent "
-                f"coordinate; fully fixed {sorted(fixed_step_limits)}"
-            )
         if problem.tangent_dim_total <= 0:
             raise ValueError(f"{type(self).__name__} requires at least one free tangent coordinate")
         batch_shape = problem._validate_trainable_values(values)
+        self._has_bounds = any(variable.bounds is not None for variable in problem.vars)
         decision = self.resolve_linearization(problem)
-        scale, state_index, lower, upper, bounded = _static_layout(values, problem)
+        state_index, lower, upper, bounded = _static_layout(values, problem)
         model = _linearize_model(values, problem, self, decision, (state_index, lower, upper, bounded), create_graph)
-        diagonal_max = (model.normal_diagonal * scale.square()).amax(dim=-1)
+        diagonal_max = model.normal_diagonal.amax(dim=-1)
         mu = (self.damping_parameter * diagonal_max).clamp(min=self.mu_min, max=self.mu_max)
         status = _terminal_status(model, self.gtol)
         converged = (status == OptimizerStatus.CONVERGED.value) | (status == OptimizerStatus.STALLED_AT_BOUNDS.value)
@@ -603,7 +555,6 @@ class LevenbergMarquardt(Optimizer):
             implicit_valid=(status == OptimizerStatus.CONVERGED.value) & model.finite,
             status=status,
             iterations=torch.zeros_like(status, dtype=torch.int64),
-            scale=scale,
             bound_state_index=state_index,
             bound_lower=lower,
             bound_upper=upper,
@@ -616,27 +567,21 @@ class LevenbergMarquardt(Optimizer):
         state: _LMIterationState,
         decision: LinearizationDecision,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        scaled_gradient = model.gradient * state.scale
         movable = (~model.active_mask).to(dtype=model.gradient.dtype)
         diagonal = state.mu.unsqueeze(-1) * movable + (1.0 - movable)
-        rhs = -scaled_gradient * movable
+        rhs = -model.gradient * movable
 
         if decision.used == "dense":
             if not isinstance(model.normal, torch.Tensor):
                 raise RuntimeError("dense linearization did not produce a dense normal matrix")
-            scaled_normal = model.normal * state.scale.unsqueeze(-1) * state.scale.unsqueeze(-2)
-            restricted = scaled_normal * movable.unsqueeze(-1) * movable.unsqueeze(-2)
+            restricted = model.normal * movable.unsqueeze(-1) * movable.unsqueeze(-2)
             dense_system = restricted.clone()
             dense_system.diagonal(dim1=-2, dim2=-1).add_(diagonal)
             system: torch.Tensor | BlockBandedMatrix = dense_system
         else:
             if not isinstance(model.normal, BlockBandedMatrix):
                 raise RuntimeError("banded linearization did not produce block-banded normal storage")
-            system = model.normal.scaled_restricted(
-                state.scale,
-                movable,
-                diagonal,
-            )
+            system = model.normal.restricted(movable, diagonal)
         solver = self._resolved_linear_solver(decision)
         informative = getattr(solver, "solve_with_info", None)
         if informative is not None:
@@ -646,7 +591,7 @@ class LevenbergMarquardt(Optimizer):
             raw_step = cast(LinearSolver, solver).solve(system, rhs, ridge=None)
             ok = torch.isfinite(raw_step).all(dim=-1)
         safe_step = torch.where(ok.unsqueeze(-1), torch.nan_to_num(raw_step), torch.zeros_like(raw_step))
-        return state.scale * safe_step * movable, ok
+        return safe_step * movable, ok
 
     def _update(  # noqa: PLR0915 - one fixed-work tensor program keeps acceptance auditable
         self,
@@ -671,24 +616,24 @@ class LevenbergMarquardt(Optimizer):
         movable_element = current_status == OptimizerStatus.RUNNING.value
 
         lm_step, factorization_ok = self._solve_step(model, state, decision)
-        lm_values, lm_actual_step = _project_step(values, lm_step, problem, self.block_step_limits)
+        lm_values, lm_actual_step = _project_step(values, lm_step, problem)
         lm_jp = model.operators.jvp(lm_actual_step)
         lm_prediction = -((model.gradient * lm_actual_step).sum(dim=-1) + 0.5 * lm_jp.square().sum(dim=-1))
 
-        _pg1_values, pg1_step = _project_step(values, -model.gradient, problem, self.block_step_limits)
-        pg1_h = model.operators.normal_matvec(pg1_step)
-        pg_denominator = (pg1_step * pg1_h).sum(dim=-1).clamp(min=torch.finfo(model.cost.dtype).eps)
-        pg_beta = (-(model.gradient * pg1_step).sum(dim=-1) / pg_denominator).clamp(min=0.0, max=1.0)
-        pg_values, pg_actual_step = _project_step(
-            values, pg_beta.unsqueeze(-1) * pg1_step, problem, self.block_step_limits
-        )
-        pg_jp = model.operators.jvp(pg_actual_step)
-        pg_prediction = -((model.gradient * pg_actual_step).sum(dim=-1) + 0.5 * pg_jp.square().sum(dim=-1))
-
-        pg_better = torch.isfinite(pg_prediction) & (pg_prediction > lm_prediction) & (pg_prediction > 0.0)
-        selected_values = _blend_values(pg_better, pg_values, lm_values)
-        selected_step = torch.where(pg_better.unsqueeze(-1), pg_actual_step, lm_actual_step)
-        prediction = torch.where(pg_better, pg_prediction, lm_prediction)
+        if self._has_bounds:
+            _pg1_values, pg1_step = _project_step(values, -model.gradient, problem)
+            pg1_h = model.operators.normal_matvec(pg1_step)
+            pg_denominator = (pg1_step * pg1_h).sum(dim=-1).clamp(min=torch.finfo(model.cost.dtype).eps)
+            pg_beta = (-(model.gradient * pg1_step).sum(dim=-1) / pg_denominator).clamp(min=0.0, max=1.0)
+            pg_values, pg_actual_step = _project_step(values, pg_beta.unsqueeze(-1) * pg1_step, problem)
+            pg_jp = model.operators.jvp(pg_actual_step)
+            pg_prediction = -((model.gradient * pg_actual_step).sum(dim=-1) + 0.5 * pg_jp.square().sum(dim=-1))
+            pg_better = torch.isfinite(pg_prediction) & (pg_prediction > lm_prediction) & (pg_prediction > 0.0)
+            selected_values = _blend_values(pg_better, pg_values, lm_values)
+            selected_step = torch.where(pg_better.unsqueeze(-1), pg_actual_step, lm_actual_step)
+            prediction = torch.where(pg_better, pg_prediction, lm_prediction)
+        else:
+            selected_values, selected_step, prediction = lm_values, lm_actual_step, lm_prediction
         valid_prediction = torch.isfinite(prediction) & (prediction > 0.0)
         selected_values = _blend_values(valid_prediction & factorization_ok, selected_values, values)
         selected_step = torch.where(

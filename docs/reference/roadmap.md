@@ -21,8 +21,6 @@ entries.
 - `src/better_robot/dynamics/centroidal.py`
 - `src/better_robot/io/build_model.py`
 - `src/better_robot/spatial/force.py`
-- `src/better_robot/tasks/ik.py`
-- `src/better_robot/tasks/trajopt.py`
 <!-- not-implemented-inventory:end -->
 
 ## Collision
@@ -61,9 +59,9 @@ design work rather than placeholder API. See
 semantics are not implemented. Use LM, Gauss--Newton, Adam, or the supported
 LM-then-Adam sequence.
 
-`solve_trajopt` accepts `KnotTrajectory`. `BSplineTrajectory` remains a
-Euclidean numerical utility; component interpolation is not a manifold-safe
-robot trajectory and cannot enforce robot state bounds correctly.
+Trajectory optimization is knot-based. A B-spline parameterization remains
+deferred because component interpolation is not manifold-safe and cannot
+enforce robot state bounds correctly.
 
 `solve_contact_forces` applies each fitted force at the selected joint origin
 as `[force, torque=0]`. It does not model an arbitrary offset contact point;
@@ -114,8 +112,8 @@ precondition; none is started without an owner decision.
 - **Collision.** The package is a stub. The pending decision is to port a real
   implementation or cut the package; a Torch oracle must exist before any
   collision kernel.
-- **Trajectory representations.** Manifold-safe, bounds-aware B-splines. The
-  shipped Euclidean B-spline basis is a numerical utility only.
+- **Trajectory representations.** Manifold-safe, bounds-aware B-splines. No
+  B-spline task surface ships until that contract is designed.
 - **External benchmarks and infrastructure.** Comparisons against
   cuRobo-class libraries; CI on push and a GPU CI runner; viewer extras such
   as recording and overlay traces.

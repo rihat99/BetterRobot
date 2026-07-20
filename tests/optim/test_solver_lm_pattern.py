@@ -7,10 +7,12 @@ from typing import Any
 
 import pytest
 import torch
+import better_robot.optim.lm as lm_module
 
 from better_robot.io import ModelBuilder, build_model
 from better_robot.optim import (
     GaussNewton,
+    Bounds,
     LevenbergMarquardt,
     OptimizerStatus,
     Problem,
@@ -33,7 +35,6 @@ class _LinearResidual(Residual):
     def jacobian(self) -> tuple[torch.Tensor, ...]:
         x = self.x.tensor
         identity = torch.eye(self.width, dtype=x.dtype, device=x.device)
-        identity = identity.index_select(-1, self.x.free_indices.to(x.device))
         return (identity.expand(*x.shape[:-1], self.width, self.x.free_dim),)
 
 
@@ -78,9 +79,9 @@ class _FixedBaseConfigResidual(Residual):
         return (torch.ones((*q.shape[:-1], 1, 1), dtype=q.dtype, device=q.device),)
 
 
-def _linear_problem(target: torch.Tensor) -> tuple[Variable, Problem]:
+def _linear_problem(target: torch.Tensor, *, bounds: Bounds | None = None) -> tuple[Variable, Problem]:
     batch_ndim = max(target.ndim - 1, 0)
-    x = Variable(torch.zeros_like(target), name="x", batch_ndim=batch_ndim)
+    x = Variable(torch.zeros_like(target), name="x", bounds=bounds, batch_ndim=batch_ndim)
     target_variable = Variable(target, name="target", trainable=False, batch_ndim=batch_ndim)
     return x, Problem([_LinearResidual(x, target_variable)])
 
@@ -121,6 +122,47 @@ def test_private_update_is_pure_and_preserves_state_structure() -> None:
             atol=0.0,
             equal_nan=True,
         )
+
+
+@pytest.mark.parametrize(
+    ("bounds_timing", "expected_calls"),
+    (("none", (1, 0)), ("construction", (2, 1)), ("state_init", (2, 1))),
+)
+def test_projected_gradient_candidate_only_runs_for_bounds(
+    monkeypatch: pytest.MonkeyPatch,
+    bounds_timing: str,
+    expected_calls: tuple[int, int],
+) -> None:
+    calls = {"jvp": 0, "normal_matvec": 0}
+    original = lm_module._linearize_model
+
+    def instrumented(*args, **kwargs):
+        model = original(*args, **kwargs)
+
+        def jvp(vector: torch.Tensor) -> torch.Tensor:
+            calls["jvp"] += 1
+            return model.operators.jvp(vector)
+
+        def normal_matvec(vector: torch.Tensor) -> torch.Tensor:
+            calls["normal_matvec"] += 1
+            return model.operators.normal_matvec(vector)
+
+        return model._replace(operators=lm_module._JacobianOperators(jvp, normal_matvec))
+
+    monkeypatch.setattr(lm_module, "_linearize_model", instrumented)
+    limit = Bounds(torch.tensor([-1.0]), torch.tensor([1.0]))
+    bounds = limit if bounds_timing == "construction" else None
+    x, problem = _linear_problem(torch.tensor([0.5]), bounds=bounds)
+    optimizer = LevenbergMarquardt(problem)
+    if bounds_timing == "state_init":
+        x.bounds = limit
+    values = {"x": x.tensor}
+    state = optimizer._init_state(values, problem)
+    calls.update(jvp=0, normal_matvec=0)
+
+    optimizer._update(values, state, problem)
+
+    assert (calls["jvp"], calls["normal_matvec"]) == expected_calls
 
 
 @pytest.mark.slow

@@ -59,10 +59,8 @@ def _problem(
     q_tensor: torch.Tensor,
     frame_id: int,
     target: torch.Tensor,
-    *,
-    mask: torch.Tensor | None = None,
 ) -> tuple[RobotVariable, Problem]:
-    q = RobotVariable(model, q_tensor.clone(), name="q", mask=mask)
+    q = RobotVariable(model, q_tensor.clone(), name="q")
     residual = PoseResidual(
         q,
         frame_id=frame_id,
@@ -97,35 +95,6 @@ def test_panda_pose_forced_ad_matches_analytic(panda_pose_case, strategy: str) -
     assert forced.dtype == q_tensor.dtype == torch.float32
     assert torch.isfinite(forced).all()
     torch.testing.assert_close(forced, analytic, atol=1e-3, rtol=1e-3)
-
-
-@pytest.mark.parametrize("strategy", ("jacrev", "jacfwd"))
-def test_panda_pose_masked_ad_uses_reduced_columns(panda_pose_case, strategy: str) -> None:
-    model, q_tensor, frame_id, target = panda_pose_case
-    assert model.nv == 8
-    mask = torch.zeros(model.nv, dtype=torch.bool)
-    for joint_name in (
-        "panda_joint1",
-        "panda_joint3",
-        "panda_joint4",
-        "panda_joint6",
-        "panda_joint7",
-    ):
-        joint_id = model.joint_id(joint_name)
-        assert model.nvs[joint_id] == 1
-        mask[model.idx_vs[joint_id]] = True
-    _full_q, full_problem = _problem(model, q_tensor, frame_id, target)
-    _masked_q, masked_problem = _problem(model, q_tensor, frame_id, target, mask=mask)
-
-    full = full_problem.jacobian_blocks(strategy="analytic")[("panda_pose", "q")]
-    analytic = masked_problem.jacobian_blocks(strategy="analytic")[("panda_pose", "q")]
-    forced = masked_problem.jacobian_blocks(strategy=strategy)[("panda_pose", "q")]
-
-    expected = full.index_select(-1, torch.nonzero(mask, as_tuple=False).flatten())
-    assert analytic.shape == forced.shape == (6, int(mask.sum()))
-    assert forced.dtype == q_tensor.dtype == torch.float32
-    torch.testing.assert_close(analytic, expected, atol=0.0, rtol=0.0)
-    torch.testing.assert_close(forced, expected, atol=1e-3, rtol=1e-3)
 
 
 @pytest.mark.parametrize("strategy", ("jacrev", "jacfwd"))

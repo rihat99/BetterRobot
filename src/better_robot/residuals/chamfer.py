@@ -8,7 +8,7 @@ import torch
 
 from .._validation import check_tensor
 from ._point_cloud import _detached_nearest, _validate_clouds
-from ._variables import VariableLike as _VariableLike, value, variables
+from .utils import VariableLike as _VariableLike, value, variables
 from .base import Residual, Weight
 
 

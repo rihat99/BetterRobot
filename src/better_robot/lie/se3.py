@@ -1,4 +1,4 @@
-"""SE3 group operations — pure functional facade over the torch implementation.
+"""SE3 group operations implemented directly with PyTorch tensors.
 
 Storage convention: ``(..., 7)`` tensor ``[tx, ty, tz, qx, qy, qz, qw]``
 (scalar-last quaternion). Tangent vectors are ``(..., 6)``
@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import torch
 
-from . import _impl
 from . import so3
+from .so3 import _hat3, _quat_mul, _quat_to_matrix, _taylor_theta2
 
 
 def identity(
@@ -22,32 +22,81 @@ def identity(
     dtype: torch.dtype = torch.float32,
 ) -> torch.Tensor:
     """Return an SE3 identity with the given leading batch shape."""
-    return _impl.se3_identity(batch_shape, device, dtype)
+    out = torch.zeros((*batch_shape, 7), device=device, dtype=dtype)
+    out[..., 6] = 1.0
+    return out
 
 
 def compose(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     """SE3 composition. ``a: (..., 7), b: (..., 7) → (..., 7)``."""
-    return _impl.se3_compose(a, b)
+    a_t = a[..., :3]
+    a_q = a[..., 3:7]
+    b_t = b[..., :3]
+    b_q = b[..., 3:7]
+    c_t = a_t + so3.act(a_q, b_t)
+    c_q = _quat_mul(a_q, b_q)
+    return torch.cat([c_t, c_q], dim=-1)
 
 
 def inverse(t: torch.Tensor) -> torch.Tensor:
     """SE3 inverse. ``(..., 7) → (..., 7)``."""
-    return _impl.se3_inverse(t)
+    q = t[..., 3:7]
+    q_inv = so3.inverse(q)
+    t_inv = -so3.act(q_inv, t[..., :3])
+    return torch.cat([t_inv, q_inv], dim=-1)
 
 
 def log(t: torch.Tensor) -> torch.Tensor:
     """SE3 → se3 tangent. ``(..., 7) → (..., 6)``."""
-    return _impl.se3_log(t)
+    t_lin = t[..., :3]
+    omega = so3.log(t[..., 3:7])
+    theta2 = (omega * omega).sum(dim=-1, keepdim=True)
+    use_taylor = theta2 < _taylor_theta2(t.dtype)
+    theta2_safe = torch.where(use_taylor, torch.ones_like(theta2), theta2)
+    theta = theta2_safe.sqrt()
+
+    half_theta = theta / 2.0
+    cot_half = torch.cos(half_theta) / torch.sin(half_theta).clamp(min=1e-30)
+    coeff_full = (1.0 / theta2_safe.clamp(min=1e-30)) - cot_half / (2.0 * theta.clamp(min=1e-30))
+    coeff_taylor = (1.0 / 12.0) + theta2 / 720.0
+    coeff = torch.where(use_taylor, coeff_taylor, coeff_full)
+
+    W = _hat3(omega)
+    W2 = W @ W
+    eye3 = torch.eye(3, dtype=t.dtype, device=t.device).expand_as(W)
+    V_inv = eye3 - 0.5 * W + coeff.unsqueeze(-1) * W2
+    v = (V_inv @ t_lin.unsqueeze(-1)).squeeze(-1)
+    return torch.cat([v, omega], dim=-1)
 
 
 def exp(v: torch.Tensor) -> torch.Tensor:
     """se3 tangent → SE3. ``(..., 6) → (..., 7)``."""
-    return _impl.se3_exp(v)
+    linear = v[..., :3]
+    omega = v[..., 3:6]
+    theta2 = (omega * omega).sum(dim=-1, keepdim=True)
+    use_taylor = theta2 < _taylor_theta2(v.dtype)
+    theta2_safe = torch.where(use_taylor, torch.ones_like(theta2), theta2)
+    theta = theta2_safe.sqrt()
+
+    b_full = (1.0 - torch.cos(theta)) / theta2_safe.clamp(min=1e-30)
+    b_taylor = 0.5 - theta2 / 24.0
+    b = torch.where(use_taylor, b_taylor, b_full)
+
+    c_full = (theta - torch.sin(theta)) / (theta * theta2_safe).clamp(min=1e-30)
+    c_taylor = (1.0 / 6.0) - theta2 / 120.0
+    c = torch.where(use_taylor, c_taylor, c_full)
+
+    W = _hat3(omega)
+    W2 = W @ W
+    eye3 = torch.eye(3, dtype=v.dtype, device=v.device).expand_as(W)
+    V = eye3 + b.unsqueeze(-1) * W + c.unsqueeze(-1) * W2
+    t_lin = (V @ linear.unsqueeze(-1)).squeeze(-1)
+    return torch.cat([t_lin, so3.exp(omega)], dim=-1)
 
 
 def act(t: torch.Tensor, p: torch.Tensor) -> torch.Tensor:
     """Apply SE3 to a point. ``t: (..., 7), p: (..., 3) → (..., 3)``."""
-    return _impl.se3_act(t, p)
+    return so3.act(t[..., 3:7], p) + t[..., :3]
 
 
 def adjoint(t: torch.Tensor) -> torch.Tensor:
@@ -55,7 +104,14 @@ def adjoint(t: torch.Tensor) -> torch.Tensor:
 
     Ad(T) = [[R, hat(p)@R], [0, R]] where p=translation, R=rotation.
     """
-    return _impl.se3_adjoint(t)
+    p = t[..., :3]
+    R = _quat_to_matrix(t[..., 3:7])
+    pR = _hat3(p) @ R
+    *batch, _, _ = R.shape
+    zeros33 = torch.zeros(*batch, 3, 3, dtype=t.dtype, device=t.device)
+    top = torch.cat([R, pR], dim=-1)
+    bottom = torch.cat([zeros33, R], dim=-1)
+    return torch.cat([top, bottom], dim=-2)
 
 
 def adjoint_inv(t: torch.Tensor) -> torch.Tensor:
@@ -63,7 +119,15 @@ def adjoint_inv(t: torch.Tensor) -> torch.Tensor:
 
     Ad(T^{-1}) = [[R^T, -(R^T @ hat(p))], [0, R^T]].
     """
-    return _impl.se3_adjoint_inv(t)
+    p = t[..., :3]
+    R = _quat_to_matrix(t[..., 3:7])
+    RT = R.transpose(-1, -2)
+    neg_RT_skew = -(RT @ _hat3(p))
+    *batch, _, _ = R.shape
+    zeros33 = torch.zeros(*batch, 3, 3, dtype=t.dtype, device=t.device)
+    top = torch.cat([RT, neg_RT_skew], dim=-1)
+    bottom = torch.cat([zeros33, RT], dim=-1)
+    return torch.cat([top, bottom], dim=-2)
 
 
 def from_matrix(matrix: torch.Tensor) -> torch.Tensor:
@@ -102,7 +166,9 @@ def to_matrix(t: torch.Tensor) -> torch.Tensor:
 
 def from_axis_angle(axis: torch.Tensor, angle: torch.Tensor) -> torch.Tensor:
     """Pure-rotation SE3 from axis-angle. axis: (...,3), angle: (...,) → (...,7)."""
-    return _impl.se3_from_axis_angle(axis, angle)
+    q = so3.from_axis_angle(axis, angle)
+    zeros = torch.zeros(*angle.shape, 3, device=angle.device, dtype=angle.dtype)
+    return torch.cat([zeros, q], dim=-1)
 
 
 def from_translation(axis: torch.Tensor, disp: torch.Tensor) -> torch.Tensor:
@@ -110,17 +176,23 @@ def from_translation(axis: torch.Tensor, disp: torch.Tensor) -> torch.Tensor:
 
     axis: (3,), disp: (...,) → (..., 7).
     """
-    return _impl.se3_from_translation_axis(axis, disp)
+    trans = disp.unsqueeze(-1) * axis.to(dtype=disp.dtype, device=disp.device)
+    qxyz = torch.zeros(*disp.shape, 3, device=disp.device, dtype=disp.dtype)
+    qw = torch.ones(*disp.shape, 1, device=disp.device, dtype=disp.dtype)
+    return torch.cat([trans, qxyz, qw], dim=-1)
 
 
 def normalize(t: torch.Tensor) -> torch.Tensor:
     """Re-normalize the quaternion part to project back onto SE3."""
-    return _impl.se3_normalize(t)
+    q = t[..., 3:7]
+    q_normed = q / q.norm(dim=-1, keepdim=True).clamp(min=1e-8)
+    return torch.cat([t[..., :3], q_normed], dim=-1)
 
 
 def apply_base(base: torch.Tensor, poses: torch.Tensor) -> torch.Tensor:
     """Compose a base transform with ``(..., N, 7)`` link poses."""
-    return _impl.se3_apply_base(base, poses)
+    base_expanded = base.unsqueeze(-2)
+    return compose(base_expanded.expand(*poses.shape[:-1], 7), poses)
 
 
 def sclerp(

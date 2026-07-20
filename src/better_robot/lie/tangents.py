@@ -18,7 +18,7 @@ import math
 
 import torch
 
-from ._impl import _taylor_theta2
+from .so3 import _taylor_theta2
 
 # ────────────────────────── hat / vee ──────────────────────────────────────
 
@@ -32,11 +32,14 @@ def hat_so3(w: torch.Tensor) -> torch.Tensor:
     """
     z = torch.zeros_like(w[..., 0])
     wx, wy, wz = w[..., 0], w[..., 1], w[..., 2]
-    return torch.stack([
-        torch.stack([ z,  -wz,  wy], dim=-1),
-        torch.stack([ wz,  z,  -wx], dim=-1),
-        torch.stack([-wy,  wx,   z ], dim=-1),
-    ], dim=-2)
+    return torch.stack(
+        [
+            torch.stack([z, -wz, wy], dim=-1),
+            torch.stack([wz, z, -wx], dim=-1),
+            torch.stack([-wy, wx, z], dim=-1),
+        ],
+        dim=-2,
+    )
 
 
 def vee_so3(W: torch.Tensor) -> torch.Tensor:
@@ -52,23 +55,20 @@ def hat_se3(xi: torch.Tensor) -> torch.Tensor:
     """
     v = xi[..., :3]
     w = xi[..., 3:]
-    W = hat_so3(w)        # (..., 3, 3)
+    W = hat_so3(w)  # (..., 3, 3)
     *batch, _, _ = W.shape
     zero_row = torch.zeros(*batch, 1, 3, dtype=xi.dtype, device=xi.device)
-    zero_col = torch.zeros(*batch, 4, 1, dtype=xi.dtype, device=xi.device)
     # Build 4×4: [[W, v.unsqueeze(-1)], [0, 0]]
-    top = torch.cat([W, v.unsqueeze(-1)], dim=-1)       # (..., 3, 4)
-    bot = torch.cat([zero_row, torch.zeros(*batch, 1, 1,
-                                            dtype=xi.dtype, device=xi.device)], dim=-1)  # (..., 1, 4)
-    mat = torch.cat([top, bot], dim=-2)                 # (..., 4, 4)
-    # Attach the zero column for homogeneous form (already done above)
+    top = torch.cat([W, v.unsqueeze(-1)], dim=-1)  # (..., 3, 4)
+    bot = torch.cat([zero_row, torch.zeros(*batch, 1, 1, dtype=xi.dtype, device=xi.device)], dim=-1)  # (..., 1, 4)
+    mat = torch.cat([top, bot], dim=-2)  # (..., 4, 4)
     return mat
 
 
 def vee_se3(X: torch.Tensor) -> torch.Tensor:
     """``(..., 4, 4) → (..., 6)`` — 4×4 homogeneous matrix to se3 tangent."""
-    v = X[..., :3, 3]                              # (..., 3)  translation column
-    w = vee_so3(X[..., :3, :3])                    # (..., 3)  rotation part
+    v = X[..., :3, 3]  # (..., 3)  translation column
+    w = vee_so3(X[..., :3, :3])  # (..., 3)  rotation part
     return torch.cat([v, w], dim=-1)
 
 
@@ -110,10 +110,10 @@ def right_jacobian_so3(omega: torch.Tensor) -> torch.Tensor:
     Jr(phi) = I - A * hat(phi) + B * hat(phi)^2
     where A = (1-cosθ)/θ², B = (θ-sinθ)/θ³, θ = ‖phi‖.
     """
-    theta2 = (omega * omega).sum(dim=-1)          # (...)
+    theta2 = (omega * omega).sum(dim=-1)  # (...)
     A, B = _so3_jac_coefficients(theta2)
-    H = hat_so3(omega)                             # (..., 3, 3)
-    H2 = H @ H                                    # (..., 3, 3)
+    H = hat_so3(omega)  # (..., 3, 3)
+    H2 = H @ H  # (..., 3, 3)
     *batch, _, _ = H.shape
     I3 = torch.eye(3, dtype=omega.dtype, device=omega.device).expand(*batch, 3, 3)
     A = A[..., None, None]
@@ -172,13 +172,13 @@ def _ad_matrix(xi: torch.Tensor) -> torch.Tensor:
     """
     v = xi[..., :3]
     w = xi[..., 3:]
-    Vhat = hat_so3(v)   # (..., 3, 3)
-    What = hat_so3(w)   # (..., 3, 3)
+    Vhat = hat_so3(v)  # (..., 3, 3)
+    What = hat_so3(w)  # (..., 3, 3)
     *batch, _, _ = What.shape
     zeros33 = torch.zeros(*batch, 3, 3, dtype=xi.dtype, device=xi.device)
-    top    = torch.cat([What, Vhat  ], dim=-1)   # (..., 3, 6)
+    top = torch.cat([What, Vhat], dim=-1)  # (..., 3, 6)
     bottom = torch.cat([zeros33, What], dim=-1)  # (..., 3, 6)
-    return torch.cat([top, bottom], dim=-2)       # (..., 6, 6)
+    return torch.cat([top, bottom], dim=-2)  # (..., 6, 6)
 
 
 # ──────────────────────── SE3 Jacobians ──────────────────────────────────
@@ -193,7 +193,7 @@ def right_jacobian_se3(xi: torch.Tensor) -> torch.Tensor:
     Truncated at N=9 (error < machine epsilon for ‖xi‖ < 6).
     """
     *batch, _ = xi.shape
-    ad = _ad_matrix(xi)                            # (..., 6, 6)
+    ad = _ad_matrix(xi)  # (..., 6, 6)
     I6 = torch.eye(6, dtype=xi.dtype, device=xi.device).expand(*batch, 6, 6)
     result = I6.clone()
     ad_power = I6.clone()

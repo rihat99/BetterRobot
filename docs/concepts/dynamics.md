@@ -128,21 +128,11 @@ Ordinary `loss.backward()` therefore differentiates through the calculation.
 The public raw variants accept `ModelStructure` and `ModelValues`, which also
 lets gradients flow to model parameters.
 
-Three convenience functions form complete Jacobians with PyTorch autograd:
-`compute_rnea_derivatives`, `compute_aba_derivatives`, and
-`compute_crba_derivatives`. With batched inputs, their outputs retain both the
-output and input batch axes. Apply them per sample if you want only the
-batch-diagonal blocks.
-
-These helpers favor clarity over the specialized analytic derivative
-recursions found in some C++ libraries. Replacing their implementation later
-does not require changing their public signatures.
-
 ## Configuration integration is not simulation
 
-`integrate_q(model, q, v, dt)` applies the manifold-aware step
-`model.integrate(q, dt * v)`. It updates a configuration geometrically; it
-does not calculate forces, resolve contact, or advance a simulated world.
+`model.integrate(q, dt * v)` applies a manifold-aware configuration step. It
+updates a configuration geometrically; it does not calculate forces, resolve
+contact, or advance a simulated world.
 
 BetterRobot deliberately stops at analysis and optimization. A simulator
 must decide how contacts, actuators, constraints, and time stepping interact.

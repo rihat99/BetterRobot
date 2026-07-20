@@ -11,7 +11,7 @@ import torch
 from .._validation import check_tensor
 from ..data_model.data import Data
 from ..kinematics.jacobian import get_frame_jacobian
-from ._variables import RobotVariableLike as _RobotVariableLike, VariableLike as _VariableLike, value, variables
+from .utils import RobotVariableLike as _RobotVariableLike, VariableLike as _VariableLike, value, variables
 from .base import Residual, Weight
 from .nodes import RobotState, robot_state
 
@@ -104,8 +104,6 @@ class ProjectionResidual(Residual):
         name: str = "projection",
     ) -> None:
         q, state = robot_state(q_or_state)
-        if not callable(getattr(q, "gather_tangent", None)):
-            raise TypeError(f"q must be a RobotVariable-like object, got {type(q).__name__}")
         ids = _normalize_point_ids(point_ids)
         if any(point_id < 0 or point_id >= q.model.nframes for point_id in ids):
             raise ValueError(f"point_ids must index model frame rows in [0, {q.model.nframes})")
@@ -235,7 +233,7 @@ class ProjectionResidual(Residual):
         full = full * multiplier.unsqueeze(-1).unsqueeze(-1)
         full = torch.where(active.unsqueeze(-1).unsqueeze(-1), full, torch.zeros_like(full))
         full = full.reshape(*full.shape[:-3], self.dim, self.model.nv)
-        return (self.q.gather_tangent(full),)
+        return (full,)
 
 
 __all__ = ["ProjectionResidual"]

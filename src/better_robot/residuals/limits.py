@@ -8,11 +8,11 @@ from numbers import Real
 
 import torch
 
-from ._temporal_jacobian import dense_temporal_residual, temporal_free_indices
-from ._variables import (
+from ._temporal_jacobian import dense_temporal_residual
+from .utils import (
     RobotLike,
     RobotVariableLike as _RobotVariable,
-    ShapedVariableLike as _Variable,
+    VariableLike as _Variable,
     current_value,
     matches,
     static_value,
@@ -102,10 +102,8 @@ class JointPositionLimit(Residual):
             dim=-2,
         )
 
-    def _reduced_jacobian_at(self, knot: int) -> torch.Tensor:
-        full = self._full_jacobian_at(knot)
-        indices = temporal_free_indices(self.q, device=full.device)
-        return full.index_select(-1, indices)
+    def _tangent_jacobian_at(self, knot: int) -> torch.Tensor:
+        return self._full_jacobian_at(knot)
 
     def temporal_structure(self, variable: _RobotVariable | str) -> TemporalPattern | None:
         if self.horizon is None or not matches(variable, self.q):
@@ -122,16 +120,15 @@ class JointPositionLimit(Residual):
         if pattern is None:
             return {}
         if self.knot is None:
-            blocks = [self._reduced_jacobian_at(index) for index in range(self.horizon or 0)]
+            blocks = [self._tangent_jacobian_at(index) for index in range(self.horizon or 0)]
             block = torch.stack(blocks, dim=-3)
         else:
-            block = self._reduced_jacobian_at(self.knot).unsqueeze(-3)
+            block = self._tangent_jacobian_at(self.knot).unsqueeze(-3)
         return {0: block}
 
     def jacobian(self) -> tuple[torch.Tensor, ...]:
         if self.horizon is None:
-            full = self._full_jacobian_at(None)
-            return (full.index_select(-1, self.q.free_indices.to(full.device)),)
+            return (self._full_jacobian_at(None),)
         return dense_temporal_residual(self, self.q, self.horizon)
 
 

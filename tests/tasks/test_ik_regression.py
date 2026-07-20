@@ -236,21 +236,6 @@ def test_lm_then_adam_returns_scalar_public_diagnostics(panda) -> None:
     assert isinstance(result.converged, bool)
 
 
-@pytest.mark.parametrize("optimizer", ["lbfgs", "lm_then_lbfgs"])
-def test_solve_ik_defers_named_block_lbfgs(panda, optimizer):
-    frame_name = _ee_frame(panda)
-    target = forward_kinematics(panda, _feasible_q(panda), compute_frames=True).frame_pose_world[
-        panda.frame_id(frame_name)
-    ]
-
-    with pytest.raises(NotImplementedError, match="L-BFGS|deferred|lm_then_adam"):
-        solve_ik(
-            panda,
-            {frame_name: target},
-            optimizer_cfg=OptimizerConfig(optimizer=optimizer),
-        )
-
-
 # ── floating-base (G1) regression ────────────────────────────────────────────
 
 

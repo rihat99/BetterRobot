@@ -11,7 +11,7 @@ import torch
 from .._validation import check_tensor
 from ..data_model.data import Data
 from ._temporal_jacobian import dense_temporal_jacobian
-from ._variables import RobotVariableLike as _RobotVariableLike, VariableLike as _VariableLike, matches, value
+from .utils import RobotVariableLike as _RobotVariableLike, VariableLike as _VariableLike, matches, value
 from .base import Residual, Weight
 from .nodes import RobotState, robot_state
 from .structure import TemporalPattern
@@ -139,7 +139,7 @@ class ContactConsistencyResidual(Residual):
     ) -> Mapping[int, torch.Tensor]:
         if not matches(variable, self.q):
             return {}
-        indices = self.q.temporal_free_indices.to(device=self.q.tensor.device)
+        indices = torch.arange(self.model.nv, device=self.q.tensor.device)
         return self._temporal_blocks(indices)
 
     def jacobian(self) -> tuple[torch.Tensor, ...] | None:
@@ -156,7 +156,7 @@ class ContactConsistencyResidual(Residual):
             self._temporal_blocks(full_indices),
             horizon=self.horizon,
         )
-        return (self.q.gather_tangent(full),)
+        return (full,)
 
 
 __all__ = ["ContactConsistencyResidual"]

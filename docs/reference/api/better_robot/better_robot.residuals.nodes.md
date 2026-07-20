@@ -39,7 +39,7 @@
 
 ### API
 
-`````{py:class} Node(*variables: better_robot.residuals._variables.ValueLike)
+`````{py:class} Node(*variables: better_robot.residuals.utils.ValueLike)
 :canonical: better_robot.residuals.nodes.Node
 
 Bases: {py:obj}`abc.ABC`
@@ -75,7 +75,7 @@ Bases: {py:obj}`abc.ABC`
 
 `````
 
-`````{py:class} RobotState(q: better_robot.residuals._variables.RobotValueLike)
+`````{py:class} RobotState(q: better_robot.residuals.utils.RobotValueLike)
 :canonical: better_robot.residuals.nodes.RobotState
 
 Bases: {py:obj}`better_robot.residuals.nodes.Node`
@@ -96,7 +96,7 @@ Bases: {py:obj}`better_robot.residuals.nodes.Node`
 
 `````
 
-````{py:function} robot_state(value: better_robot.residuals._variables.RobotVariableLike | better_robot.residuals.nodes.RobotState) -> tuple[better_robot.residuals._variables.RobotVariableLike, better_robot.residuals.nodes.RobotState]
+````{py:function} robot_state(value: better_robot.residuals.utils.RobotVariableLike | better_robot.residuals.nodes.RobotState) -> tuple[better_robot.residuals.utils.RobotVariableLike, better_robot.residuals.nodes.RobotState]
 :canonical: better_robot.residuals.nodes.robot_state
 
 ```{autodoc2-docstring} better_robot.residuals.nodes.robot_state

@@ -7,28 +7,21 @@ runtime manageable on CPU.
 
 * ``rnea`` — gradient through the full kinematic chain.
 * ``aba`` — same identity confirmed via ``aba(q, v, rnea(q, v, a)) == a``.
-* ``∂τ/∂a`` from ``compute_rnea_derivatives`` matches ``crba`` to fp64.
+* ``∂τ/∂a`` from autograd matches ``crba`` to fp64.
 """
 
 from __future__ import annotations
 
-import numpy as np
 import pytest
 import torch
 
 import better_robot as br
-from better_robot.dynamics import (
-    aba,
-    compute_aba_derivatives,
-    compute_rnea_derivatives,
-    crba,
-    rnea,
-)
+from better_robot.dynamics import aba, crba, rnea
 
 
 def _panda():
     pytest.importorskip("robot_descriptions")
-    from robot_descriptions import panda_description
+    from robot_descriptions import panda_description  # noqa: PLC0415
 
     return br.load(panda_description.URDF_PATH, dtype=torch.float64)
 
@@ -67,7 +60,10 @@ def test_dtau_da_matches_crba():
     v = torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1
     a = torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1
 
-    _, _, dtau_da = compute_rnea_derivatives(model, model.create_data(), q, v, a)
+    dtau_da = torch.autograd.functional.jacobian(
+        lambda acceleration: rnea(model, q, v, acceleration),
+        a,
+    )
     M = crba(model, q)
     torch.testing.assert_close(dtau_da, M, rtol=1e-10, atol=1e-10)
 
@@ -80,7 +76,10 @@ def test_dadtau_matches_minverse():
     v = torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1
     tau = torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1
 
-    _, _, da_dtau = compute_aba_derivatives(model, model.create_data(), q, v, tau)
+    da_dtau = torch.autograd.functional.jacobian(
+        lambda torque: aba(model, q, v, torque),
+        tau,
+    )
     M = crba(model, q)
     M_inv = torch.linalg.inv(M)
     torch.testing.assert_close(da_dtau, M_inv, rtol=1e-9, atol=1e-9)

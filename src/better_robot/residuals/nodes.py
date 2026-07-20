@@ -1,4 +1,4 @@
-"""Evaluation-epoch computation nodes shared by object-referenced residuals."""
+"""Evaluation-scoped computation nodes shared by object-referenced residuals."""
 
 from __future__ import annotations
 
@@ -6,11 +6,11 @@ from abc import ABC, abstractmethod
 from typing import Any, cast
 
 from ..kinematics.forward import forward_kinematics
-from ._variables import RobotLike, RobotValueLike, RobotVariableLike, ValueLike
+from .utils import RobotLike, RobotValueLike, RobotVariableLike, ValueLike
 
 
 class Node(ABC):
-    """A lazy value whose graph-bearing memo is scoped to one evaluation epoch."""
+    """A lazy value whose graph-bearing memo is scoped to one evaluation."""
 
     def __init__(self, *variables: ValueLike) -> None:
         if any(not isinstance(variable, ValueLike) for variable in variables):
@@ -19,8 +19,7 @@ class Node(ABC):
         self.variables = tuple(dict.fromkeys(variables))
         self._memo: Any = None
         self._has_memo = False
-        self._epoch = -1
-        self._evaluation_depth = 0
+        self._evaluation_depth = False
         self._memo_owner: Node = self
 
     @property
@@ -31,28 +30,29 @@ class Node(ABC):
     def _share_with(self, canonical: "Node") -> None:
         self._memo_owner = canonical._memo_owner
 
-    def _invalidate(self, epoch: int) -> None:
+    def _invalidate(self) -> None:
         owner = self._memo_owner
-        owner._epoch = epoch
         owner._memo = None
         owner._has_memo = False
 
-    def _begin_evaluation(self, epoch: int) -> None:
+    def _begin_evaluation(self) -> bool:
         owner = self._memo_owner
-        self._invalidate(epoch)
-        owner._evaluation_depth += 1
+        nested = owner._evaluation_depth
+        self._invalidate()
+        owner._evaluation_depth = True
+        return nested
 
-    def _end_evaluation(self, epoch: int) -> None:
+    def _end_evaluation(self, nested: bool) -> None:
         owner = self._memo_owner
-        if owner._evaluation_depth <= 0:
+        if not owner._evaluation_depth:
             raise RuntimeError("Node evaluation scope underflow")
-        self._invalidate(epoch)
-        owner._evaluation_depth -= 1
+        self._invalidate()
+        owner._evaluation_depth = nested
 
     def value(self):
         """Return a fresh standalone value or the active evaluation's memo."""
         owner = self._memo_owner
-        if owner._evaluation_depth == 0:
+        if not owner._evaluation_depth:
             return owner.compute()
         if not owner._has_memo:
             owner._memo = owner.compute()
@@ -82,7 +82,7 @@ class RobotState(Node):
 
     @property
     def merge_key(self) -> tuple[object, ...]:
-        return (RobotState, id(self.q), id(self.model))
+        return (RobotState, id(self.q))
 
     def compute(self):
         return forward_kinematics(self.model, self.q.tensor, compute_frames=True)

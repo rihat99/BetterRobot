@@ -9,7 +9,6 @@ import torch
 
 from better_robot.optim import Problem, Residual, TemporalPattern, Variable
 from better_robot.optim.temporal import BlockBandedMatrix, LinearizationReason
-from better_robot.residuals._temporal_jacobian import temporal_free_indices
 
 
 class _DifferenceResidual(Residual):
@@ -37,9 +36,8 @@ class _DifferenceResidual(Residual):
         if variable is not self.x and variable != self.x.name:
             return {}
         value = self.x.tensor
-        indices = temporal_free_indices(self.x, device=value.device)
-        identity = torch.eye(self.width, dtype=value.dtype, device=value.device).index_select(-1, indices)
-        block = identity.expand(*value.shape[:-2], self.horizon - 1, self.width, indices.numel())
+        identity = torch.eye(self.width, dtype=value.dtype, device=value.device)
+        block = identity.expand(*value.shape[:-2], self.horizon - 1, self.width, self.width)
         anchor = value.sum(dim=(-2, -1)) * 0.0
         block = block + anchor[..., None, None, None]
         return {0: -block, 1: block}
@@ -70,13 +68,8 @@ class _UndeclaredResidual(Residual):
         return self.x.tensor[..., :, 0]
 
 
-def _problem(*, horizon: int = 5, width: int = 3, mask: torch.Tensor | None = None) -> Problem:
-    x = Variable(
-        torch.zeros(horizon, width),
-        name="x",
-        mask=mask,
-        time_axis=0,
-    )
+def _problem(*, horizon: int = 5, width: int = 3) -> Problem:
+    x = Variable(torch.zeros(horizon, width), name="x", time_axis=0)
     problem = Problem([_DifferenceResidual(x)])
     problem.error()
     return problem
@@ -113,21 +106,6 @@ def test_cached_analysis_keeps_zero_weight_and_requires_numeric_blocks() -> None
     assert zero_problem.temporal_analysis.reason is LinearizationReason.UNDECLARED_TEMPORAL_RESIDUAL
 
 
-def test_nonseparable_mask_falls_back_but_separable_mask_exposes_local_indices() -> None:
-    horizon, width = 4, 3
-    separable = torch.tensor([True, False, True]).repeat(horizon)
-    problem = _problem(horizon=horizon, width=width, mask=separable)
-    assert problem.temporal_analysis.direct_eligible
-    assert problem.temporal_analysis.reduced_width == 2
-    torch.testing.assert_close(problem.vars[0].temporal_free_indices, torch.tensor([0, 2]))
-
-    nonseparable = separable.clone()
-    nonseparable[width + 1] = True
-    fallback = _problem(horizon=horizon, width=width, mask=nonseparable)
-    assert not fallback.temporal_analysis.direct_eligible
-    assert fallback.temporal_analysis.reason is LinearizationReason.NONSEPARABLE_MASK
-
-
 @pytest.mark.parametrize("batch_shape", [(), (2,)])
 def test_structured_normal_matches_dense_jacobian_and_flat_operators(batch_shape: tuple[int, ...]) -> None:
     torch.manual_seed(11)
@@ -161,16 +139,14 @@ def test_structured_normal_matches_dense_jacobian_and_flat_operators(batch_shape
     torch.testing.assert_close(structured.normal.matvec(vector), structured.normal_matvec(vector))
 
 
-def test_block_banded_scaled_restricted_matches_dense_oracle() -> None:
+def test_block_banded_restricted_matches_dense_oracle() -> None:
     torch.manual_seed(3)
     raw = torch.randn(2, 4, 2, 3, 3)
     bands = BlockBandedMatrix(raw, bandwidth=1)
-    scale = torch.linspace(0.5, 1.5, 12)
     movable = torch.randint(0, 2, (2, 12)).to(dtype=raw.dtype)
     diagonal = torch.linspace(0.1, 0.4, 12).expand(2, 12)
-    transformed = bands.scaled_restricted(scale, movable, diagonal)
+    transformed = bands.restricted(movable, diagonal)
 
-    factor = scale * movable
-    expected = factor.unsqueeze(-1) * bands.densify() * factor.unsqueeze(-2)
+    expected = movable.unsqueeze(-1) * bands.densify() * movable.unsqueeze(-2)
     expected = expected + torch.diag_embed(diagonal)
     torch.testing.assert_close(transformed.densify(), expected)

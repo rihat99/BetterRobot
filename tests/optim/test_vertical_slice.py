@@ -8,17 +8,14 @@
    marked testcode fence in ``docs/guides/custom_residual.md``; it is not copied.
 4. **Scale prior:** ``ScalePriorResidual`` is an ordinary one-row residual
    and optimized by the first-order loop.
-5. **Masks:** the root phase retains one q coordinate per frame; the full phase
-   rebuild retains every q tangent coordinate, proving elimination semantics.
-6. **Batching:** B=3 residuals and gradients are compared with three sequential
+5. **Batching:** B=3 residuals and gradients are compared with three sequential
    evaluations using fixed fp32 tolerances.
-7. **Phase transition:** two manual Adam segments use different weight columns
-   and q masks, with no library solver or Phase abstraction.
+6. **Phase transition:** two manual Adam segments use different weight columns,
+   with no library solver or Phase abstraction.
 
-Friction log (resolved in test-local integration): Variable masks are static, so
-the manual transition cheaply rebuilds Problem while copying owned tensors;
-TorchOptimizer drives persistent Adam state over rebased reduced tangents; shared
-Node objects own evaluation-epoch memos.
+Friction log (resolved in test-local integration): the manual transition rebuilds
+the Problem while copying owned tensors; TorchOptimizer drives persistent Adam
+state, and shared Node objects own evaluation-scoped memos.
 """
 
 from __future__ import annotations
@@ -70,7 +67,7 @@ def test_marked_guide_residual_and_provider_evaluation_counts() -> None:
     assert len(FRICTION_LOG) == 3
 
     data = make_slice_data()
-    problem, counters = make_problem(data, root_only=False, weights=FULL_WEIGHTS)
+    problem, counters = make_problem(data, weights=FULL_WEIGHTS)
 
     residual = problem.error()
     assert residual.shape == (TIME * POINTS * (COORDS + 2) + 1,)
@@ -86,7 +83,6 @@ def test_marked_guide_residual_and_provider_evaluation_counts() -> None:
 
     inactive_problem, inactive = make_problem(
         data,
-        root_only=False,
         weights=PROVIDER_INACTIVE_WEIGHTS,
     )
     inactive_problem.error()
@@ -100,7 +96,6 @@ def test_batched_residual_and_gradient_match_three_sequential_evaluations() -> N
     batched_values = make_batched_values(data)
     problem, counters = make_problem(
         data,
-        root_only=False,
         values=batched_values,
         weights=FULL_WEIGHTS,
     )
@@ -117,7 +112,6 @@ def test_batched_residual_and_gradient_match_three_sequential_evaluations() -> N
         sequential = {name: value[index] for name, value in batched_values.items()}
         sequential_problem, _ = make_problem(
             data,
-            root_only=False,
             values=sequential,
             weights=FULL_WEIGHTS,
         )
@@ -143,7 +137,6 @@ def test_batched_jacobians_keep_shared_slice_parameters_intact() -> None:
     batched_values = make_batched_values(data)
     problem, _ = make_problem(
         data,
-        root_only=False,
         values=batched_values,
         weights=FULL_WEIGHTS,
     )
@@ -154,7 +147,6 @@ def test_batched_jacobians_keep_shared_slice_parameters_intact() -> None:
             sequential_values = {name: value[index] for name, value in batched_values.items()}
             sequential_problem, _ = make_problem(
                 data,
-                root_only=False,
                 values=sequential_values,
                 weights=FULL_WEIGHTS,
             )
@@ -169,36 +161,33 @@ def test_batched_jacobians_keep_shared_slice_parameters_intact() -> None:
                 )
 
 
-def test_manual_root_to_full_phase_transition_converges() -> None:
+def test_manual_weight_phase_transition_converges() -> None:
     torch.manual_seed(20260717)
     data = make_slice_data()
     counters = SliceCounters()
-    root_problem, _ = make_problem(
+    first_problem, _ = make_problem(
         data,
-        root_only=True,
         counters=counters,
         weights=ROOT_WEIGHTS,
     )
     full_problem, _ = make_problem(
         data,
-        root_only=False,
         counters=counters,
         weights=FULL_WEIGHTS,
     )
     values = data.initial_values()
-    root_problem._freeze()
+    first_problem._freeze()
     full_problem._freeze()
 
-    assert root_problem.vars[0].free_dim == TIME
+    assert first_problem.vars[0].free_dim == TIME * COORDS
     assert full_problem.vars[0].free_dim == TIME * COORDS
-    assert root_problem.vars[0].free_indices.tolist() != full_problem.vars[0].free_indices.tolist()
     assert ROOT_WEIGHTS != FULL_WEIGHTS
 
     initial_loss = full_problem.objective()
     root_iterations = 45
     full_iterations = 90
     values = _run_adam_segment(
-        root_problem,
+        first_problem,
         values,
         iterations=root_iterations,
         learning_rate=0.04,

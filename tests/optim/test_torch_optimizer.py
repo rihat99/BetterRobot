@@ -9,8 +9,8 @@ from better_robot.lie import so3
 from better_robot.optim import Bounds, Problem, SO3Variable, TorchOptimizer, Variable, residual
 
 
-def _target_problem(target: torch.Tensor, *, mask=None, bounds=None):
-    value = Variable(torch.zeros_like(target), name="x", mask=mask, bounds=bounds)
+def _target_problem(target: torch.Tensor, *, bounds=None):
+    value = Variable(torch.zeros_like(target), name="x", bounds=bounds)
 
     @residual(value, dim=target.shape[-1])
     def target_error(current: torch.Tensor) -> torch.Tensor:
@@ -52,12 +52,12 @@ def test_generic_torch_optimizer_classes_solve_without_jacobians(
     torch.testing.assert_close(info.cost, problem.objective())
 
 
-def test_retraction_enforces_masks_bounds_and_group_projection() -> None:
-    target = torch.tensor([0.9, 0.8, -0.9])
+def test_retraction_enforces_bounds_and_group_projection() -> None:
+    target = torch.tensor([0.9, 2.0, -0.9])
     bounds = Bounds(torch.tensor([-0.2, -1.0, -0.3]), torch.tensor([0.2, 1.0, 0.3]))
-    value, problem = _target_problem(target, mask=torch.tensor([True, False, True]), bounds=bounds)
+    value, problem = _target_problem(target, bounds=bounds)
     TorchOptimizer(problem, torch.optim.SGD, lr=0.2, max_iterations=12).optimize()
-    torch.testing.assert_close(value.tensor, torch.tensor([0.2, 0.0, -0.3]), rtol=0.0, atol=1e-7)
+    torch.testing.assert_close(value.tensor, torch.tensor([0.2, 1.0, -0.3]), rtol=0.0, atol=1e-7)
 
     rotation_target = torch.tensor([0.2, -0.1, 0.15])
     rotation = SO3Variable(torch.tensor([0.0, 0.0, 0.0, 1.0]), name="rotation")

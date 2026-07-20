@@ -1,4 +1,4 @@
-"""Evaluation-epoch node memoization and dependency contracts."""
+"""Evaluation-scoped node memoization and dependency contracts."""
 
 from __future__ import annotations
 
@@ -68,7 +68,7 @@ def test_standalone_node_value_is_fresh_and_does_not_retain_a_memo() -> None:
     assert node._memo is None
 
 
-def test_explicit_node_memo_is_once_per_epoch_and_released_afterward() -> None:
+def test_explicit_node_memo_is_once_per_evaluation_and_released_afterward() -> None:
     x = Variable(torch.tensor([1.0]), name="x")
     node = _ScaleNode(x)
     problem = Problem([_NodeResidual(node, name=f"consumer_{index}") for index in range(3)])
@@ -102,7 +102,7 @@ def test_nested_problem_evaluation_restores_the_outer_memo_scope() -> None:
         torch.testing.assert_close(node.value(), torch.tensor([2.0]))
         assert node.calls == 3
 
-    assert node._evaluation_depth == 0
+    assert not node._evaluation_depth
     assert not node._has_memo
     assert node._memo is None
 

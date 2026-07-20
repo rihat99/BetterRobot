@@ -78,10 +78,7 @@ def _make_tangent_envelope_residual(
 ) -> Any:
     """Build the benchmark-only v2 envelope residual without eager package imports."""
     from better_robot.optim import Residual  # noqa: PLC0415
-    from better_robot.residuals._temporal_jacobian import (  # noqa: PLC0415
-        dense_temporal_jacobian,
-        temporal_free_indices,
-    )
+    from better_robot.residuals._temporal_jacobian import dense_temporal_jacobian  # noqa: PLC0415
     from better_robot.residuals.structure import TemporalPattern  # noqa: PLC0415
 
     class TrajectoryTangentEnvelopeResidual(Residual):
@@ -140,9 +137,8 @@ def _make_tangent_envelope_residual(
                 return {}
             value = self._trajectory()
             delta, width = self._delta()
-            indices = temporal_free_indices(self.q, device=value.device)
-            lower = -torch.diag_embed((delta < -width).to(dtype=value.dtype)).index_select(-1, indices)
-            upper = torch.diag_embed((delta > width).to(dtype=value.dtype)).index_select(-1, indices)
+            lower = -torch.diag_embed((delta < -width).to(dtype=value.dtype))
+            upper = torch.diag_embed((delta > width).to(dtype=value.dtype))
             block = torch.cat((lower, upper), dim=-2)
             # Preserve the explicit-unroll graph contract with a mathematically
             # zero anchor; the active-set indicators remain piecewise constant.

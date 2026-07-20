@@ -36,7 +36,7 @@ Bases: {py:obj}`better_robot.residuals.base.Residual`
 
 ````
 
-````{py:method} temporal_structure(variable: better_robot.residuals._variables.TemporalVariableLike | str) -> better_robot.residuals.structure.TemporalPattern | None
+````{py:method} temporal_structure(variable: better_robot.residuals.utils.RobotVariableLike | str) -> better_robot.residuals.structure.TemporalPattern | None
 :canonical: better_robot.residuals.temporal.TimeIndexedResidual.temporal_structure
 
 ```{autodoc2-docstring} better_robot.residuals.temporal.TimeIndexedResidual.temporal_structure
@@ -44,7 +44,7 @@ Bases: {py:obj}`better_robot.residuals.base.Residual`
 
 ````
 
-````{py:method} temporal_jacobian_blocks(variable: better_robot.residuals._variables.TemporalVariableLike | str) -> collections.abc.Mapping[int, torch.Tensor]
+````{py:method} temporal_jacobian_blocks(variable: better_robot.residuals.utils.RobotVariableLike | str) -> collections.abc.Mapping[int, torch.Tensor]
 :canonical: better_robot.residuals.temporal.TimeIndexedResidual.temporal_jacobian_blocks
 
 ```{autodoc2-docstring} better_robot.residuals.temporal.TimeIndexedResidual.temporal_jacobian_blocks

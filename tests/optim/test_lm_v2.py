@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import torch
 
-from better_robot.optim import LevenbergMarquardt, Problem, Variable, residual
-from better_robot.optim.manifolds import Bounds
+from better_robot.optim import Bounds, LevenbergMarquardt, Problem, Variable, residual
 from better_robot.optim.optimizers import OptimizerStatus
-from better_robot.optim.solvers import LU
 
 
 def _difference_problem(initial: torch.Tensor, target: torch.Tensor, *, bounds=None, batch_ndim: int = 0):
@@ -83,12 +81,3 @@ def test_problem_update_refreshes_status_and_solves_new_batch() -> None:
     assert variable.tensor.shape == (4, 1)
     torch.testing.assert_close(variable.tensor, torch.ones(4, 1), rtol=2e-5, atol=2e-5)
     assert bool(info.converged.all())
-
-
-def test_lu_is_accepted_as_the_dense_linear_solver() -> None:
-    variable, problem = _difference_problem(torch.tensor([0.0, 0.0]), torch.tensor([1.0, -1.0]))
-
-    info = LevenbergMarquardt(problem, solver=LU(), max_iterations=20).optimize()
-
-    torch.testing.assert_close(variable.tensor, torch.tensor([1.0, -1.0]), rtol=2e-5, atol=2e-5)
-    assert bool(info.converged)

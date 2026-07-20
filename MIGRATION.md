@@ -101,3 +101,25 @@ surface changed again.
 | The `ContactConsistencyResidual(..., angular=...)` parameter | Contact consistency currently covers Cartesian linear velocity only. |
 | `ModelValues.execution_batch_shape` | No public replacement is needed; execution batching is derived internally after model-value validation. |
 | Tuple/`NamedTuple` behavior of `CCRBAResult` | Use the frozen dataclass fields `.centroidal_map` and `.momentum`; tuple unpacking is removed. |
+
+## Removed by the simplification pass
+
+| Removed surface | Replacement |
+|---|---|
+| `better_robot.dynamics.derivatives` | Differentiate `rnea`, `aba`, or `crba` directly with PyTorch autograd when a complete Jacobian is needed. |
+| `better_robot.dynamics.compute_rnea_derivatives`, `better_robot.dynamics.derivatives.compute_rnea_derivatives` | Differentiate `rnea` directly with PyTorch autograd. |
+| `better_robot.dynamics.compute_aba_derivatives`, `better_robot.dynamics.derivatives.compute_aba_derivatives` | Differentiate `aba` directly with PyTorch autograd. |
+| `better_robot.dynamics.compute_crba_derivatives`, `better_robot.dynamics.derivatives.compute_crba_derivatives` | Differentiate `crba` directly with PyTorch autograd. |
+| `better_robot.dynamics.integrate_q`, `better_robot.dynamics.integrators.integrate_q`, and `better_robot.dynamics.integrators` | Call `model.integrate(q, dt * v)`. |
+| `better_robot.tasks.parameterization.TrajectoryParameterization` and `better_robot.tasks.parameterization` | Pass a trajectory tensor or `RobotVariable(..., time_axis=0)` directly to `solve_trajopt`. |
+| `better_robot.tasks.parameterization.KnotTrajectory` | Pass the knot trajectory tensor or `RobotVariable` directly to `solve_trajopt`. |
+| `better_robot.tasks.parameterization.BSplineTrajectory` | No replacement ships; manifold-safe B-spline trajectory parameterization remains deferred. |
+| `solve_trajopt(..., parameterization=...)` | Omit the argument; `solve_trajopt` operates directly on knots. |
+| `OptimizerConfig(optimizer="lbfgs")` and `OptimizerConfig(optimizer="lm_then_lbfgs")` | Use `"adam"` or `"lm_then_adam"`, or own a `torch.optim.LBFGS` loop explicitly. |
+| `LevenbergMarquardt(..., block_step_limits=...)` | Express application-specific step policy outside the solver; bounds remain available for state feasibility. |
+| `better_robot.optim.LU` and `better_robot.optim.solvers.LU` | Use `Cholesky` for dense SPD normal systems. |
+| `Variable(..., mask=..., scale=...)` and `RobotVariable(..., mask=..., scale=...)` | Optimize the complete tangent block; represent fixed quantities as static variables and normalize residual units explicitly. |
+| `Variable.free_indices`, `free_scale`, `gather_tangent`, `expand_tangent`, `temporal_free_indices`, and `temporal_reduced_width` | Tangent layouts are complete; use `tangent_dim()` or `temporal_tangent_width`. |
+| `better_robot.optim.manifolds.Bounds` | Import `Bounds` from `better_robot.optim` or `better_robot.optim.variables`. |
+| `LinearizationReason.NONSEPARABLE_MASK` and `TemporalAnalysis.reduced_width` | Tangent masks no longer participate in temporal analysis; inspect `tangent_width`. |
+| `BlockBandedMatrix.scaled_restricted` | Use `BlockBandedMatrix.restricted`; normalize residuals rather than variable steps. |

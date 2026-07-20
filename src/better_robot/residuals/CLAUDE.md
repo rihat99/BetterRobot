@@ -9,10 +9,10 @@ kernel, group size, and ordered variable references. Missing analytic blocks
 use the `Problem` Jacobian strategy; finite differences remain an explicit
 debug choice.
 
-`jacobian()` returns a tuple of complete reduced-tangent blocks ordered like
+`jacobian()` returns a tuple of complete tangent blocks ordered like
 the residual's trainable variable dependencies. A residual with shared work
 lists its `Node` objects in `nodes`. Nodes own their input variables and cache
-graph-bearing results for one evaluation epoch only. `RobotState` is the
+graph-bearing results for one evaluation scope only. `RobotState` is the
 standard lazy FK node; equivalent nodes over the same robot variable merge
 when the problem freezes.
 
@@ -29,7 +29,7 @@ A structured residual implements both optional hooks:
 - `temporal_structure(variable) -> TemporalPattern | None` declares support
   without inspecting tensor values;
 - `temporal_jacobian_blocks(variable)` returns `offset -> Tensor` with shape
-  `(B..., rows, row_width, reduced_width_per_knot)`.
+  `(B..., rows, row_width, tangent_width_per_knot)`.
 
 Numeric blocks contain only the raw residual derivative. The residual's
 `weight` and robust row scaling are applied once by `Problem`. A declaration
@@ -80,7 +80,7 @@ projection kernels such as Geman–McClure.
 6. Record detached choices such as nearest-neighbour indices in the docstring
    and test that gradients reach only selected continuous values.
 7. Put shared FK, dynamics, or NN work in a `Node` and add a counting test for
-   one computation per evaluation epoch.
+   one computation per evaluation scope.
 8. For time-local support, test dense blocks, JVP, VJP, normal bands, arbitrary
    leading batches, and short-horizon constructor failures. Never infer
    support from numerical zeros.

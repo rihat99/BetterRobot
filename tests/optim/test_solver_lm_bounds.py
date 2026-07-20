@@ -49,7 +49,7 @@ class _CoupledLinearResidual(Residual):
 
     def jacobian(self) -> tuple[torch.Tensor, ...]:
         x = self.x.tensor
-        matrix = _A.to(dtype=x.dtype, device=x.device).index_select(-1, self.x.free_indices.to(x.device))
+        matrix = _A.to(dtype=x.dtype, device=x.device)
         return (matrix.expand(*x.shape[:-1], 2, self.x.free_dim),)
 
 
@@ -83,7 +83,6 @@ class _RobotTangentTargetResidual(Residual):
     def jacobian(self) -> tuple[torch.Tensor, ...]:
         q = self.q.tensor
         identity = torch.eye(self.model.nv, dtype=q.dtype, device=q.device)
-        identity = identity.index_select(-1, self.q.free_indices.to(q.device))
         return (identity.expand(*q.shape[:-1], self.model.nv, self.q.free_dim),)
 
 

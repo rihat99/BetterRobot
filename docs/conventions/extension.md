@@ -35,7 +35,7 @@ and declares:
 | `dim` | fixed number of output rows |
 | `weight`, `kernel`, `group_size` | row scaling and robust grouping |
 | `error()` | returns `(B..., dim)` |
-| `jacobian()` | optional complete reduced-tangent blocks |
+| `jacobian()` | optional complete tangent blocks |
 
 For example:
 
@@ -158,7 +158,7 @@ print(DenseSolver().solve(A, b).tolist())
 `supported_systems`. A solver that accepts block-banded storage declares
 `supported_systems = frozenset({"banded"})` or both supported forms.
 
-The built-ins are dense `Cholesky`, dense `LU`, and `BandedCholesky`. Do not
+The built-ins are dense `Cholesky` and `BandedCholesky`. Do not
 claim a rank-deficient fallback unless the implementation and result
 diagnostics prove it.
 
@@ -229,9 +229,8 @@ reasoning is in {doc}`/concepts/the_compute_seam`.
 
 - Collision distance and robot collision queries are not implemented. See
   {doc}`/reference/collision_and_geometry`.
-- `BSplineTrajectory` is a Euclidean numerical utility. Robot trajectory
-  optimization currently accepts `KnotTrajectory` because manifold
-  interpolation and bound handling need a larger contract.
+- B-spline robot trajectory parameterization remains deferred because
+  manifold interpolation and bound handling need a larger contract.
 - No actuator or muscle protocol is shipped. External code can form actuator
   torque and pass it to dynamics explicitly.
 - `Model`, `Data`, pose storage, and the package dependency direction are

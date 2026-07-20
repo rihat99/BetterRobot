@@ -235,32 +235,18 @@ def make_slice_data() -> SliceData:
     )
 
 
-def q_mask(*, root_only: bool) -> torch.Tensor:
-    """Return BVR-like root-only or full tangent activity for the q block."""
-    mask = torch.ones(TIME, COORDS, dtype=torch.bool)
-    if root_only:
-        mask[:, 1] = False
-    return mask.flatten()
-
-
 def make_problem(
     data: SliceData,
     *,
-    root_only: bool,
     counters: SliceCounters | None = None,
     values: Mapping[str, torch.Tensor] | None = None,
     weights: Mapping[str, float] = FULL_WEIGHTS,
 ) -> tuple[Problem, SliceCounters]:
-    """Build one phase's problem; rebuilding is the M2a mask transition."""
+    """Build one phase's problem with caller-selected residual weights."""
     counters = counters or SliceCounters()
     initial = data.initial_values() if values is None else dict(values)
     q_value, log_s_value = initial["q"], initial["log_s"]
-    q = Variable(
-        q_value,
-        name="q",
-        mask=q_mask(root_only=root_only),
-        batch_ndim=q_value.ndim - 2,
-    )
+    q = Variable(q_value, name="q", batch_ndim=q_value.ndim - 2)
     log_s = Variable(log_s_value, name="log_s", batch_ndim=log_s_value.ndim - 1)
     kinematics = SyntheticKinematicsNode(q, counters)
     nearest = DetachedNearestNeighborNode(
@@ -319,5 +305,4 @@ __all__ = [
     "make_batched_values",
     "make_problem",
     "make_slice_data",
-    "q_mask",
 ]

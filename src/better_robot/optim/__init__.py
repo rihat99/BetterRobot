@@ -7,9 +7,8 @@ from ..residuals.structure import TemporalPattern
 from .implicit import ImplicitDiffConfig, ImplicitDifferentiationError
 from .kernels import Cauchy, GemanMcClure, Huber, L2, RobustKernel, Tukey
 from .lm import GaussNewton, LevenbergMarquardt, LinearizationDecision, LinearizationMode
-from .manifolds import Bounds
 from .optimizers import Optimizer, OptimizerInfo, OptimizerStatus, TorchOptimizer
-from .problem import JacobianStrategy, Problem
+from .problem import AutodiffFallbackWarning, JacobianStrategy, Problem
 from .solvers import (
     BandedCholesky,
     Cholesky,
@@ -18,10 +17,9 @@ from .solvers import (
     LinearSolveStatus,
     LinearSolver,
     LinearSystem,
-    LU,
 )
 from .temporal import BlockBandedMatrix, LinearizationReason, StructuredNormal, TemporalAnalysis
-from .variables import RobotVariable, SE3Variable, SO3Variable, Variable
+from .variables import Bounds, RobotVariable, SE3Variable, SO3Variable, Variable
 
 __all__ = [
     "Bounds",
@@ -43,7 +41,6 @@ __all__ = [
     "LinearSolveResult",
     "LinearSolveStatus",
     "Cholesky",
-    "LU",
     "BandedCholesky",
     "BlockBandedMatrix",
     "Variable",
@@ -56,6 +53,7 @@ __all__ = [
     "LinearizationMode",
     "LinearizationReason",
     "LinearizationDecision",
+    "AutodiffFallbackWarning",
     "Problem",
     "JacobianStrategy",
     "Optimizer",

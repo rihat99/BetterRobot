@@ -29,11 +29,11 @@ def model():
     return build_model(builder.finalize(), dtype=torch.float64)
 
 
-def _trajectory(model, *, mask: torch.Tensor | None = None) -> RobotVariable:
+def _trajectory(model) -> RobotVariable:
     horizon = 5
     tangent = torch.linspace(-0.08, 0.08, horizon * model.nv, dtype=torch.float64).reshape(horizon, model.nv)
     tensor = model.integrate(model.q_neutral.expand(horizon, -1), tangent)
-    return RobotVariable(model, tensor, name="q", time_axis=0, mask=mask)
+    return RobotVariable(model, tensor, name="q", time_axis=0)
 
 
 @pytest.mark.parametrize(
@@ -67,16 +67,6 @@ def test_reference_trajectory_uses_static_variable_and_central_weight(model) -> 
     torch.testing.assert_close(residual.error(), torch.zeros_like(residual.error()))
     torch.testing.assert_close(residual.weighted_error(), residual.error() * 0.3)
     assert residual.jacobian()[0].shape == (q.time_length * model.nv, q.free_dim)
-
-
-def test_temporal_mask_reduces_one_coordinate_per_knot(model) -> None:
-    mask = torch.tensor([False, True] * 5)
-    q = _trajectory(model, mask=mask)
-    residual = VelocityResidual(q, dt=0.2)
-    blocks = residual.temporal_jacobian_blocks("q")
-
-    assert all(block.shape[-1] == 1 for block in blocks.values())
-    assert residual.jacobian()[0].shape[-1] == q.time_length
 
 
 def test_rest_residual_reads_static_reference_object(model) -> None:

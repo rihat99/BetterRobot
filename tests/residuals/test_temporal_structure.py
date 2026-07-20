@@ -71,10 +71,9 @@ def _robot_trajectory(
     model,
     tensor: torch.Tensor,
     *,
-    mask: torch.Tensor | None = None,
     name: str = "q",
 ) -> RobotVariable:
-    return RobotVariable(model, tensor, name=name, time_axis=0, mask=mask)
+    return RobotVariable(model, tensor, name=name, time_axis=0)
 
 
 def _trajectory_residual(model, q: RobotVariable, kind: str):
@@ -122,20 +121,6 @@ def test_smoothness_and_reference_named_blocks_match_dense_oracle(
     )
     densified = dense_temporal_jacobian(expected, temporal, horizon=5)
     torch.testing.assert_close(residual.jacobian()[0], densified)
-
-
-@pytest.mark.parametrize("kind", ("velocity", "acceleration", "reference"))
-def test_temporal_blocks_apply_one_knot_mask_reduction(two_joint_model, kind: str) -> None:
-    model = two_joint_model
-    tensor = _trajectory(model, batch_shape=())
-    full_q = _robot_trajectory(model, tensor.clone(), name="full_q")
-    mask = torch.tensor([False, True] * 5)
-    reduced_q = _robot_trajectory(model, tensor.clone(), mask=mask, name="reduced_q")
-    full = _trajectory_residual(model, full_q, kind).jacobian()[0]
-    reduced = _trajectory_residual(model, reduced_q, kind).jacobian()[0]
-
-    selected = torch.tensor([knot * model.nv + 1 for knot in range(5)])
-    torch.testing.assert_close(reduced, full.index_select(-1, selected))
 
 
 def test_constant_temporal_blocks_honor_create_graph(two_joint_model) -> None:

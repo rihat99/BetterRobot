@@ -15,6 +15,10 @@
 :class: autosummary longtable
 :align: left
 
+* - {py:obj}`Bounds <better_robot.optim.variables.Bounds>`
+  - ```{autodoc2-docstring} better_robot.optim.variables.Bounds
+    :summary:
+    ```
 * - {py:obj}`Variable <better_robot.optim.variables.Variable>`
   - ```{autodoc2-docstring} better_robot.optim.variables.Variable
     :summary:
@@ -35,7 +39,37 @@
 
 ### API
 
-`````{py:class} Variable(tensor: torch.Tensor, *, name: str | None = None, trainable: bool = True, bounds: better_robot.optim.manifolds.Bounds | None = None, mask: torch.Tensor | None = None, scale: torch.Tensor | None = None, batch_ndim: int = 0, time_axis: int | None = None)
+`````{py:class} Bounds
+:canonical: better_robot.optim.variables.Bounds
+
+```{autodoc2-docstring} better_robot.optim.variables.Bounds
+```
+
+````{py:attribute} lower
+:canonical: better_robot.optim.variables.Bounds.lower
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.optim.variables.Bounds.lower
+```
+
+````
+
+````{py:attribute} upper
+:canonical: better_robot.optim.variables.Bounds.upper
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.optim.variables.Bounds.upper
+```
+
+````
+
+`````
+
+`````{py:class} Variable(tensor: torch.Tensor, *, name: str | None = None, trainable: bool = True, bounds: better_robot.optim.variables.Bounds | None = None, batch_ndim: int = 0, time_axis: int | None = None)
 :canonical: better_robot.optim.variables.Variable
 
 ```{autodoc2-docstring} better_robot.optim.variables.Variable
@@ -54,24 +88,6 @@
 :type: int
 
 ```{autodoc2-docstring} better_robot.optim.variables.Variable.free_dim
-```
-
-````
-
-````{py:property} free_indices
-:canonical: better_robot.optim.variables.Variable.free_indices
-:type: torch.Tensor
-
-```{autodoc2-docstring} better_robot.optim.variables.Variable.free_indices
-```
-
-````
-
-````{py:property} free_scale
-:canonical: better_robot.optim.variables.Variable.free_scale
-:type: torch.Tensor | None
-
-```{autodoc2-docstring} better_robot.optim.variables.Variable.free_scale
 ```
 
 ````
@@ -111,53 +127,10 @@
 
 ````
 
-````{py:property} temporal_mask_is_separable
-:canonical: better_robot.optim.variables.Variable.temporal_mask_is_separable
-:type: bool
-
-```{autodoc2-docstring} better_robot.optim.variables.Variable.temporal_mask_is_separable
-```
-
-````
-
-````{py:property} temporal_free_indices
-:canonical: better_robot.optim.variables.Variable.temporal_free_indices
-:type: torch.Tensor
-
-```{autodoc2-docstring} better_robot.optim.variables.Variable.temporal_free_indices
-```
-
-````
-
-````{py:property} temporal_reduced_width
-:canonical: better_robot.optim.variables.Variable.temporal_reduced_width
-:type: int
-
-```{autodoc2-docstring} better_robot.optim.variables.Variable.temporal_reduced_width
-```
-
-````
-
 ````{py:method} validate_value(value: torch.Tensor) -> None
 :canonical: better_robot.optim.variables.Variable.validate_value
 
 ```{autodoc2-docstring} better_robot.optim.variables.Variable.validate_value
-```
-
-````
-
-````{py:method} gather_tangent(full: torch.Tensor) -> torch.Tensor
-:canonical: better_robot.optim.variables.Variable.gather_tangent
-
-```{autodoc2-docstring} better_robot.optim.variables.Variable.gather_tangent
-```
-
-````
-
-````{py:method} expand_tangent(reduced: torch.Tensor) -> torch.Tensor
-:canonical: better_robot.optim.variables.Variable.expand_tangent
-
-```{autodoc2-docstring} better_robot.optim.variables.Variable.expand_tangent
 ```
 
 ````
@@ -170,7 +143,7 @@
 
 ````
 
-````{py:method} retract(reduced_delta: torch.Tensor) -> torch.Tensor
+````{py:method} retract(delta: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.optim.variables.Variable.retract
 
 ```{autodoc2-docstring} better_robot.optim.variables.Variable.retract
@@ -188,7 +161,7 @@
 
 `````
 
-`````{py:class} SO3Variable(tensor: torch.Tensor, *, name: str | None = None, trainable: bool = True, bounds: better_robot.optim.manifolds.Bounds | None = None, mask: torch.Tensor | None = None, scale: torch.Tensor | None = None, batch_ndim: int = 0, time_axis: int | None = None)
+`````{py:class} SO3Variable(tensor: torch.Tensor, *, name: str | None = None, trainable: bool = True, bounds: better_robot.optim.variables.Bounds | None = None, batch_ndim: int = 0, time_axis: int | None = None)
 :canonical: better_robot.optim.variables.SO3Variable
 
 Bases: {py:obj}`better_robot.optim.variables.Variable`
@@ -203,7 +176,7 @@ Bases: {py:obj}`better_robot.optim.variables.Variable`
 
 `````
 
-`````{py:class} SE3Variable(tensor: torch.Tensor, *, name: str | None = None, trainable: bool = True, bounds: better_robot.optim.manifolds.Bounds | None = None, mask: torch.Tensor | None = None, scale: torch.Tensor | None = None, batch_ndim: int = 0, time_axis: int | None = None)
+`````{py:class} SE3Variable(tensor: torch.Tensor, *, name: str | None = None, trainable: bool = True, bounds: better_robot.optim.variables.Bounds | None = None, batch_ndim: int = 0, time_axis: int | None = None)
 :canonical: better_robot.optim.variables.SE3Variable
 
 Bases: {py:obj}`better_robot.optim.variables.Variable`
@@ -218,7 +191,7 @@ Bases: {py:obj}`better_robot.optim.variables.Variable`
 
 `````
 
-`````{py:class} RobotVariable(model: better_robot.data_model.model.Model, tensor: torch.Tensor | None = None, *, name: str | None = None, trainable: bool = True, bounds: better_robot.optim.manifolds.Bounds | bool | None = None, mask: torch.Tensor | None = None, scale: torch.Tensor | None = None, batch_ndim: int = 0, time_axis: int | None = None)
+`````{py:class} RobotVariable(model: better_robot.data_model.model.Model, tensor: torch.Tensor | None = None, *, name: str | None = None, trainable: bool = True, bounds: better_robot.optim.variables.Bounds | bool | None = None, batch_ndim: int = 0, time_axis: int | None = None)
 :canonical: better_robot.optim.variables.RobotVariable
 
 Bases: {py:obj}`better_robot.optim.variables.Variable`
@@ -235,7 +208,7 @@ Bases: {py:obj}`better_robot.optim.variables.Variable`
 
 ````
 
-````{py:method} joint_bounds() -> better_robot.optim.manifolds.Bounds
+````{py:method} joint_bounds() -> better_robot.optim.variables.Bounds
 :canonical: better_robot.optim.variables.RobotVariable.joint_bounds
 
 ```{autodoc2-docstring} better_robot.optim.variables.RobotVariable.joint_bounds

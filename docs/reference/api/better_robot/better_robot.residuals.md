@@ -21,6 +21,7 @@ better_robot.residuals.contact
 better_robot.residuals.chamfer
 better_robot.residuals.nodes
 better_robot.residuals.regularization
+better_robot.residuals.utils
 better_robot.residuals.limits
 better_robot.residuals.structure
 better_robot.residuals.scene_sdf

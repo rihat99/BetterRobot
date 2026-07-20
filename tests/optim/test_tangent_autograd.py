@@ -116,19 +116,6 @@ def test_tangent_perturbation_gradcheck_at_singular_points(case: str) -> None:
         torch.testing.assert_close(gradient, torch.ones_like(gradient), atol=2e-4, rtol=2e-4)
 
 
-def test_retracted_gradient_returns_only_free_masked_coordinates() -> None:
-    x = Variable(
-        torch.tensor([1.0, 2.0, 3.0, 4.0]),
-        name="x",
-        mask=torch.tensor([True, False, True, False]),
-    )
-
-    gradient = _retracted_gradient(lambda values: values["x"].square(), (x,))["x"]
-
-    assert gradient.shape == (2,)
-    torch.testing.assert_close(gradient, torch.tensor([2.0, 6.0]))
-
-
 def test_create_graph_supports_a_second_derivative_smoke() -> None:
     value = torch.tensor([0.5, -1.0, 2.0], requires_grad=True)
     x = Variable(value, name="x")

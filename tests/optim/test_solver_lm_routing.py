@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import warnings
+
 import pytest
 import torch
 
 from better_robot.optim import (
+    AutodiffFallbackWarning,
     LevenbergMarquardt,
     LinearizationReason,
     Problem,
@@ -45,9 +48,8 @@ class _DiagonalTrajectoryResidual(_TrajectoryResidual):
         if not _matches(variable, self.x):
             return {}
         x = self.x.tensor
-        local = self.x.temporal_free_indices.to(device=x.device)
-        identity = torch.eye(self.width, dtype=x.dtype, device=x.device).index_select(-1, local)
-        block = identity.expand(*x.shape[:-2], self.horizon, self.width, local.numel())
+        identity = torch.eye(self.width, dtype=x.dtype, device=x.device)
+        block = identity.expand(*x.shape[:-2], self.horizon, self.width, self.width)
         return {0: block + x.sum(dim=(-2, -1))[..., None, None, None] * 0.0}
 
 
@@ -79,13 +81,11 @@ def _problem(
     horizon: int,
     width: int,
     *,
-    mask: torch.Tensor | None = None,
     dtype: torch.dtype = torch.float64,
 ) -> tuple[Variable, Problem]:
     x = Variable(
         torch.zeros(horizon, width, dtype=dtype),
         name="x",
-        mask=mask,
         time_axis=0,
     )
     return x, Problem([residual_type(x, horizon, width)])
@@ -128,13 +128,20 @@ def test_structured_route_never_calls_dense_jacobian(monkeypatch: pytest.MonkeyP
 
 
 def test_missing_numeric_blocks_fall_back_to_dense() -> None:
-    x, problem = _problem(_DeclaredWithoutBlocks, 4, 2)
-    optimizer = LevenbergMarquardt(problem, max_iterations=4)
+    x, problem = _problem(_DeclaredWithoutBlocks, 4, 2, dtype=torch.float32)
+    optimizer = LevenbergMarquardt(problem, max_iterations=4, jacobian_strategy="jacrev")
     analysis = problem.temporal_analysis
 
     assert not analysis.direct_eligible
     assert analysis.reason is LinearizationReason.MISSING_TEMPORAL_BLOCKS
-    assert optimizer.resolve_linearization(problem).used == "dense"
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", AutodiffFallbackWarning)
+        assert optimizer.resolve_linearization(problem).used == "dense"
+        assert optimizer.resolve_linearization(problem).used == "dense"
+    fallback = [item for item in caught if issubclass(item.category, AutodiffFallbackWarning)]
+    assert len(fallback) == 1
+    assert "_DeclaredWithoutBlocks residual 'operator_only'" in str(fallback[0].message)
+    assert "linearization='auto' is using the dense route" in str(fallback[0].message)
     with pytest.raises(ValueError, match="missing_temporal_blocks"):
         LevenbergMarquardt(problem, linearization="structured").resolve_linearization(problem)
 
@@ -143,7 +150,26 @@ def test_missing_numeric_blocks_fall_back_to_dense() -> None:
     assert torch.isfinite(info.cost)
 
 
-def test_undeclared_or_nonseparable_problem_falls_back_with_stable_reason() -> None:
+def test_explicit_dense_temporal_route_does_not_warn() -> None:
+    _x, problem = _problem(_DeclaredWithoutBlocks, 4, 2, dtype=torch.float32)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", AutodiffFallbackWarning)
+        decision = LevenbergMarquardt(problem, linearization="dense").resolve_linearization(problem)
+
+    assert decision.reason is LinearizationReason.FORCED_DENSE
+
+
+def test_missing_blocks_with_banded_only_solver_errors_without_warning() -> None:
+    _x, problem = _problem(_DeclaredWithoutBlocks, 4, 2, dtype=torch.float32)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", AutodiffFallbackWarning)
+        with pytest.raises(ValueError, match="incompatible_solver"):
+            LevenbergMarquardt(problem, solver=BandedCholesky()).resolve_linearization(problem)
+
+
+def test_undeclared_problem_falls_back_with_stable_reason() -> None:
     _x, undeclared = _problem(_UndeclaredTrajectoryResidual, 4, 2)
     optimizer = LevenbergMarquardt(undeclared)
     decision = optimizer.resolve_linearization(undeclared)
@@ -151,12 +177,6 @@ def test_undeclared_or_nonseparable_problem_falls_back_with_stable_reason() -> N
     assert decision.reason is LinearizationReason.UNDECLARED_TEMPORAL_RESIDUAL
     with pytest.raises(ValueError, match="undeclared_temporal_residual"):
         LevenbergMarquardt(undeclared, linearization="structured").resolve_linearization(undeclared)
-
-    mask = torch.tensor([1, 1, 1, 0, 1, 1, 1, 1], dtype=torch.bool)
-    _x, nonseparable = _problem(_DiagonalTrajectoryResidual, 4, 2, mask=mask)
-    decision = LevenbergMarquardt(nonseparable).resolve_linearization(nonseparable)
-    assert decision.used == "dense"
-    assert decision.reason is LinearizationReason.NONSEPARABLE_MASK
 
 
 def test_explicit_solver_compatibility_is_not_silently_ignored() -> None:

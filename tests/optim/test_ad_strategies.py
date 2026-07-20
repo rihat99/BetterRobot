@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import warnings
+
 import pytest
 import torch
 
-from better_robot.optim import Problem, Residual, Variable
+from better_robot.optim import AutodiffFallbackWarning, Problem, Residual, Variable
 
 
 class _PolynomialResidual(Residual):
@@ -27,7 +29,7 @@ class _PolynomialResidual(Residual):
             ),
             dim=-2,
         )
-        return (full.index_select(-1, self.x.free_indices.to(x.device)),)
+        return (full,)
 
 
 class _CubicResidual(Residual):
@@ -65,11 +67,43 @@ class _AffineResidual(_ProductResidual):
         return self.x.tensor + self.static.tensor
 
 
-def _polynomial_problem(value: torch.Tensor, *, masked: bool = False, weight=1.0):
-    mask = torch.tensor([True, False, True]) if masked else None
-    x = Variable(value, name="x", mask=mask, batch_ndim=max(0, value.ndim - 1))
+def _polynomial_problem(value: torch.Tensor, *, weight=1.0):
+    x = Variable(value, name="x", batch_ndim=max(0, value.ndim - 1))
     item = _PolynomialResidual(x, weight=weight)
     return x, item, Problem([item])
+
+
+def test_auto_autodiff_fallback_warning_names_residual_and_transform() -> None:
+    x = Variable(torch.tensor([0.7]), name="x")
+    problem = Problem([_CubicResidual(x)])
+
+    with pytest.warns(
+        AutodiffFallbackWarning,
+        match=r"_CubicResidual residual 'cubic'.*torch\.func\.jacrev.*explicit Jacobian strategy",
+    ):
+        problem.jacobian_blocks()
+
+
+def test_auto_autodiff_fallback_warns_once_per_problem_residual() -> None:
+    x = Variable(torch.tensor([0.7]), name="x")
+    problem = Problem([_CubicResidual(x)])
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", AutodiffFallbackWarning)
+        problem.jacobian_blocks()
+        problem.jacobian_blocks()
+
+    assert sum(issubclass(item.category, AutodiffFallbackWarning) for item in caught) == 1
+
+
+@pytest.mark.parametrize("strategy", ("jacrev", "jacfwd", "finite_difference"))
+def test_explicit_autodiff_strategies_do_not_warn(strategy: str) -> None:
+    x = Variable(torch.tensor([0.7]), name="x")
+    problem = Problem([_CubicResidual(x)])
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", AutodiffFallbackWarning)
+        problem.jacobian_blocks(strategy=strategy)
 
 
 @pytest.mark.parametrize("strategy", ["jacrev", "jacfwd"])
@@ -78,14 +112,6 @@ def test_forced_ad_matches_analytic(strategy: str) -> None:
     analytic = problem.jacobian_blocks(strategy="analytic")[("polynomial", "x")]
     forced = problem.jacobian_blocks(strategy=strategy)[("polynomial", "x")]
     torch.testing.assert_close(forced, analytic, atol=1e-6, rtol=1e-6)
-
-
-@pytest.mark.parametrize("strategy", ["analytic", "jacrev", "jacfwd"])
-def test_masked_blocks_have_only_reduced_columns(strategy: str) -> None:
-    _x, _item, problem = _polynomial_problem(torch.tensor([0.7, -0.4, 1.2]), masked=True)
-    block = problem.jacobian_blocks(strategy=strategy)[("polynomial", "x")]
-    assert block.shape == (2, 2)
-    torch.testing.assert_close(block, torch.tensor([[1.4, 0.0], [0.0, -0.4]]))
 
 
 def test_create_graph_supports_a_function_of_jacobian_second_derivative() -> None:

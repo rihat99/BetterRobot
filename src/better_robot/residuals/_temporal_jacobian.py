@@ -7,16 +7,8 @@ from typing import Any
 
 import torch
 
-from ._variables import RobotVariableLike as _TemporalVariable
+from .utils import RobotVariableLike as _TemporalVariable
 from .structure import TemporalPattern
-
-
-def temporal_free_indices(variable: _TemporalVariable, *, device: torch.device) -> torch.Tensor:
-    """Return one knot's reduced tangent indices from a temporal variable."""
-    indices = getattr(variable, "temporal_free_indices", None)
-    if not isinstance(indices, torch.Tensor) or indices.ndim != 1:
-        raise TypeError("temporal variable must expose one-dimensional temporal_free_indices")
-    return indices.to(device=device, dtype=torch.int64)
 
 
 def dense_temporal_jacobian(
@@ -52,4 +44,4 @@ def dense_temporal_residual(residual: Any, variable: _TemporalVariable, horizon:
     return (dense_temporal_jacobian(pattern, residual.temporal_jacobian_blocks(variable), horizon=horizon),)
 
 
-__all__ = ["dense_temporal_jacobian", "temporal_free_indices"]
+__all__ = ["dense_temporal_jacobian"]

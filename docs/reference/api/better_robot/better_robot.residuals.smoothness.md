@@ -27,7 +27,7 @@
 
 ### API
 
-`````{py:class} VelocityResidual(q: better_robot.residuals._variables.RobotVariableLike, *, dt: numbers.Real, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'velocity')
+`````{py:class} VelocityResidual(q: better_robot.residuals.utils.RobotVariableLike, *, dt: numbers.Real, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'velocity')
 :canonical: better_robot.residuals.smoothness.VelocityResidual
 
 Bases: {py:obj}`better_robot.residuals.smoothness._SmoothnessResidual`
@@ -42,7 +42,7 @@ Bases: {py:obj}`better_robot.residuals.smoothness._SmoothnessResidual`
 
 `````
 
-`````{py:class} AccelerationResidual(q: better_robot.residuals._variables.RobotVariableLike, *, dt: numbers.Real, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'acceleration')
+`````{py:class} AccelerationResidual(q: better_robot.residuals.utils.RobotVariableLike, *, dt: numbers.Real, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'acceleration')
 :canonical: better_robot.residuals.smoothness.AccelerationResidual
 
 Bases: {py:obj}`better_robot.residuals.smoothness._SmoothnessResidual`

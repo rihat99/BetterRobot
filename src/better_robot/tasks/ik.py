@@ -19,7 +19,6 @@ from ..optim import (
     GaussNewton,
     JacobianStrategy,
     LevenbergMarquardt,
-    OptimizerInfo,
     Problem,
     Residual,
     RobotVariable,
@@ -30,14 +29,15 @@ from ..optim import Cauchy, Cholesky, Huber, L2, Tukey
 from ..residuals.limits import JointPositionLimit
 from ..residuals.pose import PoseResidual
 from ..residuals.regularization import RestResidual
+from .utils import _public_diagnostics
 
 if TYPE_CHECKING:
     from ..data_model.data import Data
 
 
-_OptimizerName = Literal["lm", "gn", "adam", "lbfgs", "lm_then_adam", "lm_then_lbfgs"]
+_OptimizerName = Literal["lm", "gn", "adam", "lm_then_adam"]
 
-_OPTIMIZER_NAMES = frozenset({"lm", "gn", "adam", "lbfgs", "lm_then_adam", "lm_then_lbfgs"})
+_OPTIMIZER_NAMES = frozenset({"lm", "gn", "adam", "lm_then_adam"})
 _LINEAR_SOLVERS = {"cholesky": Cholesky}
 _KERNELS = {"l2": L2, "huber": Huber, "cauchy": Cauchy, "tukey": Tukey}
 _LINEAR_SOLVER_NAMES = frozenset(_LINEAR_SOLVERS)
@@ -69,11 +69,10 @@ class IKCostConfig:
 class OptimizerConfig:
     """Optimizer selection and hyperparameters.
 
-    ``lm_then_adam`` runs LM followed by the ``torch.optim`` adapter. Batched
-    L-BFGS is deliberately not exposed by the task facade yet; the retained
-    ``lbfgs`` spellings fail with an actionable error.
+    ``lm_then_adam`` runs LM followed by the ``torch.optim`` adapter.
     Linear-solver and Jacobian settings apply to LM/GN phases; damping applies
-    only to configurations with an LM phase.
+    only to configurations with an LM phase. Presets ignore fields that do
+    not apply to their selected optimizer.
     """
 
     optimizer: _OptimizerName = "lm"
@@ -112,28 +111,6 @@ def _validate_choices(config: OptimizerConfig) -> None:
         value = getattr(config, name)
         if not isinstance(value, str) or value not in allowed:
             raise ValueError(f"Unknown {name} {value!r}; expected one of {sorted(allowed)}")
-
-
-def _reject_unused(config: OptimizerConfig, optimizer: str, defaults: tuple[tuple[str, str], ...]) -> None:
-    if config.optimizer == optimizer:
-        unused = [name for name, default in defaults if getattr(config, name) != default]
-        if unused:
-            raise ValueError(
-                f"optimizer={optimizer!r} does not use {', '.join(unused)}; leave these fields at their defaults"
-            )
-
-
-def _validate_optimizer_config(config: OptimizerConfig) -> None:
-    """Validate facade policy before building residuals or solver state."""
-    _validate_choices(config)
-    _reject_unused(
-        config, "adam", (("linear_solver", "cholesky"), ("jacobian_strategy", "auto"), ("damping", "adaptive"))
-    )
-    _reject_unused(config, "gn", (("damping", "adaptive"),))
-    if config.refine_disabled_items and config.optimizer != "lm_then_adam":
-        raise ValueError(
-            "refine_disabled_items is only used by optimizer='lm_then_adam'; leave it empty for other optimizers"
-        )
 
 
 def _make_linear_solver(name: str):
@@ -178,19 +155,6 @@ def _ik_batch_shape(tensors: list[torch.Tensor]) -> torch.Size:
         ) from exc
 
 
-def _public_diagnostics(
-    infos: tuple[OptimizerInfo, ...],
-) -> tuple[int | torch.Tensor, bool | torch.Tensor]:
-    iterations = sum(
-        (info.iterations for info in infos),
-        torch.zeros_like(infos[0].iterations),
-    )
-    converged = infos[-1].converged
-    if iterations.ndim == 0:
-        return int(iterations), bool(converged)
-    return iterations, converged
-
-
 def _refinement_residuals(problem: Problem, disabled_items: tuple[str, ...]) -> tuple[Residual, ...]:
     known = {residual.name: residual for residual in problem.residuals}
     unknown = set(disabled_items) - set(known)
@@ -224,17 +188,11 @@ def solve_ik(  # noqa: PLR0912, PLR0915 - explicit preset assembly keeps task po
         raise TypeError("differentiable must be a bool")
     cost_cfg = cost_cfg if cost_cfg is not None else IKCostConfig()
     optimizer_cfg = optimizer_cfg if optimizer_cfg is not None else OptimizerConfig()
-    _validate_optimizer_config(optimizer_cfg)
+    _validate_choices(optimizer_cfg)
     if not isinstance(targets, dict):
         raise TypeError("targets must be a dict mapping frame names to SE3 tensors")
     if differentiable and optimizer_cfg.optimizer != "lm":
         raise ValueError("differentiable=True requires optimizer_cfg.optimizer='lm'")
-    if optimizer_cfg.optimizer in {"lbfgs", "lm_then_lbfgs"}:
-        raise NotImplementedError(
-            "Batched L-BFGS is deferred because its global line search and "
-            "history couple batch elements. Use 'adam' or 'lm_then_adam'."
-        )
-
     start = initial_q.clone().detach() if initial_q is not None else model.q_neutral.clone()
     active_q_rest = cost_cfg.q_rest if cost_cfg.rest_weight > 0.0 else None
     start = _broadcast_initial_configuration(model, start, targets, active_q_rest)
@@ -354,7 +312,7 @@ def solve_ik(  # noqa: PLR0912, PLR0915 - explicit preset assembly keeps task po
                 for residual, weight in zip(disabled, original_weights, strict=True):
                     residual.weight = weight
             infos = (coarse_info, refine_info)
-    iterations, converged = _public_diagnostics(infos)
+    iterations, converged, _ = _public_diagnostics(infos)
     return IKResult(
         q=q_variable.tensor,
         residual=problem.error(),

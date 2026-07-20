@@ -10,7 +10,7 @@ from typing import Any
 
 import torch
 
-from ._variables import VariableLike as _VariableLike
+from .utils import VariableLike as _VariableLike
 
 
 class Weight(ABC):
@@ -173,7 +173,7 @@ class Residual(ABC):
         """Return the unweighted residual with shape ``(..., dim)``."""
 
     def jacobian(self) -> tuple[torch.Tensor, ...] | None:
-        """Return analytic reduced blocks or ``None`` to request tangent AD."""
+        """Return complete analytic tangent blocks or ``None`` to request AD."""
         return None
 
     def weighted_error(self) -> torch.Tensor:

@@ -63,7 +63,7 @@ def _synthetic_observations(dtype: torch.dtype) -> tuple[torch.Tensor, ...]:
     return source, target, normals, translation, rotation, log_s
 
 
-def test_icp_step_caps_relative_damping_and_external_stop_are_configuration() -> None:
+def test_icp_relative_damping_and_external_stop_are_configuration() -> None:
     dtype = torch.float64
     source_tensor, target_tensor, normals_tensor, translation_true, rotation_true, log_s_true = _synthetic_observations(
         dtype
@@ -84,7 +84,6 @@ def test_icp_step_caps_relative_damping_and_external_stop_are_configuration() ->
         "log_s": log_s.tensor,
     }
     relative_damping = 1e-3
-    limits = (("translation", 0.20), ("rotation", 0.50), ("log_s", 0.30))
     optimizer = LevenbergMarquardt(
         problem,
         max_iterations=0,
@@ -92,7 +91,6 @@ def test_icp_step_caps_relative_damping_and_external_stop_are_configuration() ->
         step_tolerance=0.0,
         relative_tolerance=0.0,
         damping=relative_damping,
-        block_step_limits=limits,
     )
 
     state = optimizer._init_state(initial, problem)
@@ -100,16 +98,7 @@ def test_icp_step_caps_relative_damping_and_external_stop_are_configuration() ->
     expected_mu = relative_damping * (jacobian.mT @ jacobian).diagonal().amax()
     torch.testing.assert_close(state.mu, expected_mu)
 
-    first_values, first_state = optimizer._update(initial, state, problem)
-    translation_step = (first_values["translation"] - initial["translation"]).norm()
-    rotation_step = so3.log(so3.compose(so3.inverse(initial["rotation"]), first_values["rotation"])).norm()
-    scale_step = (first_values["log_s"] - initial["log_s"]).norm()
-    assert 0.19 < translation_step <= 0.20 + 1e-12
-    assert 0.49 < rotation_step <= 0.50 + 1e-12
-    assert 0.29 < scale_step <= 0.30 + 1e-12
-
-    values = first_values
-    state = first_state
+    values = initial
     external_tolerance = 1e-11
     stopped_externally = False
     for _outer_iteration in range(120):

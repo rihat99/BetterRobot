@@ -13,8 +13,8 @@ from ..data_model.model import Model
 from ..kinematics.jacobian import get_frame_jacobian
 from ..lie import se3, so3
 from ..lie.tangents import right_jacobian_inv_se3, right_jacobian_inv_so3
-from ._temporal_jacobian import dense_temporal_residual, temporal_free_indices
-from ._variables import (
+from ._temporal_jacobian import dense_temporal_residual
+from .utils import (
     RobotVariableLike as _RobotVariable,
     VariableLike as _Variable,
     current_value,
@@ -123,10 +123,8 @@ class _KinematicResidual(Residual):
     def _full_jacobian_at(self, knot: int | None) -> torch.Tensor:
         """Evaluate one concrete full-coordinate Jacobian."""
 
-    def _reduced_jacobian_at(self, knot: int) -> torch.Tensor:
-        full = self._full_jacobian_at(knot)
-        indices = temporal_free_indices(self.q, device=full.device)
-        return full.index_select(-1, indices)
+    def _tangent_jacobian_at(self, knot: int) -> torch.Tensor:
+        return self._full_jacobian_at(knot)
 
     def temporal_structure(self, variable: _RobotVariable | str) -> TemporalPattern | None:
         if self.q.time_axis != 0 or self.knot is None or not matches(variable, self.q):
@@ -140,12 +138,11 @@ class _KinematicResidual(Residual):
         pattern = self.temporal_structure(variable)
         if pattern is None:
             return {}
-        return {0: self._reduced_jacobian_at(self.knot).unsqueeze(-3)}
+        return {0: self._tangent_jacobian_at(self.knot).unsqueeze(-3)}
 
     def jacobian(self) -> tuple[torch.Tensor, ...]:
         if self.q.time_axis is None:
-            full = self._full_jacobian_at(None)
-            return (full.index_select(-1, self.q.free_indices.to(full.device)),)
+            return (self._full_jacobian_at(None),)
         self._require_knot(self.knot)
         return dense_temporal_residual(self, self.q, self.q.time_length)
 

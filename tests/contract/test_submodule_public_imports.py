@@ -17,6 +17,7 @@ from better_robot import optim
 
 OPTIM_V2_PUBLIC: frozenset[str] = frozenset(
     {
+        "AutodiffFallbackWarning",
         "Bounds",
         "Residual",
         "Weight",
@@ -36,7 +37,6 @@ OPTIM_V2_PUBLIC: frozenset[str] = frozenset(
         "LinearSolveResult",
         "LinearSolveStatus",
         "Cholesky",
-        "LU",
         "BandedCholesky",
         "BlockBandedMatrix",
         "Variable",

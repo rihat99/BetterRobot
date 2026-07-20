@@ -178,70 +178,6 @@ class Cholesky:
         return result._replace(solution=result.solution.to(b.dtype))
 
 
-class LU:
-    """Dense batched LU solver for general square systems."""
-
-    supported_systems = frozenset(("dense",))
-
-    @staticmethod
-    def _validate(A: torch.Tensor, b: torch.Tensor, initial: torch.Tensor | None) -> None:
-        if initial is not None:
-            raise ValueError("LU does not accept an initial solution")
-        if not isinstance(A, torch.Tensor):
-            raise TypeError("LU requires a dense torch.Tensor system")
-        if not isinstance(b, torch.Tensor):
-            raise TypeError("b must be a torch.Tensor")
-        if A.ndim < 2 or A.shape[-2] != A.shape[-1]:
-            raise ValueError(f"A must have shape (B..., n, n); received {tuple(A.shape)}")
-        expected = (*A.shape[:-2], A.shape[-1])
-        if tuple(b.shape) != expected:
-            raise ValueError(f"b must have shape {expected}, got {tuple(b.shape)}")
-        if b.device != A.device:
-            raise ValueError(f"b must share A's device {A.device}, got {b.device}")
-
-    def solve(
-        self,
-        A: torch.Tensor,
-        b: torch.Tensor,
-        ridge: torch.Tensor | float | None = None,
-    ) -> torch.Tensor:
-        self._validate(A, b, None)
-        matrix, rhs = _regularized(A, ridge), b.to(A.dtype)
-        factor, pivots = torch.linalg.lu_factor(matrix)
-        return torch.linalg.lu_solve(factor, pivots, rhs.unsqueeze(-1)).squeeze(-1).to(b.dtype)
-
-    def solve_with_info(
-        self,
-        A: torch.Tensor,
-        b: torch.Tensor,
-        ridge: torch.Tensor | float | None = None,
-        *,
-        initial: torch.Tensor | None = None,
-    ) -> LinearSolveResult:
-        self._validate(A, b, initial)
-        matrix, rhs = _regularized(A, ridge), b.to(A.dtype)
-        factor, pivots, info = torch.linalg.lu_factor_ex(matrix, check_errors=False)
-        factor_ok = info == 0
-        identity = torch.eye(A.shape[-1], dtype=A.dtype, device=A.device)
-        safe_factor = torch.where(factor_ok[..., None, None], factor, identity)
-        identity_pivots = torch.arange(1, A.shape[-1] + 1, dtype=pivots.dtype, device=A.device)
-        safe_pivots = torch.where(factor_ok[..., None], pivots, identity_pivots)
-        solution = torch.linalg.lu_solve(safe_factor, safe_pivots, rhs.unsqueeze(-1)).squeeze(-1)
-        solution = torch.where(factor_ok[..., None], solution, torch.zeros_like(solution))
-        residual = (matrix @ solution.unsqueeze(-1)).squeeze(-1) - rhs
-        nonfinite = ~torch.isfinite(matrix).all(dim=(-2, -1)) | ~torch.isfinite(rhs).all(dim=-1)
-        result = _direct_result(
-            solution,
-            residual,
-            rhs,
-            factor_ok,
-            nonfinite,
-            ~factor_ok & ~nonfinite,
-            failure_status=LinearSolveStatus.BREAKDOWN,
-        )
-        return result._replace(solution=result.solution.to(b.dtype))
-
-
 class BandedCholesky:
     """Direct Cholesky solver for padded lower block bands."""
 
@@ -354,7 +290,6 @@ __all__ = [
     "BandedCholesky",
     "Cholesky",
     "InformativeLinearSolver",
-    "LU",
     "LinearSolveResult",
     "LinearSolveStatus",
     "LinearSolver",

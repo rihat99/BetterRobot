@@ -6,6 +6,7 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from types import MappingProxyType
 from typing import Any, Literal, TypeAlias
+import warnings
 
 import torch
 
@@ -17,6 +18,10 @@ _TensorMap: TypeAlias = dict[str, torch.Tensor]
 JacobianStrategy: TypeAlias = Literal["auto", "analytic", "jacrev", "jacfwd", "finite_difference"]
 _JACOBIAN_STRATEGIES = frozenset(("auto", "analytic", "jacrev", "jacfwd", "finite_difference"))
 _L2_KERNEL = L2()
+
+
+class AutodiffFallbackWarning(RuntimeWarning):
+    """Warn that automatic linearization selected a slower fallback path."""
 
 
 def _check_strategy(strategy: JacobianStrategy, create_graph: bool) -> None:
@@ -49,7 +54,6 @@ class Problem:
     ) -> None:
         self.residuals = list(residuals)
         self._frozen = False
-        self._epoch = 0
         self._update_serial = 0
         self._ordered_variables: tuple[Variable, ...] = ()
         self.vars: tuple[Variable, ...] = ()
@@ -63,6 +67,7 @@ class Problem:
         self.dim_total = 0
         self.tangent_dim_total = 0
         self.temporal_analysis = None
+        self._warned_fallbacks: set[tuple[str, str]] = set()
 
     @property
     def frozen(self) -> bool:
@@ -86,6 +91,7 @@ class Problem:
     def _freeze(self) -> None:  # noqa: PLR0912, PLR0915 - freezes and validates one graph transaction
         if self._frozen:
             return
+        self._warned_fallbacks.clear()
         if any(not isinstance(item, Residual) for item in self.residuals):
             invalid = next(item for item in self.residuals if not isinstance(item, Residual))
             raise TypeError(f"Problem residuals must contain Residual objects, got {type(invalid).__name__}")
@@ -204,38 +210,36 @@ class Problem:
         return batch_shape or ()
 
     def _invalidate_nodes(self) -> None:
-        self._epoch += 1
         for node in self._nodes:
             invalidate = getattr(node, "_invalidate", None)
             if callable(invalidate):
-                invalidate(self._epoch)
+                invalidate()
 
     @contextmanager
     def _node_evaluation(self) -> Iterator[None]:
-        self._epoch += 1
-        entered: list[tuple[Any, bool]] = []
+        entered: list[tuple[Any, bool, bool]] = []
         try:
             for node in self._nodes:
                 begin = getattr(node, "_begin_evaluation", None)
                 end = getattr(node, "_end_evaluation", None)
                 scoped = callable(begin) and callable(end)
                 if scoped:
-                    begin(self._epoch)
+                    nested = begin()
                 else:
+                    nested = False
                     invalidate = getattr(node, "_invalidate", None)
                     if callable(invalidate):
-                        invalidate(self._epoch)
-                entered.append((node, scoped))
+                        invalidate()
+                entered.append((node, scoped, nested))
             yield
         finally:
-            self._epoch += 1
-            for node, scoped in reversed(entered):
+            for node, scoped, nested in reversed(entered):
                 if scoped:
-                    node._end_evaluation(self._epoch)
+                    node._end_evaluation(nested)
                 else:
                     invalidate = getattr(node, "_invalidate", None)
                     if callable(invalidate):
-                        invalidate(self._epoch)
+                        invalidate()
 
     @contextmanager
     def _assigned(self, values: Mapping[str, torch.Tensor]) -> Iterator[None]:
@@ -483,6 +487,20 @@ class Problem:
                         f"Residual {item.name!r} jacobian must return {len(dependencies)} blocks, got {len(analytic)}"
                     )
             weighted_analytic = item.weight.apply_jacobian(analytic) if analytic is not None else None
+            warning_key = ("autodiff", item.name)
+            if strategy == "auto" and analytic is None and dependencies and warning_key not in self._warned_fallbacks:
+                selected_transforms = sorted(
+                    {"jacrev" if item.dim <= variable.free_dim else "jacfwd" for variable in dependencies}
+                )
+                transform_names = " and ".join(f"torch.func.{name}" for name in selected_transforms)
+                self._warned_fallbacks.add(warning_key)
+                warnings.warn(
+                    f"{type(item).__name__} residual {item.name!r} has no analytic jacobian(); "
+                    f"strategy='auto' is using {transform_names}. Provide jacobian() or pass an explicit "
+                    "Jacobian strategy to silence this warning.",
+                    AutodiffFallbackWarning,
+                    stacklevel=2,
+                )
             for index, variable in enumerate(dependencies):
                 key = (item.name, variable.name)
                 if weighted_analytic is not None:
@@ -582,4 +600,4 @@ class Problem:
             )
 
 
-__all__ = ["JacobianStrategy", "Problem"]
+__all__ = ["AutodiffFallbackWarning", "JacobianStrategy", "Problem"]

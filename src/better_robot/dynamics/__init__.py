@@ -1,4 +1,4 @@
-"""``better_robot.dynamics`` — RNEA, ABA, CRBA, centroidal, and integrators.
+"""``better_robot.dynamics`` — RNEA, ABA, CRBA, and centroidal quantities.
 
 Public wrappers delegate to pure structure/value functions in their owning
 modules. Unsupported future algorithms are omitted from the import surface.
@@ -16,12 +16,6 @@ from .centroidal import (
     compute_centroidal_momentum,
 )
 from .crba import crba, crba_raw
-from .derivatives import (
-    compute_aba_derivatives,
-    compute_crba_derivatives,
-    compute_rnea_derivatives,
-)
-from .integrators import integrate_q
 from .rnea import (
     bias_forces,
     compute_generalized_gravity,
@@ -44,8 +38,4 @@ __all__ = [
     "CCRBAResult",
     "ccrba",
     "ccrba_raw",
-    "compute_rnea_derivatives",
-    "compute_aba_derivatives",
-    "compute_crba_derivatives",
-    "integrate_q",
 ]

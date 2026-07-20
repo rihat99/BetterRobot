@@ -8,14 +8,14 @@ defining another optimizer protocol.
 ## Variables and geometry
 
 `Variable` owns its current tensor, stable name, trainable/static role, event
-shape, optional `Bounds`, tangent mask and scale, batch declaration, and
-optional knot-major `time_axis=0`. `SO3Variable`, `SE3Variable`, and
+shape, optional `Bounds`, batch declaration, and optional knot-major
+`time_axis=0`. `SO3Variable`, `SE3Variable`, and
 `RobotVariable` own their corresponding retract/difference geometry. There is
 no separate public variable specification or manifold object.
 
-Leading axes are independent execution batches. Masks eliminate tangent
-columns from derivatives and linear systems. Retraction projects supported
-bounds in state space; bounds are not tangent step limits. Validate structural
+Leading axes are independent execution batches. Every trainable tangent
+coordinate participates in derivatives and linear systems. Retraction projects
+supported bounds in state space; bounds are not tangent step limits. Validate structural
 compatibility at graph freeze or solve entry, then let numerical non-finites
 produce honest optimizer status.
 
@@ -24,7 +24,7 @@ produce honest optimizer status.
 A `Residual` holds ordered references to every variable it reads, a positive
 static `dim`, `name`, `weight`, robust `kernel`, and `group_size`. `error()`
 returns `(..., dim)`. Optional `jacobian()` blocks are ordered like the
-trainable dependencies and already use reduced tangent coordinates. Strategies
+trainable dependencies and already use tangent coordinates. Strategies
 are `auto`, `analytic`, `jacrev`, `jacfwd`, and explicit debug-only
 `finite_difference`; a malformed advertised analytic block is an error.
 
@@ -32,6 +32,10 @@ Evaluation-scoped `Node` objects own shared graph-bearing work such as
 `RobotState`. Residuals list nodes in `nodes`; `Problem` merges compatible
 nodes, harvests their variable dependencies, and invalidates memos at every
 evaluation boundary. Never retain a node result across candidate values.
+
+Under the `auto` strategy, a residual without analytic blocks emits
+`AutodiffFallbackWarning` once per `Problem` and residual before using the
+selected `torch.func` transform. Explicit Jacobian strategies do not warn.
 
 `Problem` freezes on first use, validates unique names, and computes row and
 tangent-column layouts from references. A Python-zero residual weight skips
@@ -50,7 +54,9 @@ values live in the variables.
 and per-element damping, acceptance, convergence, and status internally.
 Dense routing uses `Cholesky` by default; directly eligible temporal graphs use
 `BlockBandedMatrix` and `BandedCholesky`. Automatic routing must report a
-stable `LinearizationReason`.
+stable `LinearizationReason`. A temporal declaration without numeric blocks
+also emits `AutodiffFallbackWarning` once when automatic routing chooses dense;
+explicit dense or structured routing does not warn.
 
 Keep LM's private per-iteration tensor program input-pure, fixed-shape,
 sync-free, and tensor-branching. `TorchOptimizer` owns persistent tangent
@@ -67,5 +73,5 @@ size limits, non-finite systems, and singular systems.
 
 Direct public modules are `problem.py`, `variables.py`, `optimizers.py`,
 `lm.py`, `implicit.py`, `kernels.py`, `solvers.py`, and `temporal.py`;
-`manifolds.py` retains only bounds and private shared helpers. Evaluation nodes
-live with residuals. Keep new behavior on this surface.
+`Bounds` lives with variables and shared optimizer helpers live in `utils.py`.
+Evaluation nodes live with residuals. Keep new behavior on this surface.

@@ -29,10 +29,6 @@
   - ```{autodoc2-docstring} better_robot.optim.solvers.Cholesky
     :summary:
     ```
-* - {py:obj}`LU <better_robot.optim.solvers.LU>`
-  - ```{autodoc2-docstring} better_robot.optim.solvers.LU
-    :summary:
-    ```
 * - {py:obj}`BandedCholesky <better_robot.optim.solvers.BandedCholesky>`
   - ```{autodoc2-docstring} better_robot.optim.solvers.BandedCholesky
     :summary:
@@ -277,40 +273,6 @@ Bases: {py:obj}`typing.Protocol`
 :canonical: better_robot.optim.solvers.Cholesky.solve_with_info
 
 ```{autodoc2-docstring} better_robot.optim.solvers.Cholesky.solve_with_info
-```
-
-````
-
-`````
-
-`````{py:class} LU
-:canonical: better_robot.optim.solvers.LU
-
-```{autodoc2-docstring} better_robot.optim.solvers.LU
-```
-
-````{py:attribute} supported_systems
-:canonical: better_robot.optim.solvers.LU.supported_systems
-:value: >
-   'frozenset(...)'
-
-```{autodoc2-docstring} better_robot.optim.solvers.LU.supported_systems
-```
-
-````
-
-````{py:method} solve(A: torch.Tensor, b: torch.Tensor, ridge: torch.Tensor | float | None = None) -> torch.Tensor
-:canonical: better_robot.optim.solvers.LU.solve
-
-```{autodoc2-docstring} better_robot.optim.solvers.LU.solve
-```
-
-````
-
-````{py:method} solve_with_info(A: torch.Tensor, b: torch.Tensor, ridge: torch.Tensor | float | None = None, *, initial: torch.Tensor | None = None) -> better_robot.optim.solvers.LinearSolveResult
-:canonical: better_robot.optim.solvers.LU.solve_with_info
-
-```{autodoc2-docstring} better_robot.optim.solvers.LU.solve_with_info
 ```
 
 ````

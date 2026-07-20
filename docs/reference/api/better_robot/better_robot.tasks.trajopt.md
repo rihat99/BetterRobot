@@ -189,7 +189,7 @@
 
 ````
 
-````{py:function} solve_trajopt(model: better_robot.data_model.model.Model, *, dt: float, initial_q_traj: torch.Tensor | better_robot.optim.RobotVariable, residuals: collections.abc.Sequence[better_robot.optim.Residual | better_robot.tasks.trajopt.ResidualFactory], optimizer: better_robot.tasks.trajopt.OptimizerFactory | None = None, max_iter: int = 50, jacobian_strategy: better_robot.optim.JacobianStrategy = 'auto', lower: torch.Tensor | None = None, upper: torch.Tensor | None = None, parameterization: better_robot.tasks.parameterization.KnotTrajectory | None = None) -> better_robot.tasks.trajopt.TrajOptResult
+````{py:function} solve_trajopt(model: better_robot.data_model.model.Model, *, dt: float, initial_q_traj: torch.Tensor | better_robot.optim.RobotVariable, residuals: collections.abc.Sequence[better_robot.optim.Residual | better_robot.tasks.trajopt.ResidualFactory], optimizer: better_robot.tasks.trajopt.OptimizerFactory | None = None, max_iter: int = 50, jacobian_strategy: better_robot.optim.JacobianStrategy = 'auto', lower: torch.Tensor | None = None, upper: torch.Tensor | None = None) -> better_robot.tasks.trajopt.TrajOptResult
 :canonical: better_robot.tasks.trajopt.solve_trajopt
 
 ```{autodoc2-docstring} better_robot.tasks.trajopt.solve_trajopt

@@ -83,7 +83,7 @@ example, reads frame placements and compares one frame with a target. The
 package may use kinematics or dynamics concepts, but it does not import the
 optimizer that will consume its output.
 
-`optim` owns variables, manifolds, bounds, residual composition, robust
+`optim` owns variables and their geometry, bounds, residual composition, robust
 losses, Jacobian selection, and solvers. A `Problem` can optimize several
 named variables, each with its own event shape and manifold. Providers place
 shared work such as forward kinematics into one evaluation context so several

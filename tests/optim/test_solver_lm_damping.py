@@ -1,4 +1,4 @@
-"""Madsen--Nielsen damping, scaling, and robust-gain regressions."""
+"""Madsen--Nielsen damping and robust-gain regressions."""
 
 from __future__ import annotations
 
@@ -29,31 +29,6 @@ class _ExponentialResidual(Residual):
 
     def jacobian(self) -> tuple[torch.Tensor, ...]:
         return (self.x.tensor.exp().unsqueeze(-1),)
-
-
-class _MixedUnitResidual(Residual):
-    def __init__(self, meters: Variable, millimeters: Variable, target: Variable) -> None:
-        self.meters = meters
-        self.millimeters = millimeters
-        self.target = target
-        super().__init__(meters, millimeters, target, dim=2, name="mixed_unit")
-
-    def error(self) -> torch.Tensor:
-        return torch.stack(
-            (
-                self.meters.tensor[..., 0] - self.target.tensor[..., 0],
-                1_000.0 * (self.millimeters.tensor[..., 0] - self.target.tensor[..., 1]),
-            ),
-            dim=-1,
-        )
-
-    def jacobian(self) -> tuple[torch.Tensor, ...]:
-        target = self.target.tensor
-        zeros = torch.zeros_like(target[..., 0])
-        ones = torch.ones_like(zeros)
-        meters = torch.stack((ones, zeros), dim=-1).unsqueeze(-1)
-        millimeters = torch.stack((zeros, 1_000.0 * ones), dim=-1).unsqueeze(-1)
-        return meters, millimeters
 
 
 class _PointFitResidual(Residual):
@@ -221,7 +196,7 @@ def test_madsen_nielsen_damping_is_per_element_and_uses_exact_multipliers() -> N
 
 
 def test_rejected_damping_and_increase_factor_clamp_independently() -> None:
-    target_tensor = torch.tensor([[1.1], [10.0]], dtype=torch.float64)
+    target_tensor = torch.tensor([[1.1], [50.0]], dtype=torch.float64)
     x, _target, problem = _exponential_problem(target_tensor)
     optimizer = LevenbergMarquardt(problem, mu_max=16.0, increase_factor_max=32.0)
     values = {"x": x.tensor}
@@ -355,47 +330,6 @@ def test_finalize_does_not_preserve_tolerance_status_for_changed_values() -> Non
     assert OptimizerStatus(int(refreshed.status)) is OptimizerStatus.RUNNING
     assert not bool(refreshed.converged)
     assert not bool(refreshed.implicit_valid)
-
-
-def _mixed_unit_problem(*, scaled: bool, dtype: torch.dtype) -> tuple[dict[str, Variable], Problem]:
-    meters = Variable(
-        torch.zeros(1, dtype=dtype),
-        name="meters",
-        scale=torch.tensor([1.0], dtype=dtype) if scaled else None,
-    )
-    millimeters = Variable(
-        torch.zeros(1, dtype=dtype),
-        name="millimeters",
-        scale=torch.tensor([1e-3], dtype=dtype) if scaled else None,
-    )
-    target = Variable(torch.ones(2, dtype=dtype), name="target", trainable=False)
-    variables = {"meters": meters, "millimeters": millimeters}
-    return variables, Problem([_MixedUnitResidual(meters, millimeters, target)])
-
-
-def test_variable_scale_sets_scaled_mu_and_balances_mixed_unit_step() -> None:
-    dtype = torch.float64
-    unscaled_variables, unscaled_problem = _mixed_unit_problem(scaled=False, dtype=dtype)
-    scaled_variables, scaled_problem = _mixed_unit_problem(scaled=True, dtype=dtype)
-    unscaled_values = {name: variable.tensor for name, variable in unscaled_variables.items()}
-    scaled_values = {name: variable.tensor for name, variable in scaled_variables.items()}
-    unscaled_optimizer = LevenbergMarquardt(unscaled_problem, max_iterations=1)
-    scaled_optimizer = LevenbergMarquardt(scaled_problem, max_iterations=1)
-    unscaled_state = unscaled_optimizer._init_state(unscaled_values, unscaled_problem)
-    scaled_state = scaled_optimizer._init_state(scaled_values, scaled_problem)
-
-    torch.testing.assert_close(unscaled_state.scale, torch.ones(2, dtype=dtype))
-    torch.testing.assert_close(scaled_state.scale, torch.tensor([1.0, 1e-3], dtype=dtype))
-    torch.testing.assert_close(unscaled_state.mu, torch.tensor(100.0, dtype=dtype))
-    torch.testing.assert_close(scaled_state.mu, torch.tensor(1e-4, dtype=dtype))
-
-    unscaled_next_values, unscaled_next = unscaled_optimizer._update(unscaled_values, unscaled_state, unscaled_problem)
-    scaled_next_values, scaled_next = scaled_optimizer._update(scaled_values, scaled_state, scaled_problem)
-
-    assert unscaled_next_values["meters"][0] < 0.02
-    assert scaled_next_values["meters"][0] > 0.99
-    assert scaled_next_values["millimeters"][0] > 0.99
-    assert scaled_next.cost < unscaled_next.cost * 0.02
 
 
 def test_grouped_huber_gain_accepts_when_raw_l2_increases() -> None:

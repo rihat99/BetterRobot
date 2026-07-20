@@ -19,6 +19,9 @@ class ValueLike(Protocol):
 
 @runtime_checkable
 class VariableLike(ValueLike, Protocol):
+    shape: tuple[int, ...]
+    time_axis: int | None
+
     def tangent_dim(self) -> int: ...
     def difference(self, other: torch.Tensor) -> torch.Tensor: ...
 
@@ -29,29 +32,15 @@ class RobotValueLike(ValueLike, Protocol):
 
 
 @runtime_checkable
-class ShapedVariableLike(VariableLike, Protocol):
-    shape: tuple[int, ...]
-    time_axis: int | None
-    free_indices: torch.Tensor
-
-
-@runtime_checkable
-class RobotLike(ShapedVariableLike, Protocol):
+class RobotLike(VariableLike, Protocol):
     model: Model
 
 
 class RobotVariableLike(RobotLike, Protocol):
     time_length: int
-    temporal_free_indices: torch.Tensor
-
-    def gather_tangent(self, full: torch.Tensor) -> torch.Tensor: ...
 
 
-TemporalLike = ShapedVariableLike
-
-
-class TemporalVariableLike(ShapedVariableLike, Protocol):
-    time_length: int
+TemporalLike = VariableLike
 
 
 def value(value: VariableLike | torch.Tensor, label: str) -> torch.Tensor:

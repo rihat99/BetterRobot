@@ -1,5 +1,10 @@
 # Order 01 — Simplify: delete speculative surface, flatten layers, warn on fallback
 
+> **Implementation log (2026-07-20):** Complete on `dev`; source is
+> 21,464 → 20,684 lines, CPU/CUDA/parity/contracts/docs are green. Review
+> corrected the bounds fast-path flag at state init. Deviations: `implicit.py`
+> is 439 rather than ~360 lines and `lie/` is 1,064 rather than ~1,000.
+
 Read `plan/README.md` and `DESIGN_RULES.md` first. Everything below is backed
 by the 2026-07-20 audit; every "zero callers" claim was grep-verified, but
 re-verify before deleting (rules: deletion needs evidence, docs move with the

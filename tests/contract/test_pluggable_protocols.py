@@ -21,13 +21,12 @@ from better_robot.optim import (
     InformativeLinearSolver,
     L2,
     LinearSolver,
-    LU,
     RobustKernel,
     Tukey,
 )
 
 
-@pytest.mark.parametrize("cls", [Cholesky, LU, BandedCholesky])
+@pytest.mark.parametrize("cls", [Cholesky, BandedCholesky])
 def test_linear_solver_protocol(cls) -> None:
     assert isinstance(cls(), LinearSolver)
     assert isinstance(cls(), InformativeLinearSolver)

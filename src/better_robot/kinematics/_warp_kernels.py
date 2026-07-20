@@ -17,7 +17,7 @@ def _compose_f32(a: wp.transformf, b: wp.transformf) -> wp.transformf:
 
     Warp's built-in transform multiplication is equivalent on unit
     quaternions, but its off-manifold derivative is not the derivative of
-    ``better_robot.lie._impl.se3_compose``.  Placement tensors are public,
+    ``better_robot.lie.se3.compose``.  Placement tensors are public,
     differentiable values, so the fused lane must preserve that derivative as
     well as the on-manifold forward result.
     """
@@ -27,9 +27,7 @@ def _compose_f32(a: wp.transformf, b: wp.transformf) -> wp.transformf:
     b_q = wp.transform_get_rotation(b)
 
     a_xyz = wp.vec3f(a_q[0], a_q[1], a_q[2])
-    rotated = b_t + wp.float32(2.0) * wp.cross(
-        a_xyz, wp.cross(a_xyz, b_t) + a_q[3] * b_t
-    )
+    rotated = b_t + wp.float32(2.0) * wp.cross(a_xyz, wp.cross(a_xyz, b_t) + a_q[3] * b_t)
     c_t = a_t + rotated
     c_q = wp.quatf(
         a_q[3] * b_q[0] + a_q[0] * b_q[3] + a_q[1] * b_q[2] - a_q[2] * b_q[1],
@@ -49,9 +47,7 @@ def _compose_f64(a: wp.transformd, b: wp.transformd) -> wp.transformd:
     b_q = wp.transform_get_rotation(b)
 
     a_xyz = wp.vec3d(a_q[0], a_q[1], a_q[2])
-    rotated = b_t + wp.float64(2.0) * wp.cross(
-        a_xyz, wp.cross(a_xyz, b_t) + a_q[3] * b_t
-    )
+    rotated = b_t + wp.float64(2.0) * wp.cross(a_xyz, wp.cross(a_xyz, b_t) + a_q[3] * b_t)
     c_t = a_t + rotated
     c_q = wp.quatd(
         a_q[3] * b_q[0] + a_q[0] * b_q[3] + a_q[1] * b_q[2] - a_q[2] * b_q[1],
@@ -112,9 +108,7 @@ def _joint_transform_f32(  # noqa: PLR0911
         sine = q[q_row, q_index + 3]
         half_cosine = wp.sqrt(wp.max((1.0 + cosine) * 0.5, 0.0))
         half_sine = wp.sqrt(wp.max((1.0 - cosine) * 0.5, 0.0)) * wp.sign(sine)
-        return wp.transformf(
-            wp.vec3f(x, y, 0.0), wp.quatf(0.0, 0.0, half_sine, half_cosine)
-        )
+        return wp.transformf(wp.vec3f(x, y, 0.0), wp.quatf(0.0, 0.0, half_sine, half_cosine))
     if kind == 14:
         return wp.transformf(
             wp.vec3f(
@@ -236,17 +230,13 @@ def fk_frames_f32(
             axes[joint_index],
             pitches[joint_index],
         )
-        local_pose = _compose_f32(
-            joint_placements[value_row, joint_index], joint_delta
-        )
+        local_pose = _compose_f32(joint_placements[value_row, joint_index], joint_delta)
         local_out[execution_index, joint_index] = local_pose
         parent = parents[joint_index]
         if parent < 0:
             world_out[execution_index, joint_index] = local_pose
         else:
-            world_out[execution_index, joint_index] = _compose_f32(
-                world_out[execution_index, parent], local_pose
-            )
+            world_out[execution_index, joint_index] = _compose_f32(world_out[execution_index, parent], local_pose)
     for frame_index in range(nframes):
         parent = frame_parents[frame_index]
         frame_out[execution_index, frame_index] = _compose_f32(
@@ -288,17 +278,13 @@ def fk_frames_f64(
             axes[joint_index],
             pitches[joint_index],
         )
-        local_pose = _compose_f64(
-            joint_placements[value_row, joint_index], joint_delta
-        )
+        local_pose = _compose_f64(joint_placements[value_row, joint_index], joint_delta)
         local_out[execution_index, joint_index] = local_pose
         parent = parents[joint_index]
         if parent < 0:
             world_out[execution_index, joint_index] = local_pose
         else:
-            world_out[execution_index, joint_index] = _compose_f64(
-                world_out[execution_index, parent], local_pose
-            )
+            world_out[execution_index, joint_index] = _compose_f64(world_out[execution_index, parent], local_pose)
     for frame_index in range(nframes):
         parent = frame_parents[frame_index]
         frame_out[execution_index, frame_index] = _compose_f64(

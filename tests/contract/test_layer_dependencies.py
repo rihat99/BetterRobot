@@ -162,8 +162,8 @@ def test_retired_costs_package_is_absent() -> None:
 def test_no_pypose_imports() -> None:
     """No module under ``src/`` may ``import pypose`` after P10-D.
 
-    The direct pure-Torch code in ``lie/_impl.py`` is now the only Lie
-    implementation.
+    The direct pure-Torch code in ``lie/so3.py`` and ``lie/se3.py`` is the
+    only Lie implementation.
     """
     offenders: list[str] = []
     for path in _iter_py_files():

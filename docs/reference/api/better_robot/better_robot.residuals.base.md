@@ -132,7 +132,7 @@ Bases: {py:obj}`better_robot.residuals.base.Weight`
 
 `````
 
-`````{py:class} Residual(*variables: better_robot.residuals._variables.VariableLike, dim: int, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, group_size: int = 1, name: str | None = None)
+`````{py:class} Residual(*variables: better_robot.residuals.utils.VariableLike, dim: int, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, group_size: int = 1, name: str | None = None)
 :canonical: better_robot.residuals.base.Residual
 
 Bases: {py:obj}`abc.ABC`
@@ -176,14 +176,14 @@ Bases: {py:obj}`abc.ABC`
 
 `````
 
-````{py:function} residual(*variables_or_fn: better_robot.residuals._variables.VariableLike | collections.abc.Callable[..., torch.Tensor], dim: int, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, group_size: int = 1, name: str | None = None)
+````{py:function} residual(*variables_or_fn: better_robot.residuals.utils.VariableLike | collections.abc.Callable[..., torch.Tensor], dim: int, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, group_size: int = 1, name: str | None = None)
 :canonical: better_robot.residuals.base.residual
 
 ```{autodoc2-docstring} better_robot.residuals.base.residual
 ```
 ````
 
-`````{py:class} Difference(variable: better_robot.residuals._variables.VariableLike, target: torch.Tensor, *, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str | None = None)
+`````{py:class} Difference(variable: better_robot.residuals.utils.VariableLike, target: torch.Tensor, *, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str | None = None)
 :canonical: better_robot.residuals.base.Difference
 
 Bases: {py:obj}`better_robot.residuals.base.Residual`

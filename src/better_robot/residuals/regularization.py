@@ -8,8 +8,8 @@ from numbers import Real
 import torch
 
 from .._validation import check_tensor
-from ._temporal_jacobian import dense_temporal_residual, temporal_free_indices
-from ._variables import (
+from ._temporal_jacobian import dense_temporal_residual
+from .utils import (
     RobotVariableLike as _RobotVariable,
     VariableLike as _Variable,
     current_value,
@@ -50,7 +50,6 @@ class RestResidual(Residual):
     def jacobian(self) -> tuple[torch.Tensor, ...]:
         q = self.q.tensor
         identity = torch.eye(self.model.nv, dtype=q.dtype, device=q.device)
-        identity = identity.index_select(-1, self.q.free_indices.to(q.device))
         return (identity.expand(*q.shape[:-1], *identity.shape),)
 
 
@@ -161,9 +160,8 @@ class ReferenceTrajectoryResidual(Residual):
         if not matches(variable, self.q):
             return {}
         q = self.q.tensor
-        indices = temporal_free_indices(self.q, device=q.device)
-        identity = torch.eye(self.model.nv, dtype=q.dtype, device=q.device).index_select(-1, indices)
-        base = identity.expand(*q.shape[:-2], self.horizon, self.model.nv, indices.numel())
+        identity = torch.eye(self.model.nv, dtype=q.dtype, device=q.device)
+        base = identity.expand(*q.shape[:-2], self.horizon, self.model.nv, self.model.nv)
         block = base * self._per_frame_scale(q)[..., None, None]
         anchor = q.sum(dim=(-2, -1)) * 0.0
         return {0: block + anchor[..., None, None, None]}

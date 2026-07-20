@@ -9,8 +9,8 @@ from numbers import Real
 
 import torch
 
-from ._temporal_jacobian import dense_temporal_residual, temporal_free_indices
-from ._variables import RobotLike, RobotVariableLike as _RobotTrajectory, matches
+from ._temporal_jacobian import dense_temporal_residual
+from .utils import RobotLike, RobotVariableLike as _RobotTrajectory, matches
 from .base import Residual, Weight
 from .structure import TemporalPattern
 
@@ -59,9 +59,8 @@ class _SmoothnessResidual(Residual):
         if not matches(variable, self.q):
             return {}
         q, horizon = _trajectory(self.q, type(self).__name__)
-        indices = temporal_free_indices(self.q, device=q.device)
-        identity = torch.eye(self.model.nv, dtype=q.dtype, device=q.device).index_select(-1, indices)
-        base = identity.expand(*q.shape[:-2], horizon - 2, self.model.nv, indices.numel())
+        identity = torch.eye(self.model.nv, dtype=q.dtype, device=q.device)
+        base = identity.expand(*q.shape[:-2], horizon - 2, self.model.nv, self.model.nv)
         scale = self._row_scale()
         return {
             offset: _anchor_constant_block(coefficient * scale * base, q)

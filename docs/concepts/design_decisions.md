@@ -127,7 +127,7 @@ Real estimation problems optimize heterogeneous things jointly: joint configurat
 poses, shape parameters, camera intrinsics, contact forces. An optimizer hardwired to a single
 flat `q` vector forces every consumer to invent its own packing/unpacking layer — which is
 exactly how hand-rolled optimization code proliferates. So the problem surface is a set of *named
-variable blocks*, each with its own manifold, bounds, and mask, and residuals declare which blocks
+variable blocks*, each with its own geometry and optional bounds, and residuals declare which blocks
 they read. IK is then just a problem with one block; a body-fitting pipeline is a problem with
 five. Same solver, no packing code.
 

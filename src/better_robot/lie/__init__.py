@@ -1,9 +1,8 @@
 """``better_robot.lie`` — SE3/SO3 group operations and tangent algebra.
 
-The pure-PyTorch implementation lives in ``lie._impl``.
-The rest of the codebase uses the functional facades in ``lie.se3``,
-``lie.so3``, and ``lie.tangents``, plus the typed value classes in
-``lie.types``.
+The pure-PyTorch implementation lives directly in ``lie.se3`` and
+``lie.so3``. Tangent algebra is in ``lie.tangents`` and typed value classes
+are in ``lie.types``.
 
 See ``docs/concepts/lie_and_spatial.md``.
 """

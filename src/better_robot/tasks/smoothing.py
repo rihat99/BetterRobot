@@ -8,22 +8,7 @@ import torch
 
 from ..lie import se3, so3
 from .trajectory import Trajectory
-
-
-def _hemisphere_align(q: torch.Tensor, *, start: int) -> torch.Tensor:
-    quaternion = q[..., start : start + 4]
-    adjacent_dot = (quaternion[..., 1:, :] * quaternion[..., :-1, :]).sum(dim=-1)
-    step_sign = torch.where(
-        adjacent_dot < 0,
-        -torch.ones_like(adjacent_dot),
-        torch.ones_like(adjacent_dot),
-    )
-    first = torch.ones_like(quaternion[..., :1, 0])
-    signs = torch.cat((first, step_sign), dim=-1).cumprod(dim=-1).unsqueeze(-1)
-    aligned_quaternion = quaternion * signs
-    if start == 0:
-        return aligned_quaternion
-    return torch.cat((q[..., :start], aligned_quaternion), dim=-1)
+from .utils import _hemisphere_align
 
 
 def smooth_trajectory(
@@ -74,7 +59,11 @@ def smooth_trajectory(
 
     if q.shape[-2] == 0:
         raise ValueError("cannot smooth an empty trajectory")
-    aligned = _hemisphere_align(q, start=0 if kind == "so3" else 3)
+    quaternion_start = 0 if kind == "so3" else 3
+    aligned = _hemisphere_align(
+        q,
+        (slice(quaternion_start, quaternion_start + 4),),
+    )
     num_knots = q.shape[-2]
     radius = kernel.numel() // 2
     offsets = torch.arange(-radius, radius + 1, device=q.device)

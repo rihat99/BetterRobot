@@ -11,7 +11,7 @@ object-referenced `Problem` graphs and call public optimizers.
 | Task | Status |
 |------|--------|
 | `solve_ik` | Implemented |
-| `solve_trajopt` | `RobotVariable(..., time_axis=0)` with automatic dense/banded routing; non-knot robot parameterisations remain gated |
+| `solve_trajopt` | `RobotVariable(..., time_axis=0)` with automatic dense/banded routing; non-knot robot parameterisations remain absent |
 | `solve_contact_forces` | Implemented for batched floating-base clips through one force `Variable` and shared RNEA `Node` |
 | `Trajectory` | Implemented (`with_batch_dims`, `slice`, `resample(linear|sclerp)`, `downsample`, `to_data`) |
 | `smooth_trajectory` | Implemented for batched quaternion and SE3 pose trajectories with explicit kernels |
@@ -23,8 +23,8 @@ limit/rest residuals, and evaluation-local `RobotState` nodes. Pose and rest
 targets are graph-carrying static `Variable` objects.
 `differentiable=True` selects LM's guarded implicit backward; other optimizer
 choices reject that flag. Object-owned LM/GN, `TorchOptimizer`, and sequential
-`lm_then_adam` are supported; the L-BFGS spellings fail honestly. Arbitrary
-common leading batch axes return per-element diagnostics.
+`lm_then_adam` are supported. Arbitrary common leading batch axes return
+per-element diagnostics.
 
 **Single code path** — floating-base is transparent. The first 7 DOF of `q`
 are the base pose for free-flyer models; the optimizer does not need to know.
@@ -39,9 +39,8 @@ temporal blocks; forced dense remains the parity oracle. `TrajOptResult`
 exposes `linearization_requested`, `linearization_used` (`"dense"` or
 `"banded"`), `linearization_reason`, and `linearization_detail`. Arbitrary
 leading batch axes return per-element iterations, convergence, and status.
-Callers omit residuals they do not want. `BSplineTrajectory` remains a
-Euclidean numerical basis utility and is rejected until a separately reviewed
-manifold-safe mapping exists.
+Callers omit residuals they do not want. B-spline parameterization remains
+deferred until a separately reviewed manifold-safe mapping exists.
 
 ## solve_contact_forces
 

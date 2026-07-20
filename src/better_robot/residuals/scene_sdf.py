@@ -10,7 +10,7 @@ import torch
 
 from .._validation import check_tensor
 from ._point_cloud import _detached_nearest, _gather_rows, _validate_clouds
-from ._variables import VariableLike as _VariableLike, value, variables
+from .utils import VariableLike as _VariableLike, value, variables
 from .base import Residual, Weight
 from .nodes import Node
 
@@ -26,7 +26,7 @@ class SceneSDFResult:
 
 
 class SceneSDFState(Node):
-    """Approximate point-cloud SDF cached for one evaluation epoch.
+    """Approximate point-cloud SDF cached for one evaluation scope.
 
     This multi-input node is never identity-merged. Reuse is explicit: pass
     the same :class:`SceneSDFState` object to every penalty residual that

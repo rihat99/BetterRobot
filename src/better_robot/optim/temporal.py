@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING
+import warnings
 
 import torch
 
@@ -22,7 +23,6 @@ class LinearizationReason(str, Enum):
     ELIGIBLE_BANDED = "eligible_banded"
     NO_TIME_VARIABLE = "no_time_variable"
     MULTIPLE_OPTIMIZED_VARIABLES = "multiple_optimized_variables"
-    NONSEPARABLE_MASK = "nonseparable_mask"
     UNDECLARED_TEMPORAL_RESIDUAL = "undeclared_temporal_residual"
     MISSING_TEMPORAL_BLOCKS = "missing_temporal_blocks"
     MIXED_OPTIMIZED_DEPENDENCY = "mixed_optimized_dependency"
@@ -37,7 +37,6 @@ class TemporalAnalysis:
     variable_name: str | None = None
     time_length: int | None = None
     tangent_width: int | None = None
-    reduced_width: int | None = None
     bandwidth: int = 0
     patterns: tuple[tuple[str, TemporalPattern], ...] = ()
 
@@ -146,19 +145,13 @@ class BlockBandedMatrix:
         bands[..., :, 0, :, :].diagonal(dim1=-2, dim2=-1).add_(shaped)
         return BlockBandedMatrix(bands, self.bandwidth)
 
-    def scaled_restricted(
-        self,
-        scale: torch.Tensor,
-        movable: torch.Tensor,
-        diagonal: torch.Tensor,
-    ) -> BlockBandedMatrix:
-        for name, value in (("scale", scale), ("movable", movable), ("diagonal", diagonal)):
+    def restricted(self, movable: torch.Tensor, diagonal: torch.Tensor) -> BlockBandedMatrix:
+        """Apply an active-set restriction and replace the diagonal."""
+        for name, value in (("movable", movable), ("diagonal", diagonal)):
             _check_flat(name, value, self)
-        batch = torch.broadcast_shapes(
-            self.batch_shape, tuple(scale.shape[:-1]), tuple(movable.shape[:-1]), tuple(diagonal.shape[:-1])
-        )
+        batch = torch.broadcast_shapes(self.batch_shape, tuple(movable.shape[:-1]), tuple(diagonal.shape[:-1]))
         bands = self.bands.expand(*batch, *self.bands.shape[-4:])
-        factor = (scale * movable).expand(*batch, self.size).reshape(*batch, self.time_length, self.block_size)
+        factor = movable.expand(*batch, self.size).reshape(*batch, self.time_length, self.block_size)
         transformed = torch.zeros_like(bands)
         for offset in range(self.bandwidth + 1):
             transformed[..., offset:, offset, :, :] = (
@@ -185,7 +178,6 @@ def _analysis(
         None if variable is None else variable.name,
         None if variable is None else variable.time_length,
         None if variable is None else variable.temporal_tangent_width,
-        None if variable is None or not variable.temporal_mask_is_separable else variable.temporal_reduced_width,
         bandwidth,
         patterns,
     )
@@ -205,14 +197,6 @@ def analyze_temporal_problem(problem: Problem) -> TemporalAnalysis:  # noqa: PLR
             f"structured v1 requires exactly one free variable; found {names}",
         )
     variable = temporal[0]
-    if not variable.temporal_mask_is_separable:
-        return _analysis(
-            False,
-            LinearizationReason.NONSEPARABLE_MASK,
-            f"temporal variable {variable.name!r} mask differs across knots",
-            variable,
-        )
-
     patterns: list[tuple[str, TemporalPattern]] = []
     missing: list[str] = []
     bandwidth = 0
@@ -283,6 +267,27 @@ def analyze_temporal_problem(problem: Problem) -> TemporalAnalysis:  # noqa: PLR
     )
 
 
+def _warn_missing_temporal_blocks(problem: Problem) -> None:
+    """Warn once for each temporal declaration forcing automatic dense routing."""
+    from .problem import AutodiffFallbackWarning  # noqa: PLC0415
+
+    for residual_name, _pattern in problem.temporal_analysis.patterns:
+        item = problem._residuals_by_name[residual_name]
+        if callable(getattr(item, "temporal_jacobian_blocks", None)):
+            continue
+        warning_key = ("temporal", residual_name)
+        if warning_key in problem._warned_fallbacks:
+            continue
+        problem._warned_fallbacks.add(warning_key)
+        warnings.warn(
+            f"{type(item).__name__} residual {residual_name!r} declares temporal structure but no "
+            "temporal_jacobian_blocks(); linearization='auto' is using the dense route. Provide temporal "
+            "blocks or pass linearization='dense' explicitly to silence this warning.",
+            AutodiffFallbackWarning,
+            stacklevel=3,
+        )
+
+
 @dataclass(frozen=True)
 class _StructuredTerm:
     row_slice: slice
@@ -344,7 +349,7 @@ def assemble_structured_normal(  # noqa: PLR0912, PLR0915
         raise ValueError(f"{analysis.reason.value}: {analysis.detail}")
     assert analysis.variable_name is not None
     assert analysis.time_length is not None
-    assert analysis.reduced_width is not None
+    assert analysis.tangent_width is not None
     variable = problem._vars_by_name[analysis.variable_name]
     exemplar = variable.tensor
     if residual is None:
@@ -359,7 +364,7 @@ def assemble_structured_normal(  # noqa: PLR0912, PLR0915
         if value.dtype != exemplar.dtype or value.device != exemplar.device:
             raise ValueError(f"{name} must preserve values dtype/device")
 
-    T, d, w = analysis.time_length, analysis.reduced_width, analysis.bandwidth
+    T, d, w = analysis.time_length, analysis.tangent_width, analysis.bandwidth
     bands = exemplar.new_zeros(*batch_shape, T, w + 1, d, d)
     gradient = exemplar.new_zeros(*batch_shape, T, d)
     terms: list[_StructuredTerm] = []
@@ -387,7 +392,7 @@ def assemble_structured_normal(  # noqa: PLR0912, PLR0915
         ordered_raw: list[torch.Tensor] = []
         for offset in pattern.offsets:
             block = raw[offset]
-            expected = (*batch_shape, pattern.rows, pattern.row_width, analysis.reduced_width)
+            expected = (*batch_shape, pattern.rows, pattern.row_width, d)
             if not isinstance(block, torch.Tensor) or tuple(block.shape) != expected:
                 actual = tuple(block.shape) if isinstance(block, torch.Tensor) else type(block).__name__
                 raise ValueError(
@@ -395,7 +400,7 @@ def assemble_structured_normal(  # noqa: PLR0912, PLR0915
                 )
             if block.dtype != exemplar.dtype or block.device != exemplar.device:
                 raise ValueError(f"Residual {item.name!r} temporal block {offset} must preserve dtype/device")
-            ordered_raw.append(block.reshape(*batch_shape, item.dim, analysis.reduced_width))
+            ordered_raw.append(block.reshape(*batch_shape, item.dim, d))
         weighted_raw = item.weight.apply_jacobian(tuple(ordered_raw))
         blocks: list[tuple[int, torch.Tensor]] = []
         for offset, flat_block in zip(pattern.offsets, weighted_raw, strict=True):

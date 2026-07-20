@@ -36,15 +36,6 @@ class _AttitudeResidual(Residual):
         return so3.log(self.rotation.tensor) - _ROTATION_TARGET.to(self.rotation.tensor)
 
 
-class _MaskedPositionResidual(Residual):
-    def __init__(self, x: Variable) -> None:
-        self.x = x
-        super().__init__(x, dim=2, name="masked_position")
-
-    def error(self) -> torch.Tensor:
-        return self.x.tensor[..., (0, 2)]
-
-
 class _ParameterResidual(Residual):
     def __init__(self, x: Variable, target: Variable, *extra: Variable) -> None:
         self.x, self.target = x, target
@@ -81,8 +72,8 @@ class _PerElementInvalidResidual(Residual):
         return torch.where(self.x.tensor > 0, torch.full_like(self.x.tensor, torch.nan), self.x.tensor)
 
 
-def _two_block_problem(x_value: torch.Tensor, rotation_value: torch.Tensor, *, mask=None):
-    x = Variable(x_value, name="x", mask=mask, batch_ndim=max(0, x_value.ndim - 1))
+def _two_block_problem(x_value: torch.Tensor, rotation_value: torch.Tensor):
+    x = Variable(x_value, name="x", batch_ndim=max(0, x_value.ndim - 1))
     rotation = SO3Variable(rotation_value, name="rotation")
     return x, rotation, Problem([_PositionResidual(x), _AttitudeResidual(rotation)])
 
@@ -128,45 +119,16 @@ def test_two_block_batched_evaluation_matches_sequential() -> None:
             torch.testing.assert_close(gradient[name][index], value)
 
 
-def test_mask_gather_expand_scale_and_reduced_normal_matrix() -> None:
-    variable = Variable(
-        torch.tensor([0.3, 9.0, -0.4]),
-        name="x",
-        mask=torch.tensor([True, False, True]),
-        scale=torch.tensor([2.0, 3.0, 4.0]),
-    )
-    full = torch.tensor([[1.0, 2.0, 3.0], [-1.0, -2.0, -3.0]])
-    torch.testing.assert_close(variable.free_scale, torch.tensor([2.0, 4.0]))
-    torch.testing.assert_close(variable.gather_tangent(full), full[:, (0, 2)])
-    torch.testing.assert_close(
-        variable.expand_tangent(variable.gather_tangent(full)),
-        torch.tensor([[1.0, 0.0, 3.0], [-1.0, 0.0, -3.0]]),
-    )
-    jacobian = Problem([_MaskedPositionResidual(variable)]).dense_jacobian()
-    normal = jacobian.mT @ jacobian
-    torch.testing.assert_close(normal, torch.eye(2))
-    assert torch.linalg.matrix_rank(normal).item() == 2
-
-
-@pytest.mark.parametrize(
-    ("scale", "error", "message"),
-    [(torch.ones(2), ValueError, "tangent shape"), (torch.tensor([1, 2, 3]), TypeError, "floating dtype")],
-)
-def test_scale_validation(scale: torch.Tensor, error: type[Exception], message: str) -> None:
-    with pytest.raises(error, match=message):
-        Variable(torch.zeros(3), scale=scale)
-
-
 def test_dense_assembly_has_exact_declared_offsets() -> None:
-    x = Variable(torch.tensor([0.2, 8.0, -0.7]), name="x", mask=torch.tensor([True, False, True]))
+    x = Variable(torch.tensor([0.2, 8.0, -0.7]), name="x")
     rotation = SO3Variable(_identity_rotation(), name="rotation")
-    problem = Problem([_AttitudeResidual(rotation), _MaskedPositionResidual(x)])
+    problem = Problem([_AttitudeResidual(rotation), _PositionResidual(x)])
     problem._freeze()
-    assert problem.row_offsets == {"attitude": slice(0, 3), "masked_position": slice(3, 5)}
-    assert problem.column_offsets == {"rotation": slice(0, 3), "x": slice(3, 5)}
-    expected = torch.zeros(5, 5)
+    assert problem.row_offsets == {"attitude": slice(0, 3), "position": slice(3, 6)}
+    assert problem.column_offsets == {"rotation": slice(0, 3), "x": slice(3, 6)}
+    expected = torch.zeros(6, 6)
     expected[:3, :3] = torch.eye(3)
-    expected[3:, 3:] = torch.eye(2)
+    expected[3:, 3:] = torch.eye(3)
     torch.testing.assert_close(problem.dense_jacobian(), expected)
 
 

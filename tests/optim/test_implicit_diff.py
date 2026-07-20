@@ -58,7 +58,7 @@ def _solve_implicitly(target: torch.Tensor, initial: torch.Tensor) -> tuple[torc
     optimizer = LevenbergMarquardt(
         problem,
         max_iterations=30,
-        tolerance=1e-7,
+        tolerance=1e-7 if target.dtype == torch.float32 else 1e-10,
         step_tolerance=1e-12,
         relative_tolerance=1e-12,
     )
