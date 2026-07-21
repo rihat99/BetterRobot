@@ -16,6 +16,7 @@
 better_robot.spatial.motion
 better_robot.spatial.ops
 better_robot.spatial.symmetric3
+better_robot.spatial.mesh
 better_robot.spatial.inertia
 better_robot.spatial.force
 ```
