@@ -61,7 +61,10 @@ explicit dense or structured routing does not warn.
 Keep LM's private per-iteration tensor program input-pure, fixed-shape,
 sync-free, and tensor-branching. `TorchOptimizer` owns persistent tangent
 buffers, delegates update rules to `torch.optim`, retracts after each step, and
-rebases without discarding optimizer state.
+rebases without discarding optimizer state. Non-closure optimizers run one
+objective forward per step (LBFGS line searches add their own closure
+evaluations): `step()` reports cost from the gradient forward (the entering
+iterate), and only `optimize()` refreshes the final cost at the solution.
 
 ## Differentiation
 

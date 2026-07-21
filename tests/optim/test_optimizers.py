@@ -121,6 +121,18 @@ def test_problem_update_rebuilds_batch_shaped_state() -> None:
     assert value.tensor.shape == (3, 1)
 
 
+def test_zero_iteration_optimize_refreshes_layout_after_update() -> None:
+    problem, _ = _target_problem(torch.zeros(1), torch.ones(1))
+    optimizer = TorchOptimizer(problem, torch.optim.SGD, lr=0.2, max_iterations=0)
+
+    problem.update({"value": torch.zeros(3, 1)})
+    info = optimizer.optimize()
+
+    assert info.status.shape == info.iterations.shape == info.cost.shape == (3,)
+    assert bool((info.status == OptimizerStatus.MAXITER).all())
+    torch.testing.assert_close(info.cost, problem.objective())
+
+
 def test_torch_optimizer_rejects_differentiation_and_invalid_controls() -> None:
     problem, _ = _target_problem(torch.zeros(1), torch.ones(1))
     with pytest.raises(ValueError, match="non-negative int"):

@@ -103,6 +103,10 @@ class TorchOptimizer(Optimizer):
 
     ``torch.optim.LBFGS`` uses one closure over the summed batch objective;
     its line search and history therefore couple batch elements.
+
+    ``step()`` reports the objective from the same forward used for gradients
+    (the iterate entering the step); ``optimize()`` refreshes the reported
+    cost at the final variables.
     """
 
     def __init__(
@@ -125,6 +129,7 @@ class TorchOptimizer(Optimizer):
         self._status: torch.Tensor | None = None
         self._iterations: torch.Tensor | None = None
         self._cost: torch.Tensor | None = None
+        self._evaluated_cost: torch.Tensor | None = None
         self._seen_update_serial = -1
         self.reset()
 
@@ -181,6 +186,7 @@ class TorchOptimizer(Optimizer):
         def evaluate() -> torch.Tensor:
             self._optimizer.zero_grad(set_to_none=True)
             cost = self.problem.objective(self._candidate(base))
+            self._evaluated_cost = cost.detach()
             objective = (cost * active).sum()
             objective.backward()
             return objective
@@ -209,6 +215,7 @@ class TorchOptimizer(Optimizer):
         base = {variable.name: variable.tensor.detach() for variable in self.problem.vars}
         closure = self._closure(base, running)
         closure()
+        self._cost = self._evaluated_cost
         converged = self._gradient_norm() <= self.tolerance
         self._status = torch.where(
             running & converged,
@@ -225,12 +232,12 @@ class TorchOptimizer(Optimizer):
             self._iterations = self._iterations + active.to(self._iterations.dtype)
 
         self._optimizer.zero_grad(set_to_none=True)
-        self._cost = self.problem.objective().detach()
         return self._initial_info()
 
     def optimize(self, *, verbose: bool = False, differentiate: str | None = None) -> OptimizerInfo:
         if differentiate is not None:
             raise ValueError("TorchOptimizer does not support differentiation")
+        self._ensure_current_layout()
         info = super().optimize(verbose=verbose)
         if bool((info.status == OptimizerStatus.RUNNING).any()):
             assert self._status is not None
@@ -239,8 +246,9 @@ class TorchOptimizer(Optimizer):
                 torch.full_like(self._status, OptimizerStatus.MAXITER),
                 self._status,
             )
-            info = self._initial_info()
-        return info
+        with torch.no_grad():
+            self._cost = self.problem.objective().detach()
+        return self._initial_info()
 
 
 __all__ = [

@@ -204,6 +204,8 @@ def test_manual_weight_phase_transition_converges() -> None:
     assert final_loss.item() < 0.01 * initial_loss.item()
     torch.testing.assert_close(values["q"], data.target_q, rtol=0.0, atol=1.5e-2)
     torch.testing.assert_close(values["log_s"], data.target_log_s, rtol=0.0, atol=1.5e-2)
-    expected_active_evaluations = 4 + 2 * root_iterations + 2 * full_iterations
+    # Per segment: one reset forward, one gradient forward per step, one final
+    # cost refresh in optimize(); plus this test's two explicit objective calls.
+    expected_active_evaluations = 2 + (root_iterations + 2) + (full_iterations + 2)
     assert counters.kinematics == expected_active_evaluations
     assert counters.nearest_neighbor == expected_active_evaluations
