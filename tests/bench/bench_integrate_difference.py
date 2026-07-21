@@ -9,7 +9,7 @@ import torch
 
 pytest.importorskip("pytest_benchmark")
 
-from better_robot.io.builders.smpl_like import make_smpl_like_model
+from tests.support.branching_tree import make_branching_tree_model
 
 
 pytestmark = pytest.mark.bench
@@ -66,7 +66,7 @@ def single_thread_cpu():
 @pytest.fixture(scope="module")
 def smpl_manifold_case(single_thread_cpu):
     del single_thread_cpu
-    model = make_smpl_like_model(dtype=torch.float32)
+    model = make_branching_tree_model(dtype=torch.float32)
     generator = torch.Generator().manual_seed(SEED)
     tangent = (
         torch.randn(
@@ -128,7 +128,7 @@ def test_smpl_manifold_throughput(
             "implementation": implementation,
             "device": "cpu",
             "dtype": "torch.float32",
-            "model": "SMPL-like free-flyer + 23 spherical joints",
+            "model": "branching-tree free-flyer + 23 spherical joints",
             "q_shape": [TRAJECTORY_LENGTH, model.nq],
             "v_shape": [TRAJECTORY_LENGTH, model.nv],
             "torch_threads": 1,

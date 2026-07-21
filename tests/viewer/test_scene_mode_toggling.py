@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 import better_robot as br
-from better_robot.io.builders.smpl_like import make_smpl_like_body
+from tests.support.branching_tree import make_branching_tree_body
 from better_robot.viewer.scene import Scene
 from better_robot.viewer.render_modes.skeleton import SkeletonMode
 from better_robot.viewer.render_modes.urdf_mesh import URDFMeshMode
@@ -46,7 +46,7 @@ def test_urdf_mesh_mode_available_from_urdf(panda, backend):
 
 def test_urdf_mesh_mode_unavailable_programmatic(backend):
     # A programmatic model has no ir in meta → unavailable
-    model = br.load(make_smpl_like_body)
+    model = br.load(make_branching_tree_body)
     data = br.forward_kinematics(model, model.q_neutral)
     assert not URDFMeshMode.is_available(model, data)
 
@@ -60,7 +60,7 @@ def test_scene_default_has_urdf_mesh(panda, backend):
 
 def test_scene_default_has_skeleton(backend):
     # Programmatic model has no ir → Scene.default falls back to SkeletonMode
-    model = br.load(make_smpl_like_body)
+    model = br.load(make_branching_tree_body)
     scene = Scene.default(model, backend=backend)
     avail = scene.available_modes()
     assert "Skeleton" in avail
@@ -108,7 +108,7 @@ def test_update_calls_set_transform(panda, backend):
 
 def test_unavailable_mode_not_attached(backend):
     """Programmatic model: URDFMeshMode unavailable, Skeleton is the fallback."""
-    model = br.load(make_smpl_like_body)
+    model = br.load(make_branching_tree_body)
     b2 = MockBackend()
     scene = Scene.default(model, backend=b2)
     assert "URDF mesh" not in scene.available_modes()

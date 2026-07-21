@@ -53,7 +53,6 @@ from better_robot.data_model.model import Model
 from better_robot.data_model.model_structure import ModelStructure
 from better_robot.data_model.model_values import ModelValues
 from better_robot.dynamics.rnea import rnea_raw
-from better_robot.io.builders.smpl_like import make_smpl_like_model
 from better_robot.kinematics.forward import forward_kinematics_raw, frame_placements_raw
 from better_robot.tasks import IKCostConfig, OptimizerConfig, solve_ik
 
@@ -409,7 +408,12 @@ def _case_seed(base_seed: int, case: CaseSpec) -> int:
 
 def _load_model(name: ModelName, device: torch.device, dtype: torch.dtype) -> Model:
     if name == "smpl":
-        return make_smpl_like_model(device=device, dtype=dtype)
+        _repo_root = Path(__file__).resolve().parents[1]
+        if str(_repo_root) not in sys.path:
+            sys.path.insert(0, str(_repo_root))
+        from tests.support.branching_tree import make_branching_tree_model  # noqa: PLC0415
+
+        return make_branching_tree_model(device=device, dtype=dtype)
     try:
         from robot_descriptions import panda_description  # noqa: PLC0415
     except ImportError as exc:

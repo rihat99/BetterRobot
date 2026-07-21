@@ -7,11 +7,12 @@ import torch
 import better_robot as br
 from better_robot.io import ModelBuilder, build_model, load
 from better_robot.io.builders.kinematic_tree import build_kinematic_tree_model
-from better_robot.io.builders.smpl_like import (
+
+from tests.support.branching_tree import (
     JOINT_NAMES,
     PARENTS,
-    make_smpl_like_body,
-    make_smpl_like_model,
+    make_branching_tree_body,
+    make_branching_tree_model,
 )
 
 
@@ -32,8 +33,8 @@ def _remap_by_name(source, target, values: torch.Tensor, *, tangent: bool):
     return torch.cat(parts, dim=-1)
 
 
-def test_smpl_preserve_order_is_exact_and_dfs_default_is_unchanged():
-    ir = make_smpl_like_body()
+def test_branching_preserve_order_is_exact_and_dfs_default_is_unchanged():
+    ir = make_branching_tree_body()
     source_order = tuple(joint.name for joint in ir.joints)
 
     preserved = build_model(ir, preserve_joint_order=True)
@@ -44,17 +45,17 @@ def test_smpl_preserve_order_is_exact_and_dfs_default_is_unchanged():
     assert default.joint_names[:6] == (
         "universe",
         "root",
-        "left_hip",
-        "left_knee",
-        "left_ankle",
-        "left_foot",
+        "j1",
+        "j4",
+        "j7",
+        "j10",
     )
     assert default.joint_names[1:] != source_order
     assert all(parent < child for child, parent in enumerate(preserved.parents) if parent >= 0)
 
 
-def test_preserved_smpl_fk_and_rnea_match_default_dfs_model():
-    ir = make_smpl_like_body()
+def test_preserved_branching_fk_and_rnea_match_default_dfs_model():
+    ir = make_branching_tree_body()
     preserved = build_model(ir, preserve_joint_order=True, dtype=torch.float64)
     default = build_model(ir, dtype=torch.float64)
     generator = torch.Generator().manual_seed(35)
@@ -137,8 +138,8 @@ def test_stable_kahn_repairs_non_topological_input_deterministically():
 
 
 def test_preserve_order_threads_through_load_and_public_model_builders():
-    loaded = load(make_smpl_like_body, preserve_joint_order=True)
-    smpl_model = make_smpl_like_model(preserve_joint_order=True)
+    loaded = load(make_branching_tree_body, preserve_joint_order=True)
+    fixture_model = make_branching_tree_model(preserve_joint_order=True)
     tree_model = build_kinematic_tree_model(
         name="tree",
         joint_names=JOINT_NAMES,
@@ -149,5 +150,5 @@ def test_preserve_order_threads_through_load_and_public_model_builders():
 
     expected = ("root", *JOINT_NAMES[1:])
     assert loaded.joint_names[1:] == expected
-    assert smpl_model.joint_names[1:] == expected
+    assert fixture_model.joint_names[1:] == expected
     assert tree_model.joint_names[1:] == expected

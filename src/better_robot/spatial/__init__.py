@@ -12,7 +12,19 @@ from __future__ import annotations
 from ..lie.types import SE3, SO3, Pose
 from .force import Force
 from .inertia import Inertia
+from .mesh import orient_faces_by_component, orient_faces_consistently, validate_closed_manifold
 from .motion import Motion
 from .symmetric3 import Symmetric3
 
-__all__ = ["Motion", "Force", "Inertia", "Symmetric3", "SE3", "SO3", "Pose"]
+__all__ = [
+    "Motion",
+    "Force",
+    "Inertia",
+    "Symmetric3",
+    "SE3",
+    "SO3",
+    "Pose",
+    "orient_faces_by_component",
+    "orient_faces_consistently",
+    "validate_closed_manifold",
+]

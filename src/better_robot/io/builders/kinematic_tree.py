@@ -7,11 +7,10 @@ non-root joint uses ``child_kind`` (default ``"spherical"``). Rotations at
 each joint origin are identity — supply custom orientations by composing
 origins manually through ``ModelBuilder`` if needed.
 
-This is the common primitive behind ``make_smpl_like_body`` and the
-recommended entry point for programmatic construction of any tree of bodies
-connected by uniform free-flyer / spherical / fixed joints.
+This is the recommended entry point for programmatic construction of any tree
+of bodies connected by uniform free-flyer / spherical / fixed joints.
 
-See ``docs/concepts/parsers_and_ir.md §6``.
+See ``docs/concepts/parsers_and_ir.md``.
 """
 
 from __future__ import annotations

@@ -18,7 +18,7 @@ _BENCHMARK = Path(__file__).with_name("bench_trajopt_sparse.py")
 
 
 def test_trajopt_sparse_structured_t50_one_update(tmp_path: Path) -> None:
-    """Build the real SMPL problem and complete one structured LM update."""
+    """Build the real branching-tree problem and complete one structured LM update."""
     output = tmp_path / "case.json"
     environment = os.environ.copy()
     environment.update(

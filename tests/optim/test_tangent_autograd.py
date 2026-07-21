@@ -9,7 +9,7 @@ import pytest
 import torch
 
 from better_robot.io import load
-from better_robot.io.builders.smpl_like import make_smpl_like_model
+from tests.support.branching_tree import make_branching_tree_model
 from better_robot.kinematics import forward_kinematics
 from better_robot.optim import Problem, RobotVariable, SE3Variable, SO3Variable, Variable
 from better_robot.residuals.pose import PoseResidual
@@ -154,7 +154,7 @@ def test_create_graph_keeps_constant_and_unused_block_zeros_connected() -> None:
 
 
 def test_spherical_tree_rest_pose_tangent_gradient_is_finite() -> None:
-    model = make_smpl_like_model(dtype=torch.float32)
+    model = make_branching_tree_model(dtype=torch.float32)
     neutral = model.q_neutral
     q = RobotVariable(model, neutral.expand(2, 3, model.nq).clone(), name="q")
 

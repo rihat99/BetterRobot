@@ -13,7 +13,7 @@ pytest.importorskip("warp")
 
 from better_robot.io import load
 from better_robot.io.build_model import build_model
-from better_robot.io.builders.smpl_like import make_smpl_like_model
+from tests.support.branching_tree import make_branching_tree_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics._warp_bridge import (
     _warp_fk_forward,
@@ -127,7 +127,7 @@ def _make_chained_mimic_model(dtype: torch.dtype):
 def _model_and_q(kind: str = "smpl", dtype: torch.dtype = torch.float32):
     device = torch.device("cuda:0")
     if kind == "smpl":
-        model = make_smpl_like_model(dtype=dtype)
+        model = make_branching_tree_model(dtype=dtype)
     elif kind == "branched":
         model = _make_branched_model(dtype)
     elif kind == "deep":
@@ -470,7 +470,7 @@ def test_cuda_current_stream_and_graph_replay(model_kind: str, dtype: torch.dtyp
 
 @pytest.mark.parametrize("input_name", ("q", "joint_placements"))
 def test_warp_layout_fallback_is_a_hard_error_only_during_capture(input_name: str) -> None:
-    model = make_smpl_like_model(dtype=torch.float32).to(device="cuda")
+    model = make_branching_tree_model(dtype=torch.float32).to(device="cuda")
     q = model.q_neutral.unsqueeze(0).contiguous()
     values = model.values
     if input_name == "q":

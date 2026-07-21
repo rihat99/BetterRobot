@@ -16,7 +16,7 @@ pytest.importorskip("warp")
 from better_robot.dynamics._warp_bridge import try_warp_rnea
 from better_robot.dynamics.rnea import rnea, rnea_raw
 from better_robot.io import load
-from better_robot.io.builders.smpl_like import make_smpl_like_model
+from tests.support.branching_tree import make_branching_tree_model
 
 
 pytestmark = [
@@ -28,7 +28,7 @@ pytestmark = [
 @lru_cache(maxsize=None)
 def _model(kind: str, dtype: torch.dtype):
     if kind == "smpl":
-        model = make_smpl_like_model(dtype=dtype)
+        model = make_branching_tree_model(dtype=dtype)
     else:
         panda_description = pytest.importorskip(  # noqa: PLC0415
             "robot_descriptions.panda_description"
@@ -340,7 +340,7 @@ def test_layout_decline_is_a_hard_error_during_capture() -> None:
 
 
 def test_cpu_request_warns_once_and_falls_back(monkeypatch) -> None:
-    model = make_smpl_like_model(dtype=torch.float32)
+    model = make_branching_tree_model(dtype=torch.float32)
     q, velocity, acceleration, _ = _inputs(
         model.to(device="cuda:0"),
         1,

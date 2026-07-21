@@ -37,6 +37,12 @@ from typing import Any, Literal
 
 import torch
 
+# This benchmark also runs as a standalone `--child` subprocess (no pytest
+# conftest), so make the repo root importable for the test-support fixture.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
 
 SCHEMA_VERSION = 2
 SEED = 20260717
@@ -53,11 +59,11 @@ CANONICAL_UPDATES = 5
 CANONICAL_WARMUPS = 2
 CANONICAL_MEASUREMENTS = 7
 FRAME_NAMES = (
-    "body_head",
-    "body_left_wrist",
-    "body_right_wrist",
-    "body_left_ankle",
-    "body_right_ankle",
+    "body_j15",  # head
+    "body_j20",  # left_wrist
+    "body_j21",  # right_wrist
+    "body_j7",  # left_ankle
+    "body_j8",  # right_ankle
 )
 THREAD_ENVIRONMENT = {
     "OMP_NUM_THREADS": "1",
@@ -187,7 +193,7 @@ def _build_problem(  # noqa: PLR0915
     updates: int = CANONICAL_UPDATES,
 ) -> dict[str, Any]:
     """Construct the exact deterministic §11 model, Problem, and optimizer."""
-    from better_robot.io.builders.smpl_like import make_smpl_like_model  # noqa: PLC0415
+    from tests.support.branching_tree import make_branching_tree_model  # noqa: PLC0415
     from better_robot.kinematics.forward import forward_kinematics  # noqa: PLC0415
     from better_robot.optim import (  # noqa: PLC0415
         Bounds,
@@ -205,7 +211,7 @@ def _build_problem(  # noqa: PLR0915
     if horizon not in HORIZONS:
         raise ValueError(f"horizon must be one of {HORIZONS}, got {horizon}")
 
-    model = make_smpl_like_model(
+    model = make_branching_tree_model(
         height=1.75,
         mass=70.0,
         preserve_joint_order=False,
@@ -214,7 +220,7 @@ def _build_problem(  # noqa: PLR0915
     )
     if (model.nq, model.nv, model.njoints) != (99, 75, 25):
         raise AssertionError(
-            "SMPL benchmark model changed: expected (nq,nv,njoints)=(99,75,25), "
+            "branching-tree benchmark model changed: expected (nq,nv,njoints)=(99,75,25), "
             f"got {(model.nq, model.nv, model.njoints)}"
         )
 
@@ -544,7 +550,7 @@ def _definition() -> dict[str, Any]:
         "horizons": list(HORIZONS),
         "paths": list(PATHS),
         "model": {
-            "builder": "make_smpl_like_model",
+            "builder": "make_branching_tree_model",
             "height": 1.75,
             "mass": 70.0,
             "preserve_joint_order": False,

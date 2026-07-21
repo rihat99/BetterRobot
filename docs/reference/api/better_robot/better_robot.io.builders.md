@@ -14,5 +14,4 @@
 :maxdepth: 1
 
 better_robot.io.builders.kinematic_tree
-better_robot.io.builders.smpl_like
 ```

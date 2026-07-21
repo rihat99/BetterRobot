@@ -15,7 +15,7 @@ from better_robot.data_model.joint_models import (
 )
 from better_robot.exceptions import DeviceMismatchError, ShapeError
 from better_robot.io import ModelBuilder, build_model, load
-from better_robot.io.builders.smpl_like import make_smpl_like_model
+from tests.support.branching_tree import make_branching_tree_model
 
 
 def _loop_integrate(model, q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
@@ -80,8 +80,8 @@ def _assert_manifold_close(actual: torch.Tensor, expected: torch.Tensor) -> None
 
 
 def _load_named_model(name: str, dtype: torch.dtype):
-    if name == "smpl_like":
-        return make_smpl_like_model(dtype=dtype)
+    if name == "branching_tree":
+        return make_branching_tree_model(dtype=dtype)
 
     pytest.importorskip("robot_descriptions")
     if name == "panda":
@@ -96,7 +96,7 @@ def _load_named_model(name: str, dtype: torch.dtype):
 
 
 @pytest.mark.parametrize("dtype", (torch.float32, torch.float64))
-@pytest.mark.parametrize("model_name", ("panda", "g1", "smpl_like"))
+@pytest.mark.parametrize("model_name", ("panda", "g1", "branching_tree"))
 def test_grouped_manifolds_match_per_joint_loop(model_name: str, dtype: torch.dtype) -> None:
     model = _load_named_model(model_name, dtype)
     generator = torch.Generator().manual_seed(20250717)
@@ -114,7 +114,7 @@ def test_grouped_manifolds_match_per_joint_loop(model_name: str, dtype: torch.dt
 
 
 def test_right_aligned_multi_axis_broadcast_matches_loop() -> None:
-    model = make_smpl_like_model(dtype=torch.float64)
+    model = make_branching_tree_model(dtype=torch.float64)
     q = model.q_neutral.reshape(1, 1, -1).expand(2, 1, -1).clone()
     v = torch.randn(3, model.nv, dtype=torch.float64) * 0.02
 
@@ -132,7 +132,7 @@ def test_right_aligned_multi_axis_broadcast_matches_loop() -> None:
 
 @pytest.mark.parametrize("dtype", (torch.float32, torch.float64))
 def test_theta_zero_roundtrip_and_gradients_are_finite(dtype: torch.dtype) -> None:
-    model = make_smpl_like_model(dtype=dtype)
+    model = make_branching_tree_model(dtype=dtype)
     q = model.q_neutral.expand(2, -1).clone().requires_grad_(True)
     v = (torch.randn(2, model.nv, dtype=dtype) * 1e-3).requires_grad_(True)
 
@@ -283,7 +283,7 @@ def test_zero_dof_models_still_broadcast_and_promote_dtype() -> None:
 
 
 def test_trailing_dimension_and_device_errors_are_explicit() -> None:
-    model = make_smpl_like_model()
+    model = make_branching_tree_model()
     with pytest.raises(ShapeError, match=r"q has shape .* trailing dimension 99"):
         model.integrate(torch.zeros(model.nq - 1), torch.zeros(model.nv))
     with pytest.raises(ShapeError, match=r"v has shape .* trailing dimension 75"):

@@ -17,7 +17,7 @@ import better_robot.kinematics._warp_bridge as warp_bridge
 import better_robot.kinematics.forward as forward_module
 from better_robot.data_model.execution_batch import flatten_execution_batch
 from better_robot.io.build_model import build_model
-from better_robot.io.builders.smpl_like import make_smpl_like_model
+from tests.support.branching_tree import make_branching_tree_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics._warp_bridge import (
     _warp_fk_forward,
@@ -150,7 +150,7 @@ def test_branched_forward_matches_torch_and_public_opt_in(dtype: torch.dtype) ->
 
 
 def test_smpl_free_flyer_and_spherical_branching_matches_torch() -> None:
-    model = make_smpl_like_model(dtype=torch.float32)
+    model = make_branching_tree_model(dtype=torch.float32)
     tangent = torch.linspace(-0.03, 0.03, model.nv)
     q = model.integrate(model.q_neutral, tangent).contiguous()
 
@@ -167,7 +167,7 @@ def test_smpl_free_flyer_and_spherical_branching_matches_torch() -> None:
 
 @pytest.mark.parametrize("dtype", (torch.float32, torch.float64), ids=("fp32", "fp64"))
 def test_degenerate_spherical_and_free_flyer_quaternions_match_torch(dtype: torch.dtype) -> None:
-    model = make_smpl_like_model(dtype=dtype)
+    model = make_branching_tree_model(dtype=dtype)
     q = model.q_neutral.clone()
     free_flyer = model.structure.joint_kind_codes.index(12)
     spherical = model.structure.joint_kind_codes.index(11)

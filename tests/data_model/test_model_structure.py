@@ -10,13 +10,13 @@ from torch.utils import _pytree
 
 from better_robot.data_model.model_values import packed_inertias_to_6x6
 from better_robot.io import load
-from better_robot.io.builders.smpl_like import make_smpl_like_body
+from tests.support.branching_tree import make_branching_tree_body
 
 
 @pytest.fixture(scope="module", params=("panda", "smpl"))
 def model(request):
     if request.param == "smpl":
-        return load(make_smpl_like_body)
+        return load(make_branching_tree_body)
     panda_description = pytest.importorskip("robot_descriptions.panda_description")
     return load(panda_description.URDF_PATH)
 

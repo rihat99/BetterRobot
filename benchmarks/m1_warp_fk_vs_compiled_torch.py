@@ -52,7 +52,6 @@ import torch
 import better_robot as br
 from better_robot.data_model.model_structure import ModelStructure
 from better_robot.data_model.model_values import ModelValues
-from better_robot.io.builders.smpl_like import make_smpl_like_model
 from better_robot.kinematics.forward import (
     forward_kinematics_raw,
     frame_placements_raw,
@@ -476,7 +475,12 @@ def run(
     except ImportError as error:  # pragma: no cover - command-line dependency guard
         raise SystemExit("install the 'warp' extra to run this benchmark") from error
 
-    model = make_smpl_like_model(device=device, dtype=dtype)
+    _repo_root = Path(__file__).resolve().parents[1]
+    if str(_repo_root) not in sys.path:
+        sys.path.insert(0, str(_repo_root))
+    from tests.support.branching_tree import make_branching_tree_model  # noqa: PLC0415
+
+    model = make_branching_tree_model(device=device, dtype=dtype)
     measurements: list[dict[str, Any]] = []
     cold_timing = _cold_timing_metadata(
         batches=batches,

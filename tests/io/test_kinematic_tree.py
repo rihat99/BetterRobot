@@ -10,13 +10,14 @@ from better_robot.io.builders.kinematic_tree import (
     build_kinematic_tree_body,
     build_kinematic_tree_model,
 )
-from better_robot.io.builders.smpl_like import (
+from better_robot.io.ir import IRModel
+
+from tests.support.branching_tree import (
     JOINT_NAMES,
     PARENTS,
-    _default_offsets_tensor,
-    make_smpl_like_body,
+    default_offsets_tensor,
+    make_branching_tree_body,
 )
-from better_robot.io.ir import IRModel
 
 
 def test_minimal_tree_single_body():
@@ -138,26 +139,26 @@ def test_parent_forward_reference_raises():
         )
 
 
-def test_smpl_parity_ir():
-    """`make_smpl_like_body()` must match a direct `build_kinematic_tree_body` call."""
-    ir_smpl = make_smpl_like_body(height=1.75, mass=70.0)
+def test_branching_tree_parity_ir():
+    """`make_branching_tree_body()` must match a direct `build_kinematic_tree_body` call."""
+    ir_fixture = make_branching_tree_body(height=1.75, mass=70.0)
     ir_direct = build_kinematic_tree_body(
-        name="smpl_body",
+        name="branching_tree",
         joint_names=JOINT_NAMES,
         parents=PARENTS,
-        translations=_default_offsets_tensor(1.75),
+        translations=default_offsets_tensor(1.75),
         root_kind="free_flyer",
         child_kind="spherical",
         mass_per_body=70.0 / 24.0,
     )
-    assert ir_smpl.name == ir_direct.name
-    assert ir_smpl.root_body == ir_direct.root_body
-    assert len(ir_smpl.bodies) == len(ir_direct.bodies) == 24
-    assert len(ir_smpl.joints) == len(ir_direct.joints) == 24
-    for b0, b1 in zip(ir_smpl.bodies, ir_direct.bodies):
+    assert ir_fixture.name == ir_direct.name
+    assert ir_fixture.root_body == ir_direct.root_body
+    assert len(ir_fixture.bodies) == len(ir_direct.bodies) == 24
+    assert len(ir_fixture.joints) == len(ir_direct.joints) == 24
+    for b0, b1 in zip(ir_fixture.bodies, ir_direct.bodies):
         assert b0.name == b1.name
         assert b0.mass == b1.mass
-    for j0, j1 in zip(ir_smpl.joints, ir_direct.joints):
+    for j0, j1 in zip(ir_fixture.joints, ir_direct.joints):
         assert j0.name == j1.name
         assert j0.kind == j1.kind
         assert j0.parent_body == j1.parent_body
@@ -165,15 +166,15 @@ def test_smpl_parity_ir():
         assert torch.equal(j0.origin, j1.origin)
 
 
-def test_smpl_like_accepts_joint_offsets_override():
-    """Shape-aware callers can supply custom offsets; default path ignored."""
+def test_branching_tree_accepts_joint_offsets_override():
+    """Callers can supply custom offsets; default path ignored."""
     offsets = torch.full((24, 3), 0.5, dtype=torch.float32)
     offsets[0].zero_()
-    ir = make_smpl_like_body(joint_offsets=offsets)
+    ir = make_branching_tree_body(joint_offsets=offsets)
     assert len(ir.joints) == 24
     # Root joint origin is translations[0] — all zeros.
     assert torch.equal(ir.joints[0].origin[:3], torch.zeros(3))
-    # Second joint (left_hip) origin translation must match offsets[1].
+    # Joint j1 origin translation must match offsets[1].
     assert torch.allclose(ir.joints[1].origin[:3], torch.full((3,), 0.5))
 
 
