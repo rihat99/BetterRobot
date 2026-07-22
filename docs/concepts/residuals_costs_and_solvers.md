@@ -202,6 +202,38 @@ covers that tail, making the class most suitable when vanishing means
 convergence or the penalty otherwise stays away from zero. A `ScalarCost`
 problem is not eligible for implicit differentiation.
 
+## Geometry observations share values, not policy
+
+Point-cloud fitting usually derives posed vertices from an optimized state and
+then reads those same vertices in several terms. The point-cloud residuals
+therefore accept a `Node` as well as a Variable or construction-time tensor.
+The node owns the shared differentiable value; each residual still owns its
+objective policy.
+
+`SceneSDFState` illustrates the split. It performs one detached
+nearest-neighbour lookup and shares signed distance, nearest distance,
+confidence, and validity. Its `distance="point"` mode uses signed Euclidean
+distance, while `distance="plane"` projects the selected delta onto the
+nearest normal. Penetration, attraction, and clearance then apply their own
+detached masks, confidence/distance thresholds, trust depths or bands, and
+margins. An inactive group returns an exact zero row and is excluded by
+`active_groups()`, so `reduce="mean_active"` normalizes each head by its own
+trusted observations rather than by padding or another head's predicate.
+
+Non-negative confidence describes observation quality rather than a
+differentiable model signal. Scene and Chamfer rows use a gradient-safe square
+root of detached confidence, making their L2 objective contribution linear in
+confidence and keeping zero-confidence gradients finite. Point projection
+keeps confidence as an outer per-point coefficient instead, so it affects the
+objective and IRLS system but not the diagnostic rows returned by
+`Problem.error()`; visibility is detached group activity.
+
+`PointProjectionResidual` uses the same pinhole convention as frame-table
+`ProjectionResidual`. `time_axis=None` treats `(P, 3)` as the event suffix;
+`time_axis=0` treats `(T, P, 3)` as the event suffix. Any preceding axes are
+execution batches, so an unbatched trajectory's `T` axis is never silently
+reinterpreted as one.
+
 ## Built-in residual families
 
 The shipped residuals cover these roles:
@@ -213,7 +245,7 @@ The shipped residuals cover these roles:
 | Trajectory structure | `ReferenceTrajectoryResidual`, `TimeIndexedResidual`, `VelocityResidual`, `AccelerationResidual` |
 | Contact motion | `ContactConsistencyResidual` |
 | Scalar penalties | `ScalarCost` |
-| Image observations | `ProjectionResidual` |
+| Image observations | `ProjectionResidual`, `PointProjectionResidual` |
 | Padded point sets | `MaskedChamferResidual`, `SceneSDFState` and its penetration, attraction, and clearance residuals |
 | Spherical-joint limits | `SwingTwistLimitResidual` |
 

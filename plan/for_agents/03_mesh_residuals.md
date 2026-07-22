@@ -1,3 +1,7 @@
+> **Implementation log (2026-07-22): complete on `dev`.** Composed point Nodes now feed Scene-SDF, Chamfer, and explicit-point projection; per-head gates, point-to-plane distance, and linear confidence are implemented.
+> **Validation:** 1,634 CPU tests and 49 CUDA tests pass; strict HTML and all 30 doctests pass; source is 22,724 → 22,947 lines (`+223`).
+> **Finding:** Exact old Scene confidence numerics are generally unrecoverable because geometric confidence also changed from linear row scaling to square-root scaling. See [`03_results.md`](03_results.md).
+
 # Order 03 — Mesh-reading residuals: node clouds, gates, point projection
 
 Read `plan/README.md` and `DESIGN_RULES.md` first. Orders 01 and 02 must be

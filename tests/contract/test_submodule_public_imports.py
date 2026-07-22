@@ -129,6 +129,7 @@ SUBMODULE_PATHS: list[tuple[str, str]] = [
     ("better_robot.residuals", "RobotState"),
     ("better_robot.residuals", "ScalarCost"),
     ("better_robot.residuals", "ProjectionResidual"),
+    ("better_robot.residuals", "PointProjectionResidual"),
     ("better_robot.residuals", "MaskedChamferResidual"),
     ("better_robot.residuals", "SceneSDFState"),
     ("better_robot.residuals", "SceneSDFResult"),

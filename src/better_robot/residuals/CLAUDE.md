@@ -98,13 +98,23 @@ grants eligibility.
 
 - `projection.py`: camera-thin `ProjectionResidual` over model frame-table
   rows. The complete analytic block is projection derivative × camera rotation
-  × frame Jacobian. Observation tensors must already match the evaluated model
-  dtype/device; no hidden hot-path transfers.
+  × frame Jacobian. `PointProjectionResidual` applies the same camera
+  convention to Variable-, Node-, or tensor-valued point sets. Its explicit
+  `time_axis` keeps trajectory `T` and point `P` as event axes, confidence is a
+  per-group outer coefficient, and visibility is detached group activity.
+  Observation tensors must already match the evaluated dtype/device; no hidden
+  hot-path transfers.
 - `chamfer.py`: `MaskedChamferResidual` on fixed padded point clouds and bool
-  masks. Nearest indices are detached while distances remain differentiable.
+  masks. Clouds, masks, and confidence may come from Variables or Nodes.
+  Nearest indices and confidence are detached while selected distances remain
+  differentiable; safe square-root row scaling makes confidence linear in the
+  L2 objective.
 - `scene_sdf.py`: `SceneSDFState` performs one detached nearest-neighbour pass
   and feeds penetration, attraction, and clearance residuals. The shared result
-  carries signed distance, nearest distance, confidence, and validity.
+  carries signed distance, nearest distance, confidence, and validity and may
+  use point or point-to-plane distance. Each penalty owns its detached trust
+  gates and exact-zero inactive rows because the three heads have different
+  active sets; confidence remains shared geometry quality and enters linearly.
 - `_point_cloud.py`: private chunked nearest-correspondence helpers. The public
   ragged convention is `(padded_tensor, validity_mask)`; invalid rows are finite
   zeros.

@@ -8,7 +8,7 @@ from .chamfer import MaskedChamferResidual
 from .limits import JointPositionLimit, JointVelocityLimit
 from .human import SwingTwistLimitResidual
 from .pose import OrientationResidual, PoseResidual, PositionResidual
-from .projection import ProjectionResidual
+from .projection import PointProjectionResidual, ProjectionResidual
 from .contact import ContactConsistencyResidual
 from .regularization import JointRotationPrior, ReferenceTrajectoryResidual, RestResidual
 from .temporal import TimeIndexedResidual
@@ -36,6 +36,7 @@ __all__ = [
     "PositionResidual",
     "OrientationResidual",
     "ProjectionResidual",
+    "PointProjectionResidual",
     "MaskedChamferResidual",
     "SceneSDFState",
     "SceneSDFResult",

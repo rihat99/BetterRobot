@@ -1,10 +1,11 @@
-"""Camera-thin pinhole projection residual over model frame-table rows."""
+"""Camera-thin pinhole projection residuals for frames and explicit points."""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 import math
 from numbers import Real
+from typing import Any, Literal
 
 import torch
 
@@ -13,7 +14,14 @@ from ..data_model.data import Data
 from ..kinematics.jacobian import get_frame_jacobian
 from .utils import RobotVariableLike as _RobotVariableLike, VariableLike as _VariableLike, value, variables
 from .base import Residual, Weight
-from .nodes import RobotState, robot_state
+from .nodes import Node, RobotState, robot_state
+
+_ProjectionInput = _VariableLike | Node | torch.Tensor
+
+
+def _projection_value(source: _ProjectionInput, label: str, **checks: Any) -> torch.Tensor:
+    result = source.value() if isinstance(source, Node) else value(source, label)
+    return check_tensor(label, result, **checks)
 
 
 def _transform_points(points_world: torch.Tensor, extrinsics: torch.Tensor) -> torch.Tensor:
@@ -112,8 +120,7 @@ class ProjectionResidual(Residual):
         self.point_ids, self.K, self.extrinsics = ids, K, extrinsics
         self.target_px, self.weights, self.valid_mask = target_px, weights, valid_mask
         _intrinsics, camera, _target, _weights, _validity = self._camera_tensors()
-        min_depth = float(min_depth)
-        if not math.isfinite(min_depth) or min_depth <= 0.0:
+        if not math.isfinite(min_depth := float(min_depth)) or min_depth <= 0.0:
             raise ValueError(f"min_depth must be finite and positive, got {min_depth!r}")
 
         self.state = state
@@ -239,4 +246,111 @@ class ProjectionResidual(Residual):
         return (full,)
 
 
-__all__ = ["ProjectionResidual"]
+class PointProjectionResidual(Residual):
+    """Project explicit points with ``(P, 3)`` or temporal ``(T, P, 3)`` events.
+
+    ``time_axis=None`` declares the first suffix and ``time_axis=0`` the second;
+    any preceding axes are execution batches. Inputs may be Nodes, Variables,
+    or bare construction-time tensors. Confidence is a non-negative outer
+    coefficient by contract; visibility is detached activity.
+    """
+
+    def __init__(
+        self,
+        points: _VariableLike | Node | torch.Tensor,
+        K: _VariableLike | Node | torch.Tensor,
+        extrinsics: _VariableLike | Node | torch.Tensor,
+        target_px: _VariableLike | Node | torch.Tensor,
+        *,
+        confidence: _VariableLike | Node | torch.Tensor | None = None,
+        visibility: _VariableLike | Node | torch.Tensor | None = None,
+        time_axis: int | None = None,
+        min_depth: float = 1.0e-6,
+        weight: Real | torch.Tensor = 1.0,
+        row_weight: Weight | Real | torch.Tensor = 1.0,
+        reduce: Literal["sum", "mean", "mean_active"] = "sum",
+        kernel: object | None = None,
+        name: str = "point_projection",
+    ) -> None:
+        if isinstance(time_axis, bool) or time_axis not in (None, 0):
+            raise ValueError(f"time_axis must be 0 or None, got {time_axis!r}")
+        if not math.isfinite(min_depth := float(min_depth)) or min_depth <= 0.0:
+            raise ValueError(f"min_depth must be finite and positive, got {min_depth!r}")
+        initial = _projection_value(points, "points", floating=True)
+        event_ndim = 3 if time_axis == 0 else 2
+        point_shape = tuple(initial.shape[-event_ndim:])
+        if len(point_shape) != event_ndim or point_shape[-1:] != (3,) or not all(point_shape[:-1]):
+            expected = "(T, P, 3)" if time_axis == 0 else "(P, 3)"
+            raise ValueError(f"points must end in {expected}, got {tuple(initial.shape)}")
+
+        self.points, self.K, self.extrinsics, self.target_px = points, K, extrinsics, target_px
+        self.confidence, self.visibility, self.min_depth = confidence, visibility, min_depth
+        self._group_shape, self._group_count = point_shape[:-1], math.prod(point_shape[:-1])
+        reads = (
+            points,
+            K,
+            extrinsics,
+            target_px,
+            *(source for source in (confidence, visibility) if source is not None),
+        )
+        self.nodes = tuple(source for source in reads if isinstance(source, Node))
+        super().__init__(
+            *variables(*reads),
+            dim=2 * self._group_count,
+            weight=weight,
+            row_weight=row_weight,
+            reduce=reduce,
+            kernel=kernel,
+            group_size=2,
+            name=name,
+        )
+
+    def _tensors(self) -> tuple[torch.Tensor, ...]:
+        points = _projection_value(self.points, "points", shape=(*self._group_shape, 3), floating=True)
+        options = {"dtype": points.dtype, "device": points.device}
+        intrinsics = _projection_value(self.K, "K", shape=(3, 3), floating=True, **options)
+        extrinsics = _projection_value(self.extrinsics, "extrinsics", shape=(4, 4), floating=True, **options)
+        target = _projection_value(self.target_px, "target_px", shape=(*self._group_shape, 2), floating=True, **options)
+        event_axis = -len(self._group_shape) - 1
+        points, target = points.flatten(event_axis, -2), target.flatten(event_axis, -2)
+        batch_shape = points.shape[:-2]
+
+        def optional(source: _ProjectionInput | None, label: str, dtype: torch.dtype) -> torch.Tensor:
+            if source is None:
+                return points.new_empty(0)
+            tensor = _projection_value(source, label, shape=self._group_shape, dtype=dtype, device=points.device)
+            return tensor.expand(*batch_shape, *self._group_shape).flatten(-len(self._group_shape), -1)
+
+        confidence = optional(self.confidence, "confidence", points.dtype)
+        visibility = optional(self.visibility, "visibility", torch.bool)
+        return points, intrinsics, extrinsics, target, confidence, visibility
+
+    @Residual.weight.getter
+    def weight(self) -> Real | torch.Tensor:
+        base = self._weight
+        if self.confidence is None or (isinstance(base, Real) and base == 0.0):
+            return base
+        confidence = self._tensors()[4]
+        if isinstance(base, torch.Tensor):
+            shape, batch_shape = tuple(base.shape), tuple(confidence.shape[:-1])
+            expected = (), batch_shape, (*batch_shape, self._group_count)
+            if shape not in expected:
+                raise ValueError(f"weight tensor must have shape in {expected}, got {shape}")
+            if shape == batch_shape and shape:
+                base = base.unsqueeze(-1)
+        return confidence * base
+
+    def error(self) -> torch.Tensor:
+        points, intrinsics, extrinsics, target, _confidence, visibility = self._tensors()
+        rows = _project_points(_transform_points(points, extrinsics), intrinsics, min_depth=self.min_depth) - target
+        if self.visibility is not None:
+            rows = torch.where(visibility.unsqueeze(-1), rows, torch.zeros_like(rows))
+        return rows.reshape(*rows.shape[:-2], self.dim)
+
+    def active_groups(self) -> torch.Tensor | None:
+        if self.visibility is None:
+            return None
+        return self._tensors()[5].detach()
+
+
+__all__ = ["PointProjectionResidual", "ProjectionResidual"]

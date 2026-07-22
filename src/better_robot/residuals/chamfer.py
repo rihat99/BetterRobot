@@ -8,8 +8,15 @@ import torch
 
 from .._validation import check_tensor
 from ._point_cloud import _detached_nearest, _validate_clouds
-from .utils import VariableLike as _VariableLike, value, variables
 from .base import Residual, Weight
+from .nodes import Node
+from .utils import VariableLike as _VariableLike, value, variables
+
+_TensorInput = _VariableLike | Node | torch.Tensor
+
+
+def _input_value(input_value: _TensorInput, name: str) -> torch.Tensor:
+    return check_tensor(name, input_value.value() if isinstance(input_value, Node) else value(input_value, name))
 
 
 class MaskedChamferResidual(Residual):
@@ -18,19 +25,21 @@ class MaskedChamferResidual(Residual):
     Point tensors end in ``(frames, count, 3)`` and validity masks end in
     ``(frames, count)``. Invalid padding produces finite zero rows. Nearest
     indices are detached while distances retain gradients to the selected
-    points. Bare inputs are construction-time constants; static Variables are
-    updatable through ``Problem.update()``. ``vertex_weights`` are domain
-    confidence multipliers, distinct from outer objective ``weight``.
+    points. Inputs may be Nodes, Variables, or bare construction-time tensors;
+    static Variables are updatable through ``Problem.update()``.
+    ``vertex_weights`` are non-negative detached confidence values whose safe
+    square roots scale forward rows, making their L2 objective contribution
+    linear in confidence. They are distinct from outer objective ``weight``.
     """
 
     def __init__(
         self,
-        source: _VariableLike | torch.Tensor,
-        target: _VariableLike | torch.Tensor,
-        source_validity: _VariableLike | torch.Tensor,
-        target_validity: _VariableLike | torch.Tensor,
+        source: _VariableLike | Node | torch.Tensor,
+        target: _VariableLike | Node | torch.Tensor,
+        source_validity: _VariableLike | Node | torch.Tensor,
+        target_validity: _VariableLike | Node | torch.Tensor,
         *,
-        vertex_weights: _VariableLike | torch.Tensor | None = None,
+        vertex_weights: _VariableLike | Node | torch.Tensor | None = None,
         bidirectional: bool = True,
         chunk_size: int = 4096,
         weight: Real | torch.Tensor = 1.0,
@@ -38,10 +47,10 @@ class MaskedChamferResidual(Residual):
         kernel: object | None = None,
         name: str = "masked_chamfer",
     ) -> None:
-        source_tensor = check_tensor("source", value(source, "source"), floating=True)
+        source_tensor = check_tensor("source", _input_value(source, "source"), floating=True)
         target_tensor = check_tensor(
             "target",
-            value(target, "target"),
+            _input_value(target, "target"),
             floating=True,
             dtype=source_tensor.dtype,
             device=source_tensor.device,
@@ -61,14 +70,14 @@ class MaskedChamferResidual(Residual):
             )
         check_tensor(
             "source_validity",
-            value(source_validity, "source_validity"),
+            _input_value(source_validity, "source_validity"),
             shape=(frames, source_count),
             dtype=torch.bool,
             device=source_tensor.device,
         )
         check_tensor(
             "target_validity",
-            value(target_validity, "target_validity"),
+            _input_value(target_validity, "target_validity"),
             shape=(frames, target_count),
             dtype=torch.bool,
             device=source_tensor.device,
@@ -76,7 +85,7 @@ class MaskedChamferResidual(Residual):
         if vertex_weights is not None:
             check_tensor(
                 "vertex_weights",
-                value(vertex_weights, "vertex_weights"),
+                _input_value(vertex_weights, "vertex_weights"),
                 shape=(frames, source_count),
                 floating=True,
                 dtype=source_tensor.dtype,
@@ -92,6 +101,10 @@ class MaskedChamferResidual(Residual):
         self.source_validity = source_validity
         self.target_validity = target_validity
         self.vertex_weights = vertex_weights
+        inputs = (source, target, source_validity, target_validity, vertex_weights)
+        self.nodes = tuple(
+            {id(input_value): input_value for input_value in inputs if isinstance(input_value, Node)}.values()
+        )
         self.frames = frames
         self.source_count = source_count
         self.target_count = target_count
@@ -99,7 +112,7 @@ class MaskedChamferResidual(Residual):
         self.chunk_size = chunk_size
         rows_per_frame = source_count + (target_count if bidirectional else 0)
         super().__init__(
-            *variables(source, target, source_validity, target_validity, vertex_weights),
+            *variables(*inputs),
             dim=frames * rows_per_frame,
             weight=weight,
             row_weight=row_weight,
@@ -109,10 +122,10 @@ class MaskedChamferResidual(Residual):
 
     def error(self) -> torch.Tensor:
         source, target, source_validity, target_validity = _validate_clouds(
-            value(self.source, "source"),
-            value(self.target, "target"),
-            value(self.source_validity, "source_validity"),
-            value(self.target_validity, "target_validity"),
+            _input_value(self.source, "source"),
+            _input_value(self.target, "target"),
+            _input_value(self.source_validity, "source_validity"),
+            _input_value(self.target_validity, "target_validity"),
         )
         forward = _detached_nearest(
             source,
@@ -124,13 +137,17 @@ class MaskedChamferResidual(Residual):
         if self.vertex_weights is not None:
             weights = check_tensor(
                 "vertex_weights",
-                value(self.vertex_weights, "vertex_weights"),
+                _input_value(self.vertex_weights, "vertex_weights"),
                 shape=(self.frames, self.source_count),
                 floating=True,
                 dtype=forward.dtype,
                 device=forward.device,
             )
-            forward = forward * weights
+            confidence = weights.detach()
+            positive = confidence > 0.0
+            safe_confidence = torch.where(positive, confidence, torch.ones_like(confidence))
+            confidence_scale = torch.where(positive, torch.sqrt(safe_confidence), torch.zeros_like(confidence))
+            forward = forward * confidence_scale
 
         rows = [forward]
         if self.bidirectional:

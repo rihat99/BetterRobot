@@ -9,6 +9,14 @@ Downstream repositories are out of scope for agents working in this
 repository. Agents only **append** rows here when a work order removes a
 public symbol; the owner resolves the consumer side.
 
+## Changed by composed vision residuals
+
+| Old surface or meaning | Replacement |
+|---|---|
+| Scene-SDF confidence and `MaskedChamferResidual.vertex_weights` multiplied residual rows directly, making an L2 contribution quadratic in confidence. | Non-negative confidence is now detached and its safe square root scales the row, so the L2 contribution is linear. For Chamfer, `c_new=c_old**2` reproduces the old L2 magnitude. Scene confidence also contains an internal geometric factor `g`: matching an old row would require `c_new=g*c_old**2`, so exact reproduction is generally unavailable and scene confidence tuning must be recalibrated. |
+| Scene-SDF heads had one fixed validity set and only `sum` reduction. | Each penalty head now accepts its own optional mask and trust gates and forwards `reduce`; use `reduce="mean_active"` to normalize by that head's detached active set. Omitting every gate and keeping `reduce="sum"` preserves the prior active-set policy. |
+| Point-cloud constructors consumed only Variables or fixed tensors, and `SceneSDFState` always used signed point distance. | Clouds, masks, and confidence may also be composed `Node` values. Bare tensors remain construction-time constants; use named static Variables for `Problem.update()`. `SceneSDFState(distance="point")` remains the default, with `"plane"` selecting signed point-to-plane distance. |
+
 ## Changed by the objective-algebra redesign
 
 | Old surface or meaning | Replacement |

@@ -13,7 +13,24 @@ from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.optim.kernels import GemanMcClure
 from better_robot.optim.problem import Problem
 from better_robot.optim.variables import RobotVariable, Variable
-from better_robot.residuals.projection import ProjectionResidual, _project_points, _projection_jacobian
+from better_robot.residuals.nodes import Node
+from better_robot.residuals.projection import (
+    PointProjectionResidual,
+    ProjectionResidual,
+    _project_points,
+    _projection_jacobian,
+)
+
+
+class _TensorNode(Node):
+    def __init__(self, source: Variable) -> None:
+        self.source = source
+        self.calls = 0
+        super().__init__(source)
+
+    def compute(self) -> torch.Tensor:
+        self.calls += 1
+        return self.source.tensor
 
 
 def _camera_arm(*, dtype: torch.dtype = torch.float32):
@@ -241,3 +258,123 @@ def test_projection_groups_feed_geman_mcclure_per_point() -> None:
 
     assert item.group_size == 2
     torch.testing.assert_close(problem.objective(), expected)
+
+
+def test_point_projection_confidence_is_outer_and_visibility_is_activity() -> None:
+    points = Variable(torch.tensor([[1.0, 0.0, 1.0], [0.0, 2.0, 1.0]]), name="points")
+    target = _TensorNode(Variable(torch.zeros(2, 2), name="target", trainable=False))
+    confidence = _TensorNode(Variable(torch.tensor([0.25, 0.75]), name="confidence", trainable=False))
+    item = PointProjectionResidual(
+        points,
+        torch.eye(3),
+        torch.eye(4),
+        target,
+        confidence=confidence,
+        visibility=torch.tensor([True, False]),
+    )
+    problem = Problem([item])
+
+    torch.testing.assert_close(problem.error(), torch.tensor([1.0, 0.0, 0.0, 0.0]))
+    torch.testing.assert_close(problem.objective(), torch.tensor(0.125))
+    torch.testing.assert_close(item.active_groups(), torch.tensor([True, False]))
+    assert item.dim == 4
+    assert item.group_size == 2
+
+
+def test_point_projection_preserves_arbitrary_leading_batches() -> None:
+    batch_shape = (2, 3)
+    points = torch.tensor([[1.0, 0.0, 1.0], [0.0, 2.0, 1.0]]).expand(*batch_shape, 2, 3).clone()
+    source = Variable(points, name="points", batch_ndim=len(batch_shape))
+    item = PointProjectionResidual(
+        source,
+        torch.eye(3),
+        torch.eye(4),
+        torch.zeros(2, 2),
+        confidence=torch.tensor([0.5, 1.0]),
+    )
+    problem = Problem([item])
+
+    assert problem.error().shape == (*batch_shape, 4)
+    assert problem.objective().shape == batch_shape
+
+
+def test_point_projection_temporal_events_with_leading_batches() -> None:
+    batch_shape, time_count, point_count = (2, 3), 2, 2
+    points = torch.tensor([[1.0, 0.0, 1.0], [0.0, 2.0, 1.0]]).expand(*batch_shape, time_count, point_count, 3)
+    source = Variable(points.clone(), name="points", batch_ndim=len(batch_shape), time_axis=0)
+    item = PointProjectionResidual(
+        source,
+        torch.eye(3).expand(*batch_shape, 3, 3),
+        torch.eye(4).expand(*batch_shape, 4, 4),
+        torch.zeros(time_count, point_count, 2),
+        time_axis=0,
+        confidence=torch.ones(time_count, point_count),
+        visibility=torch.ones(time_count, point_count, dtype=torch.bool),
+    )
+    problem = Problem([item])
+
+    assert problem.error().shape == (*batch_shape, 2 * time_count * point_count)
+    assert problem.objective().shape == batch_shape
+    assert item.active_groups().shape == (*batch_shape, time_count * point_count)
+
+
+def test_point_projection_unbatched_trajectory_keeps_time_as_event() -> None:
+    points = torch.tensor(
+        [
+            [[1.0, 0.0, 1.0], [0.0, 2.0, 1.0]],
+            [[2.0, 0.0, 1.0], [0.0, 3.0, 1.0]],
+        ]
+    )
+    target = Variable(torch.zeros(2, 2, 2), name="target", trainable=False, time_axis=0)
+    item = PointProjectionResidual(
+        points,
+        torch.eye(3),
+        torch.eye(4),
+        target,
+        time_axis=0,
+        visibility=torch.tensor([[True, False], [True, True]]),
+    )
+    problem = Problem([item])
+
+    assert item.dim == 8
+    assert problem.error().shape == (8,)
+    assert item.active_groups().shape == (4,)
+
+
+def test_point_projection_node_visibility_recomputes_after_update() -> None:
+    points = Variable(torch.tensor([[1.0, 0.0, 1.0], [0.0, 2.0, 1.0]]), name="points")
+    mask = Variable(torch.tensor([True, False]), name="visibility", trainable=False)
+    visibility = _TensorNode(mask)
+    item = PointProjectionResidual(points, torch.eye(3), torch.eye(4), torch.zeros(2, 2), visibility=visibility)
+    problem = Problem([item])
+    construction_calls = visibility.calls
+
+    torch.testing.assert_close(problem.error(), torch.tensor([1.0, 0.0, 0.0, 0.0]))
+    problem.update({"visibility": torch.tensor([False, True])})
+    torch.testing.assert_close(problem.error(), torch.tensor([0.0, 0.0, 0.0, 2.0]))
+    assert visibility.calls == construction_calls + 2
+
+
+def test_point_projection_node_points_use_explicit_autodiff_strategy() -> None:
+    source = Variable(torch.tensor([[1.0, 0.5, 2.0], [0.2, 0.3, 1.5]]), name="points")
+    item = PointProjectionResidual(_TensorNode(source), torch.eye(3), torch.eye(4), torch.zeros(2, 2))
+    problem = Problem([item])
+
+    jacrev = problem.dense_jacobian(strategy="jacrev")
+    jacfwd = problem.dense_jacobian(strategy="jacfwd")
+    torch.testing.assert_close(jacrev, jacfwd, atol=2.0e-5, rtol=2.0e-5)
+
+
+def test_point_projection_rejects_group_only_weight_for_batched_points() -> None:
+    points = Variable(torch.ones(3, 2, 3), name="points", batch_ndim=1)
+    item = PointProjectionResidual(
+        points,
+        torch.eye(3),
+        torch.eye(4),
+        torch.zeros(2, 2),
+        confidence=torch.ones(2),
+        weight=torch.ones(2),
+    )
+
+    with pytest.raises(ValueError, match="weight tensor must have shape"):
+        Problem([item]).objective()

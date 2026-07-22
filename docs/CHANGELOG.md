@@ -5,6 +5,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- Scene-SDF and masked-Chamfer residuals now consume composed point Nodes,
+  apply detached confidence linearly, and expose per-penalty activity gates;
+  scene distance may be point-to-point or point-to-plane. The new
+  `PointProjectionResidual` projects static or trajectory point sets through
+  the existing camera convention with explicit event-axis semantics.
 - Nodes now compose into recursively scoped, mergeable DAGs; static Variables
   accept boolean and integer inputs, and `ScalarCost` adapts non-negative scalar
   penalties to exact L2 objective terms.
