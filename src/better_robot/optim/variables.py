@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from functools import reduce
 from itertools import count
+from numbers import Real
 from operator import mul
+from types import MappingProxyType
 
 import torch
 
@@ -123,6 +126,11 @@ class Variable:
         self._validate_bounds(self.bounds)
 
         self.validate_value(tensor)
+        self._free_indices = (
+            torch.arange(self.tangent_dim(), dtype=torch.long, device=tensor.device)
+            if tensor.is_floating_point()
+            else torch.empty(0, dtype=torch.long, device=tensor.device)
+        )
 
     def _normalize_bounds(self, bounds: Bounds | None) -> Bounds | None:
         if bounds is not None and not isinstance(bounds, Bounds):
@@ -141,7 +149,13 @@ class Variable:
     @property
     def free_dim(self) -> int:
         assert self.tensor.is_floating_point(), "non-floating static Variables have no tangent"
-        return self.tangent_dim()
+        return self._free_indices.numel()
+
+    @property
+    def free_indices(self) -> torch.Tensor:
+        """Return the immutable construction-time free tangent indices."""
+        assert self.tensor.is_floating_point(), "non-floating static Variables have no tangent"
+        return self._free_indices.clone()
 
     @property
     def batch_shape(self) -> tuple[int, ...]:
@@ -159,7 +173,13 @@ class Variable:
 
     @property
     def temporal_tangent_width(self) -> int:
-        return self.tangent_dim() // self.time_length
+        return self.free_dim // self.time_length
+
+    @property
+    def temporal_free_indices(self) -> torch.Tensor:
+        """Return per-knot full-tangent indices retained by a trajectory."""
+        full_width = self.tangent_dim() // self.time_length
+        return self._free_indices[self._free_indices < full_width].clone()
 
     def validate_value(self, value: torch.Tensor) -> None:
         if not isinstance(value, torch.Tensor):
@@ -188,6 +208,29 @@ class Variable:
 
     def _tangent_event_shape(self) -> tuple[int, ...]:
         return self.shape
+
+    def gather_tangent(self, full: torch.Tensor) -> torch.Tensor:
+        """Gather a full flattened tangent into free coordinates."""
+        if not isinstance(full, torch.Tensor):
+            raise TypeError(f"full must be a torch.Tensor, got {type(full).__name__}")
+        if full.ndim == 0 or full.shape[-1] != self.tangent_dim():
+            raise ValueError(f"full tangent must end in {self.tangent_dim()}, got {tuple(full.shape)}")
+        if self.free_dim == self.tangent_dim():
+            return full
+        return full.index_select(-1, self._free_indices.to(full.device))
+
+    def expand_tangent(self, reduced: torch.Tensor) -> torch.Tensor:
+        """Scatter free coordinates into a zero-filled full tangent."""
+        if not isinstance(reduced, torch.Tensor):
+            raise TypeError(f"reduced must be a torch.Tensor, got {type(reduced).__name__}")
+        if reduced.ndim == 0 or reduced.shape[-1] != self.free_dim:
+            raise ValueError(f"reduced tangent must end in {self.free_dim}, got {tuple(reduced.shape)}")
+        if self.free_dim == self.tangent_dim():
+            return reduced
+        full = reduced.new_zeros(*reduced.shape[:-1], self.tangent_dim())
+        if self.free_dim:
+            full.index_copy_(-1, self._free_indices.to(reduced.device), reduced)
+        return full
 
     def _retract_full(self, value: torch.Tensor, delta: torch.Tensor) -> torch.Tensor:
         return value + delta
@@ -218,7 +261,8 @@ class Variable:
         expected = (*batch, self.free_dim)
         if tuple(delta.shape) != expected:
             raise ValueError(f"delta must have shape {expected}, got {tuple(delta.shape)}")
-        return self.project(self._retract_full(value, delta.reshape((*batch, *self._tangent_event_shape()))))
+        full = self.expand_tangent(delta).reshape((*batch, *self._tangent_event_shape()))
+        return self.project(self._retract_full(value, full))
 
     def _retract_from(self, value: torch.Tensor, delta: torch.Tensor) -> torch.Tensor:
         original = self.tensor
@@ -354,7 +398,7 @@ def _joint_layout(joint) -> _JointCoordinateLayout:
 
 
 class RobotVariable(Variable):
-    """A robot configuration variable using a model's integrate/difference geometry."""
+    """A robot configuration variable with optional construction-time group freezing."""
 
     def __init__(
         self,
@@ -366,6 +410,7 @@ class RobotVariable(Variable):
         bounds: Bounds | bool | None = None,
         batch_ndim: int = 0,
         time_axis: int | None = None,
+        frozen_groups: Sequence[str] = (),
     ) -> None:
         if not isinstance(model, Model):
             raise TypeError(f"model must be a Model, got {type(model).__name__}")
@@ -385,6 +430,107 @@ class RobotVariable(Variable):
             batch_ndim=batch_ndim,
             time_axis=time_axis,
         )
+        if isinstance(frozen_groups, str) or not isinstance(frozen_groups, Sequence):
+            raise TypeError("frozen_groups must be a sequence of tangent-group names")
+        if any(not isinstance(group, str) for group in frozen_groups):
+            raise TypeError("frozen_groups must contain only tangent-group names")
+        self._frozen_groups = tuple(frozen_groups)
+        groups = self._checked_tangent_groups(self._frozen_groups) if self._frozen_groups else {}
+        free = torch.ones(model.nv, dtype=torch.bool, device=self.tensor.device)
+        for group in self._frozen_groups:
+            free[groups[group]] = False
+        per_knot = torch.nonzero(free, as_tuple=False).flatten()
+        knots = self.time_length if self.time_axis is not None else 1
+        offsets = torch.arange(knots, dtype=torch.long, device=self.tensor.device).unsqueeze(-1) * model.nv
+        self._free_indices = (offsets + per_knot).flatten()
+        frozen = ~free
+        self._frozen_q_mask = torch.zeros(model.nq, dtype=torch.bool, device=self.tensor.device)
+        for joint, nq, nv, iq, iv in zip(
+            model.joint_models, model.nqs, model.nvs, model.idx_qs, model.idx_vs, strict=True
+        ):
+            local = frozen[iv : iv + nv]
+            if not local.any():
+                continue
+            if local.all():
+                self._frozen_q_mask[iq : iq + nq] = True
+            else:
+                assert joint.kind == "free_flyer", "only root_lin/root_ang may split a joint tangent"
+                self._frozen_q_mask[iq : iq + 3] = local[:3]
+                self._frozen_q_mask[iq + 3 : iq + 7] = local[3:].any()
+
+    @property
+    def frozen_groups(self) -> tuple[str, ...]:
+        """Return the immutable names frozen when this variable was constructed."""
+        return self._frozen_groups
+
+    def tangent_groups(self) -> Mapping[str, torch.Tensor]:
+        """Return ordered joint and derived groups of per-knot tangent indices."""
+        root_id = next(
+            (
+                joint_id
+                for joint_id in self.model.structure.manifold_free_flyer_joint_ids
+                if self.model.parents[joint_id] == 0
+            ),
+            None,
+        )
+        if root_id is None:
+            ambiguous = sorted({"root", "root_lin", "root_ang"}.intersection(self.model.joint_names))
+            if ambiguous:
+                raise ValueError(
+                    f"Robot model {self.model.name!r} joint names {ambiguous} conflict with reserved "
+                    "floating-root tangent groups"
+                )
+        groups = {
+            name: torch.arange(start, start + width, dtype=torch.long, device=self.tensor.device)
+            for name, start, width in zip(self.model.joint_names, self.model.idx_vs, self.model.nvs, strict=True)
+        }
+
+        def add_derived(name: str, indices: torch.Tensor) -> None:
+            existing = groups.get(name)
+            if existing is not None and not torch.equal(existing, indices):
+                raise ValueError(
+                    f"Robot model {self.model.name!r} joint name {name!r} conflicts with the derived "
+                    "tangent group of the same name"
+                )
+            groups[name] = indices
+
+        joints = torch.ones(self.model.nv, dtype=torch.bool, device=self.tensor.device)
+        if root_id is not None:
+            start = self.model.idx_vs[root_id]
+            root = torch.arange(start, start + self.model.nvs[root_id], dtype=torch.long, device=self.tensor.device)
+            add_derived("root", root)
+            add_derived("root_lin", root[:3])
+            add_derived("root_ang", root[3:])
+            joints[root] = False
+        add_derived("joints", torch.nonzero(joints, as_tuple=False).flatten())
+        return MappingProxyType(groups)
+
+    def _checked_tangent_groups(self, names: Sequence[str]) -> Mapping[str, torch.Tensor]:
+        groups = self.tangent_groups()
+        unknown = [name for name in names if name not in groups]
+        if unknown:
+            raise ValueError(f"Robot model {self.model.name!r} has no tangent groups {unknown}")
+        return groups
+
+    def tangent_weight(self, weights: Mapping[str, Real], default: Real = 1.0) -> torch.Tensor:
+        """Build per-coordinate square-root-information row multipliers.
+
+        Values multiply residual rows directly; the least-squares objective
+        therefore sees their square. Later overlapping entries take precedence.
+        """
+        if not isinstance(weights, Mapping):
+            raise TypeError(f"weights must be a mapping, got {type(weights).__name__}")
+        if any(not isinstance(name, str) for name in weights):
+            raise TypeError("weights must use tangent-group names as keys")
+        if isinstance(default, bool) or not isinstance(default, Real):
+            raise TypeError(f"default must be a real number, got {type(default).__name__}")
+        groups = self._checked_tangent_groups(tuple(weights))
+        result = self.tensor.new_full((self.model.nv,), float(default))
+        for name, value in weights.items():
+            if isinstance(value, bool) or not isinstance(value, Real):
+                raise TypeError(f"weight for group {name!r} must be a real number")
+            result[groups[name].to(result.device)] = float(value)
+        return result
 
     @property
     def box_mask(self) -> torch.Tensor:
@@ -427,6 +573,13 @@ class RobotVariable(Variable):
     def tangent_dim(self) -> int:
         assert self.tensor.is_floating_point(), "non-floating static Variables have no tangent"
         return _numel(self.shape[:-1]) * self.model.nv
+
+    def retract(self, delta: torch.Tensor) -> torch.Tensor:
+        """Retract a free delta while restoring frozen ambient coordinates."""
+        projected = super().retract(delta)
+        if not self._frozen_groups:
+            return projected
+        return torch.where(self._frozen_q_mask.to(projected.device), self.tensor, projected)
 
     def _tangent_event_shape(self) -> tuple[int, ...]:
         return (*self.shape[:-1], self.model.nv)

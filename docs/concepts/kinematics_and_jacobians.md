@@ -115,10 +115,11 @@ differences.
 
 “Analytic” describes how the block was written, not an automatic guarantee of
 exactness. BetterRobot's pose and frame Jacobians use full Lie-group formulas.
-Some smoothness and reference residuals deliberately use documented
-small-step identity-Jacobian approximations. Those approximations are useful
-near their references, but they should not be described as exact derivatives
-far from them.
+Velocity and higher-order smoothness expose constant blocks only for affine
+all-scalar robot topologies; manifold models use dense AD. The reference
+trajectory residual still uses a documented small-step identity-Jacobian
+approximation. That approximation is useful near its reference, but it should
+not be described as an exact derivative far from it.
 
 ### Automatic differentiation
 

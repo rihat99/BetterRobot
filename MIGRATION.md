@@ -108,12 +108,13 @@ surface changed again.
 | `run_first_order`, `FirstOrderResult`, and the first-order `OptimizerFactory` alias | Use `TorchOptimizer(problem, torch.optim.OptimizerSubclass, ...)`. |
 | `autograd.tangent_grad`, `autograd.perturb_values`, `Problem.external_parameters`, and `better_robot.optim.autograd` | Use `Variable.retract`, `Problem.gradient`, and graph-carrying static variables (`trainable=False`). |
 | Scattered private `_broadcast_weight` helpers | Implement row scaling once with `ScaleWeight`, `DiagonalWeight`, or another `Weight`. |
+| `better_robot.residuals.AccelerationResidual` | Use `SmoothnessResidual(q, order=2, dt=...)`; its rows and `dt**-2` scaling are unchanged. Pass `name="acceleration"` if diagnostics depended on the former default. Replace a repeated per-coordinate `row_weight` with `(nv,)` `coordinate_weight`; scalar values can be expanded to `(nv,)`. Arbitrary time-varying row weights no longer belong to this dedicated residual. |
 
 ## Removed by the core truth pass
 
 | Removed surface | Replacement |
 |---|---|
-| `better_robot.residuals.JerkResidual` and `better_robot.residuals.smoothness.JerkResidual` | No jerk residual ships; use `AccelerationResidual` when second-order smoothness is sufficient. |
+| `better_robot.residuals.JerkResidual` and `better_robot.residuals.smoothness.JerkResidual` | Use `SmoothnessResidual(q, order=3, dt=...)`. The explicit order also supports second- and fourth-order smoothness. |
 | `better_robot.residuals.NullspaceResidual` and `better_robot.residuals.regularization.NullspaceResidual` | No direct replacement ships; use `RestResidual` for configuration-space posture regularization. |
 | The `ContactConsistencyResidual(..., angular=...)` parameter | Contact consistency currently covers Cartesian linear velocity only. |
 | `ModelValues.execution_batch_shape` | No public replacement is needed; execution batching is derived internally after model-value validation. |

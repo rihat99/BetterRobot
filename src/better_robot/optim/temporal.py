@@ -275,13 +275,16 @@ def _warn_missing_temporal_blocks(problem: Problem) -> None:
         item = problem._residuals_by_name[residual_name]
         if callable(getattr(item, "temporal_jacobian_blocks", None)):
             continue
-        warning_key = ("temporal", residual_name)
+        fallback_reason = getattr(item, "_autodiff_fallback_reason", "")
+        warning_key = ("autodiff" if fallback_reason else "temporal", residual_name)
         if warning_key in problem._warned_fallbacks:
             continue
+        reason = f" {fallback_reason};" if fallback_reason else ""
+        route = "dense autodiff" if fallback_reason else "the dense route"
         problem._warned_fallbacks.add(warning_key)
         warnings.warn(
             f"{type(item).__name__} residual {residual_name!r} declares temporal structure but no "
-            "temporal_jacobian_blocks(); linearization='auto' is using the dense route. Provide temporal "
+            f"temporal_jacobian_blocks();{reason} linearization='auto' is using {route}. Provide temporal "
             "blocks or pass linearization='dense' explicitly to silence this warning.",
             AutodiffFallbackWarning,
             stacklevel=3,
@@ -365,6 +368,8 @@ def assemble_structured_normal(  # noqa: PLR0912, PLR0915
             raise ValueError(f"{name} must preserve values dtype/device")
 
     T, d, w = analysis.time_length, analysis.tangent_width, analysis.bandwidth
+    full_width = variable.tangent_dim() // T
+    free_indices = variable.temporal_free_indices.to(device=exemplar.device)
     bands = exemplar.new_zeros(*batch_shape, T, w + 1, d, d)
     gradient = exemplar.new_zeros(*batch_shape, T, d)
     terms: list[_StructuredTerm] = []
@@ -392,7 +397,7 @@ def assemble_structured_normal(  # noqa: PLR0912, PLR0915
         ordered_raw: list[torch.Tensor] = []
         for offset in pattern.offsets:
             block = raw[offset]
-            expected = (*batch_shape, pattern.rows, pattern.row_width, d)
+            expected = (*batch_shape, pattern.rows, pattern.row_width, full_width)
             if not isinstance(block, torch.Tensor) or tuple(block.shape) != expected:
                 actual = tuple(block.shape) if isinstance(block, torch.Tensor) else type(block).__name__
                 raise ValueError(
@@ -400,6 +405,7 @@ def assemble_structured_normal(  # noqa: PLR0912, PLR0915
                 )
             if block.dtype != exemplar.dtype or block.device != exemplar.device:
                 raise ValueError(f"Residual {item.name!r} temporal block {offset} must preserve dtype/device")
+            block = block.index_select(-1, free_indices)
             ordered_raw.append(block.reshape(*batch_shape, item.dim, d))
         weighted_raw = item.row_weight.apply_jacobian(tuple(ordered_raw))
         blocks: list[tuple[int, torch.Tensor]] = []

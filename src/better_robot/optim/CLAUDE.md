@@ -21,10 +21,14 @@ accepted by residual or node constructors are construction-time constants,
 not harvested Variables.
 
 Leading axes are independent execution batches. Every trainable tangent
-coordinate participates in derivatives and linear systems. Retraction projects
-supported bounds in state space; bounds are not tangent step limits. Validate structural
-compatibility at graph freeze or solve entry, then let numerical non-finites
-produce honest optimizer status.
+coordinate participates in derivatives and linear systems unless a
+`RobotVariable` excludes topology-derived `frozen_groups` at construction.
+Its public difference remains full-width; only optimizer-facing gather and
+expand hooks use free coordinates. A trajectory repeats one immutable group
+mask at every knot. Retraction projects supported bounds in state space;
+bounds are not tangent step limits, and bounds on frozen coordinates are not
+active columns. Validate structural compatibility at graph freeze or solve
+entry, then let numerical non-finites produce honest optimizer status.
 
 ## Residuals, nodes, and problems
 
@@ -32,7 +36,8 @@ A `Residual` holds ordered references to every variable it reads, a positive
 static `dim`, `name`, outer `weight`, square-root-information `row_weight`,
 `reduce`, `enabled`, robust `kernel`, and `group_size`. `error()` returns raw
 `(..., dim)` rows. Optional `jacobian()` blocks are ordered like the trainable
-dependencies and already use tangent coordinates. Strategies are `auto`,
+dependencies and use each variable's full tangent coordinates; `Problem`
+centrally gathers construction-time free columns. Strategies are `auto`,
 `analytic`, `jacrev`, `jacfwd`, and explicit debug-only
 `finite_difference`; a malformed advertised analytic block is an error.
 

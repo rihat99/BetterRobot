@@ -1,3 +1,7 @@
+> **Implementation log (2026-07-22): complete on `dev`.** Robot tangent groups, immutable per-group freezing, optimizer-wide free-coordinate plumbing, and order 2--4 smoothness are implemented.
+> **Validation:** 1,660 CPU tests, 59 CUDA tests, and 4 benchmark smoke tests pass; strict HTML and all 30 doctests pass; the Order 04 `src/` diff is net `+296` lines (`+284` Python).
+> **Finding:** The former constant spherical blocks were wrong by up to `1.270607` for velocity and `57.68396` for order-two smoothness; mixed-manifold residuals now warn and use dense autodiff. See [`04_results.md`](04_results.md).
+
 # Order 04 — Tangent groups, per-block freeze, higher-order smoothness
 
 Read `plan/README.md` and `DESIGN_RULES.md` first. Independent of orders

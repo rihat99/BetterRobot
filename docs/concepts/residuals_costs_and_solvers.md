@@ -169,6 +169,29 @@ converged: True
 Subclass `Residual` when an error term needs analytic or temporal blocks, a
 custom weight, or a shared node.
 
+## Robot tangent groups and frozen coordinates
+
+A robot configuration does not generally have one Euclidean coordinate for
+every stored value. `RobotVariable` therefore names groups in the model's
+tangent space: each joint has its own group, `root` covers a free-flyer base,
+`root_lin` and `root_ang` split that base into translation and rotation, and
+`joints` covers everything outside the base. The indices are per knot even
+when the variable holds a trajectory.
+
+`RobotVariable.tangent_weight()` turns group values into one `(nv,)` vector.
+Those values are square-root-information row multipliers: a value of two
+multiplies a residual row by two and its L2 objective contribution by four.
+The helper does not take a square root on the caller's behalf.
+
+`frozen_groups` is a construction-time optimizer policy. Frozen coordinates
+remain in the stored configuration and in the full tangent returned by
+`difference()`, but they are absent from optimizer deltas, gradients,
+Jacobian columns, and active bounds. A trajectory applies the same group mask
+at every knot, preserving a fixed temporal block width. Starting a later
+phase with a different mask requires a new `RobotVariable` and `Problem`
+initialized from the previous phase's value; the geometry contract of the
+original variable never changes in place.
+
 ## Nodes share expensive work
 
 Several robot residuals need the same forward kinematics, posed points, or
@@ -242,7 +265,7 @@ The shipped residuals cover these roles:
 |---|---|
 | Frame targets | `PoseResidual`, `PositionResidual`, `OrientationResidual` |
 | Joint preferences and limits | `JointPositionLimit`, `JointVelocityLimit`, `RestResidual`, `JointRotationPrior` |
-| Trajectory structure | `ReferenceTrajectoryResidual`, `TimeIndexedResidual`, `VelocityResidual`, `AccelerationResidual` |
+| Trajectory structure | `ReferenceTrajectoryResidual`, `TimeIndexedResidual`, `VelocityResidual`, `SmoothnessResidual` (orders 2--4) |
 | Contact motion | `ContactConsistencyResidual` |
 | Scalar penalties | `ScalarCost` |
 | Image observations | `ProjectionResidual`, `PointProjectionResidual` |
@@ -251,6 +274,18 @@ The shipped residuals cover these roles:
 
 Every residual listed above is live. Unimplemented residual ideas are omitted
 from the API until their mathematical and temporal contracts are defined.
+
+`VelocityResidual` keeps its central first-difference convention.
+`SmoothnessResidual(order=n)` applies the order-`n` forward difference in
+tangent space for `n` equal to 2, 3, or 4, scales it by `dt**-n`, and returns
+`(T - n) * nv` rows. Its optional `(nv,)` `coordinate_weight` repeats over
+the knot rows and uses the same square-root-information convention as
+`row_weight`. Callers must omit the term when `T <= n`; construction rejects
+that horizon instead of silently creating an empty residual. Only all-scalar
+models expose direct temporal blocks. Models with spherical, free-flyer, or
+another non-scalar joint kind use the conservative dense autodiff path; in
+particular, the derivative of a manifold logarithm depends on the current
+state.
 
 Residual controls live on the `Residual` itself. `enabled=False` or a Python
 numeric zero outer weight skips a residual without changing its reserved row

@@ -17,8 +17,8 @@ from tests.bench.bench_trajopt_sparse import _definition, _failure_status, _run_
 _BENCHMARK = Path(__file__).with_name("bench_trajopt_sparse.py")
 
 
-def test_trajopt_sparse_structured_t50_one_update(tmp_path: Path) -> None:
-    """Build the real branching-tree problem and complete one structured LM update."""
+def test_trajopt_sparse_dense_t50_one_update(tmp_path: Path) -> None:
+    """Build the manifold branching-tree problem and complete one dense LM update."""
     output = tmp_path / "case.json"
     environment = os.environ.copy()
     environment.update(
@@ -35,7 +35,7 @@ def test_trajopt_sparse_structured_t50_one_update(tmp_path: Path) -> None:
             str(_BENCHMARK),
             "--child",
             "--path",
-            "structured",
+            "dense",
             "--horizon",
             "50",
             "--updates",
@@ -57,9 +57,9 @@ def test_trajopt_sparse_structured_t50_one_update(tmp_path: Path) -> None:
     )
     result = json.loads(output.read_text(encoding="utf-8"))
     assert result["status"] == "SUCCESS"
-    assert result["path"] == "structured"
-    assert result["route"] == "banded"
-    assert result["route_reason"] == "eligible_banded"
+    assert result["path"] == "dense"
+    assert result["route"] == "dense"
+    assert result["route_reason"] == "forced_dense"
     assert result["route_detail"]
     assert result["horizon"] == 50
     assert result["updates_per_solve"] == 1
@@ -72,7 +72,7 @@ def test_trajopt_sparse_structured_t50_one_update(tmp_path: Path) -> None:
 def test_trajopt_sparse_definition_is_complete() -> None:
     definition = _definition()
     assert definition["horizons"] == [50, 125, 250, 500]
-    assert definition["paths"] == ["dense", "structured"]
+    assert definition["paths"] == ["dense"]
     assert definition["measurement"]["case_timeout_seconds"] == 600
     assert definition["measurement"]["address_space_limit_bytes"] == 16 * 2**30
 
@@ -84,6 +84,6 @@ def test_unknown_process_signal_is_not_mislabeled_as_oom() -> None:
 
 
 def test_duplicate_case_selectors_are_rejected_before_running() -> None:
-    args = SimpleNamespace(quick=True, path=["structured", "structured"], horizon=None)
+    args = SimpleNamespace(quick=True, path=["dense", "dense"], horizon=None)
     with pytest.raises(ValueError, match="--path selectors must not contain duplicates"):
         _run_parent(args)

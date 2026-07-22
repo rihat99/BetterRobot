@@ -169,7 +169,10 @@ def _smooth_quaternion_representative(values: _TensorValues, payload: _Payload) 
             indices = tuple(
                 event.stop - 1
                 for event in spec.unit_coordinate_slices
-                if event.start is not None and event.stop is not None and event.stop - event.start == 4
+                if event.start is not None
+                and event.stop is not None
+                and event.stop - event.start == 4
+                and not bool(spec._frozen_q_mask[event].all())
             )
             if not indices:
                 continue
@@ -259,11 +262,16 @@ def _solve_adjoint(hessian: torch.Tensor, cotangent: torch.Tensor, payload: _Pay
         if not bool(torch.isfinite(system).all() and torch.isfinite(rhs).all()):
             failed[index] = True
             continue
-        solved = torch.linalg.lstsq(system, rhs.unsqueeze(-1))
-        solution = solved.solution.squeeze(-1)
+        rank = torch.linalg.matrix_rank(system)
+        solved = torch.linalg.solve_ex(system, rhs)
+        solution = solved.result
         residual = torch.linalg.vector_norm(system @ solution - rhs)
         threshold = _LINEAR_SOLVE_ATOL + _LINEAR_SOLVE_RTOL * torch.linalg.vector_norm(rhs)
-        if int(solved.rank) != free_count or not bool(torch.isfinite(solution).all() and residual <= threshold):
+        if (
+            int(solved.info) != 0
+            or int(rank) != free_count
+            or not bool(torch.isfinite(solution).all() and residual <= threshold)
+        ):
             failed[index] = True
             continue
         result[index, free] = solution

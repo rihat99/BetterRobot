@@ -5,6 +5,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- `RobotVariable` now exposes topology-derived tangent groups, per-coordinate
+  square-root-information weights, and construction-time frozen groups shared
+  by dense, bounded, first-order, implicit, and temporal optimizers.
+  `SmoothnessResidual` unifies acceleration, jerk, and snap (orders two through
+  four); `AccelerationResidual` is replaced by order two. Velocity and
+  smoothness now avoid incorrect constant analytic blocks for spherical and
+  free-flyer logarithms and use dense autodiff for those models. CUDA implicit
+  backward now validates a square solve directly instead of depending on
+  unavailable CUDA least-squares rank metadata. The canonical mixed-manifold
+  trajectory benchmark reports only its valid dense route until a reviewed
+  all-scalar structured fixture is added.
 - Scene-SDF and masked-Chamfer residuals now consume composed point Nodes,
   apply detached confidence linearly, and expose per-penalty activity gates;
   scene distance may be point-to-point or point-to-plane. The new

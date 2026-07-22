@@ -12,7 +12,7 @@ from .projection import PointProjectionResidual, ProjectionResidual
 from .contact import ContactConsistencyResidual
 from .regularization import JointRotationPrior, ReferenceTrajectoryResidual, RestResidual
 from .temporal import TimeIndexedResidual
-from .smoothness import AccelerationResidual, VelocityResidual
+from .smoothness import SmoothnessResidual, VelocityResidual
 from .structure import TemporalPattern
 from .scene_sdf import (
     SceneAttractionResidual,
@@ -52,6 +52,6 @@ __all__ = [
     "ContactConsistencyResidual",
     "TimeIndexedResidual",
     "VelocityResidual",
-    "AccelerationResidual",
+    "SmoothnessResidual",
     "TemporalPattern",
 ]

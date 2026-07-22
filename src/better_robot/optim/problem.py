@@ -638,9 +638,11 @@ class Problem:
                     {"jacrev" if item.dim <= variable.free_dim else "jacfwd" for variable in dependencies}
                 )
                 transform_names = " and ".join(f"torch.func.{name}" for name in selected_transforms)
+                fallback_reason = getattr(item, "_autodiff_fallback_reason", "")
+                reason = f" {fallback_reason};" if fallback_reason else ""
                 self._warned_fallbacks.add(warning_key)
                 warnings.warn(
-                    f"{type(item).__name__} residual {item.name!r} has no analytic jacobian(); "
+                    f"{type(item).__name__} residual {item.name!r} has no analytic jacobian();{reason} "
                     f"strategy='auto' is using {transform_names}. Provide jacobian() or pass an explicit "
                     "Jacobian strategy to silence this warning.",
                     AutodiffFallbackWarning,
@@ -649,7 +651,7 @@ class Problem:
             for index, variable in enumerate(dependencies):
                 key = (item.name, variable.name)
                 if weighted_analytic is not None:
-                    block = weighted_analytic[index]
+                    block = variable.gather_tangent(weighted_analytic[index])
                     expected = (*batch_shape, item.dim, variable.free_dim)
                     if not isinstance(block, torch.Tensor) or tuple(block.shape) != expected:
                         actual = tuple(block.shape) if isinstance(block, torch.Tensor) else type(block).__name__
@@ -718,7 +720,8 @@ class Problem:
         if set(x0) != {variable.name for variable in self.vars} or set(x1) != set(x0):
             raise ValueError("difference inputs must contain exactly one entry per trainable variable")
         return {
-            variable.name: variable._difference_from(x0[variable.name], x1[variable.name]) for variable in self.vars
+            variable.name: variable.gather_tangent(variable._difference_from(x0[variable.name], x1[variable.name]))
+            for variable in self.vars
         }
 
     def structured_normal(

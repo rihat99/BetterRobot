@@ -10,8 +10,9 @@ group size, and ordered variable references. Missing analytic blocks use the
 `Problem` Jacobian strategy; finite differences remain an explicit debug
 choice.
 
-`jacobian()` returns a tuple of complete tangent blocks ordered like the
-residual's trainable variable dependencies. A residual with shared work lists
+`jacobian()` returns a tuple of complete full-tangent blocks ordered like the
+residual's trainable variable dependencies. Optimizer plumbing centrally
+gathers any construction-time free subset. A residual with shared work lists
 its direct `Node` objects in `nodes`. A node may read Variables and other
 nodes; `node.nodes` holds its direct children and `node.variables` is the
 order-stable, identity-deduplicated tuple of all transitive leaf Variables.
@@ -93,6 +94,12 @@ robust IRLS scaling once. A declaration without numeric blocks is not
 direct-banded eligible. Missing declarations make automatic LM use dense
 assembly; forced structured routing fails actionably. A zero weight never
 grants eligibility.
+
+Velocity and higher-order smoothness may declare constant temporal blocks
+only when every moving joint has an affine scalar difference. Spherical,
+free-flyer, and other manifold logarithms have state-dependent derivatives;
+those models must warn under automatic differentiation and route dense until
+exact log-Jacobian blocks have their own reviewed contract.
 
 ## Vision and point-cloud pack
 

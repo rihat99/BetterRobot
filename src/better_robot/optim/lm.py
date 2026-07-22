@@ -11,6 +11,7 @@ from typing import Literal, NamedTuple, TypeAlias, cast
 
 import torch
 
+from ..data_model.joint_models import JointComposite, JointModel
 from .kernels import _group_rows
 from .solvers import (
     BandedCholesky,
@@ -95,6 +96,19 @@ def _max_abs(vector: torch.Tensor) -> torch.Tensor:
     return vector.abs().amax(dim=-1)
 
 
+def _unsafe_translation_v_indices(joint: JointModel) -> tuple[int, ...]:
+    if joint.kind == "free_flyer":
+        return (0, 1, 2)
+    if not isinstance(joint, JointComposite):
+        return ()
+    indices: list[int] = []
+    offset = 0
+    for child in joint.sub_joints:
+        indices.extend(offset + index for index in _unsafe_translation_v_indices(child))
+        offset += child.nv
+    return tuple(indices)
+
+
 def _split_step(step: torch.Tensor, problem: Problem) -> _TensorValues:
     return {spec.name: step[..., problem.column_offsets[spec.name]] for spec in problem.vars}
 
@@ -125,7 +139,7 @@ def _detach_state(state: _LMIterationState) -> _LMIterationState:
     return _LMIterationState(*(tensor.detach() for tensor in state))
 
 
-def _static_layout(  # noqa: PLR0912 - handles the finite supported variable layouts
+def _static_layout(  # noqa: PLR0912, PLR0915 - handles the finite supported variable layouts
     values: _TensorValues,
     problem: Problem,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -148,6 +162,7 @@ def _static_layout(  # noqa: PLR0912 - handles the finite supported variable lay
         )
         full_lower = exemplar.new_full((tangent_dim,), -torch.inf)
         full_upper = exemplar.new_full((tangent_dim,), torch.inf)
+        unsafe_tangent = torch.zeros(tangent_dim, dtype=torch.bool, device=exemplar.device)
         if not isinstance(spec, RobotVariable):
             full_mapping = torch.arange(
                 state_offset,
@@ -161,6 +176,7 @@ def _static_layout(  # noqa: PLR0912 - handles the finite supported variable lay
         elif isinstance(spec, RobotVariable):
             model = spec.model
             q_for_v = [-1] * model.nv
+            unsafe_v: list[int] = []
             unsafe_q: list[int] = []
             for joint, nq_joint, nv_joint, iq, iv in zip(
                 model.joint_models,
@@ -176,20 +192,14 @@ def _static_layout(  # noqa: PLR0912 - handles the finite supported variable lay
                 for local_v, local_q in enumerate(layout.q_for_v):
                     if local_q >= 0:
                         q_for_v[iv + local_v] = iq + local_q
+                unsafe_v.extend(iv + index for index in _unsafe_translation_v_indices(joint))
                 unsafe_q.extend(iq + index for index in layout.unsafe_q)
-            if spec.bounds is not None and unsafe_q:
-                unsafe = torch.tensor(unsafe_q, dtype=torch.long, device=exemplar.device)
-                unsafe_finite = torch.isfinite(spec.bounds.lower.index_select(0, unsafe)) | torch.isfinite(
-                    spec.bounds.upper.index_select(0, unsafe)
-                )
-                if bool(unsafe_finite.any()):  # bench-ok: init-only static bounds validation
-                    raise ValueError(
-                        f"RobotVariable {spec.name!r} has a finite free-flyer "
-                        "translation bound. World-axis state boxes are not axis-aligned "
-                        "in the right-local SE(3) tangent; defer this constraint or "
-                        "express it as a residual."
-                    )
             event_count = reduce(mul, spec.shape[:-1], 1)
+            unsafe_per_knot = torch.zeros(model.nv, dtype=torch.bool, device=exemplar.device)
+            unsafe_indices = torch.tensor(unsafe_v, dtype=torch.long, device=exemplar.device)
+            unsafe_q_indices = torch.tensor(unsafe_q, dtype=torch.long, device=exemplar.device)
+            unsafe_per_knot[unsafe_indices] = True
+            unsafe_tangent = unsafe_per_knot.repeat(event_count)
             for event in range(event_count):
                 for local_v, local_q in enumerate(q_for_v):
                     tangent_index = event * model.nv + local_v
@@ -199,10 +209,24 @@ def _static_layout(  # noqa: PLR0912 - handles the finite supported variable lay
                     if spec.bounds is not None:
                         full_lower[tangent_index] = spec.bounds.lower[local_q]
                         full_upper[tangent_index] = spec.bounds.upper[local_q]
+                if spec.bounds is not None:
+                    full_lower[event * model.nv + unsafe_indices] = spec.bounds.lower[unsafe_q_indices]
+                    full_upper[event * model.nv + unsafe_indices] = spec.bounds.upper[unsafe_q_indices]
 
-        state_index[column] = full_mapping
-        lower[column] = full_lower
-        upper[column] = full_upper
+        free_mapping = spec.gather_tangent(full_mapping)
+        free_lower = spec.gather_tangent(full_lower)
+        free_upper = spec.gather_tangent(full_upper)
+        unsafe_finite = spec.gather_tangent(unsafe_tangent) & (torch.isfinite(free_lower) | torch.isfinite(free_upper))
+        if bool(unsafe_finite.any()):  # bench-ok: init-only static bounds validation
+            raise ValueError(
+                f"RobotVariable {spec.name!r} has a finite free-flyer "
+                "translation bound. World-axis state boxes are not axis-aligned "
+                "in the right-local SE(3) tangent; defer this constraint or "
+                "express it as a residual."
+            )
+        state_index[column] = free_mapping
+        lower[column] = free_lower
+        upper[column] = free_upper
         state_offset += reduce(mul, spec.shape, 1)
 
     bounded = torch.isfinite(lower) | torch.isfinite(upper)

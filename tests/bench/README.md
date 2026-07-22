@@ -18,10 +18,12 @@ a pytest-benchmark micro-benchmark:
 uv run python tests/bench/bench_trajopt_sparse.py
 ```
 
-Use `--quick --allow-unpinned` for a single structured T=50 harness check and
+Use `--quick --allow-unpinned` for a single dense T=50 harness check and
 `--output <path>` to retain any run. The repository does not ship a trajectory
 baseline: the full canonical sweep could not complete enough dense points
-within its committed timeout and memory bounds to support its scaling checks.
+within its committed timeout and memory bounds, and the structured lane now
+awaits an all-scalar fixture with exact temporal blocks. Current runs are
+diagnostic rather than an acceptance comparison.
 
 ## Bumping the baseline
 
@@ -49,8 +51,8 @@ header from `definitions.md`; do not infer a self-hosted runner from a filename.
 | `bench_jacobian.py` | `compute_joint_jacobians` on Panda |
 | `bench_integrate_difference.py` | Grouped vs loop manifold operations on a length-200 SMPL-like trajectory |
 | `bench_solve_ik.py` | One-shot Panda IK |
-| `bench_trajopt_sparse.py` | Dense-vs-banded CPU scaling harness with isolated subprocess RSS |
-| `test_trajopt_sparse_smoke.py` | Normal-suite T=50, one-update structured smoke |
+| `bench_trajopt_sparse.py` | Manifold trajectory dense CPU scaling harness with isolated subprocess RSS; the structured comparison awaits an all-scalar fixture |
+| `test_trajopt_sparse_smoke.py` | Normal-suite T=50, one-update dense smoke |
 | `test_mem_watermark.py` | Explicit local/manual peak-memory tracking; not scheduled |
 | `definitions.md` | Hardware header, canonical matrix, timing rules, and evidence status |
 | `baselines/warp_fk_cuda_rtx6000_ada_b*.json` | Measured, fresh-process SMPL FK Warp-vs-compiled-Torch CUDA cases |

@@ -12,11 +12,11 @@ from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics.forward import forward_kinematics
 from better_robot.optim import Problem, Residual, RobotVariable, Variable
 from better_robot.residuals import (
-    AccelerationResidual,
     ContactConsistencyResidual,
     PositionResidual,
     ReferenceTrajectoryResidual,
     RestResidual,
+    SmoothnessResidual,
     TimeIndexedResidual,
     VelocityResidual,
 )
@@ -80,8 +80,13 @@ def _robot_trajectory(
 def _trajectory_residual(model, q: RobotVariable, kind: str):
     if kind == "velocity":
         return VelocityResidual(q, dt=0.1, row_weight=0.7)
-    if kind == "acceleration":
-        return AccelerationResidual(q, dt=0.1, row_weight=0.4)
+    if kind == "smoothness":
+        return SmoothnessResidual(
+            q,
+            order=2,
+            dt=0.1,
+            coordinate_weight=torch.full((model.nv,), 0.4, dtype=q.tensor.dtype),
+        )
     return ReferenceTrajectoryResidual(
         q,
         model.q_neutral.expand(5, -1).clone(),
@@ -94,7 +99,7 @@ def _trajectory_residual(model, q: RobotVariable, kind: str):
     ("kind", "expected"),
     (
         ("velocity", TemporalPattern(3, 2, 1, (-1, 1))),
-        ("acceleration", TemporalPattern(3, 2, 1, (-1, 0, 1))),
+        ("smoothness", TemporalPattern(3, 2, 0, (0, 1, 2))),
         ("reference", TemporalPattern(5, 2, 0, (0,))),
     ),
 )
@@ -250,7 +255,7 @@ def test_temporal_horizon_validation_is_eager_and_variable_owned(two_joint_model
     with pytest.raises(ValueError, match="at least 3"):
         VelocityResidual(short, dt=0.1)
     with pytest.raises(ValueError, match="at least 3"):
-        AccelerationResidual(short, dt=0.1)
+        SmoothnessResidual(short, order=2, dt=0.1)
     with pytest.raises(ValueError, match="at least one timestep"):
         _robot_trajectory(model, torch.empty(0, model.nq), name="empty")
 

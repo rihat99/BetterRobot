@@ -27,9 +27,9 @@ import torch
 import better_robot as br
 from better_robot.optim import LevenbergMarquardt
 from better_robot.residuals import (
-    AccelerationResidual,
     JointPositionLimit,
     PoseResidual,
+    SmoothnessResidual,
 )
 from better_robot.tasks.trajopt import ResidualFactory, solve_trajopt
 
@@ -74,7 +74,8 @@ def build_residuals(
             name="goal_pose",
         ),
         partial(
-            AccelerationResidual,
+            SmoothnessResidual,
+            order=2,
             dt=DT,
             weight=0.01,
             name="accel",
