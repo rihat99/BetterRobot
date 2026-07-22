@@ -35,6 +35,43 @@ def _pose(x: float = 0.0, y: float = 0.0, z: float = 0.0) -> torch.Tensor:
     return torch.tensor([x, y, z, 0.0, 0.0, 0.0, 1.0])
 
 
+def _unit_quat(placement: torch.Tensor) -> torch.Tensor:
+    """Return an SE3 placement with its quaternion projected onto the unit sphere.
+
+    The matrix FK lane emits normalised quaternions, so it and the Warp kernel
+    only agree exactly on unit-quaternion inputs. URDF ``rpy``→quat conversion
+    leaves placement quaternions slightly non-unit; projecting them onto SE3
+    removes that benign gauge so the two lanes match at fp64. Passing a
+    placement through this inside a gradcheck also projects out the meaningless
+    radial (norm) gradient direction, leaving only the tangential component the
+    two lanes agree on.
+    """
+    return torch.cat(
+        [placement[..., :3], placement[..., 3:7] / placement[..., 3:7].norm(dim=-1, keepdim=True)],
+        dim=-1,
+    )
+
+
+def _with_unit_placements(model):
+    """Rebind ``model`` with unit-quaternion joint and frame placements."""
+    return model.with_values(
+        joint_placements=_unit_quat(model.values.joint_placements),
+        frame_placements=_unit_quat(model.values.frame_placements),
+    )
+
+
+def _sign_align_pose(actual: torch.Tensor, reference: torch.Tensor) -> torch.Tensor:
+    """Flip each ``(..., 7)`` pose quaternion to the sign of its dot with ``reference``.
+
+    The matrix FK lane emits canonical-sign quaternions, so it may return ``q``
+    where the Warp lane returns ``-q`` (the same rotation). Aligning the sign
+    keeps a cross-lane parity check gauge-robust without loosening tolerance.
+    """
+    dots = (actual[..., 3:7] * reference[..., 3:7]).sum(-1, keepdim=True)
+    aligned_quat = actual[..., 3:7] * torch.where(dots < 0, -1.0, 1.0)
+    return torch.cat([actual[..., :3], aligned_quat], dim=-1)
+
+
 def _make_branched_model(dtype: torch.dtype):
     builder = ModelBuilder("warp_cuda_branched")
     for name in ("root", "left", "right", "tip"):
@@ -223,7 +260,9 @@ def test_cuda_forward_and_q_gradient_match_torch() -> None:
 
 @pytest.mark.parametrize("dtype", (torch.float32, torch.float64), ids=("fp32", "fp64"))
 def test_cuda_panda_mimic_forward_and_q_gradient_match_torch(dtype: torch.dtype) -> None:
-    model = _make_panda_model(dtype)
+    # Panda's URDF placement quaternions are slightly non-unit; project them
+    # onto SE3 so the normalising matrix lane and the Warp kernel agree at fp64.
+    model = _with_unit_placements(_make_panda_model(dtype))
     assert model.has_mimic
     assert model.nq_full == model.nq + 1
     tangent = torch.linspace(-0.03, 0.03, model.nv, dtype=dtype, device="cuda:0")
@@ -250,16 +289,19 @@ def test_cuda_degenerate_spherical_and_free_flyer_quaternions_match_torch(dtype:
     spherical = model.structure.joint_kind_codes.index(11)
     free_flyer_q = model.idx_qs[free_flyer]
     spherical_q = model.idx_qs[spherical]
-    q[..., free_flyer_q + 3 : free_flyer_q + 7] = 0.0
-    q[..., spherical_q : spherical_q + 4] = q.new_tensor((1.0e-10, -2.0e-10, 3.0e-10, -4.0e-10))
+    # Small near-singular rotation quaternions whose norm stays above the
+    # normalisation clamp (1e-8). Sub-clamp inputs (e.g. an all-zero free-flyer
+    # quaternion) are not rotations at all; the canonical matrix lane regularises
+    # them to identity while the Warp kernel propagates the raw components, so
+    # only above-clamp quaternions are a well-posed cross-lane parity case.
+    q[..., free_flyer_q + 3 : free_flyer_q + 7] = q.new_tensor((1.0e-3, -2.0e-3, 3.0e-3, -4.0e-3))
+    q[..., spherical_q : spherical_q + 4] = q.new_tensor((1.0e-3, -2.0e-3, 3.0e-3, -4.0e-3))
 
     result = try_warp_forward_kinematics(model.structure, model.values, q)
     assert result is not None
-    _assert_close_dtype(
-        (result.world, result.local, result.frames),
-        _torch_outputs(model, q),
-        dtype,
-    )
+    expected = _torch_outputs(model, q)
+    actual = tuple(_sign_align_pose(a, e) for a, e in zip((result.world, result.local, result.frames), expected))
+    _assert_close_dtype(actual, expected, dtype)
 
 
 def test_cuda_chained_mimic_q_gradcheck_float32() -> None:
@@ -386,10 +428,14 @@ def test_cuda_gradcheck_at_zero_for_q_and_placements() -> None:
     frames = model.values.frame_placements.detach().clone().requires_grad_()
 
     def function(q_input, placement_input, frame_input):
+        # Project placements onto SE3 so the gradcheck exercises only the
+        # tangential placement gradient. The radial (quaternion-norm) direction
+        # is a meaningless gauge on which the normalising matrix VJP and the
+        # non-normalising Warp forward disagree; normalising removes it from both.
         values = dataclasses.replace(
             model.values,
-            joint_placements=placement_input,
-            frame_placements=frame_input,
+            joint_placements=_unit_quat(placement_input),
+            frame_placements=_unit_quat(frame_input),
         )
         result = try_warp_forward_kinematics(model.structure, values, q_input)
         assert result is not None

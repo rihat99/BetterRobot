@@ -18,12 +18,10 @@ import torch
 from ..data_model import KinematicsLevel
 from ..data_model.data import Data
 from ..data_model.execution_batch import broadcast_to_execution_batch
-from ..data_model.joint_dispatch import joint_transform
 from ..data_model.joint_models import JointFreeFlyer
 from ..data_model.model import Model
 from ..data_model.model_structure import ModelStructure
 from ..data_model.model_values import ModelValues
-from ..data_model.reduced_coordinates import expand_configuration
 from ..exceptions import (
     DeviceMismatchError,
     DtypeMismatchError,
@@ -31,6 +29,7 @@ from ..exceptions import (
     ShapeError,
 )
 from ..lie import se3
+from . import _fk_matrix
 
 
 #: Tolerance used by the opt-in free-flyer quaternion debug check.
@@ -125,9 +124,10 @@ def forward_kinematics_raw(
 ) -> FKResult:
     """Tensor-only FK primitive returning named world/local placements.
 
-    Autograd-safe: uses list accumulation + ``torch.stack`` instead of
-    in-place writes so the backward pass can trace through every SE3
-    composition cleanly.
+    Runs the batched matrix lane in :mod:`._fk_matrix`: kind-grouped local
+    transforms, one batched ``4x4`` matmul per joint over the topological order,
+    and a single batched matrix-to-quaternion pass. Autograd- and
+    ``torch.func``-safe (jacrev and jacfwd).
 
     Parameters
     ----------
@@ -151,55 +151,13 @@ def forward_kinematics_raw(
     :func:`forward_kinematics` with ``check_quaternion_norm=True`` to run the
     opt-in debug check before calling this hot-path primitive.
 
+    The matrix lane emits canonical-sign quaternions, so an output quaternion
+    may differ in overall sign (``q`` vs ``-q``, the same rotation) from a
+    quaternion-composition lane; sign-align before comparing raw quaternions.
+
     See docs/concepts/kinematics_and_jacobians.md and docs/conventions/naming.md.
     """
-    batch_shape = values._execution_batch_shape(q)
-    q = broadcast_to_execution_batch(
-        q,
-        batch_shape,
-        (structure.nq,),
-        name="q",
-    )
-    q_full = expand_configuration(structure, q)
-    placements = broadcast_to_execution_batch(
-        values.joint_placements,
-        batch_shape,
-        (structure.njoints, 7),
-        name="joint_placements",
-    )
-    axes = structure.joint_axes
-    pitches = structure.joint_pitches
-
-    world_list: list[torch.Tensor] = [None] * structure.njoints  # type: ignore[list-item]
-    local_list: list[torch.Tensor] = [None] * structure.njoints  # type: ignore[list-item]
-
-    for j in structure.topo_order:
-        nq_j = structure.nqs_full[j]
-        q_j = q_full[
-            ...,
-            structure.idx_qs_full[j] : structure.idx_qs_full[j] + nq_j,
-        ]
-        T_j = joint_transform(
-            structure.joint_models[j],
-            structure.joint_kind_codes[j],
-            axes[j],
-            pitches[j],
-            q_j,
-        )
-
-        # joint_pose_local[j] = T_placement ∘ T_j  (parent-frame placement)
-        local_j = se3.compose(placements[..., j, :], T_j)
-        local_list[j] = local_j
-
-        parent = structure.parents[j]
-        if parent < 0:
-            world_list[j] = local_j
-        else:
-            world_list[j] = se3.compose(world_list[parent], local_j)  # (B..., 7)
-
-    stack_dim = len(batch_shape)
-    joint_pose_world = torch.stack(world_list, dim=stack_dim)  # (B..., njoints, 7)
-    joint_pose_local = torch.stack(local_list, dim=stack_dim)
+    joint_pose_world, joint_pose_local = _fk_matrix.matrix_forward(structure, values, q)
     return FKResult(
         joint_pose_world=joint_pose_world,
         joint_pose_local=joint_pose_local,
@@ -213,6 +171,7 @@ def forward_kinematics(  # noqa: PLR0912 - validates and routes one public FK re
     compute_frames: bool = False,
     check_quaternion_norm: bool = False,
     use_warp: bool = False,
+    use_compile: bool = False,
 ) -> Data:
     """Compute joint (and optionally frame) placements.
 
@@ -235,6 +194,13 @@ def forward_kinematics(  # noqa: PLR0912 - validates and routes one public FK re
         extra, joint kinds, dtype, and layout are supported. Unsupported
         inputs use the torch lane and emit a one-shot warning naming the
         reason.
+    use_compile : bool
+        Opt into a ``torch.compile``d Torch FK lane, cached per model on first
+        use. The first call pays a multi-second compilation; later calls reuse
+        the cached callable, and ``dynamic=True`` lets the batch size vary
+        without a recompile. Precedence: ``use_warp`` wins — when it is set the
+        Warp lane runs and ``use_compile`` has no effect (a Warp fallback uses
+        the eager Torch lane).
     Returns
     -------
     Data
@@ -290,9 +256,14 @@ def forward_kinematics(  # noqa: PLR0912 - validates and routes one public FK re
         else:
             warp_result = try_warp_forward_kinematics(model.structure, model.values, q)
     if warp_result is None:
-        fk_result = forward_kinematics_raw(model.structure, model.values, q)
-        joint_pose_world = fk_result.joint_pose_world
-        joint_pose_local = fk_result.joint_pose_local
+        if use_compile and not use_warp:
+            joint_pose_world, joint_pose_local = _fk_matrix.matrix_forward_compiled(
+                model.structure, model.values, q
+            )
+        else:
+            fk_result = forward_kinematics_raw(model.structure, model.values, q)
+            joint_pose_world = fk_result.joint_pose_world
+            joint_pose_local = fk_result.joint_pose_local
     else:
         joint_pose_world, joint_pose_local = warp_result.world, warp_result.local
     data.joint_pose_world = joint_pose_world

@@ -28,7 +28,7 @@ import torch
 
 import better_robot as br
 
-ORACLE_VERSION = "2"
+ORACLE_VERSION = "3"
 GENERATION_SEED = 0
 N_CONFIGS = 32  # keep small — < 200 KB total
 
