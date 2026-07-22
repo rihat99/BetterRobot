@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ..residuals.base import DiagonalWeight, Difference, Residual, ScaleWeight, Weight, residual
+from ..residuals.base import DiagonalWeight, Difference, Residual, ScalarCost, ScaleWeight, Weight, residual
 from ..residuals.structure import TemporalPattern
 from .implicit import ImplicitDiffConfig, ImplicitDifferentiationError
 from .kernels import Cauchy, GemanMcClure, Huber, L2, RobustKernel, Tukey
@@ -28,6 +28,7 @@ __all__ = [
     "ScaleWeight",
     "DiagonalWeight",
     "Difference",
+    "ScalarCost",
     "residual",
     "RobustKernel",
     "L2",

@@ -18,8 +18,9 @@ class MaskedChamferResidual(Residual):
     Point tensors end in ``(frames, count, 3)`` and validity masks end in
     ``(frames, count)``. Invalid padding produces finite zero rows. Nearest
     indices are detached while distances retain gradients to the selected
-    points. ``vertex_weights`` are domain confidence multipliers, distinct
-    from the outer objective ``weight`` inherited from :class:`Residual`.
+    points. Bare inputs are construction-time constants; static Variables are
+    updatable through ``Problem.update()``. ``vertex_weights`` are domain
+    confidence multipliers, distinct from outer objective ``weight``.
     """
 
     def __init__(

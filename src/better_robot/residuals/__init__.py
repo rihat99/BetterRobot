@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .base import DiagonalWeight, Difference, Residual, ScaleWeight, Weight, residual
+from .base import DiagonalWeight, Difference, Residual, ScalarCost, ScaleWeight, Weight, residual
 from .nodes import Node, RobotState
 from .chamfer import MaskedChamferResidual
 from .limits import JointPositionLimit, JointVelocityLimit
@@ -28,6 +28,7 @@ __all__ = [
     "ScaleWeight",
     "DiagonalWeight",
     "Difference",
+    "ScalarCost",
     "residual",
     "Node",
     "RobotState",

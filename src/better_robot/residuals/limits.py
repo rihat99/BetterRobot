@@ -141,7 +141,7 @@ class JointPositionLimit(Residual):
 
 
 class JointVelocityLimit(Residual):
-    """One-sided clamped penalty on a velocity-valued Variable."""
+    """One-sided velocity penalty; a bare limit is a construction-time constant."""
 
     def __init__(
         self,

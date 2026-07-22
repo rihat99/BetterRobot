@@ -1,3 +1,7 @@
+> **Implementation log (2026-07-22): complete on `dev`.** Nodes now compose recursively, static bool/int inputs are supported, and `ScalarCost` contributes exact non-negative scalar penalties.
+> **Validation:** 1,618 CPU tests and 49 CUDA tests pass; strict HTML and all 30 doctests pass; source is 22,622 → 22,724 lines (`+102`).
+> **Finding:** No required behavior was dropped; `ScalarCost` is also re-exported from `better_robot.optim` for API consistency. See [`02_results.md`](02_results.md).
+
 # Order 02 — Node composition, static-input contract, scalar costs
 
 Read `plan/README.md` and `DESIGN_RULES.md` first. Order 01 must be landed.

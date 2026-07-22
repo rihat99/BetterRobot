@@ -22,7 +22,7 @@ from .structure import TemporalPattern
 
 
 class RestResidual(Residual):
-    """Tangent displacement from a fixed rest configuration."""
+    """Tangent rest displacement; a bare ``q_rest`` is a construction-time constant."""
 
     def __init__(
         self,
@@ -63,7 +63,7 @@ class RestResidual(Residual):
 
 
 class JointRotationPrior(Residual):
-    """Per-joint tangent deviation from a mean robot configuration."""
+    """Per-joint tangent prior; bare ``q_mean`` and weights are construction-time constants."""
 
     def __init__(
         self,
@@ -116,7 +116,7 @@ class JointRotationPrior(Residual):
 
 
 class ReferenceTrajectoryResidual(Residual):
-    """Tangent-space deviation of a robot trajectory from a reference."""
+    """Tangent trajectory error; bare reference and frame weights are construction constants."""
 
     def __init__(
         self,

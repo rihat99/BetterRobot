@@ -14,6 +14,7 @@ import warnings
 import torch
 
 from ..residuals.base import Residual
+from ..residuals.nodes import Node
 from .kernels import L2, RobustKernel, _group_rows
 from .variables import Variable
 
@@ -76,7 +77,7 @@ class Problem:
         self._vars_by_name: Mapping[str, Variable] = self.variables
         self._residuals_by_name: Mapping[str, Residual] = MappingProxyType({})
         self._item_variable_reads: dict[str, frozenset[str]] = {}
-        self._nodes: tuple[Any, ...] = ()
+        self._nodes: tuple[Node, ...] = ()
         self.row_offsets: Mapping[str, slice] = MappingProxyType({})
         self.column_offsets: Mapping[str, slice] = MappingProxyType({})
         self.dim_total = 0
@@ -96,13 +97,6 @@ class Problem:
         self.residuals.append(item)
         return item
 
-    @staticmethod
-    def _node_variables(node: Any) -> tuple[Variable, ...]:
-        values = getattr(node, "variables", ())
-        if not isinstance(values, tuple) or any(not isinstance(value, Variable) for value in values):
-            raise TypeError(f"node {type(node).__name__} variables must be tuple[Variable, ...]")
-        return values
-
     def _freeze(self) -> None:  # noqa: PLR0912, PLR0915 - freezes and validates one graph transaction
         if self._frozen:
             return
@@ -114,32 +108,44 @@ class Problem:
         residual_names: dict[str, Residual] = {}
         variables: list[Variable] = []
         variable_ids: set[int] = set()
-        nodes: list[Any] = []
+        nodes: list[Node] = []
         node_ids: set[int] = set()
-        mergeable_nodes: dict[tuple[object, ...], Any] = {}
+        canonical_by_id: dict[int, Node] = {}
+        mergeable_nodes: dict[tuple[object, ...], Node] = {}
+        visiting: list[Node] = []
         dependencies: dict[str, frozenset[str]] = {}
+
+        def register_node(node: object) -> Node:
+            if not isinstance(node, Node):
+                raise TypeError(f"residual nodes must be Node objects, got {type(node).__name__}")
+            node_id = id(node)
+            if any(id(active) == node_id for active in visiting):
+                start = next(index for index, active in enumerate(visiting) if id(active) == node_id)
+                cycle = (*visiting[start:], node)
+                raise ValueError(f"Node dependency cycle: {' -> '.join(type(value).__name__ for value in cycle)}")
+            if node_id in canonical_by_id:
+                return canonical_by_id[node_id]
+            visiting.append(node)
+            for child in node.nodes:
+                register_node(child)
+            visiting.pop()
+            canonical = mergeable_nodes.setdefault(node.merge_key, node) if node.merge_key is not None else node
+            if canonical is not node:
+                node._share_with(canonical)
+            canonical_by_id[node_id] = canonical
+            if id(canonical) not in node_ids:
+                nodes.append(canonical)
+                node_ids.add(id(canonical))
+            return canonical
+
         for item in self.residuals:
             if item.name in residual_names:
                 raise ValueError(f"duplicate residual name {item.name!r}")
             residual_names[item.name] = item
             direct = list(item.variables)
             for declared_node in getattr(item, "nodes", ()):
-                node = declared_node
-                merge_key = getattr(node, "merge_key", None)
-                if merge_key is not None:
-                    canonical = mergeable_nodes.get(merge_key)
-                    if canonical is None:
-                        mergeable_nodes[merge_key] = node
-                    else:
-                        share = getattr(node, "_share_with", None)
-                        if not callable(share):
-                            raise TypeError(f"mergeable node {type(node).__name__} must implement _share_with")
-                        share(canonical)
-                        node = canonical
-                if id(node) not in node_ids:
-                    nodes.append(node)
-                    node_ids.add(id(node))
-                direct.extend(self._node_variables(node))
+                register_node(declared_node)
+                direct.extend(declared_node.variables)
             item_variables: list[Variable] = []
             item_ids: set[int] = set()
             for variable in direct:
@@ -216,12 +222,15 @@ class Problem:
                         f"got {current} for {variable.name!r}"
                     )
                 batch_shape = current if batch_shape is None else batch_shape
-            if dtype is not None and (value.dtype != dtype or value.device != device):
-                raise ValueError(
-                    f"all variables must share dtype/device {dtype}/{device}, "
-                    f"got {value.dtype}/{value.device} for {variable.name!r}"
-                )
-            dtype, device = (value.dtype, value.device) if dtype is None else (dtype, device)
+            if device is not None and value.device != device:
+                raise ValueError(f"all variables must share device {device}, got {value.device} for {variable.name!r}")
+            if value.is_floating_point():
+                if dtype is not None and value.dtype != dtype:
+                    raise ValueError(
+                        f"all floating variables must share dtype {dtype}, got {value.dtype} for {variable.name!r}"
+                    )
+                dtype = value.dtype if dtype is None else dtype
+            device = value.device if device is None else device
         return batch_shape or ()
 
     def _invalidate_nodes(self) -> None:
@@ -280,6 +289,7 @@ class Problem:
                     yield
 
     def update(self, values: Mapping[str, torch.Tensor]) -> None:
+        """Atomically replace named inputs and invalidate every node memo."""
         self._freeze()
         if any(name not in self.variables for name in values):
             unknown = sorted(set(values) - set(self.variables))

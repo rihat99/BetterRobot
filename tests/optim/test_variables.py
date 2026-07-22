@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 import torch
 
+from better_robot.exceptions import DtypeMismatchError
 from better_robot.io import ModelBuilder, build_model
 from better_robot.optim.variables import Bounds, RobotVariable, SE3Variable, SO3Variable, Variable
 
@@ -82,3 +83,15 @@ def test_auto_names_are_unique_within_each_variable_type() -> None:
     assert first.name.startswith("variable_")
     assert second.name.startswith("variable_")
     assert first.name != second.name
+
+
+def test_bool_and_integer_variables_are_static_only_and_have_no_tangent() -> None:
+    mask = Variable(torch.tensor([True, False]), trainable=False)
+    labels = Variable(torch.tensor([1, 2]), trainable=False)
+
+    assert mask.tensor.dtype == torch.bool
+    assert labels.tensor.dtype == torch.int64
+    with pytest.raises(AssertionError, match="have no tangent"):
+        mask.tangent_dim()
+    with pytest.raises(DtypeMismatchError, match="trainable tensor must use"):
+        Variable(torch.tensor([True]))

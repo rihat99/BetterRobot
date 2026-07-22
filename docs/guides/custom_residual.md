@@ -42,7 +42,6 @@ class PenetrationResidual(Residual):
         self.signed_distance = signed_distance
         self.nodes = (signed_distance,)
         super().__init__(
-            *signed_distance.variables,
             dim=time * points,
             name="penetration",
             weight=weight,
@@ -58,8 +57,8 @@ class PenetrationResidual(Residual):
 
 
 class SignedDistance(Node):
-    def __init__(self, value):
-        self.distance = Variable(value, name="signed_distance", trainable=False)
+    def __init__(self, distance):
+        self.distance = distance
         super().__init__(self.distance)
 
     def compute(self):
@@ -67,7 +66,8 @@ class SignedDistance(Node):
 
 
 signed_distance = torch.tensor([[-0.2, 0.1], [-0.4, 0.3]], dtype=torch.float64)
-residual = PenetrationResidual(SignedDistance(signed_distance), time=2, points=2)
+distance = Variable(signed_distance, name="signed_distance", trainable=False)
+residual = PenetrationResidual(SignedDistance(distance), time=2, points=2)
 problem = Problem([residual])
 rows = problem.error()
 
@@ -79,9 +79,24 @@ print(rows.tolist())
 [0.2, 0.0, 0.4, 0.0]
 ```
 
-The example uses a static variable because it only evaluates rows. In an
-optimization, the node would reference trainable variables instead; the
-problem discovers those references through the residual's object graph.
+The example uses a static Variable because the distances are inputs rather
+than optimization coordinates. The problem discovers it through the
+residual's node graph; the residual does not repeat the node's leaves in its
+base constructor.
+
+## Make changing inputs explicit
+
+When a target, observation, label, or mask may change after construction,
+create a named `Variable(..., trainable=False)` and pass that object to every
+node or residual that reads it. Replace its tensor atomically with
+`problem.update({"name": new_tensor})`. Boolean and integer tensors are valid
+for non-trainable Variables; trainable Variables remain floating-point.
+
+A constructor that also accepts a bare tensor treats it as a construction-time
+constant. It is not auto-wrapped, harvested, or addressable by
+`Problem.update()`. Reconstruct the residual to change such a constant, or use
+an explicit non-trainable Variable from the start when updates are part of the
+workflow.
 
 ## Choose scaling and activity
 
@@ -99,12 +114,33 @@ configured weight. `Problem.error()` remains a diagnostic vector of whitened
 rows; inspect `objective()` or `term_costs()` when you need costs.
 `mean_active` is unavailable to implicit differentiation.
 
+## Use a scalar cost for a scalar penalty
+
+When the natural function returns one non-negative scalar per batch element,
+construct `ScalarCost(fn, *reads, weight=..., name=...)` instead of inventing a
+residual class or a `sqrt(2 * loss)` row. Pass each Variable or Node that the
+callable reads; the callable receives current Variable tensors and Node values.
+Its L2 contribution is exactly `weight * fn(...)` on the required domain
+`fn(...) >= 0`.
+
+Use this adapter when zero means convergence or the penalty stays away from
+zero. Its masked row has zero gradient at exactly zero, and the Gauss--Newton
+column can grow while a positive value approaches zero. LM damping covers that
+tail. Problems containing `ScalarCost` cannot use implicit differentiation.
+
 ## Shared calculations
 
 If several residuals need the same expensive calculation, put that work in a
 {py:class}`better_robot.residuals.Node`. BetterRobot computes a referenced node
 once during one problem evaluation and shares the result. Kinematics is the
 common example: several frame errors can reuse one FK pass.
+
+A node may take other nodes as constructor inputs. Pass child nodes to
+`Node.__init__`, retain them in your subclass, and call `child.value()` from
+`compute()`. The base exposes direct children in `node.nodes` and collects the
+transitive, identity-deduplicated leaf Variables in `node.variables`.
+`Problem` discovers, scopes, and merges the complete acyclic node graph, so a
+shared child computes once even when reached through several parents.
 
 Do not cache a computed tensor on the residual object. A cached tensor can
 belong to an old input or an old autograd graph. `Node.value()` owns the

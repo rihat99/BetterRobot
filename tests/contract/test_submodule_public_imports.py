@@ -24,6 +24,7 @@ OPTIM_PUBLIC: frozenset[str] = frozenset(
         "ScaleWeight",
         "DiagonalWeight",
         "Difference",
+        "ScalarCost",
         "residual",
         "RobustKernel",
         "L2",
@@ -126,6 +127,7 @@ SUBMODULE_PATHS: list[tuple[str, str]] = [
     # M4 vision residuals
     ("better_robot.residuals", "Node"),
     ("better_robot.residuals", "RobotState"),
+    ("better_robot.residuals", "ScalarCost"),
     ("better_robot.residuals", "ProjectionResidual"),
     ("better_robot.residuals", "MaskedChamferResidual"),
     ("better_robot.residuals", "SceneSDFState"),

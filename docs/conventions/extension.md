@@ -71,6 +71,11 @@ references. The `@residual(variable, ..., dim=...)` adapter is the concise
 choice when automatic differentiation is sufficient. There is no process-wide
 residual registry.
 
+Use an explicit named `Variable(..., trainable=False)` for any target, mask,
+label, or observation that will be replaced through `Problem.update()`. A bare
+tensor accepted by a constructor is a construction-time constant and is not
+part of the harvested graph.
+
 A custom constructor that exposes `weight`, `row_weight`, `reduce`, or
 `enabled` forwards that control to `Residual`. Do not apply outer importance
 inside `error()` or an analytic `jacobian()`; `Problem` applies it once after
@@ -83,12 +88,18 @@ inherited field after construction.
 
 ## Shared nodes
 
-A `Node` computes shared work lazily from variables supplied to its
-constructor. Implement `compute()`, and optionally an identity-only
-`merge_key` when equivalent instances may share one memo. Residuals list the
-nodes they use in `nodes` and call `node.value()`. `Problem` invalidates all
-node memos at evaluation boundaries, so graph-bearing values never leak from
-one candidate to another. `RobotState` is the built-in FK example.
+A `Node` computes shared work lazily from Variables and child Nodes supplied to
+its constructor. `node.nodes` is the tuple of direct children;
+`node.variables` is the order-stable, identity-deduplicated tuple of transitive
+leaf Variables. Implement `compute()` and call `child.value()` for child
+outputs. Optionally provide an identity-only `merge_key` when equivalent
+instances may share one memo.
+
+Residuals list their direct nodes in `nodes` and call `node.value()`.
+`Problem` walks the complete acyclic graph, applies merge keys at every depth,
+and scopes every discovered node. Each node computes once per evaluation, and
+no graph-bearing value leaks to another candidate. `RobotState` is the built-in
+FK example.
 
 ## Joint models
 

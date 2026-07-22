@@ -28,9 +28,10 @@ class SceneSDFResult:
 class SceneSDFState(Node):
     """Approximate point-cloud SDF cached for one evaluation scope.
 
-    This multi-input node is never identity-merged. Reuse is explicit: pass
-    the same :class:`SceneSDFState` object to every penalty residual that
-    should share one detached nearest-neighbour computation.
+    Bare inputs are construction-time constants; static Variables are
+    updatable through ``Problem.update()``. This node is never identity-merged:
+    pass the same instance to every residual that should share its detached
+    nearest-neighbour computation.
     """
 
     def __init__(

@@ -51,7 +51,10 @@ def _numel(shape: tuple[int, ...]) -> int:
 
 
 class Variable:
-    """A Euclidean tensor variable with an owned value and tangent layout."""
+    """A Euclidean tensor variable with an owned value and tangent layout.
+
+    Bool and integer tensors are supported only as non-trainable static inputs.
+    """
 
     _feature_width: int | None = None
 
@@ -67,14 +70,18 @@ class Variable:
     ) -> None:
         if not isinstance(tensor, torch.Tensor):
             raise TypeError(f"tensor must be a torch.Tensor, got {type(tensor).__name__}")
-        if tensor.dtype not in (torch.float32, torch.float64):
+        if not isinstance(trainable, bool):
+            raise TypeError(f"trainable must be a bool, got {type(trainable).__name__}")
+        if tensor.is_complex() or (tensor.is_floating_point() and tensor.dtype not in (torch.float32, torch.float64)):
             raise DtypeMismatchError(f"tensor must use torch.float32 or torch.float64, got dtype={tensor.dtype}")
+        if trainable and not tensor.is_floating_point():
+            raise DtypeMismatchError(
+                f"trainable tensor must use torch.float32 or torch.float64, got dtype={tensor.dtype}"
+            )
         if name is None:
             name = _auto_name(type(self))
         if not isinstance(name, str) or not name:
             raise ValueError(f"name must be a non-empty string, got {name!r}")
-        if not isinstance(trainable, bool):
-            raise TypeError(f"trainable must be a bool, got {type(trainable).__name__}")
         if isinstance(batch_ndim, bool) or not isinstance(batch_ndim, int) or batch_ndim < 0:
             raise ValueError(f"batch_ndim must be a non-negative int, got {batch_ndim!r}")
         if batch_ndim > tensor.ndim:
@@ -128,10 +135,12 @@ class Variable:
 
     def tangent_dim(self) -> int:
         """Return the full tangent width of one event."""
+        assert self.tensor.is_floating_point(), "non-floating static Variables have no tangent"
         return _numel(self.shape)
 
     @property
     def free_dim(self) -> int:
+        assert self.tensor.is_floating_point(), "non-floating static Variables have no tangent"
         return self.tangent_dim()
 
     @property
@@ -155,9 +164,13 @@ class Variable:
     def validate_value(self, value: torch.Tensor) -> None:
         if not isinstance(value, torch.Tensor):
             raise TypeError(f"Value for Variable {self.name!r} must be a torch.Tensor")
-        if value.dtype not in (torch.float32, torch.float64):
+        if value.is_complex() or (value.is_floating_point() and value.dtype not in (torch.float32, torch.float64)):
             raise DtypeMismatchError(
                 f"Value for Variable {self.name!r} must use torch.float32 or torch.float64, got {value.dtype}"
+            )
+        if self.trainable and not value.is_floating_point():
+            raise DtypeMismatchError(
+                f"Value for trainable Variable {self.name!r} must use torch.float32 or torch.float64, got {value.dtype}"
             )
         trailing = tuple(value.shape[-len(self.shape) :]) if self.shape else ()
         if value.ndim < len(self.shape) or trailing != self.shape:
@@ -194,6 +207,7 @@ class Variable:
     def retract(self, delta: torch.Tensor) -> torch.Tensor:
         """Retract ``delta`` from the current value without assigning it."""
         value = self.tensor
+        assert value.is_floating_point(), "non-floating static Variables cannot retract"
         batch = self.batch_shape_of(value)
         if not isinstance(delta, torch.Tensor):
             raise TypeError(f"delta must be a torch.Tensor, got {type(delta).__name__}")
@@ -217,6 +231,7 @@ class Variable:
     def difference(self, other: torch.Tensor) -> torch.Tensor:
         """Return the tangent displacement from ``other`` to the current value."""
         value = self.tensor
+        assert value.is_floating_point(), "non-floating static Variables have no tangent difference"
         batch = self.batch_shape_of(other)
         self.validate_value(value)
         if tuple(other.shape) != tuple(value.shape):
@@ -255,6 +270,7 @@ class SO3Variable(Variable):
             raise ValueError(_GROUP_BOUNDS_ERROR.format(kind="SO3", bounds=bounds, name=self.name))
 
     def tangent_dim(self) -> int:
+        assert self.tensor.is_floating_point(), "non-floating static Variables have no tangent"
         return _numel(self.shape[:-1]) * 3
 
     def _tangent_event_shape(self) -> tuple[int, ...]:
@@ -280,6 +296,7 @@ class SE3Variable(Variable):
             raise ValueError(_GROUP_BOUNDS_ERROR.format(kind="SE3", bounds=bounds, name=self.name))
 
     def tangent_dim(self) -> int:
+        assert self.tensor.is_floating_point(), "non-floating static Variables have no tangent"
         return _numel(self.shape[:-1]) * 6
 
     def _tangent_event_shape(self) -> tuple[int, ...]:
@@ -408,6 +425,7 @@ class RobotVariable(Variable):
             )
 
     def tangent_dim(self) -> int:
+        assert self.tensor.is_floating_point(), "non-floating static Variables have no tangent"
         return _numel(self.shape[:-1]) * self.model.nv
 
     def _tangent_event_shape(self) -> tuple[int, ...]:

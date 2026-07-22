@@ -71,6 +71,12 @@ compatible damping information. Call `optimizer.reset()` when you instead
 want fresh optimizer state; it deliberately keeps the variables' current
 values.
 
+Updates address named Variables harvested from the complete residual and node
+graph. Use `trainable=False` for observations, masks, or labels that should
+change without becoming optimization coordinates; those static Variables may
+use boolean or integer tensors. A bare tensor passed to a constructor is a
+construction-time constant and cannot be named in `Problem.update()`.
+
 `step()` returns diagnostics for that iteration. `optimize()` is the canonical
 complete driver: it stops when every batch element is terminal or the budget
 is exhausted and performs the final-point refresh before returning.

@@ -126,6 +126,28 @@ robot or chain length.
 
 ## Residual objective algebra
 
+### Optimization graph and static inputs
+
+`Problem` harvests residual dependencies transitively. A `Node` may read
+Variables and child Nodes. `node.nodes` contains its direct children;
+`node.variables` contains all leaf Variables in stable first-seen order,
+deduplicated by identity. Freeze rejects a node cycle, applies identity-only
+node merging at every depth, and registers every discovered node in the same
+evaluation scope. A node memo is valid only within that scope.
+
+Inputs that change between evaluations must be explicit named
+`Variable(..., trainable=False)` objects and be replaced through
+`Problem.update()`. Static Variables may hold floating, boolean, or integer
+tensors; trainable Variables must use float32 or float64. Every Variable in a
+problem shares one device, and all floating Variables share one dtype. Static
+bool or integer data never enters tangent or retraction paths.
+
+A bare tensor accepted by a residual or node constructor is a construction-time
+constant. It is not auto-wrapped, harvested, or addressable by
+`Problem.update()`. Mutability is never inferred from `requires_grad`.
+
+### Vector residuals
+
 For every residual, the objective contract is:
 
 ```text
@@ -171,6 +193,18 @@ Triggs second-order correction. This approximation is gradient-consistent
 only on a fixed active set. Activity thresholds are non-differentiable because
 the mask and `mean_active` count are detached.
 
+### Scalar costs
+
+`ScalarCost(fn, *reads, weight=w)` requires `fn` to return one batch-shaped
+scalar `f` on the caller-guaranteed domain `f >= 0`. Reads may be Variables or
+Nodes. Its one row is `sqrt(2f)` for `f > 0` and exactly zero for `f <= 0`,
+using masked branches that avoid a NaN backward. With L2, the on-domain
+objective contribution is exactly `w * f`.
+
+At exactly zero, that row has zero gradient. For positive values approaching
+zero, the Gauss--Newton column `grad(f) / sqrt(2f)` may grow; damping covers the
+tail. A problem containing `ScalarCost` is implicit-ineligible.
+
 ## Automatic differentiation
 
 Differentiability is a property of a path, not of the package name.
@@ -197,9 +231,8 @@ branch cuts, oversize systems, and singular backward systems raise
 `ImplicitDifferentiationError` instead of returning a guessed gradient.
 
 A problem is implicit-ineligible if any residual uses
-`reduce="mean_active"` or overrides `active_groups()`. The implicit entry point
-raises an actionable error naming that residual because detached
-state-dependent activity has no consistent implicit derivative.
+`reduce="mean_active"`, overrides `active_groups()`, or is a `ScalarCost`. The
+implicit entry point raises an actionable error naming that residual.
 
 Optimized values, external tensor parameters, and static configuration are
 three different roles. A tensor has one role in a solve. The API never infers

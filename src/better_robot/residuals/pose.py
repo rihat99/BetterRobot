@@ -157,7 +157,7 @@ class _KinematicResidual(Residual):
 
 
 class PoseResidual(_KinematicResidual):
-    """Six-dimensional frame pose error in the target frame."""
+    """Six-dimensional target-frame pose error; bare targets are construction-time constants."""
 
     def __init__(
         self,
@@ -220,7 +220,7 @@ class PoseResidual(_KinematicResidual):
 
 
 class PositionResidual(_KinematicResidual):
-    """Three-dimensional frame position error."""
+    """Three-dimensional frame position error; bare targets are construction-time constants."""
 
     def __init__(
         self,
@@ -265,7 +265,7 @@ class PositionResidual(_KinematicResidual):
 
 
 class OrientationResidual(_KinematicResidual):
-    """Three-dimensional logarithmic frame orientation error."""
+    """Three-dimensional log orientation error; bare targets are construction-time constants."""
 
     def __init__(
         self,

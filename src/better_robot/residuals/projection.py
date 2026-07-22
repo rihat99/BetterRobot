@@ -82,11 +82,11 @@ def _normalize_point_ids(point_ids: Sequence[int] | torch.Tensor) -> tuple[int, 
 class ProjectionResidual(Residual):
     """Pinhole reprojection error for frame, marker, or site rows.
 
-    Observation tensors may be bare constants or Variables. ``weights`` and
-    ``valid_mask`` are domain confidence/mask multipliers. The singular
-    optimizer ``weight`` is an outer coefficient applied once by
-    :class:`Residual`, and robust kernels consume one two-row group per
-    projected point.
+    Bare observations are construction-time constants; static Variables are
+    updatable through ``Problem.update()``. ``weights`` and ``valid_mask`` are
+    domain multipliers. The singular optimizer ``weight`` is an outer
+    coefficient applied once by :class:`Residual`; robust kernels consume one
+    two-row group per projected point.
     """
 
     def __init__(

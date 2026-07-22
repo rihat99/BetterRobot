@@ -13,6 +13,13 @@ shape, optional `Bounds`, batch declaration, and optional knot-major
 `RobotVariable` own their corresponding retract/difference geometry. There is
 no separate public variable specification or manifold object.
 
+Trainable Variables use float32/float64. Static Variables may also hold bool or
+integer masks and labels; they never enter tangent or retraction paths. All
+Variables in a Problem share one device, while only floating Variables must
+share a dtype. Replace graph inputs through `Problem.update()`. Bare tensors
+accepted by residual or node constructors are construction-time constants,
+not harvested Variables.
+
 Leading axes are independent execution batches. Every trainable tangent
 coordinate participates in derivatives and linear systems. Retraction projects
 supported bounds in state space; bounds are not tangent step limits. Validate structural
@@ -45,9 +52,11 @@ count are detached. L2 uses `ρ(s) = 0.5 · s`, preserving the exact
 `0.5 · Σ_k active_k · w_k · ‖rows_k‖² · norm` convention.
 
 Evaluation-scoped `Node` objects own shared graph-bearing work such as
-`RobotState`. Residuals list nodes in `nodes`; `Problem` merges compatible
-nodes, harvests their variable dependencies, and invalidates memos at every
-evaluation boundary. Never retain a node result across candidate values.
+`RobotState`. A node may read Variables and child Nodes; its `nodes` tuple is
+direct children and its `variables` tuple is the stable, deduplicated set of
+transitive leaves. Residuals list direct nodes in `nodes`. `Problem` walks the
+acyclic graph, merges compatible nodes at every depth, and scopes every node.
+Never retain a node result across candidate values.
 
 Under the `auto` strategy, a residual without analytic blocks emits
 `AutodiffFallbackWarning` once per `Problem` and residual before using the
@@ -100,9 +109,9 @@ static `Variable` objects referenced by residuals or nodes. Keep guards for
 convergence, active bounds, robust kinks, quaternion branch cuts, routing and
 size limits, non-finite systems, and singular systems.
 
-A residual using `reduce="mean_active"` or overriding `active_groups()` makes
-the problem implicit-ineligible. Reject it actionably by residual name: the
-detached active normalization or mask has no consistent implicit derivative.
+A residual using `reduce="mean_active"`, overriding `active_groups()`, or
+adapting a scalar penalty through `ScalarCost` makes the problem
+implicit-ineligible. Reject it actionably by residual name.
 
 Direct public modules are `problem.py`, `variables.py`, `optimizers.py`,
 `lm.py`, `implicit.py`, `kernels.py`, `solvers.py`, and `temporal.py`;

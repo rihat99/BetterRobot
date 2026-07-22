@@ -15,7 +15,7 @@ import torch
 from torch.autograd.function import once_differentiable
 
 from .utils import _state_coordinates
-from ..residuals.base import Residual
+from ..residuals.base import Residual, ScalarCost
 from .kernels import Huber, _group_rows
 from .problem import Problem
 from .variables import RobotVariable, SE3Variable, SO3Variable
@@ -396,6 +396,11 @@ def _attach_implicit_gradients(
         raise TypeError("config must be ImplicitDiffConfig or None")
     _validate_route(problem, forward_linearization, resolved_config)
     for item in problem.residuals:
+        if isinstance(item, ScalarCost):
+            raise ValueError(
+                f"implicit differentiation is unavailable for ScalarCost residual {item.name!r}; "
+                "use detached optimization or express the term as a regular residual"
+            )
         if item.reduce == "mean_active":
             raise ValueError(
                 f"implicit differentiation is unavailable for residual {item.name!r} "

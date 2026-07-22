@@ -52,8 +52,8 @@ class SwingTwistLimitResidual(Residual):
          relu(twist_min - twist),
          relu(twist - twist_max)]
 
-    ``twist_axis`` is expressed in the joint-local frame and may be one unit
-    axis shared by all joints or a ``(J, 3)`` table. ``twist_range`` must be a
+    Limit tensors are construction-time configuration. ``twist_axis`` is a
+    joint-local unit axis or ``(J, 3)`` table. ``twist_range`` must be a
     non-wrapping interval inside ``(-pi, pi)``. The output dimension is
     ``3 * J`` and rows are grouped per joint in ``joint_ids`` order.
 

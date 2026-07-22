@@ -116,6 +116,22 @@ configuration, `SE3Variable` for an object pose, and plain `Variable` for a
 Euclidean block such as camera intrinsics. Stable names make diagnostics and
 atomic `Problem.update()` calls readable without a separate packing schema.
 
+Trainable Variables are floating-point optimization coordinates. A named
+non-trainable Variable represents data that participates in the graph but is
+not optimized: targets, observations, integer labels, and boolean masks are
+typical examples. `Problem.update()` can replace either kind atomically and
+invalidates every affected node memo. Non-floating Variables are therefore
+allowed only when non-trainable. A problem keeps all Variables on one device
+and requires one common dtype for its floating Variables; discrete static data
+does not force a floating dtype.
+
+Passing a bare tensor to a residual or node constructor has a deliberately
+different meaning. The object treats that tensor as a construction-time
+constant, so it is absent from the harvested graph and cannot be named in
+`Problem.update()`. BetterRobot does not infer ownership from
+`requires_grad`, auto-wrap tensors, or add per-residual setters. Data that may
+change during a solve belongs in an explicitly named non-trainable Variable.
+
 A decorated tensor function is enough for a small Euclidean problem. This
 complete line fit is executed by the documentation test target:
 
@@ -155,16 +171,36 @@ custom weight, or a shared node.
 
 ## Nodes share expensive work
 
-Several robot residuals need the same forward kinematics. Recomputing it in
-each residual would be wasteful and could produce inconsistent cache state.
-A `Node` holds its input variables and computes a lazy value. `RobotState`,
-for example, owns one `RobotVariable` reference and provides FK data.
+Several robot residuals need the same forward kinematics, posed points, or
+learned features. Recomputing each stage in every residual would be wasteful
+and could leave one stage tied to an old candidate or autograd graph. A `Node`
+therefore accepts both leaf Variables and child Nodes. Its public `variables`
+tuple remains the order-stable, deduplicated set of transitive leaves, while
+its `nodes` tuple records direct children. A parent computes from
+`child.value()` just as a residual does. `RobotState` is the built-in FK leaf
+example.
 
-A residual lists shared nodes in `nodes` and reads `node.value()` in
-`error()` or `jacobian()`. `Problem` merges compatible nodes when it freezes,
-invalidates their memos at every evaluation boundary, and therefore computes
-shared graph-bearing work at most once per evaluation without carrying it to
-the next candidate.
+A residual lists its direct shared nodes in `nodes`. When a `Problem` freezes,
+it walks the complete node DAG, rejects cycles, merges compatible nested nodes,
+and registers every discovered node for evaluation scoping. Within one scope,
+each node computes at most once even when several parents reach it. Every new
+candidate starts a new scope, so no nested memo survives an input change.
+
+## Scalar penalties still fit least squares
+
+Some objectives naturally produce one non-negative scalar penalty `f` rather
+than signed residual rows. `ScalarCost` represents that term with one row that
+is `sqrt(2f)` for positive `f` and exactly zero otherwise. With the default L2
+kernel and outer weight `w`, its objective contribution is therefore exactly
+`w * f` on the documented domain `f >= 0`; no epsilon or dead zone changes the
+value.
+
+The conversion has two honest local-model limits. The masked branch gives zero
+gradient at exactly `f = 0`, while the Gauss--Newton column
+`grad(f) / sqrt(2f)` can grow as a positive penalty approaches zero. LM damping
+covers that tail, making the class most suitable when vanishing means
+convergence or the penalty otherwise stays away from zero. A `ScalarCost`
+problem is not eligible for implicit differentiation.
 
 ## Built-in residual families
 
@@ -176,6 +212,7 @@ The shipped residuals cover these roles:
 | Joint preferences and limits | `JointPositionLimit`, `JointVelocityLimit`, `RestResidual`, `JointRotationPrior` |
 | Trajectory structure | `ReferenceTrajectoryResidual`, `TimeIndexedResidual`, `VelocityResidual`, `AccelerationResidual` |
 | Contact motion | `ContactConsistencyResidual` |
+| Scalar penalties | `ScalarCost` |
 | Image observations | `ProjectionResidual` |
 | Padded point sets | `MaskedChamferResidual`, `SceneSDFState` and its penetration, attraction, and clearance residuals |
 | Spherical-joint limits | `SwingTwistLimitResidual` |
@@ -407,10 +444,10 @@ hold, it raises `ImplicitDifferentiationError` instead of returning a
 derivative that looks plausible but is not justified.
 
 Implicit differentiation is unavailable when any residual uses
-`reduce="mean_active"` or overrides `active_groups()`. Those features depend
-on detached state-dependent activity, so there is no consistent implicit
-derivative. The optimize request raises a `ValueError` naming the residual
-that makes the problem ineligible.
+`reduce="mean_active"`, overrides `active_groups()`, or is a `ScalarCost`.
+Those features do not provide the smooth fixed least-squares contract required
+by the guarded implicit path. The optimize request raises a `ValueError`
+naming the residual that makes the problem ineligible.
 
 ## Common mistakes
 
@@ -419,6 +456,8 @@ that makes the problem ineligible.
 - Returning a residual whose last dimension changes between evaluations.
 - Applying a robust kernel to scalar rows when the observation is naturally a
   vector group.
+- Passing a bare tensor and expecting `Problem.update()` to discover it.
+- Returning a negative value from a `ScalarCost` callable.
 - Taking Euclidean steps in quaternion storage instead of tangent space.
 - Expecting LM to guarantee a global solution to a nonlinear problem.
 - Forcing the temporal route without complete structural and numeric blocks.

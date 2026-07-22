@@ -20,10 +20,10 @@ from .structure import TemporalPattern
 class ContactConsistencyResidual(Residual):
     """Cartesian velocity penalty on tagged contact frames.
 
-    ``contact_weights`` are domain mask amplitudes averaged across each pair
-    of adjacent knots. The inherited ``weight`` is an outer objective
-    coefficient and is therefore not duplicated inside :meth:`error` or
-    :meth:`jacobian`.
+    ``contact_weights`` are domain mask amplitudes averaged across adjacent
+    knots. Bare values are construction-time constants; static Variables are
+    updatable through ``Problem.update()``. The inherited ``weight`` is the
+    outer objective coefficient and is not duplicated in the residual rows.
     """
 
     def __init__(

@@ -5,6 +5,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- Nodes now compose into recursively scoped, mergeable DAGs; static Variables
+  accept boolean and integer inputs, and `ScalarCost` adapts non-negative scalar
+  penalties to exact L2 objective terms.
 - Residual objectives now separate square-root-information `row_weight` from
   the non-negative outer `weight`, add `sum`, `mean`, and detached-active-mean
   reductions, and support explicit whole-term and per-group activity. Robust

@@ -10,6 +10,7 @@ from typing import Any, Literal
 
 import torch
 
+from .nodes import Node
 from .utils import VariableLike as _VariableLike
 
 
@@ -244,6 +245,50 @@ class _FunctionResidual(Residual):
         raise AttributeError(attribute)
 
 
+class ScalarCost(Residual):
+    """Adapt a non-negative scalar function to the residual objective.
+
+    ``fn`` receives the current tensor of each variable read and the value of
+    each node read. It must return one scalar per batch element with ``f >= 0``;
+    this domain is a contract and is not scanned at runtime. The residual row is
+    ``sqrt(2f)`` for ``f > 0`` and exactly zero otherwise, so its L2 objective is
+    exactly ``weight * f`` on the documented domain.
+
+    The masked branch has zero gradient at exactly ``f = 0``. Away from zero,
+    the Gauss--Newton column is ``grad(f) / sqrt(2f)`` and grows as ``f`` tends
+    to zero; damping covers that tail when vanishing means convergence.
+    Problems containing a :class:`ScalarCost` are implicit-ineligible.
+    """
+
+    def __init__(
+        self,
+        fn: Callable[..., torch.Tensor],
+        *reads: _VariableLike | Node,
+        weight: Real | torch.Tensor = 1.0,
+        name: str | None = None,
+    ) -> None:
+        if not callable(fn):
+            raise TypeError(f"fn must be callable, got {type(fn).__name__}")
+        for read in reads:
+            if not isinstance(read, (_VariableLike, Node)):
+                raise TypeError(f"ScalarCost reads must be Variables or Nodes, got {type(read).__name__}")
+        self.fn = fn
+        self.reads = reads
+        self.nodes = tuple(read for read in reads if isinstance(read, Node))
+        variables = tuple(read for read in reads if isinstance(read, _VariableLike))
+        super().__init__(*variables, dim=1, weight=weight, name=name)
+
+    def error(self) -> torch.Tensor:
+        values = tuple(read.value() if isinstance(read, Node) else read.tensor for read in self.reads)
+        cost = self.fn(*values)
+        if not isinstance(cost, torch.Tensor):
+            raise TypeError(f"ScalarCost fn must return a torch.Tensor, got {type(cost).__name__}")
+        positive = cost > 0.0
+        safe_cost = torch.where(positive, cost, torch.ones_like(cost))
+        row = torch.where(positive, torch.sqrt(2.0 * safe_cost), torch.zeros_like(cost))
+        return row.unsqueeze(-1)
+
+
 def residual(
     *variables_or_fn: _VariableLike | Callable[..., torch.Tensor],
     dim: int,
@@ -282,7 +327,7 @@ def residual(
 
 
 class Difference(Residual):
-    """Manifold-aware displacement from a fixed target to a variable."""
+    """Manifold-aware displacement from a construction-time constant target."""
 
     def __init__(
         self,
@@ -315,4 +360,4 @@ class Difference(Residual):
         return self.variable.difference(self.target.to(self.variable.tensor))
 
 
-__all__ = ["DiagonalWeight", "Difference", "Residual", "ScaleWeight", "Weight", "residual"]
+__all__ = ["DiagonalWeight", "Difference", "Residual", "ScalarCost", "ScaleWeight", "Weight", "residual"]

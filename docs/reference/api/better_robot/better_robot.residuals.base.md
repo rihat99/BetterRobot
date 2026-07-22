@@ -31,6 +31,10 @@
   - ```{autodoc2-docstring} better_robot.residuals.base.Residual
     :summary:
     ```
+* - {py:obj}`ScalarCost <better_robot.residuals.base.ScalarCost>`
+  - ```{autodoc2-docstring} better_robot.residuals.base.ScalarCost
+    :summary:
+    ```
 * - {py:obj}`Difference <better_robot.residuals.base.Difference>`
   - ```{autodoc2-docstring} better_robot.residuals.base.Difference
     :summary:
@@ -214,6 +218,21 @@ Bases: {py:obj}`abc.ABC`
 
 ```{autodoc2-docstring} better_robot.residuals.base.Residual.weighted_error
 ```
+
+````
+
+`````
+
+`````{py:class} ScalarCost(fn: collections.abc.Callable[..., torch.Tensor], *reads: better_robot.residuals.utils.VariableLike | better_robot.residuals.nodes.Node, weight: numbers.Real | torch.Tensor = 1.0, name: str | None = None)
+:canonical: better_robot.residuals.base.ScalarCost
+
+Bases: {py:obj}`better_robot.residuals.base.Residual`
+
+```{autodoc2-docstring} better_robot.residuals.base.ScalarCost
+```
+
+````{py:method} error() -> torch.Tensor
+:canonical: better_robot.residuals.base.ScalarCost.error
 
 ````
 

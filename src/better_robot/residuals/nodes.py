@@ -10,13 +10,33 @@ from .utils import RobotLike, RobotValueLike, RobotVariableLike, ValueLike
 
 
 class Node(ABC):
-    """A lazy value whose graph-bearing memo is scoped to one evaluation."""
+    """A lazy value whose graph-bearing memo is scoped to one evaluation.
 
-    def __init__(self, *variables: ValueLike) -> None:
-        if any(not isinstance(variable, ValueLike) for variable in variables):
-            invalid = next(variable for variable in variables if not isinstance(variable, ValueLike))
-            raise TypeError(f"node variables must expose tensor/name/trainable, got {type(invalid).__name__}")
-        self.variables = tuple(dict.fromkeys(variables))
+    Inputs may be Variable-like leaves or child nodes. ``variables`` contains
+    the transitive leaves, while ``nodes`` contains only direct children.
+    """
+
+    def __init__(self, *inputs: ValueLike | Node) -> None:
+        variables: list[ValueLike] = []
+        nodes: list[Node] = []
+        variable_ids: set[int] = set()
+        node_ids: set[int] = set()
+        for value in inputs:
+            if isinstance(value, Node):
+                if id(value) not in node_ids:
+                    nodes.append(value)
+                    node_ids.add(id(value))
+                leaves = value.variables
+            elif isinstance(value, ValueLike):
+                leaves = (value,)
+            else:
+                raise TypeError(f"node inputs must be Variable-like or Node, got {type(value).__name__}")
+            for variable in leaves:
+                if id(variable) not in variable_ids:
+                    variables.append(variable)
+                    variable_ids.add(id(variable))
+        self.variables = tuple(variables)
+        self.nodes = tuple(nodes)
         self._memo: Any = None
         self._has_memo = False
         self._evaluation_depth = False
