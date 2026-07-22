@@ -91,6 +91,10 @@ class Optimizer(ABC):
         """Clear optimizer state while retaining current variable values."""
 
     @abstractmethod
+    def resume(self) -> None:
+        """Return terminal elements to running while retaining compatible state."""
+
+    @abstractmethod
     def _initial_info(self) -> OptimizerInfo:
         """Return current information before a step has run."""
 
@@ -100,6 +104,12 @@ _TorchOptimizerFactory = Callable[[Iterable[torch.Tensor]], torch.optim.Optimize
 
 class TorchOptimizer(Optimizer):
     """Persistent ``torch.optim`` state over rebased tangent buffers.
+
+    Same-layout input updates preserve the inner optimizer and optional
+    scheduler. ``resume()`` restarts terminal elements without clearing their
+    cumulative iterations, moments, buffers, or scheduler state. A scheduler
+    factory must return a no-argument-step ``LRScheduler`` and is advanced once
+    after each public step that performs an optimizer update.
 
     ``torch.optim.LBFGS`` uses one closure over the summed batch objective;
     its line search and history therefore couple batch elements.
@@ -116,21 +126,26 @@ class TorchOptimizer(Optimizer):
         *,
         max_iterations: int = 100,
         tolerance: float = 0.0,
+        scheduler: Callable[[torch.optim.Optimizer], torch.optim.lr_scheduler.LRScheduler] | None = None,
         **optimizer_kwargs: Any,
     ) -> None:
         super().__init__(problem, max_iterations=max_iterations, tolerance=tolerance)
         if not callable(optimizer_cls):
             raise TypeError(f"optimizer_cls must be callable, got {type(optimizer_cls).__name__}")
+        if scheduler is not None and not callable(scheduler):
+            raise TypeError(f"scheduler must be callable or None, got {type(scheduler).__name__}")
         self.optimizer_cls = optimizer_cls
+        self.scheduler_factory = scheduler
         self.optimizer_kwargs = dict(optimizer_kwargs)
         self._buffers: dict[str, torch.nn.Parameter] = {}
         self._zero_gradients: dict[str, torch.Tensor] = {}
         self._optimizer: torch.optim.Optimizer | None = None
+        self._scheduler: torch.optim.lr_scheduler.LRScheduler | None = None
         self._status: torch.Tensor | None = None
         self._iterations: torch.Tensor | None = None
         self._cost: torch.Tensor | None = None
         self._evaluated_cost: torch.Tensor | None = None
-        self._seen_update_serial = -1
+        self._layout_key: tuple[object, ...] | None = None
         self.reset()
 
     def _layout(self) -> tuple[tuple[int, ...], torch.Tensor]:
@@ -150,15 +165,32 @@ class TorchOptimizer(Optimizer):
         if not isinstance(optimizer, torch.optim.Optimizer):
             raise TypeError(f"optimizer_cls must return a torch.optim.Optimizer, got {type(optimizer).__name__}")
         self._optimizer = optimizer
+        scheduler = self.scheduler_factory(optimizer) if self.scheduler_factory is not None else None
+        if scheduler is not None and not isinstance(scheduler, torch.optim.lr_scheduler.LRScheduler):
+            raise TypeError(
+                f"scheduler must return a torch.optim.lr_scheduler.LRScheduler, got {type(scheduler).__name__}"
+            )
+        self._scheduler = scheduler
         self._status = exemplar.new_full(batch_shape, OptimizerStatus.RUNNING, dtype=torch.int8)
         self._iterations = exemplar.new_zeros(batch_shape, dtype=torch.int64)
         with torch.no_grad():
             self._cost = self.problem.objective().detach()
-        self._seen_update_serial = self.problem._update_serial
+        self._layout_key = self._current_layout_key(batch_shape, exemplar)
+
+    def _current_layout_key(self, batch_shape: tuple[int, ...], exemplar: torch.Tensor) -> tuple[object, ...]:
+        variables = tuple((variable.name, variable.free_dim) for variable in self.problem.vars)
+        return variables, batch_shape, exemplar.dtype, exemplar.device
 
     def _ensure_current_layout(self) -> None:
-        if self._seen_update_serial != self.problem._update_serial:
+        batch_shape, exemplar = self._layout()
+        if self._current_layout_key(batch_shape, exemplar) != self._layout_key:
             self.reset()
+
+    def resume(self) -> None:
+        """Resume terminal elements without clearing moments or scheduler state."""
+        self._ensure_current_layout()
+        assert self._status is not None
+        self._status = torch.full_like(self._status, OptimizerStatus.RUNNING)
 
     def _candidate(self, base: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         return self.problem.retract(base, self._buffers)
@@ -230,6 +262,8 @@ class TorchOptimizer(Optimizer):
                 self._optimizer.step()
             self._rebase(base, active)
             self._iterations = self._iterations + active.to(self._iterations.dtype)
+            if self._scheduler is not None:
+                self._scheduler.step()
 
         self._optimizer.zero_grad(set_to_none=True)
         return self._initial_info()

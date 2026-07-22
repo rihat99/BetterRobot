@@ -134,17 +134,21 @@ Every `Optimizer` owns a `Problem` and exposes this public lifecycle:
 |---|---|
 | `step()` | update referenced trainable variables once and return `OptimizerInfo` |
 | `optimize()` | run the eager loop and return final public diagnostics |
+| `resume()` | return terminal elements to RUNNING while keeping compatible algorithm state and cumulative counts |
 | `reset()` | clear optimizer state while retaining variable values |
 
 Subclass `Optimizer` for a genuinely different nonlinear driver and implement
-`step`, `reset`, and the initial-info hook. Solved values remain on variables;
+`step`, `resume`, `reset`, and the initial-info hook. Solved values remain on variables;
 the shared `OptimizerInfo` contains status, iterations, cost, and derived
 convergence. Task helpers accept custom optimizer factories only where their
 documented signature says so; otherwise call the custom optimizer directly.
 
 For first-order methods, construct `TorchOptimizer(problem, optimizer_cls,
-**kwargs)`. BetterRobot owns tangent retraction and bounds while PyTorch owns
-Adam, SGD, or another compatible update rule.
+scheduler=..., **kwargs)`. BetterRobot owns tangent retraction and bounds while
+PyTorch owns Adam, SGD, or another compatible update rule. The optional
+scheduler is a factory from that inner optimizer to a no-argument-step
+`torch.optim.lr_scheduler.LRScheduler`; it advances once only when a public
+step performs an optimizer update.
 
 The generated {doc}`/reference/api/better_robot/better_robot.optim` page is
 the exact signature reference. The least-squares reasoning and damping

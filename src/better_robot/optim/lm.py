@@ -827,6 +827,27 @@ class LevenbergMarquardt(Optimizer):
         self._state = None
         self._seen_update_serial = self.problem._update_serial
 
+    def resume(self) -> None:
+        """Resume with current values and counts but fresh phase-specific damping."""
+        previous = self._state
+        values = _detach(self.problem._trainable_values())
+        state = self._init_state(values, self.problem)
+        if (
+            previous is not None
+            and previous.iterations.shape == state.iterations.shape
+            and previous.iterations.device == state.iterations.device
+        ):
+            state = state._replace(iterations=previous.iterations.detach())
+        running = torch.full_like(state.status, OptimizerStatus.RUNNING.value)
+        self._state = _detach_state(
+            state._replace(
+                status=running,
+                converged=torch.zeros_like(state.converged),
+                implicit_valid=torch.zeros_like(state.implicit_valid),
+            )
+        )
+        self._seen_update_serial = self.problem._update_serial
+
     def _ensure_state(self) -> _LMIterationState:
         values = _detach(self.problem._trainable_values())
         if self._state is None:

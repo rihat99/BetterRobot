@@ -5,6 +5,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- Optimizers now expose `resume()` for cumulative multi-phase solves.
+  `TorchOptimizer` preserves moments, tangent buffers, and optional scheduler
+  state across same-layout input updates, rebuilds on actual layout changes,
+  and advances a caller-supplied PyTorch scheduler once per optimizer update.
+  The staged-fit guide and composed fitting proof cover frozen-layout handoff,
+  active-term changes, static observation swaps, scheduled Adam phases,
+  per-term logging, and L-BFGS polish without a phase configuration object.
 - `RobotVariable` now exposes topology-derived tangent groups, per-coordinate
   square-root-information weights, and construction-time frozen groups shared
   by dense, bounded, first-order, implicit, and temporal optimizers.
@@ -55,9 +62,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   dynamics call, and public input errors now use consistent wording.
 - `ccrba` now returns a frozen `CCRBAResult` dataclass with named centroidal-map
   and momentum fields; tuple unpacking is removed.
-- The former optimization object hierarchy and import paths were removed,
+- The former optimization object hierarchy and nested import paths were removed,
   including `CostStack`, `CostItem`, `CostKind`, `LeastSquaresProblem`,
-  `Optimizer`, `OptimizationResult`, `SolverState`, `SolverStatus`, the custom
+  the previous `Optimizer`/`OptimizationResult` protocol, `SolverState`,
+  `SolverStatus`, the custom
   `Adam` state machine, L-BFGS and multi-stage wrappers, damping strategies,
   phase records, and the `better_robot.costs` package. Every removed symbol
   and its supported replacement is listed in the

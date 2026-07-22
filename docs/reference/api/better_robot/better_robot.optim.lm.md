@@ -127,6 +127,14 @@ Bases: {py:obj}`better_robot.optim.optimizers.Optimizer`
 
 ````
 
+````{py:method} resume() -> None
+:canonical: better_robot.optim.lm.LevenbergMarquardt.resume
+
+```{autodoc2-docstring} better_robot.optim.lm.LevenbergMarquardt.resume
+```
+
+````
+
 ````{py:method} step() -> better_robot.optim.optimizers.OptimizerInfo
 :canonical: better_robot.optim.lm.LevenbergMarquardt.step
 

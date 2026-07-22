@@ -67,9 +67,11 @@ math. LM's private iteration remains fixed-shape and synchronization-free.
 
 `Problem.update()` atomically replaces current variable tensors and invalidates
 shared node memos. The next LM call refreshes terminal artifacts and retains
-compatible damping information. Call `optimizer.reset()` when you instead
-want fresh optimizer state; it deliberately keeps the variables' current
-values.
+compatible damping information. After MAXITER or an `enabled`/weight phase
+change without an input update, call `optimizer.resume()`; LM keeps values and
+cumulative iteration counts but rebuilds phase-specific damping and acceptance
+state. Call `optimizer.reset()` when you instead want all algorithm state and
+counts cleared; it deliberately keeps the variables' current values.
 
 Updates address named Variables harvested from the complete residual and node
 graph. Use `trainable=False` for observations, masks, or labels that should
@@ -82,6 +84,11 @@ complete driver: it stops when every batch element is terminal or the budget
 is exhausted and performs the final-point refresh before returning.
 
 ## Solve robot groups in phases
+
+The complete {doc}`staged_fit` guide combines this frozen-layout
+handoff with preserved Adam moments, a scheduler, input swaps, term logging,
+and L-BFGS polish. The shorter pattern below focuses only on the immutable
+robot-group boundary.
 
 `RobotVariable` can expose topology-derived tangent groups and exclude whole
 groups from an optimization phase. A common floating-base warm-up first

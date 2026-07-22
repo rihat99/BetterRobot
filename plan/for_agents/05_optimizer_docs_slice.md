@@ -1,3 +1,7 @@
+> **Implementation log (2026-07-22): Order 05 scope complete on `dev`.** Layout-aware first-order state, `resume()`, scheduler ownership, the staged-fit guide, and vertical slice v2 are implemented.
+> **Validation:** 344 optimizer CPU tests, 5 optimizer CUDA tests, strict HTML, and all 31 doctests pass; Python source growth is net `+55` lines. Full-tree gates currently fail only in concurrent Warp FK/RNEA work outside this order.
+> **Finding:** The phase driver is 90 lines and uses plain data; phase objects, live kernel scale, auto-skip smoothness, and a metrics framework remain intentionally rejected. See [`05_results.md`](05_results.md).
+
 # Order 05 — TorchOptimizer phases, staged-fit guide, vertical slice v2
 
 Read `plan/README.md` and `DESIGN_RULES.md` first. Orders 01–04 must be

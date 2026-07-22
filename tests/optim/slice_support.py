@@ -1,308 +1,315 @@
-"""Synthetic BVR-shaped consumer components for the M2a vertical slice."""
+"""Synthetic articulated-body components for the optimizer vertical slice."""
 
 from __future__ import annotations
 
-import math
 from collections.abc import Mapping
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any
+import math
 
 import torch
 
-from better_robot.optim import Problem, Residual, Variable
-from better_robot.residuals import Node
-
-
-SEED = 20260717
-TIME = 4
-POINTS = 3
-COORDS = 2
-
-ROOT_WEIGHTS = {
-    "penetration": 0.0625,
-    "attraction": 1.0,
-    "clearance": 0.0,
-    "scale_prior": 0.6,
-}
-FULL_WEIGHTS = {
-    "penetration": 0.16,
-    "attraction": 1.0,
-    "clearance": 0.0225,
-    "scale_prior": 0.25,
-}
-PROVIDER_INACTIVE_WEIGHTS = {
-    "penetration": 0.0,
-    "attraction": 0.0,
-    "clearance": 0.0,
-    "scale_prior": 1.0,
-}
-
-FRICTION_LOG = (
-    "Masks are static on Variable, so the root-to-full transition cheaply rebuilds "
-    "Problem while copying owned tensors; phase orchestration remains outside M2a.",
-    "TorchOptimizer owns persistent Adam state over rebased reduced-tangent buffers.",
-    "Shared Node objects memoize synthetic kinematics and nearest-neighbor work for "
-    "one evaluation epoch without retaining an old autograd graph.",
+from better_robot.data_model import Model
+from better_robot.io import ModelBuilder, build_model
+from better_robot.optim import Problem, Residual, RobotVariable, ScalarCost, Variable
+from better_robot.residuals import (
+    MaskedChamferResidual,
+    Node,
+    PointProjectionResidual,
+    SceneAttractionResidual,
+    SceneSDFState,
 )
 
 
-def _extract_guide_custom_residual() -> tuple[str, type]:
-    guide = Path(__file__).resolve().parents[2] / "docs" / "guides" / "custom_residual.md"
-    text = guide.read_text()
-    start_marker = "<!-- custom-residual-example:start -->"
-    end_marker = "<!-- custom-residual-example:end -->"
-    if text.count(start_marker) != 1 or text.count(end_marker) != 1:
-        raise RuntimeError("custom residual guide must contain exactly one marked example")
-    marked = text.split(start_marker, 1)[1].split(end_marker, 1)[0]
-    fence = "```{testcode}"
-    if marked.count(fence) != 1 or marked.count("```") != 2:
-        raise RuntimeError("marked custom residual example must contain one testcode fence")
-    source = marked.split(fence, 1)[1].split("```", 1)[0].strip()
-    namespace: dict[str, Any] = {"torch": torch, "__name__": __name__}
-    exec(compile(source, str(guide), "exec"), namespace)  # noqa: S102 - executable guide contract
-    return source, namespace["PenetrationResidual"]
+SEED = 20260722
+TIME = 3
+POINTS = 4
+WARMUP_STEPS = 24
+ADAM_PHASE_STEPS = 90
 
-
-GUIDE_CUSTOM_RESIDUAL_SOURCE, PenetrationResidual = _extract_guide_custom_residual()
+COARSE_WEIGHTS = {
+    "scene": 0.35,
+    "chamfer": 1.0,
+    "projection": 0.3,
+    "scale_prior": 0.2,
+}
+FINAL_WEIGHTS = {
+    "scene": 0.2,
+    "chamfer": 1.25,
+    "projection": 0.45,
+    "scale_prior": 0.15,
+}
 
 
 @dataclass
 class SliceCounters:
-    """Observable provider invocation counts across evaluation contexts."""
+    """Observable node invocation counts across evaluation scopes."""
 
-    kinematics: int = 0
-    nearest_neighbor: int = 0
+    #: Calls to the configuration-to-tangent node.
+    articulation: int = 0
+    #: Calls to the tangent-to-vertex node.
+    posed_body: int = 0
+
+    def reset(self) -> None:
+        """Clear constructor-time shape probes before the fit starts."""
+        self.articulation = 0
+        self.posed_body = 0
 
 
-class SyntheticKinematicsNode(Node):
-    """One cheap FK-shaped pass producing each frame's translated origin."""
+def _skin_points(
+    tangent: torch.Tensor,
+    log_scale: torch.Tensor,
+    template_points: torch.Tensor,
+) -> torch.Tensor:
+    """Apply a small differentiable linear-blend pose to ``(T, nv)`` values."""
+    scaled = (log_scale.exp() * template_points).unsqueeze(0).expand(tangent.shape[0], -1, -1)
+    translation = tangent[:, :3].unsqueeze(1)
+    rotation = tangent[:, 3:6].unsqueeze(1).expand_as(scaled)
+    rotation_offset = torch.cross(rotation, scaled, dim=-1)
+    hinge_axis = torch.stack(
+        (0.7 * template_points[:, 1], -0.5 * template_points[:, 0], 0.2 * template_points[:, 0]),
+        dim=-1,
+    )
+    influence = torch.linspace(0.0, 1.0, POINTS, dtype=tangent.dtype, device=tangent.device)
+    hinge_offset = tangent[:, 6, None, None] * influence[None, :, None] * hinge_axis[None]
+    return translation + scaled + rotation_offset + hinge_offset
 
-    def __init__(self, q: Variable, counters: SliceCounters) -> None:
+
+class TangentPoseNode(Node):
+    """Convert a robot trajectory to neutral-relative tangent coordinates."""
+
+    def __init__(self, q: RobotVariable, counters: SliceCounters) -> None:
         self.q = q
         self.counters = counters
         super().__init__(q)
 
     def compute(self) -> torch.Tensor:
-        self.counters.kinematics += 1
-        return self.q.tensor.unsqueeze(-2)
+        """Return ``(T, nv)`` neutral-relative tangent coordinates."""
+        self.counters.articulation += 1
+        neutral = self.q.model.q_neutral.to(self.q.tensor).expand_as(self.q.tensor)
+        return self.q.model.difference(neutral, self.q.tensor)
 
 
-class DetachedNearestNeighborNode(Node):
-    """Detach only discrete NN indices; preserve gradients through selected deltas."""
+class PosedBodyNode(Node):
+    """Pose template vertices from a child articulation node and body scale."""
 
     def __init__(
         self,
-        kinematics: SyntheticKinematicsNode,
-        log_s: Variable,
+        articulation: TangentPoseNode,
+        log_scale: Variable,
         template_points: torch.Tensor,
-        scene_points: torch.Tensor,
         counters: SliceCounters,
     ) -> None:
-        self.kinematics = kinematics
-        self.log_s = log_s
+        self.articulation = articulation
+        self.log_scale = log_scale
         self.template_points = template_points
-        self.scene_points = scene_points
         self.counters = counters
-        super().__init__(*kinematics.variables, log_s)
+        super().__init__(articulation, log_scale)
 
-    def compute(self) -> dict[str, torch.Tensor]:
-        self.counters.nearest_neighbor += 1
-        origins = self.kinematics.value()
-        scale = self.log_s.tensor.exp()
-        while scale.ndim < origins.ndim:
-            scale = scale.unsqueeze(-1)
-        points = origins + scale * self.template_points
-        candidates = points.unsqueeze(-2) - self.scene_points.unsqueeze(-3)
-        squared = candidates.square().sum(dim=-1)
-        nearest_index = squared.detach().argmin(dim=-1)
-        gather_index = nearest_index[..., None, None].expand(
-            *nearest_index.shape,
-            1,
-            candidates.shape[-1],
-        )
-        nearest_delta = candidates.gather(-2, gather_index).squeeze(-2)
-        signed_distance = nearest_delta[..., 1]
-        return {
-            "signed_distance": signed_distance,
-            "nearest_delta": nearest_delta,
-            "nearest_squared_distance": nearest_delta.square().sum(dim=-1),
-        }
-
-
-class AttractionResidual(Residual):
-    """Vector displacement from every synthetic body point to its detached NN."""
-
-    def __init__(
-        self,
-        kinematics: SyntheticKinematicsNode,
-        nearest: DetachedNearestNeighborNode,
-        *,
-        weight: float,
-    ) -> None:
-        self.nearest = nearest
-        self.nodes = (kinematics, nearest)
-        super().__init__(
-            *nearest.variables,
-            dim=TIME * POINTS * COORDS,
-            group_size=COORDS,
-            name="attraction",
-            weight=weight,
-        )
-
-    def error(self) -> torch.Tensor:
-        delta = self.nearest.value()["nearest_delta"]
-        return delta.reshape(*delta.shape[:-3], self.dim)
-
-
-class ClearanceResidual(Residual):
-    """One-sided positive-side clearance excess around the target surface."""
-
-    def __init__(
-        self,
-        kinematics: SyntheticKinematicsNode,
-        nearest: DetachedNearestNeighborNode,
-        *,
-        weight: float,
-    ) -> None:
-        self.nearest = nearest
-        self.nodes = (kinematics, nearest)
-        super().__init__(
-            *nearest.variables,
-            dim=TIME * POINTS,
-            name="clearance",
-            weight=weight,
-        )
-
-    def error(self) -> torch.Tensor:
-        signed = self.nearest.value()["signed_distance"]
-        return torch.relu(signed - 0.02).reshape(*signed.shape[:-2], self.dim)
-
-
-class ScalePriorResidual(Residual):
-    """One-row least-squares prior keeping log-scale near the target."""
-
-    def __init__(self, log_s: Variable, target: torch.Tensor, *, weight: float) -> None:
-        self.log_s = log_s
-        self.target = target
-        super().__init__(log_s, dim=1, name="scale_prior", weight=weight)
-
-    def error(self) -> torch.Tensor:
-        return math.sqrt(2.0) * (self.log_s.tensor - self.target)
+    def compute(self) -> torch.Tensor:
+        """Return posed body points with shape ``(T, P, 3)``."""
+        self.counters.posed_body += 1
+        return _skin_points(self.articulation.value(), self.log_scale.tensor, self.template_points)
 
 
 @dataclass(frozen=True)
 class SliceData:
-    """Fixed synthetic observations and initial/target states."""
+    """Deterministic fp32 observations and optimizer states."""
 
+    #: Synthetic free-flyer-plus-hinge model.
+    model: Model
+    #: Neutral body points with shape ``(P, 3)``.
     template_points: torch.Tensor
-    scene_points: torch.Tensor
-    target_q: torch.Tensor
-    target_log_s: torch.Tensor
+    #: Coarse scene used by the first Adam phase.
+    coarse_scene_points: torch.Tensor
+    #: Final scene observations.
+    target_scene_points: torch.Tensor
+    #: Final image observations with shape ``(T, P, 2)``.
+    target_pixels: torch.Tensor
+    #: Shared pinhole intrinsics.
+    intrinsics: torch.Tensor
+    #: Desired trajectory tangent with shape ``(T, nv)``.
+    target_tangent: torch.Tensor
+    #: Desired one-element log-scale tensor.
+    target_log_scale: torch.Tensor
+    #: Initial robot trajectory with shape ``(T, nq)``.
     initial_q: torch.Tensor
-    initial_log_s: torch.Tensor
+    #: Initial one-element log-scale tensor.
+    initial_log_scale: torch.Tensor
 
-    def initial_values(self) -> dict[str, torch.Tensor]:
-        return {
-            "q": self.initial_q.clone(),
-            "log_s": self.initial_log_s.clone(),
-        }
+
+def _make_model() -> Model:
+    """Build the smallest articulated floating-base model used by the slice."""
+    builder = ModelBuilder("vertical_slice_body")
+    base = builder.add_body("base")
+    tip = builder.add_body("tip")
+    builder.add_free_flyer_root("root", child=base)
+    builder.add_revolute_z("hinge", parent=base, child=tip)
+    return build_model(builder.finalize(), dtype=torch.float32)
+
+
+def _project(points: torch.Tensor, intrinsics: torch.Tensor) -> torch.Tensor:
+    """Project ``(T, P, 3)`` world points through an identity camera pose."""
+    homogeneous = torch.matmul(intrinsics, points.unsqueeze(-1)).squeeze(-1)
+    return homogeneous[..., :2] / points[..., 2:3]
 
 
 def make_slice_data() -> SliceData:
-    """Return deterministic CPU fp32 data with stable nearest-neighbor identities."""
-    generator = torch.Generator(device="cpu").manual_seed(SEED)
-    template = torch.tensor(
-        [[-0.40, -0.20], [0.00, 0.35], [0.45, -0.10]],
+    """Return well-separated observations with stable nearest neighbours."""
+    model = _make_model()
+    template_points = torch.tensor(
+        [
+            [-0.75, -0.25, 2.20],
+            [-0.15, 0.45, 2.35],
+            [0.55, -0.35, 2.50],
+            [0.95, 0.35, 2.65],
+        ],
         dtype=torch.float32,
     )
-    target_q = torch.tensor(
-        [[-0.12, 0.02], [-0.04, 0.07], [0.05, 0.12], [0.14, 0.17]],
+    target_tangent = torch.tensor(
+        [
+            [-0.08, 0.03, 0.02, 0.025, -0.015, 0.020, -0.12],
+            [-0.02, 0.05, 0.00, -0.015, 0.020, -0.010, 0.05],
+            [0.06, 0.07, -0.015, 0.010, 0.015, -0.020, 0.14],
+        ],
         dtype=torch.float32,
     )
-    target_log_s = torch.tensor([math.log(1.15)], dtype=torch.float32)
-    scene_points = target_q.unsqueeze(-2) + target_log_s.exp() * template
-    perturbation = 0.01 * torch.randn(TIME, COORDS, generator=generator)
-    initial_q = target_q + torch.tensor([0.13, -0.09]) + perturbation
-    initial_log_s = torch.tensor([math.log(0.88)], dtype=torch.float32)
+    initial_offset = torch.tensor(
+        [0.045, -0.035, 0.018, 0.018, -0.015, 0.012, -0.075],
+        dtype=torch.float32,
+    )
+    initial_tangent = target_tangent + initial_offset
+    target_log_scale = torch.tensor([math.log(1.04)], dtype=torch.float32)
+    initial_log_scale = torch.tensor([math.log(0.94)], dtype=torch.float32)
+    neutral = model.q_neutral.expand(TIME, -1)
+    target_points = _skin_points(target_tangent, target_log_scale, template_points)
+    intrinsics = torch.tensor(
+        [[80.0, 0.0, 4.0], [0.0, 75.0, -3.0], [0.0, 0.0, 1.0]],
+        dtype=torch.float32,
+    )
     return SliceData(
-        template_points=template,
-        scene_points=scene_points,
-        target_q=target_q,
-        target_log_s=target_log_s,
-        initial_q=initial_q,
-        initial_log_s=initial_log_s,
+        model=model,
+        template_points=template_points,
+        coarse_scene_points=target_points + torch.tensor([0.0, 0.025, 0.0]),
+        target_scene_points=target_points,
+        target_pixels=_project(target_points, intrinsics),
+        intrinsics=intrinsics,
+        target_tangent=target_tangent,
+        target_log_scale=target_log_scale,
+        initial_q=model.integrate(neutral, initial_tangent),
+        initial_log_scale=initial_log_scale,
     )
 
 
 def make_problem(
     data: SliceData,
+    counters: SliceCounters,
     *,
-    counters: SliceCounters | None = None,
-    values: Mapping[str, torch.Tensor] | None = None,
-    weights: Mapping[str, float] = FULL_WEIGHTS,
-) -> tuple[Problem, SliceCounters]:
-    """Build one phase's problem with caller-selected residual weights."""
-    counters = counters or SliceCounters()
-    initial = data.initial_values() if values is None else dict(values)
-    q_value, log_s_value = initial["q"], initial["log_s"]
-    q = Variable(q_value, name="q", batch_ndim=q_value.ndim - 2)
-    log_s = Variable(log_s_value, name="log_s", batch_ndim=log_s_value.ndim - 1)
-    kinematics = SyntheticKinematicsNode(q, counters)
-    nearest = DetachedNearestNeighborNode(
-        kinematics,
-        log_s,
-        data.template_points,
-        data.scene_points,
-        counters,
+    frozen_root: bool,
+) -> tuple[Problem, RobotVariable, Variable, dict[str, Residual]]:
+    """Build one frozen- or free-root view of the same staged fit."""
+    q = RobotVariable(
+        data.model,
+        data.initial_q.clone(),
+        name="q",
+        time_axis=0,
+        frozen_groups=("root",) if frozen_root else (),
     )
-    penetration = PenetrationResidual(
-        nearest,
-        time=TIME,
-        points=POINTS,
-        weight=weights["penetration"],
+    log_scale = Variable(data.initial_log_scale.clone(), name="log_scale")
+    articulation = TangentPoseNode(q, counters)
+    posed_body = PosedBodyNode(articulation, log_scale, data.template_points, counters)
+
+    point_validity = Variable(
+        torch.tensor(
+            [[True, True, True, True], [True, True, True, False], [True, True, True, True]],
+        ),
+        name="point_validity",
+        trainable=False,
     )
-    # The custom guide class knows its immediate node. Register the upstream
-    # node too so both epoch memos invalidate together.
-    penetration.nodes = (kinematics, nearest)
-    problem = Problem(
-        [
-            penetration,
-            AttractionResidual(kinematics, nearest, weight=weights["attraction"]),
-            ClearanceResidual(kinematics, nearest, weight=weights["clearance"]),
-            ScalePriorResidual(log_s, data.target_log_s, weight=weights["scale_prior"]),
-        ]
+    contact_mask = Variable(
+        torch.tensor(
+            [[True, True, False, True], [True, False, True, False], [False, True, True, True]],
+        ),
+        name="contact_mask",
+        trainable=False,
     )
-    return problem, counters
+    scene_points = Variable(data.coarse_scene_points.clone(), name="scene_points", trainable=False)
+    scene_normals = torch.zeros_like(data.target_scene_points)
+    scene_normals[..., 1] = 1.0
+    confidence = torch.tensor(
+        [[1.0, 0.8, 0.6, 1.0], [0.9, 0.7, 1.0, 0.0], [0.6, 1.0, 0.8, 0.9]],
+    )
+    state = SceneSDFState(
+        posed_body,
+        point_validity,
+        scene_points,
+        scene_normals,
+        point_validity,
+        distance="plane",
+    )
+    scene = SceneAttractionResidual(
+        state,
+        mask=contact_mask,
+        max_distance=0.6,
+        band=0.6,
+        weight=COARSE_WEIGHTS["scene"],
+        reduce="mean_active",
+        name="scene",
+    )
+    chamfer = MaskedChamferResidual(
+        posed_body,
+        scene_points,
+        point_validity,
+        point_validity,
+        vertex_weights=confidence,
+        bidirectional=False,
+        weight=COARSE_WEIGHTS["chamfer"],
+        name="chamfer",
+    )
+    projection = PointProjectionResidual(
+        posed_body,
+        data.intrinsics,
+        torch.eye(4),
+        data.target_pixels,
+        confidence=confidence,
+        visibility=point_validity,
+        time_axis=0,
+        weight=COARSE_WEIGHTS["projection"],
+        reduce="mean_active",
+        name="projection",
+    )
+    projection.enabled = False
+    scale_prior = ScalarCost(
+        lambda value: (value - data.target_log_scale).square().sum(dim=-1),
+        log_scale,
+        weight=COARSE_WEIGHTS["scale_prior"],
+        name="scale_prior",
+    )
+    terms: dict[str, Residual] = {item.name: item for item in (scene, chamfer, projection, scale_prior)}
+    return Problem(list(terms.values())), q, log_scale, terms
 
 
-def make_batched_values(data: SliceData) -> dict[str, torch.Tensor]:
-    """Three distinct starting points for batched/sequential parity."""
-    q_offsets = torch.tensor(
-        [[[0.00, 0.00]], [[0.02, -0.01]], [[-0.015, 0.025]]],
-        dtype=torch.float32,
-    )
-    scale_offsets = torch.tensor([[0.0], [0.03], [-0.02]], dtype=torch.float32)
-    return {
-        "q": data.initial_q.unsqueeze(0) + q_offsets,
-        "log_s": data.initial_log_s.unsqueeze(0) + scale_offsets,
-    }
+def configure_phase(
+    terms: Mapping[str, Residual],
+    weights: Mapping[str, float],
+    *,
+    projection_enabled: bool,
+) -> None:
+    """Apply plain-data phase settings without introducing a Phase object."""
+    for name, weight in weights.items():
+        terms[name].weight = weight
+    terms["projection"].enabled = projection_enabled
 
 
 __all__ = [
-    "COORDS",
-    "FRICTION_LOG",
-    "FULL_WEIGHTS",
-    "GUIDE_CUSTOM_RESIDUAL_SOURCE",
-    "POINTS",
-    "PROVIDER_INACTIVE_WEIGHTS",
-    "PenetrationResidual",
-    "ROOT_WEIGHTS",
+    "ADAM_PHASE_STEPS",
+    "COARSE_WEIGHTS",
+    "FINAL_WEIGHTS",
     "SEED",
     "SliceCounters",
     "SliceData",
     "TIME",
-    "make_batched_values",
+    "WARMUP_STEPS",
+    "configure_phase",
     "make_problem",
     "make_slice_data",
 ]

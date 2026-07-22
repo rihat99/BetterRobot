@@ -394,8 +394,12 @@ converged: True
 `OptimizerInfo` contains only per-element status, iterations, cost, and a
 derived convergence flag. Detailed LM state is private. `Problem.update()`
 changes current variable tensors atomically; LM refreshes the changed graph
-while retaining compatible damping. `optimizer.reset()` clears optimizer
-state but deliberately retains current variable values.
+while retaining compatible damping. After a MAXITER stop or an objective
+phase change, `optimizer.resume()` makes terminal elements runnable and keeps
+cumulative iteration counts. For LM it also rebuilds damping and acceptance
+state, because those tensors describe the previous phase objective.
+`optimizer.reset()` clears all optimizer state but deliberately retains current
+variable values.
 
 An initially non-finite model is reported as failed. A non-finite trial is
 rejected rather than installed as the new value. Exhausting the iteration
@@ -455,6 +459,7 @@ adam = TorchOptimizer(
     lr=0.1,
     max_iterations=250,
     tolerance=1e-6,
+    scheduler=lambda inner: torch.optim.lr_scheduler.ExponentialLR(inner, gamma=0.999),
 )
 adam_info = adam.optimize()
 near_target = torch.allclose(adam_value.tensor, adam_target.tensor, atol=1e-3, rtol=0.0)
@@ -471,6 +476,17 @@ The adapter keeps tangent buffers, lets the Torch optimizer update them,
 retracts through each variable's geometry, and rebases the buffers without
 discarding optimizer state. Adam, SGD, or another compatible optimizer can be
 selected by the factory. BetterRobot does not reimplement their moment rules.
+An optional scheduler factory receives the inner optimizer and returns a
+no-argument-step `torch.optim.lr_scheduler.LRScheduler`; it advances once for
+each public `step()` that actually updates variables, including one advance
+around an L-BFGS closure step rather than one per closure evaluation.
+
+`TorchOptimizer` identifies a layout by trainable names and free dimensions,
+batch shape, dtype, and device. A same-layout `Problem.update()` preserves the
+optimizer, tangent buffers, moments, and scheduler. The terminal status also
+survives, so call `resume()` before the next phase. A real layout change, such
+as a new batch shape or frozen-group set, rebuilds first-order state. See
+{doc}`/guides/staged_fit` for the complete phase pattern.
 
 ## Differentiating a solution
 
@@ -536,4 +552,6 @@ naming the residual that makes the problem ineligible.
 - {doc}`/guides/custom_residual` builds a residual step by step.
 - {doc}`/guides/own_your_optimization_loop` develops warm starts and loop
   ownership.
+- {doc}`/guides/staged_fit` preserves optimizer state across a plain-data
+  curriculum.
 - {doc}`/conventions/extension` gives the exact supported extension contracts.

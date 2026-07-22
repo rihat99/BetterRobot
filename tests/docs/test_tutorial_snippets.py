@@ -26,6 +26,7 @@ PAGES = (
     ("guides/visualize.md", 1),
     ("guides/differentiate_through_kinematics.md", 1),
     ("guides/own_your_optimization_loop.md", 1),
+    ("guides/staged_fit.md", 1),
 )
 
 

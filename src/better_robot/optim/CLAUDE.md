@@ -85,10 +85,12 @@ activity threshold non-differentiable; never test it as a derivative point.
 ## Optimizers
 
 `Optimizer` owns one `Problem`. Public control is `step()` for a caller-owned
-loop, `optimize()` for the complete eager driver, and `reset()` to clear
+loop, `optimize()` for the complete eager driver, `resume()` to return terminal
+elements to RUNNING with cumulative iteration counts, and `reset()` to clear
 optimizer state while retaining variable values. `OptimizerInfo` exposes only
 per-element `status`, `iterations`, `cost`, and derived `converged`; solved
-values live in the variables.
+values live in the variables. LM `resume()` deliberately rebuilds damping and
+acceptance state because those tensors describe the previous phase objective.
 
 `LevenbergMarquardt` and `GaussNewton` preserve arbitrary leading batch axes
 and per-element damping, acceptance, convergence, and status internally.
@@ -101,7 +103,13 @@ explicit dense or structured routing does not warn.
 Keep LM's private per-iteration tensor program input-pure, fixed-shape,
 sync-free, and tensor-branching. `TorchOptimizer` owns persistent tangent
 buffers, delegates update rules to `torch.optim`, retracts after each step, and
-rebases without discarding optimizer state. Non-closure optimizers run one
+rebases without discarding optimizer state. Its layout identity is trainable
+names/free dimensions plus batch shape, dtype, and device. Same-layout
+`Problem.update()` calls preserve buffers, optimizer moments, and the optional
+scheduler; a real layout change rebuilds them. A scheduler factory returns a
+`torch.optim.lr_scheduler.LRScheduler`; step it exactly once after a public
+step performs an optimizer update, never on terminal/no-op or
+converged-before-update paths. Non-closure optimizers run one
 objective forward per step (LBFGS line searches add their own closure
 evaluations): `step()` reports cost from the gradient forward (the entering
 iterate), and only `optimize()` refreshes the final cost at the solution.

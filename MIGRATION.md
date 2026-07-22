@@ -6,25 +6,24 @@ documentation — it moved here from `docs/reference/m*_removed_symbols.md`
 because a released library's docs should not carry internal migration tables.
 
 Downstream repositories are out of scope for agents working in this
-repository. Agents only **append** rows here when a work order removes a
-public symbol; the owner resolves the consumer side.
+repository. Agents keep replacement rows current when a work order changes a
+public contract; the owner resolves the consumer side.
 
-## Changed by composed vision residuals
+## Changed by downstream optimization plumbing
 
 | Old surface or meaning | Replacement |
 |---|---|
+| A residual `weight` multiplied rows inside the robust kernel. | `weight` is now a non-negative outer objective coefficient, independent of robust-kernel scale. Use `row_weight` for square-root-information whitening. To preserve an old L2 term weighted by `a`, use `weight=a**2`, or keep `a` as `row_weight`. |
+| `Residual(weight=ScaleWeight(...))`, `Residual(weight=DiagonalWeight(...))`, or a raw per-row tensor weight | Pass the value as `row_weight=...`; outer `weight` accepts only a real scalar or floating tensor coefficient. |
+| Mutating `residual.weight = 0.0` to disable a term temporarily | Toggle `residual.enabled`; Python-zero outer weights remain a valid static inactive declaration. After a completed optimizer phase, call `resume()` before continuing. |
+| `Problem.error()` and `IKResult.residual`, `TrajOptResult.residual`, or `ContactForceResult.residual` as objective-scaled rows | These surfaces now return square-root-information-whitened rows only. Outer coefficients, reduction, activity, and robust-kernel scaling are excluded; use `Problem.objective()` or `Problem.term_costs()` for costs. |
+| Nodes and point-cloud residuals could read only leaf Variables or fixed tensors. | Nodes compose recursively, and scene, Chamfer, and explicit-point projection inputs accept Nodes. Use named static `Variable(..., trainable=False)` inputs for values that change through `Problem.update()`; bare tensors remain construction-time constants. |
 | Scene-SDF confidence and `MaskedChamferResidual.vertex_weights` multiplied residual rows directly, making an L2 contribution quadratic in confidence. | Non-negative confidence is now detached and its safe square root scales the row, so the L2 contribution is linear. For Chamfer, `c_new=c_old**2` reproduces the old L2 magnitude. Scene confidence also contains an internal geometric factor `g`: matching an old row would require `c_new=g*c_old**2`, so exact reproduction is generally unavailable and scene confidence tuning must be recalibrated. |
 | Scene-SDF heads had one fixed validity set and only `sum` reduction. | Each penalty head now accepts its own optional mask and trust gates and forwards `reduce`; use `reduce="mean_active"` to normalize by that head's detached active set. Omitting every gate and keeping `reduce="sum"` preserves the prior active-set policy. |
 | Point-cloud constructors consumed only Variables or fixed tensors, and `SceneSDFState` always used signed point distance. | Clouds, masks, and confidence may also be composed `Node` values. Bare tensors remain construction-time constants; use named static Variables for `Problem.update()`. `SceneSDFState(distance="point")` remains the default, with `"plane"` selecting signed point-to-plane distance. |
-
-## Changed by the objective-algebra redesign
-
-| Old surface or meaning | Replacement |
-|---|---|
-| `Residual(weight=a)` as a residual-row multiplier | Use `row_weight=a` for square-root-information whitening. To preserve an L2 term's old importance while adopting the outer coefficient, use `weight=a**2`. |
-| `Residual(weight=ScaleWeight(...))`, `Residual(weight=DiagonalWeight(...))`, or a raw per-row tensor weight | Pass the value as `row_weight=...`; outer `weight` accepts only a real scalar or floating tensor coefficient. |
-| Mutating `residual.weight = 0.0` to disable a term temporarily | Toggle `residual.enabled`; Python-zero outer weights remain a valid static inactive declaration. |
-| `Problem.error()` and `IKResult.residual`, `TrajOptResult.residual`, or `ContactForceResult.residual` as objective-scaled rows | These surfaces now return square-root-information-whitened rows only. Outer coefficients, reduction, activity, and robust-kernel scaling are excluded; use `Problem.objective()` or `Problem.term_costs()` for costs. |
+| Manual root/joint index-table access for freezing or row weighting | Use immutable `RobotVariable(..., frozen_groups=(...))`, topology-derived `tangent_groups()`, and `tangent_weight()`. Construct a new RobotVariable/Problem when a later phase needs another frozen set. |
+| `better_robot.residuals.AccelerationResidual` | Use `SmoothnessResidual(q, order=2, dt=...)`; rows and `dt**-2` scaling are unchanged. Pass `name="acceleration"` if diagnostics depended on the former default. Replace repeated per-coordinate `row_weight` with `(nv,)` `coordinate_weight`; arbitrary time-varying row weights belong in a general residual. |
+| `better_robot.residuals.JerkResidual` and `better_robot.residuals.smoothness.JerkResidual` | Use `SmoothnessResidual(q, order=3, dt=...)`; order four supplies snap. Callers still guard `T > order`, and non-scalar robot topologies warn and use dense autodiff. |
 
 ## Removed during the redesign (already gone on this branch)
 
@@ -52,13 +51,13 @@ public symbol; the owner resolves the consumer side.
 | `better_robot.LeastSquaresProblem`, `better_robot.optim.LeastSquaresProblem`, `better_robot.optim.problem.LeastSquaresProblem` | `better_robot.optim.Problem` with named variables, residual items, and providers. Recorded downstream use was protocol-level. |
 | `better_robot.optim.SolverState`, `better_robot.optim.state.SolverState` | Use the concrete result returned by the selected algorithm, such as `LMState` or `FirstOrderResult`. |
 | `better_robot.optim.state.SolverStatus` | Use `LMStatus` for LM/GN; first-order results expose a boolean `converged` tensor. |
-| `better_robot.optim.Optimizer`, `better_robot.optim.optimizers.Optimizer`, `better_robot.optim.optimizers.base.Optimizer` | No shared optimizer protocol replaces it; call a concrete named-block solver's `run(values, problem)` method. |
+| The former `better_robot.optim.Optimizer` protocol and nested `optimizers.base` path | Use the current `better_robot.optim.Optimizer` lifecycle: `step()`, `optimize()`, `resume()`, and `reset()`. Solved values remain on referenced Variables and diagnostics use `OptimizerInfo`. |
 | `better_robot.optim.OptimizationResult`, `better_robot.optim.optimizers.OptimizationResult`, `better_robot.optim.optimizers.base.OptimizationResult` | Use the concrete result returned by the selected algorithm, such as `LMState` or `FirstOrderResult`. |
 | `better_robot.optim.optimizers.LevenbergMarquardt`, `better_robot.optim.optimizers.levenberg_marquardt.LevenbergMarquardt` | `better_robot.optim.LevenbergMarquardt` (`init_state` / `update` / `run`). |
 | `better_robot.optim.optimizers.GaussNewton`, `better_robot.optim.optimizers.gauss_newton.GaussNewton` | `better_robot.optim.GaussNewton` (`init_state` / `update` / `run`). Known downstream caller: BHF `tools/geometry/icp.py:58,330-332`. |
-| `better_robot.optim.optimizers.Adam`, `better_robot.optim.optimizers.adam.Adam` | `run_first_order(..., optimizer_factory=lambda params: torch.optim.Adam(params, ...))`. |
-| `better_robot.optim.optimizers.LBFGS`, `better_robot.optim.optimizers.lbfgs.LBFGS` | `torch.optim.LBFGS` with an explicit objective closure. |
-| `better_robot.optim.optimizers.LMThenLBFGS`, `better_robot.optim.optimizers.lm_then_lbfgs.LMThenLBFGS` | Call LM and a `torch.optim` stage sequentially, rebuilding the problem when stage weights differ. |
+| `better_robot.optim.optimizers.Adam`, `better_robot.optim.optimizers.adam.Adam` | `TorchOptimizer(problem, torch.optim.Adam, ...)`. |
+| `better_robot.optim.optimizers.LBFGS`, `better_robot.optim.optimizers.lbfgs.LBFGS` | `TorchOptimizer(problem, torch.optim.LBFGS, ...)`. |
+| `better_robot.optim.optimizers.LMThenLBFGS`, `better_robot.optim.optimizers.lm_then_lbfgs.LMThenLBFGS` | Call LM and a `TorchOptimizer(..., torch.optim.LBFGS, ...)` stage sequentially. Keep one Problem when only weights or enabled terms change; rebuild only for another graph or frozen-variable layout. |
 | `better_robot.optim.optimizers.MultiStageOptimizer`, `better_robot.optim.optimizers.multi_stage.MultiStageOptimizer` | Call the selected solver functions sequentially in task code. |
 | `better_robot.optim.optimizers.OptimizerStage`, `better_robot.optim.optimizers.multi_stage.OptimizerStage` | No stage record replaces it; ordinary sequential calls make staging explicit. |
 | `better_robot.optim.strategies.base.DampingStrategy` | No pluggable damping protocol replaces it; configure `LevenbergMarquardt` directly. |
@@ -74,8 +73,8 @@ public symbol; the owner resolves the consumer side.
 | `better_robot.JacobianStrategy`, `better_robot.kinematics.JacobianStrategy`, and `better_robot.kinematics.jacobian_strategy.JacobianStrategy` | Pass a `better_robot.optim.JacobianStrategy` string: `"auto"`, `"analytic"`, `"jacrev"`, `"jacfwd"`, or `"finite_difference"`. |
 | Provider `inputs` declarations | Rename the declaration to `reads`; outputs and lazy evaluation remain unchanged. |
 | `VarSpec.validate_value(..., check_feasible=...)` | Call `validate_value(value)` for structural checks. There is no content/feasibility-validation mode; enforce application-specific value policy at the caller boundary. |
-| `better_robot.optim.Adam`, `AdamState`, and `AdamStatus` | Use `run_first_order` with any `torch.optim.Optimizer`; inspect `FirstOrderResult`. |
-| `better_robot.optim.Phase`, `PhaseResult`, and `run_phases` | Call algorithms sequentially and rebuild a problem explicitly when stage weights change. |
+| `better_robot.optim.Adam`, `AdamState`, and `AdamStatus` | Use `TorchOptimizer` with any compatible `torch.optim.Optimizer`; inspect `OptimizerInfo`. |
+| `better_robot.optim.Phase`, `PhaseResult`, and `run_phases` | Keep phase policy in ordinary application data. Change `enabled`/weights or named static inputs on one Problem, then call `resume()`; construct a new Problem only for another graph or immutable frozen-variable layout. |
 | `better_robot.optim.solvers.NormalCG`, `better_robot.optim.solvers.normal_cg.NormalCG`, `NormalOperator`, `TemporalAnalysis.operator_eligible`, `LinearizationReason.EXPLICIT_MATRIX_FREE`, `linearization="matrix_free"`, and `LinearSystemKind` | Use automatic dense/block-banded routing, or force `linearization="dense"` / `"structured"`; inspect `TemporalAnalysis.direct_eligible` for block-banded eligibility. |
 | `better_robot.optim.LinearizationReason.INCOMPATIBLE_SOLVER` | No enum replacement; an incompatible solver/linearization combination raises `ValueError`. |
 | `better_robot.optim.structure` | Import `BlockBandedMatrix`, `TemporalAnalysis`, and `LinearizationReason` from `better_robot.optim`; route records live with LM. |
@@ -108,13 +107,11 @@ surface changed again.
 | `run_first_order`, `FirstOrderResult`, and the first-order `OptimizerFactory` alias | Use `TorchOptimizer(problem, torch.optim.OptimizerSubclass, ...)`. |
 | `autograd.tangent_grad`, `autograd.perturb_values`, `Problem.external_parameters`, and `better_robot.optim.autograd` | Use `Variable.retract`, `Problem.gradient`, and graph-carrying static variables (`trainable=False`). |
 | Scattered private `_broadcast_weight` helpers | Implement row scaling once with `ScaleWeight`, `DiagonalWeight`, or another `Weight`. |
-| `better_robot.residuals.AccelerationResidual` | Use `SmoothnessResidual(q, order=2, dt=...)`; its rows and `dt**-2` scaling are unchanged. Pass `name="acceleration"` if diagnostics depended on the former default. Replace a repeated per-coordinate `row_weight` with `(nv,)` `coordinate_weight`; scalar values can be expanded to `(nv,)`. Arbitrary time-varying row weights no longer belong to this dedicated residual. |
 
 ## Removed by the core truth pass
 
 | Removed surface | Replacement |
 |---|---|
-| `better_robot.residuals.JerkResidual` and `better_robot.residuals.smoothness.JerkResidual` | Use `SmoothnessResidual(q, order=3, dt=...)`. The explicit order also supports second- and fourth-order smoothness. |
 | `better_robot.residuals.NullspaceResidual` and `better_robot.residuals.regularization.NullspaceResidual` | No direct replacement ships; use `RestResidual` for configuration-space posture regularization. |
 | The `ContactConsistencyResidual(..., angular=...)` parameter | Contact consistency currently covers Cartesian linear velocity only. |
 | `ModelValues.execution_batch_shape` | No public replacement is needed; execution batching is derived internally after model-value validation. |
@@ -136,8 +133,8 @@ surface changed again.
 | `OptimizerConfig(optimizer="lbfgs")` and `OptimizerConfig(optimizer="lm_then_lbfgs")` | Use `"adam"` or `"lm_then_adam"`, or own a `torch.optim.LBFGS` loop explicitly. |
 | `LevenbergMarquardt(..., block_step_limits=...)` | Express application-specific step policy outside the solver; bounds remain available for state feasibility. |
 | `better_robot.optim.LU` and `better_robot.optim.solvers.LU` | Use `Cholesky` for dense SPD normal systems. |
-| `Variable(..., mask=..., scale=...)` and `RobotVariable(..., mask=..., scale=...)` | Optimize the complete tangent block; represent fixed quantities as static variables and normalize residual units explicitly. |
-| `Variable.free_indices`, `free_scale`, `gather_tangent`, `expand_tangent`, `temporal_free_indices`, and `temporal_reduced_width` | Tangent layouts are complete; use `tangent_dim()` or `temporal_tangent_width`. |
+| `Variable(..., mask=..., scale=...)` and `RobotVariable(..., mask=..., scale=...)` | Plain Variables optimize their complete tangent. For robot topology groups, use immutable `RobotVariable(..., frozen_groups=...)`; use `tangent_weight()` to build residual row multipliers rather than scaling optimizer steps. |
+| `Variable.free_scale` and `temporal_reduced_width` | No step-scale replacement ships. Current free-layout inspection and conversion use `free_indices`, `gather_tangent()`, `expand_tangent()`, `temporal_free_indices`, and `temporal_tangent_width`. |
 | `better_robot.optim.manifolds.Bounds` | Import `Bounds` from `better_robot.optim` or `better_robot.optim.variables`. |
 | `LinearizationReason.NONSEPARABLE_MASK` and `TemporalAnalysis.reduced_width` | Tangent masks no longer participate in temporal analysis; inspect `tangent_width`. |
 | `BlockBandedMatrix.scaled_restricted` | Use `BlockBandedMatrix.restricted`; normalize residuals rather than variable steps. |
