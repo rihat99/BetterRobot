@@ -9,6 +9,12 @@ Downstream repositories are out of scope for agents working in this
 repository. Agents keep replacement rows current when a work order changes a
 public contract; the owner resolves the consumer side.
 
+## Changed by the kinematics/dynamics launch-volume round
+
+| Old surface or meaning | Replacement |
+|---|---|
+| `forward_kinematics` returned quaternions with the sign and norm produced by sequential quaternion composition, propagating unnormalized joint-placement quaternions. | Outputs are now canonical-sign, normalized quaternions (`q` and `-q` encode the same rotation). Compare rotations or sign-align before comparing raw components; code that pinned raw quaternion signs or relied on unnormalized placement propagation must recalibrate. |
+
 ## Changed by downstream optimization plumbing
 
 | Old surface or meaning | Replacement |

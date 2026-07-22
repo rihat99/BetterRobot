@@ -5,6 +5,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- Forward kinematics now runs a batched matrix formulation — per-kind local
+  transforms in batched calls, one batched matmul per joint, one final
+  matrix-to-quaternion pass — cutting kernel launches from ~78 to ~2 per
+  joint (203-joint model, batch 256: forward 152 to 9.5 ms, with backward
+  551 to 44 ms). Outputs are canonical-sign normalized quaternions.
+  `forward_kinematics` gains opt-in `use_compile` (a `torch.compile` lane
+  cached per structure, batch-size dynamic; `use_warp` takes precedence).
+  The Warp FK lane accepts shape-batched joint placements with unbatched
+  frame placements instead of falling back to Torch. RNEA, ABA, CRBA, and
+  the centroidal map build their local-pose inverse adjoints and inertia
+  tables in single batched calls, roughly halving inverse-dynamics
+  forward+backward time, and the Warp RNEA backward differentiates only
+  outputs with incoming gradients.
 - Optimizers now expose `resume()` for cumulative multi-phase solves.
   `TorchOptimizer` preserves moments, tangent buffers, and optional scheduler
   state across same-layout input updates, rebuilds on actual layout changes,
