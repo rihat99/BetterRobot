@@ -180,6 +180,38 @@ def test_rnea_recompute_vjp_matches_torch_for_all_inputs() -> None:
         torch.testing.assert_close(actual_gradient, expected_gradient, rtol=0.0, atol=0.0)
 
 
+def test_rnea_recompute_vjp_matches_torch_for_output_subset() -> None:
+    """A loss over a strict, non-contiguous subset of outputs still matches Torch.
+
+    The Warp recompute differentiates only outputs that receive an upstream
+    gradient; None-seeded outputs are dropped. This guards that the drop keeps
+    exact gradient semantics and pairs the surviving seeds with the right output.
+    """
+    model = _model("panda", torch.float32)
+    q_data, velocity_data, acceleration_data, _ = _inputs(model, 4, with_fext=False)
+
+    def evaluate(use_warp: bool):
+        inputs = tuple(
+            tensor.detach().clone().requires_grad_()
+            for tensor in (q_data, velocity_data, acceleration_data)
+        )
+        q, velocity, acceleration = inputs
+        if use_warp:
+            result = try_warp_rnea(model.structure, model.values, q, velocity, acceleration)
+            assert result is not None
+        else:
+            result = rnea_raw(model.structure, model.values, q, velocity, acceleration)
+        # Seed a non-contiguous subset: tau (0), joint_velocity_local (3),
+        # joint_forces (5); the other three outputs receive no gradient.
+        loss = result.tau.sum() + (2.0 * result.joint_velocity_local).sum() + (0.5 * result.joint_forces).sum()
+        return torch.autograd.grad(loss, inputs)
+
+    actual_gradients = evaluate(True)
+    expected_gradients = evaluate(False)
+    for actual_gradient, expected_gradient in zip(actual_gradients, expected_gradients, strict=True):
+        torch.testing.assert_close(actual_gradient, expected_gradient, rtol=0.0, atol=0.0)
+
+
 def test_rnea_float32_gradcheck_includes_joint_placements() -> None:
     """Check the recompute VJP against Warp finite differences off manifold."""
     model = _model("panda", torch.float32)

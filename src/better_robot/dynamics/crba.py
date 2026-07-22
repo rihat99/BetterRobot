@@ -63,13 +63,13 @@ def crba_raw(  # noqa: PLR0912, PLR0915 - composite-body passes are intentionall
     spatial_inertias = values.spatial_inertias()
     motion_subspaces = structure.joint_motion_subspaces
 
-    # ── Pre-compute Ad(liMi[i])^{-1} once per joint ──────────────────────
-    Ad_inv: list[torch.Tensor | None] = [None] * njoints
-    for i in range(1, njoints):
-        Ad_inv[i] = se3.adjoint_inv(liMi[..., i, :])  # (..., 6, 6)
+    # ── Pre-compute Ad(liMi[i])^{-1} for all joints in one batched build ──
+    adjoint_inv_stacked = se3.adjoint_inv(liMi)  # (..., njoints, 6, 6)
+    Ad_inv: list[torch.Tensor | None] = [None] + [adjoint_inv_stacked[..., i, :, :] for i in range(1, njoints)]
 
-    # ── Initialise composite-inertia matrices Y_c[i] (broadcast to batch) ─
-    Y_c = [spatial_inertias[..., i, :, :].expand(*batch, 6, 6).contiguous() for i in range(njoints)]
+    # ── Initialise composite-inertia matrices Y_c[i] (one batched materialise) ─
+    Y_c_init = spatial_inertias.expand(*batch, njoints, 6, 6).contiguous()
+    Y_c = [Y_c_init[..., i, :, :] for i in range(njoints)]
 
     # ── Backward pass: accumulate Y_c up the kinematic tree ──────────────
     for i in reversed(structure.topo_order):

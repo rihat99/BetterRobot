@@ -167,6 +167,10 @@ def rnea_raw(  # noqa: PLR0912, PLR0915 - recursive Newton-Euler passes are expl
     spatial_inertias = values.spatial_inertias()
     motion_subspaces = structure.joint_motion_subspaces
 
+    # Local-pose inverse adjoints for every joint in one batched build; both
+    # passes index this instead of rebuilding Ad(liMi⁻¹) per joint.
+    adjoint_inv_local = se3.adjoint_inv(liMi)  # (B..., njoints, 6, 6)
+
     # Per-joint storage (list-of-tensor + torch.stack for autograd safety).
     njoints = structure.njoints
     v_body: list[torch.Tensor | None] = [None] * njoints
@@ -203,7 +207,7 @@ def rnea_raw(  # noqa: PLR0912, PLR0915 - recursive Newton-Euler passes are expl
 
         # Parent motion transport: Ad(liMi⁻¹) expresses a parent-frame
         # motion 6-vector in the local joint frame.
-        Ad_inv = se3.adjoint_inv(liMi[..., i, :])  # (B..., 6, 6)
+        Ad_inv = adjoint_inv_local[..., i, :, :]  # (B..., 6, 6)
         v_parent_local = (Ad_inv @ v_body[p].unsqueeze(-1)).squeeze(-1)
         a_parent_local = (Ad_inv @ a_body[p].unsqueeze(-1)).squeeze(-1)
 
@@ -240,7 +244,7 @@ def rnea_raw(  # noqa: PLR0912, PLR0915 - recursive Newton-Euler passes are expl
         p = structure.parents[i]
         if p >= 0:
             # Force transport from child to parent frame: Ad(liMi⁻¹)ᵀ · f.
-            Ad_inv_T = se3.adjoint_inv(liMi[..., i, :]).transpose(-1, -2)
+            Ad_inv_T = adjoint_inv_local[..., i, :, :].transpose(-1, -2)
             f_transported = (Ad_inv_T @ f_body[i].unsqueeze(-1)).squeeze(-1)
             f_body[p] = f_body[p] + f_transported
 

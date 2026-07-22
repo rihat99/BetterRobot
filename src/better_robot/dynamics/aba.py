@@ -135,14 +135,16 @@ def aba_raw(  # noqa: PLR0912, PLR0915 - articulated-body passes are intentional
     oMi = fk_result.joint_pose_world
     liMi = fk_result.joint_pose_local
 
-    Ad_inv: list[torch.Tensor | None] = [None] * njoints
-    for i in range(1, njoints):
-        Ad_inv[i] = se3.adjoint_inv(liMi[..., i, :])  # (..., 6, 6)
+    # One batched inverse-adjoint build over all joints; indexed per joint below.
+    adjoint_inv_stacked = se3.adjoint_inv(liMi)  # (..., njoints, 6, 6)
+    Ad_inv: list[torch.Tensor | None] = [None] + [adjoint_inv_stacked[..., i, :, :] for i in range(1, njoints)]
 
     zero6 = torch.zeros((*batch, 6), device=device, dtype=dtype)
     zero_motion_subspace = torch.empty((*batch, 6, 0), device=device, dtype=dtype)
     grav = values.gravity.expand(*batch, 6)
     spatial_inertias = values.spatial_inertias()
+    # Articulated-body inertia seeds for every joint in one batched materialise.
+    IA_init = spatial_inertias.expand(*batch, njoints, 6, 6).contiguous()
     motion_subspaces = structure.joint_motion_subspaces
 
     # ── Per-joint storage ────────────────────────────────────────────────
@@ -183,8 +185,7 @@ def aba_raw(  # noqa: PLR0912, PLR0915 - articulated-body passes are intentional
         c_body[i] = _cross_motion(v_i, vJ) + cJ
 
         # Articulated-body inertia / bias (init).
-        I_i_6x6 = spatial_inertias[..., i, :, :]
-        IA[i] = I_i_6x6.expand(*batch, 6, 6).contiguous()
+        IA[i] = IA_init[..., i, :, :]
 
         h_i = (IA[i] @ v_i.unsqueeze(-1)).squeeze(-1)
         pA[i] = _cross_motion_force(v_i, h_i)

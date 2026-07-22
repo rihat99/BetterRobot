@@ -41,7 +41,7 @@ def _vjp(
     gravity_map: torch.Tensor,
     structure: ModelStructure,
     values: ModelValues,
-    gradients: tuple[torch.Tensor, ...],
+    gradients: tuple[torch.Tensor | None, ...],
     *,
     has_fext: bool,
     create_graph: bool,
@@ -95,14 +95,24 @@ def _vjp(
             result.joint_acceleration_local,
             result.joint_forces,
         )
-        input_gradients = torch.autograd.grad(
-            outputs,
-            working,
-            gradients,
-            create_graph=create_graph,
-            retain_graph=create_graph,
-            allow_unused=True,
-        )
+        # Only differentiate outputs that actually received an upstream gradient.
+        # A missing (``None``) seed contributes zero to every input gradient, so
+        # dropping it is exact yet skips its whole recompute subgraph.
+        active = [
+            (output, gradient) for output, gradient in zip(outputs, gradients, strict=True) if gradient is not None
+        ]
+        if active:
+            active_outputs, active_gradients = zip(*active, strict=True)
+            input_gradients = torch.autograd.grad(
+                active_outputs,
+                working,
+                active_gradients,
+                create_graph=create_graph,
+                retain_graph=create_graph,
+                allow_unused=True,
+            )
+        else:
+            input_gradients = (None,) * len(working)
     return tuple(
         torch.zeros_like(value) if gradient is None else gradient
         for value, gradient in zip(original, input_gradients, strict=True)
@@ -355,18 +365,6 @@ class _WarpRNEAFunction(torch.autograd.Function):
             inertia_map,
             gravity_map,
         ) = ctx.saved_tensors
-        output_shapes = (
-            (q_map.shape[0], velocity.shape[1]),
-            (q_map.shape[0], ctx.structure.njoints, 7),
-            (q_map.shape[0], ctx.structure.njoints, 7),
-            (q_map.shape[0], ctx.structure.njoints, 6),
-            (q_map.shape[0], ctx.structure.njoints, 6),
-            (q_map.shape[0], ctx.structure.njoints, 6),
-        )
-        prepared_gradients = tuple(
-            q.new_zeros(shape) if gradient is None else gradient
-            for shape, gradient in zip(output_shapes, gradients, strict=True)
-        )
         create_graph = torch.is_grad_enabled()
         input_gradients = _vjp(
             q,
@@ -385,7 +383,7 @@ class _WarpRNEAFunction(torch.autograd.Function):
             gravity_map,
             ctx.structure,
             ctx.values,
-            prepared_gradients,
+            gradients,
             has_fext=ctx.has_fext,
             create_graph=create_graph,
             detach_inputs=not create_graph,

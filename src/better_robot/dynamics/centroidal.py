@@ -99,9 +99,10 @@ def ccrba_raw(
     spatial_inertias = values.spatial_inertias()
     motion_subspaces = structure.joint_motion_subspaces
 
-    adjoint_inverse: list[torch.Tensor | None] = [None] * njoints
-    for index in range(1, njoints):
-        adjoint_inverse[index] = se3.adjoint_inv(liMi[..., index, :])
+    adjoint_inverse_stacked = se3.adjoint_inv(liMi)  # (..., njoints, 6, 6)
+    adjoint_inverse: list[torch.Tensor | None] = [None] + [
+        adjoint_inverse_stacked[..., index, :, :] for index in range(1, njoints)
+    ]
 
     composite = [spatial_inertias[..., index, :, :].expand(*batch, 6, 6) for index in range(njoints)]
     for index in reversed(structure.topo_order):
@@ -113,6 +114,11 @@ def ccrba_raw(
         transform = adjoint_inverse[index]
         composite[parent] = composite[parent] + transform.transpose(-1, -2) @ composite[index] @ transform
 
+    # Inverse adjoints from each joint frame to the centroidal frame (world axes
+    # at the COM), built for all joints in one batched call and indexed per joint.
+    shifted = torch.cat((oMi[..., :3] - com_world.unsqueeze(-2), oMi[..., 3:7]), dim=-1)
+    to_centroidal_all = se3.adjoint_inv(shifted).transpose(-1, -2)  # (..., njoints, 6, 6)
+
     centroidal_map_full = torch.zeros(*batch, 6, nv_full, device=device, dtype=dtype)
     for index in structure.topo_order:
         if index == 0:
@@ -123,8 +129,7 @@ def ccrba_raw(
         iv = structure.idx_vs_full[index]
         subspace = motion_subspaces[index, :, :nv_i].expand(*batch, 6, nv_i)
         momentum_columns = composite[index] @ subspace
-        shifted = torch.cat((oMi[..., index, :3] - com_world, oMi[..., index, 3:7]), dim=-1)
-        to_centroidal = se3.adjoint_inv(shifted).transpose(-1, -2)
+        to_centroidal = to_centroidal_all[..., index, :, :]
         centroidal_map_full[..., :, iv : iv + nv_i] = to_centroidal @ momentum_columns
 
     centroidal_map = reduce_jacobian(structure, centroidal_map_full)
