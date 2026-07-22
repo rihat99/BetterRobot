@@ -146,7 +146,8 @@ class _ScenePenaltyResidual(Residual):
         self,
         state: SceneSDFState,
         *,
-        weight: Weight | Real | torch.Tensor,
+        weight: Real | torch.Tensor,
+        row_weight: Weight | Real | torch.Tensor,
         kernel: object | None,
         name: str,
     ) -> None:
@@ -159,6 +160,7 @@ class _ScenePenaltyResidual(Residual):
         super().__init__(
             dim=self.frames * self.points,
             weight=weight,
+            row_weight=row_weight,
             kernel=kernel,
             name=name,
         )
@@ -189,11 +191,12 @@ class ScenePenetrationResidual(_ScenePenaltyResidual):
         self,
         state: SceneSDFState,
         *,
-        weight: Weight | Real | torch.Tensor = 1.0,
+        weight: Real | torch.Tensor = 1.0,
+        row_weight: Weight | Real | torch.Tensor = 1.0,
         kernel: object | None = None,
         name: str = "scene_penetration",
     ) -> None:
-        super().__init__(state, weight=weight, kernel=kernel, name=name)
+        super().__init__(state, weight=weight, row_weight=row_weight, kernel=kernel, name=name)
 
     def error(self) -> torch.Tensor:
         result = self._result()
@@ -208,14 +211,15 @@ class SceneAttractionResidual(_ScenePenaltyResidual):
         state: SceneSDFState,
         *,
         target_distance: float = 0.0,
-        weight: Weight | Real | torch.Tensor = 1.0,
+        weight: Real | torch.Tensor = 1.0,
+        row_weight: Weight | Real | torch.Tensor = 1.0,
         kernel: object | None = None,
         name: str = "scene_attraction",
     ) -> None:
         if not isinstance(target_distance, float):
             raise TypeError("target_distance must be float")
         self.target_distance = target_distance
-        super().__init__(state, weight=weight, kernel=kernel, name=name)
+        super().__init__(state, weight=weight, row_weight=row_weight, kernel=kernel, name=name)
 
     def error(self) -> torch.Tensor:
         result = self._result()
@@ -231,14 +235,15 @@ class SceneClearanceResidual(_ScenePenaltyResidual):
         state: SceneSDFState,
         *,
         clearance: float,
-        weight: Weight | Real | torch.Tensor = 1.0,
+        weight: Real | torch.Tensor = 1.0,
+        row_weight: Weight | Real | torch.Tensor = 1.0,
         kernel: object | None = None,
         name: str = "scene_clearance",
     ) -> None:
         if not isinstance(clearance, float) or clearance < 0.0:
             raise ValueError("clearance must be a non-negative float")
         self.clearance = clearance
-        super().__init__(state, weight=weight, kernel=kernel, name=name)
+        super().__init__(state, weight=weight, row_weight=row_weight, kernel=kernel, name=name)
 
     def error(self) -> torch.Tensor:
         result = self._result()

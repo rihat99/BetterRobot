@@ -45,6 +45,7 @@ class ContactForceResult:
     fext_local: torch.Tensor
     generalized_force: torch.Tensor
     residual: torch.Tensor
+    """Final whitened rows; outer term coefficients are excluded."""
     cost: torch.Tensor
     iters: int | torch.Tensor
     converged: bool | torch.Tensor
@@ -181,12 +182,6 @@ class _TorqueSmoothResidual(Residual):
         tau = self.dynamics.value()["generalized_force"][..., 6:]
         delta = tau[..., 1:, :] - tau[..., :-1, :]
         return delta.reshape(*tau.shape[:-2], self.dim)
-
-
-def _residual_multiplier(coefficient: float) -> float:
-    """Convert an objective coefficient into a least-squares row multiplier."""
-
-    return math.sqrt(float(coefficient))
 
 
 def _gravity_values(
@@ -351,13 +346,13 @@ def solve_contact_forces(  # noqa: PLR0912, PLR0915 - one complete public task b
         _BaseWrenchResidual(
             dynamics,
             time,
-            weight=_residual_multiplier(weights.base_wrench),
+            weight=weights.base_wrench,
         ),
         _ForceMagnitudeResidual(
             force_variable,
             time,
             contacts,
-            weight=_residual_multiplier(weights.force_magnitude),
+            weight=weights.force_magnitude,
         ),
     ]
     if time > 1:
@@ -366,7 +361,7 @@ def solve_contact_forces(  # noqa: PLR0912, PLR0915 - one complete public task b
                 force_variable,
                 time,
                 contacts,
-                weight=_residual_multiplier(weights.force_smooth),
+                weight=weights.force_smooth,
             )
         )
     if time > 1 and model.nv > 6:
@@ -375,7 +370,7 @@ def solve_contact_forces(  # noqa: PLR0912, PLR0915 - one complete public task b
                 dynamics,
                 time,
                 model.nv - 6,
-                weight=_residual_multiplier(weights.torque_smooth),
+                weight=weights.torque_smooth,
             )
         )
 

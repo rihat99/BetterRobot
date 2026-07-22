@@ -162,14 +162,16 @@ def test_shared_static_vector_is_not_misread_as_a_batch_axis(strategy: str) -> N
 
 
 @pytest.mark.parametrize("strategy", ["jacrev", "jacfwd"])
-def test_batched_tensor_weights_scale_each_jacobian(strategy: str) -> None:
+def test_batched_outer_weights_do_not_scale_whitened_jacobian(strategy: str) -> None:
     values = torch.tensor([[0.7, -0.4, 1.2], [-0.2, 0.5, 1.7], [1.1, 0.3, -0.8]])
     weights = torch.tensor([0.5, 1.25, 2.0])
     _x, item, problem = _polynomial_problem(values)
     unweighted = problem.jacobian_blocks(strategy=strategy)[("polynomial", "x")]
     item.weight = weights
     weighted = problem.jacobian_blocks(strategy=strategy)[("polynomial", "x")]
-    torch.testing.assert_close(weighted, unweighted * weights[:, None, None])
+    torch.testing.assert_close(weighted, unweighted)
+    expected_cost = 0.5 * weights * item.error().square().sum(dim=-1)
+    torch.testing.assert_close(problem.objective(), expected_cost)
 
 
 def test_finite_difference_is_explicit_and_never_a_silent_fallback() -> None:

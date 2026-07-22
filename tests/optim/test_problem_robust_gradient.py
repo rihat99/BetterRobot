@@ -47,12 +47,12 @@ def test_public_objective_and_gradient_use_grouped_kernel_convention(kernel: obj
     multiplier = 1.7
     problem = Problem([_GroupedResidual(x, target, weight=multiplier, kernel=kernel)])
 
-    weighted = multiplier * (x_tensor - target_tensor)
-    groups = weighted.reshape(2, 2, 2)
+    rows = x_tensor - target_tensor
+    groups = rows.reshape(2, 2, 2)
     squared_norm = groups.square().sum(dim=-1)
-    expected_cost = kernel.rho(squared_norm).sum(dim=-1)
+    expected_cost = multiplier * kernel.rho(squared_norm).sum(dim=-1)
     group_weight = kernel.weight(squared_norm).repeat_interleave(2, dim=-1)
-    expected_gradient = multiplier * group_weight * weighted
+    expected_gradient = multiplier * group_weight * rows
 
     objective = problem.objective()
     gradient = problem.gradient()["x"]

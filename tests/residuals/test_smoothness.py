@@ -46,7 +46,7 @@ def test_acceleration_nonzero_on_perturbed_trajectory(panda_model) -> None:
 
 def test_velocity_preserves_arbitrary_batch_axes(panda_model) -> None:
     tensor = panda_model.q_neutral.double().expand(2, 3, 6, -1).clone()
-    residual = VelocityResidual(_variable(panda_model, tensor), dt=0.1, weight=0.25)
+    residual = VelocityResidual(_variable(panda_model, tensor), dt=0.1, row_weight=0.25)
 
     assert residual.error().shape == (2, 3, 4 * panda_model.nv)
     torch.testing.assert_close(residual.error(), torch.zeros_like(residual.error()))

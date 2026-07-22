@@ -11,7 +11,7 @@ from typing import Literal, NamedTuple, TypeAlias, cast
 
 import torch
 
-from .kernels import L2, _group_rows
+from .kernels import _group_rows
 from .solvers import (
     BandedCholesky,
     Cholesky,
@@ -19,16 +19,13 @@ from .solvers import (
 )
 from .implicit import ImplicitDiffConfig
 from .optimizers import Optimizer, OptimizerInfo, OptimizerStatus
-from .problem import JacobianStrategy, Problem, _check_strategy, _detach
+from .problem import JacobianStrategy, Problem, _EvaluationBundle, _check_strategy, _detach
 from .temporal import BlockBandedMatrix, LinearizationReason, _warn_missing_temporal_blocks
 from .variables import RobotVariable, _joint_layout
 from .utils import _blend_values, _state_coordinates
 
 LinearizationMode: TypeAlias = Literal["auto", "dense", "structured"]
 _TensorValues: TypeAlias = dict[str, torch.Tensor]
-_DEFAULT_KERNEL = L2()
-
-
 # State records
 
 
@@ -88,6 +85,7 @@ class _LinearizedLeastSquares(NamedTuple):
     projected_grad_norm: torch.Tensor
     active_mask: torch.Tensor
     finite: torch.Tensor
+    evaluation: _EvaluationBundle
 
 
 # Tangent layout and projection
@@ -215,40 +213,38 @@ def _static_layout(  # noqa: PLR0912 - handles the finite supported variable lay
 
 
 def _robustify(
-    residual: torch.Tensor,
+    evaluation: _EvaluationBundle,
     problem: Problem,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    costs: list[torch.Tensor] = []
     row_weights: list[torch.Tensor] = []
-    for item in problem.residuals:
-        rows = residual[..., problem.row_offsets[item.name]]
+    row_scales: list[torch.Tensor] = []
+    for index, item in enumerate(problem.residuals):
+        rows = evaluation.rows[..., problem.row_offsets[item.name]]
         groups = _group_rows(rows, item.group_size)
         squared_norm = groups.square().sum(dim=-1)
-        kernel = item.kernel if item.kernel is not None else _DEFAULT_KERNEL
-        costs.append(kernel.rho(squared_norm).sum(dim=-1))
-        group_weight = kernel.weight(squared_norm)
+        if item.is_inactive():
+            group_weight = torch.ones_like(squared_norm)
+        else:
+            kernel = problem._kernel(item, detach_tensors=False)
+            group_weight = kernel.weight(squared_norm)
+        outer = evaluation.active_groups[index].to(rows.dtype) * evaluation.coefficients[index]
+        group_scale = torch.sqrt(group_weight.clamp(min=0.0) * outer)
         row_weights.append(group_weight.unsqueeze(-1).expand(*group_weight.shape, item.group_size).reshape(*rows.shape))
-    cost = torch.stack(costs, dim=-1).sum(dim=-1)
+        row_scales.append(group_scale.unsqueeze(-1).expand(*group_scale.shape, item.group_size).reshape(*rows.shape))
     weight = torch.cat(row_weights, dim=-1)
-    scale = torch.sqrt(weight.clamp(min=0.0))
-    return cost, weight, scale
+    scale = torch.cat(row_scales, dim=-1)
+    return evaluation.cost, weight, scale
 
 
 def _robust_decrease(
-    current: torch.Tensor,
-    candidate: torch.Tensor,
-    problem: Problem,
+    current: _EvaluationBundle,
+    candidate: _EvaluationBundle,
 ) -> torch.Tensor:
     """Accumulate per-group decreases without subtracting two large totals."""
-    decreases: list[torch.Tensor] = []
-    for item in problem.residuals:
-        row_slice = problem.row_offsets[item.name]
-        current_groups = _group_rows(current[..., row_slice], item.group_size)
-        candidate_groups = _group_rows(candidate[..., row_slice], item.group_size)
-        kernel = item.kernel if item.kernel is not None else _DEFAULT_KERNEL
-        current_rho = kernel.rho(current_groups.square().sum(dim=-1))
-        candidate_rho = kernel.rho(candidate_groups.square().sum(dim=-1))
-        decreases.append((current_rho - candidate_rho).sum(dim=-1))
+    decreases = [
+        (current_cost - candidate_cost).sum(dim=-1)
+        for current_cost, candidate_cost in zip(current.group_costs, candidate.group_costs, strict=True)
+    ]
     return torch.stack(decreases, dim=-1).sum(dim=-1)
 
 
@@ -307,8 +303,9 @@ def _linearize_model(
     create_graph: bool = False,
 ) -> _LinearizedLeastSquares:
     state_index, lower, upper, bounded = bounds
-    residual = problem._error_at(values)
-    cost, robust_weights, row_scale = _robustify(residual, problem)
+    evaluation = problem._evaluate_at(values)
+    residual = evaluation.rows
+    cost, robust_weights, row_scale = _robustify(evaluation, problem)
     common_finite = _robust_finite(residual, cost, robust_weights)
 
     if decision.used == "dense":
@@ -367,6 +364,7 @@ def _linearize_model(
         projected_grad_norm,
         active,
         finite,
+        evaluation,
     )
 
 
@@ -637,9 +635,10 @@ class LevenbergMarquardt(Optimizer):
             torch.zeros_like(selected_step),
         )
 
-        candidate_residual = problem._error_at(selected_values)
-        candidate_cost, candidate_weights, _candidate_row_scale = _robustify(candidate_residual, problem)
-        actual_decrease = _robust_decrease(model.residual, candidate_residual, problem)
+        candidate_evaluation = problem._evaluate_at(selected_values)
+        candidate_residual = candidate_evaluation.rows
+        candidate_cost, candidate_weights, _candidate_row_scale = _robustify(candidate_evaluation, problem)
+        actual_decrease = _robust_decrease(model.evaluation, candidate_evaluation)
         gain_ratio = actual_decrease / prediction.clamp(min=torch.finfo(model.cost.dtype).eps)
         candidate_finite = _robust_finite(candidate_residual, candidate_cost, candidate_weights)
         accept = (

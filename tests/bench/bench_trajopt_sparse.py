@@ -298,19 +298,19 @@ def _build_problem(  # noqa: PLR0915
             pose.group_size = 6
             residuals.append(pose)
 
-    velocity = VelocityResidual(q, dt=DT, weight=0.05, kernel=l2, name="central_velocity")
-    acceleration = AccelerationResidual(q, dt=DT, weight=0.005, kernel=l2, name="acceleration")
+    velocity = VelocityResidual(q, dt=DT, weight=0.0025, kernel=l2, name="central_velocity")
+    acceleration = AccelerationResidual(q, dt=DT, weight=0.000025, kernel=l2, name="acceleration")
     reference = ReferenceTrajectoryResidual(
         q,
         q_neutral.clone(),
-        weight=0.01,
+        weight=0.0001,
         kernel=l2,
         name="reference_to_neutral",
     )
     envelope = _make_tangent_envelope_residual(
         q,
         half_width=half_width,
-        weight=0.10,
+        weight=0.01,
         kernel=l2,
     )
     for residual in (velocity, acceleration, reference):

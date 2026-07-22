@@ -4,10 +4,11 @@
 
 A residual subclasses `Residual`, receives every variable or shared node it
 reads at construction, and returns raw `(..., dim)` rows from `error()`.
-`Residual` owns the stable name, fixed positive dimension, weight, robust
-kernel, group size, and ordered variable references. Missing analytic blocks
-use the `Problem` Jacobian strategy; finite differences remain an explicit
-debug choice.
+`Residual` owns the stable name, fixed positive dimension, outer `weight`,
+square-root-information `row_weight`, reduction, activity, robust kernel,
+group size, and ordered variable references. Missing analytic blocks use the
+`Problem` Jacobian strategy; finite differences remain an explicit debug
+choice.
 
 `jacobian()` returns a tuple of complete tangent blocks ordered like
 the residual's trainable variable dependencies. A residual with shared work
@@ -15,6 +16,37 @@ lists its `Node` objects in `nodes`. Nodes own their input variables and cache
 graph-bearing results for one evaluation scope only. `RobotState` is the
 standard lazy FK node; equivalent nodes over the same robot variable merge
 when the problem freezes.
+
+## Objective algebra
+
+For each residual, `Problem` applies exactly this formula:
+
+```text
+rows = row_weight.apply(error())
+cost = Σ_k active_k · w_k · ρ(‖rows_k‖²) · norm
+```
+
+`weight` supplies the non-negative outer coefficient `w_k`; it never changes
+the kernel argument. `row_weight` alone whitens errors and Jacobian rows.
+`norm` is `1` for `reduce="sum"`, `1 / n_groups` for `"mean"`, and
+`1 / clamp(Σ_k active_k, 1)` for `"mean_active"`; the active count and mask
+are detached. With L2, `ρ(s) = 0.5 · s`, so the term is
+`0.5 · Σ_k active_k · w_k · ‖rows_k‖² · norm`.
+
+`active_groups()` may return the authoritative boolean group mask. It must be
+fixed-shape; shipped gated residuals also return zero rows for inactive groups
+as an authoring convention. `enabled=False` and a Python-zero outer weight
+skip a term without changing its reserved layout; tensor zero remains in the
+graph.
+
+`Problem.error()` exposes the concatenated whitened rows, not objective-scaled
+rows. Outer coefficients, reduction, per-group activity, and robust-kernel
+scaling belong to `objective()` and `term_costs()`. Task-result `residual`
+fields reuse the whitened-row meaning.
+
+`reduce="mean_active"` and any `active_groups()` override are
+implicit-ineligible because their detached state-dependent activity has no
+consistent implicit derivative.
 
 ## Temporal structure
 
@@ -31,11 +63,12 @@ A structured residual implements both optional hooks:
 - `temporal_jacobian_blocks(variable)` returns `offset -> Tensor` with shape
   `(B..., rows, row_width, tangent_width_per_knot)`.
 
-Numeric blocks contain only the raw residual derivative. The residual's
-`weight` and robust row scaling are applied once by `Problem`. A declaration
-without numeric blocks is not direct-banded eligible. Missing declarations
-make automatic LM use dense assembly; forced structured routing fails
-actionably. A zero weight never grants eligibility.
+Numeric blocks contain only the raw residual derivative. `Problem` applies
+`row_weight` to those blocks and applies outer, activity, reduction, and
+robust IRLS scaling once. A declaration without numeric blocks is not
+direct-banded eligible. Missing declarations make automatic LM use dense
+assembly; forced structured routing fails actionably. A zero weight never
+grants eligibility.
 
 ## Vision and point-cloud pack
 
@@ -53,7 +86,10 @@ actionably. A zero weight never grants eligibility.
   zeros.
 
 Robust kernels live on each `Residual`. Use `group_size=2` for per-point
-projection kernels such as Geman–McClure.
+projection kernels such as Geman–McClure. LM/GN use uncorrected IRLS, with row
+scale `sqrt(active_k · w_k · norm · kernel.weight(s_k))`; there is no
+Triggs second-order correction. This linearization is gradient-consistent on
+a fixed active set. Activity thresholds are deliberately non-differentiable.
 
 ## Existing library
 
@@ -71,16 +107,18 @@ projection kernels such as Geman–McClure.
 1. Pass every dependency at construction and give the residual a stable name
    and fixed dimension.
 2. Preserve arbitrary leading execution batches and return raw residual rows.
-3. Require compatible input dtype/device instead of coercing during an
+3. When a constructor exposes `weight`, `row_weight`, `reduce`, or `enabled`,
+   forward that control unchanged to `Residual`.
+4. Require compatible input dtype/device instead of coercing during an
    evaluation.
-4. Make masks fixed-shape and explicit; never infer structure from tensor
+5. Make masks fixed-shape and explicit; never infer structure from tensor
    values.
-5. If analytic blocks are advertised, provide one for every trainable
+6. If analytic blocks are advertised, provide one for every trainable
    dependency and test them against both AD directions.
-6. Record detached choices such as nearest-neighbour indices in the docstring
+7. Record detached choices such as nearest-neighbour indices in the docstring
    and test that gradients reach only selected continuous values.
-7. Put shared FK, dynamics, or NN work in a `Node` and add a counting test for
+8. Put shared FK, dynamics, or NN work in a `Node` and add a counting test for
    one computation per evaluation scope.
-8. For time-local support, test dense blocks, JVP, VJP, normal bands, arbitrary
+9. For time-local support, test dense blocks, JVP, VJP, normal bands, arbitrary
    leading batches, and short-horizon constructor failures. Never infer
    support from numerical zeros.

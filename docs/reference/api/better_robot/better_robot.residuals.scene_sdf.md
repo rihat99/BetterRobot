@@ -106,7 +106,7 @@ Bases: {py:obj}`better_robot.residuals.nodes.Node`
 
 `````
 
-`````{py:class} ScenePenetrationResidual(state: better_robot.residuals.scene_sdf.SceneSDFState, *, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'scene_penetration')
+`````{py:class} ScenePenetrationResidual(state: better_robot.residuals.scene_sdf.SceneSDFState, *, weight: numbers.Real | torch.Tensor = 1.0, row_weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'scene_penetration')
 :canonical: better_robot.residuals.scene_sdf.ScenePenetrationResidual
 
 Bases: {py:obj}`better_robot.residuals.scene_sdf._ScenePenaltyResidual`
@@ -121,7 +121,7 @@ Bases: {py:obj}`better_robot.residuals.scene_sdf._ScenePenaltyResidual`
 
 `````
 
-`````{py:class} SceneAttractionResidual(state: better_robot.residuals.scene_sdf.SceneSDFState, *, target_distance: float = 0.0, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'scene_attraction')
+`````{py:class} SceneAttractionResidual(state: better_robot.residuals.scene_sdf.SceneSDFState, *, target_distance: float = 0.0, weight: numbers.Real | torch.Tensor = 1.0, row_weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'scene_attraction')
 :canonical: better_robot.residuals.scene_sdf.SceneAttractionResidual
 
 Bases: {py:obj}`better_robot.residuals.scene_sdf._ScenePenaltyResidual`
@@ -136,7 +136,7 @@ Bases: {py:obj}`better_robot.residuals.scene_sdf._ScenePenaltyResidual`
 
 `````
 
-`````{py:class} SceneClearanceResidual(state: better_robot.residuals.scene_sdf.SceneSDFState, *, clearance: float, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'scene_clearance')
+`````{py:class} SceneClearanceResidual(state: better_robot.residuals.scene_sdf.SceneSDFState, *, clearance: float, weight: numbers.Real | torch.Tensor = 1.0, row_weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'scene_clearance')
 :canonical: better_robot.residuals.scene_sdf.SceneClearanceResidual
 
 Bases: {py:obj}`better_robot.residuals.scene_sdf._ScenePenaltyResidual`

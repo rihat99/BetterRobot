@@ -21,8 +21,8 @@ class ContactConsistencyResidual(Residual):
     """Cartesian velocity penalty on tagged contact frames.
 
     ``contact_weights`` are domain mask amplitudes averaged across each pair
-    of adjacent knots. The inherited ``weight`` is the optimizer-level row
-    multiplier and is therefore not duplicated inside :meth:`error` or
+    of adjacent knots. The inherited ``weight`` is an outer objective
+    coefficient and is therefore not duplicated inside :meth:`error` or
     :meth:`jacobian`.
     """
 
@@ -33,7 +33,8 @@ class ContactConsistencyResidual(Residual):
         contact_weights: _VariableLike | torch.Tensor,
         *,
         dt: float,
-        weight: Weight | Real | torch.Tensor = 1.0,
+        weight: Real | torch.Tensor = 1.0,
+        row_weight: Weight | Real | torch.Tensor = 1.0,
         kernel: object | None = None,
         name: str = "contact_consistency",
     ) -> None:
@@ -71,6 +72,7 @@ class ContactConsistencyResidual(Residual):
             *direct,
             dim=3 * len(ids) * (self.horizon - 1),
             weight=weight,
+            row_weight=row_weight,
             kernel=kernel,
             group_size=3,
             name=name,

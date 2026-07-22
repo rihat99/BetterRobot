@@ -7,7 +7,7 @@ import torch
 
 from better_robot.optim.problem import Problem
 from better_robot.optim.variables import Variable
-from better_robot.residuals.base import Residual, ScaleWeight, residual
+from better_robot.residuals.base import Residual, residual
 
 
 class _TwoVariableResidual(Residual):
@@ -23,7 +23,7 @@ class _TwoVariableResidual(Residual):
 class _AnalyticResidual(Residual):
     def __init__(self, x: Variable) -> None:
         self.x = x
-        super().__init__(x, dim=2, weight=2.0, name="analytic")
+        super().__init__(x, dim=2, row_weight=2.0, name="analytic")
 
     def error(self) -> torch.Tensor:
         return self.x.tensor.square()
@@ -83,7 +83,7 @@ def test_all_ad_strategies_match_analytic_blocks(strategy: str) -> None:
     torch.testing.assert_close(actual, expected, rtol=3e-3, atol=3e-4)
 
 
-def test_analytic_weight_is_applied_once_to_error_and_rows() -> None:
+def test_analytic_row_weight_is_applied_once_to_error_and_rows() -> None:
     x = Variable(torch.tensor([2.0, 3.0]), name="x")
     item = _AnalyticResidual(x)
     problem = Problem([item])
@@ -131,9 +131,10 @@ def test_python_zero_weight_skips_residual_but_tensor_zero_evaluates() -> None:
     torch.testing.assert_close(problem.error(), torch.zeros(1))
     assert calls == 0
 
-    counted.weight = ScaleWeight(torch.tensor(0.0))
-    torch.testing.assert_close(problem.error(), torch.zeros(1))
-    assert calls == 1
+    counted.weight = torch.tensor(0.0)
+    torch.testing.assert_close(problem.error(), torch.ones(1))
+    torch.testing.assert_close(problem.objective(), torch.tensor(0.0))
+    assert calls == 2
 
 
 def test_trial_exception_restores_exact_original_tensor() -> None:

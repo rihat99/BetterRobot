@@ -19,7 +19,7 @@ class MaskedChamferResidual(Residual):
     ``(frames, count)``. Invalid padding produces finite zero rows. Nearest
     indices are detached while distances retain gradients to the selected
     points. ``vertex_weights`` are domain confidence multipliers, distinct
-    from the optimizer-level ``weight`` inherited from :class:`Residual`.
+    from the outer objective ``weight`` inherited from :class:`Residual`.
     """
 
     def __init__(
@@ -32,7 +32,8 @@ class MaskedChamferResidual(Residual):
         vertex_weights: _VariableLike | torch.Tensor | None = None,
         bidirectional: bool = True,
         chunk_size: int = 4096,
-        weight: Weight | Real | torch.Tensor = 1.0,
+        weight: Real | torch.Tensor = 1.0,
+        row_weight: Weight | Real | torch.Tensor = 1.0,
         kernel: object | None = None,
         name: str = "masked_chamfer",
     ) -> None:
@@ -100,6 +101,7 @@ class MaskedChamferResidual(Residual):
             *variables(source, target, source_validity, target_validity, vertex_weights),
             dim=frames * rows_per_frame,
             weight=weight,
+            row_weight=row_weight,
             kernel=kernel,
             name=name,
         )

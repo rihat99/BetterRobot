@@ -42,7 +42,7 @@ def test_pose_holds_robot_and_static_target_references(model) -> None:
     tangent = torch.tensor([0.2, -0.15], dtype=torch.float64)
     q = RobotVariable(model, model.integrate(model.q_neutral, tangent), name="q")
     target = Variable(_target(model, model.q_neutral), name="target", trainable=False)
-    residual = PoseResidual(q, frame="tip", target=target, weight=0.25)
+    residual = PoseResidual(q, frame="tip", target=target, row_weight=0.25)
 
     assert residual.variables == (q, target)
     assert residual.nodes[0].q is q
@@ -87,12 +87,12 @@ def test_pose_and_time_adapter_support_trajectory_knots(model) -> None:
     assert indexed.jacobian()[0].shape == (3, horizon * model.nv)
 
 
-def test_joint_position_limit_uses_base_weight_once(model) -> None:
+def test_joint_position_limit_uses_row_weight_once(model) -> None:
     tensor = model.q_neutral.clone()
     tensor[0] = 0.7
     tensor[1] = -0.9
     q = RobotVariable(model, tensor, name="q")
-    residual = JointPositionLimit(q, weight=0.4)
+    residual = JointPositionLimit(q, row_weight=0.4)
 
     expected = torch.tensor([0.0, 0.3, 0.2, 0.0], dtype=torch.float64)
     torch.testing.assert_close(residual.error(), expected, atol=1e-12, rtol=0.0)
@@ -106,7 +106,7 @@ def test_joint_position_limit_uses_base_weight_once(model) -> None:
 def test_joint_velocity_limit_holds_velocity_and_static_limit(model) -> None:
     velocity = Variable(torch.tensor([-0.8, 0.35], dtype=torch.float64), name="velocity")
     limit = Variable(torch.tensor([0.5, 0.3], dtype=torch.float64), name="limit", trainable=False)
-    residual = JointVelocityLimit(velocity, limit, weight=0.2)
+    residual = JointVelocityLimit(velocity, limit, row_weight=0.2)
 
     expected = torch.tensor([0.3, 0.0, 0.0, 0.05], dtype=torch.float64)
     assert residual.variables == (velocity, limit)

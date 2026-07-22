@@ -55,7 +55,12 @@ _CONFIG_CHOICES = (
 
 @dataclass
 class IKCostConfig:
-    """Weights for the built-in IK residuals."""
+    """Row-scale tuning values for the built-in IK residuals.
+
+    Pose, limit, and rest scales are squared into outer objective
+    coefficients. Position and orientation scales whiten the corresponding
+    pose-error rows directly.
+    """
 
     pos_weight: float = 1.0
     ori_weight: float = 1.0
@@ -91,6 +96,7 @@ class IKResult:
 
     q: torch.Tensor
     residual: torch.Tensor
+    """Final whitened rows; outer weights, reductions, and kernels are excluded."""
     iters: int | torch.Tensor
     converged: bool | torch.Tensor
     model: Model
@@ -223,7 +229,7 @@ def solve_ik(  # noqa: PLR0912, PLR0915 - explicit preset assembly keeps task po
                 target=target_variable,
                 pos_weight=cost_cfg.pos_weight,
                 ori_weight=cost_cfg.ori_weight,
-                weight=cost_cfg.pose_weight,
+                weight=cost_cfg.pose_weight**2,
                 kernel=kernel,
                 name=item_name,
             )
@@ -232,7 +238,7 @@ def solve_ik(  # noqa: PLR0912, PLR0915 - explicit preset assembly keeps task po
         residuals.append(
             JointPositionLimit(
                 q_variable,
-                weight=cost_cfg.limit_weight,
+                weight=cost_cfg.limit_weight**2,
                 kernel=kernel,
                 name="limits",
             )
@@ -249,7 +255,7 @@ def solve_ik(  # noqa: PLR0912, PLR0915 - explicit preset assembly keeps task po
             RestResidual(
                 q_variable,
                 rest_variable,
-                weight=cost_cfg.rest_weight,
+                weight=cost_cfg.rest_weight**2,
                 kernel=kernel,
                 name="rest",
             )
@@ -297,10 +303,10 @@ def solve_ik(  # noqa: PLR0912, PLR0915 - explicit preset assembly keeps task po
                 **common,
                 fixed_damping=optimizer_cfg.damping == "constant",
             ).optimize()
-            original_weights = tuple(residual.weight for residual in disabled)
+            original_enabled = tuple(residual.enabled for residual in disabled)
             try:
                 for residual in disabled:
-                    residual.weight = 0.0
+                    residual.enabled = False
                 refine_info = TorchOptimizer(
                     problem,
                     torch.optim.Adam,
@@ -309,8 +315,8 @@ def solve_ik(  # noqa: PLR0912, PLR0915 - explicit preset assembly keeps task po
                     tolerance=optimizer_cfg.tol,
                 ).optimize()
             finally:
-                for residual, weight in zip(disabled, original_weights, strict=True):
-                    residual.weight = weight
+                for residual, enabled in zip(disabled, original_enabled, strict=True):
+                    residual.enabled = enabled
             infos = (coarse_info, refine_info)
     iterations, converged, _ = _public_diagnostics(infos)
     return IKResult(

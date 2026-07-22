@@ -28,10 +28,32 @@ Least squares makes all of them small at once:
       = \min_x \frac{1}{2}\sum_i r_i(x)^2.
 ```
 
-Squaring removes the sign and penalizes larger errors more strongly. Weights
-set relative importance and convert unlike units into a useful scale. Robust
-losses can reduce the influence of an outlier without changing the residual's
-shape.
+Squaring removes the sign and penalizes larger errors more strongly. A useful
+objective must distinguish three ideas that are easy to conflate:
+
+| Control | Purpose |
+|---|---|
+| `row_weight` | Whitens rows, for example by measurement standard deviation or physical units. |
+| `weight` | Sets the outer importance of a term without changing its robust-loss scale. |
+| `kernel` | Controls how the term treats outlying robust groups. |
+
+After whitening, consecutive rows are grouped according to `group_size`.
+BetterRobot evaluates each residual with exactly this algebra:
+
+```text
+rows = row_weight.apply(error())
+cost = Σ_k active_k · w_k · ρ(‖rows_k‖²) · norm
+```
+
+Here `w_k` comes from the residual's non-negative outer `weight`. `active_k`
+is a boolean group mask. The reduction factor `norm` is `1` for
+`reduce="sum"`, `1 / n_groups` for `"mean"`, or
+`1 / clamp(Σ_k active_k, 1)` for `"mean_active"`. The mask and active count
+are detached: they gate an objective but are not differentiated.
+
+The ordinary L2 kernel is `ρ(s) = 0.5 · s`. Its exact term is therefore
+`0.5 · Σ_k active_k · w_k · ‖rows_k‖² · norm`. The `0.5` is part
+of the public objective convention, not an implementation detail.
 
 The [Ceres nonlinear least-squares
 guide](https://ceres-solver.org/nnls_solving.html) is a useful independent
@@ -40,8 +62,8 @@ reference for residuals, parameter groups, bounds, and robust losses.
 ## A residual holds its dependencies
 
 A residual owns references to every variable it reads, plus its name, fixed
-output width, weight, robust kernel, and grouping. The `@residual` adapter is
-enough for a small tensor function:
+output width, row whitening, outer weight, reduction, activity, robust kernel,
+and grouping. The `@residual` adapter is enough for a small tensor function:
 
 ```{testcode}
 import torch
@@ -85,7 +107,8 @@ small-step approximations used by a few built-in blocks.
 A `Problem` freezes and lays out:
 
 - trainable and static variables referenced by residuals or nodes;
-- fixed residual rows, weights, kernels, and robust groups; and
+- fixed residual rows, row weights, outer coefficients, reductions, kernels,
+  and robust groups; and
 - evaluation-scoped nodes for shared computation.
 
 Each `Variable` owns its tensor and geometry. Use `RobotVariable` for a robot
@@ -160,9 +183,19 @@ The shipped residuals cover these roles:
 Every residual listed above is live. Unimplemented residual ideas are omitted
 from the API until their mathematical and temporal contracts are defined.
 
-Residual weights live on the `Residual` itself. A Python numeric zero skips
-that residual. Tensor weights remain graph-visible and may vary over the
-execution batch while preserving shape, dtype, and device.
+Residual controls live on the `Residual` itself. `enabled=False` or a Python
+numeric zero outer weight skips a residual without changing its reserved row
+layout. Tensor outer weights remain graph-visible and may provide one
+coefficient globally, per execution-batch element, or per robust group.
+
+`Problem.error()` returns the concatenated `row_weight`-whitened rows. It does
+not fold outer weights, reductions, group activity, or robust kernels into
+those rows. That separation keeps the diagnostic vector meaningful when a
+robust objective cannot be represented by one scaled residual vector. Use
+`Problem.objective()` for the scalar objective and `Problem.term_costs()` for
+one named contribution per residual; the term costs sum to the objective. The
+`residual` fields returned by IK, trajectory optimization, and contact-force
+tasks copy the same whitened diagnostic rows.
 
 ## Robust losses
 
@@ -175,9 +208,16 @@ two-dimensional image observation should normally use `group_size=2`, so its
 horizontal and vertical error are classified together. Grouping changes
 robust weighting, not the residual layout.
 
-Robust kernels are applied through iteratively reweighted least squares. The
-problem computes an objective through `rho(squared_norm)` and scales residual
-and Jacobian rows through `weight(squared_norm)` exactly once.
+Robust kernels are applied through iteratively reweighted least squares
+(IRLS). The problem computes the exact objective through `rho(squared_norm)`.
+LM and GN scale a group's residual and Jacobian rows by
+`sqrt(active_k · w_k · norm · kernel.weight(squared_norm))`.
+
+This is uncorrected IRLS; it does not apply a Triggs second-order correction.
+It is gradient-consistent while the active set is fixed. At an activity
+threshold, the detached mask and detached `mean_active` count make the
+objective non-differentiable, so threshold crossings are judged by descent
+rather than a derivative equality.
 
 ## Gauss--Newton in plain words
 
@@ -366,9 +406,16 @@ kinks, problem size, and linearization support. If those assumptions do not
 hold, it raises `ImplicitDifferentiationError` instead of returning a
 derivative that looks plausible but is not justified.
 
+Implicit differentiation is unavailable when any residual uses
+`reduce="mean_active"` or overrides `active_groups()`. Those features depend
+on detached state-dependent activity, so there is no consistent implicit
+derivative. The optimize request raises a `ValueError` naming the residual
+that makes the problem ineligible.
+
 ## Common mistakes
 
-- Mixing quantities with different units without weights.
+- Using outer `weight` to convert units instead of `row_weight`.
+- Reading `Problem.error()` as an objective-scaled residual vector.
 - Returning a residual whose last dimension changes between evaluations.
 - Applying a robust kernel to scalar rows when the observation is naturally a
   vector group.

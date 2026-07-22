@@ -20,16 +20,16 @@ POINTS = 3
 COORDS = 2
 
 ROOT_WEIGHTS = {
-    "penetration": 0.25,
+    "penetration": 0.0625,
     "attraction": 1.0,
     "clearance": 0.0,
-    "scale_prior": math.sqrt(0.6),
+    "scale_prior": 0.6,
 }
 FULL_WEIGHTS = {
-    "penetration": 0.4,
+    "penetration": 0.16,
     "attraction": 1.0,
-    "clearance": 0.15,
-    "scale_prior": 0.5,
+    "clearance": 0.0225,
+    "scale_prior": 0.25,
 }
 PROVIDER_INACTIVE_WEIGHTS = {
     "penetration": 0.0,

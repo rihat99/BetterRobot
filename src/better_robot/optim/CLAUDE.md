@@ -22,11 +22,27 @@ produce honest optimizer status.
 ## Residuals, nodes, and problems
 
 A `Residual` holds ordered references to every variable it reads, a positive
-static `dim`, `name`, `weight`, robust `kernel`, and `group_size`. `error()`
-returns `(..., dim)`. Optional `jacobian()` blocks are ordered like the
-trainable dependencies and already use tangent coordinates. Strategies
-are `auto`, `analytic`, `jacrev`, `jacfwd`, and explicit debug-only
+static `dim`, `name`, outer `weight`, square-root-information `row_weight`,
+`reduce`, `enabled`, robust `kernel`, and `group_size`. `error()` returns raw
+`(..., dim)` rows. Optional `jacobian()` blocks are ordered like the trainable
+dependencies and already use tangent coordinates. Strategies are `auto`,
+`analytic`, `jacrev`, `jacfwd`, and explicit debug-only
 `finite_difference`; a malformed advertised analytic block is an error.
+
+One evaluation bundle captures whitened rows, detached activity, effective
+coefficients, and costs while node memos are valid. Every objective consumer
+uses the same formula:
+
+```text
+rows = row_weight.apply(error())
+cost = Σ_k active_k · w_k · ρ(‖rows_k‖²) · norm
+```
+
+`weight` is the non-negative outer coefficient `w_k`, independent of kernel
+scale. `norm` is `1` for `sum`, `1 / n_groups` for `mean`, and
+`1 / clamp(Σ_k active_k, 1)` for `mean_active`; the activity mask and active
+count are detached. L2 uses `ρ(s) = 0.5 · s`, preserving the exact
+`0.5 · Σ_k active_k · w_k · ‖rows_k‖² · norm` convention.
 
 Evaluation-scoped `Node` objects own shared graph-bearing work such as
 `RobotState`. Residuals list nodes in `nodes`; `Problem` merges compatible
@@ -39,8 +55,18 @@ selected `torch.func` transform. Explicit Jacobian strategies do not warn.
 
 `Problem` freezes on first use, validates unique names, and computes row and
 tangent-column layouts from references. A Python-zero residual weight skips
-its rows; tensor zero remains graph-visible. Grouped robust objective and IRLS
-row scaling must stay mathematically consistent.
+its rows; `enabled=False` does the same without changing layout or optimizer
+state, while tensor zero remains graph-visible. `active_groups()` is an
+authoritative fixed-shape boolean mask. `Problem.error()` returns only
+concatenated `row_weight`-whitened rows; use `objective()` for the scalar cost
+and `term_costs()` for named contributions. Task-result `residual` fields copy
+the same whitened diagnostic rows.
+
+LM/GN use uncorrected IRLS, not a Triggs second-order correction. The group
+row scale is
+`sqrt(active_k · w_k · norm · kernel.weight(‖rows_k‖²))`, which is
+gradient-consistent on a fixed active set. Detached masks and counts make an
+activity threshold non-differentiable; never test it as a derivative point.
 
 ## Optimizers
 
@@ -73,6 +99,10 @@ to an eligible detached solution. Differentiable inputs are graph-carrying
 static `Variable` objects referenced by residuals or nodes. Keep guards for
 convergence, active bounds, robust kinks, quaternion branch cuts, routing and
 size limits, non-finite systems, and singular systems.
+
+A residual using `reduce="mean_active"` or overriding `active_groups()` makes
+the problem implicit-ineligible. Reject it actionably by residual name: the
+detached active normalization or mask has no consistent implicit derivative.
 
 Direct public modules are `problem.py`, `variables.py`, `optimizers.py`,
 `lm.py`, `implicit.py`, `kernels.py`, `solvers.py`, and `temporal.py`;

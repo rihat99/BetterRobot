@@ -44,15 +44,26 @@ class Huber:
 
     def rho(self, squared_norm: torch.Tensor) -> torch.Tensor:
         d2 = self.delta * self.delta
-        outside = self.delta * torch.sqrt(squared_norm.clamp(min=0.0)) - 0.5 * d2
+        safe_squared_norm = torch.where(
+            squared_norm > d2,
+            squared_norm,
+            torch.ones_like(squared_norm),
+        )
+        outside = self.delta * torch.sqrt(safe_squared_norm) - 0.5 * d2
         return torch.where(squared_norm <= d2, 0.5 * squared_norm, outside)
 
     def weight(self, squared_norm: torch.Tensor) -> torch.Tensor:
+        d2 = self.delta * self.delta
         squared_norm = squared_norm.clamp(min=0.0)
-        return torch.where(
-            squared_norm <= self.delta * self.delta,
+        safe_squared_norm = torch.where(
+            squared_norm > d2,
+            squared_norm,
             torch.ones_like(squared_norm),
-            self.delta / torch.sqrt(squared_norm + 1e-30),
+        )
+        return torch.where(
+            squared_norm <= d2,
+            torch.ones_like(squared_norm),
+            self.delta / torch.sqrt(safe_squared_norm + 1e-30),
         )
 
 

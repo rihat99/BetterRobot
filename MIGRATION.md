@@ -9,6 +9,15 @@ Downstream repositories are out of scope for agents working in this
 repository. Agents only **append** rows here when a work order removes a
 public symbol; the owner resolves the consumer side.
 
+## Changed by the objective-algebra redesign
+
+| Old surface or meaning | Replacement |
+|---|---|
+| `Residual(weight=a)` as a residual-row multiplier | Use `row_weight=a` for square-root-information whitening. To preserve an L2 term's old importance while adopting the outer coefficient, use `weight=a**2`. |
+| `Residual(weight=ScaleWeight(...))`, `Residual(weight=DiagonalWeight(...))`, or a raw per-row tensor weight | Pass the value as `row_weight=...`; outer `weight` accepts only a real scalar or floating tensor coefficient. |
+| Mutating `residual.weight = 0.0` to disable a term temporarily | Toggle `residual.enabled`; Python-zero outer weights remain a valid static inactive declaration. |
+| `Problem.error()` and `IKResult.residual`, `TrajOptResult.residual`, or `ContactForceResult.residual` as objective-scaled rows | These surfaces now return square-root-information-whitened rows only. Outer coefficients, reduction, activity, and robust-kernel scaling are excluded; use `Problem.objective()` or `Problem.term_costs()` for costs. |
+
 ## Removed during the redesign (already gone on this branch)
 
 | Removed surface | Replacement |

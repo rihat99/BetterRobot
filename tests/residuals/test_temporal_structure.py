@@ -79,13 +79,13 @@ def _robot_trajectory(
 
 def _trajectory_residual(model, q: RobotVariable, kind: str):
     if kind == "velocity":
-        return VelocityResidual(q, dt=0.1, weight=0.7)
+        return VelocityResidual(q, dt=0.1, row_weight=0.7)
     if kind == "acceleration":
-        return AccelerationResidual(q, dt=0.1, weight=0.4)
+        return AccelerationResidual(q, dt=0.1, row_weight=0.4)
     return ReferenceTrajectoryResidual(
         q,
         model.q_neutral.expand(5, -1).clone(),
-        weight=0.3,
+        row_weight=0.3,
         weight_per_frame=torch.linspace(0.5, 1.0, 5, dtype=q.tensor.dtype),
     )
 
@@ -129,7 +129,7 @@ def test_reference_trajectory_uses_static_variable_and_central_weight(two_joint_
     q = _robot_trajectory(model, _trajectory(model, batch_shape=()))
     reference = Variable(q.tensor.clone(), name="reference", trainable=False)
     frame_weight = torch.linspace(0.5, 1.0, q.time_length, dtype=q.tensor.dtype)
-    residual = ReferenceTrajectoryResidual(q, reference, weight=0.3, weight_per_frame=frame_weight)
+    residual = ReferenceTrajectoryResidual(q, reference, row_weight=0.3, weight_per_frame=frame_weight)
 
     assert residual.variables == (q, reference)
     assert residual.temporal_structure(q) == TemporalPattern(q.time_length, model.nv, 0, (0,))
@@ -143,7 +143,7 @@ def test_rest_residual_reads_static_reference_object(two_joint_model) -> None:
     tangent = torch.tensor([0.2, -0.1], dtype=torch.float64)
     q = RobotVariable(model, model.integrate(model.q_neutral, tangent), name="q")
     rest = Variable(model.q_neutral.clone(), name="rest", trainable=False)
-    residual = RestResidual(q, rest, weight=0.5)
+    residual = RestResidual(q, rest, row_weight=0.5)
 
     torch.testing.assert_close(residual.error(), tangent, atol=1e-12, rtol=1e-12)
     torch.testing.assert_close(residual.weighted_error(), tangent * 0.5, atol=1e-12, rtol=1e-12)
@@ -188,7 +188,7 @@ def test_contact_named_blocks_match_dense(two_joint_model) -> None:
         [[1.0, 0.0], [1.0, 0.5], [0.7, 1.0], [0.2, 1.0], [0.0, 0.8]],
         dtype=q.tensor.dtype,
     )
-    residual = ContactConsistencyResidual(q, frames, weights, dt=0.05, weight=0.3)
+    residual = ContactConsistencyResidual(q, frames, weights, dt=0.05, row_weight=0.3)
     pattern = TemporalPattern(4, 6, 0, (0, 1))
 
     assert residual.variables == ()
@@ -209,7 +209,7 @@ def test_contact_temporal_blocks_match_tangent_finite_difference(two_joint_model
     q = _robot_trajectory(model, q_tensor)
     frames = (model.frame_id("first_tip"), model.frame_id("second_tip"))
     weights = torch.linspace(0.2, 1.0, 10, dtype=q.tensor.dtype).reshape(5, 2)
-    residual = ContactConsistencyResidual(q, frames, weights, dt=0.1, weight=0.6)
+    residual = ContactConsistencyResidual(q, frames, weights, dt=0.1, row_weight=0.6)
     problem = Problem([residual])
     analytic = problem.dense_jacobian(strategy="analytic")
     finite_difference = torch.zeros_like(analytic)

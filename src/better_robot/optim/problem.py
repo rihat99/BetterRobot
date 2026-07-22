@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
+import copy
+from dataclasses import dataclass
+from numbers import Real
 from types import MappingProxyType
 from typing import Any, Literal, TypeAlias
 import warnings
@@ -22,6 +25,18 @@ _L2_KERNEL = L2()
 
 class AutodiffFallbackWarning(RuntimeWarning):
     """Warn that automatic linearization selected a slower fallback path."""
+
+
+@dataclass(frozen=True)
+class _EvaluationBundle:
+    """Node-free tensors captured during one residual evaluation scope."""
+
+    rows: torch.Tensor
+    active_groups: tuple[torch.Tensor, ...]
+    coefficients: tuple[torch.Tensor, ...]
+    group_costs: tuple[torch.Tensor, ...]
+    term_costs: tuple[torch.Tensor, ...]
+    cost: torch.Tensor
 
 
 def _check_strategy(strategy: JacobianStrategy, create_graph: bool) -> None:
@@ -319,20 +334,146 @@ class Problem:
                 f"{exemplar.dtype}/{exemplar.device}, got {output.dtype}/{output.device}"
             )
 
-    def _error_current(self, *, validate_runtime: bool = True) -> torch.Tensor:
+    @staticmethod
+    def _kernel(item: Residual, *, detach_tensors: bool) -> RobustKernel:
+        kernel = item.kernel if item.kernel is not None else _L2_KERNEL
+        if not isinstance(kernel, RobustKernel):
+            raise TypeError(f"Residual {item.name!r} kernel must implement the RobustKernel protocol")
+        if not detach_tensors:
+            return kernel
+        tensors = {
+            name: value.detach()
+            for name, value in getattr(kernel, "__dict__", {}).items()
+            if isinstance(value, torch.Tensor)
+        }
+        if not tensors:
+            return kernel
+        detached = copy.copy(kernel)
+        for name, value in tensors.items():
+            object.__setattr__(detached, name, value)
+        return detached
+
+    @staticmethod
+    def _active_groups(
+        item: Residual,
+        batch_shape: tuple[int, ...],
+        exemplar: torch.Tensor,
+    ) -> torch.Tensor:
+        group_count = item.dim // item.group_size
+        declared = item.active_groups()
+        if declared is None:
+            return torch.ones((*batch_shape, group_count), dtype=torch.bool, device=exemplar.device)
+        expected = (*batch_shape, group_count)
+        if not isinstance(declared, torch.Tensor) or tuple(declared.shape) != expected:
+            actual = tuple(declared.shape) if isinstance(declared, torch.Tensor) else type(declared).__name__
+            raise ValueError(f"Residual {item.name!r} active_groups must have shape {expected}, got {actual}")
+        if declared.dtype != torch.bool or declared.device != exemplar.device:
+            raise ValueError(
+                f"Residual {item.name!r} active_groups must be bool on {exemplar.device}, "
+                f"got {declared.dtype}/{declared.device}"
+            )
+        return declared.detach()
+
+    @staticmethod
+    def _coefficients(
+        item: Residual,
+        active_groups: torch.Tensor,
+        batch_shape: tuple[int, ...],
+        exemplar: torch.Tensor,
+    ) -> torch.Tensor:
+        group_count = item.dim // item.group_size
+        weight = item.weight
+        if isinstance(weight, torch.Tensor):
+            if weight.dtype != exemplar.dtype or weight.device != exemplar.device:
+                raise ValueError(
+                    f"Residual {item.name!r} weight must preserve working dtype/device "
+                    f"{exemplar.dtype}/{exemplar.device}, got {weight.dtype}/{weight.device}"
+                )
+            shape = tuple(weight.shape)
+            if shape == ():
+                coefficient = weight.expand(*batch_shape, group_count)
+            elif shape == batch_shape:
+                coefficient = weight.unsqueeze(-1).expand(*batch_shape, group_count)
+            elif shape == (*batch_shape, group_count):
+                coefficient = weight
+            else:
+                expected = ((), batch_shape, (*batch_shape, group_count))
+                raise ValueError(f"Residual {item.name!r} weight shape must be one of {expected}, got {shape}")
+        else:
+            assert isinstance(weight, Real)
+            coefficient = exemplar.new_full((*batch_shape, group_count), float(weight))
+
+        if item.reduce == "mean":
+            coefficient = coefficient / group_count
+        elif item.reduce == "mean_active":
+            active_count = active_groups.sum(dim=-1).clamp(min=1).detach()
+            coefficient = coefficient / active_count.unsqueeze(-1)
+        return coefficient
+
+    def _evaluate_current(
+        self,
+        *,
+        validate_runtime: bool = True,
+        detach_kernel_tensors: bool = False,
+    ) -> _EvaluationBundle:
         batch_shape, exemplar = self._batch_and_exemplar()
         result = exemplar.new_zeros(*batch_shape, self.dim_total)
+        active_masks: list[torch.Tensor] = []
+        coefficients: list[torch.Tensor] = []
+        group_costs: list[torch.Tensor] = []
+        term_costs: list[torch.Tensor] = []
         for item in self.residuals:
-            if item.weight.is_inactive():
+            group_count = item.dim // item.group_size
+            if item.is_inactive():
+                inactive = torch.zeros((*batch_shape, group_count), dtype=torch.bool, device=exemplar.device)
+                zeros = exemplar.new_zeros(*batch_shape, group_count)
+                active_masks.append(inactive)
+                coefficients.append(zeros)
+                group_costs.append(zeros)
+                term_costs.append(exemplar.new_zeros(batch_shape))
                 continue
             output = item.error()
             if validate_runtime:
                 self._validate_output(item, output, batch_shape, exemplar)
-            result[..., self.row_offsets[item.name]] = item.weight.apply(output)
-        return result
+            rows = item.row_weight.apply(output)
+            result[..., self.row_offsets[item.name]] = rows
+            active = self._active_groups(item, batch_shape, exemplar)
+            coefficient = self._coefficients(item, active, batch_shape, exemplar)
+            groups = _group_rows(rows, item.group_size)
+            kernel = self._kernel(item, detach_tensors=detach_kernel_tensors)
+            grouped = active.to(dtype=rows.dtype) * coefficient * kernel.rho(groups.square().sum(dim=-1))
+            active_masks.append(active)
+            coefficients.append(coefficient)
+            group_costs.append(grouped)
+            term_costs.append(grouped.sum(dim=-1))
+        total = torch.stack(term_costs, dim=-1).sum(dim=-1)
+        return _EvaluationBundle(
+            result,
+            tuple(active_masks),
+            tuple(coefficients),
+            tuple(group_costs),
+            tuple(term_costs),
+            total,
+        )
+
+    def _evaluate_at(
+        self,
+        values: Mapping[str, torch.Tensor],
+        *,
+        validate_runtime: bool = True,
+        detach_kernel_tensors: bool = False,
+    ) -> _EvaluationBundle:
+        with self._evaluation(values):
+            return self._evaluate_current(
+                validate_runtime=validate_runtime,
+                detach_kernel_tensors=detach_kernel_tensors,
+            )
+
+    def _error_current(self, *, validate_runtime: bool = True) -> torch.Tensor:
+        return self._evaluate_current(validate_runtime=validate_runtime).rows
 
     def error(self) -> torch.Tensor:
-        """Return concatenated weighted residuals at current variable values."""
+        """Return concatenated square-root-information-whitened rows."""
         self._freeze()
         with self._evaluation():
             return self._error_current()
@@ -342,23 +483,19 @@ class Problem:
             return self._error_current(validate_runtime=validate_runtime)
 
     def _objective_current(self, *, validate_runtime: bool = True) -> torch.Tensor:
-        weighted = self._error_current(validate_runtime=validate_runtime)
-        batch_shape, exemplar = self._batch_and_exemplar()
-        cost = exemplar.new_zeros(batch_shape)
-        for item in self.residuals:
-            if item.weight.is_inactive():
-                continue
-            groups = _group_rows(weighted[..., self.row_offsets[item.name]], item.group_size)
-            kernel = item.kernel if item.kernel is not None else _L2_KERNEL
-            if not isinstance(kernel, RobustKernel):
-                raise TypeError(f"Residual {item.name!r} kernel must implement the RobustKernel protocol")
-            cost = cost + kernel.rho(groups.square().sum(dim=-1)).sum(dim=-1)
-        return cost
+        return self._evaluate_current(validate_runtime=validate_runtime).cost
 
     def objective(self, values: Mapping[str, torch.Tensor] | None = None) -> torch.Tensor:
         self._freeze()
         with self._evaluation(values):
             return self._objective_current()
+
+    def term_costs(self, values: Mapping[str, torch.Tensor] | None = None) -> dict[str, torch.Tensor]:
+        """Return one objective contribution per residual from one evaluation."""
+        self._freeze()
+        with self._evaluation(values):
+            evaluation = self._evaluate_current()
+        return {item.name: cost for item, cost in zip(self.residuals, evaluation.term_costs, strict=True)}
 
     def gradient(self, *, create_graph: bool = False) -> _TensorMap:
         self._freeze()
@@ -415,7 +552,7 @@ class Problem:
             with self._evaluation({variable.name: candidate}):
                 output = item.error()
                 self._validate_output(item, output, batch_shape, base)
-                return item.weight.apply(output)
+                return item.row_weight.apply(output)
 
         transform = torch.func.jacrev if strategy == "jacrev" else torch.func.jacfwd
         block = transform(closure)(base.new_zeros(*batch_shape, variable.free_dim))
@@ -447,11 +584,11 @@ class Problem:
             with self._evaluation({variable.name: variable._retract_from(base, delta)}):
                 plus_raw = item.error()
                 self._validate_output(item, plus_raw, batch_shape, base)
-                plus = item.weight.apply(plus_raw)
+                plus = item.row_weight.apply(plus_raw)
             with self._evaluation({variable.name: variable._retract_from(base, -delta)}):
                 minus_raw = item.error()
                 self._validate_output(item, minus_raw, batch_shape, base)
-                minus = item.weight.apply(minus_raw)
+                minus = item.row_weight.apply(minus_raw)
             columns.append((plus - minus) / (2.0 * eps))
         if not columns:
             return base.new_empty(*batch_shape, item.dim, 0)
@@ -473,11 +610,9 @@ class Problem:
             # All analytic blocks see one exact tensor assignment, so shared
             # nodes (notably RobotState) compute once for the whole pass.
             with self._evaluation():
-                analytic_by_name = {
-                    item.name: item.jacobian() for item in self.residuals if not item.weight.is_inactive()
-                }
+                analytic_by_name = {item.name: item.jacobian() for item in self.residuals if not item.is_inactive()}
         for item in self.residuals:
-            if item.weight.is_inactive():
+            if item.is_inactive():
                 continue
             dependencies = [variable for variable in self.vars if variable.name in self._item_variable_reads[item.name]]
             analytic = analytic_by_name.get(item.name)
@@ -486,7 +621,7 @@ class Problem:
                     raise ValueError(
                         f"Residual {item.name!r} jacobian must return {len(dependencies)} blocks, got {len(analytic)}"
                     )
-            weighted_analytic = item.weight.apply_jacobian(analytic) if analytic is not None else None
+            weighted_analytic = item.row_weight.apply_jacobian(analytic) if analytic is not None else None
             warning_key = ("autodiff", item.name)
             if strategy == "auto" and analytic is None and dependencies and warning_key not in self._warned_fallbacks:
                 selected_transforms = sorted(

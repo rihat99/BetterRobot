@@ -5,6 +5,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- Residual objectives now separate square-root-information `row_weight` from
+  the non-negative outer `weight`, add `sum`, `mean`, and detached-active-mean
+  reductions, and support explicit whole-term and per-group activity. Robust
+  kernel scale is independent of term importance. `Problem.error()` and task
+  result residual fields now expose whitened rows; `Problem.term_costs()`
+  exposes named objective contributions.
 - `Problem` now freezes a graph of residual objects and the variables and nodes
   they reference. Variable subclasses own their tensor and geometry; residuals
   own their weights, robust groups, and dependencies.

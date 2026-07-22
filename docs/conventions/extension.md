@@ -33,9 +33,13 @@ and declares:
 | `name` | stable diagnostic name |
 | `variables` | ordered object references read by the residual |
 | `dim` | fixed number of output rows |
-| `weight`, `kernel`, `group_size` | row scaling and robust grouping |
-| `error()` | returns `(B..., dim)` |
+| `row_weight` | square-root-information scaling for error and Jacobian rows |
+| `weight`, `reduce` | non-negative outer importance and group reduction |
+| `kernel`, `group_size` | robust loss and contiguous row grouping |
+| `enabled` | whole-term activity without a layout change |
+| `error()` | returns raw `(B..., dim)` rows |
 | `jacobian()` | optional complete tangent blocks |
+| `active_groups()` | optional authoritative boolean `(B..., n_groups)` mask |
 
 For example:
 
@@ -66,6 +70,16 @@ Pass residual instances to `Problem`; it harvests their variable and node
 references. The `@residual(variable, ..., dim=...)` adapter is the concise
 choice when automatic differentiation is sufficient. There is no process-wide
 residual registry.
+
+A custom constructor that exposes `weight`, `row_weight`, `reduce`, or
+`enabled` forwards that control to `Residual`. Do not apply outer importance
+inside `error()` or an analytic `jacobian()`; `Problem` applies it once after
+row whitening and robust grouping. `Problem.error()` returns the whitened
+rows, while `objective()` and `term_costs()` expose costs.
+
+Built-in residual constructors expose `row_weight` alongside outer `weight`.
+Where a built-in does not expose `reduce` or `enabled` as a keyword, set the
+inherited field after construction.
 
 ## Shared nodes
 
@@ -167,6 +181,10 @@ diagnostics prove it.
 A `RobustKernel` implements `rho(s)` for the objective and `weight(s)`
 for the iteratively reweighted normal equations. Both methods preserve the
 input shape. BetterRobot uses `weight(s) = 2 * rho'(s)`.
+
+The LM/GN approximation is uncorrected IRLS on a fixed active set; a kernel
+must not bake the residual's outer coefficient or reduction into either
+method.
 
 Built-ins are `L2`, `Huber`, `Cauchy`, `Tukey`, and
 `GemanMcClure`. Pass a kernel on the residual; there is no global

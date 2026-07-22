@@ -79,6 +79,34 @@ def test_quadratic_implicit_gradient_matches_closed_form(dtype: torch.dtype) -> 
     assert int(info.status) == int(OptimizerStatus.CONVERGED)
 
 
+def test_outer_weight_and_mean_reduction_implicit_gradient_match_closed_form() -> None:
+    target_tensor = torch.tensor([0.4, -0.2], requires_grad=True)
+    expected_solution = 3.0 * target_tensor.detach().mean() / 5.0
+    solution = Variable(expected_solution.reshape(1).clone(), name="x")
+    target = Variable(target_tensor, name="target", trainable=False)
+
+    @residual(solution, target, dim=2, weight=3.0, reduce="mean", name="observations")
+    def observations(value: torch.Tensor, desired: torch.Tensor) -> torch.Tensor:
+        return value - desired
+
+    @residual(solution, dim=1, weight=2.0, name="prior")
+    def prior(value: torch.Tensor) -> torch.Tensor:
+        return value
+
+    problem = Problem([observations, prior])
+    info = LevenbergMarquardt(
+        problem,
+        max_iterations=30,
+        tolerance=1e-5,
+        jacobian_strategy="jacrev",
+    ).optimize(differentiate="implicit")
+    gradient = torch.autograd.grad(solution.tensor.sum(), target_tensor)[0]
+
+    torch.testing.assert_close(solution.tensor, expected_solution.reshape(1), atol=2e-5, rtol=2e-5)
+    torch.testing.assert_close(gradient, torch.full_like(target_tensor, 0.3), atol=2e-5, rtol=2e-5)
+    assert int(info.status) == int(OptimizerStatus.CONVERGED)
+
+
 def test_public_optimize_is_detached_by_default_and_implicit_only_by_opt_in() -> None:
     dtype = torch.float64
     target = torch.tensor([0.4, -0.2], dtype=dtype, requires_grad=True)
@@ -377,7 +405,7 @@ def test_identity_only_weight_binding_is_rejected_as_disconnected() -> None:
         del unused_weight
         return value - 1.0
 
-    @residual(solution, dim=1, weight=0.5, name="prior")
+    @residual(solution, dim=1, weight=0.25, name="prior")
     def prior(value: torch.Tensor) -> torch.Tensor:
         return value
 
@@ -391,6 +419,38 @@ def test_identity_only_weight_binding_is_rejected_as_disconnected() -> None:
         solution.tensor.sum().backward()
 
 
+def test_mean_active_residual_is_implicit_ineligible_with_its_name() -> None:
+    target_tensor = torch.tensor([0.4], requires_grad=True)
+    solution = Variable(target_tensor.detach().clone(), name="x")
+    target = Variable(target_tensor, name="target", trainable=False)
+
+    @residual(solution, target, dim=1, reduce="mean_active", name="dynamic_normalization")
+    def dynamic_normalization(value: torch.Tensor, desired: torch.Tensor) -> torch.Tensor:
+        return value - desired
+
+    with pytest.raises(ValueError, match="dynamic_normalization.*mean_active"):
+        LevenbergMarquardt(Problem([dynamic_normalization]), max_iterations=1).optimize(differentiate="implicit")
+
+
+def test_declared_activity_mask_is_implicit_ineligible_with_its_name() -> None:
+    target_tensor = torch.tensor([0.4], requires_grad=True)
+    solution = Variable(target_tensor.detach().clone(), name="x")
+    target = Variable(target_tensor, name="target", trainable=False)
+
+    class _MaskedTarget(Residual):
+        def __init__(self) -> None:
+            super().__init__(solution, target, dim=1, name="masked_target")
+
+        def error(self) -> torch.Tensor:
+            return solution.tensor - target.tensor
+
+        def active_groups(self) -> torch.Tensor:
+            return torch.ones(1, dtype=torch.bool)
+
+    with pytest.raises(ValueError, match="masked_target.*non-default activity mask"):
+        LevenbergMarquardt(Problem([_MaskedTarget()]), max_iterations=1).optimize(differentiate="implicit")
+
+
 def test_huber_backward_uses_exact_robust_optimality() -> None:
     dtype = torch.float64
     scale_tensor = torch.tensor(1.0, dtype=dtype, requires_grad=True)
@@ -401,7 +461,7 @@ def test_huber_backward_uses_exact_robust_optimality() -> None:
     def outlier(value: torch.Tensor, multiplier: torch.Tensor) -> torch.Tensor:
         return multiplier * value - 10.0
 
-    @residual(solution, dim=1, weight=0.5, name="prior")
+    @residual(solution, dim=1, weight=0.25, name="prior")
     def prior(value: torch.Tensor) -> torch.Tensor:
         return value
 

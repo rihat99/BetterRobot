@@ -11,6 +11,37 @@ from better_robot.optim import Cauchy, GemanMcClure, Huber, L2, RobustKernel, Tu
 
 
 @pytest.mark.parametrize(
+    "kernel",
+    [L2(), Huber(delta=0.7), Cauchy(c=0.9), Tukey(c=2.5), GemanMcClure(c=1.3)],
+    ids=["l2", "huber", "cauchy", "tukey", "geman-mcclure"],
+)
+def test_zero_and_masked_rows_have_finite_kernel_gradients(kernel: RobustKernel) -> None:
+    rows = torch.tensor(
+        [[0.0, 0.0], [0.4, -0.7]],
+        dtype=torch.float32,
+        requires_grad=True,
+    )
+    active = torch.tensor([[True], [False]])
+
+    def evaluate(values: torch.Tensor) -> torch.Tensor:
+        squared_norm = (values * active).square().sum(dim=-1)
+        return torch.cat((kernel.rho(squared_norm), kernel.weight(squared_norm)))
+
+    torch.testing.assert_close(evaluate(rows), rows.new_tensor([0.0, 0.0, 1.0, 1.0]))
+    assert torch.autograd.gradcheck(
+        evaluate,
+        (rows,),
+        eps=1e-3,
+        atol=1e-2,
+        rtol=1e-2,
+        fast_mode=True,
+    )
+    gradient = torch.autograd.grad(evaluate(rows).sum(), rows)[0]
+    assert torch.isfinite(gradient).all()
+    torch.testing.assert_close(gradient, torch.zeros_like(gradient))
+
+
+@pytest.mark.parametrize(
     ("kernel", "squared_norms"),
     [
         pytest.param(L2(), (1.0e-6, 0.04, 1.0, 9.0), id="l2"),

@@ -63,18 +63,18 @@ def test_built_in_kinematic_residuals_share_object_protocol(panda) -> None:
             state,
             frame_id=frame_id,
             target=target_variable,
-            weight=0.6,
+            row_weight=0.6,
             name="position",
         ),
         OrientationResidual(
             state,
             frame_id=frame_id,
             target=target_variable,
-            weight=0.8,
+            row_weight=0.8,
             name="orientation",
         ),
-        JointPositionLimit(q_variable, weight=0.4, name="limits"),
-        RestResidual(q_variable, rest_variable, weight=0.2, name="rest"),
+        JointPositionLimit(q_variable, row_weight=0.4, name="limits"),
+        RestResidual(q_variable, rest_variable, row_weight=0.2, name="rest"),
     )
     problem = Problem(residuals)
 

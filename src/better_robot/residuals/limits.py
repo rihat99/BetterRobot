@@ -29,7 +29,8 @@ class JointPositionLimit(Residual):
         q: _RobotVariable,
         *,
         knot: int | None = None,
-        weight: Weight | Real | torch.Tensor = 1.0,
+        weight: Real | torch.Tensor = 1.0,
+        row_weight: Weight | Real | torch.Tensor = 1.0,
         kernel: object | None = None,
         name: str = "joint_position_limit",
     ) -> None:
@@ -55,7 +56,14 @@ class JointPositionLimit(Residual):
         self.knot = knot
         self._knot_dim = 2 * q.model.nq
         dim = self._knot_dim if horizon is None or knot is not None else horizon * self._knot_dim
-        super().__init__(q, dim=dim, weight=weight, kernel=kernel, name=name)
+        super().__init__(
+            q,
+            dim=dim,
+            weight=weight,
+            row_weight=row_weight,
+            kernel=kernel,
+            name=name,
+        )
 
     def _configuration_at(self, knot: int | None) -> torch.Tensor:
         q = self.q.tensor
@@ -140,7 +148,8 @@ class JointVelocityLimit(Residual):
         velocity: _Variable,
         limit: torch.Tensor | _Variable,
         *,
-        weight: Weight | Real | torch.Tensor = 1.0,
+        weight: Real | torch.Tensor = 1.0,
+        row_weight: Weight | Real | torch.Tensor = 1.0,
         kernel: object | None = None,
         name: str = "joint_velocity_limit",
     ) -> None:
@@ -157,6 +166,7 @@ class JointVelocityLimit(Residual):
             *targets,
             dim=2 * event_width,
             weight=weight,
+            row_weight=row_weight,
             kernel=kernel,
             name=name,
         )

@@ -26,6 +26,15 @@ choices reject that flag. Object-owned LM/GN, `TorchOptimizer`, and sequential
 `lm_then_adam` are supported. Arbitrary common leading batch axes return
 per-element diagnostics.
 
+`IKCostConfig` keeps row-scale-style tuning for compatibility: `pose_weight`,
+`limit_weight`, and `rest_weight` are squared into residual outer coefficients;
+`pos_weight` and `ori_weight` whiten the corresponding pose rows directly.
+Refinement toggles residual `enabled` state and restores it without mutating
+configured weights.
+`IKResult.residual` contains the final whitened rows, including pose
+position/orientation row scales but excluding outer pose, limit, and rest
+coefficients, reductions, and robust-kernel scaling.
+
 **Single code path** — floating-base is transparent. The first 7 DOF of `q`
 are the base pose for free-flyer models; the optimizer does not need to know.
 
@@ -42,6 +51,10 @@ leading batch axes return per-element iterations, convergence, and status.
 Callers omit residuals they do not want. B-spline parameterization remains
 deferred until a separately reviewed manifold-safe mapping exists.
 
+`TrajOptResult.residual` is the final concatenated whitened row vector. Outer
+coefficients, reductions, activity factors, and robust-kernel scaling are not
+folded into it.
+
 ## solve_contact_forces
 
 Fits world-frame point forces for a frozen `(*B, T, nq)` trajectory. Contacts
@@ -53,6 +66,9 @@ wrench, force magnitude, force smoothness, and actuated-torque smoothness.
 Gravity is a task argument; do not mutate or replace the caller's model.
 Final diagnostics preserve available graphs to gravity and active-mask inputs;
 the force optimizer and frozen trajectory internals remain detached.
+`ContactForceWeights` values are outer objective coefficients and pass through
+without square-root conversion. `ContactForceResult.residual` contains final
+whitened rows, not coefficient-scaled rows.
 
 ## Trajectory
 

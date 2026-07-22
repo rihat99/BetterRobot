@@ -84,8 +84,9 @@ class ProjectionResidual(Residual):
 
     Observation tensors may be bare constants or Variables. ``weights`` and
     ``valid_mask`` are domain confidence/mask multipliers. The singular
-    optimizer ``weight`` is applied once by :class:`Residual`, and robust
-    kernels consume one two-row group per projected point.
+    optimizer ``weight`` is an outer coefficient applied once by
+    :class:`Residual`, and robust kernels consume one two-row group per
+    projected point.
     """
 
     def __init__(
@@ -99,7 +100,8 @@ class ProjectionResidual(Residual):
         weights: _VariableLike | torch.Tensor | None = None,
         valid_mask: _VariableLike | torch.Tensor | None = None,
         min_depth: float = 1.0e-6,
-        weight: Weight | Real | torch.Tensor = 1.0,
+        weight: Real | torch.Tensor = 1.0,
+        row_weight: Weight | Real | torch.Tensor = 1.0,
         kernel: object | None = None,
         name: str = "projection",
     ) -> None:
@@ -124,6 +126,7 @@ class ProjectionResidual(Residual):
             *variables(K, extrinsics, target_px, weights, valid_mask),
             dim=2 * len(ids),
             weight=weight,
+            row_weight=row_weight,
             kernel=kernel,
             group_size=2,
             name=name,

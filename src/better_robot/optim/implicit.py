@@ -7,7 +7,6 @@ states, unstable active sets, nonsmooth points, and singular adjoint systems.
 from __future__ import annotations
 
 from collections.abc import Mapping
-import copy
 from dataclasses import dataclass
 import math
 from typing import Any, Literal, TypeAlias
@@ -16,7 +15,8 @@ import torch
 from torch.autograd.function import once_differentiable
 
 from .utils import _state_coordinates
-from .kernels import Huber, L2, RobustKernel, _group_rows
+from ..residuals.base import Residual
+from .kernels import Huber, _group_rows
 from .problem import Problem
 from .variables import RobotVariable, SE3Variable, SO3Variable
 
@@ -188,29 +188,25 @@ def _objective(
     values: _TensorValues, statics: Mapping[str, torch.Tensor], payload: _Payload
 ) -> tuple[torch.Tensor, torch.Tensor]:
     problem = payload.problem
-    residual = problem._error_at({**values, **statics}, validate_runtime=False)
-    costs: list[torch.Tensor] = []
+    evaluation = problem._evaluate_at(
+        {**values, **statics},
+        validate_runtime=False,
+        detach_kernel_tensors=True,
+    )
+    residual = evaluation.rows
     smooth = torch.ones(payload.batch_shape, dtype=torch.bool, device=residual.device)
     for item in problem.residuals:
+        if item.is_inactive():
+            continue
         rows = residual[..., problem.row_offsets[item.name]]
         groups = _group_rows(rows, item.group_size)
         squared_norm = groups.square().sum(dim=-1)
-        kernel: RobustKernel = item.kernel or L2()
-        tensors = {
-            name: value.detach()
-            for name, value in getattr(kernel, "__dict__", {}).items()
-            if isinstance(value, torch.Tensor)
-        }
-        if tensors:
-            kernel = copy.copy(kernel)
-            for name, value in tensors.items():
-                object.__setattr__(kernel, name, value)
-        costs.append(kernel.rho(squared_norm).sum(dim=-1))
+        kernel = problem._kernel(item, detach_tensors=True)
         if isinstance(kernel, Huber):
             delta2 = torch.as_tensor(kernel.delta, dtype=residual.dtype, device=residual.device).square()
             scale = torch.maximum(torch.ones_like(squared_norm), delta2)
             smooth &= ~((squared_norm - delta2).abs() <= _NONSMOOTH_TOLERANCE * scale).any(dim=-1)
-    return torch.stack(costs, dim=-1).sum(dim=-1), smooth
+    return evaluation.cost, smooth
 
 
 def _local_values(terminal: _TensorValues, delta: torch.Tensor, payload: _Payload) -> _TensorValues:
@@ -399,6 +395,16 @@ def _attach_implicit_gradients(
     if not isinstance(resolved_config, ImplicitDiffConfig):
         raise TypeError("config must be ImplicitDiffConfig or None")
     _validate_route(problem, forward_linearization, resolved_config)
+    for item in problem.residuals:
+        if item.reduce == "mean_active":
+            raise ValueError(
+                f"implicit differentiation is unavailable for residual {item.name!r} "
+                "with reduce='mean_active' because its detached normalization is state-dependent"
+            )
+        if getattr(item.active_groups, "__func__", None) is not Residual.active_groups:
+            raise ValueError(
+                f"implicit differentiation is unavailable for residual {item.name!r} with a non-default activity mask"
+            )
 
     detached = {name: value.detach() for name, value in terminal_values.items()}
     batch_shape = problem._validate_trainable_values(detached)

@@ -29,7 +29,8 @@ class RestResidual(Residual):
         q: _RobotVariable,
         q_rest: torch.Tensor | _Variable,
         *,
-        weight: Weight | Real | torch.Tensor = 1.0,
+        weight: Real | torch.Tensor = 1.0,
+        row_weight: Weight | Real | torch.Tensor = 1.0,
         kernel: object | None = None,
         name: str = "rest",
     ) -> None:
@@ -40,7 +41,15 @@ class RestResidual(Residual):
         self.q = q
         self.model = q.model
         self.q_rest = q_rest
-        super().__init__(q, *targets, dim=q.model.nv, weight=weight, kernel=kernel, name=name)
+        super().__init__(
+            q,
+            *targets,
+            dim=q.model.nv,
+            weight=weight,
+            row_weight=row_weight,
+            kernel=kernel,
+            name=name,
+        )
 
     def error(self) -> torch.Tensor:
         q = self.q.tensor
@@ -62,7 +71,8 @@ class JointRotationPrior(Residual):
         q_mean: torch.Tensor | _Variable,
         per_joint_weight: torch.Tensor,
         *,
-        weight: Weight | Real | torch.Tensor = 1.0,
+        weight: Real | torch.Tensor = 1.0,
+        row_weight: Weight | Real | torch.Tensor = 1.0,
         kernel: object | None = None,
         name: str = "joint_rotation_prior",
     ) -> None:
@@ -87,7 +97,15 @@ class JointRotationPrior(Residual):
         self.model = q.model
         self.q_mean = q_mean
         self.per_joint_weight = tangent_weight
-        super().__init__(q, *targets, dim=q.model.nv, weight=weight, kernel=kernel, name=name)
+        super().__init__(
+            q,
+            *targets,
+            dim=q.model.nv,
+            weight=weight,
+            row_weight=row_weight,
+            kernel=kernel,
+            name=name,
+        )
 
     def error(self) -> torch.Tensor:
         q = self.q.tensor
@@ -105,7 +123,8 @@ class ReferenceTrajectoryResidual(Residual):
         q: _RobotVariable,
         q_ref: torch.Tensor | _Variable,
         *,
-        weight: Weight | Real | torch.Tensor = 1.0,
+        weight: Real | torch.Tensor = 1.0,
+        row_weight: Weight | Real | torch.Tensor = 1.0,
         weight_per_frame: torch.Tensor | None = None,
         kernel: object | None = None,
         name: str = "reference_trajectory",
@@ -130,6 +149,7 @@ class ReferenceTrajectoryResidual(Residual):
             *targets,
             dim=self.horizon * q.model.nv,
             weight=weight,
+            row_weight=row_weight,
             kernel=kernel,
             name=name,
         )

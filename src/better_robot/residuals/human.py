@@ -72,7 +72,8 @@ class SwingTwistLimitResidual(Residual):
         swing_max: Real | torch.Tensor,
         twist_range: tuple[Real, Real] | torch.Tensor,
         *,
-        weight: Weight | Real | torch.Tensor = 1.0,
+        weight: Real | torch.Tensor = 1.0,
+        row_weight: Weight | Real | torch.Tensor = 1.0,
         kernel: object | None = None,
         name: str = "swing_twist_limit",
     ) -> None:
@@ -144,6 +145,7 @@ class SwingTwistLimitResidual(Residual):
             q,
             dim=3 * count,
             weight=weight,
+            row_weight=row_weight,
             kernel=kernel,
             group_size=3,
             name=name,

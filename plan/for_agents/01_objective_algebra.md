@@ -1,3 +1,7 @@
+> **Implementation log (2026-07-22): complete on `dev`.** One evaluation bundle now owns outer weights, row whitening, reductions, activity, robust costs, and all solver consumers.
+> **Validation:** 1,602 CPU tests and 49 CUDA tests pass; strict HTML and all 30 doctests pass; source is 22,337 → 22,622 lines (`+285`).
+> **Finding:** L2 tuning was preserved, while robust terms intentionally adopt the accepted decoupled algebra; see [`01_results.md`](01_results.md).
+
 # Order 01 — Objective algebra: outer weight, reduction, activity, safety
 
 Read `plan/README.md` and `DESIGN_RULES.md` first. This order changes the

@@ -41,12 +41,19 @@ class _SmoothnessResidual(Residual):
     _offsets: tuple[int, ...]
     _coefficients: tuple[float, ...]
 
-    def __init__(self, q, *, dt, weight, kernel, name) -> None:
+    def __init__(self, q, *, dt, weight, row_weight, kernel, name) -> None:
         _value, horizon = _trajectory(q, type(self).__name__)
         self.q, self.model = q, q.model
         self.dt = _validate_dt(dt, type(self).__name__)
         self.horizon = horizon
-        super().__init__(q, dim=(horizon - 2) * q.model.nv, weight=weight, kernel=kernel, name=name)
+        super().__init__(
+            q,
+            dim=(horizon - 2) * q.model.nv,
+            weight=weight,
+            row_weight=row_weight,
+            kernel=kernel,
+            name=name,
+        )
 
     def temporal_structure(self, variable: _RobotTrajectory | str) -> TemporalPattern | None:
         return TemporalPattern(self.horizon - 2, self.model.nv, 1, self._offsets) if matches(variable, self.q) else None
@@ -81,11 +88,12 @@ class VelocityResidual(_SmoothnessResidual):
         q: _RobotTrajectory,
         *,
         dt: Real,
-        weight: Weight | Real | torch.Tensor = 1.0,
+        weight: Real | torch.Tensor = 1.0,
+        row_weight: Weight | Real | torch.Tensor = 1.0,
         kernel: object | None = None,
         name: str = "velocity",
     ) -> None:
-        super().__init__(q, dt=dt, weight=weight, kernel=kernel, name=name)
+        super().__init__(q, dt=dt, weight=weight, row_weight=row_weight, kernel=kernel, name=name)
 
     def _row_scale(self) -> float:
         return 1.0 / (2.0 * self.dt)
@@ -106,11 +114,12 @@ class AccelerationResidual(_SmoothnessResidual):
         q: _RobotTrajectory,
         *,
         dt: Real,
-        weight: Weight | Real | torch.Tensor = 1.0,
+        weight: Real | torch.Tensor = 1.0,
+        row_weight: Weight | Real | torch.Tensor = 1.0,
         kernel: object | None = None,
         name: str = "acceleration",
     ) -> None:
-        super().__init__(q, dt=dt, weight=weight, kernel=kernel, name=name)
+        super().__init__(q, dt=dt, weight=weight, row_weight=row_weight, kernel=kernel, name=name)
 
     def _row_scale(self) -> float:
         return 1.0 / self.dt**2

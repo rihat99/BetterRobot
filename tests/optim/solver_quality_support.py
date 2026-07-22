@@ -91,8 +91,8 @@ def make_panda_problem(
     if regularized:
         residuals.extend(
             (
-                JointPositionLimit(q, name="limits", weight=0.1),
-                RestResidual(q, model.q_neutral, name="rest", weight=0.01),
+                JointPositionLimit(q, name="limits", weight=0.01),
+                RestResidual(q, model.q_neutral, name="rest", weight=0.0001),
             )
         )
     return Problem(residuals)

@@ -377,7 +377,7 @@ def assemble_structured_normal(  # noqa: PLR0912, PLR0915
         pattern = patterns.get(item.name)
         if pattern is None:
             continue
-        if item.weight.is_inactive():
+        if item.is_inactive():
             continue
         raw = item.temporal_jacobian_blocks(variable)
         if not isinstance(raw, Mapping):
@@ -401,7 +401,7 @@ def assemble_structured_normal(  # noqa: PLR0912, PLR0915
             if block.dtype != exemplar.dtype or block.device != exemplar.device:
                 raise ValueError(f"Residual {item.name!r} temporal block {offset} must preserve dtype/device")
             ordered_raw.append(block.reshape(*batch_shape, item.dim, d))
-        weighted_raw = item.weight.apply_jacobian(tuple(ordered_raw))
+        weighted_raw = item.row_weight.apply_jacobian(tuple(ordered_raw))
         blocks: list[tuple[int, torch.Tensor]] = []
         for offset, flat_block in zip(pattern.offsets, weighted_raw, strict=True):
             block = flat_block.reshape(*batch_shape, pattern.rows, pattern.row_width, d)

@@ -132,7 +132,7 @@ Bases: {py:obj}`better_robot.residuals.base.Weight`
 
 `````
 
-`````{py:class} Residual(*variables: better_robot.residuals.utils.VariableLike, dim: int, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, group_size: int = 1, name: str | None = None)
+`````{py:class} Residual(*variables: better_robot.residuals.utils.VariableLike, dim: int, weight: numbers.Real | torch.Tensor = 1.0, row_weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, reduce: typing.Literal[sum, mean, mean_active] = 'sum', kernel: object | None = None, group_size: int = 1, name: str | None = None, enabled: bool = True)
 :canonical: better_robot.residuals.base.Residual
 
 Bases: {py:obj}`abc.ABC`
@@ -142,9 +142,44 @@ Bases: {py:obj}`abc.ABC`
 
 ````{py:property} weight
 :canonical: better_robot.residuals.base.Residual.weight
-:type: better_robot.residuals.base.Weight
+:type: numbers.Real | torch.Tensor
 
 ```{autodoc2-docstring} better_robot.residuals.base.Residual.weight
+```
+
+````
+
+````{py:property} row_weight
+:canonical: better_robot.residuals.base.Residual.row_weight
+:type: better_robot.residuals.base.Weight
+
+```{autodoc2-docstring} better_robot.residuals.base.Residual.row_weight
+```
+
+````
+
+````{py:property} reduce
+:canonical: better_robot.residuals.base.Residual.reduce
+:type: typing.Literal[sum, mean, mean_active]
+
+```{autodoc2-docstring} better_robot.residuals.base.Residual.reduce
+```
+
+````
+
+````{py:property} enabled
+:canonical: better_robot.residuals.base.Residual.enabled
+:type: bool
+
+```{autodoc2-docstring} better_robot.residuals.base.Residual.enabled
+```
+
+````
+
+````{py:method} is_inactive() -> bool
+:canonical: better_robot.residuals.base.Residual.is_inactive
+
+```{autodoc2-docstring} better_robot.residuals.base.Residual.is_inactive
 ```
 
 ````
@@ -166,6 +201,14 @@ Bases: {py:obj}`abc.ABC`
 
 ````
 
+````{py:method} active_groups() -> torch.Tensor | None
+:canonical: better_robot.residuals.base.Residual.active_groups
+
+```{autodoc2-docstring} better_robot.residuals.base.Residual.active_groups
+```
+
+````
+
 ````{py:method} weighted_error() -> torch.Tensor
 :canonical: better_robot.residuals.base.Residual.weighted_error
 
@@ -176,14 +219,14 @@ Bases: {py:obj}`abc.ABC`
 
 `````
 
-````{py:function} residual(*variables_or_fn: better_robot.residuals.utils.VariableLike | collections.abc.Callable[..., torch.Tensor], dim: int, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, group_size: int = 1, name: str | None = None)
+````{py:function} residual(*variables_or_fn: better_robot.residuals.utils.VariableLike | collections.abc.Callable[..., torch.Tensor], dim: int, weight: numbers.Real | torch.Tensor = 1.0, row_weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, reduce: typing.Literal[sum, mean, mean_active] = 'sum', kernel: object | None = None, group_size: int = 1, name: str | None = None, enabled: bool = True)
 :canonical: better_robot.residuals.base.residual
 
 ```{autodoc2-docstring} better_robot.residuals.base.residual
 ```
 ````
 
-`````{py:class} Difference(variable: better_robot.residuals.utils.VariableLike, target: torch.Tensor, *, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str | None = None)
+`````{py:class} Difference(variable: better_robot.residuals.utils.VariableLike, target: torch.Tensor, *, weight: numbers.Real | torch.Tensor = 1.0, row_weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, reduce: typing.Literal[sum, mean, mean_active] = 'sum', kernel: object | None = None, name: str | None = None, enabled: bool = True)
 :canonical: better_robot.residuals.base.Difference
 
 Bases: {py:obj}`better_robot.residuals.base.Residual`

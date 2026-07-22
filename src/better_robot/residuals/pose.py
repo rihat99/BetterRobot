@@ -75,7 +75,8 @@ class _KinematicResidual(Residual):
         target: torch.Tensor | _Variable,
         knot: int | None,
         dim: int,
-        weight: Weight | Real | torch.Tensor,
+        weight: Real | torch.Tensor,
+        row_weight: Weight | Real | torch.Tensor,
         kernel: object | None,
         name: str,
     ) -> None:
@@ -90,7 +91,15 @@ class _KinematicResidual(Residual):
         self.knot = _normalize_knot(q, knot)
         self._knot_dim = dim
         self._validate_target_shape(initial_target)
-        super().__init__(q, *targets, dim=dim, weight=weight, kernel=kernel, name=name)
+        super().__init__(
+            q,
+            *targets,
+            dim=dim,
+            weight=weight,
+            row_weight=row_weight,
+            kernel=kernel,
+            name=name,
+        )
 
     @abstractmethod
     def _validate_target_shape(self, target: torch.Tensor) -> None:
@@ -160,7 +169,8 @@ class PoseResidual(_KinematicResidual):
         knot: int | None = None,
         pos_weight: Real = 1.0,
         ori_weight: Real = 1.0,
-        weight: Weight | Real | torch.Tensor = 1.0,
+        weight: Real | torch.Tensor = 1.0,
+        row_weight: Weight | Real | torch.Tensor = 1.0,
         kernel: object | None = None,
         name: str = "pose",
     ) -> None:
@@ -174,6 +184,7 @@ class PoseResidual(_KinematicResidual):
             knot=knot,
             dim=6,
             weight=weight,
+            row_weight=row_weight,
             kernel=kernel,
             name=name,
         )
@@ -219,7 +230,8 @@ class PositionResidual(_KinematicResidual):
         frame_id: int | None = None,
         target: torch.Tensor | _Variable,
         knot: int | None = None,
-        weight: Weight | Real | torch.Tensor = 1.0,
+        weight: Real | torch.Tensor = 1.0,
+        row_weight: Weight | Real | torch.Tensor = 1.0,
         kernel: object | None = None,
         name: str = "position",
     ) -> None:
@@ -231,6 +243,7 @@ class PositionResidual(_KinematicResidual):
             knot=knot,
             dim=3,
             weight=weight,
+            row_weight=row_weight,
             kernel=kernel,
             name=name,
         )
@@ -262,7 +275,8 @@ class OrientationResidual(_KinematicResidual):
         frame_id: int | None = None,
         target: torch.Tensor | _Variable,
         knot: int | None = None,
-        weight: Weight | Real | torch.Tensor = 1.0,
+        weight: Real | torch.Tensor = 1.0,
+        row_weight: Weight | Real | torch.Tensor = 1.0,
         kernel: object | None = None,
         name: str = "orientation",
     ) -> None:
@@ -274,6 +288,7 @@ class OrientationResidual(_KinematicResidual):
             knot=knot,
             dim=3,
             weight=weight,
+            row_weight=row_weight,
             kernel=kernel,
             name=name,
         )

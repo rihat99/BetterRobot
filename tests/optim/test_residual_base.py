@@ -23,27 +23,27 @@ class _SquareResidual(Residual):
 
 def test_scale_weight_multiplies_error_and_jacobian_rows_identically() -> None:
     variable = Variable(torch.tensor([[1.0, 2.0], [3.0, 4.0]]), batch_ndim=1)
-    item = _SquareResidual(variable, weight=ScaleWeight(torch.tensor([2.0, 3.0])))
+    item = _SquareResidual(variable, row_weight=ScaleWeight(torch.tensor([2.0, 3.0])))
     raw = item.error()
     blocks = item.jacobian()
     assert blocks is not None
 
     torch.testing.assert_close(item.weighted_error(), raw * torch.tensor([[2.0], [3.0]]))
     torch.testing.assert_close(
-        item.weight.apply_jacobian(blocks)[0],
+        item.row_weight.apply_jacobian(blocks)[0],
         blocks[0] * torch.tensor([2.0, 3.0])[:, None, None],
     )
 
 
 def test_diagonal_weight_multiplies_the_same_rows() -> None:
     variable = Variable(torch.tensor([1.0, 2.0]))
-    item = _SquareResidual(variable, weight=DiagonalWeight(torch.tensor([2.0, 4.0])))
+    item = _SquareResidual(variable, row_weight=DiagonalWeight(torch.tensor([2.0, 4.0])))
     block = item.jacobian()
     assert block is not None
 
     torch.testing.assert_close(item.weighted_error(), torch.tensor([2.0, 16.0]))
     torch.testing.assert_close(
-        item.weight.apply_jacobian(block)[0],
+        item.row_weight.apply_jacobian(block)[0],
         torch.tensor([[4.0, 0.0], [0.0, 16.0]]),
     )
 
@@ -81,12 +81,20 @@ def test_group_size_must_be_a_positive_divisor(group_size: int) -> None:
         _SquareResidual(variable, group_size=group_size)
 
 
-def test_weight_shape_and_working_type_are_validated_at_application() -> None:
+def test_row_weight_shape_and_working_type_are_validated_at_application() -> None:
     variable = Variable(torch.ones(2))
-    item = _SquareResidual(variable, weight=torch.ones(3))
+    item = _SquareResidual(variable, row_weight=torch.ones(3))
     with pytest.raises(ValueError, match="ScaleWeight tensor must be scalar"):
         item.weighted_error()
 
-    item.weight = DiagonalWeight(torch.ones(2, dtype=torch.float64))
+    item.row_weight = DiagonalWeight(torch.ones(2, dtype=torch.float64))
     with pytest.raises(ValueError, match="preserve working dtype/device"):
         item.weighted_error()
+
+
+def test_outer_weight_rejects_negative_python_values_and_weight_objects() -> None:
+    variable = Variable(torch.ones(2))
+    with pytest.raises(ValueError, match="non-negative"):
+        _SquareResidual(variable, weight=-0.1)
+    with pytest.raises(TypeError, match="row_weight"):
+        _SquareResidual(variable, weight=ScaleWeight(2.0))

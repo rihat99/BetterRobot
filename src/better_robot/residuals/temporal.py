@@ -52,9 +52,12 @@ class TimeIndexedResidual(Residual):
             *inner.variables,
             dim=dim,
             weight=inner.weight,
+            row_weight=inner.row_weight,
+            reduce=inner.reduce,
             kernel=inner.kernel,
             group_size=inner.group_size,
             name=name or f"{inner.name}_t{self.t_idx}",
+            enabled=inner.enabled,
         )
 
     def error(self) -> torch.Tensor:

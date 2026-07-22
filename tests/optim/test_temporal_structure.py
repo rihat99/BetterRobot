@@ -7,7 +7,7 @@ from collections.abc import Mapping
 import pytest
 import torch
 
-from better_robot.optim import Problem, Residual, TemporalPattern, Variable
+from better_robot.optim import GemanMcClure, LevenbergMarquardt, Problem, Residual, TemporalPattern, Variable
 from better_robot.optim.temporal import BlockBandedMatrix, LinearizationReason
 
 
@@ -19,7 +19,7 @@ class _DifferenceResidual(Residual):
         super().__init__(
             x,
             dim=(self.horizon - 1) * self.width,
-            weight=weight,
+            row_weight=weight,
             name="difference",
         )
 
@@ -41,6 +41,19 @@ class _DifferenceResidual(Residual):
         anchor = value.sum(dim=(-2, -1)) * 0.0
         block = block + anchor[..., None, None, None]
         return {0: -block, 1: block}
+
+
+class _MaskedDifferenceResidual(_DifferenceResidual):
+    def __init__(self, x: Variable, mask: torch.Tensor) -> None:
+        super().__init__(x, weight=1.0)
+        self.weight = torch.linspace(0.5, 1.5, self.dim, dtype=x.tensor.dtype, device=x.tensor.device)
+        self.row_weight = 1.2
+        self.reduce = "mean_active"
+        self.kernel = GemanMcClure(c=0.9)
+        self.mask = mask
+
+    def active_groups(self) -> torch.Tensor:
+        return self.mask
 
 
 class _DeclaredOnlyResidual(Residual):
@@ -137,6 +150,29 @@ def test_structured_normal_matches_dense_jacobian_and_flat_operators(batch_shape
         (dense_normal @ vector.unsqueeze(-1)).squeeze(-1),
     )
     torch.testing.assert_close(structured.normal.matvec(vector), structured.normal_matvec(vector))
+
+
+def test_banded_and_dense_lm_match_with_outer_reduction_and_activity() -> None:
+    horizon, width = 5, 2
+    values = torch.linspace(-0.8, 0.9, horizon * width).reshape(horizon, width)
+    mask = torch.arange((horizon - 1) * width) % 3 != 0
+    outputs = {}
+    states = {}
+    for mode in ("dense", "structured"):
+        x = Variable(values.clone(), name="x", time_axis=0)
+        problem = Problem([_MaskedDifferenceResidual(x, mask)])
+        optimizer = LevenbergMarquardt(problem, linearization=mode, jacobian_strategy="jacrev")
+        state = optimizer._init_state({"x": x.tensor}, problem)
+        outputs[mode], states[mode] = optimizer._update({"x": x.tensor}, state, problem)
+
+    torch.testing.assert_close(states["structured"].cost, states["dense"].cost)
+    torch.testing.assert_close(states["structured"].gradient, states["dense"].gradient)
+    torch.testing.assert_close(
+        outputs["structured"]["x"],
+        outputs["dense"]["x"],
+        rtol=1e-4,
+        atol=4e-5,
+    )
 
 
 def test_block_banded_restricted_matches_dense_oracle() -> None:

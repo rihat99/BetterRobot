@@ -62,7 +62,7 @@ def build_residuals(
             frame_id=frame_id,
             target=T_start,
             knot=0,
-            weight=1000.0,
+            weight=1_000_000.0,
             name="start_pose",
         ),
         partial(
@@ -70,13 +70,13 @@ def build_residuals(
             frame_id=frame_id,
             target=T_goal,
             knot=T - 1,
-            weight=100.0,
+            weight=10_000.0,
             name="goal_pose",
         ),
         partial(
             AccelerationResidual,
             dt=DT,
-            weight=0.1,
+            weight=0.01,
             name="accel",
         ),
     ]
@@ -86,7 +86,7 @@ def build_residuals(
             partial(
                 JointPositionLimit,
                 knot=t,
-                weight=10.0,
+                weight=100.0,
                 name=name,
             )
         )
@@ -148,7 +148,7 @@ def main() -> None:
     solve_time = time.perf_counter() - t0
     print(
         f"Trajopt: iters={result.iters}  converged={result.converged}  "
-        f"residual_norm={float(result.residual.norm()):.3e}  "
+        f"whitened_residual_norm={float(result.residual.norm()):.3e}  "
         f"time={solve_time * 1000:.1f} ms"
     )
 

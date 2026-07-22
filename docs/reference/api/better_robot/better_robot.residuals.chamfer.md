@@ -23,7 +23,7 @@
 
 ### API
 
-`````{py:class} MaskedChamferResidual(source: better_robot.residuals.utils.VariableLike | torch.Tensor, target: better_robot.residuals.utils.VariableLike | torch.Tensor, source_validity: better_robot.residuals.utils.VariableLike | torch.Tensor, target_validity: better_robot.residuals.utils.VariableLike | torch.Tensor, *, vertex_weights: better_robot.residuals.utils.VariableLike | torch.Tensor | None = None, bidirectional: bool = True, chunk_size: int = 4096, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'masked_chamfer')
+`````{py:class} MaskedChamferResidual(source: better_robot.residuals.utils.VariableLike | torch.Tensor, target: better_robot.residuals.utils.VariableLike | torch.Tensor, source_validity: better_robot.residuals.utils.VariableLike | torch.Tensor, target_validity: better_robot.residuals.utils.VariableLike | torch.Tensor, *, vertex_weights: better_robot.residuals.utils.VariableLike | torch.Tensor | None = None, bidirectional: bool = True, chunk_size: int = 4096, weight: numbers.Real | torch.Tensor = 1.0, row_weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'masked_chamfer')
 :canonical: better_robot.residuals.chamfer.MaskedChamferResidual
 
 Bases: {py:obj}`better_robot.residuals.base.Residual`

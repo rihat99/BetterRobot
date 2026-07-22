@@ -32,6 +32,7 @@ class TrajOptResult:
 
     trajectory: Trajectory
     residual: torch.Tensor
+    """Final whitened rows; outer weights, reductions, and kernels are excluded."""
     iters: int | torch.Tensor
     converged: bool | torch.Tensor
     status: int | torch.Tensor

@@ -1,4 +1,4 @@
-"""Object-referenced residuals and square-root-information weights."""
+"""Object-referenced residuals, outer coefficients, and row whitening."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from itertools import count
 from numbers import Real
-from typing import Any
+from typing import Any, Literal
 
 import torch
 
@@ -105,10 +105,10 @@ class DiagonalWeight(Weight):
         return tuple(self._apply(block, row_axes=2) for block in blocks)
 
 
-def _coerce_weight(value: Weight | Real | torch.Tensor, dim: int) -> Weight:
+def _coerce_row_weight(value: Weight | Real | torch.Tensor, dim: int) -> Weight:
     if isinstance(value, Weight):
         return value
-    _validate_weight_value(value, label="weight")
+    _validate_weight_value(value, label="row_weight")
     if isinstance(value, torch.Tensor) and value.ndim and value.shape[-1] == dim:
         return DiagonalWeight(value)
     return ScaleWeight(value)
@@ -129,10 +129,13 @@ class Residual(ABC):
         self,
         *variables: _VariableLike,
         dim: int,
-        weight: Weight | Real | torch.Tensor = 1.0,
+        weight: Real | torch.Tensor = 1.0,
+        row_weight: Weight | Real | torch.Tensor = 1.0,
+        reduce: Literal["sum", "mean", "mean_active"] = "sum",
         kernel: object | None = None,
         group_size: int = 1,
         name: str | None = None,
+        enabled: bool = True,
     ) -> None:
         if isinstance(dim, bool) or not isinstance(dim, int) or dim <= 0:
             raise ValueError(f"dim must be a positive int, got {dim!r}")
@@ -159,14 +162,56 @@ class Residual(ABC):
         self.name = name
         self.kernel = kernel
         self.weight = weight
+        self.row_weight = row_weight
+        self.reduce = reduce
+        self.enabled = enabled
 
     @property
-    def weight(self) -> Weight:
+    def weight(self) -> Real | torch.Tensor:
         return self._weight
 
     @weight.setter
-    def weight(self, value: Weight | Real | torch.Tensor) -> None:
-        self._weight = _coerce_weight(value, self.dim)
+    def weight(self, value: Real | torch.Tensor) -> None:
+        if isinstance(value, Weight):
+            raise TypeError("weight is an outer coefficient; pass square-root-information as row_weight")
+        _validate_weight_value(value, label="weight")
+        if isinstance(value, bool):
+            raise TypeError("weight must be a real number or floating torch.Tensor, got bool")
+        if isinstance(value, Real) and not value >= 0.0:
+            raise ValueError(f"weight must be non-negative, got {value!r}")
+        self._weight = value
+
+    @property
+    def row_weight(self) -> Weight:
+        return self._row_weight
+
+    @row_weight.setter
+    def row_weight(self, value: Weight | Real | torch.Tensor) -> None:
+        self._row_weight = _coerce_row_weight(value, self.dim)
+
+    @property
+    def reduce(self) -> Literal["sum", "mean", "mean_active"]:
+        return self._reduce
+
+    @reduce.setter
+    def reduce(self, value: Literal["sum", "mean", "mean_active"]) -> None:
+        if value not in {"sum", "mean", "mean_active"}:
+            raise ValueError(f"reduce must be 'sum', 'mean', or 'mean_active', got {value!r}")
+        self._reduce = value
+
+    @property
+    def enabled(self) -> bool:
+        return self._enabled
+
+    @enabled.setter
+    def enabled(self, value: bool) -> None:
+        if not isinstance(value, bool):
+            raise TypeError(f"enabled must be a bool, got {type(value).__name__}")
+        self._enabled = value
+
+    def is_inactive(self) -> bool:
+        """Return whether evaluation is disabled without inspecting tensors."""
+        return not self.enabled or (isinstance(self.weight, Real) and self.weight == 0.0)
 
     @abstractmethod
     def error(self) -> torch.Tensor:
@@ -176,9 +221,13 @@ class Residual(ABC):
         """Return complete analytic tangent blocks or ``None`` to request AD."""
         return None
 
+    def active_groups(self) -> torch.Tensor | None:
+        """Return a detached per-group activity mask, or ``None`` for all groups."""
+        return None
+
     def weighted_error(self) -> torch.Tensor:
-        """Return the square-root-information-weighted residual."""
-        return self.weight.apply(self.error())
+        """Return rows after square-root-information whitening."""
+        return self.row_weight.apply(self.error())
 
 
 class _FunctionResidual(Residual):
@@ -198,10 +247,13 @@ class _FunctionResidual(Residual):
 def residual(
     *variables_or_fn: _VariableLike | Callable[..., torch.Tensor],
     dim: int,
-    weight: Weight | Real | torch.Tensor = 1.0,
+    weight: Real | torch.Tensor = 1.0,
+    row_weight: Weight | Real | torch.Tensor = 1.0,
+    reduce: Literal["sum", "mean", "mean_active"] = "sum",
     kernel: object | None = None,
     group_size: int = 1,
     name: str | None = None,
+    enabled: bool = True,
 ):
     """Adapt a tensor function into a :class:`Residual` instance."""
 
@@ -218,9 +270,12 @@ def residual(
             variables,
             dim=dim,
             weight=weight,
+            row_weight=row_weight,
+            reduce=reduce,
             kernel=kernel,
             group_size=group_size,
             name=name or getattr(fn, "__name__", None),
+            enabled=enabled,
         )
 
     return wrap(direct_fn) if direct_fn is not None else wrap
@@ -234,9 +289,12 @@ class Difference(Residual):
         variable: _VariableLike,
         target: torch.Tensor,
         *,
-        weight: Weight | Real | torch.Tensor = 1.0,
+        weight: Real | torch.Tensor = 1.0,
+        row_weight: Weight | Real | torch.Tensor = 1.0,
+        reduce: Literal["sum", "mean", "mean_active"] = "sum",
         kernel: object | None = None,
         name: str | None = None,
+        enabled: bool = True,
     ) -> None:
         if not isinstance(target, torch.Tensor):
             raise TypeError(f"target must be a torch.Tensor, got {type(target).__name__}")
@@ -246,8 +304,11 @@ class Difference(Residual):
             variable,
             dim=variable.tangent_dim(),
             weight=weight,
+            row_weight=row_weight,
+            reduce=reduce,
             kernel=kernel,
             name=name,
+            enabled=enabled,
         )
 
     def error(self) -> torch.Tensor:
