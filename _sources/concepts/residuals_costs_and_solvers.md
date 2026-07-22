@@ -28,10 +28,32 @@ Least squares makes all of them small at once:
       = \min_x \frac{1}{2}\sum_i r_i(x)^2.
 ```
 
-Squaring removes the sign and penalizes larger errors more strongly. Weights
-set relative importance and convert unlike units into a useful scale. Robust
-losses can reduce the influence of an outlier without changing the residual's
-shape.
+Squaring removes the sign and penalizes larger errors more strongly. A useful
+objective must distinguish three ideas that are easy to conflate:
+
+| Control | Purpose |
+|---|---|
+| `row_weight` | Whitens rows, for example by measurement standard deviation or physical units. |
+| `weight` | Sets the outer importance of a term without changing its robust-loss scale. |
+| `kernel` | Controls how the term treats outlying robust groups. |
+
+After whitening, consecutive rows are grouped according to `group_size`.
+BetterRobot evaluates each residual with exactly this algebra:
+
+```text
+rows = row_weight.apply(error())
+cost = Σ_k active_k · w_k · ρ(‖rows_k‖²) · norm
+```
+
+Here `w_k` comes from the residual's non-negative outer `weight`. `active_k`
+is a boolean group mask. The reduction factor `norm` is `1` for
+`reduce="sum"`, `1 / n_groups` for `"mean"`, or
+`1 / clamp(Σ_k active_k, 1)` for `"mean_active"`. The mask and active count
+are detached: they gate an objective but are not differentiated.
+
+The ordinary L2 kernel is `ρ(s) = 0.5 · s`. Its exact term is therefore
+`0.5 · Σ_k active_k · w_k · ‖rows_k‖² · norm`. The `0.5` is part
+of the public objective convention, not an implementation detail.
 
 The [Ceres nonlinear least-squares
 guide](https://ceres-solver.org/nnls_solving.html) is a useful independent
@@ -40,8 +62,8 @@ reference for residuals, parameter groups, bounds, and robust losses.
 ## A residual holds its dependencies
 
 A residual owns references to every variable it reads, plus its name, fixed
-output width, weight, robust kernel, and grouping. The `@residual` adapter is
-enough for a small tensor function:
+output width, row whitening, outer weight, reduction, activity, robust kernel,
+and grouping. The `@residual` adapter is enough for a small tensor function:
 
 ```{testcode}
 import torch
@@ -85,13 +107,30 @@ small-step approximations used by a few built-in blocks.
 A `Problem` freezes and lays out:
 
 - trainable and static variables referenced by residuals or nodes;
-- fixed residual rows, weights, kernels, and robust groups; and
+- fixed residual rows, row weights, outer coefficients, reductions, kernels,
+  and robust groups; and
 - evaluation-scoped nodes for shared computation.
 
 Each `Variable` owns its tensor and geometry. Use `RobotVariable` for a robot
 configuration, `SE3Variable` for an object pose, and plain `Variable` for a
 Euclidean block such as camera intrinsics. Stable names make diagnostics and
 atomic `Problem.update()` calls readable without a separate packing schema.
+
+Trainable Variables are floating-point optimization coordinates. A named
+non-trainable Variable represents data that participates in the graph but is
+not optimized: targets, observations, integer labels, and boolean masks are
+typical examples. `Problem.update()` can replace either kind atomically and
+invalidates every affected node memo. Non-floating Variables are therefore
+allowed only when non-trainable. A problem keeps all Variables on one device
+and requires one common dtype for its floating Variables; discrete static data
+does not force a floating dtype.
+
+Passing a bare tensor to a residual or node constructor has a deliberately
+different meaning. The object treats that tensor as a construction-time
+constant, so it is absent from the harvested graph and cannot be named in
+`Problem.update()`. BetterRobot does not infer ownership from
+`requires_grad`, auto-wrap tensors, or add per-residual setters. Data that may
+change during a solve belongs in an explicitly named non-trainable Variable.
 
 A decorated tensor function is enough for a small Euclidean problem. This
 complete line fit is executed by the documentation test target:
@@ -130,18 +169,93 @@ converged: True
 Subclass `Residual` when an error term needs analytic or temporal blocks, a
 custom weight, or a shared node.
 
+## Robot tangent groups and frozen coordinates
+
+A robot configuration does not generally have one Euclidean coordinate for
+every stored value. `RobotVariable` therefore names groups in the model's
+tangent space: each joint has its own group, `root` covers a free-flyer base,
+`root_lin` and `root_ang` split that base into translation and rotation, and
+`joints` covers everything outside the base. The indices are per knot even
+when the variable holds a trajectory.
+
+`RobotVariable.tangent_weight()` turns group values into one `(nv,)` vector.
+Those values are square-root-information row multipliers: a value of two
+multiplies a residual row by two and its L2 objective contribution by four.
+The helper does not take a square root on the caller's behalf.
+
+`frozen_groups` is a construction-time optimizer policy. Frozen coordinates
+remain in the stored configuration and in the full tangent returned by
+`difference()`, but they are absent from optimizer deltas, gradients,
+Jacobian columns, and active bounds. A trajectory applies the same group mask
+at every knot, preserving a fixed temporal block width. Starting a later
+phase with a different mask requires a new `RobotVariable` and `Problem`
+initialized from the previous phase's value; the geometry contract of the
+original variable never changes in place.
+
 ## Nodes share expensive work
 
-Several robot residuals need the same forward kinematics. Recomputing it in
-each residual would be wasteful and could produce inconsistent cache state.
-A `Node` holds its input variables and computes a lazy value. `RobotState`,
-for example, owns one `RobotVariable` reference and provides FK data.
+Several robot residuals need the same forward kinematics, posed points, or
+learned features. Recomputing each stage in every residual would be wasteful
+and could leave one stage tied to an old candidate or autograd graph. A `Node`
+therefore accepts both leaf Variables and child Nodes. Its public `variables`
+tuple remains the order-stable, deduplicated set of transitive leaves, while
+its `nodes` tuple records direct children. A parent computes from
+`child.value()` just as a residual does. `RobotState` is the built-in FK leaf
+example.
 
-A residual lists shared nodes in `nodes` and reads `node.value()` in
-`error()` or `jacobian()`. `Problem` merges compatible nodes when it freezes,
-invalidates their memos at every evaluation boundary, and therefore computes
-shared graph-bearing work at most once per evaluation without carrying it to
-the next candidate.
+A residual lists its direct shared nodes in `nodes`. When a `Problem` freezes,
+it walks the complete node DAG, rejects cycles, merges compatible nested nodes,
+and registers every discovered node for evaluation scoping. Within one scope,
+each node computes at most once even when several parents reach it. Every new
+candidate starts a new scope, so no nested memo survives an input change.
+
+## Scalar penalties still fit least squares
+
+Some objectives naturally produce one non-negative scalar penalty `f` rather
+than signed residual rows. `ScalarCost` represents that term with one row that
+is `sqrt(2f)` for positive `f` and exactly zero otherwise. With the default L2
+kernel and outer weight `w`, its objective contribution is therefore exactly
+`w * f` on the documented domain `f >= 0`; no epsilon or dead zone changes the
+value.
+
+The conversion has two honest local-model limits. The masked branch gives zero
+gradient at exactly `f = 0`, while the Gauss--Newton column
+`grad(f) / sqrt(2f)` can grow as a positive penalty approaches zero. LM damping
+covers that tail, making the class most suitable when vanishing means
+convergence or the penalty otherwise stays away from zero. A `ScalarCost`
+problem is not eligible for implicit differentiation.
+
+## Geometry observations share values, not policy
+
+Point-cloud fitting usually derives posed vertices from an optimized state and
+then reads those same vertices in several terms. The point-cloud residuals
+therefore accept a `Node` as well as a Variable or construction-time tensor.
+The node owns the shared differentiable value; each residual still owns its
+objective policy.
+
+`SceneSDFState` illustrates the split. It performs one detached
+nearest-neighbour lookup and shares signed distance, nearest distance,
+confidence, and validity. Its `distance="point"` mode uses signed Euclidean
+distance, while `distance="plane"` projects the selected delta onto the
+nearest normal. Penetration, attraction, and clearance then apply their own
+detached masks, confidence/distance thresholds, trust depths or bands, and
+margins. An inactive group returns an exact zero row and is excluded by
+`active_groups()`, so `reduce="mean_active"` normalizes each head by its own
+trusted observations rather than by padding or another head's predicate.
+
+Non-negative confidence describes observation quality rather than a
+differentiable model signal. Scene and Chamfer rows use a gradient-safe square
+root of detached confidence, making their L2 objective contribution linear in
+confidence and keeping zero-confidence gradients finite. Point projection
+keeps confidence as an outer per-point coefficient instead, so it affects the
+objective and IRLS system but not the diagnostic rows returned by
+`Problem.error()`; visibility is detached group activity.
+
+`PointProjectionResidual` uses the same pinhole convention as frame-table
+`ProjectionResidual`. `time_axis=None` treats `(P, 3)` as the event suffix;
+`time_axis=0` treats `(T, P, 3)` as the event suffix. Any preceding axes are
+execution batches, so an unbatched trajectory's `T` axis is never silently
+reinterpreted as one.
 
 ## Built-in residual families
 
@@ -151,18 +265,41 @@ The shipped residuals cover these roles:
 |---|---|
 | Frame targets | `PoseResidual`, `PositionResidual`, `OrientationResidual` |
 | Joint preferences and limits | `JointPositionLimit`, `JointVelocityLimit`, `RestResidual`, `JointRotationPrior` |
-| Trajectory structure | `ReferenceTrajectoryResidual`, `TimeIndexedResidual`, `VelocityResidual`, `AccelerationResidual` |
+| Trajectory structure | `ReferenceTrajectoryResidual`, `TimeIndexedResidual`, `VelocityResidual`, `SmoothnessResidual` (orders 2--4) |
 | Contact motion | `ContactConsistencyResidual` |
-| Image observations | `ProjectionResidual` |
+| Scalar penalties | `ScalarCost` |
+| Image observations | `ProjectionResidual`, `PointProjectionResidual` |
 | Padded point sets | `MaskedChamferResidual`, `SceneSDFState` and its penetration, attraction, and clearance residuals |
 | Spherical-joint limits | `SwingTwistLimitResidual` |
 
 Every residual listed above is live. Unimplemented residual ideas are omitted
 from the API until their mathematical and temporal contracts are defined.
 
-Residual weights live on the `Residual` itself. A Python numeric zero skips
-that residual. Tensor weights remain graph-visible and may vary over the
-execution batch while preserving shape, dtype, and device.
+`VelocityResidual` keeps its central first-difference convention.
+`SmoothnessResidual(order=n)` applies the order-`n` forward difference in
+tangent space for `n` equal to 2, 3, or 4, scales it by `dt**-n`, and returns
+`(T - n) * nv` rows. Its optional `(nv,)` `coordinate_weight` repeats over
+the knot rows and uses the same square-root-information convention as
+`row_weight`. Callers must omit the term when `T <= n`; construction rejects
+that horizon instead of silently creating an empty residual. Only all-scalar
+models expose direct temporal blocks. Models with spherical, free-flyer, or
+another non-scalar joint kind use the conservative dense autodiff path; in
+particular, the derivative of a manifold logarithm depends on the current
+state.
+
+Residual controls live on the `Residual` itself. `enabled=False` or a Python
+numeric zero outer weight skips a residual without changing its reserved row
+layout. Tensor outer weights remain graph-visible and may provide one
+coefficient globally, per execution-batch element, or per robust group.
+
+`Problem.error()` returns the concatenated `row_weight`-whitened rows. It does
+not fold outer weights, reductions, group activity, or robust kernels into
+those rows. That separation keeps the diagnostic vector meaningful when a
+robust objective cannot be represented by one scaled residual vector. Use
+`Problem.objective()` for the scalar objective and `Problem.term_costs()` for
+one named contribution per residual; the term costs sum to the objective. The
+`residual` fields returned by IK, trajectory optimization, and contact-force
+tasks copy the same whitened diagnostic rows.
 
 ## Robust losses
 
@@ -175,9 +312,16 @@ two-dimensional image observation should normally use `group_size=2`, so its
 horizontal and vertical error are classified together. Grouping changes
 robust weighting, not the residual layout.
 
-Robust kernels are applied through iteratively reweighted least squares. The
-problem computes an objective through `rho(squared_norm)` and scales residual
-and Jacobian rows through `weight(squared_norm)` exactly once.
+Robust kernels are applied through iteratively reweighted least squares
+(IRLS). The problem computes the exact objective through `rho(squared_norm)`.
+LM and GN scale a group's residual and Jacobian rows by
+`sqrt(active_k · w_k · norm · kernel.weight(squared_norm))`.
+
+This is uncorrected IRLS; it does not apply a Triggs second-order correction.
+It is gradient-consistent while the active set is fixed. At an activity
+threshold, the detached mask and detached `mean_active` count make the
+objective non-differentiable, so threshold crossings are judged by descent
+rather than a derivative equality.
 
 ## Gauss--Newton in plain words
 
@@ -250,8 +394,12 @@ converged: True
 `OptimizerInfo` contains only per-element status, iterations, cost, and a
 derived convergence flag. Detailed LM state is private. `Problem.update()`
 changes current variable tensors atomically; LM refreshes the changed graph
-while retaining compatible damping. `optimizer.reset()` clears optimizer
-state but deliberately retains current variable values.
+while retaining compatible damping. After a MAXITER stop or an objective
+phase change, `optimizer.resume()` makes terminal elements runnable and keeps
+cumulative iteration counts. For LM it also rebuilds damping and acceptance
+state, because those tensors describe the previous phase objective.
+`optimizer.reset()` clears all optimizer state but deliberately retains current
+variable values.
 
 An initially non-finite model is reported as failed. A non-finite trial is
 rejected rather than installed as the new value. Exhausting the iteration
@@ -311,6 +459,7 @@ adam = TorchOptimizer(
     lr=0.1,
     max_iterations=250,
     tolerance=1e-6,
+    scheduler=lambda inner: torch.optim.lr_scheduler.ExponentialLR(inner, gamma=0.999),
 )
 adam_info = adam.optimize()
 near_target = torch.allclose(adam_value.tensor, adam_target.tensor, atol=1e-3, rtol=0.0)
@@ -327,6 +476,17 @@ The adapter keeps tangent buffers, lets the Torch optimizer update them,
 retracts through each variable's geometry, and rebases the buffers without
 discarding optimizer state. Adam, SGD, or another compatible optimizer can be
 selected by the factory. BetterRobot does not reimplement their moment rules.
+An optional scheduler factory receives the inner optimizer and returns a
+no-argument-step `torch.optim.lr_scheduler.LRScheduler`; it advances once for
+each public `step()` that actually updates variables, including one advance
+around an L-BFGS closure step rather than one per closure evaluation.
+
+`TorchOptimizer` identifies a layout by trainable names and free dimensions,
+batch shape, dtype, and device. A same-layout `Problem.update()` preserves the
+optimizer, tangent buffers, moments, and scheduler. The terminal status also
+survives, so call `resume()` before the next phase. A real layout change, such
+as a new batch shape or frozen-group set, rebuilds first-order state. See
+{doc}`/guides/staged_fit` for the complete phase pattern.
 
 ## Differentiating a solution
 
@@ -366,12 +526,21 @@ kinks, problem size, and linearization support. If those assumptions do not
 hold, it raises `ImplicitDifferentiationError` instead of returning a
 derivative that looks plausible but is not justified.
 
+Implicit differentiation is unavailable when any residual uses
+`reduce="mean_active"`, overrides `active_groups()`, or is a `ScalarCost`.
+Those features do not provide the smooth fixed least-squares contract required
+by the guarded implicit path. The optimize request raises a `ValueError`
+naming the residual that makes the problem ineligible.
+
 ## Common mistakes
 
-- Mixing quantities with different units without weights.
+- Using outer `weight` to convert units instead of `row_weight`.
+- Reading `Problem.error()` as an objective-scaled residual vector.
 - Returning a residual whose last dimension changes between evaluations.
 - Applying a robust kernel to scalar rows when the observation is naturally a
   vector group.
+- Passing a bare tensor and expecting `Problem.update()` to discover it.
+- Returning a negative value from a `ScalarCost` callable.
 - Taking Euclidean steps in quaternion storage instead of tangent space.
 - Expecting LM to guarantee a global solution to a nonlinear problem.
 - Forcing the temporal route without complete structural and numeric blocks.
@@ -383,4 +552,6 @@ derivative that looks plausible but is not justified.
 - {doc}`/guides/custom_residual` builds a residual step by step.
 - {doc}`/guides/own_your_optimization_loop` develops warm starts and loop
   ownership.
+- {doc}`/guides/staged_fit` preserves optimizer state across a plain-data
+  curriculum.
 - {doc}`/conventions/extension` gives the exact supported extension contracts.

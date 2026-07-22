@@ -103,6 +103,14 @@ Bases: {py:obj}`RuntimeWarning`
 
 ````
 
+````{py:method} term_costs(values: collections.abc.Mapping[str, torch.Tensor] | None = None) -> dict[str, torch.Tensor]
+:canonical: better_robot.optim.problem.Problem.term_costs
+
+```{autodoc2-docstring} better_robot.optim.problem.Problem.term_costs
+```
+
+````
+
 ````{py:method} gradient(*, create_graph: bool = False) -> better_robot.optim.problem._TensorMap
 :canonical: better_robot.optim.problem.Problem.gradient
 

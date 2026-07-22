@@ -48,10 +48,17 @@ Targets use the same `[x, y, z, qx, qy, qz, qw]` layout as FK. The dictionary
 may contain more than one frame. `IKResult` always returns the final candidate;
 check `result.converged` before treating it as a solution. `result.iters` and
 `result.residual` help diagnose an unreachable or over-constrained request.
+The residual field contains the final whitened rows: it includes the pose
+position/orientation row scales, but excludes outer pose, limit, and rest
+coefficients, reductions, and robust-kernel scaling. It is therefore a row
+diagnostic, not the optimized scalar cost.
 
 The optional configuration objects tune weights and stopping behavior. You do
 not need them for a first solve; they are shown above only to make this small
-generated target especially easy to recover.
+generated target especially easy to recover. `IKCostConfig` retains
+row-scale-style tuning: its pose, limit, and rest values are squared into outer
+L2 objective coefficients, while `pos_weight` and `ori_weight` scale the
+corresponding pose rows directly.
 
 The facade builds the same public graph available to direct optimization
 callers: one bounded `RobotVariable`, static target `Variable` objects,

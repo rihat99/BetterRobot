@@ -39,7 +39,7 @@
 
 ### API
 
-`````{py:class} Node(*variables: better_robot.residuals.utils.ValueLike)
+`````{py:class} Node(*inputs: better_robot.residuals.utils.ValueLike | better_robot.residuals.nodes.Node)
 :canonical: better_robot.residuals.nodes.Node
 
 Bases: {py:obj}`abc.ABC`

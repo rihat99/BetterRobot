@@ -64,7 +64,9 @@ derivative method.
 | **variable** | A value the optimizer may change. One problem can contain several variables with different shapes and manifolds. |
 | **residual** | A vector of errors that should approach zero, such as position error or distance from a rest pose. |
 | **least squares** | Choose variables that make the sum of squared residual entries small. This balances many errors at once. |
-| **weight** | A multiplier that makes one residual matter more or less than another. |
+| **row weight** | A square-root-information multiplier that whitens residual and Jacobian rows, for example to account for units or measurement uncertainty. |
+| **outer weight** | A non-negative objective coefficient that makes one residual term matter more or less without changing its robust-kernel scale. Exposed as `Residual.weight`. |
+| **reduction** | A residual's choice to sum robust groups, average all groups, or average detached active groups. |
 | **robust kernel** | A function that reduces the influence of large residual groups, often to limit the effect of outliers. |
 | **gradient** | The local direction in which a scalar objective increases fastest. |
 | **Gauss--Newton, GN** | A least-squares method that linearizes residuals and solves the resulting local quadratic problem. |

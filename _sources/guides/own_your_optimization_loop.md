@@ -67,10 +67,79 @@ math. LM's private iteration remains fixed-shape and synchronization-free.
 
 `Problem.update()` atomically replaces current variable tensors and invalidates
 shared node memos. The next LM call refreshes terminal artifacts and retains
-compatible damping information. Call `optimizer.reset()` when you instead
-want fresh optimizer state; it deliberately keeps the variables' current
-values.
+compatible damping information. After MAXITER or an `enabled`/weight phase
+change without an input update, call `optimizer.resume()`; LM keeps values and
+cumulative iteration counts but rebuilds phase-specific damping and acceptance
+state. Call `optimizer.reset()` when you instead want all algorithm state and
+counts cleared; it deliberately keeps the variables' current values.
+
+Updates address named Variables harvested from the complete residual and node
+graph. Use `trainable=False` for observations, masks, or labels that should
+change without becoming optimization coordinates; those static Variables may
+use boolean or integer tensors. A bare tensor passed to a constructor is a
+construction-time constant and cannot be named in `Problem.update()`.
 
 `step()` returns diagnostics for that iteration. `optimize()` is the canonical
 complete driver: it stops when every batch element is terminal or the budget
 is exhausted and performs the final-point refresh before returning.
+
+## Solve robot groups in phases
+
+The complete {doc}`staged_fit` guide combines this frozen-layout
+handoff with preserved Adam moments, a scheduler, input swaps, term logging,
+and L-BFGS polish. The shorter pattern below focuses only on the immutable
+robot-group boundary.
+
+`RobotVariable` can expose topology-derived tangent groups and exclude whole
+groups from an optimization phase. A common floating-base warm-up first
+places the root while holding articulated joints fixed, then creates a fresh
+unfrozen problem that continues from that result:
+
+```text
+from better_robot.optim import LevenbergMarquardt, Problem, RobotVariable
+from better_robot.residuals import SmoothnessResidual
+
+# make_residuals is your application-owned residual factory.
+root_phase_q = RobotVariable(
+    model,
+    initial_q,
+    name="q",
+    time_axis=0,
+    frozen_groups=("joints",),
+)
+root_rows = root_phase_q.tangent_weight(
+    {"root_lin": 0.5, "root_ang": 2.0, "joints": 0.1}
+)
+root_problem = Problem(make_residuals(root_phase_q, root_rows))
+LevenbergMarquardt(root_problem).optimize()
+
+# The frozen set is immutable. Transfer the solved value into a new variable.
+full_q = RobotVariable(
+    model,
+    root_phase_q.tensor.detach().clone(),
+    name="q",
+    time_axis=0,
+)
+order = 3
+full_residuals = make_residuals(full_q, full_q.tangent_weight({"joints": 1.0}))
+if full_q.time_length > order:
+    full_residuals.append(
+        SmoothnessResidual(
+            full_q,
+            order=order,
+            dt=dt,
+            coordinate_weight=full_q.tangent_weight(
+                {"root_lin": 0.5, "root_ang": 2.0, "joints": 1.0}
+            ),
+        )
+    )
+full_problem = Problem(full_residuals)
+LevenbergMarquardt(full_problem).optimize()
+```
+
+The group weights above are square-root-information row multipliers; they are
+not objective coefficients and should not be square-rooted again. A frozen
+coordinate stays unchanged exactly and any state bound on that coordinate is
+inactive for the phase. Individual joint names may be used wherever a group
+name is accepted. Fixed-base models expose `joints` but no `root`,
+`root_lin`, or `root_ang` groups.

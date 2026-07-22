@@ -33,9 +33,13 @@ and declares:
 | `name` | stable diagnostic name |
 | `variables` | ordered object references read by the residual |
 | `dim` | fixed number of output rows |
-| `weight`, `kernel`, `group_size` | row scaling and robust grouping |
-| `error()` | returns `(B..., dim)` |
+| `row_weight` | square-root-information scaling for error and Jacobian rows |
+| `weight`, `reduce` | non-negative outer importance and group reduction |
+| `kernel`, `group_size` | robust loss and contiguous row grouping |
+| `enabled` | whole-term activity without a layout change |
+| `error()` | returns raw `(B..., dim)` rows |
 | `jacobian()` | optional complete tangent blocks |
+| `active_groups()` | optional authoritative boolean `(B..., n_groups)` mask |
 
 For example:
 
@@ -67,14 +71,35 @@ references. The `@residual(variable, ..., dim=...)` adapter is the concise
 choice when automatic differentiation is sufficient. There is no process-wide
 residual registry.
 
+Use an explicit named `Variable(..., trainable=False)` for any target, mask,
+label, or observation that will be replaced through `Problem.update()`. A bare
+tensor accepted by a constructor is a construction-time constant and is not
+part of the harvested graph.
+
+A custom constructor that exposes `weight`, `row_weight`, `reduce`, or
+`enabled` forwards that control to `Residual`. Do not apply outer importance
+inside `error()` or an analytic `jacobian()`; `Problem` applies it once after
+row whitening and robust grouping. `Problem.error()` returns the whitened
+rows, while `objective()` and `term_costs()` expose costs.
+
+Built-in residual constructors expose `row_weight` alongside outer `weight`.
+Where a built-in does not expose `reduce` or `enabled` as a keyword, set the
+inherited field after construction.
+
 ## Shared nodes
 
-A `Node` computes shared work lazily from variables supplied to its
-constructor. Implement `compute()`, and optionally an identity-only
-`merge_key` when equivalent instances may share one memo. Residuals list the
-nodes they use in `nodes` and call `node.value()`. `Problem` invalidates all
-node memos at evaluation boundaries, so graph-bearing values never leak from
-one candidate to another. `RobotState` is the built-in FK example.
+A `Node` computes shared work lazily from Variables and child Nodes supplied to
+its constructor. `node.nodes` is the tuple of direct children;
+`node.variables` is the order-stable, identity-deduplicated tuple of transitive
+leaf Variables. Implement `compute()` and call `child.value()` for child
+outputs. Optionally provide an identity-only `merge_key` when equivalent
+instances may share one memo.
+
+Residuals list their direct nodes in `nodes` and call `node.value()`.
+`Problem` walks the complete acyclic graph, applies merge keys at every depth,
+and scopes every discovered node. Each node computes once per evaluation, and
+no graph-bearing value leaks to another candidate. `RobotState` is the built-in
+FK example.
 
 ## Joint models
 
@@ -109,17 +134,21 @@ Every `Optimizer` owns a `Problem` and exposes this public lifecycle:
 |---|---|
 | `step()` | update referenced trainable variables once and return `OptimizerInfo` |
 | `optimize()` | run the eager loop and return final public diagnostics |
+| `resume()` | return terminal elements to RUNNING while keeping compatible algorithm state and cumulative counts |
 | `reset()` | clear optimizer state while retaining variable values |
 
 Subclass `Optimizer` for a genuinely different nonlinear driver and implement
-`step`, `reset`, and the initial-info hook. Solved values remain on variables;
+`step`, `resume`, `reset`, and the initial-info hook. Solved values remain on variables;
 the shared `OptimizerInfo` contains status, iterations, cost, and derived
 convergence. Task helpers accept custom optimizer factories only where their
 documented signature says so; otherwise call the custom optimizer directly.
 
 For first-order methods, construct `TorchOptimizer(problem, optimizer_cls,
-**kwargs)`. BetterRobot owns tangent retraction and bounds while PyTorch owns
-Adam, SGD, or another compatible update rule.
+scheduler=..., **kwargs)`. BetterRobot owns tangent retraction and bounds while
+PyTorch owns Adam, SGD, or another compatible update rule. The optional
+scheduler is a factory from that inner optimizer to a no-argument-step
+`torch.optim.lr_scheduler.LRScheduler`; it advances once only when a public
+step performs an optimizer update.
 
 The generated {doc}`/reference/api/better_robot/better_robot.optim` page is
 the exact signature reference. The least-squares reasoning and damping
@@ -167,6 +196,10 @@ diagnostics prove it.
 A `RobustKernel` implements `rho(s)` for the objective and `weight(s)`
 for the iteratively reweighted normal equations. Both methods preserve the
 input shape. BetterRobot uses `weight(s) = 2 * rho'(s)`.
+
+The LM/GN approximation is uncorrected IRLS on a fixed active set; a kernel
+must not bake the residual's outer coefficient or reduction into either
+method.
 
 Built-ins are `L2`, `Huber`, `Cauchy`, `Tukey`, and
 `GemanMcClure`. Pass a kernel on the residual; there is no global

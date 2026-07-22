@@ -23,8 +23,8 @@ better_robot.io.parsers
 :titlesonly:
 :maxdepth: 1
 
-better_robot.io.ir
 better_robot.io.assets
+better_robot.io.ir
 better_robot.io.build_model
 ```
 

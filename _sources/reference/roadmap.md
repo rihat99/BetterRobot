@@ -48,9 +48,9 @@ offset.
 
 ## Residuals
 
-Every exported residual is live. Third-derivative smoothness, task-space
-nullspace regularization, and angular contact consistency remain future
-design work rather than placeholder API. See
+Every exported residual is live. Tangent-space smoothness supports derivative
+orders two through four. Task-space nullspace regularization and angular
+contact consistency remain future design work rather than placeholder API. See
 {doc}`/concepts/residuals_costs_and_solvers` for the supported families.
 
 ## Tasks
@@ -107,8 +107,11 @@ precondition; none is started without an owner decision.
   angular contact consistency, and named model-parameter accessors such as
   link mass.
 - **Residual families.** Yoshikawa manipulability, nullspace regularization,
-  jerk smoothness, and acceleration limits; each needs its contract designed
-  first.
+  and acceleration limits; each needs its contract designed first. Exact
+  state-dependent analytic temporal blocks for spherical and free-flyer
+  logarithms are also deferred; velocity and smoothness use dense autodiff for
+  those non-affine joints. Applying the same correction to
+  `ReferenceTrajectoryResidual` is separately scoped.
 - **Collision.** The package is a stub. The pending decision is to port a real
   implementation or cut the package; a Torch oracle must exist before any
   collision kernel.

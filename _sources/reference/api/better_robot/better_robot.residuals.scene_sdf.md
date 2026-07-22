@@ -91,7 +91,7 @@
 
 `````
 
-`````{py:class} SceneSDFState(query_points: better_robot.residuals.utils.VariableLike | torch.Tensor, query_validity: better_robot.residuals.utils.VariableLike | torch.Tensor, scene_points: better_robot.residuals.utils.VariableLike | torch.Tensor, scene_normals: better_robot.residuals.utils.VariableLike | torch.Tensor, scene_validity: better_robot.residuals.utils.VariableLike | torch.Tensor, *, scene_confidence: better_robot.residuals.utils.VariableLike | torch.Tensor | None = None, chunk_size: int = 4096, eps: float = 1e-08)
+`````{py:class} SceneSDFState(query_points: better_robot.residuals.utils.VariableLike | better_robot.residuals.nodes.Node | torch.Tensor, query_validity: better_robot.residuals.utils.VariableLike | better_robot.residuals.nodes.Node | torch.Tensor, scene_points: better_robot.residuals.utils.VariableLike | better_robot.residuals.nodes.Node | torch.Tensor, scene_normals: better_robot.residuals.utils.VariableLike | better_robot.residuals.nodes.Node | torch.Tensor, scene_validity: better_robot.residuals.utils.VariableLike | better_robot.residuals.nodes.Node | torch.Tensor, *, scene_confidence: better_robot.residuals.utils.VariableLike | better_robot.residuals.nodes.Node | torch.Tensor | None = None, distance: typing.Literal[point, plane] = 'point', chunk_size: int = 4096, eps: float = 1e-08)
 :canonical: better_robot.residuals.scene_sdf.SceneSDFState
 
 Bases: {py:obj}`better_robot.residuals.nodes.Node`
@@ -106,7 +106,7 @@ Bases: {py:obj}`better_robot.residuals.nodes.Node`
 
 `````
 
-`````{py:class} ScenePenetrationResidual(state: better_robot.residuals.scene_sdf.SceneSDFState, *, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'scene_penetration')
+`````{py:class} ScenePenetrationResidual(state: better_robot.residuals.scene_sdf.SceneSDFState, *, min_confidence: float | None = None, max_distance: float | None = None, mask: better_robot.residuals.utils.VariableLike | better_robot.residuals.nodes.Node | torch.Tensor | None = None, max_penetration: float | None = None, margin: float | None = None, weight: numbers.Real | torch.Tensor = 1.0, row_weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, reduce: typing.Literal[sum, mean, mean_active] = 'sum', kernel: object | None = None, name: str = 'scene_penetration', enabled: bool = True)
 :canonical: better_robot.residuals.scene_sdf.ScenePenetrationResidual
 
 Bases: {py:obj}`better_robot.residuals.scene_sdf._ScenePenaltyResidual`
@@ -121,7 +121,7 @@ Bases: {py:obj}`better_robot.residuals.scene_sdf._ScenePenaltyResidual`
 
 `````
 
-`````{py:class} SceneAttractionResidual(state: better_robot.residuals.scene_sdf.SceneSDFState, *, target_distance: float = 0.0, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'scene_attraction')
+`````{py:class} SceneAttractionResidual(state: better_robot.residuals.scene_sdf.SceneSDFState, *, target_distance: float = 0.0, min_confidence: float | None = None, max_distance: float | None = None, mask: better_robot.residuals.utils.VariableLike | better_robot.residuals.nodes.Node | torch.Tensor | None = None, band: float | None = None, weight: numbers.Real | torch.Tensor = 1.0, row_weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, reduce: typing.Literal[sum, mean, mean_active] = 'sum', kernel: object | None = None, name: str = 'scene_attraction', enabled: bool = True)
 :canonical: better_robot.residuals.scene_sdf.SceneAttractionResidual
 
 Bases: {py:obj}`better_robot.residuals.scene_sdf._ScenePenaltyResidual`
@@ -136,7 +136,7 @@ Bases: {py:obj}`better_robot.residuals.scene_sdf._ScenePenaltyResidual`
 
 `````
 
-`````{py:class} SceneClearanceResidual(state: better_robot.residuals.scene_sdf.SceneSDFState, *, clearance: float, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'scene_clearance')
+`````{py:class} SceneClearanceResidual(state: better_robot.residuals.scene_sdf.SceneSDFState, *, clearance: float, min_confidence: float | None = None, max_distance: float | None = None, mask: better_robot.residuals.utils.VariableLike | better_robot.residuals.nodes.Node | torch.Tensor | None = None, margin: float | None = None, weight: numbers.Real | torch.Tensor = 1.0, row_weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, reduce: typing.Literal[sum, mean, mean_active] = 'sum', kernel: object | None = None, name: str = 'scene_clearance', enabled: bool = True)
 :canonical: better_robot.residuals.scene_sdf.SceneClearanceResidual
 
 Bases: {py:obj}`better_robot.residuals.scene_sdf._ScenePenaltyResidual`

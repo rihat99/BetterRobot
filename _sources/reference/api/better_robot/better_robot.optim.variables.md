@@ -92,6 +92,15 @@
 
 ````
 
+````{py:property} free_indices
+:canonical: better_robot.optim.variables.Variable.free_indices
+:type: torch.Tensor
+
+```{autodoc2-docstring} better_robot.optim.variables.Variable.free_indices
+```
+
+````
+
 ````{py:property} batch_shape
 :canonical: better_robot.optim.variables.Variable.batch_shape
 :type: tuple[int, ...]
@@ -127,10 +136,35 @@
 
 ````
 
+````{py:property} temporal_free_indices
+:canonical: better_robot.optim.variables.Variable.temporal_free_indices
+:type: torch.Tensor
+
+```{autodoc2-docstring} better_robot.optim.variables.Variable.temporal_free_indices
+```
+
+````
+
 ````{py:method} validate_value(value: torch.Tensor) -> None
 :canonical: better_robot.optim.variables.Variable.validate_value
 
 ```{autodoc2-docstring} better_robot.optim.variables.Variable.validate_value
+```
+
+````
+
+````{py:method} gather_tangent(full: torch.Tensor) -> torch.Tensor
+:canonical: better_robot.optim.variables.Variable.gather_tangent
+
+```{autodoc2-docstring} better_robot.optim.variables.Variable.gather_tangent
+```
+
+````
+
+````{py:method} expand_tangent(reduced: torch.Tensor) -> torch.Tensor
+:canonical: better_robot.optim.variables.Variable.expand_tangent
+
+```{autodoc2-docstring} better_robot.optim.variables.Variable.expand_tangent
 ```
 
 ````
@@ -191,13 +225,38 @@ Bases: {py:obj}`better_robot.optim.variables.Variable`
 
 `````
 
-`````{py:class} RobotVariable(model: better_robot.data_model.model.Model, tensor: torch.Tensor | None = None, *, name: str | None = None, trainable: bool = True, bounds: better_robot.optim.variables.Bounds | bool | None = None, batch_ndim: int = 0, time_axis: int | None = None)
+`````{py:class} RobotVariable(model: better_robot.data_model.model.Model, tensor: torch.Tensor | None = None, *, name: str | None = None, trainable: bool = True, bounds: better_robot.optim.variables.Bounds | bool | None = None, batch_ndim: int = 0, time_axis: int | None = None, frozen_groups: collections.abc.Sequence[str] = ())
 :canonical: better_robot.optim.variables.RobotVariable
 
 Bases: {py:obj}`better_robot.optim.variables.Variable`
 
 ```{autodoc2-docstring} better_robot.optim.variables.RobotVariable
 ```
+
+````{py:property} frozen_groups
+:canonical: better_robot.optim.variables.RobotVariable.frozen_groups
+:type: tuple[str, ...]
+
+```{autodoc2-docstring} better_robot.optim.variables.RobotVariable.frozen_groups
+```
+
+````
+
+````{py:method} tangent_groups() -> collections.abc.Mapping[str, torch.Tensor]
+:canonical: better_robot.optim.variables.RobotVariable.tangent_groups
+
+```{autodoc2-docstring} better_robot.optim.variables.RobotVariable.tangent_groups
+```
+
+````
+
+````{py:method} tangent_weight(weights: collections.abc.Mapping[str, numbers.Real], default: numbers.Real = 1.0) -> torch.Tensor
+:canonical: better_robot.optim.variables.RobotVariable.tangent_weight
+
+```{autodoc2-docstring} better_robot.optim.variables.RobotVariable.tangent_weight
+```
+
+````
 
 ````{py:property} box_mask
 :canonical: better_robot.optim.variables.RobotVariable.box_mask
@@ -227,6 +286,14 @@ Bases: {py:obj}`better_robot.optim.variables.Variable`
 
 ````{py:method} tangent_dim() -> int
 :canonical: better_robot.optim.variables.RobotVariable.tangent_dim
+
+````
+
+````{py:method} retract(delta: torch.Tensor) -> torch.Tensor
+:canonical: better_robot.optim.variables.RobotVariable.retract
+
+```{autodoc2-docstring} better_robot.optim.variables.RobotVariable.retract
+```
 
 ````
 

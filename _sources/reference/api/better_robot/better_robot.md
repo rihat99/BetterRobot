@@ -14,16 +14,16 @@
 :maxdepth: 3
 
 better_robot.io
-better_robot.viewer
 better_robot.residuals
+better_robot.lie
 better_robot.spatial
+better_robot.viewer
+better_robot.tasks
+better_robot.data_model
 better_robot.collision
+better_robot.kinematics
 better_robot.dynamics
 better_robot.optim
-better_robot.tasks
-better_robot.lie
-better_robot.kinematics
-better_robot.data_model
 ```
 
 ## Submodules

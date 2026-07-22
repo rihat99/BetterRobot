@@ -13,9 +13,9 @@
 :titlesonly:
 :maxdepth: 1
 
+better_robot.dynamics.aba
 better_robot.dynamics.crba
 better_robot.dynamics.rnea
-better_robot.dynamics.aba
-better_robot.dynamics.centroidal
 better_robot.dynamics.state_manifold
+better_robot.dynamics.centroidal
 ```

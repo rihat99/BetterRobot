@@ -13,6 +13,6 @@
 :titlesonly:
 :maxdepth: 1
 
-better_robot.kinematics.jacobian
 better_robot.kinematics.forward
+better_robot.kinematics.jacobian
 ```

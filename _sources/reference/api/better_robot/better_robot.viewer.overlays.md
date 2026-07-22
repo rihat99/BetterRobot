@@ -13,8 +13,8 @@
 :titlesonly:
 :maxdepth: 1
 
-better_robot.viewer.overlays.frame_axes
 better_robot.viewer.overlays.force_vectors
-better_robot.viewer.overlays.grid
+better_robot.viewer.overlays.frame_axes
 better_robot.viewer.overlays.targets
+better_robot.viewer.overlays.grid
 ```

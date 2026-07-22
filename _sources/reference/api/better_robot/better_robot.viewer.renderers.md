@@ -13,8 +13,8 @@
 :titlesonly:
 :maxdepth: 1
 
-better_robot.viewer.renderers.testing
 better_robot.viewer.renderers.base
+better_robot.viewer.renderers.testing
 better_robot.viewer.renderers.viser_backend
 ```
 

@@ -15,7 +15,7 @@
 
 better_robot.lie.so3
 better_robot.lie.se3
+better_robot.lie.alignment
 better_robot.lie.types
 better_robot.lie.tangents
-better_robot.lie.alignment
 ```

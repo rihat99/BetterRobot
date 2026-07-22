@@ -14,8 +14,8 @@
 :maxdepth: 1
 
 better_robot.viewer.render_modes.base
-better_robot.viewer.render_modes.urdf_mesh
 better_robot.viewer.render_modes.skeleton
+better_robot.viewer.render_modes.urdf_mesh
 ```
 
 ## Package Contents

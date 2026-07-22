@@ -179,9 +179,18 @@ Bases: {py:obj}`abc.ABC`
 
 ````
 
+````{py:method} resume() -> None
+:canonical: better_robot.optim.optimizers.Optimizer.resume
+:abstractmethod:
+
+```{autodoc2-docstring} better_robot.optim.optimizers.Optimizer.resume
+```
+
+````
+
 `````
 
-`````{py:class} TorchOptimizer(problem: better_robot.optim.problem.Problem, optimizer_cls: type[torch.optim.Optimizer] | better_robot.optim.optimizers._TorchOptimizerFactory, *, max_iterations: int = 100, tolerance: float = 0.0, **optimizer_kwargs: typing.Any)
+`````{py:class} TorchOptimizer(problem: better_robot.optim.problem.Problem, optimizer_cls: type[torch.optim.Optimizer] | better_robot.optim.optimizers._TorchOptimizerFactory, *, max_iterations: int = 100, tolerance: float = 0.0, scheduler: collections.abc.Callable[[torch.optim.Optimizer], torch.optim.lr_scheduler.LRScheduler] | None = None, **optimizer_kwargs: typing.Any)
 :canonical: better_robot.optim.optimizers.TorchOptimizer
 
 Bases: {py:obj}`better_robot.optim.optimizers.Optimizer`
@@ -191,6 +200,14 @@ Bases: {py:obj}`better_robot.optim.optimizers.Optimizer`
 
 ````{py:method} reset() -> None
 :canonical: better_robot.optim.optimizers.TorchOptimizer.reset
+
+````
+
+````{py:method} resume() -> None
+:canonical: better_robot.optim.optimizers.TorchOptimizer.resume
+
+```{autodoc2-docstring} better_robot.optim.optimizers.TorchOptimizer.resume
+```
 
 ````
 

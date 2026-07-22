@@ -23,7 +23,7 @@
 
 ### API
 
-`````{py:class} SwingTwistLimitResidual(q: better_robot.residuals.utils.RobotValueLike, joint_ids: collections.abc.Sequence[int], twist_axis: torch.Tensor, swing_max: numbers.Real | torch.Tensor, twist_range: tuple[numbers.Real, numbers.Real] | torch.Tensor, *, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'swing_twist_limit')
+`````{py:class} SwingTwistLimitResidual(q: better_robot.residuals.utils.RobotValueLike, joint_ids: collections.abc.Sequence[int], twist_axis: torch.Tensor, swing_max: numbers.Real | torch.Tensor, twist_range: tuple[numbers.Real, numbers.Real] | torch.Tensor, *, weight: numbers.Real | torch.Tensor = 1.0, row_weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'swing_twist_limit')
 :canonical: better_robot.residuals.human.SwingTwistLimitResidual
 
 Bases: {py:obj}`better_robot.residuals.base.Residual`

@@ -31,7 +31,7 @@
 
 ### API
 
-````{py:class} PoseResidual(q_or_state: better_robot.residuals.utils.RobotVariableLike | better_robot.residuals.nodes.RobotState, *, frame: str | None = None, frame_id: int | None = None, target: torch.Tensor | better_robot.residuals.utils.VariableLike, knot: int | None = None, pos_weight: numbers.Real = 1.0, ori_weight: numbers.Real = 1.0, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'pose')
+````{py:class} PoseResidual(q_or_state: better_robot.residuals.utils.RobotVariableLike | better_robot.residuals.nodes.RobotState, *, frame: str | None = None, frame_id: int | None = None, target: torch.Tensor | better_robot.residuals.utils.VariableLike, knot: int | None = None, pos_weight: numbers.Real = 1.0, ori_weight: numbers.Real = 1.0, weight: numbers.Real | torch.Tensor = 1.0, row_weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'pose')
 :canonical: better_robot.residuals.pose.PoseResidual
 
 Bases: {py:obj}`better_robot.residuals.pose._KinematicResidual`
@@ -41,7 +41,7 @@ Bases: {py:obj}`better_robot.residuals.pose._KinematicResidual`
 
 ````
 
-````{py:class} PositionResidual(q_or_state: better_robot.residuals.utils.RobotVariableLike | better_robot.residuals.nodes.RobotState, *, frame: str | None = None, frame_id: int | None = None, target: torch.Tensor | better_robot.residuals.utils.VariableLike, knot: int | None = None, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'position')
+````{py:class} PositionResidual(q_or_state: better_robot.residuals.utils.RobotVariableLike | better_robot.residuals.nodes.RobotState, *, frame: str | None = None, frame_id: int | None = None, target: torch.Tensor | better_robot.residuals.utils.VariableLike, knot: int | None = None, weight: numbers.Real | torch.Tensor = 1.0, row_weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'position')
 :canonical: better_robot.residuals.pose.PositionResidual
 
 Bases: {py:obj}`better_robot.residuals.pose._KinematicResidual`
@@ -51,7 +51,7 @@ Bases: {py:obj}`better_robot.residuals.pose._KinematicResidual`
 
 ````
 
-````{py:class} OrientationResidual(q_or_state: better_robot.residuals.utils.RobotVariableLike | better_robot.residuals.nodes.RobotState, *, frame: str | None = None, frame_id: int | None = None, target: torch.Tensor | better_robot.residuals.utils.VariableLike, knot: int | None = None, weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'orientation')
+````{py:class} OrientationResidual(q_or_state: better_robot.residuals.utils.RobotVariableLike | better_robot.residuals.nodes.RobotState, *, frame: str | None = None, frame_id: int | None = None, target: torch.Tensor | better_robot.residuals.utils.VariableLike, knot: int | None = None, weight: numbers.Real | torch.Tensor = 1.0, row_weight: better_robot.residuals.base.Weight | numbers.Real | torch.Tensor = 1.0, kernel: object | None = None, name: str = 'orientation')
 :canonical: better_robot.residuals.pose.OrientationResidual
 
 Bases: {py:obj}`better_robot.residuals.pose._KinematicResidual`

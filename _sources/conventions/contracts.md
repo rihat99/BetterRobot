@@ -68,10 +68,11 @@ FK accepts configurations outside the model's position limits. It computes
 the pose represented by the input; it is not a feasibility checker.
 
 `solve_ik` gives its robot variable hard position bounds.
-`IKCostConfig.limit_weight` controls an additional soft residual, not those
-hard bounds. Continuous revolute joints use infinite limits. Quaternion
-coordinates live on a manifold and do not have meaningful rectangular
-bounds; use an orientation residual to constrain them.
+`IKCostConfig.limit_weight` is a tuning scale for an additional soft
+residual, not those hard bounds; the task squares it into the residual's outer
+L2 coefficient. Continuous revolute joints use infinite limits. Quaternion
+coordinates live on a manifold and do not have meaningful rectangular bounds;
+use an orientation residual to constrain them.
 
 ## Model consistency
 
@@ -123,6 +124,87 @@ Regression and parity evidence records its model, dtype, device, inputs, and
 tolerances. One tight fp64 FK test is not a universal error bound for every
 robot or chain length.
 
+## Residual objective algebra
+
+### Optimization graph and static inputs
+
+`Problem` harvests residual dependencies transitively. A `Node` may read
+Variables and child Nodes. `node.nodes` contains its direct children;
+`node.variables` contains all leaf Variables in stable first-seen order,
+deduplicated by identity. Freeze rejects a node cycle, applies identity-only
+node merging at every depth, and registers every discovered node in the same
+evaluation scope. A node memo is valid only within that scope.
+
+Inputs that change between evaluations must be explicit named
+`Variable(..., trainable=False)` objects and be replaced through
+`Problem.update()`. Static Variables may hold floating, boolean, or integer
+tensors; trainable Variables must use float32 or float64. Every Variable in a
+problem shares one device, and all floating Variables share one dtype. Static
+bool or integer data never enters tangent or retraction paths.
+
+A bare tensor accepted by a residual or node constructor is a construction-time
+constant. It is not auto-wrapped, harvested, or addressable by
+`Problem.update()`. Mutability is never inferred from `requires_grad`.
+
+### Vector residuals
+
+For every residual, the objective contract is:
+
+```text
+rows = row_weight.apply(error())
+cost = Σ_k active_k · w_k · ρ(‖rows_k‖²) · norm
+```
+
+The symbols have these exact meanings:
+
+- `row_weight` is square-root-information whitening. A scalar, a compatible
+  tensor, `ScaleWeight`, or `DiagonalWeight` applies identically to error and
+  Jacobian rows.
+- `weight` supplies the non-negative outer coefficient `w_k`; it is not a row
+  multiplier and never changes the kernel argument. A tensor coefficient must
+  have shape `()`, the exact trainable batch shape, or
+  `(*batch_shape, n_groups)` and must preserve working dtype and device.
+  Negative Python values raise at assignment. Tensor non-negativity is the
+  caller's domain responsibility and is not scanned in the hot path.
+- `active_k` comes from the detached boolean tensor returned by
+  `active_groups()`, with exact shape `(*batch_shape, n_groups)`. It is
+  authoritative even when `ρ(0)` is nonzero. Built-in gated residuals also
+  return finite zero rows for inactive groups, but zero rows alone do not
+  declare inactivity.
+- `norm` is `1` for `reduce="sum"`, `1 / n_groups` for `"mean"`, and
+  `1 / clamp(Σ_k active_k, 1)` for `"mean_active"`. The active count is
+  detached per batch element.
+
+The L2 kernel is `ρ(s) = 0.5 · s`, so its exact objective contribution is
+`0.5 · Σ_k active_k · w_k · ‖rows_k‖² · norm`.
+`enabled=False` and a Python-zero outer weight skip evaluation but retain the
+fixed row layout and optimizer state. A tensor zero stays graph-visible.
+
+`Problem.error()` returns concatenated `row_weight`-whitened rows only; outer
+weights, reduction, group activity, and robust-kernel scaling are excluded.
+The `residual` fields of `IKResult`, `TrajOptResult`, and
+`ContactForceResult` have the same diagnostic meaning. Use
+`Problem.objective()` for total cost and `Problem.term_costs()` for named term
+contributions.
+
+LM and GN use uncorrected IRLS with group row scale
+`sqrt(active_k · w_k · norm · kernel.weight(‖rows_k‖²))`. There is no
+Triggs second-order correction. This approximation is gradient-consistent
+only on a fixed active set. Activity thresholds are non-differentiable because
+the mask and `mean_active` count are detached.
+
+### Scalar costs
+
+`ScalarCost(fn, *reads, weight=w)` requires `fn` to return one batch-shaped
+scalar `f` on the caller-guaranteed domain `f >= 0`. Reads may be Variables or
+Nodes. Its one row is `sqrt(2f)` for `f > 0` and exactly zero for `f <= 0`,
+using masked branches that avoid a NaN backward. With L2, the on-domain
+objective contribution is exactly `w * f`.
+
+At exactly zero, that row has zero gradient. For positive values approaching
+zero, the Gauss--Newton column `grad(f) / sqrt(2f)` may grow; damping covers the
+tail. A problem containing `ScalarCost` is implicit-ineligible.
+
 ## Automatic differentiation
 
 Differentiability is a property of a path, not of the package name.
@@ -147,6 +229,10 @@ external tensor parameters, not the initial guess or solver settings. Invalid
 terminal states, unstable active bounds, nonsmooth robust points, quaternion
 branch cuts, oversize systems, and singular backward systems raise
 `ImplicitDifferentiationError` instead of returning a guessed gradient.
+
+A problem is implicit-ineligible if any residual uses
+`reduce="mean_active"`, overrides `active_groups()`, or is a `ScalarCost`. The
+implicit entry point raises an actionable error naming that residual.
 
 Optimized values, external tensor parameters, and static configuration are
 three different roles. A tensor has one role in a solve. The API never infers
