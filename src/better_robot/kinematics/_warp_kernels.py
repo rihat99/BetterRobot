@@ -354,6 +354,7 @@ def fk_frames_f32(
     frame_placements: wp.array2d(dtype=wp.transformf),
     q_map: wp.array(dtype=wp.int32),
     value_map: wp.array(dtype=wp.int32),
+    frame_map: wp.array(dtype=wp.int32),
     parents: wp.array(dtype=wp.int32),
     topo_order: wp.array(dtype=wp.int32),
     kinds: wp.array(dtype=wp.int8),
@@ -375,6 +376,7 @@ def fk_frames_f32(
     execution_index = wp.tid()
     q_row = q_map[execution_index]
     value_row = value_map[execution_index]
+    frame_row = frame_map[execution_index]
     for order_index in range(njoints):
         joint_index = topo_order[order_index]
         joint_delta = _joint_transform_reduced_f32(
@@ -402,7 +404,7 @@ def fk_frames_f32(
         parent = frame_parents[frame_index]
         frame_out[execution_index, frame_index] = _compose_f32(
             world_out[execution_index, parent],
-            frame_placements[value_row, frame_index],
+            frame_placements[frame_row, frame_index],
         )
 
 
@@ -413,6 +415,7 @@ def fk_frames_f64(
     frame_placements: wp.array2d(dtype=wp.transformd),
     q_map: wp.array(dtype=wp.int32),
     value_map: wp.array(dtype=wp.int32),
+    frame_map: wp.array(dtype=wp.int32),
     parents: wp.array(dtype=wp.int32),
     topo_order: wp.array(dtype=wp.int32),
     kinds: wp.array(dtype=wp.int8),
@@ -434,6 +437,7 @@ def fk_frames_f64(
     execution_index = wp.tid()
     q_row = q_map[execution_index]
     value_row = value_map[execution_index]
+    frame_row = frame_map[execution_index]
     for order_index in range(njoints):
         joint_index = topo_order[order_index]
         joint_delta = _joint_transform_reduced_f64(
@@ -461,7 +465,7 @@ def fk_frames_f64(
         parent = frame_parents[frame_index]
         frame_out[execution_index, frame_index] = _compose_f64(
             world_out[execution_index, parent],
-            frame_placements[value_row, frame_index],
+            frame_placements[frame_row, frame_index],
         )
 
 

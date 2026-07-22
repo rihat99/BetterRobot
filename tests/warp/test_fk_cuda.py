@@ -181,12 +181,14 @@ def _direct_inputs(model, q):
     device = q.device
     q_map = torch.zeros(q.shape[0], dtype=torch.int32, device=device)
     value_map = torch.zeros_like(q_map)
+    frame_map = torch.zeros_like(q_map)
     return (
         q,
         values.joint_placements.reshape(1, model.njoints, 7),
         values.frame_placements.reshape(1, model.nframes, 7),
         q_map,
         value_map,
+        frame_map,
         structure.parents_tensor,
         structure.topo_order_tensor,
         structure.joint_kind_tensor,

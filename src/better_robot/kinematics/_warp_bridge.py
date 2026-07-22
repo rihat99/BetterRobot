@@ -41,6 +41,7 @@ def _vjp(
     frame_placements: torch.Tensor,
     q_map: torch.Tensor,
     value_map: torch.Tensor,
+    frame_map: torch.Tensor,
     structure: ModelStructure,
     values: ModelValues,
     grad_world: torch.Tensor,
@@ -58,7 +59,7 @@ def _vjp(
         )
         q_exec = working[0].index_select(0, q_map.to(torch.int64))
         placements_exec = working[1].index_select(0, value_map.to(torch.int64))
-        frames_exec = working[2].index_select(0, value_map.to(torch.int64))
+        frames_exec = working[2].index_select(0, frame_map.to(torch.int64))
         body_inertias = values.body_inertias
         if body_inertias.ndim > 2:
             body_inertias = body_inertias[(0,) * (body_inertias.ndim - 2)]
@@ -96,6 +97,7 @@ def _warp_fk_forward(
     frame_placements: torch.Tensor,
     q_map: torch.Tensor,
     value_map: torch.Tensor,
+    frame_map: torch.Tensor,
     parents: torch.Tensor,
     topo_order: torch.Tensor,
     kinds: torch.Tensor,
@@ -127,6 +129,7 @@ def _warp_fk_forward(
         wp.from_torch(frame_placements, dtype=transform_dtype, requires_grad=False),
         wp.from_torch(q_map, dtype=wp.int32, requires_grad=False),
         wp.from_torch(value_map, dtype=wp.int32, requires_grad=False),
+        wp.from_torch(frame_map, dtype=wp.int32, requires_grad=False),
         wp.from_torch(parents, dtype=wp.int32, requires_grad=False),
         wp.from_torch(topo_order, dtype=wp.int32, requires_grad=False),
         wp.from_torch(kinds, dtype=wp.int8, requires_grad=False),
@@ -166,6 +169,7 @@ def _warp_fk_forward_fake(
     frame_placements,
     q_map,
     value_map,
+    frame_map,
     parents,
     topo_order,
     kinds,
@@ -197,12 +201,13 @@ class _WarpFKFunction(torch.autograd.Function):
         frame_placements: torch.Tensor,
         q_map: torch.Tensor,
         value_map: torch.Tensor,
+        frame_map: torch.Tensor,
         structure: ModelStructure,
         values: ModelValues,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         ctx.structure = structure
         ctx.values = values
-        ctx.save_for_backward(q, joint_placements, frame_placements, q_map, value_map)
+        ctx.save_for_backward(q, joint_placements, frame_placements, q_map, value_map, frame_map)
         device = q.device
         return _warp_fk_forward(
             q,
@@ -210,6 +215,7 @@ class _WarpFKFunction(torch.autograd.Function):
             frame_placements,
             q_map,
             value_map,
+            frame_map,
             structure.parents_tensor.to(device=device),
             structure.topo_order_tensor.to(device=device),
             structure.joint_kind_tensor.to(device=device),
@@ -225,7 +231,7 @@ class _WarpFKFunction(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_world, grad_local, grad_frames):
-        q, joint_placements, frame_placements, q_map, value_map = ctx.saved_tensors
+        q, joint_placements, frame_placements, q_map, value_map, frame_map = ctx.saved_tensors
         grad_world = q.new_zeros((q_map.shape[0], ctx.structure.njoints, 7)) if grad_world is None else grad_world
         grad_local = torch.zeros_like(grad_world) if grad_local is None else grad_local
         grad_frames = q.new_zeros((q_map.shape[0], ctx.structure.nframes, 7)) if grad_frames is None else grad_frames
@@ -236,6 +242,7 @@ class _WarpFKFunction(torch.autograd.Function):
             frame_placements,
             q_map,
             value_map,
+            frame_map,
             ctx.structure,
             ctx.values,
             grad_world,
@@ -244,7 +251,7 @@ class _WarpFKFunction(torch.autograd.Function):
             create_graph=create_graph,
             detach_inputs=not create_graph,
         )
-        return (*gradients, None, None, None, None)
+        return (*gradients, None, None, None, None, None)
 
 
 @dataclass(frozen=True)
@@ -324,14 +331,18 @@ def try_warp_forward_kinematics(  # noqa: PLR0911
             f"inputs {names} do not have unit stride on their trailing axis",
         )
         return None
-    if values.joint_placements.shape[:-2] != values.frame_placements.shape[:-2]:
+    joint_batch = tuple(values.joint_placements.shape[:-2])
+    frame_batch = tuple(values.frame_placements.shape[:-2])
+    try:
+        torch.broadcast_shapes(joint_batch, frame_batch)
+    except RuntimeError:
         _decline(
             "placement-batch-shape",
-            "joint and frame placements have different batch shapes",
+            "joint and frame placement batch shapes do not broadcast",
             q,
             values.joint_placements,
             values.frame_placements,
-            remedy="Give joint and frame placements identical batch shapes before capture",
+            remedy="Give joint and frame placements broadcast-compatible batch shapes before capture",
         )
         return None
 
@@ -342,9 +353,10 @@ def try_warp_forward_kinematics(  # noqa: PLR0911
         (placements, frame_placements, values.body_inertias),
         value_event_ndims=(2, 2, 2),
     )
-    # Equal placement batch shapes passed to ``flatten_execution_batch`` yield
-    # the same value map by construction. Avoid ``torch.equal`` here: it would
-    # synchronize the host while the public selector is being graph-captured.
+    # Joint and frame placements keep independent execution-to-input maps, so a
+    # batched shape table pairs cleanly with an unbatched frame table. The
+    # ``materialized`` check below compares data pointers rather than tensor
+    # values: ``torch.equal`` would synchronize the host during graph capture.
     q_unique = execution.q.tensor
     placement_unique = execution.values[0].tensor
     frame_unique = execution.values[1].tensor
@@ -370,12 +382,14 @@ def try_warp_forward_kinematics(  # noqa: PLR0911
 
     q_map = execution.q.batch_indices.to(device=q.device, dtype=torch.int32)
     value_map = execution.values[0].batch_indices.to(device=q.device, dtype=torch.int32)
+    frame_map = execution.values[1].batch_indices.to(device=q.device, dtype=torch.int32)
     world, local, frames = _WarpFKFunction.apply(
         q_unique,
         placement_unique,
         frame_unique,
         q_map,
         value_map,
+        frame_map,
         structure,
         values,
     )
