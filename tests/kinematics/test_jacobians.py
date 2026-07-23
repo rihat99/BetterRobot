@@ -19,6 +19,7 @@ from better_robot.kinematics.jacobian import (
     compute_joint_jacobians,
     frame_jacobian_raw,
     get_frame_jacobian,
+    get_joint_jacobian,
     joint_jacobians_raw,
 )
 from better_robot.optim import Problem, RobotVariable
@@ -119,6 +120,28 @@ def test_frame_jacobian_raw_matches_workspace_pass(arm, reference):
     compute_joint_jacobians(arm, data)
     expected = get_frame_jacobian(arm, data, frame_id, reference=reference)
     torch.testing.assert_close(actual, expected)
+
+
+@pytest.mark.parametrize("reference", ("world", "local_world_aligned", "local"))
+def test_get_joint_jacobian_matches_coincident_frame(arm, chain, reference):
+    """``get_joint_jacobian`` equals the Jacobian of the joint's body frame.
+
+    Builder body frames sit at their parent joint (identity local placement),
+    so the joint path and the (separately pinocchio-anchored) frame path must
+    agree in every reference frame. This is the only kinematics test that
+    exercises ``get_joint_jacobian`` with a ``reference=`` argument.
+    """
+    for model, frame_name in ((arm, "body_link1"), (chain, "body_l2")):
+        q = model.q_neutral.clone()
+        for index in range(model.nv):
+            q[index] = 0.3 * (index + 1)
+        data = forward_kinematics(model, q, compute_frames=True)
+        compute_joint_jacobians(model, data)
+        frame_id = model.frame_id(frame_name)
+        joint_id = model.structure.frame_parent_joints[frame_id].item()
+        J_joint = get_joint_jacobian(model, data, joint_id, reference=reference)
+        J_frame = get_frame_jacobian(model, data, frame_id, reference=reference)
+        torch.testing.assert_close(J_joint, J_frame)
 
 
 def test_frame_jacobian_raw_compiles_fullgraph(arm):

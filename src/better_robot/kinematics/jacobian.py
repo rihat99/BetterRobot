@@ -180,8 +180,20 @@ def get_joint_jacobian(
 ) -> torch.Tensor:
     """Extract the spatial Jacobian of a single joint from ``data.joint_jacobians``.
 
-    Shape: ``(B..., 6, nv)``. The literal reference strings mirror
-    Pinocchio's three reference-frame conventions.
+    Three pinocchio-style reference frames — all returning ``(B..., 6, nv)``:
+
+    - ``"world"`` (default): linear rows are the velocity of the world-coincident
+      point of the joint (the spatial velocity at the world origin); angular rows
+      are the angular velocity in world frame. This is the cached representation.
+      Matches Pinocchio's ``WORLD``.
+    - ``"local_world_aligned"``: linear rows are the velocity of the joint origin
+      expressed in the world frame; angular rows are the angular velocity in world
+      frame. Derived from the world Jacobian by translating the linear rows to the
+      joint origin (angular rows unchanged) — a translation only, not a full
+      adjoint. Matches Pinocchio's ``LOCAL_WORLD_ALIGNED``.
+    - ``"local"``: both linear and angular rows expressed in the body-local frame
+      of the joint, via the full inverse adjoint ``Ad(oMj)⁻¹``. Matches Pinocchio's
+      ``LOCAL``.
 
     See docs/concepts/kinematics_and_jacobians.md.
     """
@@ -193,6 +205,10 @@ def get_joint_jacobian(
 
     if reference == "world":
         return J_j
+    elif reference == "local_world_aligned":
+        p_j = data.joint_pose_world[..., joint_id, :3]
+        linear = J_j[..., :3, :] - torch.matmul(hat_so3(p_j), J_j[..., 3:, :])
+        return torch.cat((linear, J_j[..., 3:, :]), dim=-2)
     elif reference == "local":
         T_j = data.joint_pose_world[..., joint_id, :]
         return torch.matmul(se3.adjoint_inv(T_j), J_j)

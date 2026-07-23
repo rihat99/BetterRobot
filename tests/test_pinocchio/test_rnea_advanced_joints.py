@@ -18,22 +18,12 @@ import torch
 
 import better_robot as br
 
+from .conftest import _build_spherical_chain
+
 pin = pytest.importorskip("pinocchio")
 
 
 # ───────────────────────── free-flyer (G1) ─────────────────────────
-
-
-@pytest.fixture(scope="module")
-def g1_both():
-    """Load G1 with free-flyer in both libraries."""
-    robot_descriptions = pytest.importorskip("robot_descriptions")
-    from robot_descriptions import g1_description
-
-    br_m = br.load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
-    pin_m = pin.buildModelFromUrdf(g1_description.URDF_PATH, pin.JointModelFreeFlyer())
-    pin_d = pin_m.createData()
-    return br_m, pin_m, pin_d
 
 
 @pytest.mark.parametrize("seed", [1, 2, 3])
@@ -75,47 +65,6 @@ def test_rnea_free_flyer_base_wrench_matches_pinocchio(g1_both):
 
 
 # ───────────────────────── spherical joint ─────────────────────────
-
-
-def _build_spherical_chain():
-    """2-body chain: spherical joint + revolute RZ. Same in BR and Pinocchio."""
-    from better_robot.io.build_model import build_model
-    from better_robot.io.parsers.programmatic import ModelBuilder
-
-    mass1, com1, I1 = 1.5, torch.tensor([0.0, 0.0, -0.2]), torch.diag(torch.tensor([0.04, 0.05, 0.01]))
-    mass2, com2, I2 = 0.8, torch.tensor([0.0, 0.0, -0.15]), torch.diag(torch.tensor([0.02, 0.02, 0.005]))
-    rz_offset = torch.tensor([0.0, 0.0, -0.4])
-
-    b = ModelBuilder(name="sph_chain")
-    base = b.add_body("base", mass=0.0)
-    link1 = b.add_body("link1", mass=mass1, com=com1, inertia=I1)
-    link2 = b.add_body("link2", mass=mass2, com=com2, inertia=I2)
-    IDENT = torch.tensor([0.0, 0, 0, 0, 0, 0, 1.0])
-    b.add_spherical("j_sph", parent=base, child=link1, origin=IDENT)
-    b.add_revolute_z(
-        "j_rz",
-        parent=link1,
-        child=link2,
-        origin=torch.cat([rz_offset, torch.tensor([0.0, 0, 0, 1.0])]),
-    )
-    ir = b.finalize()
-    br_m = build_model(ir).to(dtype=torch.float64)
-
-    pin_m = pin.Model()
-    j_sph_id = pin_m.addJoint(0, pin.JointModelSpherical(), pin.SE3.Identity(), "j_sph")
-    pin_m.appendBodyToJoint(
-        j_sph_id,
-        pin.Inertia(float(mass1), com1.numpy().astype(float), I1.numpy().astype(float)),
-        pin.SE3.Identity(),
-    )
-    j_rz_id = pin_m.addJoint(j_sph_id, pin.JointModelRZ(), pin.SE3(np.eye(3), rz_offset.numpy().astype(float)), "j_rz")
-    pin_m.appendBodyToJoint(
-        j_rz_id,
-        pin.Inertia(float(mass2), com2.numpy().astype(float), I2.numpy().astype(float)),
-        pin.SE3.Identity(),
-    )
-    pin_d = pin_m.createData()
-    return br_m, pin_m, pin_d
 
 
 def _spherical_random_qva(seed: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
