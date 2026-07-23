@@ -104,7 +104,9 @@ SUBMODULE_PATHS: list[tuple[str, str]] = [
     ("better_robot.kinematics", "forward_kinematics_raw"),
     ("better_robot.kinematics", "frame_placements_raw"),
     ("better_robot.kinematics", "joint_jacobians_raw"),
+    ("better_robot.kinematics", "joint_jacobians_time_variation_raw"),
     ("better_robot.kinematics", "frame_jacobian_raw"),
+    ("better_robot.kinematics", "frame_jacobian_time_variation_raw"),
     # dynamics
     ("better_robot.dynamics", "rnea_raw"),
     ("better_robot.dynamics", "aba_raw"),
@@ -159,7 +161,9 @@ def test_submodule_attribute_resolves(module_path: str, attr: str) -> None:
                 "forward_kinematics_raw",
                 "frame_placements_raw",
                 "joint_jacobians_raw",
+                "joint_jacobians_time_variation_raw",
                 "frame_jacobian_raw",
+                "frame_jacobian_time_variation_raw",
             },
         ),
         (

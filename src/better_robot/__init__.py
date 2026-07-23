@@ -32,9 +32,12 @@ from .dynamics import (
 from .io import ModelBuilder, load
 from .kinematics import (
     compute_joint_jacobians,
+    compute_joint_jacobians_time_variation,
     forward_kinematics,
     get_frame_jacobian,
+    get_frame_jacobian_time_variation,
     get_joint_jacobian,
+    get_joint_jacobian_time_variation,
     update_frame_placements,
 )
 from .lie.types import SE3
@@ -54,12 +57,15 @@ __all__ = [
     "ModelBuilder",
     # lie (1)
     "SE3",
-    # kinematics (5)
+    # kinematics (8)
     "forward_kinematics",
     "update_frame_placements",
     "compute_joint_jacobians",
+    "compute_joint_jacobians_time_variation",
     "get_joint_jacobian",
+    "get_joint_jacobian_time_variation",
     "get_frame_jacobian",
+    "get_frame_jacobian_time_variation",
     # dynamics (5)
     "rnea",
     "aba",

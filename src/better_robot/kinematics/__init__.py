@@ -13,10 +13,15 @@ from .forward import (
 )
 from .jacobian import (
     compute_joint_jacobians,
+    compute_joint_jacobians_time_variation,
     frame_jacobian_raw,
+    frame_jacobian_time_variation_raw,
     get_frame_jacobian,
+    get_frame_jacobian_time_variation,
     get_joint_jacobian,
+    get_joint_jacobian_time_variation,
     joint_jacobians_raw,
+    joint_jacobians_time_variation_raw,
 )
 
 __all__ = [
@@ -25,8 +30,13 @@ __all__ = [
     "frame_placements_raw",
     "update_frame_placements",
     "compute_joint_jacobians",
+    "compute_joint_jacobians_time_variation",
     "joint_jacobians_raw",
+    "joint_jacobians_time_variation_raw",
     "frame_jacobian_raw",
+    "frame_jacobian_time_variation_raw",
     "get_joint_jacobian",
+    "get_joint_jacobian_time_variation",
     "get_frame_jacobian",
+    "get_frame_jacobian_time_variation",
 ]

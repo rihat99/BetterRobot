@@ -95,6 +95,21 @@ def sample_panda_q(n: int = 16, seed: int = 0) -> torch.Tensor:
     return qs
 
 
+def sample_panda_v(n: int = 16, seed: int = 1) -> torch.Tensor:
+    """Random fp64 nonzero Panda velocities (every coordinate nonzero).
+
+    Companion to :func:`sample_panda_q` for Jacobian time-variation parity; a
+    zero velocity coordinate would silently green a wrong ``J̇`` term.
+    """
+    rng = torch.Generator().manual_seed(seed)
+    vs = torch.empty(n, 9, dtype=torch.float64)
+    for i in range(n):
+        row = torch.rand(9, generator=rng, dtype=torch.float64) * 2.0 - 1.0
+        # Push every coordinate away from zero, keeping the sign.
+        vs[i] = torch.sign(row) * (row.abs() + 0.3)
+    return vs
+
+
 @pytest.fixture(scope="module")
 def g1_both():
     """Load G1 with free-flyer in both libraries (nq != nv fixture)."""

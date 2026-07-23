@@ -33,8 +33,11 @@ REQUIRED: frozenset[str] = frozenset(
         "forward_kinematics",
         "update_frame_placements",
         "compute_joint_jacobians",
+        "compute_joint_jacobians_time_variation",
         "get_joint_jacobian",
+        "get_joint_jacobian_time_variation",
         "get_frame_jacobian",
+        "get_frame_jacobian_time_variation",
         # dynamics
         "rnea",
         "aba",
