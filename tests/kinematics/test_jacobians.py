@@ -103,6 +103,32 @@ def test_joint_jacobians_raw_matches_workspace_pass(arm):
     torch.testing.assert_close(raw_result.joint_jacobians, data.joint_jacobians)
 
 
+def test_joint_jacobian_plan_rebuilds_after_to(chain):
+    """The memoised batched-Jacobian plan follows ``ModelStructure.to``.
+
+    ``joint_jacobians_raw`` caches a static plan on the structure instance;
+    :meth:`ModelStructure.to` mints a fresh instance, so a moved model must not
+    reuse a stale plan. Mirrors the ``_fk_matrix_plan`` memoisation contract.
+    """
+    from better_robot.kinematics import _jacobian_columns  # noqa: PLC0415
+
+    q = chain.q_neutral
+    data = forward_kinematics(chain, q)
+    compute_joint_jacobians(chain, data)
+    assert getattr(chain.structure, "_joint_jacobian_plan", None) is not None
+
+    moved = chain.to()
+    assert getattr(moved.structure, "_joint_jacobian_plan", None) is None
+
+    moved_data = forward_kinematics(moved, moved.q_neutral)
+    compute_joint_jacobians(moved, moved_data)
+    plan = _jacobian_columns.get_plan(moved.structure)
+    device = moved.structure.idx_vs_full_tensor.device
+    assert plan.column_gather.device == device
+    assert plan.support_mask.device == device
+    torch.testing.assert_close(moved_data.joint_jacobians, data.joint_jacobians)
+
+
 @pytest.mark.parametrize("reference", ("world", "local_world_aligned", "local"))
 def test_frame_jacobian_raw_matches_workspace_pass(arm, reference):
     q = arm.q_neutral

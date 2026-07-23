@@ -19,12 +19,10 @@ from ..data_model.execution_batch import broadcast_to_execution_batch
 from ..data_model.model import Model
 from ..data_model.model_structure import ModelStructure
 from ..data_model.model_values import ModelValues
-from ..data_model.reduced_coordinates import (
-    expand_configuration,
-    reduce_jacobian,
-)
+from ..data_model.reduced_coordinates import reduce_jacobian
 from ..lie import se3, so3
 from ..lie.tangents import hat_so3
+from ._jacobian_columns import get_plan, world_column_table
 
 _ReferenceFrame = Literal["world", "local", "local_world_aligned"]
 
@@ -43,62 +41,23 @@ def joint_jacobians_raw(
 ) -> JointJacobiansResult:
     """Tensor-only joint-Jacobian primitive with no ``Data`` sequencing.
 
-    Uses the propagation trick: ``J[j] = J[parent[j]]`` then adds the
-    contribution of joint ``j`` itself. ``joint_pose_world`` has shape
+    Each joint's own column block is ``Ad(oM) @ S`` and appears in a row joint's
+    Jacobian iff it supports that joint, so the pass builds one shared full-width
+    world column table (:func:`._jacobian_columns.world_column_table`) and masks
+    it per joint — no per-joint sequencing, launches independent of ``njoints``.
+    The constant :attr:`ModelStructure.joint_motion_subspaces` table replaces the
+    legacy per-joint ``joint_motion_subspace(q)`` calls (every shipped joint's
+    subspace is configuration-independent). ``joint_pose_world`` has shape
     ``(B..., njoints, 7)`` and the result field has shape
     ``(B..., njoints, 6, nv)``.
     """
     batch = tuple(joint_pose_world.shape[:-2])
-    q = broadcast_to_execution_batch(
-        q,
-        batch,
-        (structure.nq,),
-        name="q",
-    )
-    q_full = expand_configuration(structure, q)
+    q = broadcast_to_execution_batch(q, batch, (structure.nq,), name="q")
     device, dtype = q.device, q.dtype
 
-    J = torch.zeros(
-        *batch,
-        structure.njoints,
-        6,
-        structure.nv_full,
-        device=device,
-        dtype=dtype,
-    )
-
-    for j in structure.topo_order:
-        parent = structure.parents[j]
-        if parent >= 0:
-            J[..., j, :, :] = J[..., parent, :, :]
-
-        nv_j = structure.nvs_full[j]
-        v_j = structure.idx_vs_full[j]
-
-        if nv_j == 0:
-            continue
-
-        T_j = joint_pose_world[..., j, :]  # (B..., 7)
-        p_j = T_j[..., :3]  # (B..., 3)
-        R_j = so3.to_matrix(T_j[..., 3:])  # (B..., 3, 3)
-        hat_p = hat_so3(p_j)  # (B..., 3, 3)
-
-        nq_j = structure.nqs_full[j]
-        q_j = q_full[..., structure.idx_qs_full[j] : structure.idx_qs_full[j] + nq_j]
-        S_local = structure.joint_models[j].joint_motion_subspace(q_j)
-        S_local = S_local.to(device=device, dtype=dtype)  # (B..., 6, nv_j)
-
-        S_lin = S_local[..., :3, :]  # (B..., 3, nv_j)
-        S_ang = S_local[..., 3:, :]  # (B..., 3, nv_j)
-
-        # Ad(joint_pose_world[j]) @ S_local = [R @ S_lin + hat(p) @ R @ S_ang; R @ S_ang]
-        R_S_lin = torch.matmul(R_j, S_lin)  # (B..., 3, nv_j)
-        R_S_ang = torch.matmul(R_j, S_ang)  # (B..., 3, nv_j)
-        hat_p_R_S_ang = torch.matmul(hat_p, R_S_ang)  # (B..., 3, nv_j)
-
-        J[..., j, :3, v_j : v_j + nv_j] = R_S_lin + hat_p_R_S_ang
-        J[..., j, 3:, v_j : v_j + nv_j] = R_S_ang
-
+    plan = get_plan(structure)
+    columns = world_column_table(structure, joint_pose_world, plan, device=device, dtype=dtype)
+    J = columns.unsqueeze(-3) * plan.support_mask  # (B..., njoints, 6, nv_full)
     return JointJacobiansResult(joint_jacobians=reduce_jacobian(structure, J))
 
 
