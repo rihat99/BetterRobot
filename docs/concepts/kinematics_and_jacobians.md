@@ -178,8 +178,10 @@ A spatial velocity needs both a point of reference and coordinate axes. The
 
 `get_frame_jacobian` defaults to local-world-aligned because it directly says
 how the frame origin and orientation move in world coordinates. This is the
-usual quantity for end-effector position and pose errors. The full decision is
-{ref}`decision-jacobian-frame`.
+usual quantity for end-effector position and pose errors. `get_joint_jacobian`
+accepts the same three references and defaults to `"world"`, the frame in which
+every joint Jacobian is cached; the other two are derived on request. The full
+decision is {ref}`decision-jacobian-frame`.
 
 One conversion deserves special care. Local-world-aligned and local
 Jacobians refer to the same frame origin, so converting between them only
@@ -187,6 +189,104 @@ rotates the linear and angular rows. A `world` Jacobian refers to a different
 point; converting it to `local` uses the full SE(3) adjoint, including the
 translation cross term. Applying that full adjoint to an already aligned
 frame-origin Jacobian adds a false term.
+
+## How a Jacobian changes in time
+
+The Jacobian is itself a function of the configuration, so it changes as the
+robot moves. Its time derivative, written `J̇`, answers a second-order
+question: at a configuration `q` moving with joint velocity `v`, how fast is
+`J` changing right now? `get_joint_jacobian_time_variation` and
+`get_frame_jacobian_time_variation` return `J̇` with the same `(..., 6, nv)`
+shape and the same three references as the Jacobian itself. They read a
+velocity from `data.v`, so set it and call FK before asking.
+
+For every joint BetterRobot ships, the joint's motion axes are fixed in its own
+body — a revolute axis does not drift inside the link it turns. `J̇` is
+therefore pure transport: the columns of `J` are carried along by the motion of
+the joints that own them, with no separate term for the motion basis itself
+changing. That is why a velocity and the poses are all `J̇` needs.
+
+`J̇` exists to close the acceleration relation
+
+```{math}
+a \approx J\,\dot v + \dot J\,v,
+```
+
+where `v̇` is the joint acceleration and `a` is the frame acceleration. Which
+frame acceleration is where care is needed. In the `world` and `local` frames
+`a` is the **spatial** acceleration; in `local_world_aligned` `a` is the
+**classical** (point) acceleration of the frame origin. The reason is the
+moving-point subtlety again: the local-world-aligned basis is pinned to the
+frame origin, and that origin is itself travelling through the world, so its
+linear rows measure the ordinary acceleration you get by differentiating the
+origin's velocity — not the spatial acceleration referenced at a fixed world
+point. Pairing the classical acceleration with a `world` `J̇`, or the spatial
+acceleration with a `local_world_aligned` `J̇`, is wrong by a full order-one
+term, not a small error.
+
+The identity is checkable. This example builds a two-joint arm, reads the
+local-world-aligned `J` and `J̇` at one state, and compares `J v̇ + J̇ v`
+against a finite difference of the frame's local-world-aligned velocity — the
+classical acceleration — taken along the same motion:
+
+```{testcode}
+import torch
+from better_robot import (
+    forward_kinematics,
+    get_frame_jacobian,
+    get_frame_jacobian_time_variation,
+)
+from better_robot.io import ModelBuilder, build_model
+
+builder = ModelBuilder("planar_arm")
+builder.add_body("base")
+builder.add_body("link1")
+builder.add_body("link2")
+builder.add_revolute_z(
+    "j1", parent="base", child="link1",
+    origin=torch.tensor([0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]), lower=-3.14, upper=3.14,
+)
+builder.add_revolute_z(
+    "j2", parent="link1", child="link2",
+    origin=torch.tensor([0.4, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]), lower=-3.14, upper=3.14,
+)
+builder.add_frame(
+    "tool", parent_body="link2",
+    placement=torch.tensor([0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
+)
+model = build_model(builder.finalize())
+
+tool = model.frame_id("tool")
+q = torch.tensor([0.3, -0.5])
+v = torch.tensor([0.7, -0.4])
+a = torch.tensor([0.2, 0.6])  # joint acceleration
+
+
+def frame_lwa_velocity(q_t, v_t):
+    data_t = forward_kinematics(model, q_t)
+    J_t = get_frame_jacobian(model, data_t, tool, reference="local_world_aligned")
+    return J_t @ v_t
+
+
+data = forward_kinematics(model, q)
+data.v = v
+J = get_frame_jacobian(model, data, tool, reference="local_world_aligned")
+J_dot = get_frame_jacobian_time_variation(model, data, tool, reference="local_world_aligned")
+predicted = J @ a + J_dot @ v
+
+dt = 1e-3
+finite_difference = (
+    frame_lwa_velocity(model.integrate(q, dt * v), v + dt * a)
+    - frame_lwa_velocity(model.integrate(q, -dt * v), v - dt * a)
+) / (2 * dt)
+
+max_error = (predicted - finite_difference).abs().max()
+print("classical acceleration identity holds:", bool(max_error < 1e-2))
+```
+
+```{testoutput}
+classical acceleration identity holds: True
+```
 
 ## A pose residual combines two Jacobians
 

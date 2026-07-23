@@ -154,6 +154,18 @@ frame details are documented in {doc}`kinematics_and_jacobians`: converting
 `LOCAL_WORLD_ALIGNED` to `LOCAL` uses a rotation-only block transform, while converting `WORLD`
 to `LOCAL` also shifts the reference point and therefore uses the full adjoint.
 
+The Jacobian time variation `J̇` reuses this reasoning twice. Its default
+references mirror the static getters exactly — joints default to `WORLD`,
+frames to `LOCAL_WORLD_ALIGNED` — so a caller never has to remember a second
+convention for the derivative of a quantity they already know. And only one
+representation is cached: `data.joint_jacobians_dot` holds the `WORLD` `J̇`,
+just as `data.joint_jacobians` holds the `WORLD` `J`. The alternative, a
+separate stored table per reference frame, would triple the cache and its
+invalidation surface to save a small closed-form transform. `LOCAL` and
+`LOCAL_WORLD_ALIGNED` are instead derived in the getter from the one `WORLD`
+table, which keeps a single source of truth and one thing to invalidate when
+`q` or `v` changes.
+
 (decision-analysis-only)=
 ## Analysis and optimization, not simulation
 

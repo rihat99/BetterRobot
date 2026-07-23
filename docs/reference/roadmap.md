@@ -71,7 +71,8 @@ an offset `r` would contribute the additional moment `r × force`.
 
 The following nearby surfaces are live:
 
-- FK, frame placement, analytic spatial Jacobians, and batched execution;
+- FK, frame placement, batched analytic spatial Jacobians and their time
+  variation for joints and frames in all three references;
 - RNEA, ABA, CRBA, CCRBA, centroidal momentum, and center-of-mass position;
 - variable-based least-squares problems, LM, Gauss--Newton, a
   `torch.optim` adapter, and dense or declared temporal linearization;

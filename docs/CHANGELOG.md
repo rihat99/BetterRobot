@@ -5,6 +5,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- Joint Jacobians now assemble in one batched shared-column pass instead of a
+  per-joint Python loop, cutting kernel launches from ~50 per joint to a
+  constant 52 for the whole pass, independent of joint count (203-joint model,
+  batch 256: forward 47.3 to 0.84 ms). `get_joint_jacobian` gains the
+  `local_world_aligned` reference, so joints and frames now share all three
+  references. A new Jacobian time-variation API returns `J̇` for the
+  acceleration relation `a = J v̇ + J̇ v`: `compute_joint_jacobians_time_variation`,
+  `get_joint_jacobian_time_variation`, and `get_frame_jacobian_time_variation`
+  cover joints and frames in the world, local, and local-world-aligned frames,
+  where world and local pair with the spatial acceleration and
+  local-world-aligned with the classical acceleration of the moving frame
+  origin. It reuses the batched column pass and adds a constant 8 launches over
+  the Jacobian alone.
 - Forward kinematics now runs a batched matrix formulation — per-kind local
   transforms in batched calls, one batched matmul per joint, one final
   matrix-to-quaternion pass — cutting kernel launches from ~78 to ~2 per

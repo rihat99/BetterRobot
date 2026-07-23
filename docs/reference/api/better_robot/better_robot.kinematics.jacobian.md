@@ -19,6 +19,10 @@
   - ```{autodoc2-docstring} better_robot.kinematics.jacobian.JointJacobiansResult
     :summary:
     ```
+* - {py:obj}`JointJacobiansTimeVariationResult <better_robot.kinematics.jacobian.JointJacobiansTimeVariationResult>`
+  - ```{autodoc2-docstring} better_robot.kinematics.jacobian.JointJacobiansTimeVariationResult
+    :summary:
+    ```
 ````
 
 ### Functions
@@ -35,6 +39,14 @@
   - ```{autodoc2-docstring} better_robot.kinematics.jacobian.frame_jacobian_raw
     :summary:
     ```
+* - {py:obj}`joint_jacobians_time_variation_raw <better_robot.kinematics.jacobian.joint_jacobians_time_variation_raw>`
+  - ```{autodoc2-docstring} better_robot.kinematics.jacobian.joint_jacobians_time_variation_raw
+    :summary:
+    ```
+* - {py:obj}`frame_jacobian_time_variation_raw <better_robot.kinematics.jacobian.frame_jacobian_time_variation_raw>`
+  - ```{autodoc2-docstring} better_robot.kinematics.jacobian.frame_jacobian_time_variation_raw
+    :summary:
+    ```
 * - {py:obj}`compute_joint_jacobians <better_robot.kinematics.jacobian.compute_joint_jacobians>`
   - ```{autodoc2-docstring} better_robot.kinematics.jacobian.compute_joint_jacobians
     :summary:
@@ -45,6 +57,18 @@
     ```
 * - {py:obj}`get_frame_jacobian <better_robot.kinematics.jacobian.get_frame_jacobian>`
   - ```{autodoc2-docstring} better_robot.kinematics.jacobian.get_frame_jacobian
+    :summary:
+    ```
+* - {py:obj}`compute_joint_jacobians_time_variation <better_robot.kinematics.jacobian.compute_joint_jacobians_time_variation>`
+  - ```{autodoc2-docstring} better_robot.kinematics.jacobian.compute_joint_jacobians_time_variation
+    :summary:
+    ```
+* - {py:obj}`get_joint_jacobian_time_variation <better_robot.kinematics.jacobian.get_joint_jacobian_time_variation>`
+  - ```{autodoc2-docstring} better_robot.kinematics.jacobian.get_joint_jacobian_time_variation
+    :summary:
+    ```
+* - {py:obj}`get_frame_jacobian_time_variation <better_robot.kinematics.jacobian.get_frame_jacobian_time_variation>`
+  - ```{autodoc2-docstring} better_robot.kinematics.jacobian.get_frame_jacobian_time_variation
     :summary:
     ```
 ````
@@ -70,6 +94,36 @@
 
 `````
 
+`````{py:class} JointJacobiansTimeVariationResult
+:canonical: better_robot.kinematics.jacobian.JointJacobiansTimeVariationResult
+
+```{autodoc2-docstring} better_robot.kinematics.jacobian.JointJacobiansTimeVariationResult
+```
+
+````{py:attribute} joint_jacobians
+:canonical: better_robot.kinematics.jacobian.JointJacobiansTimeVariationResult.joint_jacobians
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.kinematics.jacobian.JointJacobiansTimeVariationResult.joint_jacobians
+```
+
+````
+
+````{py:attribute} joint_jacobians_dot
+:canonical: better_robot.kinematics.jacobian.JointJacobiansTimeVariationResult.joint_jacobians_dot
+:type: torch.Tensor
+:value: >
+   None
+
+```{autodoc2-docstring} better_robot.kinematics.jacobian.JointJacobiansTimeVariationResult.joint_jacobians_dot
+```
+
+````
+
+`````
+
 ````{py:function} joint_jacobians_raw(structure: better_robot.data_model.model_structure.ModelStructure, q: torch.Tensor, joint_pose_world: torch.Tensor) -> better_robot.kinematics.jacobian.JointJacobiansResult
 :canonical: better_robot.kinematics.jacobian.joint_jacobians_raw
 
@@ -81,6 +135,20 @@
 :canonical: better_robot.kinematics.jacobian.frame_jacobian_raw
 
 ```{autodoc2-docstring} better_robot.kinematics.jacobian.frame_jacobian_raw
+```
+````
+
+````{py:function} joint_jacobians_time_variation_raw(structure: better_robot.data_model.model_structure.ModelStructure, q: torch.Tensor, v: torch.Tensor, joint_pose_world: torch.Tensor, *, joint_jacobians: torch.Tensor | None = None) -> better_robot.kinematics.jacobian.JointJacobiansTimeVariationResult
+:canonical: better_robot.kinematics.jacobian.joint_jacobians_time_variation_raw
+
+```{autodoc2-docstring} better_robot.kinematics.jacobian.joint_jacobians_time_variation_raw
+```
+````
+
+````{py:function} frame_jacobian_time_variation_raw(structure: better_robot.data_model.model_structure.ModelStructure, values: better_robot.data_model.model_values.ModelValues, q: torch.Tensor, v: torch.Tensor, joint_pose_world: torch.Tensor, frame_id: int, *, reference: better_robot.kinematics.jacobian._ReferenceFrame = 'local_world_aligned', joint_jacobians: torch.Tensor | None = None, joint_jacobians_dot: torch.Tensor | None = None) -> torch.Tensor
+:canonical: better_robot.kinematics.jacobian.frame_jacobian_time_variation_raw
+
+```{autodoc2-docstring} better_robot.kinematics.jacobian.frame_jacobian_time_variation_raw
 ```
 ````
 
@@ -102,5 +170,26 @@
 :canonical: better_robot.kinematics.jacobian.get_frame_jacobian
 
 ```{autodoc2-docstring} better_robot.kinematics.jacobian.get_frame_jacobian
+```
+````
+
+````{py:function} compute_joint_jacobians_time_variation(model: better_robot.data_model.model.Model, data: better_robot.data_model.data.Data) -> better_robot.data_model.data.Data
+:canonical: better_robot.kinematics.jacobian.compute_joint_jacobians_time_variation
+
+```{autodoc2-docstring} better_robot.kinematics.jacobian.compute_joint_jacobians_time_variation
+```
+````
+
+````{py:function} get_joint_jacobian_time_variation(model: better_robot.data_model.model.Model, data: better_robot.data_model.data.Data, joint_id: int, *, reference: better_robot.kinematics.jacobian._ReferenceFrame = 'world') -> torch.Tensor
+:canonical: better_robot.kinematics.jacobian.get_joint_jacobian_time_variation
+
+```{autodoc2-docstring} better_robot.kinematics.jacobian.get_joint_jacobian_time_variation
+```
+````
+
+````{py:function} get_frame_jacobian_time_variation(model: better_robot.data_model.model.Model, data: better_robot.data_model.data.Data, frame_id: int, *, reference: better_robot.kinematics.jacobian._ReferenceFrame = 'local_world_aligned') -> torch.Tensor
+:canonical: better_robot.kinematics.jacobian.get_frame_jacobian_time_variation
+
+```{autodoc2-docstring} better_robot.kinematics.jacobian.get_frame_jacobian_time_variation
 ```
 ````
