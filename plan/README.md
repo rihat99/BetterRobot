@@ -1,174 +1,177 @@
-# Plan — downstream-driven optimization plumbing (BVR round)
+# Plan — Jacobian round: joint LWA, time variation, batched pass
 
-State at planning time (2026-07-22, branch `dev`, 2230063): the simplify
-round and the TorchOptimizer single-forward fix are delivered and verified;
-full CPU gate 1,534 passed; docs strict-build clean. The previous plan
-(simplify / model redesign / test prune / Warp FK+RNEA) is fully executed;
-its files were deleted with this commit and its durable outcomes live in
-`docs/CHANGELOG.md`, `docs/concepts/the_compute_seam.md`, and
-`docs/concepts/design_decisions.md`. Recover the old orders via
+State at planning time (2026-07-23, branch `dev`, `8c4e619`): the BVR optim
+round (orders 01–05) and the FK/RNEA launch-volume round are both delivered
+and verified; full CPU gate 1,672 passed, CUDA 60 passed. The previous plan
+(BVR round) is fully executed; its files were deleted with this commit and
+its durable outcomes live in `docs/CHANGELOG.md`. Recover the old orders via
 `git log -- plan/`.
 
 ## Why this round
 
-BetterVideoReconstruction (BVR) fitted SMPL-X bodies to video through BR's
-optimizer and had to fork every mesh-reading residual plus ~900 lines of
-plumbing (`BetterVideoReconstruction/tools/human_optim/`). Their wishlist is
-`BetterVideoReconstruction/BR_OPTIMIZER_WISHLIST.md`. Two independent
-audits verified every claim against both codebases, and the drafted plan
-survived an adversarial review (20 findings, all resolved or consciously
-rejected below) before being committed:
+Two owner-identified gaps against Pinocchio, plus one performance debt this
+round is the natural place to pay:
 
-- The wishlist's **math is exact**: BR's objective is
-  `Σ_groups ρ(‖weight·rows‖²)` with the term weight inside the kernel
-  argument (`problem.py:344-356`), which forces the `α = √(2w/N)` algebra
-  BVR re-derives in every robust residual, plus a `√(2·loss)` fake row for
-  scalar penalties.
-- The wishlist's **savings are overstated** (its ~250-line item-1 figure is
-  a class-size count; most of that body is domain math that stays in BVR)
-  and two of its nine asks already exist: `residual.weight = 0` is a clean
-  one-call disable, and static `Variable` inputs are already updatable
-  mid-solve via `problem.update()`.
-- The wishlist **missed real frictions** the audits found: robust kernels
-  NaN on zero-filled rows, `√weight` tricks to keep confidence linear
-  through the squaring, a re-derived scene-SDF with point-to-*plane*
-  semantics BR lacks, `ProjectionResidual`'s inability to project anything
-  but frame rows, and three optimizer-lifecycle semantics (static updates
-  discarding Adam moments, sticky terminal statuses, no resume) that make
-  any multi-phase loop hand-rolled today.
+1. `get_joint_jacobian` supports only `"world"` and `"local"`
+   (`kinematics/jacobian.py:194-200`); Pinocchio's `getJointJacobian`
+   supports LOCAL_WORLD_ALIGNED for joints too. Frame Jacobians already
+   have all three.
+2. There is no Jacobian time variation (J̇ given `q`, `v`) for joints or
+   frames. Pinocchio 3.9.0 ships `computeJointJacobiansTimeVariation`,
+   `getJointJacobianTimeVariation`, `getFrameJacobianTimeVariation`.
+3. `joint_jacobians_raw` is still a per-joint Python loop of scalar glue
+   (~15–25 launches × njoints, `jacobian.py:70-101`) — the exact
+   launch-bound shape the FK round eliminated. J̇ should not inherit it, so
+   the batched rewrite lands first and J̇ is built on the batched pass.
 
-The theme of this round is the same as the last one: BR carries the generic
-plumbing (weight algebra, activity bookkeeping, composition, scalar terms,
-tangent groups, phase lifecycle), downstreams keep their domain math.
-Nothing here adds a solver, a protocol, or a configuration system.
+## Ground truth (verified against installed pinocchio 3.9.0, fp64, all
+## claims numerically checked; scripts recorded in the planning session)
 
-## Decisions taken in this plan (owner may veto before launch)
+- **Joint LWA** is the world Jacobian with linear rows translated to the
+  joint origin: `lin_LWA = lin_W − hat(p_joint) @ ang_W`, angular rows
+  unchanged (max err ≤ 1.1e-16 across revolute/spherical/free-flyer).
+- **The time-variation getter is the plain d/dt of the same-frame Jacobian
+  in all three frames** (central FD match ≤ 2e-10 at dt=1e-6 for WORLD,
+  LOCAL, and LWA, joints and frames). There is no frame in which the getter
+  is something other than d/dt of that frame's Jacobian.
+- **`data.dJ` recursion**: `dJ[:, cols(i)] = ad(ov_i) @ J[:, cols(i)]`
+  where `ov_i` is the WORLD spatial velocity of joint `i` and
+  `ad([v;w]) = [[ŵ, v̂],[0, ŵ]]` (column-wise match ≤ 8.9e-16). There is
+  no `dS/dt` term: every standard joint's motion subspace is constant in
+  its local frame. The same holds for every shipped BetterRobot joint
+  (verified over all joint model classes; `base.py` has derivative hooks
+  but all dispatch to zero) — **J̇ is transport-only**.
+- **Closed-form getters from the WORLD cache** (verified to machine
+  precision, joints and frames; `p` = ref origin, `ov` = world spatial
+  velocity of the ref, `v_ref` = local spatial velocity of the ref):
 
-1. **The term weight moves outside the kernel.** Per residual the
-   objective becomes
-   `Σ_k active_k · w_k · ρ(‖row_weight · rows_k‖²) · norm` — `weight` is a
-   plain non-negative outer coefficient (scalar, batch-shaped, or
-   per-group), the kernel keeps its own scale,
-   `reduce ∈ {"sum","mean","mean_active"}` sets `norm`, the activity mask
-   is authoritative and detached, and the old √-information inner
-   multiplier survives as the separate `row_weight`. Breaking change;
-   every in-tree caller migrates in the same order (the dominant breakage
-   is every scalar weight — its L2 meaning flips from `a²` to `a`). The
-   hard-wired `0.5` in every `ρ` stays. All objective consumers —
-   `problem.py`, `lm.py`, `temporal.py`, `implicit.py` — route through one
-   shared per-evaluation bundle so the formula exists in exactly one
-   place. LM stays uncorrected IRLS (no Triggs), gradient-consistent on a
-   fixed active set; `mean_active`/masked problems are
-   implicit-differentiation-ineligible with an actionable error.
-2. **Activity masks are fixed-shape and captured in-scope.** A gated
-   residual zeroes its inactive rows and reports a boolean per-group mask;
-   masks, coefficients, and rows are bundled inside the evaluation scope
-   that produced them (LM's candidate evaluations close their scope before
-   linearization — re-querying is a wrong-iterate bug). Zero-row
-   discipline is enforced by contract tests, never by runtime value
-   checks; the LM inner loop stays fixed-shape and sync-free.
-3. **Nodes compose.** A `Node` input may be another `Node`; `Problem`
-   harvests nodes and leaf variables transitively and scopes every
-   discovered node's memo. Updatable inputs are explicitly constructed
-   static `Variable`s — `Variable` learns to hold bool/int data when
-   `trainable=False` (masks, labels), and `Problem`'s dtype validation
-   relaxes accordingly. No auto-wrapping (the residuals layer cannot
-   construct `optim.Variable` without reversing the DAG); raw-tensor
-   inputs stay frozen-at-construction and say so in their docstrings.
-4. **No phase/curriculum object — but the lifecycle gets honest.** A Phase
-   abstraction would be config as code; we ship a how-to guide instead.
-   What makes the plain loop actually work is order 05's three fixes:
-   same-layout `problem.update()` preserves optimizer moments, `resume()`
-   returns terminal elements to RUNNING, and `TorchOptimizer` takes an LR
-   scheduler factory. (Explicitly rejects wishlist item 5.1.)
-5. **Scalar penalties are one library class**, `ScalarCost`, an exact
-   safe-sqrt `√(2f)` row (double-`where`, no epsilon, no dead zone) whose
-   objective contribution is exactly `w·f` for the documented domain
-   `f ≥ 0` — zero changes to `Problem` or LM. Honest caveats are part of
-   the contract: zero gradient at exactly `f = 0`, ill-conditioned GN
-   columns as `f → 0`, and no implicit differentiation.
-6. **Tangent-group freeze returns, smaller.** The old `mask`/`scale`
-   subsystem (deleted at `1d124b7` for having zero callers) now has a real
-   caller. It returns as a construction-time `frozen_groups` mask on
-   `RobotVariable` only — named groups derived from the model (per joint,
-   `"root"`, `"root_lin"`, `"root_ang"`, `"joints"`), no `scale`, no
-   mutable mask, no raw-mask parameter. Public geometry (`difference()`,
-   the `Difference` residual) is untouched; the free/full seam lives in
-   optimizer-facing plumbing, analytic Jacobian columns are reduced
-   centrally in `Problem`, and the LM bounds layout, temporal width, and
-   implicit solution coordinates follow. Changing the frozen set means
-   constructing a new variable/problem — exactly the phase pattern.
-7. **Higher-order smoothness without gratuitous breakage.**
-   `SmoothnessResidual(order ∈ {2,3,4})` (forward k-th differences of the
-   tangent first-difference sequence, per-coordinate `coordinate_weight`)
-   replaces `AccelerationResidual` (whose rows `order=2` reproduces
-   bit-for-bit); **`VelocityResidual` stays unchanged** — no caller wants
-   a forward order-1 and the wishlist asks only for orders 2–4. Analytic /
-   banded blocks are declared only for models whose tangent difference is
-   affine (all scalar joints); spherical/free-flyer models warn and take
-   the AD/dense route — and order 04 first *verifies* the suspected
-   pre-existing defect that today's constant-identity blocks are wrong for
-   those models.
-8. **Not doing, on purpose:** a live (variable-tracking) kernel scale —
-   rejected outright, BVR's pre-fit keeps computing its scale inside its
-   own `ScalarCost` function, which is the honest place for it; auto-skip
-   of short-horizon smoothness (constructors keep raising; callers
-   guard); a per-term metrics framework (`problem.term_costs()` is a
-   readout, not a logging system); a Problem-level scalar-cost pathway;
-   state-dependent manifold smoothness Jacobians (deferred to the roadmap
-   with its own contract).
+  ```text
+  WORLD:  J̇ = dJ                          (supporting columns)
+  LWA:    J̇_ang = dJ_ang
+          J̇_lin = dJ_lin − p × dJ_ang − v_pt × J_W_ang
+          v_pt  = ov.lin + ov.ang × p     (world velocity of the point)
+  LOCAL:  J̇_col = Ad(oMref)⁻¹ dJ_col − ad(v_ref) (Ad(oMref)⁻¹ J_col)
+  ```
 
-## The five orders
+  The LWA trap: translating `dJ` the way the static Jacobian is translated
+  misses the `− v_pt × J_W_ang` term and is off by O(1) (measured 2.64).
+- **Acceleration identity**: `a = J v̇ + J̇ v` holds with the **spatial**
+  acceleration for WORLD and LOCAL, and with the **classical** (point)
+  acceleration for LWA (≤ 2e-15 for the matching pair, O(1) for the
+  mismatched pair). Docstrings must state this pairing.
+- **∂J/∂q**: pinocchio's kinematic-Hessian API is joints-only and not even
+  exposed in its Python bindings. BetterRobot gets ∂J/∂q through autograd
+  already. Explicit non-goal.
 
-| Order | What | Acceptance in one line |
+## Verified BetterRobot-side facts
+
+- `Data.joint_jacobians_dot (B..., njoints, 6, nv)` is already declared and
+  listed in `_VELOCITY_CACHES` (`data.py:47,106`) — invalidation on `q`/`v`
+  reassignment is pre-wired; the slot just has no producer. Field name is
+  settled; the forbidden legacy aliases `dJ` and `ov` must not appear as
+  `Data` attributes (`tests/test_skeleton_signatures.py:88,95`; `ov` as a
+  local variable or formula name is fine).
+- `structure.joint_motion_subspaces` is a constant `(njoints, 6, max_nv)`
+  table (`model_structure.py:162`) that RNEA already consumes batched; the
+  per-joint `joint_motion_subspace(q_j)` calls in the current Jacobian loop
+  are redundant with it for every shipped joint.
+- `structure.supports` is materialized as ragged device tensors
+  (`support_offsets`/`support_indices`, `model_structure.py:141-142`); a
+  static column-owner map and a `(njoints, nv_full)` support mask derive
+  from the structure once.
+- Mimic reduction is a constant linear map: `J_reduced = J_full @
+  v_expansion` (`reduced_coordinates.py`), hence
+  `J̇_reduced = J̇_full @ v_expansion`. Owner-indexed column formulas apply
+  on **full-width** columns only; reduce last, exactly like
+  `joint_jacobians_raw` does today.
+- `get_joint_jacobian` has zero internal callers in `src/` (residuals use
+  frame Jacobians); the LWA addition migrates nobody.
+- No joint-Jacobian parity test exists at all today — only
+  `test_frame_jacobian_matches_pinocchio.py`. Order 01 closes that hole.
+- Parity fixtures for nq≠nv already exist: G1 free-flyer and a hand-built
+  pinocchio spherical chain in `test_rnea_advanced_joints.py:28-121`.
+- `tests/test_pinocchio/conftest.py` has `sample_panda_q` but no velocity
+  sampler; J̇ parity adds `sample_panda_v`.
+
+## Design decisions
+
+1. **API mirrors the existing trio and Pinocchio's names.** New public
+   symbols: `compute_joint_jacobians_time_variation(model, data)`,
+   `get_joint_jacobian_time_variation(model, data, joint_id, *,
+   reference=...)`, `get_frame_jacobian_time_variation(model, data,
+   frame_id, *, reference=...)`, exported top-level; raw passes
+   `joint_jacobians_time_variation_raw` and
+   `frame_jacobian_time_variation_raw` stay qualified under
+   `better_robot.kinematics`. Defaults mirror the static getters:
+   `"world"` for joints, `"local_world_aligned"` for frames.
+2. **The cache holds WORLD J̇** (`data.joint_jacobians_dot`), exactly as
+   `data.joint_jacobians` holds WORLD J; LOCAL and LWA are derived in the
+   getters via the verified closed forms. One stored representation, no
+   per-frame caches.
+3. **Velocity source is `ov_j = J_j @ v`** (one batched einsum over the
+   cached/reused world Jacobian). No standalone velocity-FK pass, no new
+   `KinematicsLevel` producer, no dependency on RNEA. The compute wrapper
+   requires PLACEMENTS and a set `data.v` (clear `StaleCacheError` if
+   `data.v` is None).
+4. **Batched pass first (order 02), J̇ second (order 03).** Both passes
+   share one private helper that produces the full-width world column
+   table + static owner map; J̇ adds one einsum, one gather, and batched
+   cross products — target ~O(1) launches independent of njoints for both.
+5. **Transport-only J̇ is a documented contract**: a comment at the formula
+   site names the assumption (constant local motion subspaces) and points
+   at the `base.py` derivative hooks that a future q-dependent joint would
+   have to wire in. No speculative code path.
+6. **Additive round**: no MIGRATION.md rows; new symbols are pinned in
+   `tests/contract/test_public_api.py` `REQUIRED` and the submodule
+   contract; `docs/CHANGELOG.md` gets one entry.
+
+## Non-goals (conscious)
+
+- No ∂J/∂q kinematic-Hessian API (autograd covers it; pinocchio's Python
+  doesn't bind it either).
+- No Warp lane for Jacobians or J̇ — the batched Torch pass is ~O(1)
+  launches; there is nothing left for a kernel to win.
+- No standalone velocity-FK pass and no filling of the currently dead
+  `Data.joint_velocity_world` slot (pre-existing; noted for the owner, not
+  touched). `KinematicsLevel.VELOCITIES` still has no exact producer —
+  also pre-existing, also untouched.
+- No FK-internals change to export world rotation matrices to the Jacobian
+  pass (a possible future micro-opt; one batched `so3.to_matrix` per pass
+  is cheap and keeps the passes decoupled).
+
+## Orders
+
+| Order | Depends on | Scope |
 |---|---|---|
-| `for_agents/01_objective_algebra.md` | Outer weight + `reduce` + activity bundle + `enabled` + `row_weight`; kernel zero-row gradient safety; `term_costs()`; temporal/implicit routed through one formula; exhaustive weight migration | Algebra tests + gradcheck-at-zero pass; banded/implicit match dense; every in-tree caller migrated; full gate green |
-| `for_agents/02_node_composition.md` | Node-in-node inputs, transitive harvest and scoping, bool/int static Variables, `ScalarCost` | Nested-node counting + stale-memo tests fail closed; `w·f` exact; gate green |
-| `for_agents/03_mesh_residuals.md` | Scene/chamfer accept node clouds and masks; per-head gates + external masks + linear detached confidence; point-to-plane option; `PointProjectionResidual` with explicit event axes | The BVR scene/chamfer/reproj shapes are expressible without subclassing; defaults regression-pinned; gate green |
-| `for_agents/04_tangent_groups_smoothness.md` | Named tangent groups (incl. root_lin/root_ang), construction-time freeze wired through problem/LM-bounds/temporal/implicit, `SmoothnessResidual` orders 2–4 | Frozen-root warm-up end to end; banded trajopt routes frozen; spherical-block defect verified and gated; gate green |
-| `for_agents/05_optimizer_docs_slice.md` | Layout-aware refresh, `resume()`, LR scheduler; staged-fit how-to; BVR-shaped vertical slice v2; docs/roadmap/changelog sync | Moments survive static swaps; slice exercises every order in < ~150 lines and converges; strict Sphinx green |
+| 01 | — | `local_world_aligned` on `get_joint_jacobian`; net-new joint-Jacobian parity tests |
+| 02 | 01 committed | Batched rewrite of `joint_jacobians_raw`; launch-count bench |
+| 03 | 02 | Time-variation raw passes, Data wiring, getters, parity + FD + mimic + autograd tests |
+| 04 | 01–03 | Docs, changelog, roadmap, API regen, final gates |
 
-Run them in order: 02 depends on 01's weight semantics only trivially, but
-03 needs both; 04 is independent of 02–03 in content yet lands after them
-to keep merge noise down; 05 assembles everything. Each order ends with the
-full gate green.
+Orders run **sequentially**. 01 and 02 edit disjoint regions of the same
+`jacobian.py`, and this tree has no per-order branch isolation (working
+rules below forbid checkout/stash), so parallel agents would see each
+other's half-finished file during test runs. 01 is tiny — land and commit
+it first, then start 02.
 
-## Soft budgets
+## Gates (every order)
 
-Feature rounds grow code; budgets keep it honest. Net `src/**/*.py` growth
-per order: 01 ≤ +300, 02 ≤ +150, 03 ≤ +250, 04 ≤ +350, 05 ≤ +150 (docs and
-tests excluded). The two largest budgets reflect deliberately inventoried
-wiring (01: temporal + implicit routing; 04: five-file freeze seam), not
-license to sprawl. An order that cannot meet its budget stops and reports
-rather than redefining success.
+```bash
+UV_CACHE_DIR=/tmp/betterrobot-uv-cache uv run pytest tests/ -q -m "not bench and not cuda"
+uv run ruff check src/ tests/
+uv run sphinx-build -b html docs docs/_build/html   # order 04, strict
+```
 
-## Ground rules
+Pinocchio parity (`tests/test_pinocchio`) is ground truth and is never
+weakened. Tests outside `tests/test_pinocchio` are fp32-only. Public
+wrappers validate; raw passes trust inputs; everything autograd- and
+`torch.func`-safe; no host syncs in hot paths.
 
-1. **Read `DESIGN_RULES.md` (repo root, untracked) before writing code.**
-2. **No backward compatibility.** Removed or renamed public symbols get a
-   row in root `MIGRATION.md`; never an alias, shim, or deprecation path.
-3. **The safety net stays green.** Pinocchio parity, contract tests, and
-   the full non-bench/non-CUDA gate pass at the end of every order; never
-   weaken them to land a change. CUDA is agent-runnable on this host (8×
-   RTX 6000 Ada; pin with `CUDA_VISIBLE_DEVICES`, 2/3/7 usually free) —
-   run the CUDA suite when an order touches evaluation paths.
-4. **No silent behavior.** Fallbacks warn (`AutodiffFallbackWarning`
-   policy), infeasible constructions raise, and any numeric-semantics
-   change (order 01's algebra, order 03's confidence linearity) is
-   documented in the same order that lands it.
-5. **Docs stay true per order** — every page, docstring, and `CLAUDE.md`
-   an order falsifies is updated in the same order, including
-   `optim/CLAUDE.md` and `residuals/CLAUDE.md` contract lines.
-6. **Honest results files.** Each order writes `for_agents/NN_results.md`:
-   delivered, deviations (findings, not failures), exact test counts, line
-   accounting by the `wc -l` method. Order 01's results file additionally
-   carries the full old→new weight table per call site; order 05's closes
-   the round with a per-wishlist-item disposition table.
-7. **Subagents run on Opus.** Codex is available for adversarial review;
-   treat its taste for abstraction with suspicion, its factual findings
-   with respect.
-8. **Everything on `dev`.** No feature branches, no worktrees unless asked.
-9. **BVR is evidence, not a spec.** When this plan and BVR's fork disagree,
-   design the generic thing and note the divergence in the results file;
-   do not import BVR's factor-2 conventions, its `1e-12` clamps, or its
-   sign conventions without deciding them consciously.
+## Working rules (concurrent tree)
+
+Another session may work in this tree. Implementation agents: never run
+`git add/commit/stash/checkout/restore`; keep a `git diff >
+<scratchpad>/orderNN.patch` backup after every edit round; do not touch
+`optim/`, `residuals/`, `tasks/`, `MIGRATION.md`; run only the test
+directories your order owns plus the final gate. The orchestrator commits
+finished orders immediately with explicit pathspecs.
