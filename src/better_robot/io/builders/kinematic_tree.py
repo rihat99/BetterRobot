@@ -21,7 +21,7 @@ import torch
 
 from ...data_model.model import Model
 from ..build_model import build_model
-from ..ir import IRModel
+from ..ir import IRFrame, IRModel
 from ..parsers.programmatic import ModelBuilder
 
 
@@ -203,6 +203,7 @@ def build_kinematic_tree_model(
     mass_per_body: float | Sequence[float] = 0.0,
     com_per_body: torch.Tensor | Sequence[torch.Tensor] | None = None,
     inertia_per_body: torch.Tensor | Sequence[torch.Tensor] | None = None,
+    frames: Sequence[IRFrame] | None = None,
     preserve_joint_order: bool = False,
     device: torch.device | str | None = None,
     dtype: torch.dtype = torch.float32,
@@ -211,6 +212,10 @@ def build_kinematic_tree_model(
 
     See :func:`build_kinematic_tree_body`. Set ``preserve_joint_order=True``
     to retain the supplied, already-topological ``joint_names`` layout.
+
+    ``frames`` attaches extra operational frames on top of the automatic
+    ``body_<name>`` ones. Bodies are named after their joints, so every
+    ``IRFrame.parent_body`` must be one of ``joint_names``.
     """
     ir = build_kinematic_tree_body(
         name=name,
@@ -223,6 +228,12 @@ def build_kinematic_tree_model(
         com_per_body=com_per_body,
         inertia_per_body=inertia_per_body,
     )
+    if frames:
+        body_names = set(joint_names)
+        for frame in frames:
+            if frame.parent_body not in body_names:
+                raise ValueError(f"frame {frame.name!r} has unknown parent_body {frame.parent_body!r}")
+        ir.frames.extend(frames)
     return build_model(
         ir,
         preserve_joint_order=preserve_joint_order,

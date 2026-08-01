@@ -10,7 +10,7 @@ from better_robot.io.builders.kinematic_tree import (
     build_kinematic_tree_body,
     build_kinematic_tree_model,
 )
-from better_robot.io.ir import IRModel
+from better_robot.io.ir import IRFrame, IRModel
 
 from tests.support.branching_tree import (
     JOINT_NAMES,
@@ -322,3 +322,38 @@ def test_com_and_inertia_defaults_preserve_existing_behavior():
     for body in ir.bodies:
         assert torch.equal(body.com, torch.zeros(3))
         assert torch.equal(body.inertia, torch.zeros(3, 3))
+
+
+# ---------------------------------------------------------------------------
+# frames kwarg
+# ---------------------------------------------------------------------------
+
+
+def test_frames_appended_after_the_automatic_body_frames():
+    """User frames land on their named parent joint with the given placement."""
+    placements = torch.tensor(
+        [[0.0, 0.05, 0.0, 0.0, 0.0, 0.0, 1.0], [0.01, 0.0, 0.02, 0.0, 0.0, 0.0, 1.0]],
+        dtype=torch.float32,
+    )
+    model = build_kinematic_tree_model(
+        **_tiny_tree_kwargs(),
+        frames=[
+            IRFrame(name="tip_c", parent_body="c", placement=placements[0]),
+            IRFrame(name="tip_a", parent_body="a", placement=placements[1]),
+        ],
+        preserve_joint_order=True,
+    )
+    # 4 automatic body frames (universe + a + b + c), then the two user frames.
+    assert model.nframes == 6
+    assert model.frame_names[4:] == ("tip_c", "tip_a")
+    assert model.frames[4].parent_joint == model.body_name_to_id["c"]
+    assert model.frames[5].parent_joint == model.body_name_to_id["a"]
+    assert torch.allclose(model.values.frame_placements[4:], placements)
+
+
+def test_frames_unknown_parent_body_raises():
+    with pytest.raises(ValueError, match="unknown parent_body"):
+        build_kinematic_tree_model(
+            **_tiny_tree_kwargs(),
+            frames=[IRFrame(name="tip", parent_body="nope", placement=torch.zeros(7))],
+        )
