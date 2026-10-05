@@ -2209,7 +2209,7 @@
     "warmup": 20
   },
   "environment": {
-    "better_robot_source": "/data3/rikhat.akizhanov/better/BetterRobot/src/better_robot/__init__.py",
+    "better_robot_source": "/home/rikhat.akizhanov/better/BetterRobot/src/better_robot/__init__.py",
     "cpu": "INTEL(R) XEON(R) PLATINUM 8570",
     "cpu_affinity": [
       0,

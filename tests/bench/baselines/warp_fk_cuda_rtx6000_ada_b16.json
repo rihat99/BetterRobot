@@ -340,14 +340,14 @@
   },
   "platform": "Linux-6.8.0-110-generic-x86_64-with-glibc2.35",
   "python": {
-    "executable": "/data3/rikhat.akizhanov/better/BetterRobot/.venv/bin/python",
+    "executable": "/home/rikhat.akizhanov/better/BetterRobot/.venv/bin/python",
     "implementation": "CPython",
     "version": "3.11.15 (main, Apr 14 2026, 14:28:36) [Clang 22.1.3 ]"
   },
   "python_version": "3.11.15 (main, Apr 14 2026, 14:28:36) [Clang 22.1.3 ]",
   "samples": 100,
   "schema_version": 2,
-  "source": "/data3/rikhat.akizhanov/better/BetterRobot/src/better_robot/__init__.py",
+  "source": "/home/rikhat.akizhanov/better/BetterRobot/src/better_robot/__init__.py",
   "statistic": "median with inclusive Q1/Q3 and IQR over raw host wall-clock samples",
   "timestamp_utc": "2026-07-18T08:49:47.408738+00:00",
   "timing_scope": "first-call cold timings exclude imports/model construction; CUDA steady-state samples include completion synchronization",
