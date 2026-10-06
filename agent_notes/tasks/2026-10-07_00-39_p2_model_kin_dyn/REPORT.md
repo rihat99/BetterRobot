@@ -1,4 +1,4 @@
-# REPORT — P2 model, kinematics, dynamics (2026-10-07, night; interim: dynamics not yet moved)
+# REPORT — P2 model, kinematics, dynamics (2026-10-07, night)
 
 All work is on `dev`, committed, not pushed. Owner was asleep; decisions made off-hours are listed at the end.
 
@@ -9,8 +9,10 @@ kinematics was rewritten as one per-joint affine map plus one matmul per tree le
 throughout; on one CPU thread Panda FK takes 48 torch operators instead of 246 and runs 2.5–5× faster, frame
 Jacobians on a 200-joint tree with gradients 9× faster. The Warp lanes are gone (owner decision Q1). A minimal
 collision layer (sphere distances, robot spheres, clearance terms) exists and an obstacle-avoiding trajectory
-example runs on the new optimizer. Dynamics (RNEA/CRBA/ABA) still run on the old `Data` path; that is the
-remaining P2 item.
+example runs on the new optimizer. Dynamics (RNEA, CRBA, ABA, centroidal) were rewritten as one world-frame
+core with no loop over joints: operator counts drop 3–45× (Panda RNEA 1053 → 379, tree200 CRBA 14,184 → 312),
+batch-1 calls are 2–19× faster, and the 200-joint CRBA forward+backward at batch 4096 goes from 823 s to 5.4 s.
+Two more float32 leftovers were found on the way; dynamics now match pinocchio to 1e-15.
 
 ## M1 Precision (commit 0ebac62)
 
@@ -64,10 +66,12 @@ mode) — all fixed and pinned by a test. The reviewer verified every joint kind
 (7e-16), G1 floating-base Jacobians in all references, `torch.func`, batched placements, and judged the oracle
 regeneration justified with no test weakened.
 
-## M4 Warp removed (commit 688efdb)
+## M4 Warp removed (commits d79e570 and 688efdb)
 
 - Deleted: 4 kernel/bridge modules, `tests/warp/`, the Warp bench schema test and baselines, the
-  `use_warp` parameters, the `warp` extra. 2,206 lines of kernels plus tests.
+  `use_warp` parameters, the `warp` extra. 2,206 lines of kernels plus tests. The file deletions landed in the
+  collision commit d79e570 (two agents worked in one tree; the collision commit swept the other's staged
+  deletions) and the `use_warp` code paths in 688efdb. Splitting them means rewriting `dev` history: owner's call.
 - Record before removal (`subagents/m4_warp_record_cpu.json`, CPU only, no GPU was free all night): forward-only
   at batch 4096 Warp was 3–5× faster than the new torch FK (Panda 2.3 vs 6.6 ms; G1 5.9 vs 27.8 ms); with
   gradients Warp was 4× slower (106 vs 23 ms; 317 vs 75 ms); at batch 1 torch wins both. Whether Warp used
@@ -87,12 +91,86 @@ regeneration justified with no test weakened.
 - `examples/optim2/06_obstacle_trajectory.py` (Panda, 30 knots, sphere obstacle): straight path penetrates by
   9.2 cm; soft penalty reaches +1.6 cm clearance in 63 LM steps (0.74 s on 4 threads); hard inequality reaches
   +2.0 cm (= margin) in 229 steps (2.1 s). Path length 1.80 → 2.21 rad.
-- Tests: `tests/collision/test_collision.py` (7). Not reviewed adversarially yet.
+- Tests: `tests/collision/test_collision.py` (8 after the review). Review: see M7.
+
+## M6 Dynamics on the state (commit 4503509)
+
+- `dynamics/_world.py` is the only implementation. Everything is in the world frame: the shared Jacobian column
+  table `C (N, 6, nv_full)` (the one `frame_jacobian` uses), each joint's world rotation and origin, the packed
+  inertias. Sums over ancestors (body velocity and acceleration) and over subtrees (wrenches, composite inertias)
+  are products with constant support matrices memoised on the structure, so there is no Python loop over joints
+  and the operator count is independent of the joint count. Wrenches are formed in the joint frames (where the
+  inertia is constant) with `3x3` rotations and cross products — no `6x6` adjoints. CRBA: `M[r, c] = C_r · I^c C_c`
+  with the composite inertia of the deeper column's subtree, mirrored below the diagonal. ABA: Cholesky solve of
+  `M ddq = τ − b` (the articulated-body recursion is sequential in the tree depth and has no advantage in batched
+  torch for `nv` up to a few hundred; with mimic joints the projected system is also the only correct form).
+  Centroidal map: the CRBA momentum columns moved to the centre of mass.
+- State API (`dynamics/state.py`): `inverse_dynamics(model, state, v, a, fext=)`, `mass_matrix`,
+  `forward_dynamics`, `centroidal_map`, `center_of_mass`; the world-frame quantities are built once per state and
+  memoised on it. The `Data` API (`rnea`, `crba`, `aba`, `ccrba`) runs the same core after its own FK and keeps
+  its result fields (`joint_forces` etc. converted to the joint frames).
+- Jacobian columns are now built per real column from the owner's rotation and origin; the old padded
+  `(njoints, max_nv)` grid made a free-flyer pad every joint to six columns (G1: 246 padded columns for 35).
+- Precision: `subagents/m6_dynamics_precision.json`. Before this milestone RNEA differed from pinocchio by 5e-8
+  (Panda) and 4e-7 (G1) relative, ABA by 3e-6, with the old test comment blaming the float32 parser. The actual
+  causes: the default gravity was a float32 constant (`-9.8100004196167`) and `random_configuration` sampled
+  quaternions in float32 and cast them (unit norm off by 4e-9). Fixed; RNEA/CRBA/ABA now 1e-15 (Panda) and
+  1e-15 / 9e-12 (G1), tolerances tightened from 1e-5 to 1e-10 in the four parity test files (184 tests pass).
+  Panda's centroidal map differs from pinocchio by 2e-2 because BetterRobot counts the mass of `panda_link0`
+  (attached to the fixed root) and pinocchio drops it into the universe — documented convention, unchanged.
+- Tests: `tests/dynamics/test_state_dynamics.py` (forward/inverse round trip with `fext` and `(2, 3)` batch axes,
+  mass matrix equals the acceleration Jacobian of the torque — two different formulas —, gradcheck through the state).
+
+Numbers (CPU, 1 thread, float32, `subagents/m6_bench_table.txt`; raw `benchmarks/results/p2_world_dynamics_cpu.json`
+vs `0953f28_cpu.json`):
+
+| algo | model | batch 1 fwd before → after (ms) | batch 1 fwd+bwd | batch 4096 fwd | batch 4096 fwd+bwd | ops |
+|---|---|---|---|---|---|---|
+| RNEA | Panda | 2.11 → 1.07 | 7.0 → 2.5 | 53 → 52 | 165 → 133 | 1053 → 379 |
+| CRBA | Panda | 1.86 → 0.90 | 6.7 → 2.1 | 92 → 57 | 233 → 138 | 910 → 307 |
+| ABA | Panda | 6.09 → 1.30 | 16.6 → 3.2 | 200 → 81 | 468 → 211 | 3018 → 444 |
+| RNEA | G1 | 4.81 → 1.15 | 17.9 → 2.9 | 174 → 217 | 670 → 498 | 2648 → 396 |
+| CRBA | G1 | 4.50 → 1.01 | 19.1 → 2.4 | 300 → 185 | 1173 → 491 | 2551 → 326 |
+| ABA | G1 | 6.91 → 1.40 | 29.2 → 3.6 | 359 → 357 | 956 → 792 | 3417 → 458 |
+| RNEA | tree200 | 20.6 → 1.42 | 86.6 → 3.3 | 1324 → 1204 | 37,496 → 2,365 | 12,366 → 382 |
+| CRBA | tree200 | 23.1 → 1.23 | 116 → 2.9 | 2596 → 2326 | 822,637 → 5,381 | 14,184 → 312 |
+| ABA | tree200 | 34.4 → 1.99 | 152 → 5.5 | 2150 → 4583 | 25,973 → 17,259 | 17,367 → 444 |
+
+Reading: batch 1 and backward passes are dominated by operator count and gain 2–150×. Forward passes at batch
+4096 on one CPU thread are memory-bound — every operator streams an `(N, njoints, 6)` tensor, whereas the old
+per-joint loop worked on cache-resident `(N, 6)` slices — so they are about equal; the 200-joint ABA at 4096 is
+slower because the dense `(4096, 200, 200)` mass matrix (655 MB) plus its Cholesky replace the O(n) recursion.
+Timings vary ±30% on this loaded machine; operator counts are exact.
+
+## M7 Reviews (commit 72de682)
+
+Two clean-context mars_aux reviews, recorded in `subagents/review_dynamics.md` and `subagents/review_collision.md`.
+
+- Dynamics, major 1: float32 accuracy degraded with the robot's distance from the world origin (G1 at 100 m:
+  mass-matrix error 6e-3, Cholesky failed). Fixed by taking all world quantities about the first joint's position
+  per sample (torques, mass and centroidal matrices are invariant); after the fix 3e-6 at 100 m, the matrix is
+  positive definite. Pinned by `test_float32_accuracy_does_not_depend_on_distance_from_the_world_origin`.
+- Dynamics, major 2: the per-state memo held the inertias, so in-place edits of `body_inertias` or reusing a state
+  with another model gave stale torques but fresh mass matrices. Fixed: the memo holds only model-independent
+  geometry; inertias come from the model on every call with a version-keyed cache. Pinned by
+  `test_state_reuse_sees_edited_inertias_and_other_models`.
+- Dynamics, minor: `joint_forces[0]` had started to include `fext[0]`; restored. Open: composite joints have a
+  configuration-dependent subspace that neither the old nor the new dynamics handles, and nothing tests them against
+  pinocchio.
+- Collision, major: `self_collision_pairs` treated fixed joints as moving joints, so Panda's link7 and hand (rigidly
+  attached) were a pair that penetrated in every configuration, making a self-clearance constraint unsatisfiable.
+  Fixed by mapping joints to the nearest ancestor with coordinates; pinned by `test_pairs_ignore_fixed_joints`.
+- Collision, minor: the reference page and four tracked autodoc pages still described the removed stubs; rewritten
+  and regenerated (new pages for `collision.distance`, `robot_spheres`, `dynamics.state`, `kinematics.state`,
+  `optim2.*`, `terms.*`).
+- Everything else the reviewers checked held: distance functions to 1e-12 against brute force, gradchecks, term
+  shapes and Jacobians, the example's numbers, the dynamics parity, gradients w.r.t. model values, vmap/jacrev,
+  re-timed benchmark rows.
 
 ## Not done
 
-- Dynamics (RNEA, CRBA, ABA, centroidal) still run on `Data` and 7-vector poses; the P0 finding that
-  200-joint dynamics backward is extremely slow is untouched.
+- Dynamics at large CPU batches are memory-bound; fusing the elementwise chains (`torch.compile`) or chunking the
+  batch would be the next step if that regime matters. No GPU timing yet.
 - GPU: no baseline, no Warp record (every GPU was BUSY at every check).
 - Further FK gains not taken: quaternion joints pad every joint's feature list to 19 columns when a
   free-flyer exists; the CPU chain uses broadcast matmuls; `so3.to_matrix` costs 45 operators when placements
@@ -101,12 +179,21 @@ regeneration justified with no test weakened.
 
 ## Test status
 
-Full suite after all commits: 1775 passed, 1 failed, the failure pre-existing and untouched:
+Full suite after all commits (72de682): 1785 passed, 2 skipped, 1 failed, the failure pre-existing and untouched:
 `tests/optim/test_temporal_structure.py::test_banded_and_dense_lm_match_with_outer_reduction_and_activity`
 (old optimizer, float32 tolerance).
 
 ## Assumptions (made off-hours)
 
+- Dynamics state API names: `inverse_dynamics`, `mass_matrix`, `forward_dynamics`, `centroidal_map`,
+  `center_of_mass` (module `dynamics.state`); the old `rnea`/`crba`/`aba` names stay on the `Data` API.
+- ABA is a Cholesky solve on the mass matrix (no articulated-body recursion); `Data.joint_acceleration_local` is
+  still filled.
+- World dynamics quantities are referenced to the first joint's position; `WorldKinematics.origin` records it.
+- Dynamics parity tolerances tightened to 1e-10 and the random-configuration sampler changed to the model dtype
+  (changes which random configurations tests draw; all pass).
+- Reviewer-found pre-existing issues left open: composite joints in dynamics, the Warp deletions sitting in the
+  collision commit.
 - Regenerating the FK oracle and tightening parity tolerances (independent evidence: pinocchio).
 - Deleting the old kind-group FK and the collision stubs (replaced; in git history).
 - Removing Warp without a GPU record, on the owner's standing decision; the CPU record stands in.

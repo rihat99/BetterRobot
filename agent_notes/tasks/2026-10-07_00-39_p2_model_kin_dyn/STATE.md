@@ -1,4 +1,4 @@
-# STATE — BetterRobot / 2026-10-07_00-39_p2_model_kin_dyn (updated 2026-10-07 02:50 Dubai)
+# STATE — BetterRobot / 2026-10-07_00-39_p2_model_kin_dyn — DONE (2026-10-07 03:30 Dubai)
 
 ## Pointers
 - Plan: /home/rikhat.akizhanov/better/dev/BetterRobot/agent_notes/tasks/2026-10-07_00-39_p2_model_kin_dyn/PLAN.md
@@ -39,13 +39,14 @@
   fixed (default gravity, random quaternions); pinocchio dynamics parity now 1e-15, tolerances tightened to 1e-10.
   Table: subagents/m6_bench_table.txt (batch 1: 2-19x; tree200 CRBA fwd+bwd 4096: 823 s -> 5.4 s; forward at
   batch 4096 on 1 CPU thread about equal, memory-bound). Full suite: 1782 passed, 1 pre-existing failure.
-- Two mars_aux reviews running: dynamics (context_review_dynamics.md), collision (context_review_collision.md).
+- M7 reviews integrated (72de682): float32 reference origin, geometry-only memo, fixed-joint self-collision pairs,
+  collision docs. Final REPORT.md in this folder. Full suite 1785 passed, 1 pre-existing failure.
 
-## Next steps
-1. Integrate the two reviews (fix majors, pin with tests), commit.
-2. Finalize REPORT.md (add M6, assumptions), drop the index line, commit.
-3. Then P3 viewer (new task folder), P4 BetterHuman.
-4. GPU baselines only on a FREE GPU (all BUSY at 02:45 too).
+## Next steps (next task)
+1. P3 viewer: new task folder; design in .../2026-10-06_20-13_architecture_plan/subagents/study_viewer.md §3 and
+   DESIGN.md D4 + Q6/Q7 (offline recording without a browser). Then P4 BetterHuman.
+2. GPU baselines only on a FREE GPU (all BUSY at every check through 02:45).
+3. Open for the owner: composite joints in dynamics; Warp deletions sitting in commit d79e570.
 
 ## Assumptions (made off-hours)
 - Regenerating tests/kinematics/fk_reference.npz is justified by the parser fix; evidence is pinocchio parity at 1e-12.
