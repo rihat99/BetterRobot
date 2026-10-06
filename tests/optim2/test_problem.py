@@ -218,7 +218,24 @@ def test_solve_layer_gradient_matches_finite_differences():
         step = step.view_as(goal)
         numeric.view(-1)[index] = ((solution(goal + step) - solution(goal - step)) * weights).sum() / 2e-6
     # Rows 1-3 are solved exactly (zero residual), so the implicit gradient is exact there.
-    torch.testing.assert_close(analytic[1:], numeric[1:], atol=1e-6, rtol=0.0)
+    torch.testing.assert_close(analytic[1:], numeric[1:], atol=1e-5, rtol=0.0)
     # Row 0 sits on its bound: the clamped coordinate does not react to its own target.
     (bound_sensitivity,) = torch.autograd.grad(solution(attached)[0, 2], attached)
     assert float(bound_sensitivity.abs().max()) == 0.0
+
+
+def test_review_regressions():
+    base = optim2.Problem({"x": torch.zeros(2, 2, dtype=torch.float64)}, data={"a": torch.ones(2, 2, dtype=torch.float64)})
+    base.residual("fit", lambda x, a: x - a)
+    view = base.with_(weights={"fit": 2.0})
+    view.residual("extra", lambda x: x)
+    assert "extra" not in base.terms, "a view must not register terms on its base problem"
+
+    base.residual("bad_weight", lambda x: x.unsqueeze(1).expand(2, 3, 2), weight=torch.ones(2, dtype=torch.float64))
+    with pytest.raises(ValueError, match="weight of 'bad_weight'"):
+        base.loss()
+
+    scalar = optim2.Problem({"x": torch.zeros(2, 1, dtype=torch.float64)}, data={"a": torch.ones(2, 1, dtype=torch.float64)})
+    scalar.scalar("bowl", lambda x, a: ((x - a) ** 2).sum(-1))
+    with pytest.raises(ValueError, match="scalar"):
+        optim2.solve_layer(scalar, optim2.LBFGS(), iters=5)

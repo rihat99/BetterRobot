@@ -182,13 +182,15 @@ class Problem:
 
         Its loss is ``½ · weight · Σ r²``; with a ``kernel`` the last axis is one robust
         group and the loss is ``Σ kernel.rho(weight · ‖r‖²)`` over the other axes.
+        A tensor ``weight`` has the shape of the output, with or without the batch axis.
         ``jac`` is optional: without it the Jacobian comes from autodiff.
 
         ``window=k`` declares a time-local term: the output is ``(B, T - k + 1, m)`` and row
         ``t`` depends only on knots ``t .. t + k - 1`` of the time variables (``k=1`` for a
         per-knot term, 2 for velocities, 3 for accelerations). Its autodiff Jacobian then costs
         ``k · m`` backward passes instead of one per row, and an analytic ``jac`` returns blocks
-        ``(B, T - k + 1, m, k, n)`` per time variable.
+        ``(B, T - k + 1, m, k, n)`` per time variable. The declaration is trusted: a row that
+        reads outside its window gives a wrong Jacobian. :func:`check_jacobian` tests it.
         """
         jac = jac if jac is not None else getattr(fn, "jac", None)
         window = window if window is not None else getattr(fn, "window", None)
@@ -216,6 +218,7 @@ class Problem:
         variable's tangent coordinates, ``(n,)`` or ``(B, n)``; unlisted variables stay free.
         """
         view = copy.copy(self)
+        view.terms, view._cached, view.data = dict(self.terms), dict(self._cached), dict(self.data)
         if weights is not None:
             unknown = set(weights) - set(self.terms)
             if unknown:
@@ -409,6 +412,11 @@ class Problem:
         """Scalar term times its weight, or residual times the square root of its weight."""
         value = term.fn(*evaluation.args(term.reads))
         weight = self.weights.get(term.name, term.weight)
+        if isinstance(weight, torch.Tensor) and weight.ndim not in (0, value.ndim - 1, value.ndim):
+            raise ValueError(
+                f"weight of {term.name!r} has shape {tuple(weight.shape)} but the term returns "
+                f"{tuple(value.shape)}; give the weight that shape, with or without the batch axis"
+            )
         if term.kind == "scalar":
             return value * weight
         return value * (weight.sqrt() if isinstance(weight, torch.Tensor) else weight**0.5)

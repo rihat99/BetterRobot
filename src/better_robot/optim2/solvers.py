@@ -52,8 +52,9 @@ def _tolerances(
 class LevenbergMarquardt:
     """Levenberg-Marquardt with per-problem damping (Nielsen update) and Marquardt scaling.
 
-    A problem is done when its gradient is below ``gtol``, or an accepted step changes the
-    loss by less than ``ftol`` (relative) or the variables by less than ``xtol``.
+    A problem is done when its gradient is below ``gtol``, an accepted step changes the loss
+    by less than ``ftol`` (relative) or the variables by less than ``xtol``, or its damping
+    has reached the maximum (no step is accepted any more).
     """
 
     def __init__(
@@ -89,7 +90,7 @@ class LevenbergMarquardt:
         return State(
             x=select(accept, candidate, state.x),
             loss=torch.where(accept, loss_new, state.loss),
-            done=state.done | small_gradient | small_change,
+            done=state.done | small_gradient | small_change | (new_damping >= 1e12),
             it=state.it + 1,
             extra={"damping": new_damping, "growth": new_growth},
         )
@@ -235,7 +236,8 @@ class TorchOptim:
         with torch.no_grad():
             for name, value in problem.project(params).items():
                 params[name].copy_(value)
-        return State(x=params, loss=last["loss"], done=state.done, it=state.it + 1, extra=state.extra)
+        current = {name: value.detach().clone() for name, value in params.items()}
+        return State(x=current, loss=last["loss"], done=state.done, it=state.it + 1, extra=state.extra)
 
     @staticmethod
     def _mask_gradients(problem: Problem, params: dict[str, torch.Tensor]) -> None:

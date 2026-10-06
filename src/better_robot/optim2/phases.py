@@ -75,16 +75,27 @@ def solve(
 
 
 def solve_layer(
-    problem: Problem, solver: Solver, *, iters: int = 50, x: Mapping[str, torch.Tensor] | None = None
+    problem: Problem,
+    solver: Solver,
+    *,
+    iters: int = 50,
+    x: Mapping[str, torch.Tensor] | None = None,
+    damping: float = 1e-6,
 ) -> Result:
     """Solve, then attach the solution to the autograd graph of the problem's data tensors.
 
-    The solve itself runs without a graph. One extra Newton step ``x* ⊕ (-H⁻¹ g(x*, data))`` with
-    a constant Gauss-Newton ``H`` is then taken through autograd; at a converged solution it does
-    not move ``x*`` and its derivative is the implicit-function derivative of the solution
+    The solve itself runs without a graph. The returned value is exactly the solver's ``x*``;
+    its derivative is that of one Newton step ``-H⁻¹ g(x*, data)`` with a constant Gauss-Newton
+    ``H``, which at a converged solution is the implicit-function derivative of the solution
     w.r.t. the data. Valid when the solve has converged; coordinates on an active bound get
     zero sensitivity; with large residuals at the optimum the Gauss-Newton ``H`` is approximate.
+    ``damping`` keeps the step finite along directions the residuals do not constrain (a
+    redundant arm), where the sensitivity is zero. Problems with scalar terms are rejected:
+    their curvature is not in ``H``, so the derivative would be wrong.
     """
+    scalars = [term.name for term in problem._active() if term.kind == "scalar"]
+    if scalars:
+        raise ValueError(f"solve_layer supports residual terms only; active scalar terms: {scalars}")
     result = solve(problem, solver, iters=iters, x=x)
     normal, _ = problem.linearize(result.x)
     _, g = problem.gradient(result.x, create_graph=True)
@@ -93,7 +104,8 @@ def solve_layer(
         lower, upper = bounds
         blocked = ((lower >= -1e-9) & (normal.g > 0)) | ((upper <= 1e-9) & (normal.g < 0))
         normal, g = normal.masked(~blocked), g * ~blocked
-    attached = problem._retract(result.x, normal.solve(g=g))
+    step = normal.solve(damping, g=g)
+    attached = problem._retract(result.x, step - step.detach())
     return Result(x=attached, loss=result.loss, done=result.done, iters=result.iters, history=result.history)
 
 
