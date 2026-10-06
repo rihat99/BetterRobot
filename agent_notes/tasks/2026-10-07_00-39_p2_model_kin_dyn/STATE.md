@@ -1,4 +1,4 @@
-# STATE — BetterRobot / 2026-10-07_00-39_p2_model_kin_dyn (updated 2026-10-07 01:25 Dubai)
+# STATE — BetterRobot / 2026-10-07_00-39_p2_model_kin_dyn (updated 2026-10-07 02:05 Dubai)
 
 ## Pointers
 - Plan: /home/rikhat.akizhanov/better/dev/BetterRobot/agent_notes/tasks/2026-10-07_00-39_p2_model_kin_dyn/PLAN.md
@@ -26,17 +26,19 @@
 - Full suite: 1 failure left, pre-existing (tests/optim/test_temporal_structure.py::
   test_banded_and_dense_lm_match_with_outer_reduction_and_activity, old optim float32).
 
+## Done since 01:25
+- Review of lean FK: 3 findings fixed (a0921d1). Warp removed (688efdb) with CPU record. Collision layer +
+  obstacle trajectory example (d79e570). Interim REPORT.md written (same folder). Docs Warp scrub by mars_light
+  (check `git status`; commit if clean).
+
 ## Next steps
-1. Clean-context review (mars_aux) of _fk_lean.py, state.py, the parser change, the oracle regeneration.
-2. M4 remove Warp (owner decision Q1): record Warp vs torch numbers first (GPU only if FREE, else CPU and say so);
-   files: kinematics/_warp_bridge.py, _warp_kernels.py, dynamics/_warp_bridge.py, _warp_kernels.py, `use_warp`
-   flags in kinematics/forward.py, dynamics/rnea.py, data_model/data.py, tests that import warp, docs/CLAUDE.md.
-3. Dynamics (RNEA/CRBA/ABA) still use the Data API and 7-vector poses: move them to KinematicState matrices,
-   measure with benchmarks/run.py (rnea, crba, aba rows of the baseline).
-4. M5 minimal collision + obstacle trajopt example on optim2. M6 REPORT.md.
+1. Commit the docs scrub if the agent left the tree clean (`grep -rni warp docs` should show only history).
+2. Dynamics on KinematicState: RNEA/CRBA/ABA read matrices instead of 7-vector poses; measure with
+   `benchmarks/run.py --algos rnea,crba,aba` against benchmarks/results/0953f28_cpu.json; P0 found 200-joint
+   dynamics backward extremely slow (CRBA fwd+bwd at 4096: 800 s).
+3. Adversarial review of the collision layer (not yet reviewed). Finalize REPORT.md; drop the index line.
+4. Then P3 viewer (new task folder), P4 BetterHuman.
 5. GPU baselines only on a FREE GPU (all BUSY at every check so far).
-6. Possible further FK gains, not done: quaternion joints pad every joint's feature list to 19 when a free-flyer
-   exists; CPU broadcast matmuls in the chain; so3.to_matrix costs 45 operators when placements need gradients.
 
 ## Assumptions (made off-hours)
 - Regenerating tests/kinematics/fk_reference.npz is justified by the parser fix; evidence is pinocchio parity at 1e-12.
