@@ -30,6 +30,8 @@ LAYER_RANK: dict[str, int] = {
     "dynamics": 5,
     "collision": 5,
     "residuals": 6,
+    "optim2": 3,
+    "terms": 6,
     "optim": 7,
     "tasks": 8,
     "viewer": 9,
