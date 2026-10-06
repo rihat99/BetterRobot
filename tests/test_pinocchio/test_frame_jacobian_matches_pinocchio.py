@@ -49,8 +49,7 @@ def test_frame_jacobian_local_world_aligned(panda_both, i):
         pin_model, pin_data, pin_fid, pin.ReferenceFrame.LOCAL_WORLD_ALIGNED
     )
 
-    # URDF parser loads placements as fp32 (io/parsers/urdf.py) → ~5e-7 drift.
-    np.testing.assert_allclose(J_br, J_pin, atol=2e-6, rtol=1e-5)
+    np.testing.assert_allclose(J_br, J_pin, atol=1e-10, rtol=0.0)
 
 
 @pytest.mark.parametrize("i", range(4))
@@ -70,8 +69,7 @@ def test_frame_jacobian_world(panda_both, i):
         pin_model, pin_data, pin_fid, pin.ReferenceFrame.WORLD
     )
 
-    # URDF parser loads placements as fp32 (io/parsers/urdf.py) → ~5e-7 drift.
-    np.testing.assert_allclose(J_br, J_pin, atol=2e-6, rtol=1e-5)
+    np.testing.assert_allclose(J_br, J_pin, atol=1e-10, rtol=0.0)
 
 
 @pytest.mark.parametrize("i", range(4))
@@ -91,8 +89,7 @@ def test_frame_jacobian_local(panda_both, i):
         pin_model, pin_data, pin_fid, pin.ReferenceFrame.LOCAL
     )
 
-    # URDF parser loads placements as fp32 (io/parsers/urdf.py) → ~5e-7 drift.
-    np.testing.assert_allclose(J_br, J_pin, atol=2e-6, rtol=1e-5)
+    np.testing.assert_allclose(J_br, J_pin, atol=1e-10, rtol=0.0)
 
 
 @pytest.mark.parametrize("batch_shape", [(4,), (2, 3)], ids=["q1", "q_multi"])

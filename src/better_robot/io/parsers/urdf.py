@@ -26,8 +26,8 @@ def _mat4_to_se3(T: np.ndarray) -> torch.Tensor:
     """Convert a 4×4 homogeneous numpy matrix to ``[tx,ty,tz,qx,qy,qz,qw]``."""
     from ...lie.so3 import from_matrix as _so3_from_matrix
 
-    t = torch.tensor(T[:3, 3].astype(np.float32))
-    R = torch.from_numpy(T[:3, :3].astype(np.float32))
+    t = torch.tensor(T[:3, 3].astype(np.float64))
+    R = torch.from_numpy(T[:3, :3].astype(np.float64))
     q = _so3_from_matrix(R)  # [qx, qy, qz, qw]
     return torch.cat([t, q])
 
@@ -87,7 +87,7 @@ def _extract_geoms(
                 rgba=rgba,
             ))
         elif box is not None:
-            size = np.array(box.size, dtype=np.float32)
+            size = np.array(box.size, dtype=np.float64)
             result.append(IRGeom(
                 kind="box",
                 params={"size": size.tolist()},
@@ -174,7 +174,7 @@ def parse_urdf(
                 mass = float(link.inertial.mass)
             if link.inertial.origin is not None:
                 com = torch.tensor(
-                    link.inertial.origin[:3, 3].astype(np.float32)
+                    link.inertial.origin[:3, 3].astype(np.float64)
                 )
             if link.inertial.inertia is not None:
                 ii = link.inertial.inertia
@@ -182,7 +182,7 @@ def parse_urdf(
                 # Fall back to object-attribute lookup (ixx/iyy/.../iyz) if the
                 # backend ever switches to a field-style object.
                 if isinstance(ii, np.ndarray):
-                    inertia = torch.tensor(np.asarray(ii, dtype=np.float32))
+                    inertia = torch.tensor(np.asarray(ii, dtype=np.float64))
                 else:
                     ixx = float(getattr(ii, "ixx", 0.0) or 0.0)
                     iyy = float(getattr(ii, "iyy", 0.0) or 0.0)
@@ -192,7 +192,7 @@ def parse_urdf(
                     iyz = float(getattr(ii, "iyz", 0.0) or 0.0)
                     inertia = torch.tensor(
                         [[ixx, ixy, ixz], [ixy, iyy, iyz], [ixz, iyz, izz]],
-                        dtype=torch.float32,
+                        dtype=torch.float64,
                     )
 
         fn_handler = getattr(urdf, "_filename_handler", None)
@@ -214,7 +214,7 @@ def parse_urdf(
     for jname, joint in urdf.joint_map.items():
         # axis
         if joint.axis is not None:
-            axis_np = np.array(joint.axis, dtype=np.float32)
+            axis_np = np.array(joint.axis, dtype=np.float64)
             norm = float(np.linalg.norm(axis_np))
             if norm > 1e-12:
                 axis_np = axis_np / norm

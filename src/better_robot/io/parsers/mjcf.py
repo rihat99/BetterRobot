@@ -30,7 +30,7 @@ def _pos_quat_to_se3(pos: np.ndarray | None, quat: np.ndarray | None) -> torch.T
     if pos is None:
         t = torch.zeros(3)
     else:
-        t = torch.tensor(pos[:3].astype(np.float32))
+        t = torch.tensor(pos[:3].astype(np.float64))
 
     if quat is None:
         q = torch.tensor([0., 0., 0., 1.])
@@ -86,19 +86,19 @@ def parse_mjcf(
 
         # Inertia
         mass = float(body.mass) if hasattr(body, "mass") else 0.0
-        pos_inertial = np.array(body.ipos, dtype=np.float32) if hasattr(body, "ipos") else np.zeros(3, np.float32)
-        inertia_diag = np.array(body.inertia, dtype=np.float32) if hasattr(body, "inertia") else np.zeros(3, np.float32)
-        inertia_mat = np.diag(inertia_diag) if inertia_diag.shape == (3,) else np.zeros((3, 3), np.float32)
+        pos_inertial = np.array(body.ipos, dtype=np.float64) if hasattr(body, "ipos") else np.zeros(3, np.float64)
+        inertia_diag = np.array(body.inertia, dtype=np.float64) if hasattr(body, "inertia") else np.zeros(3, np.float64)
+        inertia_mat = np.diag(inertia_diag) if inertia_diag.shape == (3,) else np.zeros((3, 3), np.float64)
 
         # Collision geoms
         collision_geoms: list[IRGeom] = []
         for g in body.geoms:
             gname = g.name or ""
             gtype = int(g.type) if hasattr(g, "type") else -1
-            gpos = np.array(g.pos, dtype=np.float32) if hasattr(g, "pos") else np.zeros(3, np.float32)
-            gquat = np.array(g.quat, dtype=np.float32) if hasattr(g, "quat") else np.array([1., 0., 0., 0.], np.float32)
+            gpos = np.array(g.pos, dtype=np.float64) if hasattr(g, "pos") else np.zeros(3, np.float64)
+            gquat = np.array(g.quat, dtype=np.float64) if hasattr(g, "quat") else np.array([1., 0., 0., 0.], np.float64)
             placement = _pos_quat_to_se3(gpos, gquat)
-            gsize = np.array(g.size, dtype=np.float32) if hasattr(g, "size") else np.zeros(3, np.float32)
+            gsize = np.array(g.size, dtype=np.float64) if hasattr(g, "size") else np.zeros(3, np.float64)
 
             # mujoco geom types: 0=plane,1=hfield,2=sphere,3=capsule,4=ellipsoid,5=cylinder,6=box,7=mesh
             if gtype == 2:  # sphere
@@ -122,8 +122,8 @@ def parse_mjcf(
         for jnt in body.joints:
             jname = jnt.name if jnt.name else f"_joint_{len(ir_joints)}"
             jtype = int(jnt.type) if hasattr(jnt, "type") else 0
-            jpos = np.array(jnt.pos, dtype=np.float32) if hasattr(jnt, "pos") else np.zeros(3, np.float32)
-            jaxis = np.array(jnt.axis, dtype=np.float32) if hasattr(jnt, "axis") else np.array([0., 0., 1.], np.float32)
+            jpos = np.array(jnt.pos, dtype=np.float64) if hasattr(jnt, "pos") else np.zeros(3, np.float64)
+            jaxis = np.array(jnt.axis, dtype=np.float64) if hasattr(jnt, "axis") else np.array([0., 0., 1.], np.float64)
             norm = np.linalg.norm(jaxis)
             if norm > 1e-12:
                 jaxis = jaxis / norm
@@ -132,7 +132,7 @@ def parse_mjcf(
             origin = _pos_quat_to_se3(jpos, None)
 
             # Limits
-            jrange = np.array(jnt.range, dtype=np.float32) if hasattr(jnt, "range") else None
+            jrange = np.array(jnt.range, dtype=np.float64) if hasattr(jnt, "range") else None
             limited = bool(jnt.limited) if hasattr(jnt, "limited") else False
             lo: float | None = None
             hi: float | None = None
@@ -171,8 +171,8 @@ def parse_mjcf(
 
         if parent_name is not None and not body.joints:
             # Body with no joints → implicit fixed joint
-            bpos = np.array(body.pos, dtype=np.float32) if hasattr(body, "pos") else np.zeros(3, np.float32)
-            bquat = np.array(body.quat, dtype=np.float32) if hasattr(body, "quat") else np.array([1., 0., 0., 0.], np.float32)
+            bpos = np.array(body.pos, dtype=np.float64) if hasattr(body, "pos") else np.zeros(3, np.float64)
+            bquat = np.array(body.quat, dtype=np.float64) if hasattr(body, "quat") else np.array([1., 0., 0., 0.], np.float64)
             origin = _pos_quat_to_se3(bpos, bquat)
             jname = f"_fixed_{bname}"
             ir_joints.append(IRJoint(
@@ -186,8 +186,8 @@ def parse_mjcf(
         # Sites → operational frames
         for site in getattr(body, "sites", []):
             sname = site.name if site.name else f"_site_{len(ir_frames)}"
-            spos = np.array(site.pos, dtype=np.float32) if hasattr(site, "pos") else np.zeros(3, np.float32)
-            squat = np.array(site.quat, dtype=np.float32) if hasattr(site, "quat") else np.array([1., 0., 0., 0.], np.float32)
+            spos = np.array(site.pos, dtype=np.float64) if hasattr(site, "pos") else np.zeros(3, np.float64)
+            squat = np.array(site.quat, dtype=np.float64) if hasattr(site, "quat") else np.array([1., 0., 0., 0.], np.float64)
             placement = _pos_quat_to_se3(spos, squat)
             ir_frames.append(IRFrame(name=sname, parent_body=bname, placement=placement, frame_type="op"))
 

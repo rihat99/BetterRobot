@@ -251,5 +251,5 @@ class URDFMeshMode:
                 body_world = joint_pose_world[b, mjidx]
             # Compose with local geom offset
             from ...lie.se3 import compose
-            world_pose = compose(body_world, local_pose.to(body_world.device))
+            world_pose = compose(body_world, local_pose.to(device=body_world.device, dtype=body_world.dtype))
             backend.set_transform(name, world_pose)

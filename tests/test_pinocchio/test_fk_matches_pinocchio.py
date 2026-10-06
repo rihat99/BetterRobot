@@ -32,9 +32,7 @@ def test_fk_panda_translation_matches(panda_both, i):
         br_fid = br_model.frame_id(br_name)
         t_br = data.frame_pose_world[br_fid, :3].detach().cpu().double().numpy()
         t_pin = np.asarray(pin_data.oMf[pin_fid].translation)
-        # URDF parser loads placements through np.float32 (see io/parsers/urdf.py);
-        # chain accumulation adds another ~1e-7 on top of fp32 machine epsilon.
-        np.testing.assert_allclose(t_br, t_pin, atol=2e-6, err_msg=f"frame {br_name}")
+        np.testing.assert_allclose(t_br, t_pin, atol=1e-12, err_msg=f"frame {br_name}")
 
 
 @pytest.mark.parametrize("i", range(8))
@@ -52,7 +50,7 @@ def test_fk_panda_rotation_matches(panda_both, i):
         br_fid = br_model.frame_id(br_name)
         R_br = rot_matrix_from_pose(data.frame_pose_world[br_fid])
         R_pin = np.asarray(pin_data.oMf[pin_fid].rotation)
-        np.testing.assert_allclose(R_br, R_pin, atol=2e-6, err_msg=f"frame {br_name}")
+        np.testing.assert_allclose(R_br, R_pin, atol=1e-12, err_msg=f"frame {br_name}")
 
 
 @pytest.mark.parametrize("batch_shape", [(4,), (2, 3)], ids=["q1", "q_multi"])
