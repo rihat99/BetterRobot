@@ -118,10 +118,9 @@ such as `viser`, `pyrender`, and mesh loaders are imported only at their
 integration boundaries, so `import better_robot` does not require a rendering
 environment.
 
-The same rule applies to optional acceleration. A fused implementation lives
-beside the pass it accelerates and keeps tensors at the public boundary. It
-does not become another architectural layer. See {doc}`the_compute_seam` and
-{ref}`decision-whole-pass`.
+The same rule applies to optional acceleration. Torch is the only
+implementation; `torch.compile` wraps whole passes and never becomes another
+architectural layer. See {doc}`the_compute_seam` and {ref}`decision-whole-pass`.
 
 ## Two flows through the layers
 
@@ -163,4 +162,4 @@ These checks leave room to extend a layer while keeping its direction clear.
 - {doc}`kinematics_and_jacobians` explains the most common algorithm flow.
 - {doc}`residuals_costs_and_solvers` shows how residuals become an
   optimization problem.
-- {doc}`the_compute_seam` explains reference and fused whole-pass execution.
+- {doc}`the_compute_seam` explains whole-pass execution and compilation.

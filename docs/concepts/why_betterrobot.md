@@ -87,8 +87,8 @@ without also owning a contact engine. See {ref}`decision-analysis-only`.
 The design has real costs. Short serial tree walks are not where eager
 PyTorch is strongest. Leading batch axes require careful shape conventions.
 Manifold-aware least squares is more code to maintain than a wrapper around a
-general optimizer. An optional fused kernel can improve a measured pass, but
-it also needs a second implementation and gradient parity evidence.
+general optimizer. A custom kernel could improve a measured pass, but it would
+be a second implementation with its own gradient parity burden; we keep one.
 
 Those costs are accepted openly rather than hidden behind slogans. The full
 record, including alternatives, is {doc}`design_decisions`.

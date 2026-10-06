@@ -50,8 +50,7 @@ the same source. See {doc}`/concepts/the_compute_seam` and
 
 `ModelStructure` stores topology in Python tuples and flat device tables.
 `ModelValues` stores differentiable tensors. Raw passes receive both
-explicitly, which makes tensor inputs visible to compilation and fused
-implementations.
+explicitly, which makes tensor inputs visible to compilation.
 
 ### Derivatives chosen for the path
 

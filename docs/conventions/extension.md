@@ -21,7 +21,6 @@ dictionary is a public plugin API.
 | add a file format | `register_parser(suffix, function)` |
 | add a viewer mode | `RenderMode` protocol and `Scene.add_mode` |
 | add an asset source | `AssetResolver` protocol |
-| add a fused compute implementation | internal branch at one complete pass |
 
 ## Residuals
 
