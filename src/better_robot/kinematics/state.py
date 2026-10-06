@@ -8,7 +8,7 @@ accessors, which stay valid when the storage changes from poses to matrices.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 import torch
@@ -16,7 +16,7 @@ import torch
 from ..data_model.model import Model
 from ..lie import so3
 from .forward import forward_kinematics
-from .jacobian import frame_jacobian_raw
+from .jacobian import frame_jacobian_raw, joint_jacobians_raw
 
 __all__ = ["KinematicState", "forward_kinematics_state", "frame_jacobian"]
 
@@ -28,6 +28,8 @@ class KinematicState:
     q: torch.Tensor  #: ``(B..., nq)`` configuration the state was computed at.
     joint_pose: torch.Tensor  #: ``(B..., njoints, 7)`` world poses ``[x y z qx qy qz qw]``.
     frame_pose: torch.Tensor  #: ``(B..., nframes, 7)`` world poses ``[x y z qx qy qz qw]``.
+    # Memo of values derived from the fields above (joint Jacobians), filled on first use.
+    _memo: dict[str, torch.Tensor] = field(default_factory=dict, repr=False, compare=False)
 
     @property
     def joint_translation(self) -> torch.Tensor:
@@ -65,6 +67,14 @@ def frame_jacobian(
 ) -> torch.Tensor:
     """Jacobian of one frame. Returns ``(B..., 6, nv)``, rows ``[linear, angular]``."""
     frame_id = model.frame_id(frame) if isinstance(frame, str) else frame
+    if "joint_jacobians" not in state._memo:
+        state._memo["joint_jacobians"] = joint_jacobians_raw(model.structure, state.q, state.joint_pose).joint_jacobians
     return frame_jacobian_raw(
-        model.structure, model.values, state.q, state.joint_pose, frame_id, reference=reference
+        model.structure,
+        model.values,
+        state.q,
+        state.joint_pose,
+        frame_id,
+        reference=reference,
+        joint_jacobians=state._memo["joint_jacobians"],
     )

@@ -18,7 +18,7 @@ from typing import Any
 import torch
 
 from .kernels import RobustKernel
-from .linear import Normal
+from .linear import BandedNormal, BandLayout, BandSink, DenseSink, Normal
 from .manifold import Euclidean, Manifold
 
 Values = Mapping[str, torch.Tensor]
@@ -36,6 +36,7 @@ class TermFn:
     fn: Callable[..., torch.Tensor]
     reads: tuple[str, ...]
     jac: Callable[..., dict[str, torch.Tensor]] | None = None
+    window: int | None = None
 
     def __call__(self, *args: Any) -> torch.Tensor:
         return self.fn(*args)
@@ -52,6 +53,33 @@ class Term:
     weight: float | torch.Tensor
     kernel: RobustKernel | None
     jac: Callable[..., dict[str, torch.Tensor]] | None
+    window: int | None = None  #: time-local term: row ``t`` reads knots ``t .. t + window - 1``.
+
+
+@dataclass(frozen=True)
+class _Piece:
+    """Jacobian block of one term, grouped by the columns its rows share.
+
+    ``block[b, g, r, i]`` is the derivative of row ``r`` of group ``g`` w.r.t. column
+    ``columns[g, i]``. A time-local term has one group per knot; any other term has one group.
+    """
+
+    columns: torch.Tensor  #: ``(G, n)``
+    block: torch.Tensor  #: ``(B, G, m, n)``
+
+
+def _accumulate(sink: DenseSink | BandSink, g: torch.Tensor, pieces: list[_Piece], rows: torch.Tensor) -> None:
+    """Add ``JᵀJ`` of one term to ``sink`` and ``Jᵀr`` (``rows: (B, G, m)``) to ``g: (B, N)`` in place."""
+    batch = g.shape[0]
+    for piece in pieces:
+        gradient = (piece.block.mT @ rows.unsqueeze(-1)).squeeze(-1)  # (B, G, n)
+        g.scatter_add_(1, piece.columns.reshape(1, -1).expand(batch, -1), gradient.flatten(1))
+    for first_index, first in enumerate(pieces):
+        for second in pieces[first_index:]:
+            product = first.block.mT @ second.block  # (B, G, na, nb)
+            sink.add(first.columns, second.columns, product)
+            if first is not second:
+                sink.add(second.columns, first.columns, product.mT)
 
 
 class Evaluation:
@@ -82,6 +110,11 @@ class Problem:
     bounds : per-variable ``(lower, upper)`` broadcastable to the variable; enforced by
         clamping after every step.
     data : tensors that terms read but that are not optimized (targets, network outputs).
+    time : names of variables shaped ``(B, T, *event)`` whose second axis is time. Terms
+        registered with ``window=`` are time-local in these variables, which makes their
+        Jacobians cheap. When every variable has the time axis and every residual term is
+        time-local, the normal equations are block-tridiagonal and solved in linear time.
+    dense : force dense normal equations even when the block-tridiagonal form applies.
     """
 
     def __init__(
@@ -91,6 +124,8 @@ class Problem:
         manifolds: Mapping[str, Manifold] | None = None,
         bounds: Mapping[str, tuple[torch.Tensor, torch.Tensor]] | None = None,
         data: Mapping[str, Any] | None = None,
+        time: tuple[str, ...] = (),
+        dense: bool = False,
     ) -> None:
         if not variables:
             raise ValueError("a Problem needs at least one variable")
@@ -105,6 +140,9 @@ class Problem:
         self.manifolds: dict[str, Manifold] = {name: Euclidean() for name in self.variables}
         self.manifolds.update(self._known_variables(manifolds, "manifolds"))
         self.bounds = dict(self._known_variables(bounds, "bounds"))
+        self.dense = dense
+        self._layouts: dict[tuple[int, int], BandLayout] = {}
+        self.time = tuple(self._known_variables(dict.fromkeys(time), "time"))
         self.terms: dict[str, Term] = {}
         self.weights: dict[str, float] = {}
         self.free: dict[str, torch.Tensor] | None = None
@@ -138,14 +176,23 @@ class Problem:
         kernel: RobustKernel | None = None,
         jac: Callable[..., dict[str, torch.Tensor]] | None = None,
         reads: tuple[str, ...] | None = None,
+        window: int | None = None,
     ) -> None:
         """Add a least-squares term ``fn(...) -> (B, ..., k)``.
 
         Its loss is ``½ · weight · Σ r²``; with a ``kernel`` the last axis is one robust
         group and the loss is ``Σ kernel.rho(weight · ‖r‖²)`` over the other axes.
         ``jac`` is optional: without it the Jacobian comes from autodiff.
+
+        ``window=k`` declares a time-local term: the output is ``(B, T - k + 1, m)`` and row
+        ``t`` depends only on knots ``t .. t + k - 1`` of the time variables (``k=1`` for a
+        per-knot term, 2 for velocities, 3 for accelerations). Its autodiff Jacobian then costs
+        ``k · m`` backward passes instead of one per row, and an analytic ``jac`` returns blocks
+        ``(B, T - k + 1, m, k, n)`` per time variable.
         """
-        self._add(name, fn, "residual", weight, kernel, jac if jac is not None else getattr(fn, "jac", None), reads)
+        jac = jac if jac is not None else getattr(fn, "jac", None)
+        window = window if window is not None else getattr(fn, "window", None)
+        self._add(name, fn, "residual", weight, kernel, jac, reads, window)
 
     def scalar(
         self,
@@ -160,7 +207,7 @@ class Problem:
         First-order solvers minimize it like any other term. Gauss-Newton and LM only add its
         gradient; its curvature is ignored.
         """
-        self._add(name, fn, "scalar", weight, None, None, reads)
+        self._add(name, fn, "scalar", weight, None, None, reads, None)
 
     def with_(self, *, weights: Mapping[str, float] | None = None, free: Mapping[str, torch.Tensor] | None = None):
         """Return a view of this problem with term weights overridden and/or coordinates frozen.
@@ -198,7 +245,7 @@ class Problem:
         evaluation = Evaluation(self, x if x is not None else self.variables)
         return {t.name: t.fn(*evaluation.args(t.reads)) for t in self._active() if t.kind == "residual"}
 
-    def linearize(self, x: Values | None = None) -> tuple[Normal, torch.Tensor]:
+    def linearize(self, x: Values | None = None) -> tuple[Normal | BandedNormal, torch.Tensor]:
         """Gauss-Newton normal equations and the loss at ``x``. Returns ``(Normal, (B,))``.
 
         All terms without an analytic Jacobian are differentiated together in one traced
@@ -210,15 +257,17 @@ class Problem:
         traced = [t for t in terms if t.kind == "scalar" or t.jac is None]
         batch, size = self._batch(), self.tangent_dim
         loss = self._zeros()
-        H = loss.new_zeros(batch, size, size)
+        layout = self._band_layout(terms)
+        sink = DenseSink(loss, batch, size) if layout is None else BandSink(loss, batch, layout)
         g = loss.new_zeros(batch, size)
         with torch.enable_grad() if traced else torch.no_grad():
             if traced:
                 delta = loss.new_zeros(batch, size, requires_grad=True)
                 evaluation = Evaluation(self, self._retract(x, delta))
             else:
+                delta = None
                 evaluation = Evaluation(self, x)
-            rows, scalar_total = [], None
+            dense_rows, scalar_total = [], None
             for term in terms:
                 value = self._weighted(term, evaluation)
                 if term.kind == "scalar":
@@ -226,30 +275,30 @@ class Problem:
                     scalar_total = value if scalar_total is None else scalar_total + value
                     continue
                 loss = loss + self._residual_loss(term, value).detach()
-                reweighted = (value * self._irls(term, value)).flatten(1)
-                if term.jac is None:
-                    rows.append(reweighted)
+                reweighted = value * self._irls(term, value)
+                if term.jac is not None:
+                    with torch.no_grad():
+                        pieces = self._analytic_pieces(term, evaluation, value)
+                elif term.window is not None:
+                    pieces = self._windowed_pieces(term, reweighted, delta)
+                else:
+                    dense_rows.append(reweighted.flatten(1))
                     continue
-                with torch.no_grad():
-                    jacobian = self._analytic_jacobian(term, evaluation, value)
-                H = H + jacobian.mT @ jacobian
-                g = g + (jacobian.mT @ reweighted.detach().unsqueeze(-1)).squeeze(-1)
+                rows = reweighted.detach()
+                _accumulate(sink, g, pieces, rows.flatten(2) if term.window is not None else rows.flatten(1)[:, None])
             if scalar_total is not None:
-                g = g + torch.autograd.grad(scalar_total.sum(), delta, retain_graph=bool(rows))[0]
-            if rows:
-                stacked = torch.cat(rows, dim=1)  # (B, M)
+                g += torch.autograd.grad(scalar_total.sum(), delta, retain_graph=True)[0]
+            if dense_rows:
+                stacked = torch.cat(dense_rows, dim=1)  # (B, M)
                 # Batch elements are independent, so row i of every element comes from one backward pass.
                 seeds = torch.eye(stacked.shape[1], dtype=stacked.dtype, device=stacked.device)
                 seeds = seeds.unsqueeze(1).expand(-1, batch, -1)
                 (jacobian,) = torch.autograd.grad(stacked, delta, seeds, is_grads_batched=True)
-                jacobian = jacobian.permute(1, 0, 2)  # (B, M, N)
-                H = H + jacobian.mT @ jacobian
-                g = g + (jacobian.mT @ stacked.detach().unsqueeze(-1)).squeeze(-1)
+                columns = torch.arange(size, device=g.device)[None]
+                _accumulate(sink, g, [_Piece(columns, jacobian.permute(1, 0, 2)[:, None])], stacked.detach()[:, None])
+        normal = sink.finish(g)
         mask = self._free_mask()
-        if mask is not None:
-            g = g * mask
-            H = H * mask.unsqueeze(-1) * mask.unsqueeze(-2) + torch.diag_embed((1.0 - mask).expand(batch, size))
-        return Normal(H=H, g=g), loss
+        return (normal if mask is None else normal.masked(mask)), loss
 
     # ── stepping ────────────────────────────────────────────────────────
 
@@ -280,13 +329,32 @@ class Problem:
 
     # ── internals ───────────────────────────────────────────────────────
 
-    def _add(self, name, fn, kind, weight, kernel, jac, reads) -> None:
-        self._require_new_name(name)
-        self.terms[name] = Term(name, fn, kind, self._resolve_reads(name, fn, reads), weight, kernel, jac)
+    def _add(self, name, fn, kind, weight, kernel, jac, reads, window) -> None:
+        if name in self.terms:
+            raise ValueError(f"a term named {name!r} already exists")
+        reads = self._resolve_reads(name, fn, reads)
+        if window is not None and jac is None:
+            shared = self._depends(reads) - set(self.time)
+            if shared:
+                raise ValueError(
+                    f"time-local term {name!r} reads {sorted(shared)}, which have no time axis; autodiff cannot "
+                    "separate their rows. Give the term a `jac`, or register it without `window`."
+                )
+        self.terms[name] = Term(name, fn, kind, reads, weight, kernel, jac, window)
+
+    def _depends(self, reads: tuple[str, ...]) -> set[str]:
+        """Variables that ``reads`` depend on, following cached values."""
+        out: set[str] = set()
+        for read in reads:
+            if read in self.variables:
+                out.add(read)
+            elif read in self._cached:
+                out |= self._depends(self._cached[read][1])
+        return out
 
     def _require_new_name(self, name: str) -> None:
-        if name in self.variables or name in self.data or name in self._cached or name in self.terms:
-            raise ValueError(f"name {name!r} is already used in this problem")
+        if name in self.variables or name in self.data or name in self._cached:
+            raise ValueError(f"name {name!r} is already used by a variable, data tensor or cached value")
 
     def _resolve_reads(self, name: str, fn: Callable[..., Any], reads: tuple[str, ...] | None) -> tuple[str, ...]:
         if reads is None:
@@ -345,18 +413,94 @@ class Problem:
             return 1.0
         return term.kernel.weight(weighted.detach().square().sum(-1)).sqrt().unsqueeze(-1)
 
-    def _analytic_jacobian(self, term: Term, evaluation: Evaluation, weighted: torch.Tensor) -> torch.Tensor:
-        """Dense ``(B, m, N)`` Jacobian of the weighted, reweighted residual from ``term.jac`` blocks."""
+    def _band_layout(self, terms: list[Term]) -> BandLayout | None:
+        """Block-tridiagonal layout when every variable has the time axis and every residual term is time-local."""
+        residuals = [t for t in terms if t.kind == "residual"]
+        if not self.dense and self.time and set(self.time) == set(self.variables) and residuals:
+            if all(t.window is not None for t in residuals):
+                knots = {self.variables[name].shape[1] for name in self.time}
+                if len(knots) == 1:
+                    return self._layout(knots.pop(), max(max(t.window for t in residuals) - 1, 1))
+        return None
+
+    def _layout(self, knots: int, group: int) -> BandLayout:
+        key = (knots, group)
+        if key not in self._layouts:
+            device = next(iter(self.variables.values())).device
+            knot_of = torch.empty(self.tangent_dim, dtype=torch.long, device=device)
+            local_of = torch.empty(self.tangent_dim, dtype=torch.long, device=device)
+            offset = 0
+            for name in self.variables:
+                span = self._slices[name]
+                n = (span.stop - span.start) // knots
+                index = torch.arange(span.stop - span.start, device=device)
+                knot_of[span] = index // n
+                local_of[span] = offset + index % n
+                offset += n
+            self._layouts[key] = BandLayout(
+                block_of_column=knot_of // group,
+                row_of_column=(knot_of % group) * offset + local_of,
+                blocks=-(-knots // group),
+                block_size=group * offset,
+            )
+        return self._layouts[key]
+
+    def _window_columns(self, name: str, rows: int, offset: int, device) -> torch.Tensor:
+        """Columns ``(rows, n)`` of knot ``t + offset`` of time variable ``name`` for each row ``t``."""
+        span = self._slices[name]
+        n = (span.stop - span.start) // self.variables[name].shape[1]
+        knot = torch.arange(rows, device=device) + offset
+        return span.start + knot[:, None] * n + torch.arange(n, device=device)
+
+    def _analytic_pieces(self, term: Term, evaluation: Evaluation, weighted: torch.Tensor) -> list[_Piece]:
+        """Pieces of the weighted, reweighted residual from the blocks returned by ``term.jac``."""
         blocks = term.jac(*evaluation.args(term.reads))
         weight = self.weights.get(term.name, term.weight)
-        row_scale = (weight.sqrt() if isinstance(weight, torch.Tensor) else weight**0.5) * self._irls(term, weighted)
-        if isinstance(row_scale, torch.Tensor):
-            row_scale = row_scale.expand_as(weighted).flatten(1).unsqueeze(-1)
-        rows = weighted.flatten(1).shape[1]
-        jacobian = weighted.new_zeros(weighted.shape[0], rows, self.tangent_dim)
-        for variable, block in blocks.items():
-            jacobian[:, :, self._slices[variable]] = block.detach() * row_scale
-        return jacobian
+        scale = (weight.sqrt() if isinstance(weight, torch.Tensor) else weight**0.5) * self._irls(term, weighted)
+        batch = weighted.shape[0]
+        windowed = term.window is not None
+        if isinstance(scale, torch.Tensor):
+            scale = scale.expand_as(weighted)
+            scale = (scale.flatten(2) if windowed else scale.flatten(1)[:, None]).unsqueeze(-1)  # (B, G, m, 1)
+        pieces = []
+        for name, raw in blocks.items():
+            block = raw.detach()
+            span = self._slices[name]
+            if windowed and name in self.time:
+                if block.ndim == 4:
+                    block = block.unsqueeze(3)
+                for offset in range(block.shape[3]):
+                    columns = self._window_columns(name, block.shape[1], offset, block.device)
+                    pieces.append(_Piece(columns, block[:, :, :, offset] * scale))
+            else:
+                columns = torch.arange(span.start, span.stop, device=block.device)[None]
+                pieces.append(_Piece(columns, block.reshape(batch, 1, -1, span.stop - span.start) * scale))
+        return pieces
+
+    def _windowed_pieces(self, term: Term, reweighted: torch.Tensor, delta: torch.Tensor) -> list[_Piece]:
+        """Autodiff pieces of a time-local term: rows whose windows do not overlap share a backward pass."""
+        rows_by_knot = reweighted.flatten(2)  # (B, T_out, m)
+        batch, rows, width = rows_by_knot.shape
+        window = term.window
+        color = torch.arange(rows, device=delta.device) % window
+        seeds = rows_by_knot.new_zeros(window, width, batch, rows, width)
+        for c in range(window):
+            for j in range(width):
+                seeds[c, j, :, color == c, j] = 1.0
+        (gradient,) = torch.autograd.grad(
+            rows_by_knot, delta, seeds.flatten(0, 1), is_grads_batched=True, retain_graph=True
+        )
+        gradient = gradient.view(window, width, batch, -1)
+        pieces = []
+        for name in sorted(self._depends(term.reads)):
+            span = self._slices[name]
+            knots = self.variables[name].shape[1]
+            by_knot = gradient[..., span].reshape(window, width, batch, knots, -1)
+            for offset in range(window):
+                knot = torch.arange(rows, device=delta.device) + offset
+                block = by_knot[color, :, :, knot]  # (T_out, m, B, n)
+                pieces.append(_Piece(self._window_columns(name, rows, offset, delta.device), block.permute(2, 0, 1, 3)))
+        return pieces
 
     def _retract(self, x: Values, delta: torch.Tensor) -> dict[str, torch.Tensor]:
         return {
@@ -381,23 +525,25 @@ class Problem:
 
 
 def check_jacobian(problem: Problem, x: Values | None = None) -> dict[str, float]:
-    """Largest absolute difference between each analytic ``jac`` and autodiff of the same term.
+    """Largest absolute difference between each term's own Jacobian route and plain autodiff.
 
-    Returns ``{term name: error}`` for the residual terms that have an analytic Jacobian.
+    Checks every residual term that has an analytic ``jac`` or a ``window``; the reference
+    differentiates the same term row by row with no assumption. Returns ``{term name: error}``
+    measured on ``H`` and ``g``, relative to the largest entry of ``H``.
     """
     errors = {}
     for term in problem._active():
-        if term.kind != "residual" or term.jac is None:
+        if term.kind != "residual" or (term.jac is None and term.window is None):
             continue
         only = {name: 0.0 for name in problem.terms if name != term.name}
         analytic = problem.with_(weights=only)
         autodiff = copy.copy(analytic)
-        autodiff.terms = {**problem.terms, term.name: Term(**{**term.__dict__, "jac": None})}
+        autodiff.terms = {**problem.terms, term.name: Term(**{**term.__dict__, "jac": None, "window": None})}
         normal_a, _ = analytic.linearize(x)
         normal_b, _ = autodiff.linearize(x)
-        errors[term.name] = max(
-            float((normal_a.H - normal_b.H).abs().max()), float((normal_a.g - normal_b.g).abs().max())
-        )
+        H_a = normal_a.dense() if isinstance(normal_a, BandedNormal) else normal_a.H
+        scale = max(float(normal_b.H.abs().max()), 1e-300)
+        errors[term.name] = max(float((H_a - normal_b.H).abs().max()), float((normal_a.g - normal_b.g).abs().max())) / scale
     return errors
 
 

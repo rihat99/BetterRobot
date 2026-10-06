@@ -1,0 +1,37 @@
+{
+ "old_solver": {
+  "start_error_m": 1.772487943264551e-12,
+  "goal_error_m": 2.848569294185499e-10,
+  "accel_cost": 6.731344277344194e-14,
+  "inside_limits": true
+ },
+ "jacobian_check": {
+  "ends": 3.4218143202487605e-07,
+  "accel": 0.0
+ },
+ "new_lm_analytic": {
+  "start_error_m": 1.1102487210100965e-16,
+  "goal_error_m": 1.3631802778287419e-14,
+  "accel_cost": 1.5406300808939172e-22,
+  "inside_limits": true,
+  "iters": 9,
+  "seconds": 0.086,
+  "loss": 1.550869141036807e-22,
+  "done": true
+ },
+ "new_lm_autodiff": {
+  "start_error_m": 1.6653491539318385e-16,
+  "goal_error_m": 1.3568928520539443e-14,
+  "accel_cost": 1.540604845228178e-22,
+  "inside_limits": true,
+  "iters": 9,
+  "seconds": 0.152,
+  "loss": 1.5502795027296505e-22,
+  "done": true
+ },
+ "new_lm_batch64": {
+  "seconds": 0.887,
+  "iters": 9,
+  "loss_spread": 0.0
+ }
+}

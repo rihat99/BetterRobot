@@ -109,4 +109,36 @@ def rest(model: Model, q_rest: torch.Tensor, *, q: str = "q") -> TermFn:
     return TermFn(fn=offset, reads=(q,), jac=_identity_jac(model, q, torch.ones_like))
 
 
-__all__ = ["RobotManifold", "frame_pose", "frame_position", "joint_limits", "kinematic_state", "rest"]
+def finite_difference(model: Model, *, order: int, dt: float, q: str = "q") -> TermFn:
+    """Velocity (``order=1``) or acceleration (``order=2``) of a trajectory ``q: (B, T, nq)`` in tangent space.
+
+    Residual ``(B, T - order, nv)``; a time-local term with ``window = order + 1``.
+    """
+    if order not in (1, 2):
+        raise ValueError(f"order must be 1 or 2, got {order}")
+
+    def derivative(value: torch.Tensor) -> torch.Tensor:
+        out = model.difference(value[:, :-1], value[:, 1:]) / dt
+        return out if order == 1 else (out[:, 1:] - out[:, :-1]) / dt
+
+    jac = None
+    if model.nq == model.nv:
+        stencil = torch.tensor([-1.0, 1.0] if order == 1 else [1.0, -2.0, 1.0]) / dt**order
+
+        def jac(value: torch.Tensor) -> dict[str, torch.Tensor]:
+            eye = torch.eye(model.nv, dtype=value.dtype, device=value.device)
+            block = stencil.to(value)[:, None, None] * eye  # (window, nv, nv)
+            return {q: block.permute(1, 0, 2).expand(value.shape[0], value.shape[1] - order, -1, -1, -1)}
+
+    return TermFn(fn=derivative, reads=(q,), jac=jac, window=order + 1)
+
+
+__all__ = [
+    "RobotManifold",
+    "finite_difference",
+    "frame_pose",
+    "frame_position",
+    "joint_limits",
+    "kinematic_state",
+    "rest",
+]

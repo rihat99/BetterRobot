@@ -6,13 +6,14 @@ This package knows nothing about robots. Robot terms live in ``better_robot.term
 from __future__ import annotations
 
 from .kernels import Cauchy, GemanMcClure, Huber, Tukey
-from .linear import Normal
+from .linear import BandedNormal, Normal
 from .manifold import Euclidean, Manifold
 from .phases import Phase, Result, run, solve
 from .problem import Problem, TermFn, check_jacobian
 from .solvers import GaussNewton, LevenbergMarquardt, Solver, State, TorchOptim
 
 __all__ = [
+    "BandedNormal",
     "Cauchy",
     "Euclidean",
     "GaussNewton",

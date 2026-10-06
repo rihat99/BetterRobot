@@ -101,3 +101,72 @@ def test_unknown_read_fails_at_registration():
     problem = optim2.Problem({"x": torch.zeros(2, 3)})
     with pytest.raises(KeyError, match="typo"):
         problem.residual("bad", lambda typo: typo)
+
+
+def test_time_local_terms_match_row_by_row_autodiff():
+    generator = torch.Generator().manual_seed(2)
+    path = torch.randn(2, 7, 3, generator=generator, dtype=torch.float64)
+    scale = torch.randn(2, 4, generator=generator, dtype=torch.float64)
+    problem = optim2.Problem({"path": path, "scale": scale}, time=("path",))
+    problem.cached(lambda path: path.sin(), name="warped")
+    problem.residual("per_knot", lambda warped, path: warped * path.roll(1, -1), window=1)
+    problem.residual("accel", lambda path: (path[:, 2:] - 2 * path[:, 1:-1] + path[:, :-2]).tanh(), window=3,
+                     kernel=optim2.Huber(delta=0.3), weight=4.0)
+    velocity = optim2.TermFn(
+        fn=lambda path: path[:, 1:] - path[:, :-1],
+        reads=("path",),
+        jac=lambda path: {
+            "path": (torch.tensor([-1.0, 1.0], dtype=path.dtype)[:, None, None] * torch.eye(3, dtype=path.dtype))
+            .permute(1, 0, 2).expand(2, 6, 3, 2, 3)
+        },
+        window=2,
+    )
+    problem.residual("velocity", velocity)
+    problem.residual("coupled", lambda path, scale: path.sum(1) * scale[:, :3] + scale[:, 3:])
+    errors = optim2.check_jacobian(problem)
+    assert set(errors) == {"per_knot", "accel", "velocity"}
+    assert max(errors.values()) < 1e-10, errors
+
+    with pytest.raises(ValueError, match="no time axis"):
+        problem.residual("bad", lambda path, scale: path * scale[:, None, :3], window=1)
+
+
+@pytest.mark.parametrize("knots", [9, 10])
+def test_block_tridiagonal_path_equals_dense(knots):
+    generator = torch.Generator().manual_seed(3)
+    path = torch.randn(3, knots, 2, generator=generator, dtype=torch.float64)
+    force = torch.randn(3, knots, 1, generator=generator, dtype=torch.float64)
+    anchor = torch.randn(3, knots, 2, generator=generator, dtype=torch.float64)
+
+    def build(dense):
+        problem = optim2.Problem(
+            {"path": path, "force": force},
+            data={"anchor": anchor},
+            time=("path", "force"),
+            dense=dense,
+            bounds={"force": (torch.tensor(-0.2, dtype=torch.float64), torch.tensor(0.2, dtype=torch.float64))},
+        )
+        problem.residual("anchor", lambda path, anchor: (path - anchor).sin(), window=1, weight=0.3)
+        problem.residual("accel", lambda path: path[:, 2:] - 2 * path[:, 1:-1] + path[:, :-2], window=3)
+        problem.residual("push", lambda path, force: (path[:, 1:] - path[:, :-1]).sum(-1, keepdim=True) - force[:, :-1],
+                         window=2, kernel=optim2.Huber(delta=0.5))
+        problem.residual("effort", lambda force: force, window=1, weight=0.1)
+        return problem
+
+    banded, dense = build(False), build(True)
+    normal_b, loss_b = banded.linearize()
+    normal_d, loss_d = dense.linearize()
+    assert isinstance(normal_b, optim2.BandedNormal) and isinstance(normal_d, optim2.Normal)
+    torch.testing.assert_close(loss_b, loss_d)
+    torch.testing.assert_close(normal_b.dense(), normal_d.H, atol=1e-12, rtol=0.0)
+    damping = torch.tensor([0.0, 1e-3, 1.0], dtype=torch.float64)
+    delta = normal_d.solve(damping)
+    torch.testing.assert_close(normal_b.solve(damping), delta, atol=1e-9, rtol=0.0)
+    torch.testing.assert_close(normal_b.predicted_decrease(delta), normal_d.predicted_decrease(delta))
+
+    free = {"path": torch.arange(knots * 2) % 3 != 0}
+    result_b = optim2.solve(banded.with_(free=free), optim2.LevenbergMarquardt(), iters=40)
+    result_d = optim2.solve(dense.with_(free=free), optim2.LevenbergMarquardt(), iters=40)
+    torch.testing.assert_close(result_b.x["path"], result_d.x["path"], atol=1e-7, rtol=0.0)
+    torch.testing.assert_close(result_b.x["force"], result_d.x["force"], atol=1e-7, rtol=0.0)
+    assert float(result_b.x["force"].abs().max()) <= 0.2
