@@ -50,15 +50,27 @@ class RobotSpheres:
 
 
 def self_collision_pairs(model: Model, spheres: RobotSpheres) -> torch.Tensor:
-    """Sphere index pairs ``(P, 2)`` (``i < j``) excluding spheres on the same or on parent-child frames."""
-    joint_of = model.structure.frame_parent_joint_ids
+    """Sphere index pairs ``(P, 2)`` (``i < j``) that can move relative to each other.
+
+    Excluded: spheres on the same rigid body (frames joined only by fixed joints) and on bodies
+    joined by one moving joint, which touch by construction.
+    """
+    structure = model.structure
     parents = model.parents
+
+    def body(joint: int) -> int:
+        # The nearest ancestor joint with coordinates; fixed joints do not separate bodies.
+        while joint > 0 and structure.nvs_full[joint] == 0:
+            joint = parents[joint]
+        return joint
+
+    body_of = [body(joint) for joint in structure.frame_parent_joint_ids]
     pairs = []
     frame_ids = spheres.frame_ids.tolist()
     for i, frame_i in enumerate(frame_ids):
         for j in range(i + 1, len(frame_ids)):
-            joint_i, joint_j = joint_of[frame_i], joint_of[frame_ids[j]]
-            if joint_i != joint_j and parents[joint_i] != joint_j and parents[joint_j] != joint_i:
+            body_i, body_j = body_of[frame_i], body_of[frame_ids[j]]
+            if body_i != body_j and body(parents[body_i]) != body_j and body(parents[body_j]) != body_i:
                 pairs.append((i, j))
     return torch.tensor(pairs, dtype=torch.long, device=spheres.frame_ids.device).reshape(-1, 2)
 

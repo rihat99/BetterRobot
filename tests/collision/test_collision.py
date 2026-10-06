@@ -110,6 +110,16 @@ def test_centers_match_manual_fk_and_pairs(panda):
     assert torch.allclose(collision.self_distances(spheres, state, pairs)[:, 1], expected)
 
 
+def test_pairs_ignore_fixed_joints(panda):
+    # link7 -> link8 -> hand are joined by fixed joints (one rigid body); hand -> finger is one moving joint.
+    spheres = collision.RobotSpheres.from_frames(
+        panda,
+        {"body_panda_link7": [((0.0, 0.0, 0.0), 0.05)], "body_panda_hand": [((0.0, 0.0, 0.05), 0.05)],
+         "body_panda_leftfinger": [((0.0, 0.0, 0.02), 0.02)], "body_panda_link5": [((0.0, 0.0, 0.0), 0.05)]},
+    )
+    assert collision.self_collision_pairs(panda, spheres).tolist() == [[0, 3], [1, 3], [2, 3]]
+
+
 def test_terms_pass_check_jacobian(panda):
     spheres = _spheres(panda)
     obstacle, size = torch.tensor([0.3, 0.0, 0.5], dtype=DT), torch.tensor(0.1, dtype=DT)

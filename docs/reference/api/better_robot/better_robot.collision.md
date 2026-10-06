@@ -13,8 +13,6 @@
 :titlesonly:
 :maxdepth: 1
 
-better_robot.collision.geometry
-better_robot.collision.pairs
-better_robot.collision.closest_pts
-better_robot.collision.robot_collision
+better_robot.collision.distance
+better_robot.collision.robot_spheres
 ```

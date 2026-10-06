@@ -27,24 +27,23 @@ from ._world import (
     get_dynamics_plan,
     inverse_dynamics_full,
     mass_matrix_full,
+    world_geometry,
     world_kinematics,
 )
 
 
 def _world(model: Model, state: KinematicState) -> tuple[WorldKinematics, tuple[int, ...]]:
-    """Memoised world-frame kinematics of ``state`` and the state's batch shape."""
+    """World-frame kinematics of ``state`` and the state's batch shape.
+
+    The model-independent geometry is memoised on the state; the inertias are read from ``model``
+    on every call (cached on its values, invalidated by in-place edits).
+    """
     batch = tuple(state.q.shape[:-1])
-    if "world_kinematics" not in state._memo:
-        count = math.prod(batch)
-        nj = model.structure.njoints
-        inertias = model.values.body_inertias
-        if inertias.ndim > 2:
-            inertias = inertias.broadcast_to(*batch, nj, 10).reshape(count, nj, 10)
-        transform = state.joint_transform.reshape(count, nj, 3, 4)
-        state._memo["world_kinematics"] = world_kinematics(
-            model.structure, transform, inertias, get_dynamics_plan(model.structure)
-        )
-    return state._memo["world_kinematics"], batch
+    structure = model.structure
+    if "world_geometry" not in state._memo:
+        transform = state.joint_transform.reshape(math.prod(batch), structure.njoints, 3, 4)
+        state._memo["world_geometry"] = world_geometry(structure, transform, get_dynamics_plan(structure))
+    return world_kinematics(state._memo["world_geometry"], model.values, batch, structure), batch
 
 
 def _tangent(model: Model, batch: tuple[int, ...], value: torch.Tensor, name: str) -> torch.Tensor:

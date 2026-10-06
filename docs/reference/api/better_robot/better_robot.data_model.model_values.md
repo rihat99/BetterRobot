@@ -27,6 +27,14 @@
 :class: autosummary longtable
 :align: left
 
+* - {py:obj}`inertia_about_com <better_robot.data_model.model_values.inertia_about_com>`
+  - ```{autodoc2-docstring} better_robot.data_model.model_values.inertia_about_com
+    :summary:
+    ```
+* - {py:obj}`spatial_inertia_matrix <better_robot.data_model.model_values.spatial_inertia_matrix>`
+  - ```{autodoc2-docstring} better_robot.data_model.model_values.spatial_inertia_matrix
+    :summary:
+    ```
 * - {py:obj}`packed_inertias_to_6x6 <better_robot.data_model.model_values.packed_inertias_to_6x6>`
   - ```{autodoc2-docstring} better_robot.data_model.model_values.packed_inertias_to_6x6
     :summary:
@@ -34,6 +42,20 @@
 ````
 
 ### API
+
+````{py:function} inertia_about_com(sym: torch.Tensor) -> torch.Tensor
+:canonical: better_robot.data_model.model_values.inertia_about_com
+
+```{autodoc2-docstring} better_robot.data_model.model_values.inertia_about_com
+```
+````
+
+````{py:function} spatial_inertia_matrix(mass: torch.Tensor, com: torch.Tensor, inertia_com: torch.Tensor) -> torch.Tensor
+:canonical: better_robot.data_model.model_values.spatial_inertia_matrix
+
+```{autodoc2-docstring} better_robot.data_model.model_values.spatial_inertia_matrix
+```
+````
 
 ````{py:function} packed_inertias_to_6x6(body_inertias: torch.Tensor) -> torch.Tensor
 :canonical: better_robot.data_model.model_values.packed_inertias_to_6x6

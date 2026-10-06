@@ -1,70 +1,47 @@
-# Collision and geometry status
+# Collision and geometry
 
-`better_robot.collision` currently provides tensor containers and reserved
-function signatures. It does not yet provide collision-distance computation
-or collision-aware IK.
+`better_robot.collision` is a minimal, functional collision layer: signed
+distances between a sphere and simple shapes, and robots approximated by
+spheres attached to frames. Everything is batched, differentiable, and torch
+only. The generated API reference contains the exact signatures.
 
-This page is a status reference so callers can distinguish usable data types
-from unfinished operations. The generated API reference contains the exact
-signatures.
+## Distance functions
 
-## Available containers
+All functions return a signed distance with leading batch axes; negative
+values mean penetration.
 
-The package exports five frozen dataclasses:
-
-| Type | Fields |
+| Function | Obstacle |
 |---|---|
-| `Sphere` | `center (..., 3)`, `radius (...,)` |
-| `Capsule` | endpoints `a (..., 3)`, `b (..., 3)`, and `radius (...,)` |
-| `Box` | `center (..., 3)`, `half_extents (..., 3)`, `rotation (..., 4)` |
-| `HalfSpace` | `normal (..., 3)`, `offset (...,)` |
-| `Plane` | the same fields as `HalfSpace` |
+| `sphere_sphere(center_a, radius_a, center_b, radius_b)` | another sphere |
+| `sphere_capsule(center, radius, start, end, capsule_radius)` | a capsule around a segment (zero length allowed) |
+| `sphere_halfspace(center, radius, normal, offset)` | the solid `{x : normal · x <= offset}` |
+| `sphere_box(center, radius, box_center, box_rotation, half_extents)` | an oriented box; inside, the distance to the nearest face |
+| `sphere_sdf(center, radius, grid, origin, voxel_size)` | a sampled signed distance field, trilinear lookup, clamped at the grid border |
 
-These classes store tensors but do not validate shape, dtype, device,
-normalization, or broadcasting at construction. They can be used as data
-containers only.
+Gradients are finite at contact. They are exactly zero in measure-zero
+configurations (a centre on a capsule axis, two coincident centres, a centre
+at the middle of a cube) and outside an SDF grid, where the value is held at
+the border.
 
-## Unfinished operations
+## Robot spheres
 
-The following public operations raise `NotImplementedError`:
+`RobotSpheres.from_frames(model, {frame: [(offset, radius), ...]})` attaches
+spheres to frames; `spheres.centers(state)` returns their world centres
+`(B..., S, 3)` from a `KinematicState`. `self_collision_pairs(model, spheres)`
+lists the sphere pairs that can move relative to each other (spheres on one
+rigid body — frames joined only by fixed joints — and on bodies joined by one
+moving joint are excluded); `self_distances(spheres, state, pairs)` evaluates
+them.
 
-- `distance(a, b)`;
-- `colldist_from_sdf(d, margin)`;
-- `RobotCollision.from_model(...)`;
-- `RobotCollision.world_capsules(data)`;
-- `RobotCollision.self_distances(data)`; and
-- `RobotCollision.world_distances(data, world)`.
+## Optimization terms
 
-The closest-point helpers `point_to_segment` and
-`segment_to_segment` are also unfinished.
-
-`register_pair(type_a, type_b)` does store a decorated function in the
-package's private table. `distance` does not use that table yet. Registration
-therefore does not make a working third-party distance implementation. It
-stores only the exact ordered type pair and does not infer symmetry.
-
-## Robot collision container
-
-`RobotCollision` is an importable mutable dataclass with:
-
-- frame identifiers;
-- local capsule endpoints and radii;
-- a self-pair index tensor; and
-- an allowed-pair mask.
-
-Its constructors and query methods are unfinished. It does not inspect
-`Model.meta`, fit capsules from meshes, or update itself from FK data.
+`better_robot.terms.sphere_clearance` and `self_clearance` turn these
+distances into residuals for `better_robot.optim2`: a hinge
+`max(margin - d, 0)` for penalties, or the plain `margin - d` as an inequality
+for `solve_constrained`. See `examples/optim2/06_obstacle_trajectory.py`.
 
 ## What is not shipped
 
-There is no broad phase, BVH, spatial hash, mesh fitting, collision-specific
-asset loader, self-collision residual, world-collision residual, or task
-integration. `solve_ik` does not accept collision geometry.
-
-URDF and MJCF parsing may preserve geometry metadata for other consumers. The
-viewer can resolve visual meshes, but the collision package does not consume
-those meshes.
-
-The complete file-level list of explicit unfinished operations is in
-{doc}`roadmap`. Implemented residuals and solvers are described in
-{doc}`/concepts/residuals_costs_and_solvers`.
+There is no mesh collision, broad phase, BVH, capsule fitting from meshes, or
+collision-specific asset loader. The viewer can resolve visual meshes, but the
+collision package does not consume them.

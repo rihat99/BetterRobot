@@ -61,3 +61,30 @@ def test_inverse_dynamics_gradcheck_through_the_state(g1: br.Model) -> None:
     # q is a point on the free-flyer manifold; gradcheck perturbs it in the ambient space, which
     # is fine for finite differences of a smooth map.
     assert torch.autograd.gradcheck(function, (q.requires_grad_(), v.requires_grad_(), a.requires_grad_()))
+
+
+def test_float32_accuracy_does_not_depend_on_distance_from_the_world_origin(g1: br.Model) -> None:
+    # World quantities are taken about the first joint, so a robot 100 m away keeps short lever arms.
+    q, v, _ = _inputs(g1, (4,), seed=3)
+    q = q.clone()
+    q[:, :3] += torch.tensor([100.0, 50.0, 0.8], dtype=torch.float64)
+    reference = mass_matrix(g1, forward_kinematics_state(g1, q))
+    g1_32 = g1.to(dtype=torch.float32)
+    mass = mass_matrix(g1_32, forward_kinematics_state(g1_32, q.float()))
+    assert (torch.linalg.eigvalsh(mass) > 0).all()
+    assert ((mass.double() - reference).abs().max() / reference.abs().max()) < 1e-5
+
+
+def test_state_reuse_sees_edited_inertias_and_other_models(g1: br.Model) -> None:
+    q, v, _ = _inputs(g1, (1,), seed=4)
+    a = torch.zeros(1, g1.nv, dtype=torch.float64)
+    state = forward_kinematics_state(g1, q)
+    before = inverse_dynamics(g1, state, v, a)
+    g1.values.body_inertias[..., 0].mul_(2.0)
+    try:
+        edited = inverse_dynamics(g1, state, v, a)
+        assert not torch.allclose(edited, before)
+        torch.testing.assert_close(edited, inverse_dynamics(g1, forward_kinematics_state(g1, q), v, a))
+    finally:
+        g1.values.body_inertias[..., 0].mul_(0.5)
+    torch.testing.assert_close(inverse_dynamics(g1, state, v, a), before)
