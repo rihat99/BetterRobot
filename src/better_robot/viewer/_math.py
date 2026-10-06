@@ -1,0 +1,125 @@
+"""Small numpy helpers shared by the viewer layers (no torch, no viser)."""
+
+from __future__ import annotations
+
+import numpy as np
+
+RGB = tuple[float, float, float]
+
+
+def as_frames(array: np.ndarray | object, event_ndim: int) -> np.ndarray:
+    """Promote an array to ``(T, ...)`` float32: a static array (no leading axis) becomes ``T = 1``.
+
+    ``event_ndim`` is the number of trailing axes of one frame, e.g. 2 for joints ``(J, 3)``.
+    """
+    out = np.asarray(array, dtype=np.float32)
+    if out.ndim == event_ndim:
+        out = out[None]
+    if out.ndim != event_ndim + 1:
+        raise ValueError(f"expected {event_ndim} or {event_ndim + 1} axes, got shape {out.shape}")
+    return np.ascontiguousarray(out)
+
+
+def xyzw_to_wxyz(q: np.ndarray) -> np.ndarray:
+    """Reorder quaternions ``(..., 4)`` from scalar-last (BetterRobot) to scalar-first (viser)."""
+    return np.concatenate([q[..., 3:4], q[..., :3]], axis=-1)
+
+
+def quat_z_to(direction: np.ndarray) -> np.ndarray:
+    """Shortest-arc quaternion (wxyz) rotating ``+z`` onto each ``direction`` ``(..., 3)``.
+
+    Zero directions map to the identity; anti-parallel ones to a half turn about ``x``.
+    """
+    d = np.asarray(direction, dtype=np.float32)
+    norm = np.linalg.norm(d, axis=-1, keepdims=True)
+    d = np.where(norm > 1e-9, d / np.maximum(norm, 1e-9), np.array([0.0, 0.0, 1.0], dtype=np.float32))
+    # q = (1 + z·d, z × d) is the un-normalised half-angle quaternion between z and d.
+    w = 1.0 + d[..., 2]
+    xyz = np.stack([-d[..., 1], d[..., 0], np.zeros_like(w)], axis=-1)
+    q = np.concatenate([w[..., None], xyz], axis=-1)
+    flipped = w < 1e-6
+    q[flipped] = np.array([0.0, 1.0, 0.0, 0.0], dtype=np.float32)
+    return q / np.linalg.norm(q, axis=-1, keepdims=True)
+
+
+def rgb_uint8(color: np.ndarray | RGB, shape: tuple[int, ...] = ()) -> np.ndarray:
+    """Convert colours in ``[0, 1]`` to uint8 ``(*shape, 3)``, broadcasting a single colour."""
+    out = np.asarray(color, dtype=np.float32)
+    if out.ndim == 1 and shape:
+        out = np.broadcast_to(out, (*shape, 3))
+    return (np.clip(out, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
+
+
+def unit_cylinder(segments: int = 16) -> tuple[np.ndarray, np.ndarray]:
+    """Closed cylinder of radius 1 from ``z = -0.5`` to ``z = 0.5``: ``(vertices (V, 3), faces (F, 3))``."""
+    angles = np.linspace(0.0, 2.0 * np.pi, segments, endpoint=False, dtype=np.float32)
+    ring = np.stack([np.cos(angles), np.sin(angles)], axis=1)
+    bottom = np.concatenate([ring, np.full((segments, 1), -0.5, dtype=np.float32)], axis=1)
+    top = np.concatenate([ring, np.full((segments, 1), 0.5, dtype=np.float32)], axis=1)
+    vertices = np.concatenate([bottom, top, [[0.0, 0.0, -0.5], [0.0, 0.0, 0.5]]], axis=0).astype(np.float32)
+    i = np.arange(segments)
+    j = (i + 1) % segments
+    faces = np.concatenate(
+        [
+            np.stack([i, j, segments + j], axis=1),
+            np.stack([i, segments + j, segments + i], axis=1),
+            np.stack([np.full_like(i, 2 * segments), j, i], axis=1),
+            np.stack([np.full_like(i, 2 * segments + 1), segments + i, segments + j], axis=1),
+        ]
+    )
+    return vertices, faces.astype(np.uint32)
+
+
+def unit_cone(segments: int = 12) -> tuple[np.ndarray, np.ndarray]:
+    """Cone of base radius 1 at ``z = 0`` and apex at ``z = 1``: ``(vertices, faces)``."""
+    angles = np.linspace(0.0, 2.0 * np.pi, segments, endpoint=False, dtype=np.float32)
+    base = np.stack([np.cos(angles), np.sin(angles), np.zeros(segments, dtype=np.float32)], axis=1)
+    vertices = np.concatenate([base, [[0.0, 0.0, 1.0], [0.0, 0.0, 0.0]]], axis=0).astype(np.float32)
+    i = np.arange(segments)
+    j = (i + 1) % segments
+    apex, center = segments, segments + 1
+    faces = np.concatenate(
+        [np.stack([i, j, np.full_like(i, apex)], axis=1), np.stack([np.full_like(i, center), j, i], axis=1)]
+    )
+    return vertices, faces.astype(np.uint32)
+
+
+def unit_sphere(subdivisions: int = 2) -> tuple[np.ndarray, np.ndarray]:
+    """Icosphere of radius 1: ``(vertices, faces)``."""
+    phi = (1.0 + 5.0**0.5) / 2.0
+    vertices = np.array(
+        [
+            (-1, phi, 0), (1, phi, 0), (-1, -phi, 0), (1, -phi, 0),
+            (0, -1, phi), (0, 1, phi), (0, -1, -phi), (0, 1, -phi),
+            (phi, 0, -1), (phi, 0, 1), (-phi, 0, -1), (-phi, 0, 1),
+        ],
+        dtype=np.float64,
+    )  # fmt: skip
+    faces = np.array(
+        [
+            (0, 11, 5), (0, 5, 1), (0, 1, 7), (0, 7, 10), (0, 10, 11),
+            (1, 5, 9), (5, 11, 4), (11, 10, 2), (10, 7, 6), (7, 1, 8),
+            (3, 9, 4), (3, 4, 2), (3, 2, 6), (3, 6, 8), (3, 8, 9),
+            (4, 9, 5), (2, 4, 11), (6, 2, 10), (8, 6, 7), (9, 8, 1),
+        ],
+        dtype=np.int64,
+    )  # fmt: skip
+    for _ in range(subdivisions):
+        vertex_list = list(vertices)
+        midpoint: dict[tuple[int, int], int] = {}
+
+        def split(a: int, b: int) -> int:
+            key = (min(a, b), max(a, b))
+            if key not in midpoint:
+                midpoint[key] = len(vertex_list)
+                vertex_list.append((vertex_list[a] + vertex_list[b]) / 2.0)
+            return midpoint[key]
+
+        new_faces = []
+        for a, b, c in faces:
+            ab, bc, ca = split(a, b), split(b, c), split(c, a)
+            new_faces += [(a, ab, ca), (b, bc, ab), (c, ca, bc), (ab, bc, ca)]
+        vertices = np.array(vertex_list)
+        faces = np.array(new_faces, dtype=np.int64)
+    vertices /= np.linalg.norm(vertices, axis=1, keepdims=True)
+    return vertices.astype(np.float32), faces.astype(np.uint32)
