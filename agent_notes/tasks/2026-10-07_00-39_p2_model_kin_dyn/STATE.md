@@ -1,28 +1,46 @@
-# STATE — BetterRobot / 2026-10-07_00-39_p2_model_kin_dyn (updated 2026-10-07 01:00 Dubai)
+# STATE — BetterRobot / 2026-10-07_00-39_p2_model_kin_dyn (updated 2026-10-07 01:25 Dubai)
 
 ## Pointers
 - Plan: /home/rikhat.akizhanov/better/dev/BetterRobot/agent_notes/tasks/2026-10-07_00-39_p2_model_kin_dyn/PLAN.md
 - Previous task (done): /home/rikhat.akizhanov/better/dev/BetterRobot/agent_notes/tasks/2026-10-06_23-45_p1_optim/REPORT.md
 - Design: /home/rikhat.akizhanov/better/dev/BetterRobot/agent_notes/tasks/2026-10-06_20-13_architecture_plan/DESIGN.md (D1, D2, section 6)
-- Lean FK prototype: /home/rikhat.akizhanov/better/dev/BetterRobot/agent_notes/tasks/2026-10-06_21-40_p0_measure_and_fix/subagents/proto_lean_fk.py (+ .md)
+- Benchmark table (CPU, before/after): .../2026-10-07_00-39_p2_model_kin_dyn/subagents/m2_bench_table.txt;
+  raw: benchmarks/results/p2_lean_fk_cpu.json vs benchmarks/results/0953f28_cpu.json
+- Operator breakdown script: .../subagents/m2_op_breakdown.py. IK rerun: .../subagents/m2_ik_batch1024_1thread.json
 - Owner is asleep: work automatically, ask nothing. Never push/merge; commit on `dev`.
 - Background HTTP server for plan pages on 127.0.0.1:8765 (never bind 0.0.0.0). Telegram pings do not work.
 
 ## Done
-- M1 precision: URDF and MJCF parsers keep float64 (were rounding to float32). Float64 Panda vs pinocchio:
-  9e-7 -> 8e-16 (subagents/m1_precision_before.json, m1_precision_after.json). Analytic vs autodiff Jacobian
-  1e-7 -> 1e-15. FK oracle regenerated as version 4 (the old one stored the rounded model); pinocchio parity
-  tolerances tightened to 1e-12 (FK) and 1e-10 (frame Jacobian). Viewer dtype fix (urdf_mesh.py:254).
-- Full suite: 1 failure left, pre-existing: tests/optim/test_temporal_structure.py::
-  test_banded_and_dense_lm_match_with_outer_reduction_and_activity (old optim, float32).
+- M1 precision (commit 0ebac62): URDF/MJCF parsers keep float64. Float64 Panda vs pinocchio 9e-7 -> 8e-16.
+  FK oracle regenerated (v4); pinocchio parity tolerances tightened to 1e-12 / 1e-10.
+- M2 lean FK: src/better_robot/kinematics/_fk_lean.py (per-joint affine feature map + one matmul per tree level,
+  [R|p] matrices). All FK goes through it: `_fk_matrix.matrix_core` (Data API) and `forward_kinematics_state`.
+  `KinematicState` stores `joint_transform`/`frame_transform` (B..., n, 3, 4); poses derived lazily.
+  Constant placement matrices cached on ModelValues (not when requires_grad or torch.func-wrapped).
+- M3 `frame_jacobian(model, state, frame)` builds the world column table from the state's matrices and masks one
+  joint; terms in src/better_robot/terms/robot.py read matrices.
+- Numbers (CPU, 1 thread, float32): Panda FK ops 246 -> 48, batch 1 0.655 -> 0.21 ms, batch 4096 32.9 -> 6.6 ms;
+  G1 FK 336 -> 70 ops, 2.5-3x; tree200 Jacobian fwd+bwd at 4096: 10.4 s -> 1.17 s. IK batch 1024: 2.54 -> 1.67 s.
+- Finding: the prototype's single dense feature map costs O(joints^2) (tree200 batch 1 got 24x slower with it);
+  replaced by a per-joint map (linear).
+- Full suite: 1 failure left, pre-existing (tests/optim/test_temporal_structure.py::
+  test_banded_and_dense_lm_match_with_outer_reduction_and_activity, old optim float32).
 
 ## Next steps
-1. M2 lean FK in the library behind `forward_kinematics_state` (see PLAN.md checks).
-2. M3 Jacobians/terms read the new state; M4 remove Warp (record numbers first); M5 collision; M6 review + REPORT.md.
-3. GPU baselines only on a FREE GPU (all BUSY so far).
+1. Clean-context review (mars_aux) of _fk_lean.py, state.py, the parser change, the oracle regeneration.
+2. M4 remove Warp (owner decision Q1): record Warp vs torch numbers first (GPU only if FREE, else CPU and say so);
+   files: kinematics/_warp_bridge.py, _warp_kernels.py, dynamics/_warp_bridge.py, _warp_kernels.py, `use_warp`
+   flags in kinematics/forward.py, dynamics/rnea.py, data_model/data.py, tests that import warp, docs/CLAUDE.md.
+3. Dynamics (RNEA/CRBA/ABA) still use the Data API and 7-vector poses: move them to KinematicState matrices,
+   measure with benchmarks/run.py (rnea, crba, aba rows of the baseline).
+4. M5 minimal collision + obstacle trajopt example on optim2. M6 REPORT.md.
+5. GPU baselines only on a FREE GPU (all BUSY at every check so far).
+6. Possible further FK gains, not done: quaternion joints pad every joint's feature list to 19 when a free-flyer
+   exists; CPU broadcast matmuls in the chain; so3.to_matrix costs 45 operators when placements need gradients.
 
 ## Assumptions (made off-hours)
 - Regenerating tests/kinematics/fk_reference.npz is justified by the parser fix; evidence is pinocchio parity at 1e-12.
-  The old G1 oracle failure disappears with it; its original cause was not separately diagnosed.
 - MJCF parser changed the same way; no MJCF precision measurement was made (tests pass).
 - P0 golden files (IK, trajopt) were recorded with the rounded model; expect differences of about 1e-7.
+- `KinematicState` field names `joint_transform`, `frame_transform`; method `frame_pose_of(frame_id)`.
+- The old kind-group FK in _fk_matrix.py was deleted (replaced, same public functions); it is in git history.

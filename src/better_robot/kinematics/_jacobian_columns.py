@@ -123,7 +123,23 @@ def world_column_table(
     """
 
     rotation = so3.to_matrix(joint_pose_world[..., 3:])  # (B..., njoints, 3, 3)
-    hat_position = hat_so3(joint_pose_world[..., :3])  # (B..., njoints, 3, 3)
+    return world_column_table_from_matrices(
+        structure, rotation, joint_pose_world[..., :3], plan, device=device, dtype=dtype
+    )
+
+
+def world_column_table_from_matrices(
+    structure: ModelStructure,
+    rotation: torch.Tensor,
+    translation: torch.Tensor,
+    plan: JointJacobianPlan,
+    *,
+    device: torch.device,
+    dtype: torch.dtype,
+) -> torch.Tensor:
+    """:func:`world_column_table` from world rotations ``(B..., njoints, 3, 3)`` and origins ``(B..., njoints, 3)``."""
+
+    hat_position = hat_so3(translation)  # (B..., njoints, 3, 3)
     subspace = structure.joint_motion_subspaces.to(device=device, dtype=dtype)  # (njoints, 6, max_nv)
 
     rotated_angular = torch.matmul(rotation, subspace[..., 3:, :])  # (B..., njoints, 3, max_nv)
@@ -137,4 +153,4 @@ def world_column_table(
     return flattened.index_select(-1, plan.column_gather)  # (B..., 6, nv_full)
 
 
-__all__ = ["JointJacobianPlan", "build_plan", "get_plan", "world_column_table"]
+__all__ = ["JointJacobianPlan", "build_plan", "get_plan", "world_column_table", "world_column_table_from_matrices"]

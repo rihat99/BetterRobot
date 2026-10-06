@@ -2,6 +2,7 @@
 
 ## Entry Points
 
+- `forward_kinematics_state(model, q)` — immutable `KinematicState` of `[R | p]` matrices; `frame_jacobian(model, state, frame, reference=...)` reads it
 - `forward_kinematics(model, q_or_data, compute_frames=False, use_warp=False, use_compile=False)` — selects one whole FK pass, fills `joint_pose_world` (and `frame_pose_world` if `compute_frames=True`)
 - `forward_kinematics_raw(structure, values, q)` — pure Torch pass returning a named `FKResult`
 - `frame_placements_raw(structure, values, joint_pose_world)` — pure frame-table pass returning a named result
@@ -60,23 +61,27 @@ the literal strategies `"auto"`, `"analytic"`, `"jacrev"`, `"jacfwd"`, and
 
 ## FK Hot Path
 
-`forward_kinematics_raw` runs the batched matrix lane in `_fk_matrix.py`, not a
-per-joint quaternion-composition loop. Three stages: (1) group joints by kind
-(from `ModelStructure`) and evaluate each kind's local transform for all its
-joints in one batched call, as rotation matrices scattered into a per-joint
-`(B..., nj, 3, 3)`/`(B..., nj, 3)` pair — free-flyer, spherical, revolute
-(axis-aligned + arbitrary), prismatic, and fixed/universe are batched; rare
-kinds (planar, translation, helical, composite) take a per-joint fallback
-through the shared `joint_dispatch.joint_transform`; mimic is expanded by
-`expand_configuration` and carries its concrete kind code; (2) chain world
-placements with one batched `4x4` matmul per joint over `topo_order` — the only
-irreducible sequential dependency, ~1 launch/joint; (3) one batched
-matrix→quaternion for world and local. This drops the per-joint launch volume
-from ~78 to ~2. The kind-grouping plan is a pure function of `ModelStructure`,
-memoised on the structure instance (`_fk_matrix_plan`); `ModelStructure.to`
-mints a fresh instance, so a moved model rebuilds its plan.
+All FK goes through `_fk_lean.lean_core`. Every common joint transform is affine in a few
+features of `q` (`sin`/`cos` of revolute angles, quaternion products, translation
+coordinates), so one `addmm` with a constant matrix built from topology and joint axes gives
+all joint transforms; the world chain is one matmul per tree level. Transforms are `[R | p]`
+matrices `(N, njoints, 3, 4)`; nothing is converted to quaternions inside the pass. Rare kinds
+(planar, translation, helical, composite) go through `joint_dispatch.joint_transform` one by
+one. The plan is memoised on the structure per dtype/device (`_fk_lean_plans`).
 
-The lane emits **canonical-sign** quaternions (Shepperd selection via
+Placements stay differentiable and may be batched. Unbatched placements are folded into the
+affine map (cost independent of batch size); their `4x4` form is cached on the `ModelValues`
+instance unless they require grad or are wrapped by `torch.func`.
+
+Two consumers:
+- `forward_kinematics_state(model, q) -> KinematicState` (new code): stores `joint_transform`
+  and `frame_transform` matrices; `joint_pose` / `frame_pose` are converted on first use.
+  `frame_jacobian(model, state, frame)` builds the shared world column table once per state
+  and masks it for the frame's parent joint. Panda: 44 operators for FK (was 246).
+- `forward_kinematics_raw` / `forward_kinematics` (`Data` API): `_fk_matrix.matrix_core` runs
+  the same core and converts world and local rotations to quaternions in one batched pass.
+
+The `Data` lane emits **canonical-sign** quaternions (Shepperd selection via
 `so3.from_matrix`): a returned `q` may be `-q` relative to a
 quaternion-composition lane (same rotation). It also normalises output
 quaternions, so unnormalised placement quaternions produce results that differ

@@ -58,7 +58,7 @@ def frame_pose(model: Model, frame: int | str, *, target: str, state: str = "sta
     frame_id = _frame_id(model, frame)
 
     def error(kinematics: KinematicState, goal: torch.Tensor) -> torch.Tensor:
-        return se3.log(se3.compose(se3.inverse(goal), kinematics.frame_pose[..., frame_id, :]))
+        return se3.log(se3.compose(se3.inverse(goal), kinematics.frame_pose_of(frame_id)))
 
     def jac(kinematics: KinematicState, goal: torch.Tensor) -> dict[str, torch.Tensor]:
         local = frame_jacobian(model, kinematics, frame_id, reference="local")
@@ -72,7 +72,7 @@ def frame_position(model: Model, frame: int | str, *, target: str, state: str = 
     frame_id = _frame_id(model, frame)
 
     def error(kinematics: KinematicState, goal: torch.Tensor) -> torch.Tensor:
-        return kinematics.frame_pose[..., frame_id, :3] - goal
+        return kinematics.frame_translation[..., frame_id, :] - goal
 
     def jac(kinematics: KinematicState, goal: torch.Tensor) -> dict[str, torch.Tensor]:
         return {q: frame_jacobian(model, kinematics, frame_id)[..., :3, :]}

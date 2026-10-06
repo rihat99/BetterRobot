@@ -25,6 +25,7 @@ import torch
 from torch.profiler import ProfilerActivity, profile
 
 import better_robot as br
+from better_robot.kinematics import forward_kinematics_state, frame_jacobian
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 
@@ -92,6 +93,11 @@ def algo_fn(algo: str, model: br.Model, inputs: dict[str, torch.Tensor]) -> Call
     if algo == "jacobian":
         frame_id = model.nframes - 1
         return lambda q: br.get_frame_jacobian(model, br.forward_kinematics(model, q), frame_id)
+    if algo == "fk_state":
+        return lambda q: forward_kinematics_state(model, q).joint_transform
+    if algo == "jacobian_state":
+        frame_id = model.nframes - 1
+        return lambda q: frame_jacobian(model, forward_kinematics_state(model, q), frame_id)
     if algo == "rnea":
         return lambda q: br.rnea(model, q, v, a)
     if algo == "crba":
