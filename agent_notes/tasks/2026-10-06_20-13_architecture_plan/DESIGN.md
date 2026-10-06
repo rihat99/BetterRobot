@@ -272,3 +272,24 @@ minimal collision moved to P2; `state` signatures frozen in P0; CPU, far-from-or
 and double-backward checks; IK convergence claim softened; line estimate widened; pinocchio
 tests found to skip. Kept despite the objection: name-based injection as the recommended
 default (owner question Q3).
+
+## 6. Owner decisions (2026-10-06, after reading the pages)
+
+Q1. Remove Warp. Guaranteed differentiability of every algorithm is central; a lane that
+    cannot differentiate itself is not wanted. E1 becomes a record of what is lost on
+    forward-only speed, not a gate.
+Q2. Replace mutable `Data` by an immutable result of `forward_kinematics`, under a new name.
+    The owner rejected `kin` / `Kinematics` as confusing. Working name chosen by the agent:
+    class `KinematicState`, variable `state` (small, reversible; owner may rename).
+Q3. Terms read variables by argument name, validated loudly at registration; `reads=` stays.
+Q4. Main batch size is about 4096. Larger batches may be tested but are not a design driver;
+    the hand-kernel experiment E5 is dropped from the near-term plan.
+Q5. Retargeting is NOT part of BetterHuman. It becomes a separate package later, outside this
+    update cycle. The optim must still be able to express it (kept as a use-case example).
+Q6. Keep all BetterHuman studio functionality (segment painting, contact frames, posing,
+    picking, save/load); make it more convenient, on top of the new viewer.
+Q7. Recording without a browser is required: the viewer plan gains an offline renderer that
+    reads the same layer arrays.
+Q8. Expression: exact streaming. Full support for SMPL-X and FLAME in this cycle, with an
+    option to switch SMPL-X expression off when not needed. SKEL, STAR, SUPR later.
+Q9. Order: P0, then optim first.
