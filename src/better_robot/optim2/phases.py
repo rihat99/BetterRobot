@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 import torch
 
 from .problem import Problem
-from .solvers import Solver
+from .solvers import Solver, State
 
 
 @dataclass
@@ -17,8 +17,11 @@ class Phase:
 
     ``weights`` overrides term weights by name (0 switches a term off). ``free`` freezes
     tangent coordinates (see :meth:`Problem.with_`). ``on_start(problem, x)`` runs before
-    the first step and may return replacement variables. Every ``stop_every`` iterations
-    the driver stops early if all problems are done; 0 runs exactly ``iters`` steps.
+    the first step; it may return replacement variables and may write ``problem.data`` (the
+    phase's own copy) to refresh what terms read, such as contact labels.
+    ``on_step(problem, state)`` runs after every step, for logging; ``problem.losses(state.x)``
+    gives the loss of every term. Every ``stop_every`` iterations the driver stops early if
+    all problems are done; 0 runs exactly ``iters`` steps.
     """
 
     solver: Solver
@@ -27,6 +30,7 @@ class Phase:
     weights: Mapping[str, float] | None = None
     free: Mapping[str, torch.Tensor] | None = None
     on_start: Callable[[Problem, dict[str, torch.Tensor]], dict[str, torch.Tensor] | None] | None = None
+    on_step: Callable[[Problem, State], None] | None = None
     stop_every: int = 1
 
 
@@ -55,6 +59,8 @@ def run(problem: Problem, phases: Sequence[Phase], x: Mapping[str, torch.Tensor]
         for iteration in range(phase.iters):
             state = phase.solver.step(view, state)
             losses.append(state.loss)
+            if phase.on_step is not None:
+                phase.on_step(view, state)
             if phase.stop_every and (iteration + 1) % phase.stop_every == 0 and bool(state.done.all()):
                 break
         total += state.it
@@ -67,9 +73,7 @@ def run(problem: Problem, phases: Sequence[Phase], x: Mapping[str, torch.Tensor]
     return Result(x=current, loss=loss, done=done, iters=total, history=history)
 
 
-def solve(
-    problem: Problem, solver: Solver, *, iters: int = 50, x: Mapping[str, torch.Tensor] | None = None
-) -> Result:
+def solve(problem: Problem, solver: Solver, *, iters: int = 50, x: Mapping[str, torch.Tensor] | None = None) -> Result:
     """Run one solver for at most ``iters`` steps."""
     return run(problem, [Phase(solver=solver, iters=iters)], x)
 

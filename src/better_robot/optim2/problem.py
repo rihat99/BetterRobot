@@ -18,7 +18,7 @@ from typing import Any
 import torch
 
 from .kernels import RobustKernel
-from .linear import BandedNormal, BandLayout, BandSink, DenseSink, Normal
+from .linear import ArrowNormal, ArrowSink, BandedNormal, BandLayout, BandSink, DenseSink, Normal
 from .manifold import Euclidean, Manifold
 
 Values = Mapping[str, torch.Tensor]
@@ -68,7 +68,9 @@ class _Piece:
     block: torch.Tensor  #: ``(B, G, m, n)``
 
 
-def _accumulate(sink: DenseSink | BandSink, g: torch.Tensor, pieces: list[_Piece], rows: torch.Tensor) -> None:
+def _accumulate(
+    sink: DenseSink | BandSink | ArrowSink, g: torch.Tensor, pieces: list[_Piece], rows: torch.Tensor
+) -> None:
     """Add ``JᵀJ`` of one term to ``sink`` and ``Jᵀr`` (``rows: (B, G, m)``) to ``g: (B, N)`` in place."""
     batch = g.shape[0]
     for piece in pieces:
@@ -112,8 +114,9 @@ class Problem:
     data : tensors that terms read but that are not optimized (targets, network outputs).
     time : names of variables shaped ``(B, T, *event)`` whose second axis is time. Terms
         registered with ``window=`` are time-local in these variables, which makes their
-        Jacobians cheap. When every variable has the time axis and every residual term is
-        time-local, the normal equations are block-tridiagonal and solved in linear time.
+        Jacobians cheap. When every residual term is either time-local or reads no time
+        variable, the normal equations are block-tridiagonal, bordered by the variables
+        without a time axis (body shape, a camera), and solved in time linear in ``T``.
     dense : force dense normal equations even when the block-tridiagonal form applies.
     """
 
@@ -189,8 +192,9 @@ class Problem:
         ``t`` depends only on knots ``t .. t + k - 1`` of the time variables (``k=1`` for a
         per-knot term, 2 for velocities, 3 for accelerations). Its autodiff Jacobian then costs
         ``k · m`` backward passes instead of one per row, and an analytic ``jac`` returns blocks
-        ``(B, T - k + 1, m, k, n)`` per time variable. The declaration is trusted: a row that
-        reads outside its window gives a wrong Jacobian. :func:`check_jacobian` tests it.
+        ``(B, T - k + 1, m, k, n)`` per time variable and ``(B, T - k + 1, m, n)`` per variable
+        without a time axis. The declaration is trusted: a row that reads outside its window
+        gives a wrong Jacobian. :func:`check_jacobian` tests it.
         """
         jac = jac if jac is not None else getattr(fn, "jac", None)
         window = window if window is not None else getattr(fn, "window", None)
@@ -216,6 +220,7 @@ class Problem:
 
         ``weights[name] = 0`` switches a term off. ``free[variable]`` is a bool mask over that
         variable's tangent coordinates, ``(n,)`` or ``(B, n)``; unlisted variables stay free.
+        For a time variable the mask may cover one knot; it is then repeated over time.
         """
         view = copy.copy(self)
         view.terms, view._cached, view.data = dict(self.terms), dict(self._cached), dict(self.data)
@@ -225,7 +230,14 @@ class Problem:
                 raise KeyError(f"weights for unknown terms {sorted(unknown)}; terms are {sorted(self.terms)}")
             view.weights = {**self.weights, **weights}
         if free is not None:
-            view.free = dict(self._known_variables(free, "free"))
+            view.free = {}
+            for name, mask in self._known_variables(free, "free").items():
+                span = self._slices[name]
+                size = span.stop - span.start
+                knots = self.variables[name].shape[1] if name in self.time else 1
+                if mask.shape[-1] * knots != size and mask.shape[-1] != size:
+                    raise ValueError(f"free mask of {name!r} has {mask.shape[-1]} entries, expected {size}")
+                view.free[name] = mask.repeat(*([1] * (mask.ndim - 1)), size // mask.shape[-1])
         return view
 
     # ── evaluation ──────────────────────────────────────────────────────
@@ -248,7 +260,7 @@ class Problem:
         evaluation = Evaluation(self, x if x is not None else self.variables)
         return {t.name: t.fn(*evaluation.args(t.reads)) for t in self._active() if t.kind == "residual"}
 
-    def linearize(self, x: Values | None = None) -> tuple[Normal | BandedNormal, torch.Tensor]:
+    def linearize(self, x: Values | None = None) -> tuple[Normal | BandedNormal | ArrowNormal, torch.Tensor]:
         """Gauss-Newton normal equations and the loss at ``x``. Returns ``(Normal, (B,))``.
 
         All terms without an analytic Jacobian are differentiated together in one traced
@@ -261,7 +273,10 @@ class Problem:
         batch, size = self._batch(), self.tangent_dim
         loss = self._zeros()
         layout = self._band_layout(terms)
-        sink = DenseSink(loss, batch, size) if layout is None else BandSink(loss, batch, layout)
+        if layout is None:
+            sink = DenseSink(loss, batch, size)
+        else:
+            sink = (BandSink if layout.shared_columns is None else ArrowSink)(loss, batch, layout)
         g = loss.new_zeros(batch, size)
         with torch.enable_grad() if traced else torch.no_grad():
             if traced:
@@ -297,8 +312,10 @@ class Problem:
                 seeds = torch.eye(stacked.shape[1], dtype=stacked.dtype, device=stacked.device)
                 seeds = seeds.unsqueeze(1).expand(-1, batch, -1)
                 (jacobian,) = torch.autograd.grad(stacked, delta, seeds, is_grads_batched=True)
-                columns = torch.arange(size, device=g.device)[None]
-                _accumulate(sink, g, [_Piece(columns, jacobian.permute(1, 0, 2)[:, None])], stacked.detach()[:, None])
+                # Under a time layout the only terms on this route read variables without a time axis.
+                columns = torch.arange(size, device=g.device) if layout is None else layout.shared_columns
+                block = jacobian.permute(1, 0, 2)[:, None, :, columns]
+                _accumulate(sink, g, [_Piece(columns[None], block)], stacked.detach()[:, None])
         normal = sink.finish(g)
         mask = self._free_mask()
         return (normal if mask is None else normal.masked(mask)), loss
@@ -349,13 +366,6 @@ class Problem:
         if name in self.terms:
             raise ValueError(f"a term named {name!r} already exists")
         reads = self._resolve_reads(name, fn, reads)
-        if window is not None and jac is None:
-            shared = self._depends(reads) - set(self.time)
-            if shared:
-                raise ValueError(
-                    f"time-local term {name!r} reads {sorted(shared)}, which have no time axis; autodiff cannot "
-                    "separate their rows. Give the term a `jac`, or register it without `window`."
-                )
         self.terms[name] = Term(name, fn, kind, reads, weight, kernel, jac, window)
 
     def _depends(self, reads: tuple[str, ...]) -> set[str]:
@@ -435,34 +445,47 @@ class Problem:
         return term.kernel.weight(weighted.detach().square().sum(-1)).sqrt().unsqueeze(-1)
 
     def _band_layout(self, terms: list[Term]) -> BandLayout | None:
-        """Block-tridiagonal layout when every variable has the time axis and every residual term is time-local."""
+        """Time layout when every residual term is time-local or reads no time variable.
+
+        Variables without a time axis become the border of an arrowhead matrix.
+        """
         residuals = [t for t in terms if t.kind == "residual"]
-        if not self.dense and self.time and set(self.time) == set(self.variables) and residuals:
-            if all(t.window is not None for t in residuals):
-                knots = {self.variables[name].shape[1] for name in self.time}
-                if len(knots) == 1:
-                    return self._layout(knots.pop(), max(max(t.window for t in residuals) - 1, 1))
-        return None
+        windows = [t.window for t in residuals if t.window is not None]
+        if self.dense or not self.time or not windows:
+            return None
+        if any(t.window is None and self._depends(t.reads) & set(self.time) for t in residuals):
+            return None
+        knots = {self.variables[name].shape[1] for name in self.time}
+        if len(knots) != 1:
+            return None
+        return self._layout(knots.pop(), max(max(windows) - 1, 1))
 
     def _layout(self, knots: int, group: int) -> BandLayout:
         key = (knots, group)
         if key not in self._layouts:
             device = next(iter(self.variables.values())).device
-            knot_of = torch.empty(self.tangent_dim, dtype=torch.long, device=device)
-            local_of = torch.empty(self.tangent_dim, dtype=torch.long, device=device)
+            knot_of = torch.zeros(self.tangent_dim, dtype=torch.long, device=device)
+            local_of = torch.zeros(self.tangent_dim, dtype=torch.long, device=device)
             offset = 0
+            time_columns, shared_columns = [], []
             for name in self.variables:
                 span = self._slices[name]
-                n = (span.stop - span.start) // knots
                 index = torch.arange(span.stop - span.start, device=device)
+                if name not in self.time:
+                    shared_columns.append(span.start + index)
+                    continue
+                n = (span.stop - span.start) // knots
                 knot_of[span] = index // n
                 local_of[span] = offset + index % n
                 offset += n
+                time_columns.append(span.start + index)
             self._layouts[key] = BandLayout(
                 block_of_column=knot_of // group,
                 row_of_column=(knot_of % group) * offset + local_of,
                 blocks=-(-knots // group),
                 block_size=group * offset,
+                time_columns=torch.cat(time_columns) if shared_columns else None,
+                shared_columns=torch.cat(shared_columns) if shared_columns else None,
             )
         return self._layouts[key]
 
@@ -493,13 +516,20 @@ class Problem:
                 for offset in range(block.shape[3]):
                     columns = self._window_columns(name, block.shape[1], offset, block.device)
                     pieces.append(_Piece(columns, block[:, :, :, offset] * scale))
+            elif windowed:
+                columns = torch.arange(span.start, span.stop, device=block.device).expand(block.shape[1], -1)
+                pieces.append(_Piece(columns, block * scale))
             else:
                 columns = torch.arange(span.start, span.stop, device=block.device)[None]
                 pieces.append(_Piece(columns, block.reshape(batch, 1, -1, span.stop - span.start) * scale))
         return pieces
 
     def _windowed_pieces(self, term: Term, reweighted: torch.Tensor, delta: torch.Tensor) -> list[_Piece]:
-        """Autodiff pieces of a time-local term: rows whose windows do not overlap share a backward pass."""
+        """Autodiff pieces of a time-local term: rows whose windows do not overlap share a backward pass.
+
+        Columns of variables without a time axis are read by every row, so they come from one
+        forward-mode product per column, computed as the derivative of a backward pass.
+        """
         rows_by_knot = reweighted.flatten(2)  # (B, T_out, m)
         batch, rows, width = rows_by_knot.shape
         window = term.window
@@ -513,7 +543,22 @@ class Problem:
         )
         gradient = gradient.view(window, width, batch, -1)
         pieces = []
-        for name in sorted(self._depends(term.reads)):
+        depends = self._depends(term.reads)
+        shared = [
+            torch.arange(s.start, s.stop, device=delta.device)
+            for n, s in self._slices.items()
+            if n in depends and n not in self.time
+        ]
+        if shared:
+            columns = torch.cat(shared)
+            probe = torch.zeros_like(rows_by_knot, requires_grad=True)
+            (pulled,) = torch.autograd.grad(rows_by_knot, delta, probe, create_graph=True)
+            eye = torch.eye(columns.numel(), dtype=pulled.dtype, device=pulled.device)
+            (block,) = torch.autograd.grad(
+                pulled[:, columns], probe, eye[:, None].expand(-1, batch, -1), is_grads_batched=True, retain_graph=True
+            )
+            pieces.append(_Piece(columns.expand(rows, -1), block.permute(1, 2, 3, 0)))
+        for name in sorted(depends & set(self.time)):
             span = self._slices[name]
             knots = self.variables[name].shape[1]
             by_knot = gradient[..., span].reshape(window, width, batch, knots, -1)
@@ -524,9 +569,7 @@ class Problem:
         return pieces
 
     def _retract(self, x: Values, delta: torch.Tensor) -> dict[str, torch.Tensor]:
-        return {
-            name: self.manifolds[name].retract(value, delta[:, self._slices[name]]) for name, value in x.items()
-        }
+        return {name: self.manifolds[name].retract(value, delta[:, self._slices[name]]) for name, value in x.items()}
 
     def _clamp(self, x: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         for name, (lower, upper) in self.bounds.items():
@@ -562,9 +605,10 @@ def check_jacobian(problem: Problem, x: Values | None = None) -> dict[str, float
         autodiff.terms = {**problem.terms, term.name: Term(**{**term.__dict__, "jac": None, "window": None})}
         normal_a, _ = analytic.linearize(x)
         normal_b, _ = autodiff.linearize(x)
-        H_a = normal_a.dense() if isinstance(normal_a, BandedNormal) else normal_a.H
-        scale = max(float(normal_b.H.abs().max()), 1e-300)
-        errors[term.name] = max(float((H_a - normal_b.H).abs().max()), float((normal_a.g - normal_b.g).abs().max())) / scale
+        H_a = normal_a.H if isinstance(normal_a, Normal) else normal_a.dense()
+        H_b = normal_b.H if isinstance(normal_b, Normal) else normal_b.dense()
+        scale = max(float(H_b.abs().max()), 1e-300)
+        errors[term.name] = max(float((H_a - H_b).abs().max()), float((normal_a.g - normal_b.g).abs().max())) / scale
     return errors
 
 

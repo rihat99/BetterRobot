@@ -7,6 +7,7 @@ and nothing inside ``step`` reads a tensor back to Python.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -132,7 +133,9 @@ class LBFGS:
     A problem that finds none keeps its variables and drops its history.
     """
 
-    def __init__(self, *, history: int = 10, line_search: int = 8, armijo: float = 1e-4, gtol: float | None = None) -> None:
+    def __init__(
+        self, *, history: int = 10, line_search: int = 8, armijo: float = 1e-4, gtol: float | None = None
+    ) -> None:
         self.history, self.line_search, self.armijo, self.gtol = history, line_search, armijo, gtol
 
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
@@ -207,16 +210,26 @@ class TorchOptim:
     manifolds and bounds. ``State.loss`` is the loss before the step (no extra evaluation).
     Adam-like optimizers keep batch elements independent; ``torch.optim.LBFGS`` couples them
     through its line search and treats the batch as one problem.
+    ``scheduler(optimizer)`` may return a ``torch.optim.lr_scheduler`` object; it is stepped
+    once per solver step.
     """
 
-    def __init__(self, optimizer_cls: type[torch.optim.Optimizer], **kwargs: Any) -> None:
-        self.optimizer_cls, self.kwargs = optimizer_cls, kwargs
+    def __init__(
+        self,
+        optimizer_cls: type[torch.optim.Optimizer],
+        *,
+        scheduler: Callable[[torch.optim.Optimizer], Any] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.optimizer_cls, self.scheduler, self.kwargs = optimizer_cls, scheduler, kwargs
 
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
         params = {name: value.detach().clone().requires_grad_(True) for name, value in x.items()}
         optimizer = self.optimizer_cls(list(params.values()), **self.kwargs)
         loss = next(iter(x.values())).new_full((next(iter(x.values())).shape[0],), float("inf"))
         extra = {"params": params, "optimizer": optimizer}
+        if self.scheduler is not None:
+            extra["scheduler"] = self.scheduler(optimizer)
         return State(x=params, loss=loss, done=torch.zeros_like(loss, dtype=torch.bool), extra=extra)
 
     def step(self, problem: Problem, state: State) -> State:
@@ -233,6 +246,8 @@ class TorchOptim:
             return total
 
         optimizer.step(closure)
+        if "scheduler" in state.extra:
+            state.extra["scheduler"].step()
         with torch.no_grad():
             for name, value in problem.project(params).items():
                 params[name].copy_(value)
@@ -250,8 +265,11 @@ class TorchOptim:
                     f"free mask of {name!r} is in tangent coordinates ({mask.shape[-1]}) but the variable has "
                     f"{gradient[0].numel()} ambient coordinates; use a second-order solver for this phase"
                 )
-            gradient.mul_(mask.to(gradient.dtype).reshape(-1, *gradient.shape[1:]) if mask.ndim == 2
-                          else mask.to(gradient.dtype).reshape(gradient.shape[1:]))
+            gradient.mul_(
+                mask.to(gradient.dtype).reshape(-1, *gradient.shape[1:])
+                if mask.ndim == 2
+                else mask.to(gradient.dtype).reshape(gradient.shape[1:])
+            )
 
 
 __all__ = ["LBFGS", "GaussNewton", "LevenbergMarquardt", "Solver", "State", "TorchOptim", "select"]

@@ -7,6 +7,7 @@ from typing import Protocol, runtime_checkable
 
 import torch
 
+
 @runtime_checkable
 class RobustKernel(Protocol):
     """Down-weight outliers without changing residual structure."""
@@ -19,6 +20,7 @@ class RobustKernel(Protocol):
         """Map squared residual norms to IRLS row weights."""
         ...
 
+
 class L2:
     """The ordinary half-squared L2 objective."""
 
@@ -27,6 +29,7 @@ class L2:
 
     def weight(self, squared_norm: torch.Tensor) -> torch.Tensor:
         return torch.ones_like(squared_norm)
+
 
 class Huber:
     """Quadratic loss inside ``delta`` and linear loss outside it."""
@@ -58,6 +61,7 @@ class Huber:
             self.delta / torch.sqrt(safe_squared_norm + 1e-30),
         )
 
+
 class Cauchy:
     """Cauchy (Lorentzian) loss."""
 
@@ -72,6 +76,7 @@ class Cauchy:
         c2 = self.c * self.c
         return 1.0 / (1.0 + squared_norm / c2)
 
+
 class Tukey:
     """Tukey biweight loss with a re-descending cutoff."""
 
@@ -85,6 +90,7 @@ class Tukey:
 
     def weight(self, squared_norm: torch.Tensor) -> torch.Tensor:
         return (1.0 - squared_norm / (self.c * self.c)).clamp(min=0.0).square()
+
 
 class GemanMcClure:
     """Smooth, bounded, re-descending Geman--McClure loss."""
@@ -102,5 +108,6 @@ class GemanMcClure:
     def weight(self, squared_norm: torch.Tensor) -> torch.Tensor:
         c2 = self.c * self.c
         return (c2 / (c2 + squared_norm)).square()
+
 
 __all__ = ["Cauchy", "GemanMcClure", "Huber", "L2", "RobustKernel", "Tukey"]

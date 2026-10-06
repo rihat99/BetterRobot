@@ -27,7 +27,9 @@ class Manifold(Protocol):
         """Map an ambient tensor back onto the manifold."""
         ...
 
-    def tangent_bounds(self, x: torch.Tensor, lower: torch.Tensor, upper: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def tangent_bounds(
+        self, x: torch.Tensor, lower: torch.Tensor, upper: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Allowed step range ``(B, n), (B, n)`` at ``x`` for box bounds on the ambient tensor."""
         ...
 
@@ -44,7 +46,9 @@ class Euclidean:
     def project(self, x: torch.Tensor) -> torch.Tensor:
         return x
 
-    def tangent_bounds(self, x: torch.Tensor, lower: torch.Tensor, upper: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def tangent_bounds(
+        self, x: torch.Tensor, lower: torch.Tensor, upper: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         return (lower - x).expand_as(x).flatten(1), (upper - x).expand_as(x).flatten(1)
 
 

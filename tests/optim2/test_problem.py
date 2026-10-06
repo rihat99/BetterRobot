@@ -123,12 +123,10 @@ def test_time_local_terms_match_row_by_row_autodiff():
     )
     problem.residual("velocity", velocity)
     problem.residual("coupled", lambda path, scale: path.sum(1) * scale[:, :3] + scale[:, 3:])
+    problem.residual("scaled", lambda path, scale: (path[:, 1:] - path[:, :-1]) * scale[:, None, :3].exp(), window=2)
     errors = optim2.check_jacobian(problem)
-    assert set(errors) == {"per_knot", "accel", "velocity"}
+    assert set(errors) == {"per_knot", "accel", "velocity", "scaled"}
     assert max(errors.values()) < 1e-10, errors
-
-    with pytest.raises(ValueError, match="no time axis"):
-        problem.residual("bad", lambda path, scale: path * scale[:, None, :3], window=1)
 
 
 @pytest.mark.parametrize("knots", [9, 10])
@@ -170,6 +168,64 @@ def test_block_tridiagonal_path_equals_dense(knots):
     torch.testing.assert_close(result_b.x["path"], result_d.x["path"], atol=1e-7, rtol=0.0)
     torch.testing.assert_close(result_b.x["force"], result_d.x["force"], atol=1e-7, rtol=0.0)
     assert float(result_b.x["force"].abs().max()) <= 0.2
+
+
+@pytest.mark.parametrize("knots", [9, 10])
+def test_shared_variables_border_the_band_and_equal_dense(knots):
+    generator = torch.Generator().manual_seed(4)
+    path = torch.randn(3, knots, 2, generator=generator, dtype=torch.float64)
+    shape = 0.3 * torch.randn(3, 3, generator=generator, dtype=torch.float64)
+    anchor = torch.randn(3, knots, 2, generator=generator, dtype=torch.float64)
+
+    def build(dense):
+        # "shape" sits between the time variables on purpose: column order must not matter.
+        problem = optim2.Problem(
+            {"path": path, "shape": shape, "force": path[..., :1].clone()},
+            data={"anchor": anchor},
+            time=("path", "force"),
+            dense=dense,
+            bounds={"shape": (torch.tensor(-0.4, dtype=torch.float64), torch.tensor(0.4, dtype=torch.float64))},
+        )
+        problem.cached(lambda path, shape: path * shape[:, None, :2].exp(), name="scaled")
+        problem.residual("anchor", lambda scaled, anchor: (scaled - anchor).sin(), window=1, kernel=optim2.Huber(delta=0.7))
+        problem.residual("accel", lambda path: path[:, 2:] - 2 * path[:, 1:-1] + path[:, :-2], window=3)
+        push = optim2.TermFn(
+            fn=lambda path, force, shape: (path[:, 1:] - path[:, :-1]).sum(-1, keepdim=True)
+            - force[:, :-1] * shape[:, None, 2:],
+            reads=("path", "force", "shape"),
+            jac=lambda path, force, shape: {
+                "path": torch.tensor([-1.0, 1.0], dtype=path.dtype)[:, None].expand(*path[:, 1:, :1].shape, 2, 2),
+                "force": torch.stack([-shape[:, None, 2:].expand_as(force[:, :-1]), torch.zeros_like(force[:, :-1])], -2)
+                .unsqueeze(2),
+                "shape": torch.cat([torch.zeros_like(path[:, 1:]), -force[:, :-1]], -1).unsqueeze(2),
+            },
+            window=2,
+        )
+        problem.residual("push", push, weight=2.0)
+        problem.residual("effort", lambda force: force, window=1, weight=0.1)
+        problem.residual("shape_prior", lambda shape: shape, weight=0.05)
+        return problem
+
+    arrow, dense = build(False), build(True)
+    assert max(optim2.check_jacobian(arrow).values()) < 1e-10
+    normal_a, loss_a = arrow.linearize()
+    normal_d, loss_d = dense.linearize()
+    assert isinstance(normal_a, optim2.ArrowNormal) and isinstance(normal_d, optim2.Normal)
+    torch.testing.assert_close(loss_a, loss_d)
+    torch.testing.assert_close(normal_a.g, normal_d.g, atol=1e-12, rtol=0.0)
+    torch.testing.assert_close(normal_a.dense(), normal_d.H, atol=1e-12, rtol=0.0)
+    damping = torch.tensor([0.0, 1e-3, 1.0], dtype=torch.float64)
+    delta = normal_d.solve(damping)
+    torch.testing.assert_close(normal_a.solve(damping), delta, atol=1e-9, rtol=0.0)
+    torch.testing.assert_close(normal_a.predicted_decrease(delta), normal_d.predicted_decrease(delta))
+
+    free = {"path": torch.arange(knots * 2) % 3 != 0, "shape": torch.tensor([True, False, True])}
+    result_a = optim2.solve(arrow.with_(free=free), optim2.LevenbergMarquardt(), iters=40)
+    result_d = optim2.solve(dense.with_(free=free), optim2.LevenbergMarquardt(), iters=40)
+    for name in ("path", "shape", "force"):
+        torch.testing.assert_close(result_a.x[name], result_d.x[name], atol=1e-7, rtol=0.0)
+    torch.testing.assert_close(result_a.x["shape"][:, 1], shape[:, 1].clamp(-0.4, 0.4))
+    assert float(result_a.x["shape"].abs().max()) <= 0.4
 
 
 def _curve_problem(goal):
@@ -239,3 +295,30 @@ def test_review_regressions():
     scalar.scalar("bowl", lambda x, a: ((x - a) ** 2).sum(-1))
     with pytest.raises(ValueError, match="scalar"):
         optim2.solve_layer(scalar, optim2.LBFGS(), iters=5)
+
+
+def test_phase_hooks_scheduler_and_per_knot_free_mask():
+    path = torch.zeros(2, 5, 3, dtype=torch.float64)
+    problem = optim2.Problem({"path": path}, data={"goal": torch.ones(2, 5, 3, dtype=torch.float64)}, time=("path",))
+    problem.residual("fit", lambda path, goal: path - goal, window=1)
+    rates, seen = [], []
+
+    def retarget(view, x):
+        view.data["goal"] = view.data["goal"] * 2.0
+
+    adam = optim2.TorchOptim(
+        torch.optim.Adam, lr=0.1, scheduler=lambda o: torch.optim.lr_scheduler.MultiStepLR(o, milestones=[2], gamma=0.1)
+    )
+    free = {"path": torch.tensor([True, False, True])}
+    phases = [
+        optim2.Phase(adam, iters=4, free=free, stop_every=0,
+                     on_step=lambda view, state: rates.append(state.extra["optimizer"].param_groups[0]["lr"])),
+        optim2.Phase(optim2.LevenbergMarquardt(), iters=10, free=free, on_start=retarget,
+                     on_step=lambda view, state: seen.append(view.losses(state.x)["fit"])),
+    ]
+    result = optim2.run(problem, phases)
+    assert rates == pytest.approx([0.1, 0.01, 0.01, 0.01])
+    assert seen and seen[-1].shape == (2,)
+    torch.testing.assert_close(result.x["path"][..., 1], path[..., 1])
+    torch.testing.assert_close(result.x["path"][..., 0], torch.full((2, 5), 2.0, dtype=torch.float64))
+    assert float(problem.data["goal"].max()) == 1.0
