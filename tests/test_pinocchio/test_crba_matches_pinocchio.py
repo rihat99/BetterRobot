@@ -4,9 +4,8 @@ Acceptance for P11-D3:
 
 * ``M(q) @ a + bias_forces(q, v) == rnea(q, v, a)`` — internal consistency.
 * ``M(q_neutral)`` is symmetric and positive-definite.
-* ``M(q)`` matches ``pin.crba`` element-wise on Panda at fp64 (1e-5 rel
-  tolerance, dominated by the URDF inertia round-trip through fp32 in
-  ``io/parsers/urdf.py``).
+* ``M(q)`` matches ``pin.crba`` element-wise on Panda at fp64 (1e-10 rel
+  tolerance; the measured gap is 1e-15).
 """
 
 from __future__ import annotations
@@ -24,7 +23,7 @@ from .conftest import sample_panda_q
 
 pin = pytest.importorskip("pinocchio")
 
-_RTOL = 1e-5
+_RTOL = 1e-10
 
 
 def test_crba_matches_pinocchio(panda_both):

@@ -7,12 +7,10 @@ joint ``j``'s Jacobian iff ``a`` supports ``j`` (is an ancestor of, or equals,
 ``j``). Neither the column content nor the sparsity depends on the row joint, so
 the whole pass is three batched stages instead of a per-joint Python loop:
 
-1.  One batched ``so3.to_matrix`` / ``hat_so3`` over ``joint_pose_world`` and the
-    constant :attr:`ModelStructure.joint_motion_subspaces` table build every
-    joint's own column block at once.
-2.  A static gather scatters the padded ``(njoints, max_nv)`` own blocks into a
-    shared ``(B..., 6, nv_full)`` column table.
-3.  A static supports-derived mask broadcasts that shared table into per-joint
+1.  A static gather of each column's owner rotation and origin, times the constant
+    joint-frame subspace column, builds the shared ``(B..., 6, nv_full)`` column
+    table in one batched pass (no padded ``(njoints, max_nv)`` grid).
+2.  A static supports-derived mask broadcasts that shared table into per-joint
     world Jacobians.
 
 The plan (owner map, gather index, support mask) is a pure function of
@@ -32,7 +30,6 @@ import torch
 
 from ..data_model.model_structure import ModelStructure
 from ..lie import so3
-from ..lie.tangents import hat_so3
 
 
 @dataclass(frozen=True)
@@ -46,7 +43,7 @@ class JointJacobianPlan:
 
     max_nv: int  #: padded per-joint subspace width (``joint_motion_subspaces.shape[-1]``).
     column_owner: torch.Tensor  #: ``(nv_full,)`` long — joint owning each full-width v-column.
-    column_gather: torch.Tensor  #: ``(nv_full,)`` long — flat index into a ``(njoints * max_nv)`` own-column grid selecting each full-width column's padded source.
+    column_subspace: torch.Tensor  #: ``(nv_full, 6)`` — the constant joint-frame motion subspace column of each full-width column.
     support_mask: torch.Tensor  #: ``(njoints, 1, nv_full)`` bool — True where ``column_owner`` supports the row joint; masks the shared column table into per-joint Jacobians.
 
 
@@ -78,10 +75,12 @@ def build_plan(structure: ModelStructure) -> JointJacobianPlan:
 
     column_owner = torch.tensor(owner, dtype=torch.long, device=device)
     support_mask = is_support.index_select(-1, column_owner).unsqueeze(-2)  # (njoints, 1, nv_full)
+    column_gather = torch.tensor(gather, dtype=torch.long, device=device)
+    column_subspace = structure.joint_motion_subspaces.transpose(-2, -1).reshape(-1, 6).index_select(0, column_gather)
     return JointJacobianPlan(
         max_nv=max_nv,
         column_owner=column_owner,
-        column_gather=torch.tensor(gather, dtype=torch.long, device=device),
+        column_subspace=column_subspace.contiguous(),
         support_mask=support_mask.contiguous(),
     )
 
@@ -137,20 +136,19 @@ def world_column_table_from_matrices(
     device: torch.device,
     dtype: torch.dtype,
 ) -> torch.Tensor:
-    """:func:`world_column_table` from world rotations ``(B..., njoints, 3, 3)`` and origins ``(B..., njoints, 3)``."""
+    """:func:`world_column_table` from world rotations ``(B..., njoints, 3, 3)`` and origins ``(B..., njoints, 3)``.
 
-    hat_position = hat_so3(translation)  # (B..., njoints, 3, 3)
-    subspace = structure.joint_motion_subspaces.to(device=device, dtype=dtype)  # (njoints, 6, max_nv)
+    Each full-width column is built from its owner's rotation and origin directly, so no padded
+    ``(njoints, max_nv)`` grid is formed (a free-flyer would pad every joint to six columns).
+    """
 
-    rotated_angular = torch.matmul(rotation, subspace[..., 3:, :])  # (B..., njoints, 3, max_nv)
-    linear = torch.matmul(rotation, subspace[..., :3, :]) + torch.matmul(hat_position, rotated_angular)
-    own_columns = torch.cat((linear, rotated_angular), dim=-2)  # (B..., njoints, 6, max_nv)
-
-    # Move the 6-row axis ahead of (njoints, max_nv), flatten the owner grid,
-    # and select each full-width column's padded source. Static gather → vmap-
-    # and compile-safe; padding columns are never selected.
-    flattened = own_columns.transpose(-3, -2).flatten(-2, -1)  # (B..., 6, njoints * max_nv)
-    return flattened.index_select(-1, plan.column_gather)  # (B..., 6, nv_full)
+    owner = plan.column_owner
+    rotation = rotation.index_select(-3, owner)  # (B..., nv_full, 3, 3)
+    translation = translation.index_select(-2, owner)  # (B..., nv_full, 3)
+    subspace = plan.column_subspace.to(device=device, dtype=dtype)  # (nv_full, 6)
+    angular = (rotation @ subspace[:, 3:, None]).squeeze(-1)
+    linear = (rotation @ subspace[:, :3, None]).squeeze(-1) + torch.linalg.cross(translation, angular)
+    return torch.cat((linear, angular), dim=-1).transpose(-1, -2)  # (B..., 6, nv_full)
 
 
 __all__ = ["JointJacobianPlan", "build_plan", "get_plan", "world_column_table", "world_column_table_from_matrices"]

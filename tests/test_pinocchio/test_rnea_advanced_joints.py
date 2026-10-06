@@ -48,9 +48,7 @@ def test_rnea_free_flyer_g1_matches_pinocchio(g1_both, seed):
     tau_br = br.rnea(br_m, q, v, a).detach().cpu().numpy()
     tau_pin = np.asarray(pin.rnea(pin_m, pin_d, q.numpy(), v.numpy(), a.numpy()))
 
-    # Looser than Panda's 1e-5 because G1 has deeper chains → more fp32-URDF
-    # error compounds through the parallel-axis shifts.
-    np.testing.assert_allclose(tau_br, tau_pin, atol=1e-3)
+    np.testing.assert_allclose(tau_br, tau_pin, atol=1e-10)
 
 
 def test_rnea_free_flyer_base_wrench_matches_pinocchio(g1_both):
@@ -61,7 +59,7 @@ def test_rnea_free_flyer_base_wrench_matches_pinocchio(g1_both):
     zero = torch.zeros(br_m.nv, dtype=torch.float64)
     tau_br = br.rnea(br_m, q, zero, zero).detach().cpu().numpy()
     tau_pin = np.asarray(pin.rnea(pin_m, pin_d, q.numpy(), zero.numpy(), zero.numpy()))
-    np.testing.assert_allclose(tau_br[:6], tau_pin[:6], atol=1e-5)
+    np.testing.assert_allclose(tau_br[:6], tau_pin[:6], atol=1e-10)
 
 
 # ───────────────────────── spherical joint ─────────────────────────

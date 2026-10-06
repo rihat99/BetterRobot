@@ -1,7 +1,9 @@
 """``better_robot.dynamics`` — RNEA, ABA, CRBA, and centroidal quantities.
 
 Public wrappers delegate to pure structure/value functions in their owning
-modules. Unsupported future algorithms are omitted from the import surface.
+modules. The ``KinematicState`` API (``inverse_dynamics``, ``mass_matrix``,
+``forward_dynamics``, ``centroidal_map``; ``state.center_of_mass``) shares the
+world-frame core in ``_world`` with the ``Data`` API.
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ from .rnea import (
     rnea,
     rnea_raw,
 )
+from .state import centroidal_map, forward_dynamics, inverse_dynamics, mass_matrix
 
 __all__ = [
     "rnea",
@@ -38,4 +41,8 @@ __all__ = [
     "CCRBAResult",
     "ccrba",
     "ccrba_raw",
+    "inverse_dynamics",
+    "mass_matrix",
+    "forward_dynamics",
+    "centroidal_map",
 ]

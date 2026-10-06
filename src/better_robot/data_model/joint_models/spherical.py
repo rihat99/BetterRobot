@@ -63,7 +63,7 @@ class JointSpherical:
 
     def random_configuration(self, generator, lower, upper) -> torch.Tensor:
         """Random unit quaternion via Gaussian sampling."""
-        q = torch.randn(4, generator=generator)
+        q = torch.randn(4, generator=generator, dtype=lower.dtype)
         return q / q.norm().clamp(min=1e-8)
 
     def neutral(self) -> torch.Tensor:

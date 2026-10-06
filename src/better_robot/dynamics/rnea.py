@@ -1,32 +1,18 @@
-"""Inverse dynamics — Featherstone's Recursive Newton–Euler Algorithm.
+"""Inverse dynamics — Recursive Newton–Euler in the world frame.
 
-Two-pass body-frame RNEA mirroring Pinocchio's ``rnea.hxx``:
+``τ = M(q) a + C(q, v) v + g(q) − Jᵀ fext``, evaluated by :mod:`._world` with ancestor and
+subtree sums as support-matrix products instead of per-joint passes. Gravity enters as the base
+acceleration ``−gravity``. All inputs and outputs carry a leading batch shape ``(B...,)``.
 
-* **Forward pass** over ``model.topo_order``: propagate body-frame spatial
-  velocity and acceleration from parent to child using ``Ad(liMi⁻¹)``,
-  then compute the inertial wrench ``f_i = I_i·a_i + v_i ×* (I_i·v_i)``
-  and subtract any external wrench.
-* **Backward pass** in reverse: project the child wrench onto the joint
-  subspace ``τ_i = Sᵢᵀ · f_i`` and transport the residual up the tree
-  with ``Ad(liMi⁻¹)ᵀ``.
-
-Gravity is folded into the base bias: ``a_body[0] = −model.gravity``.
-
-All inputs and outputs carry a leading batch shape ``(B...,)``.
-
-Known limitations:
-
-* The per-joint bias acceleration ``c_J = Ṡ · v`` is dispatched through
-  the optional ``JointModel.joint_bias_acceleration`` hook. It is zero
-  for every current joint type because their motion subspaces are body-
-  frame constant; joints with ``q``-dependent subspaces only need to
-  override the hook to plug in correctly.
+The per-joint bias acceleration ``Ṡ v`` is the derivative of the world Jacobian column, which
+covers every joint whose motion subspace is constant in its own frame (all shipped kinds).
 
 See ``docs/concepts/dynamics.md``.
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import torch
@@ -40,9 +26,12 @@ from ..data_model.reduced_coordinates import (
     expand_tangent,
     reduce_generalized_force,
 )
-from ..kinematics.forward import forward_kinematics_raw
-from ..lie import se3
 from ._execution import prepare_dynamics_inputs
+from ._world import (
+    get_dynamics_plan,
+    inverse_dynamics_full,
+    world_kinematics_from_q,
+)
 
 
 @dataclass(frozen=True)
@@ -57,37 +46,7 @@ class RNEAResult:
     joint_forces: torch.Tensor
 
 
-def _cross_motion(v: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
-    """``ad(v) · u`` — Motion × Motion spatial cross. ``(..., 6)``.
-
-    Matches :meth:`Motion.cross_motion`::
-
-        out_lin = ω_v × u_lin + v_lin × u_ang
-        out_ang = ω_v × u_ang
-    """
-    v_lin, v_ang = v[..., :3], v[..., 3:]
-    u_lin, u_ang = u[..., :3], u[..., 3:]
-    out_lin = torch.linalg.cross(v_ang, u_lin) + torch.linalg.cross(v_lin, u_ang)
-    out_ang = torch.linalg.cross(v_ang, u_ang)
-    return torch.cat([out_lin, out_ang], dim=-1)
-
-
-def _cross_motion_force(v: torch.Tensor, f: torch.Tensor) -> torch.Tensor:
-    """``ad*(v) · f`` — Motion × Force spatial cross. ``(..., 6)``.
-
-    Matches :meth:`Motion.cross_force`::
-
-        out_lin = ω_v × f_lin
-        out_ang = ω_v × f_ang + v_lin × f_lin
-    """
-    v_lin, v_ang = v[..., :3], v[..., 3:]
-    f_lin, f_ang = f[..., :3], f[..., 3:]
-    out_lin = torch.linalg.cross(v_ang, f_lin)
-    out_ang = torch.linalg.cross(v_ang, f_ang) + torch.linalg.cross(v_lin, f_lin)
-    return torch.cat([out_lin, out_ang], dim=-1)
-
-
-def rnea_raw(  # noqa: PLR0912, PLR0915 - recursive Newton-Euler passes are explicit
+def rnea_raw(
     structure: ModelStructure,
     values: ModelValues,
     q: torch.Tensor,
@@ -133,118 +92,25 @@ def rnea_raw(  # noqa: PLR0912, PLR0915 - recursive Newton-Euler passes are expl
     v = prepared["v"]
     a = prepared["a"]
     fext = prepared.get("fext")
-    v_full = expand_tangent(structure, v)
-    a_full = expand_tangent(structure, a)
-    device, dtype = q.device, q.dtype
-
-    # ── Pass 0: forward kinematics (liMi needed for adjoints) ────────────
-    fk_result = forward_kinematics_raw(structure, values, q)
-    oMi = fk_result.joint_pose_world
-    liMi = fk_result.joint_pose_local
-
-    # ── Base spatial velocity / acceleration ─────────────────────────────
-    # a_gf[0] = −gravity: folds gravity into the inertial bias so the
-    # forward recursion produces per-body spatial forces that include weight.
-    zero6 = torch.zeros((*batch, 6), device=device, dtype=dtype)
-    zero_motion_subspace = torch.empty((*batch, 6, 0), device=device, dtype=dtype)
-    grav = values.gravity.expand(*batch, 6)
-    spatial_inertias = values.spatial_inertias()
-    motion_subspaces = structure.joint_motion_subspaces
-
-    # Local-pose inverse adjoints for every joint in one batched build; both
-    # passes index this instead of rebuilding Ad(liMi⁻¹) per joint.
-    adjoint_inv_local = se3.adjoint_inv(liMi)  # (B..., njoints, 6, 6)
-
-    # Per-joint storage (list-of-tensor + torch.stack for autograd safety).
+    count = math.prod(batch)
     njoints = structure.njoints
-    v_body: list[torch.Tensor | None] = [None] * njoints
-    a_body: list[torch.Tensor | None] = [None] * njoints
-    f_body: list[torch.Tensor | None] = [None] * njoints
-    S_cache: list[torch.Tensor | None] = [None] * njoints
-
-    v_body[0] = zero6
-    a_body[0] = -grav
-    f_body[0] = zero6
-
-    # ── Forward pass ─────────────────────────────────────────────────────
-    for i in structure.topo_order:
-        if i == 0:
-            continue
-        p = structure.parents[i]
-
-        iv, nv_i = structure.idx_vs_full[i], structure.nvs_full[i]
-
-        if nv_i > 0:
-            v_i_slice = v_full[..., iv : iv + nv_i]
-            a_i_slice = a_full[..., iv : iv + nv_i]
-            S_i = motion_subspaces[i, :, :nv_i].expand(*batch, 6, nv_i)
-            vJ = (S_i @ v_i_slice.unsqueeze(-1)).squeeze(-1)
-            aJ = (S_i @ a_i_slice.unsqueeze(-1)).squeeze(-1)  # (B..., 6)
-            cJ = zero6
-        else:
-            # Fixed / zero-DoF joint: no velocity contribution, no subspace.
-            S_i = zero_motion_subspace
-            vJ = zero6
-            aJ = zero6
-            cJ = zero6
-        S_cache[i] = S_i
-
-        # Parent motion transport: Ad(liMi⁻¹) expresses a parent-frame
-        # motion 6-vector in the local joint frame.
-        Ad_inv = adjoint_inv_local[..., i, :, :]  # (B..., 6, 6)
-        v_parent_local = (Ad_inv @ v_body[p].unsqueeze(-1)).squeeze(-1)
-        a_parent_local = (Ad_inv @ a_body[p].unsqueeze(-1)).squeeze(-1)
-
-        v_i = v_parent_local + vJ
-        # Featherstone: a_i = parent_transported + v_i × vJ + S·ddq + c_J.
-        a_i = a_parent_local + _cross_motion(v_i, vJ) + aJ + cJ
-
-        # Inertial wrench in body frame: f_i = I_i·a_i + v_i ×* (I_i·v_i).
-        M_i = spatial_inertias[..., i, :, :]
-        h_i = (M_i @ v_i.unsqueeze(-1)).squeeze(-1)
-        f_i = (M_i @ a_i.unsqueeze(-1)).squeeze(-1) + _cross_motion_force(v_i, h_i)
-
-        if fext is not None:
-            f_i = f_i - fext[..., i, :]
-
-        v_body[i] = v_i
-        a_body[i] = a_i
-        f_body[i] = f_i
-
-    # ── Backward pass ────────────────────────────────────────────────────
-    # Per-coordinate tau slots, filled in reverse topo order.
-    tau_slots: list[torch.Tensor | None] = [None] * structure.nv_full
-
-    for i in reversed(structure.topo_order):
-        if i == 0:
-            continue
-        iv, nv_i = structure.idx_vs_full[i], structure.nvs_full[i]
-        if nv_i > 0:
-            S_i = S_cache[i]  # (B..., 6, nv_i)
-            tau_i = (S_i.transpose(-1, -2) @ f_body[i].unsqueeze(-1)).squeeze(-1)
-            for k in range(nv_i):
-                tau_slots[iv + k] = tau_i[..., k]
-
-        p = structure.parents[i]
-        if p >= 0:
-            # Force transport from child to parent frame: Ad(liMi⁻¹)ᵀ · f.
-            Ad_inv_T = adjoint_inv_local[..., i, :, :].transpose(-1, -2)
-            f_transported = (Ad_inv_T @ f_body[i].unsqueeze(-1)).squeeze(-1)
-            f_body[p] = f_body[p] + f_transported
-
-    if structure.nv_full > 0:
-        tau_full = torch.stack(tau_slots, dim=-1)  # type: ignore[arg-type]
-    else:
-        tau_full = torch.zeros((*batch, 0), device=device, dtype=dtype)
-    tau = reduce_generalized_force(structure, tau_full)
-
+    kin, world_pose, local_pose = world_kinematics_from_q(structure, values, q)
+    gravity = values.gravity.broadcast_to(*batch, 6).reshape(count, 6)
+    tau_full, velocity, acceleration, wrench = inverse_dynamics_full(
+        kin,
+        get_dynamics_plan(structure),
+        gravity,
+        expand_tangent(structure, v).reshape(count, -1),
+        expand_tangent(structure, a).reshape(count, -1),
+        None if fext is None else fext.reshape(count, njoints, 6),
+    )
     return RNEAResult(
-        tau=tau,
-        joint_pose_world=oMi,
-        joint_pose_local=liMi,
-        joint_velocity_local=torch.stack(v_body, dim=-2),  # type: ignore[arg-type]
-        joint_acceleration_local=torch.stack(a_body, dim=-2),  # type: ignore[arg-type]
-        joint_forces=torch.stack(f_body, dim=-2),  # type: ignore[arg-type]
+        tau=reduce_generalized_force(structure, tau_full).view(*batch, structure.nv),
+        joint_pose_world=world_pose,
+        joint_pose_local=local_pose,
+        joint_velocity_local=kin.to_joint_frames(velocity).view(*batch, njoints, 6),
+        joint_acceleration_local=kin.to_joint_frames(acceleration).view(*batch, njoints, 6),
+        joint_forces=kin.to_joint_frames_force(wrench).view(*batch, njoints, 6),
     )
 
 

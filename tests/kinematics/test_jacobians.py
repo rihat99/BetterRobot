@@ -124,7 +124,7 @@ def test_joint_jacobian_plan_rebuilds_after_to(chain):
     compute_joint_jacobians(moved, moved_data)
     plan = _jacobian_columns.get_plan(moved.structure)
     device = moved.structure.idx_vs_full_tensor.device
-    assert plan.column_gather.device == device
+    assert plan.column_subspace.device == device
     assert plan.support_mask.device == device
     torch.testing.assert_close(moved_data.joint_jacobians, data.joint_jacobians)
 

@@ -100,13 +100,12 @@ per-Lie-operation or process-global compute selection.
 shared-column pass (`_jacobian_columns.py`), not a per-joint Python loop. The
 world Jacobian has a purely static sparsity: joint `a`'s column block is
 `Ad(oM_a) @ S_a` and appears in row joint `j`'s Jacobian iff `a` supports `j`,
-independent of the row joint. So the pass is three batched stages: (1) one
-batched `so3.to_matrix` / `hat_so3` over `joint_pose_world` and the constant
-`ModelStructure.joint_motion_subspaces` table build every joint's own column
-block at once — the per-joint `joint_motion_subspace(q)` calls are gone (every
-shipped joint's subspace is configuration-independent); (2) a static gather
-scatters the padded own blocks into a shared `(B..., 6, nv_full)` column table;
-(3) a static supports-derived mask broadcasts that table into per-joint
+independent of the row joint. So the pass is two batched stages: (1) a static
+gather of each column's owner rotation and origin times the constant
+joint-frame subspace column (`plan.column_subspace`) builds the shared
+`(B..., 6, nv_full)` column table at once — no padded `(njoints, max_nv)` grid,
+so a free-flyer does not pad every joint to six columns; (2) a static
+supports-derived mask broadcasts that table into per-joint
 Jacobians, and mimic reduction is applied last on full-width columns. This drops
 launches from ~50 per joint to a constant ~52 for the whole pass, independent of
 joint count (203-joint model, batch 256: forward 47.3 to 0.84 ms). The plan

@@ -4,20 +4,17 @@ The centroidal frame is *world-axes at the whole-body COM*. The centroidal
 momentum matrix ``A_g(q)`` is the linear map ``v ↦ h_g`` from generalised
 velocity to spatial momentum expressed in that frame.
 
-Implementation strategy (Featherstone-style, no separate backward pass):
-
-* Run CRBA's backward accumulation to obtain composite-rigid-body
-  inertias ``Y_c[i]`` in each joint's local frame.
-* For each joint ``i`` with ``nv_i > 0``, the unit-motion ``S_i`` produces
-  spatial momentum ``F = Y_c[i] · S_i`` in joint ``i``'s frame.
-* Transport ``F`` to the centroidal frame via
-  ``A_g[:, iv_i:iv_i+nv_i] = Ad(T_{g, i})⁻ᵀ · F``.
+Implementation (:mod:`._world`): the world momentum per unit column velocity,
+``I^c_{owner(c)} C_c`` with the composite inertia ``I^c`` of the subtree, is one
+batched product; moving it to the centroidal frame is a translation of the
+angular rows by the centre of mass.
 
 See ``docs/concepts/dynamics.md`` ("Centroidal").
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import torch
@@ -28,9 +25,9 @@ from ..data_model.model import Model
 from ..data_model.model_structure import ModelStructure
 from ..data_model.model_values import ModelValues
 from ..data_model.reduced_coordinates import reduce_jacobian
-from ..kinematics.forward import forward_kinematics_raw
 from ..lie import se3
 from ._execution import prepare_dynamics_inputs
+from ._world import centroidal_map_full, get_dynamics_plan, world_kinematics_from_q
 
 
 def _world_com(
@@ -89,50 +86,11 @@ def ccrba_raw(
         validate=False,
     )
     v = prepared.get("v")
-    device, dtype = q.device, q.dtype
-    njoints = structure.njoints
-    nv_full = structure.nv_full
-    fk_result = forward_kinematics_raw(structure, values, q)
-    oMi = fk_result.joint_pose_world
-    liMi = fk_result.joint_pose_local
+    count = math.prod(batch)
+    kin, oMi, liMi = world_kinematics_from_q(structure, values, q)
     total_mass, com_world = _world_com(structure, values, oMi)
-    spatial_inertias = values.spatial_inertias()
-    motion_subspaces = structure.joint_motion_subspaces
-
-    adjoint_inverse_stacked = se3.adjoint_inv(liMi)  # (..., njoints, 6, 6)
-    adjoint_inverse: list[torch.Tensor | None] = [None] + [
-        adjoint_inverse_stacked[..., index, :, :] for index in range(1, njoints)
-    ]
-
-    composite = [spatial_inertias[..., index, :, :].expand(*batch, 6, 6) for index in range(njoints)]
-    for index in reversed(structure.topo_order):
-        if index == 0:
-            continue
-        parent = structure.parents[index]
-        if parent < 0:
-            continue
-        transform = adjoint_inverse[index]
-        composite[parent] = composite[parent] + transform.transpose(-1, -2) @ composite[index] @ transform
-
-    # Inverse adjoints from each joint frame to the centroidal frame (world axes
-    # at the COM), built for all joints in one batched call and indexed per joint.
-    shifted = torch.cat((oMi[..., :3] - com_world.unsqueeze(-2), oMi[..., 3:7]), dim=-1)
-    to_centroidal_all = se3.adjoint_inv(shifted).transpose(-1, -2)  # (..., njoints, 6, 6)
-
-    centroidal_map_full = torch.zeros(*batch, 6, nv_full, device=device, dtype=dtype)
-    for index in structure.topo_order:
-        if index == 0:
-            continue
-        nv_i = structure.nvs_full[index]
-        if nv_i == 0:
-            continue
-        iv = structure.idx_vs_full[index]
-        subspace = motion_subspaces[index, :, :nv_i].expand(*batch, 6, nv_i)
-        momentum_columns = composite[index] @ subspace
-        to_centroidal = to_centroidal_all[..., index, :, :]
-        centroidal_map_full[..., :, iv : iv + nv_i] = to_centroidal @ momentum_columns
-
-    centroidal_map = reduce_jacobian(structure, centroidal_map_full)
+    centroidal_map_full_ = centroidal_map_full(kin, get_dynamics_plan(structure), com_world.reshape(count, 3))
+    centroidal_map = reduce_jacobian(structure, centroidal_map_full_).view(*batch, 6, structure.nv)
     momentum = None if v is None else (centroidal_map @ v.unsqueeze(-1)).squeeze(-1)
     return CentroidalResult(
         centroidal_map,

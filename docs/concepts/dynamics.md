@@ -1,8 +1,8 @@
 # Dynamics
 
 Kinematics describes motion without asking what caused it. Dynamics connects
-that motion to mass and force. BetterRobot implements the standard recursive
-rigid-body algorithms from Featherstone and keeps their familiar names:
+that motion to mass and force. BetterRobot implements the standard rigid-body
+algorithms from Featherstone and keeps their familiar names:
 
 - **RNEA** is inverse dynamics: given position, velocity, and acceleration,
   compute the required joint torque.
@@ -85,6 +85,31 @@ print("mass matrix shape:", tuple(mass_matrix.shape))
 mass matrix shape: (1, 1)
 ```
 
+## One world-frame core
+
+Every algorithm reads the same world-frame quantities of a configuration: the
+world Jacobian columns (one per velocity coordinate), each joint's world
+rotation and origin, and the body inertias. Ancestor and subtree sums over the
+tree are products with a constant support matrix, so there is no Python loop
+over joints and the operator count does not depend on the joint count:
+
+- RNEA: body velocities and accelerations are support sums of the columns;
+  wrenches are formed in the joint frames and summed over subtrees; torques are
+  dot products with the columns.
+- CRBA: the composite inertia of every subtree is one support product over the
+  world inertias; `M[r, c] = C_r · I^c C_c` for `r` on the path of `c`.
+- ABA: a batched Cholesky solve of `M ddq = tau - b`. The articulated-body
+  recursion is sequential in the tree depth and has no advantage in batched
+  torch for `nv` up to a few hundred.
+- CCRBA: the momentum columns of CRBA moved to the centre of mass.
+
+The `KinematicState` API exposes this directly: `inverse_dynamics(model, state,
+v, a)`, `mass_matrix(model, state)`, `forward_dynamics(model, state, v, tau)`,
+`centroidal_map(model, state)` and `dynamics.state.center_of_mass`. The
+world-frame quantities are built once per state and memoised on it. The
+`Data` API (`rnea`, `crba`, `aba`, `ccrba`) runs the same core after its own FK
+pass.
+
 ## Return values and workspaces
 
 Public dynamics functions return their main tensor. They allocate temporary
@@ -123,7 +148,7 @@ an explicit guard listed in the {doc}`/reference/roadmap`.
 
 ## Differentiation
 
-The reference RNEA, ABA, CRBA, and CCRBA passes are written with differentiable
+The RNEA, ABA, CRBA, and CCRBA passes are written with differentiable
 PyTorch operations. Ordinary `loss.backward()` therefore differentiates
 through the calculation. The public
 raw variants accept `ModelStructure` and `ModelValues`, which also lets

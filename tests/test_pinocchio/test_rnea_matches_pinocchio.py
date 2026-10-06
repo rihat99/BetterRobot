@@ -13,10 +13,8 @@ from .conftest import sample_panda_q
 
 pin = pytest.importorskip("pinocchio")
 
-# URDF parser round-trips inertias through np.float32 (io/parsers/urdf.py:152–163).
-# Every RNEA accumulates several mass/com/inertia products per joint, so the
-# effective floor is ~1e-5 even in fp64. Matches the FK parity tolerance policy.
-_RTOL = 1e-5
+# Model values and gravity are exact in fp64; the measured gap to Pinocchio is 1e-15.
+_RTOL = 1e-10
 
 
 # ─────────────────────────── helpers ────────────────────────────────
@@ -66,7 +64,7 @@ def test_rnea_gravity_matches_pinocchio(panda_both, i):
     data = br_model.create_data()
     tau_br = br.rnea(br_model, q, zeros_v, zeros_v, data=data).detach().cpu().numpy()
     tau_pin = np.asarray(pin.computeGeneralizedGravity(pin_model, pin_data, q.detach().cpu().numpy()))
-    np.testing.assert_allclose(tau_br, tau_pin, atol=1e-5, rtol=_RTOL)
+    np.testing.assert_allclose(tau_br, tau_pin, atol=1e-10, rtol=_RTOL)
 
 
 @pytest.mark.parametrize("i", range(4))
@@ -79,7 +77,7 @@ def test_rnea_bias_matches_pinocchio(panda_both, i):
     data = br_model.create_data()
     tau_br = br_bias_forces(br_model, q, v, data=data).detach().cpu().numpy()
     tau_pin = np.asarray(pin.nonLinearEffects(pin_model, pin_data, q.detach().cpu().numpy(), v.detach().cpu().numpy()))
-    np.testing.assert_allclose(tau_br, tau_pin, atol=1e-5, rtol=_RTOL)
+    np.testing.assert_allclose(tau_br, tau_pin, atol=1e-10, rtol=_RTOL)
 
 
 @pytest.mark.parametrize("i", range(4))
@@ -95,7 +93,7 @@ def test_rnea_full_matches_pinocchio(panda_both, i):
     tau_pin = np.asarray(
         pin.rnea(pin_model, pin_data, q.detach().cpu().numpy(), v.detach().cpu().numpy(), a.detach().cpu().numpy())
     )
-    np.testing.assert_allclose(tau_br, tau_pin, atol=1e-5, rtol=_RTOL)
+    np.testing.assert_allclose(tau_br, tau_pin, atol=1e-10, rtol=_RTOL)
 
 
 @pytest.mark.parametrize("i", range(4))
@@ -115,7 +113,7 @@ def test_rnea_with_fext_matches_pinocchio(panda_both, i):
             pin_model, pin_data, q.detach().cpu().numpy(), v.detach().cpu().numpy(), a.detach().cpu().numpy(), fext_pin
         )
     )
-    np.testing.assert_allclose(tau_br, tau_pin, atol=1e-5, rtol=_RTOL)
+    np.testing.assert_allclose(tau_br, tau_pin, atol=1e-10, rtol=_RTOL)
 
 
 def test_rnea_bias_forces_matches_rnea_zero_accel(panda_both):

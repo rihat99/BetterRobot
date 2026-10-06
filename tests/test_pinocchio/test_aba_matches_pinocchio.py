@@ -23,8 +23,8 @@ from .conftest import sample_panda_q
 
 pin = pytest.importorskip("pinocchio")
 
-_RTOL = 1e-4
-_ATOL = 1e-4
+_RTOL = 1e-10
+_ATOL = 1e-10
 
 
 def test_aba_matches_pinocchio(panda_both):

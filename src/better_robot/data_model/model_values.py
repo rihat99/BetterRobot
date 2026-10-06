@@ -18,25 +18,39 @@ if TYPE_CHECKING:
     from .model_structure import ModelStructure
 
 
-def packed_inertias_to_6x6(body_inertias: torch.Tensor) -> torch.Tensor:
-    """Expand ``(..., 10)`` packed inertias to linear-first ``(..., 6, 6)``."""
+def inertia_about_com(sym: torch.Tensor) -> torch.Tensor:
+    """Expand packed ``(..., 6)`` symmetric entries ``[ixx, iyy, izz, ixy, ixz, iyz]`` to ``(..., 3, 3)``."""
 
-    mass = body_inertias[..., 0]
-    com = body_inertias[..., 1:4]
-    sym = body_inertias[..., 4:10]
     ixx, iyy, izz, ixy, ixz, iyz = sym.unbind(dim=-1)
     row0 = torch.stack((ixx, ixy, ixz), dim=-1)
     row1 = torch.stack((ixy, iyy, iyz), dim=-1)
     row2 = torch.stack((ixz, iyz, izz), dim=-1)
-    inertia_com = torch.stack((row0, row1, row2), dim=-2)
+    return torch.stack((row0, row1, row2), dim=-2)
+
+
+def spatial_inertia_matrix(mass: torch.Tensor, com: torch.Tensor, inertia_com: torch.Tensor) -> torch.Tensor:
+    """Linear-first ``(..., 6, 6)`` spatial inertia from ``mass (...)``, ``com (..., 3)`` and ``inertia_com (..., 3, 3)``.
+
+    ``com`` and ``inertia_com`` are expressed in the frame the result refers to; ``com`` is the
+    centre of mass relative to that frame's origin.
+    """
+
     hat_com = hat_so3(com)
     inertia_origin = inertia_com - mass[..., None, None] * (hat_com @ hat_com)
-    eye = torch.eye(3, dtype=body_inertias.dtype, device=body_inertias.device)
+    eye = torch.eye(3, dtype=mass.dtype, device=mass.device)
     mass_eye = mass[..., None, None] * eye
     mass_hat = mass[..., None, None] * hat_com
     top = torch.cat((mass_eye, -mass_hat), dim=-1)
     bottom = torch.cat((mass_hat, inertia_origin), dim=-1)
     return torch.cat((top, bottom), dim=-2)
+
+
+def packed_inertias_to_6x6(body_inertias: torch.Tensor) -> torch.Tensor:
+    """Expand ``(..., 10)`` packed inertias to linear-first ``(..., 6, 6)``."""
+
+    return spatial_inertia_matrix(
+        body_inertias[..., 0], body_inertias[..., 1:4], inertia_about_com(body_inertias[..., 4:10])
+    )
 
 
 @dataclass(frozen=True)

@@ -59,8 +59,9 @@ class JointFreeFlyer:
 
     def random_configuration(self, generator, lower, upper) -> torch.Tensor:
         """Random SE3: unit Gaussian translation + random unit quaternion."""
-        t = torch.randn(3, generator=generator)
-        q = torch.randn(4, generator=generator)
+        # Sample in the limits' dtype: a float32 unit quaternion cast to float64 is not unit.
+        t = torch.randn(3, generator=generator, dtype=lower.dtype)
+        q = torch.randn(4, generator=generator, dtype=lower.dtype)
         q = q / q.norm().clamp(min=1e-8)
         return torch.cat([t, q])
 

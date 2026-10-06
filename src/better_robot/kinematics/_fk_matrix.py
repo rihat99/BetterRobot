@@ -40,13 +40,27 @@ def matrix_core(
         in ``[tx, ty, tz, qx, qy, qz, qw]`` layout.
     """
 
+    _, world_pose, local_pose = matrix_core_with_transforms(structure, q_full, placements)
+    return world_pose, local_pose
+
+
+def matrix_core_with_transforms(
+    structure: ModelStructure,
+    q_full: torch.Tensor,
+    placements: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """:func:`matrix_core` that also returns the world ``[R | p]`` transforms ``(N, njoints, 3, 4)``.
+
+    ``N`` is the flattened batch; the two pose tensors keep the batch shape of ``placements``.
+    """
+
     batch_shape = tuple(placements.shape[:-2])
     nj = structure.njoints
     count = math.prod(batch_shape)  # explicit: a model without coordinates has zero-width q
     world, local = lean_core(structure, q_full.reshape(count, -1), se3.to_matrix(placements.reshape(count, nj, 7)))
     both = torch.cat([world, local], dim=1)  # (N, 2 nj, 3, 4)
     pose = torch.cat([both[..., 3], so3.from_matrix(both[..., :3])], dim=-1).view(*batch_shape, 2 * nj, 7)
-    return pose[..., :nj, :], pose[..., nj:, :]
+    return world, pose[..., :nj, :], pose[..., nj:, :]
 
 
 def prepare_inputs(
