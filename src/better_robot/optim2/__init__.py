@@ -8,9 +8,9 @@ from __future__ import annotations
 from .kernels import Cauchy, GemanMcClure, Huber, Tukey
 from .linear import BandedNormal, Normal
 from .manifold import Euclidean, Manifold
-from .phases import Phase, Result, run, solve
+from .phases import Phase, Result, run, solve, solve_layer
 from .problem import Problem, TermFn, check_jacobian
-from .solvers import GaussNewton, LevenbergMarquardt, Solver, State, TorchOptim
+from .solvers import LBFGS, GaussNewton, LevenbergMarquardt, Solver, State, TorchOptim
 
 __all__ = [
     "BandedNormal",
@@ -19,6 +19,7 @@ __all__ = [
     "GaussNewton",
     "GemanMcClure",
     "Huber",
+    "LBFGS",
     "LevenbergMarquardt",
     "Manifold",
     "Normal",
@@ -33,4 +34,5 @@ __all__ = [
     "check_jacobian",
     "run",
     "solve",
+    "solve_layer",
 ]

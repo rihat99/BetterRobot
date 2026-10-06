@@ -300,6 +300,19 @@ class Problem:
         mask = self._free_mask()
         return (normal if mask is None else normal.masked(mask)), loss
 
+    def gradient(self, x: Values | None = None, *, create_graph: bool = False) -> tuple[torch.Tensor, torch.Tensor]:
+        """Loss ``(B,)`` and its gradient ``(B, N)`` in tangent coordinates (frozen coordinates zeroed).
+
+        With ``create_graph=True`` the gradient stays differentiable w.r.t. data tensors.
+        """
+        x = {name: value.detach() for name, value in (x if x is not None else self.variables).items()}
+        with torch.enable_grad():
+            delta = self._zeros().new_zeros(self._batch(), self.tangent_dim, requires_grad=True)
+            loss = self.loss(self._retract(x, delta))
+            (g,) = torch.autograd.grad(loss.sum(), delta, create_graph=create_graph)
+        mask = self._free_mask()
+        return loss.detach(), (g if mask is None else g * mask)
+
     # ── stepping ────────────────────────────────────────────────────────
 
     def retract(self, x: Values, delta: torch.Tensor) -> dict[str, torch.Tensor]:

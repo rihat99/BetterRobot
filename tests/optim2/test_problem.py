@@ -170,3 +170,55 @@ def test_block_tridiagonal_path_equals_dense(knots):
     torch.testing.assert_close(result_b.x["path"], result_d.x["path"], atol=1e-7, rtol=0.0)
     torch.testing.assert_close(result_b.x["force"], result_d.x["force"], atol=1e-7, rtol=0.0)
     assert float(result_b.x["force"].abs().max()) <= 0.2
+
+
+def _curve_problem(goal):
+    """Fit ``x`` so that a smooth nonlinear map of it matches ``goal``; the upper bound is active for some rows."""
+    problem = optim2.Problem(
+        {"x": torch.zeros(goal.shape[0], 3, dtype=goal.dtype)},
+        data={"goal": goal},
+        bounds={"x": (torch.full((3,), -5.0, dtype=goal.dtype), torch.tensor([5.0, 5.0, 0.3], dtype=goal.dtype))},
+    )
+    problem.residual("fit", lambda x, goal: torch.cat([x + 0.2 * x.roll(1, -1) ** 2, x.sum(-1, keepdim=True)], -1) - goal)
+    return problem
+
+
+def test_batched_lbfgs_matches_lm():
+    goal = torch.randn(6, 4, generator=torch.Generator().manual_seed(5), dtype=torch.float64)
+    problem = _curve_problem(goal)
+    lm = optim2.solve(problem, optim2.LevenbergMarquardt(), iters=100)
+    lbfgs = optim2.solve(problem, optim2.LBFGS(), iters=300)
+    torch.testing.assert_close(lbfgs.loss, lm.loss, atol=1e-9, rtol=0.0)
+    torch.testing.assert_close(lbfgs.x["x"], lm.x["x"], atol=1e-4, rtol=0.0)
+
+
+def test_solve_layer_gradient_matches_finite_differences():
+    goal = 0.5 * torch.randn(4, 3, generator=torch.Generator().manual_seed(6), dtype=torch.float64)
+    goal[:, 2] = goal[:, 2].clamp(max=0.1)  # rows 1-3 stay clear of the upper bound of 0.3
+    goal[0, 2] = 2.0  # pushes x[0, 2] onto that bound
+
+    def solution(value):
+        problem = optim2.Problem(
+            {"x": torch.zeros(4, 3, dtype=torch.float64)},
+            data={"goal": value},
+            bounds={"x": (torch.full((3,), -5.0, dtype=torch.float64), torch.tensor([5.0, 5.0, 0.3], dtype=torch.float64))},
+        )
+        problem.residual("fit", lambda x, goal: x + 0.2 * x.roll(1, -1) ** 2 - goal)
+        return optim2.solve_layer(problem, optim2.LevenbergMarquardt(), iters=200).x["x"]
+
+    weights = torch.randn(4, 3, generator=torch.Generator().manual_seed(7), dtype=torch.float64)
+    attached = goal.clone().requires_grad_(True)
+    out = solution(attached)
+    assert float(out[0, 2]) == pytest.approx(0.3)
+    (analytic,) = torch.autograd.grad((out * weights).sum(), attached)
+    numeric = torch.zeros_like(goal)
+    for index in range(goal.numel()):
+        step = torch.zeros(goal.numel(), dtype=torch.float64)
+        step[index] = 1e-6
+        step = step.view_as(goal)
+        numeric.view(-1)[index] = ((solution(goal + step) - solution(goal - step)) * weights).sum() / 2e-6
+    # Rows 1-3 are solved exactly (zero residual), so the implicit gradient is exact there.
+    torch.testing.assert_close(analytic[1:], numeric[1:], atol=1e-6, rtol=0.0)
+    # Row 0 sits on its bound: the clamped coordinate does not react to its own target.
+    (bound_sensitivity,) = torch.autograd.grad(solution(attached)[0, 2], attached)
+    assert float(bound_sensitivity.abs().max()) == 0.0

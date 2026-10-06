@@ -33,14 +33,17 @@ class Normal:
         H = self.H * keep.unsqueeze(-1) * keep.unsqueeze(-2) + torch.diag_embed(1.0 - keep)
         return Normal(H=H, g=self.g * keep, lower=self.lower, upper=self.upper)
 
-    def solve(self, damping: torch.Tensor | float = 0.0, *, floor: float = 1e-9) -> torch.Tensor:
+    def solve(
+        self, damping: torch.Tensor | float = 0.0, *, floor: float = 1e-9, g: torch.Tensor | None = None
+    ) -> torch.Tensor:
         """Solve ``(H + damping · diag(H)) delta = -g``. Returns ``delta: (B, N)``.
 
         Columns are scaled to unit diagonal and the factorization runs in float64, because a
         float32 Cholesky fails on the rank-deficient ``H`` of redundant robots. A batch element
         whose factorization still fails gets ``delta = 0`` (a rejected step for LM).
+        ``g`` replaces the stored gradient; the result is differentiable w.r.t. it.
         """
-        H, g = self.H.double(), self.g.double()
+        H, g = self.H.double(), (self.g if g is None else g).double()
         diagonal = H.diagonal(dim1=-2, dim2=-1)
         scale = torch.where(diagonal > 0, diagonal.clamp_min(1e-300).rsqrt(), torch.ones_like(diagonal))
         scaled = H * scale.unsqueeze(-1) * scale.unsqueeze(-2)
@@ -120,9 +123,15 @@ class BandedNormal:
         out = self.masked(~blocked)
         return BandedNormal(out.diagonal, out.upper, out.g, self.layout, lower, upper)
 
-    def solve(self, damping: torch.Tensor | float = 0.0, *, floor: float = 1e-9) -> torch.Tensor:
-        """Solve ``(H + damping · diag(H)) delta = -g`` by block-tridiagonal Cholesky in float64."""
+    def solve(
+        self, damping: torch.Tensor | float = 0.0, *, floor: float = 1e-9, g: torch.Tensor | None = None
+    ) -> torch.Tensor:
+        """Solve ``(H + damping · diag(H)) delta = -g`` by block-tridiagonal Cholesky in float64.
+
+        ``g`` replaces the stored gradient; the result is differentiable w.r.t. it.
+        """
         D, U = self.diagonal.double(), self.upper.double()
+        g = self.g if g is None else g
         batch, blocks, size, _ = D.shape
         diagonal = D.diagonal(dim1=-2, dim2=-1)
         scale = torch.where(diagonal > 0, diagonal.clamp_min(1e-300).rsqrt(), torch.ones_like(diagonal))
@@ -131,7 +140,7 @@ class BandedNormal:
             shift.view(batch, 1, 1).expand(batch, blocks, size)
         )
         U = U * scale[:, :-1].unsqueeze(-1) * scale[:, 1:].unsqueeze(-2)
-        rhs = -self._to_band(self.g.double()) * scale
+        rhs = -self._to_band(g.double()) * scale
         factors, links, forward = [], [], []
         failed = torch.zeros(batch, dtype=torch.bool, device=D.device)
         schur = D[:, 0]

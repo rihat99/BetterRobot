@@ -74,4 +74,27 @@ def solve(
     return run(problem, [Phase(solver=solver, iters=iters)], x)
 
 
-__all__ = ["Phase", "Result", "run", "solve"]
+def solve_layer(
+    problem: Problem, solver: Solver, *, iters: int = 50, x: Mapping[str, torch.Tensor] | None = None
+) -> Result:
+    """Solve, then attach the solution to the autograd graph of the problem's data tensors.
+
+    The solve itself runs without a graph. One extra Newton step ``x* ⊕ (-H⁻¹ g(x*, data))`` with
+    a constant Gauss-Newton ``H`` is then taken through autograd; at a converged solution it does
+    not move ``x*`` and its derivative is the implicit-function derivative of the solution
+    w.r.t. the data. Valid when the solve has converged; coordinates on an active bound get
+    zero sensitivity; with large residuals at the optimum the Gauss-Newton ``H`` is approximate.
+    """
+    result = solve(problem, solver, iters=iters, x=x)
+    normal, _ = problem.linearize(result.x)
+    _, g = problem.gradient(result.x, create_graph=True)
+    bounds = problem.step_bounds(result.x)
+    if bounds is not None:
+        lower, upper = bounds
+        blocked = ((lower >= -1e-9) & (normal.g > 0)) | ((upper <= 1e-9) & (normal.g < 0))
+        normal, g = normal.masked(~blocked), g * ~blocked
+    attached = problem._retract(result.x, normal.solve(g=g))
+    return Result(x=attached, loss=result.loss, done=result.done, iters=result.iters, history=result.history)
+
+
+__all__ = ["Phase", "Result", "run", "solve", "solve_layer"]

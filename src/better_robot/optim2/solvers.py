@@ -123,6 +123,82 @@ class GaussNewton:
         )
 
 
+class LBFGS:
+    """Batched L-BFGS in tangent coordinates: per-problem history and backtracking line search.
+
+    Every step evaluates the loss at ``line_search`` step sizes (1, ½, ¼, ...) for all
+    problems and each problem takes the largest one that satisfies the Armijo condition.
+    A problem that finds none keeps its variables and drops its history.
+    """
+
+    def __init__(self, *, history: int = 10, line_search: int = 8, armijo: float = 1e-4, gtol: float | None = None) -> None:
+        self.history, self.line_search, self.armijo, self.gtol = history, line_search, armijo, gtol
+
+    def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
+        loss, g = problem.gradient(x)
+        memory = g.new_zeros(g.shape[0], self.history, g.shape[1])
+        extra = {"g": g, "s": memory, "y": memory.clone(), "rho": g.new_zeros(g.shape[0], self.history)}
+        return State(x=dict(x), loss=loss, done=torch.zeros_like(loss, dtype=torch.bool), extra=extra)
+
+    def _direction(self, g: torch.Tensor, s: torch.Tensor, y: torch.Tensor, rho: torch.Tensor) -> torch.Tensor:
+        """Two-loop recursion; slots with ``rho == 0`` are empty and drop out."""
+        q, alphas = g.clone(), []
+        for i in reversed(range(self.history)):
+            alpha = rho[:, i] * (s[:, i] * q).sum(-1)
+            q = q - alpha.unsqueeze(-1) * y[:, i]
+            alphas.append(alpha)
+        newest = self.history - 1
+        curvature = (y[:, newest] * y[:, newest]).sum(-1)
+        gamma = torch.where(rho[:, newest] > 0, (s[:, newest] * y[:, newest]).sum(-1) / curvature.clamp_min(1e-30), 1.0)
+        r = gamma.unsqueeze(-1) * q
+        for i, alpha in zip(range(self.history), reversed(alphas)):
+            beta = rho[:, i] * (y[:, i] * r).sum(-1)
+            r = r + (alpha - beta).unsqueeze(-1) * s[:, i]
+        return -r
+
+    def step(self, problem: Problem, state: State) -> State:
+        g, s, y, rho = (state.extra[key] for key in ("g", "s", "y", "rho"))
+        bounds = problem.step_bounds(state.x)
+        if bounds is not None:
+            lower, upper = bounds
+            g = g * ~(((lower >= -1e-9) & (g > 0)) | ((upper <= 1e-9) & (g < 0)))
+        direction = self._direction(g, s, y, rho)
+        slope = (g * direction).sum(-1)
+        uphill = slope >= 0
+        direction = torch.where(uphill.unsqueeze(-1), -g, direction)
+        slope = torch.where(uphill, -(g * g).sum(-1), slope)
+        first_step = (rho[:, -1] == 0) | uphill  # no curvature yet: scale the gradient step
+        scale = torch.where(first_step, 1.0 / g.abs().sum(-1).clamp_min(1.0), 1.0)
+        best_x, best_loss, best_step = state.x, state.loss, torch.zeros_like(g)
+        found = torch.zeros_like(state.done)
+        with torch.no_grad():
+            for trial in range(self.line_search):
+                step = direction * (scale * 0.5**trial).unsqueeze(-1)
+                if bounds is not None:
+                    step = torch.minimum(torch.maximum(step, lower), upper)
+                candidate = problem.retract(state.x, step)
+                loss = problem.loss(candidate)
+                ok = (loss <= state.loss + self.armijo * 0.5**trial * scale * slope) & torch.isfinite(loss) & ~found
+                ok &= ~state.done
+                best_x = select(ok, candidate, best_x)
+                best_loss = torch.where(ok, loss, best_loss)
+                best_step = torch.where(ok.unsqueeze(-1), step, best_step)
+                found |= ok
+        _, g_new = problem.gradient(best_x)
+        change = g_new - state.extra["g"]
+        curvature = (best_step * change).sum(-1)
+        keep = found & (curvature > 1e-10 * (change * change).sum(-1))
+        pushed = lambda memory, new: torch.cat([memory[:, 1:], new.unsqueeze(1)], dim=1)  # noqa: E731
+        s_new = torch.where(keep[:, None, None], pushed(s, best_step), s)
+        y_new = torch.where(keep[:, None, None], pushed(y, change), y)
+        rho_new = torch.where(keep[:, None], pushed(rho, 1.0 / curvature.clamp_min(1e-30)), rho)
+        rho_new = torch.where(found[:, None], rho_new, torch.zeros_like(rho_new))  # failed search: forget history
+        gtol, _, _ = _tolerances(g.dtype, self.gtol, None, None)
+        done = state.done | (g.abs().amax(-1) < gtol)
+        extra = {"g": g_new, "s": s_new, "y": y_new, "rho": rho_new}
+        return State(x=best_x, loss=best_loss, done=done, it=state.it + 1, extra=extra)
+
+
 class TorchOptim:
     """Run any ``torch.optim`` optimizer on the problem's loss.
 
@@ -176,4 +252,4 @@ class TorchOptim:
                           else mask.to(gradient.dtype).reshape(gradient.shape[1:]))
 
 
-__all__ = ["GaussNewton", "LevenbergMarquardt", "Solver", "State", "TorchOptim", "select"]
+__all__ = ["LBFGS", "GaussNewton", "LevenbergMarquardt", "Solver", "State", "TorchOptim", "select"]
