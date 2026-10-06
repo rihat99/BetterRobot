@@ -1,0 +1,129 @@
+"""Sphere distances, robot spheres and collision terms."""
+
+import pytest
+import torch
+
+import better_robot as br
+from better_robot import collision, optim2, terms
+from better_robot.kinematics import forward_kinematics_state
+
+DT = torch.float64
+
+
+@pytest.fixture(scope="module")
+def panda():
+    pytest.importorskip("robot_descriptions")
+    from robot_descriptions import panda_description  # noqa: PLC0415
+
+    return br.load(panda_description.URDF_PATH, dtype=DT)
+
+
+def _randn(*shape, seed=0):
+    return torch.randn(*shape, generator=torch.Generator().manual_seed(seed), dtype=DT)
+
+
+def test_closed_form_cases():
+    zero, one = torch.zeros(3, dtype=DT), torch.tensor([1.0, 0.0, 0.0], dtype=DT)
+    r = torch.tensor(0.3, dtype=DT)
+    assert float(collision.sphere_sphere(zero, r, 2 * one, r)) == pytest.approx(1.4)
+    assert float(collision.sphere_sphere(zero, r, 0.5 * one, r)) == pytest.approx(-0.1)  # penetration
+    up = torch.tensor([0.0, 0.0, 1.0], dtype=DT)
+    assert float(collision.sphere_halfspace(up, r, up, 0.2)) == pytest.approx(0.5)
+    assert float(collision.sphere_capsule(up, r, -one, one, r)) == pytest.approx(0.4)
+    assert float(collision.sphere_capsule(up, r, one, one, r)) == pytest.approx(2**0.5 - 0.6)  # zero length
+    box = collision.sphere_box(2 * up, r, zero, torch.eye(3, dtype=DT), torch.ones(3, dtype=DT))
+    assert float(box) == pytest.approx(0.7)
+
+
+def test_capsule_matches_brute_force():
+    center, start, end = _randn(64, 3, seed=1), _randn(64, 3, seed=2), _randn(64, 3, seed=3)
+    end[:8] = start[:8]  # degenerate capsules
+    radius, capsule_radius = 0.5 * _randn(64, seed=4).abs(), 0.5 * _randn(64, seed=5).abs()
+    t = torch.linspace(0, 1, 20001, dtype=DT)[:, None, None]
+    brute = (center - (start + t * (end - start))).norm(dim=-1).amin(0) - radius - capsule_radius
+    assert (brute < 0).any()
+    assert torch.allclose(collision.sphere_capsule(center, radius, start, end, capsule_radius), brute, atol=1e-6)
+
+
+def test_box_matches_closest_point():
+    rotation = torch.linalg.qr(_randn(32, 3, 3, seed=6))[0]
+    box_center, half = _randn(32, 3, seed=7), 0.2 + _randn(32, 3, seed=8).abs()
+    center = box_center + 1.5 * _randn(32, 3, seed=9)
+    local = ((center - box_center)[:, None, :] @ rotation)[:, 0]
+    outside = (local - torch.maximum(torch.minimum(local, half), -half)).norm(dim=-1)
+    inside = -(half - local.abs()).amin(-1)
+    expected = torch.where((local.abs() <= half).all(-1), inside, outside) - 0.1
+    assert (expected < -0.1).any() and (expected > 0).any()
+    radius = torch.full((32,), 0.1, dtype=DT)
+    assert torch.allclose(collision.sphere_box(center, radius, box_center, rotation, half), expected, atol=1e-10)
+
+
+def test_gradients_finite_at_contact():
+    r = torch.tensor(0.5, dtype=DT)
+    center = torch.tensor([1.0, 0.0, 0.0], dtype=DT, requires_grad=True)
+    origin = torch.zeros(3, dtype=DT)
+    distances = [
+        collision.sphere_sphere(center, r, origin, r),
+        collision.sphere_capsule(center, r, center.detach(), center.detach(), r),  # centre on the segment
+        collision.sphere_box(center, r, origin, torch.eye(3, dtype=DT), torch.full((3,), 0.5, dtype=DT)),
+    ]
+    for distance in distances:
+        (grad,) = torch.autograd.grad(distance, center)
+        assert torch.isfinite(grad).all()
+
+
+def test_sdf_lookup_matches_analytic_sphere():
+    voxel, origin, ball = 0.02, torch.full((3,), -1.0, dtype=DT), torch.tensor([0.1, -0.2, 0.05], dtype=DT)
+    axis = origin[0] + voxel * torch.arange(101, dtype=DT)
+    points = torch.stack(torch.meshgrid(axis, axis, axis, indexing="ij"), dim=-1)
+    grid = (points - ball).norm(dim=-1) - 0.3
+    center, radius = 0.8 * torch.tanh(_randn(400, 3, seed=11)), torch.full((400,), 0.05, dtype=DT)
+    center = center[(center - ball).norm(dim=-1) > 0.1]  # the field has a cone tip at the ball centre
+    expected = collision.sphere_sphere(center, radius, ball, torch.tensor(0.3, dtype=DT))
+    assert torch.allclose(collision.sphere_sdf(center, radius, grid, origin, voxel), expected, atol=2e-3)
+    far = torch.tensor([5.0, 0.0, 0.0], dtype=DT)  # clamped to the face x = 1
+    clamped = collision.sphere_sdf(far, torch.tensor(0.0, dtype=DT), grid, origin, voxel)
+    assert float(clamped) == pytest.approx(float((torch.tensor([1.0, 0, 0], dtype=DT) - ball).norm() - 0.3), abs=1e-3)
+
+
+def _spheres(model):
+    return collision.RobotSpheres.from_frames(
+        model,
+        {"body_panda_link3": [((0.0, 0.0, 0.0), 0.08)], "body_panda_link5": [((0.0, 0.05, -0.1), 0.07)],
+         "body_panda_hand": [((0.0, 0.0, 0.05), 0.06)], "body_panda_link4": [((0.05, 0.0, 0.0), 0.07)]},
+    )
+
+
+def test_centers_match_manual_fk_and_pairs(panda):
+    spheres = _spheres(panda)
+    q = panda.lower_pos_limit + torch.rand(5, panda.nq, dtype=DT) * (panda.upper_pos_limit - panda.lower_pos_limit)
+    state = forward_kinematics_state(panda, q)
+    centers = spheres.centers(state)
+    for s, frame in enumerate(spheres.frame_ids.tolist()):
+        transform = state.frame_transform[:, frame]
+        manual = transform[..., :3] @ spheres.offsets[s] + transform[..., 3]
+        assert torch.allclose(centers[:, s], manual)
+    pairs = collision.self_collision_pairs(panda, spheres)
+    # spheres: 0 link3, 1 link5, 2 hand, 3 link4; link3-link4 and link4-link5 are parent-child
+    assert pairs.tolist() == [[0, 1], [0, 2], [1, 2], [2, 3]]
+    expected = collision.sphere_sphere(centers[:, 0], spheres.radii[0], centers[:, 2], spheres.radii[2])
+    assert torch.allclose(collision.self_distances(spheres, state, pairs)[:, 1], expected)
+
+
+def test_terms_pass_check_jacobian(panda):
+    spheres = _spheres(panda)
+    obstacle, size = torch.tensor([0.3, 0.0, 0.5], dtype=DT), torch.tensor(0.1, dtype=DT)
+
+    def to_obstacle(centers, radii):
+        return collision.sphere_sphere(centers, radii, obstacle, size)
+
+    q = 0.3 * _randn(1, 6, panda.nq, seed=10)
+    problem = optim2.Problem({"q": q}, manifolds={"q": terms.RobotManifold(panda)}, time=("q",))
+    problem.cached(terms.kinematic_state(panda), name="state")
+    world = terms.sphere_clearance(spheres, to_obstacle, margin=2.0)
+    assert world.fn(forward_kinematics_state(panda, q)).shape == (1, 6, 4)
+    problem.residual("world", world, window=1)
+    pairs = collision.self_collision_pairs(panda, spheres)
+    problem.residual("self", terms.self_clearance(spheres, pairs, margin=2.0), window=1)
+    errors = optim2.check_jacobian(problem)
+    assert errors["world"] < 1e-9 and errors["self"] < 1e-9

@@ -1,27 +1,21 @@
-"""``better_robot.collision`` — geometry primitives, pair dispatch, robot
-collision decomposition.
+"""``better_robot.collision`` — signed distances between spheres and simple shapes, and a robot as spheres.
 
-Collision lives in its own layer parallel to ``kinematics``/``dynamics`` and
-is **optional**: a user who only cares about IK pays nothing for the
-collision machinery.
-
-See ``docs/reference/collision_and_geometry.md``.
+Functional, batched and differentiable; torch only. Negative distance means penetration.
+Collision lives in its own layer parallel to ``kinematics``/``dynamics``.
 """
 
 from __future__ import annotations
 
-from .geometry import Box, Capsule, HalfSpace, Plane, Sphere, colldist_from_sdf
-from .pairs import distance, register_pair
-from .robot_collision import RobotCollision
+from .distance import sphere_box, sphere_capsule, sphere_halfspace, sphere_sdf, sphere_sphere
+from .robot_spheres import RobotSpheres, self_collision_pairs, self_distances
 
 __all__ = [
-    "Sphere",
-    "Capsule",
-    "Box",
-    "HalfSpace",
-    "Plane",
-    "colldist_from_sdf",
-    "distance",
-    "register_pair",
-    "RobotCollision",
+    "RobotSpheres",
+    "self_collision_pairs",
+    "self_distances",
+    "sphere_box",
+    "sphere_capsule",
+    "sphere_halfspace",
+    "sphere_sdf",
+    "sphere_sphere",
 ]

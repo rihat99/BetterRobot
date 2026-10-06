@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .collision import self_clearance, sphere_clearance
 from .ik import ik_problem, random_start, solve_ik
 from .robot import (
     RobotManifold,
@@ -23,5 +24,7 @@ __all__ = [
     "kinematic_state",
     "random_start",
     "rest",
+    "self_clearance",
     "solve_ik",
+    "sphere_clearance",
 ]

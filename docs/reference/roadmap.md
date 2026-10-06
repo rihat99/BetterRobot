@@ -14,10 +14,6 @@ contract test reports both missing source files and stale documentation
 entries.
 
 <!-- not-implemented-inventory:start -->
-- `src/better_robot/collision/closest_pts.py`
-- `src/better_robot/collision/geometry.py`
-- `src/better_robot/collision/pairs.py`
-- `src/better_robot/collision/robot_collision.py`
 - `src/better_robot/dynamics/centroidal.py`
 - `src/better_robot/io/build_model.py`
 - `src/better_robot/spatial/force.py`
