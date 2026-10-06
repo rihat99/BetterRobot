@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Speed comes from fewer operations, not from a second backend</title>
+<meta name="description" content="Why the library is slow today, why Warp does not fix it, and how benchmarking keeps it fast.">
+<style>
+:root {
+  --bg: #ffffff; --surface: #f6f7f9; --border: #e2e5ea; --text: #1b1f24; --muted: #5b6470;
+  --accent: #1f6feb; --ok: #2a9d5c; --warn: #b77b00; --bad: #d6453d; --code-bg: #f1f3f5;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1216; --surface: #171b21; --border: #2a3039; --text: #e6e8eb; --muted: #9aa4b1;
+    --accent: #6ea8fe; --ok: #5fc48a; --warn: #e0b040; --bad: #f0766e; --code-bg: #1c2128;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1216; --surface: #171b21; --border: #2a3039; --text: #e6e8eb; --muted: #9aa4b1;
+  --accent: #6ea8fe; --ok: #5fc48a; --warn: #e0b040; --bad: #f0766e; --code-bg: #1c2128;
+}
+* { box-sizing: border-box; }
+html { background: var(--bg); color: var(--text); }
+body {
+  margin: 0; padding: 0 16px 4rem;
+  font: 17px/1.6 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+}
+main, header, footer, nav.pages { max-width: 48rem; margin-left: auto; margin-right: auto; }
+header { margin-top: 2rem; margin-bottom: 2.5rem; }
+nav.pages { padding-top: 1rem; font-size: .95rem; display: flex; flex-wrap: wrap; gap: .4rem 1.1rem; }
+nav.pages a { color: var(--muted); }
+nav.pages a[aria-current="page"] { color: var(--text); font-weight: 600; }
+footer { margin-top: 4rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--muted); font-size: .88rem; }
+h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 .5rem; letter-spacing: -0.01em; }
+h2 { font-size: 1.4rem; line-height: 1.25; margin: 3.5rem 0 1rem; }
+h3 { font-size: 1.1rem; line-height: 1.3; margin: 2rem 0 .6rem; }
+p { margin: 0 0 1rem; }
+ul, ol { margin: 0 0 1rem; padding-left: 1.3rem; }
+li { margin-bottom: .35rem; }
+.lede { color: var(--muted); font-size: 1.1rem; margin: 0; }
+a { color: var(--accent); text-decoration: none; }
+a:hover, a:focus { text-decoration: underline; }
+nav.toc { font-size: .95rem; color: var(--muted); margin: 0 0 1rem; }
+nav.toc ol { margin: .3rem 0 0; }
+figure { margin: 1.5rem 0 2rem; }
+figure svg, figure img { width: 100%; height: auto; display: block; }
+figcaption { color: var(--muted); font-size: .92rem; margin-top: .5rem; }
+svg text { fill: currentColor; font-family: inherit; }
+svg .box { fill: var(--surface); stroke: var(--border); stroke-width: 1.5; }
+svg .hot { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+svg .line { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+svg .bar { fill: var(--muted); }
+svg .bar-hot { fill: var(--accent); }
+svg .bar-bad { fill: var(--bad); }
+svg .dim { fill: var(--muted); }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; margin: 1rem 0 1.5rem; }
+.table-wrap { overflow-x: auto; }
+th, td { padding: .45rem .6rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+th { font-weight: 600; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .88em; }
+code { background: var(--code-bg); padding: .1em .35em; border-radius: 4px; }
+pre { background: var(--code-bg); padding: 1rem; border-radius: 6px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; }
+details { border: 1px solid var(--border); border-radius: 6px; padding: .6rem 1rem; margin: 1rem 0; background: var(--surface); }
+details > *:last-child { margin-bottom: .4rem; }
+summary { cursor: pointer; font-weight: 600; }
+.kpi { display: flex; gap: 1.5rem 2rem; flex-wrap: wrap; margin: 1.5rem 0; }
+.kpi div { min-width: 8rem; flex: 1; }
+.kpi strong { display: block; font-size: 2rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.kpi span { color: var(--muted); font-size: .9rem; }
+.note { border-left: 3px solid var(--warn); padding: .1rem 0 .1rem .9rem; margin: 1rem 0 1.5rem; color: var(--muted); font-size: .95rem; }
+.note strong { color: var(--text); }
+.ok { color: var(--ok); } .bad { color: var(--bad); }
+@media (max-width: 560px) { body { font-size: 16px; } h1 { font-size: 1.6rem; } pre { font-size: .8em; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<nav class="pages" aria-label="Pages"><a href="index.html">Overview</a> <a href="optim.html">Optim</a> <a href="speed.html" aria-current="page">Speed</a> <a href="viewer.html">Viewer</a> <a href="human.html">BetterHuman</a></nav>
+<header>
+  <h1>Speed comes from fewer operations, not from a second backend</h1>
+  <p class="lede">Why the library is slow today, why Warp does not fix it, and how benchmarking keeps it fast.</p>
+</header>
+<main>
+<nav class="toc" aria-label="Contents">
+  On this page
+  <ol>
+    <li><a href="#slow">Where the time goes today</a></li>
+    <li><a href="#warp">What Warp does and does not buy</a></li>
+    <li><a href="#budget">The rule: an operation budget per algorithm</a></li>
+    <li><a href="#proto">Prototype result</a></li>
+    <li><a href="#gate">The gate for removing Warp</a></li>
+    <li><a href="#model">A smaller model layer</a></li>
+    <li><a href="#bench">Benchmarking and profiling</a></li>
+  </ol>
+</nav>
+
+<section id="slow">
+<h2>Time is spent launching tiny operations, not computing</h2>
+<p>On a GPU every torch operation costs about 20 microseconds to launch, however small the data.
+One forward kinematics (FK) call on a 25-joint body launches about 220 of them. So the call takes
+milliseconds at batch 1 and almost the same at batch 4096. The CPU shows the same fixed cost at
+small batch:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th scope="col">Algorithm (CPU, 1 thread)</th><th scope="col" class="num">Panda, batch 1 (ms)</th><th scope="col" class="num">batch 64 (ms)</th><th scope="col" class="num">batch 4096 (ms)</th><th scope="col" class="num">G1 humanoid, batch 1 (ms)</th></tr></thead>
+  <tbody>
+    <tr><td>Forward kinematics</td><td class="num">0.65</td><td class="num">1.09</td><td class="num">41.9</td><td class="num">0.89</td></tr>
+    <tr><td>Frame Jacobian (includes FK)</td><td class="num">1.08</td><td class="num">1.83</td><td class="num">58.7</td><td class="num">1.34</td></tr>
+    <tr><td>Inverse dynamics (RNEA)</td><td class="num">2.14</td><td class="num">3.09</td><td class="num">70.3</td><td class="num">4.93</td></tr>
+    <tr><td>Mass matrix (CRBA)</td><td class="num">1.87</td><td class="num">3.23</td><td class="num">107</td><td class="num">4.63</td></tr>
+    <tr><td>Forward dynamics (ABA)</td><td class="num">6.21</td><td class="num">9.42</td><td class="num">252</td><td class="num">7.21</td></tr>
+  </tbody>
+</table>
+</div>
+<p>Measured in this session at commit 7e2008f, float32, eager torch 2.13, AMD EPYC 9654. Batch 64 does
+64 times the work of batch 1 for 1.7 times the time: the rest is fixed overhead.</p>
+
+<p>The cause is in the code. FK, RNEA, CRBA, ABA and the centroidal pass each loop over joints in
+Python, one joint at a time. Only the Jacobian pass was rewritten to treat all joints at once; it
+needs 52 operations for any robot.</p>
+
+<p>Batched IK inherits this: with default settings on Panda at batch 1024, one solve took 4.2 seconds
+on CPU. Only 67.5% of the elements reached the default tolerance of 1e-6 within 100 iterations, although
+every target was reachable, and the slowest element sets the time for the whole batch. The final
+errors were not recorded, so this may be a tolerance too tight for float32 rather than failed solves.</p>
+
+<div class="note"><strong>GPU timings are missing.</strong> All eight GPUs were busy during this
+session. Operation counts below are exact; GPU times are marked indicative. Clean GPU baselines are
+the first task of phase P0.</div>
+</section>
+
+<section id="warp">
+<h2>Warp speeds up the forward pass of two algorithms and nothing else</h2>
+<ul>
+  <li>Only FK and RNEA have a Warp version: 2,206 lines, each kernel written twice (float32, float64).</li>
+  <li>The backward pass re-runs the torch implementation (<code>kinematics/_warp_bridge.py:38</code>). Its own comment says Warp's generated gradient is wrong for the tree loop. Optimization and learning need gradients, so they gain nothing.</li>
+  <li>Joint types are dispatched in three places: torch joint classes, a 22-branch switch in the Warp FK kernel, lookup tables in the Warp RNEA kernel.</li>
+  <li>Stored numbers from an older commit (25-joint body, forward only): Warp 0.54 to 0.63 ms, compiled torch 0.71 to 1.42 ms. Both are flat from batch 1 to 4096, so the gap is fixed overhead, not throughput.</li>
+</ul>
+<p>For anything that needs gradients, Warp should therefore be no faster than torch alone. That
+comparison was never measured; it is experiment E1 below. Making Warp the single implementation instead would mean hand-writing gradients for about eight
+algorithms, including gradients with respect to link lengths and inertias that BetterHuman needs
+for body shape, and it would lose <code>torch.func</code> and double backward. That is several thousand lines
+for a gain nobody has measured.</p>
+</section>
+
+<section id="budget">
+<h2>The rule: each algorithm has an operation budget, checked automatically</h2>
+<p>A tree can be processed level by level: all joints at the same depth are independent, so one
+batched operation handles the whole level.</p>
+
+<figure>
+<svg viewBox="0 0 460 190" role="img" aria-labelledby="s1" style="max-width:520px">
+  <title id="s1">Joints grouped by depth in the tree</title>
+  <g font-size="13">
+    <rect class="box" x="4" y="8" width="452" height="44" rx="4"/>
+    <rect class="box" x="4" y="72" width="452" height="44" rx="4"/>
+    <rect class="box" x="4" y="136" width="452" height="44" rx="4"/>
+    <text x="14" y="34">level 0</text><text x="14" y="98">level 1</text><text x="14" y="162">level 2</text>
+    <path class="line" d="M250 30 L170 94 M250 30 L250 94 M250 30 L330 94 M170 94 L130 158 M170 94 L200 158 M250 94 L250 158 M330 94 L300 158 M330 94 L370 158"/>
+    <g fill="var(--accent)">
+      <circle cx="250" cy="30" r="7"/><circle cx="170" cy="94" r="7"/><circle cx="250" cy="94" r="7"/><circle cx="330" cy="94" r="7"/>
+      <circle cx="130" cy="158" r="7"/><circle cx="200" cy="158" r="7"/><circle cx="250" cy="158" r="7"/><circle cx="300" cy="158" r="7"/><circle cx="370" cy="158" r="7"/>
+    </g>
+    <text class="dim" x="446" y="34" text-anchor="end">1 op</text><text class="dim" x="446" y="98" text-anchor="end">1 op</text><text class="dim" x="446" y="162" text-anchor="end">1 op</text>
+  </g>
+</svg>
+<figcaption>Figure 1. Nine joints, three operations. The count follows the depth of the tree, not the number of joints. A serial arm is the worst case: its depth is almost its joint count.</figcaption>
+</figure>
+
+<p>The plan applies three changes to every pass:</p>
+<ol>
+  <li><strong>Compose per level</strong> instead of per joint (FK, ABA). For RNEA, CRBA and the centroidal pass, replace the recursion by sums over precomputed ancestor and descendant index tables.</li>
+  <li><strong>Shrink the constant part.</strong> On small robots most operations are not in the chain at all: input preparation, one code path per joint type, building 4x4 matrices, converting matrices to quaternions. Keep poses as rotation plus translation, use one batched formula per joint family, and convert to quaternions only at the public boundary.</li>
+  <li><strong>Count operations in CI.</strong> For a fixed torch version the count is exact and has no timing noise, so a regression fails a test on any machine.</li>
+</ol>
+<p>The budget is a constant for passes that are sums over index tables (the Jacobian pass today: 52)
+and grows with tree depth for passes that must go level by level (the FK chain, ABA). Index tables
+cost memory: a 200-joint body has about 4,000 ancestor pairs, and one 6x6 float32 tensor per pair at
+batch 4096 is about 2.4 GB. So each pass also gets a memory budget, and a pass that breaks it stays level-wise.</p>
+<p>On top of that, one optional wrapper compiles the same functions (<code>torch.compile</code>, CUDA graphs).
+It is an accelerator, never a second implementation.</p>
+</section>
+
+<section id="proto">
+<h2>Prototype: level batching pays on large trees and on gradients</h2>
+<p>A 60-line prototype replaced only the per-joint chain in FK. Results are bit-identical to the library.</p>
+
+<figure>
+<svg viewBox="0 0 460 236" role="img" aria-labelledby="s2" style="max-width:520px">
+  <title id="s2">GPU operations per FK call, library versus level-batched prototype</title>
+  <g font-size="13">
+    <text x="4" y="16" font-weight="600">25 joints, forward</text>
+    <rect class="bar" x="4" y="22" width="29" height="12"/><text x="39" y="33">219 today</text>
+    <rect class="bar-hot" x="4" y="38" width="29" height="12"/><text x="39" y="49">221 level-batched</text>
+    <text x="4" y="74" font-weight="600">25 joints, forward + backward</text>
+    <rect class="bar" x="4" y="80" width="104" height="12"/><text x="114" y="91">796</text>
+    <rect class="bar-hot" x="4" y="96" width="95" height="12"/><text x="105" y="107">724</text>
+    <text x="4" y="132" font-weight="600">223 joints, forward</text>
+    <rect class="bar" x="4" y="138" width="59" height="12"/><text x="69" y="149">452</text>
+    <rect class="bar-hot" x="4" y="154" width="36" height="12"/><text x="46" y="165">274</text>
+    <text x="4" y="190" font-weight="600">223 joints, forward + backward</text>
+    <rect class="bar" x="4" y="196" width="300" height="12"/><text x="310" y="207">2,297</text>
+    <rect class="bar-hot" x="4" y="212" width="119" height="12"/><text x="129" y="223">913</text>
+  </g>
+</svg>
+<figcaption>Figure 2. GPU operations per call at batch 256. Gray is the library, blue the prototype. The big win is the backward pass on a large tree; on a small tree the chain was never the problem.</figcaption>
+</figure>
+
+<ul>
+  <li>223 joints, forward + backward on a busy GPU (indicative): 52 ms to 13 ms at batch 1, 72 ms to 38 ms at batch 4096. On CPU at batch 4096: 2.55 s to 0.64 s.</li>
+  <li>25 joints, forward: no change. About 200 of the 220 operations are the constant part of change 2 above. Small robots and arms gain only from change 2, which has no prototype yet. It is the first prototype of P0.</li>
+  <li><code>torch.compile</code> gave no gain on the 223-joint forward pass. The accelerator needs its own experiment.</li>
+  <li>A variant that composes ancestors in log(depth) steps used the fewest operations but was 2.4 times slower at batch 4096. Per-level is the better default.</li>
+</ul>
+</section>
+
+<section id="gate">
+<h2>Warp is removed when one measurement confirms the argument</h2>
+<p>The recommendation is to delete Warp. The honest status: the argument (its backward is torch, so it
+cannot help when gradients are needed) is read from the code, not measured, and today's torch forward
+pass is slower than Warp's stored forward time (2.3 to 2.6 ms against 0.54 to 0.63 ms on a 25-joint
+body, on different GPUs). So forward-only users would lose speed until the rewrite lands. That trade is your call.</p>
+<div class="table-wrap">
+<table>
+  <thead><tr><th scope="col">Experiment</th><th scope="col">Passes when</th><th scope="col">If it fails</th></tr></thead>
+  <tbody>
+    <tr><td>E1. Warp against torch at the current commit: forward and forward + backward; Panda, 25 and 200 joints; batch 1, 256, 4096; idle GPU and CPU; time and peak memory</td><td>Warp forward + backward is within 10% of torch: Warp gives nothing with gradients, delete it</td><td>Keep Warp until change 2 closes the gap, then re-test</td></tr>
+    <tr><td>E2. Compile wrapper: what works under it</td><td>Compiles in under 60 s cold, no fallbacks to eager; gradients, double backward and <code>torch.func</code> still work</td><td>Ship without the accelerator; eager is the product</td></tr>
+    <tr><td>E3. Prototype of change 2 on a 25-joint body</td><td>Forward operations drop from about 220 to under 80</td><td>The small-robot target is not reachable in eager torch; rely on the accelerator or a kernel</td></tr>
+    <tr><td>E5. One throwaway hand-written GPU kernel at batch 65,000 and above</td><td>Only matters if that batch size is a real use case</td><td>If it is 5x faster and needed: it replaces a torch pass. It costs as much to maintain as a Warp lane; there is just still one implementation</td></tr>
+  </tbody>
+</table>
+</div>
+<p>Targets to test in P0 (estimates from the 20-microsecond cost model, not results): eager GPU FK
+on a 200-joint body at batch 256 in 1 ms forward (9.5 ms today) and 4 ms with gradients (44 ms today);
+Panda FK on CPU at batch 1 in 0.25 ms (0.65 ms today); float32 results within 1e-4 relative of
+pinocchio, also with the robot 50 m from the world origin.</p>
+</section>
+
+<section id="model">
+<h2>A smaller model layer underneath</h2>
+<ul>
+  <li><strong>Model = structure + values.</strong> Structure is topology and index tables. Values are differentiable tensors that can carry batch axes (one body shape per subject). One <code>model.replace(gravity=..., joint_placements=...)</code> covers all 15 value fields; today <code>with_values</code> covers 3.</li>
+  <li><strong>Results instead of a cache.</strong> <code>state = kinematics.forward(model, q)</code> returns an immutable object; Jacobian and dynamics functions take it. It holds everything later passes need (world poses, joint axes, velocities if given), so nothing recomputes FK. This removes 26 optional cache fields and the stale-cache hole.</li>
+  <li><strong>One joint registry.</strong> A joint family is one entry with one batched formula. Adding a joint type touches one file instead of six.</li>
+  <li><strong>Geometry is typed.</strong> Visual and collision shapes become a real object on the model, not an entry in a <code>meta</code> dict.</li>
+  <li><strong>The public API is what downstream uses.</strong> <code>build_tree</code>, <code>JointKind</code>, <code>Model.expand_q</code> become public; a test in BetterHuman fails on any private import.</li>
+  <li><strong>Remove what is not real.</strong> Unused <code>spatial</code> wrapper classes go. The <code>collision</code> stubs are replaced in P2 by a minimal real module (sphere and capsule pairs, sphere against a distance field), because trajectory optimization is judged with obstacles.</li>
+</ul>
+</section>
+
+<section id="bench">
+<h2>Benchmarking becomes part of the library</h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th scope="col">Piece</th><th scope="col">What it does</th></tr></thead>
+  <tbody>
+    <tr><td>Runner</td><td>One command per repo. Matrix: algorithm, model (Panda, G1, SMPL-X, a 200-joint body), batch 1 to 65,536, CPU and GPU, forward and forward + backward.</td></tr>
+    <tr><td>Stored results</td><td>One JSON file per commit with a fixed schema, so any two commits can be compared.</td></tr>
+    <tr><td>Gate in CI</td><td>Operation count per call. Exact, runs anywhere.</td></tr>
+    <tr><td>Gate on the bench machine</td><td>Wall time: fail when the median is above 1.10 times the baseline and outside the noise band.</td></tr>
+    <tr><td>Baselines</td><td>pinocchio (CPU, also the correctness reference), pyroki, cuRobo, mujoco_warp, upstream smplx.</td></tr>
+    <tr><td>Profiling helper</td><td>For any call: operations launched, the top ten by count and time, peak memory, compile time.</td></tr>
+  </tbody>
+</table>
+</div>
+<p>This needs one GPU that is reserved, or reliably idle, for timing runs. Today the BetterRobot
+environment has no pinocchio and no Warp, so the pinocchio comparison tests skip silently, and
+BetterHuman's benchmark only runs on CUDA; P0 fixes that.</p>
+</section>
+
+</main>
+<footer>BetterRobot dev 7e2008f, BetterHuman dev 793d716. Plan drafted 2026-10-06. Evidence files are in <code>agent_notes/tasks/2026-10-06_20-13_architecture_plan/subagents/</code>.</footer>
+</body>
+</html>

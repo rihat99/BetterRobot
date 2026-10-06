@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "BetterRobot today: package map at dev 7e2008f",
+    "output": "site/diagrams/br-current/br-current.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/rihat99/BetterRobot",
+      "provider": "github",
+      "link_mode": "local-only",
+      "revision": "7e2008f73850a01a43a5ca386af0f54f3099fe23"
+    },
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "frontend": { "label": "Viewer" },
+        "backend": { "label": "Algorithms" },
+        "messagebus": { "label": "Optimization stack" },
+        "database": { "label": "Model and math" },
+        "cloud": { "label": "Warp lane (second implementation)" },
+        "security": { "label": "Stub" },
+        "external": { "label": "Outside the library" }
+      }
+    }
+  },
+  "components": [
+    { "id": "viewer", "type": "frontend", "label": "viewer", "sublabel": "21 files, 2463 lines", "tag": "one robot pose", "pos": [560, 40], "size": [150, 64],
+      "sources": [ { "path": "src/better_robot/viewer/visualizer.py", "line": 33, "label": "Visualizer" }, { "path": "src/better_robot/viewer/renderers/base.py", "line": 18, "label": "backend protocol" } ] },
+    { "id": "user", "type": "external", "label": "User code", "sublabel": "BetterHuman, BVR", "pos": [40, 190], "size": [150, 64] },
+    { "id": "tasks", "type": "messagebus", "label": "tasks", "sublabel": "solve_ik, solve_trajopt", "tag": "1379 lines", "pos": [560, 190], "size": [150, 64],
+      "sources": [ { "path": "src/better_robot/tasks/ik.py", "line": 172, "label": "solve_ik" }, { "path": "src/better_robot/tasks/trajopt.py", "line": 138, "label": "solve_trajopt" } ] },
+    { "id": "optim", "type": "messagebus", "label": "optim", "sublabel": "Problem, LM, wrapper", "tag": "4019 lines", "pos": [820, 190], "size": [150, 64],
+      "sources": [ { "path": "src/better_robot/optim/problem.py", "line": 64, "label": "Problem" }, { "path": "src/better_robot/optim/lm.py", "line": 409, "label": "LevenbergMarquardt" }, { "path": "src/better_robot/optim/optimizers.py", "line": 105, "label": "TorchOptimizer" } ] },
+    { "id": "residuals", "type": "messagebus", "label": "residuals", "sublabel": "Residual, Node classes", "tag": "3111 lines", "pos": [1080, 190], "size": [150, 64],
+      "sources": [ { "path": "src/better_robot/residuals/base.py", "line": 126, "label": "Residual" }, { "path": "src/better_robot/residuals/nodes.py", "line": 12, "label": "Node" } ] },
+    { "id": "collision", "type": "security", "label": "collision", "sublabel": "all stubs, 242 lines", "pos": [40, 340], "size": [150, 64],
+      "sources": [ { "path": "src/better_robot/collision/robot_collision.py", "line": 23, "label": "RobotCollision" } ] },
+    { "id": "warp_rnea", "type": "cloud", "label": "Warp RNEA lane", "sublabel": "CUDA only, 1331 lines", "pos": [300, 340], "size": [150, 64],
+      "sources": [ { "path": "src/better_robot/dynamics/_warp_kernels.py", "line": 202, "label": "rnea_f32 kernel" }, { "path": "src/better_robot/dynamics/_warp_bridge.py", "line": 122, "label": "custom_op bridge" } ] },
+    { "id": "dynamics", "type": "backend", "label": "dynamics", "sublabel": "RNEA, CRBA, ABA", "tag": "loop per joint", "pos": [560, 340], "size": [150, 64],
+      "sources": [ { "path": "src/better_robot/dynamics/rnea.py", "line": 186, "label": "per-joint loop" }, { "path": "src/better_robot/dynamics/aba.py", "line": 275, "label": "aba" }, { "path": "src/better_robot/dynamics/crba.py", "line": 130, "label": "crba" } ] },
+    { "id": "warp_fk", "type": "cloud", "label": "Warp FK lane", "sublabel": "875 lines", "pos": [820, 340], "size": [150, 64],
+      "sources": [ { "path": "src/better_robot/kinematics/_warp_bridge.py", "line": 38, "label": "backward re-runs torch" } ] },
+    { "id": "kinematics", "type": "backend", "label": "kinematics", "sublabel": "FK, Jacobians", "tag": "FK loops per joint", "pos": [1080, 340], "size": [150, 64],
+      "sources": [ { "path": "src/better_robot/kinematics/forward.py", "line": 167, "label": "forward_kinematics" }, { "path": "src/better_robot/kinematics/_fk_matrix.py", "line": 262, "label": "per-joint loop" } ] },
+    { "id": "io", "type": "external", "label": "io", "sublabel": "URDF, MJCF, builder", "tag": "2783 lines", "pos": [40, 490], "size": [150, 64],
+      "sources": [ { "path": "src/better_robot/io/build_model.py", "line": 581, "label": "build_model" } ] },
+    { "id": "data_model", "type": "database", "label": "data_model", "sublabel": "ModelStructure + ModelValues = Model; mutable Data cache; joint models", "tag": "2856 lines", "pos": [560, 490], "size": [670, 64],
+      "sources": [ { "path": "src/better_robot/data_model/model_structure.py", "line": 76, "label": "ModelStructure" }, { "path": "src/better_robot/data_model/model_values.py", "line": 43, "label": "ModelValues" }, { "path": "src/better_robot/data_model/data.py", "line": 73, "label": "Data" } ] },
+    { "id": "spatial", "type": "database", "label": "spatial", "sublabel": "Motion, Force, Inertia", "tag": "unused by hot paths", "pos": [560, 640], "size": [150, 64],
+      "sources": [ { "path": "src/better_robot/spatial/motion.py", "line": 19, "label": "Motion" } ] },
+    { "id": "lie", "type": "database", "label": "lie", "sublabel": "SO3, SE3 on plain tensors", "tag": "1064 lines", "pos": [1080, 640], "size": [150, 64],
+      "sources": [ { "path": "src/better_robot/lie/se3.py", "line": 30, "label": "compose" }, { "path": "src/better_robot/lie/se3.py", "line": 49, "label": "log" } ] }
+  ],
+  "connections": [
+    { "id": "user-tasks", "from": "user", "to": "tasks", "label": "solve_ik(model, targets)", "variant": "emphasis" },
+    { "id": "viewer-tasks", "from": "viewer", "to": "tasks", "label": "imports IKResult", "fromSide": "bottom", "toSide": "top" },
+    { "id": "tasks-optim", "from": "tasks", "to": "optim", "label": "builds Problem", "variant": "emphasis" },
+    { "id": "optim-residuals", "from": "optim", "to": "residuals", "label": "Jacobian blocks", "variant": "emphasis" },
+    { "id": "residuals-kin", "from": "residuals", "to": "kinematics", "label": "frame Jacobian", "fromSide": "bottom", "toSide": "top", "variant": "emphasis" },
+    { "id": "kin-warp", "from": "kinematics", "to": "warp_fk", "label": "use_warp", "variant": "dashed" },
+    { "id": "dyn-warp", "from": "dynamics", "to": "warp_rnea", "label": "use_warp", "variant": "dashed" },
+    { "id": "kin-model", "from": "kinematics", "to": "data_model", "fromSide": "bottom", "toSide": "top" },
+    { "id": "dyn-model", "from": "dynamics", "to": "data_model", "fromSide": "bottom", "toSide": "top" },
+    { "id": "io-model", "from": "io", "to": "data_model", "label": "build_model compiles the IR into a Model" },
+    { "id": "model-spatial", "from": "data_model", "to": "spatial", "fromSide": "bottom", "toSide": "top" },
+    { "id": "model-lie", "from": "data_model", "to": "lie", "fromSide": "bottom", "toSide": "top" },
+    { "id": "spatial-lie", "from": "spatial", "to": "lie", "label": "plain tensor formulas" }
+  ],
+  "cards": [
+    { "dot": "rose", "title": "Two implementations", "items": ["Only FK and RNEA have a Warp lane (2206 lines)", "Warp speeds up the forward pass only; the backward re-runs the torch code", "Joint-type dispatch is written three times"] },
+    { "dot": "amber", "title": "Optimization stack", "items": ["8509 lines across tasks, optim and residuals", "About 43 exported names in optim", "BVR does not import it; it has its own 193-line engine"] },
+    { "dot": "cyan", "title": "Speed", "items": ["FK, RNEA, CRBA and ABA loop over joints in Python", "Eager time is flat from batch 1 to 4096: bound by launch count, not by compute", "Only the Jacobian pass is batched across joints"] },
+    { "dot": "slate", "title": "Loose ends", "items": ["collision: every function raises NotImplementedError", "spatial classes are not used by kinematics or dynamics", "viewer depends on tasks and on the stored IR"] }
+  ]
+}

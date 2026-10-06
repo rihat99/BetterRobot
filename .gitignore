@@ -17,3 +17,9 @@ docs/_build/
 references
 # Local agent instructions (owner machine only)
 DESIGN_RULES.md
+
+# Agent task scratch
+agent_notes/**/vis/
+agent_notes/**/artifacts/
+trash/
+.claude/

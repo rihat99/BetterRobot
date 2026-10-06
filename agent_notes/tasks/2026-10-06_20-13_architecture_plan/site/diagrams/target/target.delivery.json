@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "ac73462c-f31c-4f20-a262-d68089fde44a",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/rikhat.akizhanov/better/dev/BetterRobot/agent_notes/tasks/2026-10-06_20-13_architecture_plan/site/diagrams/target/candidate.json",
+  "output": "/home/rikhat.akizhanov/better/dev/BetterRobot/agent_notes/tasks/2026-10-06_20-13_architecture_plan/site/diagrams/target/target.html",
+  "specification": {
+    "sha256": "be54d7580da1ac4529adb6b20c2da5153d424948c11a648829b2c1f9d3ba7769",
+    "bytes": 5682
+  },
+  "artifact": {
+    "sha256": "42700e4a1fbf4d6c52a9d713a2f7907519a810b9aa8148fd22641caf251ccb1b",
+    "bytes": 774194
+  }
+}

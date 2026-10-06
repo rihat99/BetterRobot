@@ -1,0 +1,208 @@
+<nav class="toc" aria-label="Contents">
+  On this page
+  <ol>
+    <li><a href="#today">What the two libraries look like today</a></li>
+    <li><a href="#problems">Five problems, with evidence</a></li>
+    <li><a href="#target">The target: three "ones"</a></li>
+    <li><a href="#roadmap">Roadmap in six phases</a></li>
+    <li><a href="#decide">Decisions that are yours</a></li>
+    <li><a href="#trust">What was checked and what was not</a></li>
+  </ol>
+</nav>
+
+<section id="today">
+<h2>Today: a third of BetterRobot is an optimization stack nobody downstream uses</h2>
+
+<p>BetterRobot has 24,070 lines of source. The three packages that make up optimization
+(<code>optim</code>, <code>residuals</code>, <code>tasks</code>) hold 8,509 of them. BetterVideoReconstruction (BVR),
+the main project built on the library, imports none of the three. It carries its own 193-line
+engine on top of <code>torch.optim</code>.</p>
+
+<figure>
+<svg viewBox="0 0 460 318" role="img" aria-labelledby="f1t" style="max-width:520px">
+  <title id="f1t">Lines of source per BetterRobot package</title>
+  <g font-size="13">
+    <g text-anchor="end">
+      <text x="92" y="20">optim</text><text x="92" y="48">residuals</text><text x="92" y="76">data_model</text>
+      <text x="92" y="104">io</text><text x="92" y="132">dynamics</text><text x="92" y="160">viewer</text>
+      <text x="92" y="188">kinematics</text><text x="92" y="216">tasks</text><text x="92" y="244">lie</text>
+      <text x="92" y="272">spatial</text><text x="92" y="300">collision</text>
+    </g>
+    <rect class="bar-hot" x="100" y="8" width="280" height="16"/><text x="386" y="20">4,019</text>
+    <rect class="bar-hot" x="100" y="36" width="217" height="16"/><text x="323" y="48">3,111</text>
+    <rect class="bar" x="100" y="64" width="199" height="16"/><text x="305" y="76">2,856</text>
+    <rect class="bar" x="100" y="92" width="194" height="16"/><text x="300" y="104">2,783</text>
+    <rect class="bar" x="100" y="120" width="88" height="16"/><rect class="bar-bad" x="188" y="120" width="93" height="16"/><text x="287" y="132">2,591</text>
+    <rect class="bar" x="100" y="148" width="172" height="16"/><text x="278" y="160">2,463</text>
+    <rect class="bar" x="100" y="176" width="95" height="16"/><rect class="bar-bad" x="195" y="176" width="61" height="16"/><text x="262" y="188">2,237</text>
+    <rect class="bar-hot" x="100" y="204" width="96" height="16"/><text x="202" y="216">1,379</text>
+    <rect class="bar" x="100" y="232" width="74" height="16"/><text x="180" y="244">1,064</text>
+    <rect class="bar" x="100" y="260" width="68" height="16"/><text x="174" y="272">978</text>
+    <rect class="bar" x="100" y="288" width="17" height="16"/><text x="123" y="300">242</text>
+  </g>
+</svg>
+<figcaption>Figure 1. Lines per package in BetterRobot. Blue is the optimization stack. Red is the
+Warp copy of forward kinematics and inverse dynamics (2,206 lines).</figcaption>
+</figure>
+
+<p>BetterHuman has 7,345 lines. Its core idea works well: compute everything that depends on body
+shape once, then stream poses through BetterRobot's kinematics. But 43% of the package is an
+editing studio that is a second, separate viewer.</p>
+
+<p>Two interactive maps show the structure. Each box links to the source lines behind it.</p>
+<ul>
+  <li><a href="diagrams/br-current/br-current.html">BetterRobot today</a>: packages, their dependencies, the two Warp lanes.</li>
+  <li><a href="diagrams/target/target.html">Proposed architecture</a>: the same map after the plan.</li>
+</ul>
+</section>
+
+<section id="problems">
+<h2>Five problems, each backed by a measurement or a line of code</h2>
+
+<h3>1. The optim API cannot express what real fitting code needs</h3>
+<p>BVR's fit uses about 38 loss terms. Most are robust scalar losses, switched on and off by
+stage, with some variables frozen in some stages, under Adam first and L-BFGS later. The library
+wants every cost as a fixed-width residual object attached to variable objects. A scalar loss has to
+be disguised as a <code>sqrt(2f)</code> row. There is no public way to write a new optimizer: the built-in ones
+reach into 18 private members of <code>Problem</code>. <code>solve_ik</code> cannot take one extra cost.</p>
+
+<h3>2. Warp is a second implementation that only speeds up half of the work</h3>
+<p>Only forward kinematics (FK) and inverse dynamics (RNEA) have a Warp version. The backward pass
+of both re-runs the torch code, so gradients gain nothing. Jacobians, mass matrix, forward dynamics
+have no Warp version at all. The price is every formula and every joint type written two or three times.</p>
+
+<h3>3. The library is slow because it does many tiny operations</h3>
+<p>One FK call on a 25-joint body launches about 220 small GPU operations, and about 800 with the
+backward pass. Each costs roughly 20 microseconds whatever the batch size. That is why time barely
+changes between batch 1 and batch 4096 on GPU, and why a second backend does not fix it.
+Details on the <a href="speed.html">Speed page</a>.</p>
+
+<div class="kpi">
+  <div><strong>220</strong><span>GPU operations for one FK call, 25 joints</span></div>
+  <div><strong>4.2 s</strong><span>for one batched IK solve, Panda, batch 1024, CPU</span></div>
+  <div><strong>3</strong><span>viewers, about 8,000 lines, no shared code</span></div>
+</div>
+
+<h3>4. Three viewers, each with half of the features</h3>
+<p>BetterRobot's viewer shows one pose. BetterHuman's studio edits one pose. BVR's viewer plays
+clips with forces, cameras and several people, but is tied to BVR's file formats. None can show
+collision geometry, export a video or plot a signal next to the 3D view.</p>
+
+<h3>5. The foundation has grown special cases</h3>
+<ul>
+  <li><code>Model</code> has 57 one-line forwarding properties. Changing gravity needs a nested <code>dataclasses.replace</code>.</li>
+  <li><code>Data</code> is a mutable cache with 26 optional fields and a documented way to go stale.</li>
+  <li>Joints are described twice (classes and numeric codes). A new joint type touches 6 files.</li>
+  <li><code>collision</code> is all stubs. The <code>spatial</code> classes are not used by the algorithms.</li>
+  <li>BetterHuman and BVR import private modules, so the real API is about twice the declared one.</li>
+</ul>
+
+<details>
+<summary>Three bugs found during the audit</summary>
+<ul>
+  <li><code>lie/tangents.py:187</code>: the SE3 Jacobian series stops after the 9th power. The comment says this is
+  exact for errors up to 6; at a pose error of 3.5 the next term is about 0.007. The analytic IK
+  Jacobian is therefore wrong far from the target (measured error 0.005 to 0.04) and right near it.</li>
+  <li><code>random_configuration</code> returns float32 on a float64 model, and infinity for revolute joints without limits.</li>
+  <li>FK with a float64 model and a float32 input crashes deep inside instead of reporting the mismatch.</li>
+</ul>
+<p>The pinocchio comparison tests would have caught the first bug, but pinocchio is not installed
+in the dev environment, so those tests skip silently.</p>
+</details>
+</section>
+
+<section id="target">
+<h2>The target: one implementation, one optim, one viewer</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th scope="col">Area</th><th scope="col">Today</th><th scope="col">Proposed</th></tr></thead>
+  <tbody>
+    <tr><td><a href="speed.html">Backend</a></td><td>torch, plus Warp for 2 of 8 algorithms</td>
+        <td>torch only. Each algorithm gets a budget of operations: constant where possible, growing with tree depth at most. An optional compile wrapper accelerates the same code.</td></tr>
+    <tr><td><a href="optim.html">Optim</a></td><td>4,019 lines, about 43 public names, object graph of variables and residuals</td>
+        <td>Under half the size, five ideas. A cost is a plain function. The same costs run under <code>torch.optim</code>, Gauss-Newton or Levenberg-Marquardt.</td></tr>
+    <tr><td>Jacobians</td><td>Analytic, autodiff and finite differences behind a mode switch, with a separate temporal subsystem</td>
+        <td>Automatic by default; analytic when a cost provides one; a one-line check of analytic against numeric.</td></tr>
+    <tr><td>Model</td><td>Structure, values, 57-property facade, mutable cache</td>
+        <td>Structure plus values, one <code>replace()</code>, immutable results instead of a cache.</td></tr>
+    <tr><td><a href="viewer.html">Viewer</a></td><td>3 viewers, about 8,000 lines</td>
+        <td>One core in BetterRobot (about 1,600 lines): timeline plus layers. BetterHuman and BVR add layers.</td></tr>
+    <tr><td><a href="human.html">BetterHuman</a></td><td>3 body families, behaviour in stored functions, private imports</td>
+        <td>Families as data files, per-frame inputs without recomputing shape, public API only, retargeting.</td></tr>
+    <tr><td>Benchmarks</td><td>5 scripts, no history, no gate</td>
+        <td>One runner per repo, results stored per commit, an automatic gate on operation counts.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>What the new optim looks like for a user, in full:</p>
+<pre><code>P = optim.Problem({"q": q0}, manifolds={"q": RobotManifold(model)})
+P.residual("pose", lambda q: pose_error(model, q, target))
+P.residual("rest", lambda q: q - q_rest, weight=0.01)
+
+x = optim.solve(P, optim.LM(), iters=30).x            # second order
+x = optim.solve(P, torch.optim.Adam, lr=1e-2, iters=500).x   # or any torch optimizer</code></pre>
+</section>
+
+<section id="roadmap">
+<h2>Roadmap: measure first, then three parallel tracks</h2>
+
+<figure>
+<svg viewBox="0 0 460 250" role="img" aria-labelledby="f2t" style="max-width:520px">
+  <title id="f2t">Order of the six phases</title>
+  <g font-size="13">
+    <rect class="hot" x="4" y="92" width="84" height="44" rx="4"/><text x="46" y="110" text-anchor="middle" font-weight="600">P0</text><text x="46" y="127" text-anchor="middle" font-size="12">measure, fix</text>
+    <rect class="box" x="104" y="20" width="190" height="44" rx="4"/><text x="199" y="38" text-anchor="middle" font-weight="600">P1 optim</text><text x="199" y="55" text-anchor="middle">new layer, port IK, BVR fit</text>
+    <rect class="box" x="104" y="92" width="190" height="44" rx="4"/><text x="199" y="110" text-anchor="middle" font-weight="600">P2 model, kin/dyn</text><text x="199" y="127" text-anchor="middle">op budgets, remove Warp</text>
+    <rect class="box" x="104" y="164" width="190" height="44" rx="4"/><text x="199" y="182" text-anchor="middle" font-weight="600">P3 viewer</text><text x="199" y="199" text-anchor="middle">core, robot, human, BVR</text>
+    <rect class="box" x="310" y="92" width="88" height="44" rx="4"/><text x="354" y="110" text-anchor="middle" font-weight="600">P4</text><text x="354" y="127" text-anchor="middle" font-size="12">BetterHuman</text>
+    <rect class="box" x="412" y="92" width="44" height="44" rx="4"/><text x="434" y="110" text-anchor="middle" font-weight="600">P5</text><text x="434" y="127" text-anchor="middle">later</text>
+    <path class="line" d="M88 114 H104 M96 114 V42 H104 M96 114 V186 H104 M294 114 H310 M294 42 H302 V186 H294 M398 114 H412"/>
+    <text class="dim" x="230" y="238" text-anchor="middle">left to right is order, not calendar time</text>
+  </g>
+</svg>
+<figcaption>Figure 2. P1, P2 and P3 can run side by side after P0, because P0 freezes the one interface they share. BetterHuman's restructure waits for all three.</figcaption>
+</figure>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th scope="col">Phase</th><th scope="col">Work</th><th scope="col">Done when</th></tr></thead>
+  <tbody>
+    <tr><td>P0 Measure and fix</td><td>Install pinocchio and Warp so the comparison tests run; benchmark runner; clean GPU baselines; fix the three bugs; freeze the kinematics result type the other phases build on; three decision experiments on speed; record reference outputs of IK, trajectory optimization and one BVR clip.</td><td>Baseline numbers are stored; the experiments have a verdict.</td></tr>
+    <tr><td>P1 Optim</td><td>Build the new layer next to the old one; port IK, trajectory optimization and BVR's person fit; delete the old one.</td><td>The four use cases run as examples; BVR's fit reproduces its current losses; batched IK reaches 0.1 mm on every reachable target.</td></tr>
+    <tr><td>P2 Model, kinematics, dynamics</td><td>Simplify the model layer; rewrite the passes to an operation budget; remove Warp after experiment E1; add the compile wrapper; a minimal real collision module (spheres, capsules).</td><td>Operation counts are within budget; results still match pinocchio.</td></tr>
+    <tr><td>P3 Viewer</td><td>Core and robot adapter; BetterHuman layers; port BVR's viewer; delete the three old ones.</td><td>Four scenarios run from a few lines; a BVR clip shows the same content as today.</td></tr>
+    <tr><td>P4 BetterHuman</td><td>Families as data; per-frame streams; public API only; human costs; retargeting; benchmarks.</td><td>SMPL-X forward at batch 256 is at least as fast as upstream smplx (a target); no private imports.</td></tr>
+    <tr><td>P5 Later</td><td>Mesh collision; analytic derivatives of dynamics; first-class constraints; more body families.</td><td>Planned when P1 to P4 are done.</td></tr>
+  </tbody>
+</table>
+</div>
+</section>
+
+<section id="decide">
+<h2>Nine decisions that are yours</h2>
+<p>Each has a recommendation. None blocks P0.</p>
+<ol>
+  <li><strong>Remove Warp</strong> once a measurement confirms it gives nothing when gradients are needed, accepting slower forward-only calls at small batch until the rewrite lands? Recommended: yes.</li>
+  <li><strong>Replace the mutable <code>Data</code> cache</strong> by immutable results (<code>state = forward(model, q)</code>)? Recommended: yes.</li>
+  <li><strong>Costs read variables by argument name</strong> (<code>lambda q, betas: ...</code>)? It is short but fragile with <code>partial</code> and renames; the alternative is to always list <code>reads=</code>. Recommended: by name, with a loud check at registration.</li>
+  <li><strong>Is batch 65,000 and above a real use case</strong> (sampling, reinforcement learning)? Only there does a hand-written GPU kernel pay off.</li>
+  <li><strong>Retargeting lives in BetterHuman</strong> (recommended) or in a third package?</li>
+  <li><strong>Which studio editors do you still use</strong>: segment painting, contact frames, posing?</li>
+  <li><strong>Do you want video rendering without a browser</strong>, or a rerun exporter? Both are optional add-ons.</li>
+  <li><strong>Facial expression</strong> exact (recommended) or approximate? <strong>Next body family</strong>: SKEL or STAR/SUPR?</li>
+  <li><strong>Order after P0</strong>: optim first (recommended), or speed first?</li>
+</ol>
+</section>
+
+<section id="trust">
+<h2>What was checked and what was not</h2>
+<ul>
+  <li><span class="ok">Checked against code:</span> all line counts, the Warp backward path, the Jacobian series bug, what BVR imports.</li>
+  <li><span class="ok">Measured in this session:</span> CPU timings of FK, Jacobian, RNEA, CRBA, ABA and IK; GPU operation counts; a level-batched FK prototype; seven ways of automatic Jacobians through the library's FK.</li>
+  <li><span class="bad">Not measured:</span> clean GPU timings. All eight GPUs were busy, so GPU times on these pages are marked as indicative. No fresh Warp or pinocchio numbers. Nothing was run for BetterHuman; its numbers come from its own docs.</li>
+  <li><span class="bad">Estimates:</span> target sizes in lines and the speed targets. They are goals to test in P0, not results.</li>
+  <li><span class="ok">Reviewed:</span> an independent reviewer with no knowledge of this session attacked the plan: 17 findings, 2 critical. All but one were accepted and are folded into these pages. The record is in <code>DESIGN.md</code>, section 5.</li>
+</ul>
+</section>

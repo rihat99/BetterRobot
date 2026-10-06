@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Proposed architecture: one implementation, one optim, one viewer",
+    "output": "site/diagrams/target/target.html",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "frontend": { "label": "Viewer" },
+        "backend": { "label": "Algorithms (single torch implementation)" },
+        "messagebus": { "label": "Optimization" },
+        "database": { "label": "Model and math" },
+        "external": { "label": "Downstream packages" }
+      }
+    }
+  },
+  "components": [
+    { "id": "bvr", "type": "external", "label": "BVR and other projects", "sublabel": "fitting scripts, apps", "pos": [40, 40], "size": [170, 64] },
+    { "id": "bh", "type": "external", "label": "BetterHuman", "sublabel": "bodies, human terms, retarget", "pos": [560, 40], "size": [170, 64] },
+
+    { "id": "tasks", "type": "messagebus", "label": "tasks", "sublabel": "open recipes: IK, trajopt", "pos": [40, 200], "size": [170, 64] },
+    { "id": "optim", "type": "messagebus", "label": "optim", "sublabel": "Problem, solvers, phases", "pos": [300, 200], "size": [170, 64] },
+    { "id": "terms", "type": "messagebus", "label": "terms", "sublabel": "plain functions + optional jac", "pos": [560, 200], "size": [170, 64] },
+
+    { "id": "collision", "type": "backend", "label": "collision", "sublabel": "spheres, capsules, SDF (minimal)", "pos": [300, 360], "size": [170, 64] },
+    { "id": "dynamics", "type": "backend", "label": "dynamics", "sublabel": "RNEA, CRBA, ABA", "tag": "level-batched", "pos": [560, 360], "size": [170, 64] },
+    { "id": "kinematics", "type": "backend", "label": "kinematics", "sublabel": "FK, Jacobians, J-dot", "tag": "level-batched", "pos": [820, 360], "size": [170, 64] },
+    { "id": "viewer", "type": "frontend", "label": "viewer", "sublabel": "Viewer, Timeline, Layer", "tag": "viser", "pos": [1080, 360], "size": [170, 64] },
+
+    { "id": "io", "type": "external", "label": "io", "sublabel": "URDF, MJCF, build_tree", "pos": [40, 520], "size": [170, 64] },
+    { "id": "model", "type": "database", "label": "model", "sublabel": "Model = structure + values (batched, differentiable); joint families; geometry; no mutable cache", "pos": [300, 520], "size": [950, 64] },
+
+    { "id": "lie", "type": "database", "label": "lie", "sublabel": "SO3, SE3, manifolds", "pos": [300, 680], "size": [170, 64] },
+    { "id": "spatial", "type": "database", "label": "spatial", "sublabel": "raw 6D functions", "pos": [820, 680], "size": [170, 64] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "BetterRobot", "wraps": ["tasks", "optim", "terms", "collision", "dynamics", "kinematics", "viewer", "io", "model", "lie", "spatial"] }
+  ],
+  "connections": [
+    { "id": "bvr-bh", "from": "bvr", "to": "bh", "label": "bodies, human terms, human layers" },
+    { "id": "bvr-tasks", "from": "bvr", "to": "tasks", "label": "recipe or own Problem", "fromSide": "bottom", "toSide": "top", "variant": "emphasis" },
+    { "id": "bh-terms", "from": "bh", "to": "terms", "label": "adds terms", "fromSide": "bottom", "toSide": "top" },
+    { "id": "bh-viewer", "from": "bh", "to": "viewer", "label": "adds layers", "fromSide": "right", "toSide": "top" },
+    { "id": "tasks-optim", "from": "tasks", "to": "optim", "label": "Problem", "variant": "emphasis" },
+    { "id": "optim-terms", "from": "optim", "to": "terms", "label": "value, J", "variant": "emphasis" },
+    { "id": "terms-dyn", "from": "terms", "to": "dynamics", "fromSide": "bottom", "toSide": "top", "variant": "emphasis" },
+    { "id": "terms-kin", "from": "terms", "to": "kinematics", "fromSide": "right", "toSide": "top" },
+    { "id": "terms-col", "from": "terms", "to": "collision", "fromSide": "left", "toSide": "top" },
+    { "id": "viewer-kin", "from": "viewer", "to": "kinematics", "label": "FK once" },
+    { "id": "col-model", "from": "collision", "to": "model", "fromSide": "bottom", "toSide": "top" },
+    { "id": "dyn-model", "from": "dynamics", "to": "model", "fromSide": "bottom", "toSide": "top" },
+    { "id": "kin-model", "from": "kinematics", "to": "model", "fromSide": "bottom", "toSide": "top" },
+    { "id": "viewer-model", "from": "viewer", "to": "model", "label": "meshes", "fromSide": "bottom", "toSide": "top" },
+    { "id": "io-model", "from": "io", "to": "model", "label": "compile" },
+    { "id": "model-lie", "from": "model", "to": "lie", "fromSide": "bottom", "toSide": "top" },
+    { "id": "model-spatial", "from": "model", "to": "spatial", "fromSide": "bottom", "toSide": "top" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "One implementation", "items": ["Every algorithm is written once, in torch", "Each pass has an operation budget: constant where possible, growing with tree depth at most", "An optional compile wrapper accelerates the same functions; Warp is removed after one confirming measurement"] },
+    { "dot": "orange", "title": "One optim", "items": ["A term is a plain function of named tensors", "The same terms run under torch.optim, Gauss-Newton or LM", "Jacobians: automatic by default, analytic when a term supplies one", "optim knows nothing about robots; it imports only lie"] },
+    { "dot": "cyan", "title": "One viewer", "items": ["Timeline plus layers fed by arrays prepared once per clip", "Robot, human and BVR adapters return core layers", "The viewer core never imports tasks, BetterHuman or BVR"] },
+    { "dot": "slate", "title": "Guard rails", "items": ["Benchmark suite with stored JSON per commit", "CI gate on operation count per call, which is exact and noise-free", "Pinocchio stays the parity reference"] }
+  ]
+}

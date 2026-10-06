@@ -1,0 +1,250 @@
+<nav class="toc" aria-label="Contents">
+  On this page
+  <ol>
+    <li><a href="#why">Why the current optim fails</a></li>
+    <li><a href="#layers">Three thin layers</a></li>
+    <li><a href="#cases">The four use cases in code</a></li>
+    <li><a href="#jac">Jacobians without a framework</a></li>
+    <li><a href="#solver">Writing your own optimizer</a></li>
+    <li><a href="#not">What is left out on purpose</a></li>
+    <li><a href="#bvr">What this does for BVR</a></li>
+    <li><a href="#risks">Risks and what to prototype first</a></li>
+  </ol>
+</nav>
+
+<section id="why">
+<h2>The current optim asks the user to learn a graph before writing one cost</h2>
+<p>To solve IK with one custom cost today, a user needs 9 or 10 concepts: <code>Variable</code>,
+<code>RobotVariable</code>, <code>Residual</code> with a fixed <code>dim</code>, <code>Node</code> and its
+lifetime rules, <code>Problem</code>, weights, a linearization mode, an optimizer class. A scalar loss
+must be wrapped so it looks like a residual. To use Adam, the cost goes through a wrapper that keeps
+its own hidden parameters.</p>
+<p>BVR shows what users write when left alone: a 193-line engine with named tensors, costs as
+functions that return a number, values shared between costs and computed once, and stages that set a
+weight per cost. That engine is the real specification. The proposal keeps its shape and adds what
+it lacks: least-squares solvers, manifolds, Jacobians, batching.</p>
+</section>
+
+<section id="layers">
+<h2>Three thin layers; most users touch only the middle one</h2>
+<figure>
+<svg viewBox="0 0 460 300" role="img" aria-labelledby="o1" style="max-width:520px">
+  <title id="o1">The three layers of the proposed optim package</title>
+  <g font-size="13">
+    <rect class="box" x="4" y="8" width="452" height="80" rx="4"/>
+    <text x="16" y="30" font-weight="600">Solvers and phases</text>
+    <text x="16" y="50">LM, Gauss-Newton, batched L-BFGS, any torch.optim class</text>
+    <text x="16" y="70">Phase: weights, free mask, solver, iterations, hook</text>
+    <rect class="hot" x="4" y="108" width="452" height="80" rx="4"/>
+    <text x="16" y="130" font-weight="600">Problem</text>
+    <text x="16" y="150">named tensors + terms (residual or scalar) + cached values</text>
+    <text x="16" y="170">gives: loss(x), grad(x), linearize(x), retract(x, dx)</text>
+    <rect class="box" x="4" y="208" width="452" height="80" rx="4"/>
+    <text x="16" y="230" font-weight="600">Functions</text>
+    <text x="16" y="250">jacobian(fn, x), manifolds, robust kernels,</text>
+    <text x="16" y="270">dense and block-banded linear solvers, check_jacobian</text>
+    <path class="line" d="M230 88 V108 M230 188 V208"/>
+  </g>
+</svg>
+<figcaption>Figure 1. A solver only ever calls the four methods of <code>Problem</code> in the middle box. That is the whole interface for writing a new one.</figcaption>
+</figure>
+
+<p>Five ideas to learn:</p>
+<ol>
+  <li><strong>Problem.</strong> A dict of named tensors to optimize, each with leading batch axes.</li>
+  <li><strong>Term.</strong> A plain function. Its argument names say what it reads. It is a <em>residual</em>
+  (returns a vector; usable by least-squares solvers) or a <em>scalar</em> (returns a loss; usable by gradient solvers).</li>
+  <li><strong>Manifold.</strong> Only when a variable is not a plain vector: rotations, poses, robot configurations.</li>
+  <li><strong>Solver.</strong> Two functions, <code>init</code> and <code>step</code>.</li>
+  <li><strong>Phase.</strong> A stage of a fit: which weights, which variables are free, which solver, how long.</li>
+</ol>
+<p>Each variable also declares its axes: independent batch axes, an optional time axis, or shared
+across time (body shape). Solvers keep batch elements independent and couple along time.</p>
+<p>Robust kernels, bounds, weights and shared values are keyword arguments, not new concepts.
+<code>P.loss(x)</code> is an ordinary differentiable number, so a hand-written
+<code>torch.optim</code> loop works on it with no adapter at all.</p>
+</section>
+
+<section id="cases">
+<h2>The four use cases, written in the proposed API</h2>
+<p>These are sketches of the target, not running code. Names may change.</p>
+
+<h3>Plain least squares</h3>
+<pre><code>P = optim.Problem({"p": torch.zeros(3)})
+P.residual("fit", lambda p: model_fn(t, p) - y)
+p = optim.solve(P, optim.LM(), iters=50).x["p"]</code></pre>
+
+<h3>1. Staged human motion fit (BVR)</h3>
+<pre><code>P = optim.Problem({"q": q0, "betas": b0, "f": f0},
+                  manifolds={"q": RobotManifold(body.model)},
+                  bounds={"f": (0.0, None)})          # contact forces stay positive
+
+@P.cached                                            # computed once per evaluation
+def posed(q, betas): return body.forward(betas, q)
+
+P.scalar("reproj",  lambda posed: robust.gm(cam.project(posed.joints) - kp2d, conf))
+P.scalar("chamfer", lambda posed: scene.chamfer(posed.markers, depth))
+P.residual("prior", lambda q: prior.pose(q, q0))
+P.residual("smooth", temporal.diff("q", order=2))    # banded Jacobian over time
+
+g = P.manifolds["q"].groups
+plan = [optim.Phase("root",   W[0], optim.Adam(lr=1e-2), 150, free={"q": g.root}),
+        optim.Phase("full",   W[1], optim.Adam(lr=1e-2), 300, on_start=build_scene),
+        optim.Phase("polish", W[1], optim.LBFGS(), 30),
+        optim.Phase("kindyn", W[3], optim.LM(scale_columns=True), 150)]
+result = optim.run(P, plan, log=optim.log_terms())</code></pre>
+
+<h3>2. Batched robot IK with a custom cost</h3>
+<pre><code>P = tasks.ik_problem(model, targets, q0=q0.expand(4096, -1))   # returns an open Problem
+P.residual("elbow_up", lambda q: torch.relu(-q[..., 3:4]), weight=0.1)
+result = optim.solve(P, optim.LM(), iters=30)        # per-problem damping and stop</code></pre>
+
+<h3>3. Human to robot retargeting</h3>
+<pre><code>P = optim.Problem({"q": q_init}, manifolds={"q": RobotManifold(robot)})   # (T, nq)
+@P.cached
+def fk(q): return kinematics.frame_poses(robot, q, frames=robot_keypoints)
+P.residual("keypoints", lambda fk: (fk.position - human_kp * scale).flatten(-2))
+P.residual("velocity",  temporal.diff("q", order=1), weight=0.1)
+P.residual("foot_slide", lambda fk: foot_slide(fk, contact_mask), weight=10.0)
+q = optim.solve(P, optim.LM(), iters=50).x["q"]      # banded solve over time</code></pre>
+
+<h3>4. A differentiable IK layer inside training</h3>
+<pre><code>for batch in loader:
+    target = net(batch.obs)                          # (B, 7), has gradients
+    q_star = optim.solve_layer(P, optim.LM(), iters=20,
+                               params={"target": target}, mode="implicit")
+    task_loss(q_star, batch).backward()</code></pre>
+</section>
+
+<section id="jac">
+<h2>Jacobians: automatic by default, analytic where it pays</h2>
+<p>The Jacobian of a term is a small dict: one block per variable the term reads, in tangent
+coordinates (the minimal coordinates of the manifold, so rotations and floating bases need no
+special handling). Three ways to get a block, tried in this order:</p>
+<ol>
+  <li>The term supplies <code>jac=</code>. Built-in kinematic terms do, because the library already has frame Jacobians.</li>
+  <li>Otherwise reverse-mode automatic differentiation of the term at a zero step on the manifold.</li>
+  <li><code>optim.check_jacobian(term)</code> compares 1 against 2 and against finite differences. It is a test tool, not a solver mode.</li>
+</ol>
+
+<figure>
+<svg viewBox="0 0 460 210" role="img" aria-labelledby="o2" style="max-width:520px">
+  <title id="o2">How term Jacobians become the linear system</title>
+  <g font-size="13">
+    <rect class="box" x="4" y="10" width="130" height="38" rx="4"/><text x="69" y="34" text-anchor="middle">term "pose"</text>
+    <rect class="box" x="4" y="86" width="130" height="38" rx="4"/><text x="69" y="110" text-anchor="middle">term "smooth"</text>
+    <rect class="box" x="4" y="162" width="130" height="38" rx="4"/><text x="69" y="186" text-anchor="middle">scalar "reproj"</text>
+    <rect class="box" x="170" y="10" width="130" height="38" rx="4"/><text x="235" y="34" text-anchor="middle">block (B, 6, nv)</text>
+    <rect class="box" x="170" y="86" width="130" height="38" rx="4"/><text x="235" y="110" text-anchor="middle">stencil block</text>
+    <rect class="box" x="170" y="162" width="130" height="38" rx="4"/><text x="235" y="186" text-anchor="middle">gradient only</text>
+    <rect class="hot" x="336" y="48" width="120" height="114" rx="4"/>
+    <text x="396" y="84" text-anchor="middle" font-weight="600">H and g</text>
+    <text x="396" y="106" text-anchor="middle">dense or</text><text x="396" y="124" text-anchor="middle">block-banded</text>
+    <path class="line" d="M134 29 H170 M134 105 H170 M134 181 H170 M300 29 H318 V86 H336 M300 105 H336 M300 181 H318 V124 H336"/>
+  </g>
+</svg>
+<figcaption>Figure 2. Blocks are added straight into the normal equations. The full Jacobian matrix is never built. Scalar terms contribute their gradient.</figcaption>
+</figure>
+
+<p>Measured in this session on the library's own FK (Panda and a 29-joint humanoid with floating base):</p>
+<div class="table-wrap">
+<table>
+  <thead><tr><th scope="col">Question</th><th scope="col">Result</th></tr></thead>
+  <tbody>
+    <tr><td>Does automatic differentiation work through the current kinematics?</td><td>Yes. Seven variants ran unchanged and agree to 1e-10.</td></tr>
+    <tr><td>How much slower than the analytic Jacobian?</td><td>2 to 5 times on GPU (indicative, shared GPU); up to 11 times on CPU at batch 4096.</td></tr>
+    <tr><td>Which variant should be the default?</td><td>Reverse mode: a pose error has 6 rows and many more columns.</td></tr>
+    <tr><td>Share of a Gauss-Newton step spent on the Jacobian?</td><td>Most of it; a full step is 2.6 to 9.6 times slower with automatic Jacobians.</td></tr>
+  </tbody>
+</table>
+</div>
+<p>So the rule is: user-written terms get automatic Jacobians and work at once; the terms the library
+ships for kinematics carry analytic ones for speed.</p>
+
+<h3>Shared values are computed inside the differentiated call</h3>
+<p>Several terms usually read the same FK result. Two naive designs fail here. If each term is
+differentiated on its own, FK runs once per term. If FK is cached outside the differentiated call,
+the Jacobian through FK comes out as zero without any error. The design therefore linearizes the
+whole problem in one traced evaluation: cached values are pure functions of the variables, computed
+once inside the call, and all automatic terms are differentiated together. Analytic terms have the
+signature <code>jac(values, cache)</code> and read the same cached state. This was measured with one
+term only; a prototype with several terms sharing one FK is the first task of P1.</p>
+
+<details>
+<summary>Details: trajectories, single precision, manifolds, constraints</summary>
+<ul>
+  <li><strong>Trajectories.</strong> A term that declares <code>stencil=(-1, 0, 1)</code> is written for one time window and evaluated on all frames at once. Its blocks give a block-banded system solved in time linear in the number of frames.</li>
+  <li><strong>Single precision.</strong> Normal equations square the condition number. In the prototype a float32 Cholesky failed on a humanoid IK step until damping was raised. Policy: scale columns, keep a damping floor, and allow the linear solve alone to run in float64.</li>
+  <li><strong>Manifolds.</strong> LM and Gauss-Newton step in tangent space and retract. <code>torch.optim</code> optimizes the raw tensor and projects after each step (re-normalizes quaternions), which is what BVR does today.</li>
+  <li><strong>Mixed problems.</strong> Under LM, residual terms build the curvature and scalar terms add their gradient. A free variable that no residual term reads is an error under LM. A phase dominated by scalar terms should use Adam or L-BFGS.</li>
+  <li><strong>L-BFGS.</strong> The batched version uses a fixed-budget backtracking line search per problem. Strong-Wolfe on one coupled problem stays available through <code>torch.optim.LBFGS</code>, which is what BVR uses.</li>
+  <li><strong>Bounds and constraints.</strong> Box bounds by projection after each step. Augmented Lagrangian is a tested recipe with multiplier updates and a convergence check, used for collision and contact in trajectory optimization. General constraints come later.</li>
+  <li><strong>Differentiating through the solution.</strong> <code>mode="implicit"</code> solves one linear system with the last Hessian. It is only valid at a converged solution away from the bounds, so it checks that and falls back to <code>mode="unroll"</code>, which backpropagates through the steps.</li>
+</ul>
+</details>
+</section>
+
+<section id="solver">
+<h2>A new optimizer is about 20 lines</h2>
+<p>A solver is two functions over a state of batch-first tensors. Every problem in the batch has
+its own damping and its own <code>done</code> flag, and nothing inside <code>step</code> waits for the GPU.</p>
+<pre><code>class SimpleLM(optim.Solver):
+    def init(self, prob, x):
+        loss = prob.loss(x)                               # (B,)
+        return optim.State(x, loss, done=torch.zeros_like(loss, dtype=torch.bool),
+                           extra={"lam": torch.full_like(loss, 1e-3)})
+
+    def step(self, prob, st):
+        H, g, _ = prob.linearize(st.x)                    # structured H, g: (B, N)
+        dx = -H.solve(g, damping=st.extra["lam"])
+        x_new = prob.retract(st.x, dx)
+        loss_new = prob.loss(x_new)
+        ok = (loss_new &lt; st.loss) &amp; ~st.done              # accept per problem
+        lam = torch.where(ok, st.extra["lam"] * 0.3, st.extra["lam"] * 10)
+        return optim.State(optim.where(ok, x_new, st.x), torch.where(ok, loss_new, st.loss),
+                           done=st.done | converged(st.loss, loss_new), extra={"lam": lam})</code></pre>
+<p>Today the same job means subclassing a 530-line class and reaching into private members.</p>
+</section>
+
+<section id="not">
+<h2>Left out on purpose</h2>
+<ul>
+  <li>Variable objects, graph harvesting and <code>Node</code> classes. Dicts and names replace them.</li>
+  <li>General sparse linear algebra. Only dense and block-banded systems. Pose-graph problems with loop closures are out of scope.</li>
+  <li>Linearization modes and structure analysis. Structure comes from the <code>stencil</code> a term declares.</li>
+  <li>Riemannian Adam, QP, SQP, DDP.</li>
+  <li>A Schur solve for variables shared by all frames (body shape in a trajectory fit) until a prototype shows it is worth the code. First version: alternate, or leave shape to the gradient phases.</li>
+</ul>
+</section>
+
+<section id="bvr">
+<h2>What this does for BVR, honestly</h2>
+<p>BVR's fit is first-order today: Adam, L-BFGS, robust scalar losses, no least-squares solver
+anywhere. The new layer first replaces its private engine with the same behaviour and adds manifolds,
+axis roles, logging and hooks. Levenberg-Marquardt on its dynamics stage is an experiment, not a
+promise. LM over body shape shared across all frames needs a solve that is deferred (see above).</p>
+<p>Size: the design study estimates about 1,500 lines; the reviewer estimates 2,500 to 3,500 once all
+solvers and the banded solve are in. The commitment is under half of today's 4,019 lines and about 15
+public names instead of 43.</p>
+</section>
+
+<section id="risks">
+<h2>Risks, and the prototypes that retire them</h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th scope="col">Risk</th><th scope="col">Prototype</th></tr></thead>
+  <tbody>
+    <tr><td>LM on BVR's dynamics stage (300 frames, 158 degrees of freedom) is too slow or ill-conditioned.</td><td>Banded build and solve at that size against L-BFGS.</td></tr>
+    <tr><td><code>torch.optim.LBFGS</code> treats a batch as one problem and waits for the GPU each step.</td><td>A batched L-BFGS with a fixed line-search budget.</td></tr>
+    <tr><td>Implicit gradients are wrong when the solver stops early.</td><td>Compare implicit and unrolled gradients at 20 LM iterations.</td></tr>
+    <tr><td>Several terms sharing one FK give wrong or slow Jacobians.</td><td>Three terms on one cached FK: check values against finite differences and count FK calls.</td></tr>
+    <tr><td>Reading variables by argument name hides typos and breaks with <code>partial</code>.</td><td>Fail at registration with the list of known names; keep <code>reads=</code> as the explicit form.</td></tr>
+    <tr><td>Scalar terms under LM stall because curvature ignores them.</td><td>Warn when scalar terms dominate the loss in an LM phase.</td></tr>
+  </tbody>
+</table>
+</div>
+<p>Sources: jaxls (the solver behind pyroki) for terms as functions and tangent-space Jacobians;
+optax and jaxopt for solvers as <code>init</code>/<code>step</code>; Theseus for weights that scale residual
+and Jacobian together; BVR's engine for phases and cached values. External claims were checked
+against current documentation; five were corrected.</p>
+</section>
