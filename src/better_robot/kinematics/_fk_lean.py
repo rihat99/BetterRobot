@@ -101,7 +101,7 @@ def _feature_map(
         return out
 
     for index, (joint, _) in enumerate(rotary):  # R = (I + K²) + sin · K - cos · K²
-        K = _hat(axes[joint])
+        K = _hat(axes[joint] / axes[joint].norm())  # Rodrigues needs a unit axis; builders may pass any length
         bias[slot[joint], :3, :3] += K @ K
         entries[slot[joint]] += [(index, block(K)), (n_rot + index, block(-K @ K))]
     base = 2 * n_rot
@@ -196,26 +196,31 @@ def get_plan(structure: ModelStructure, dtype: torch.dtype, device: torch.device
         object.__setattr__(structure, "_fk_lean_plans", cache)
     key = (dtype, device)
     if key not in cache:
-        cache[key] = build_plan(structure, dtype, device)
+        with torch.inference_mode(False):  # inference tensors in the plan would break later autograd calls
+            cache[key] = build_plan(structure, dtype, device)
     return cache[key]
 
 
 def placement_matrices(values: ModelValues) -> tuple[torch.Tensor, torch.Tensor]:
     """Joint and frame placements as ``4x4`` matrices, ``(..., njoints, 4, 4)`` and ``(..., nframes, 4, 4)``.
 
-    Constant placements are converted once and kept on the (immutable) values object.
-    Placements that require grad, or that are being transformed by ``torch.func``, are
-    converted on every call so each call owns its graph.
+    Constant placements are converted once and kept on the values object; an in-place edit of
+    the tensors invalidates the copy. Placements that require grad, or that are being
+    transformed by ``torch.func``, or calls in inference mode, convert on every call so each
+    call owns its graph.
     """
     joints, frames = values.joint_placements, values.frame_placements
     wrapped = torch._C._functorch.is_functorch_wrapped_tensor
     if joints.requires_grad or frames.requires_grad or wrapped(joints) or wrapped(frames):
         return se3.to_matrix(joints), se3.to_matrix(frames)
+    if torch.is_inference_mode_enabled() or joints.is_inference() or frames.is_inference():
+        return se3.to_matrix(joints), se3.to_matrix(frames)
+    versions = (joints._version, frames._version)
     cached = getattr(values, "_fk_placement_matrices", None)
-    if cached is None:
-        cached = (se3.to_matrix(joints), se3.to_matrix(frames))
+    if cached is None or cached[0] != versions:
+        cached = (versions, se3.to_matrix(joints), se3.to_matrix(frames))
         object.__setattr__(values, "_fk_placement_matrices", cached)
-    return cached
+    return cached[1], cached[2]
 
 
 def lean_core(

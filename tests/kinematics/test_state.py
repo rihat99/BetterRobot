@@ -76,3 +76,29 @@ def test_state_is_differentiable_in_model_values_and_under_torch_func():
     torch.testing.assert_close(state.joint_pose, data.joint_pose_world)
     torch.testing.assert_close(state.frame_translation, data.frame_pose_world[..., :3], atol=1e-14, rtol=0.0)
     assert float((state.frame_translation[1] - state.frame_translation[0]).abs().max()) > 0.05
+
+
+def test_state_review_regressions():
+    """Non-unit joint axis, in-place edit of placements after a call, first call in inference mode."""
+    from better_robot.io import ModelBuilder, build_model
+
+    builder = ModelBuilder("axis")
+    base = builder.add_body("base", mass=1.0)
+    link = builder.add_body("link", mass=1.0)
+    builder.add_revolute("joint", parent=base, child=link, axis=torch.tensor([1.2, 1.6, 0.0]),
+                         origin=torch.tensor([0.1, 0.2, 0.3, 0.0, 0.0, 0.0, 1.0]))
+    model = build_model(builder.finalize(), dtype=torch.float64)
+    q = torch.tensor([[0.7], [-2.1]], dtype=torch.float64)
+    with torch.inference_mode():
+        kinematics.forward_kinematics_state(model, q)
+    state = kinematics.forward_kinematics_state(model, q.clone().requires_grad_(True))
+    state.joint_translation.sum().backward()
+    data = br.forward_kinematics(model, q)
+    rotation = state.joint_rotation
+    torch.testing.assert_close(rotation @ rotation.mT, torch.eye(3, dtype=torch.float64).expand_as(rotation), atol=1e-14, rtol=0.0)
+    torch.testing.assert_close(rotation, so3.to_matrix(data.joint_pose_world[..., 3:]), atol=1e-14, rtol=0.0)
+
+    with torch.no_grad():
+        model.values.joint_placements[-1, 0] += 1.0
+    moved = kinematics.forward_kinematics_state(model, q)
+    torch.testing.assert_close(moved.joint_translation[:, -1, 0], state.joint_translation[:, -1, 0].detach() + 1.0)
