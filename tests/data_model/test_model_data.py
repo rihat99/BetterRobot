@@ -1,5 +1,6 @@
 """Tests for data_model/model.py and data_model/data.py."""
 
+import pytest
 import torch
 
 from better_robot.data_model.model import Model
@@ -115,3 +116,39 @@ def test_data_clone():
     # Mutation of clone should not affect original
     d_clone.q[0] = 99.0
     assert d.q[0] != 99.0
+
+
+def _make_floating_model(dtype: torch.dtype) -> Model:
+    """Free-flyer root plus one revolute joint without position limits."""
+    builder = ModelBuilder("floating")
+    root = builder.add_body("root")
+    link = builder.add_body("link")
+    builder.add_free_flyer_root("root_joint", child=root)
+    builder.add_revolute_z("spin", parent=root, child=link)
+    return build_model(builder.finalize()).to(dtype=dtype)
+
+
+def test_random_configuration_follows_model_dtype():
+    builder = ModelBuilder("root_only")
+    builder.add_free_flyer_root("root_joint", child=builder.add_body("root"))
+    model = build_model(builder.finalize()).to(dtype=torch.float64)
+    assert model.random_configuration().dtype == torch.float64
+
+
+def test_random_configuration_is_finite_for_unlimited_revolute():
+    model = _make_floating_model(torch.float64)
+    assert not torch.isfinite(model.lower_pos_limit[-1])
+    generator = torch.Generator().manual_seed(0)
+    samples = torch.stack([model.random_configuration(generator) for _ in range(32)])
+    assert torch.isfinite(samples).all()
+    assert (samples[:, -1].abs() <= torch.pi).all()
+
+
+def test_random_configuration_rejects_unlimited_prismatic():
+    builder = ModelBuilder("slider")
+    base = builder.add_body("base")
+    link = builder.add_body("link")
+    builder.add_prismatic_z("slide", parent=base, child=link)
+    model = build_model(builder.finalize())
+    with pytest.raises(ValueError, match="slide"):
+        model.random_configuration()

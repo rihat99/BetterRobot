@@ -158,3 +158,50 @@ def test_jr_jrinv_se3_product():
     Jr = tangents.right_jacobian_se3(xi)
     Jr_inv = tangents.right_jacobian_inv_se3(xi)
     assert torch.allclose(Jr @ Jr_inv, torch.eye(6), atol=1e-5)
+
+
+# ───────────── SE3 Jacobians at large rotation angles ────────────────────
+
+def _series_right_jacobian_se3(xi: torch.Tensor, terms: int = 60) -> torch.Tensor:
+    """Reference ``Jr`` from the full power series in float64."""
+    ad = tangents._ad_matrix(xi)
+    result = torch.eye(6, dtype=xi.dtype).expand_as(ad).clone()
+    power = result.clone()
+    for k in range(1, terms):
+        power = power @ ad * (-1.0 / (k + 1))
+        result = result + power
+    return result
+
+
+def _xi_with_angle(theta: float, batch: int = 16) -> torch.Tensor:
+    generator = torch.Generator().manual_seed(0)
+    axis = torch.randn(batch, 3, generator=generator, dtype=torch.float64)
+    axis = axis / axis.norm(dim=-1, keepdim=True)
+    translation = torch.randn(batch, 3, generator=generator, dtype=torch.float64)
+    return torch.cat([translation, theta * axis], dim=-1)
+
+
+@pytest.mark.parametrize("theta", [1e-7, 1e-3, 0.19, 0.21, 1.0, 2.0, 3.0, math.pi, 4.5])
+def test_right_jacobian_se3_exact_at_any_angle(theta):
+    xi = _xi_with_angle(theta)
+    reference = _series_right_jacobian_se3(xi)
+    torch.testing.assert_close(tangents.right_jacobian_se3(xi), reference, atol=1e-10, rtol=0.0)
+    torch.testing.assert_close(
+        tangents.right_jacobian_inv_se3(xi), torch.linalg.inv(reference), atol=1e-9, rtol=0.0
+    )
+
+
+@pytest.mark.parametrize("theta", [1e-4, 0.05, 0.5, 3.0])
+def test_right_jacobian_se3_float32(theta):
+    xi = _xi_with_angle(theta)
+    reference = _series_right_jacobian_se3(xi)
+    result = tangents.right_jacobian_se3(xi.float())
+    assert result.dtype == torch.float32
+    torch.testing.assert_close(result.double(), reference, atol=2e-5, rtol=0.0)
+
+
+@pytest.mark.parametrize("theta", [3.5, 5.0])
+def test_right_jacobian_inv_so3_beyond_pi(theta):
+    omega = _xi_with_angle(theta)[:, 3:]
+    product = tangents.right_jacobian_so3(omega) @ tangents.right_jacobian_inv_so3(omega)
+    torch.testing.assert_close(product, torch.eye(3, dtype=torch.float64).expand_as(product), atol=1e-10, rtol=0.0)

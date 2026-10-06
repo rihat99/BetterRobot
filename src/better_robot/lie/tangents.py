@@ -14,8 +14,6 @@ See ``docs/concepts/lie_and_spatial.md §5``.
 
 from __future__ import annotations
 
-import math
-
 import torch
 
 from .so3 import _taylor_theta2
@@ -132,10 +130,9 @@ def right_jacobian_inv_so3(omega: torch.Tensor) -> torch.Tensor:
     theta2_safe = torch.where(use_taylor, torch.ones_like(theta2), theta2)
     theta = theta2_safe.sqrt()
 
-    cos_t = torch.cos(theta)
-    sin_t = torch.sin(theta)
-    # C_full = 1/theta2 - (1+cos_t) / (2 * theta * sin_t)
-    C_full = 1.0 / theta2_safe.clamp(min=1e-30) - (1.0 + cos_t) / (2.0 * theta * sin_t).clamp(min=1e-30)
+    # (1+cosθ)/sinθ = cot(θ/2): finite and sign-correct for every θ below 2π.
+    half = 0.5 * theta
+    C_full = 1.0 / theta2_safe - torch.cos(half) / (2.0 * theta * torch.sin(half))
     C_taylor = 1.0 / 12.0 + theta2 / 720.0
 
     C = torch.where(use_taylor, C_taylor, C_full)
@@ -184,30 +181,74 @@ def _ad_matrix(xi: torch.Tensor) -> torch.Tensor:
 # ──────────────────────── SE3 Jacobians ──────────────────────────────────
 
 
+def _se3_coupling_block(v: torch.Tensor, w: torch.Tensor) -> torch.Tensor:
+    """Translation-rotation block of the left SE3 Jacobian. ``(..., 3), (..., 3) → (..., 3, 3)``.
+
+    Closed form (Barfoot, *State Estimation for Robotics*, eq. 7.86), exact for
+    every rotation angle; a four-term Taylor series replaces the coefficients
+    below ``θ = 0.2`` where the closed forms cancel.
+    """
+    theta2 = (w * w).sum(dim=-1)
+    use_taylor = theta2 < 0.04
+    theta2_safe = torch.where(use_taylor, torch.ones_like(theta2), theta2)
+    theta = theta2_safe.sqrt()
+    sin_t = torch.sin(theta)
+    cos_t = torch.cos(theta)
+    theta4 = theta2_safe * theta2_safe
+
+    c1_full = (theta - sin_t) / (theta * theta2_safe)
+    c2_full = (theta2_safe + 2.0 * cos_t - 2.0) / (2.0 * theta4)
+    c3_full = (2.0 * theta - 3.0 * sin_t + theta * cos_t) / (2.0 * theta4 * theta)
+    c1_taylor = 1.0 / 6.0 - theta2 * (1.0 / 120.0 - theta2 * (1.0 / 5040.0 - theta2 / 362880.0))
+    c2_taylor = 1.0 / 24.0 - theta2 * (1.0 / 720.0 - theta2 * (1.0 / 40320.0 - theta2 / 3628800.0))
+    c3_taylor = 1.0 / 120.0 - theta2 * (1.0 / 2520.0 - theta2 * (1.0 / 120960.0 - theta2 / 9979200.0))
+    c1 = torch.where(use_taylor, c1_taylor, c1_full)[..., None, None]
+    c2 = torch.where(use_taylor, c2_taylor, c2_full)[..., None, None]
+    c3 = torch.where(use_taylor, c3_taylor, c3_full)[..., None, None]
+
+    V = hat_so3(v)
+    W = hat_so3(w)
+    WV = W @ V
+    VW = V @ W
+    WVW = WV @ W
+    return (
+        0.5 * V
+        + c1 * (WV + VW + WVW)
+        + c2 * (W @ WV + VW @ W - 3.0 * WVW)
+        + c3 * (WVW @ W + W @ WVW)
+    )
+
+
+def _block_upper_triangular(diagonal: torch.Tensor, coupling: torch.Tensor) -> torch.Tensor:
+    """``[[D, C], [0, D]]`` from two ``(..., 3, 3)`` blocks. Returns ``(..., 6, 6)``."""
+    top = torch.cat([diagonal, coupling], dim=-1)
+    bottom = torch.cat([torch.zeros_like(diagonal), diagonal], dim=-1)
+    return torch.cat([top, bottom], dim=-2)
+
+
 def right_jacobian_se3(xi: torch.Tensor) -> torch.Tensor:
     """``Jr(ξ)`` — right Jacobian of the SE3 exp. ``(..., 6) → (..., 6, 6)``.
 
-    Computed via the matrix series:
-        Jr = sum_{k=0}^{N} (-1)^k / (k+1)! * ad(xi)^k
-
-    Truncated at N=9 (error < machine epsilon for ‖xi‖ < 6).
+    Jr = [[Jr_so3(w), Q(-v, -w)],
+          [0,         Jr_so3(w)]]
+    with ``Q`` the closed-form coupling block; exact for every rotation angle.
     """
-    *batch, _ = xi.shape
-    ad = _ad_matrix(xi)  # (..., 6, 6)
-    I6 = torch.eye(6, dtype=xi.dtype, device=xi.device).expand(*batch, 6, 6)
-    result = I6.clone()
-    ad_power = I6.clone()
-    for k in range(1, 10):
-        ad_power = ad_power @ ad
-        coeff = ((-1.0) ** k) / math.factorial(k + 1)
-        result = result + coeff * ad_power
-    return result
+    v = xi[..., :3]
+    w = xi[..., 3:]
+    return _block_upper_triangular(right_jacobian_so3(w), _se3_coupling_block(-v, -w))
 
 
 def right_jacobian_inv_se3(xi: torch.Tensor) -> torch.Tensor:
-    """``Jr^{-1}(ξ)``. This is the kernel used by ``PoseResidual.jacobian``."""
-    Jr = right_jacobian_se3(xi)
-    return torch.linalg.inv(Jr)
+    """``Jr^{-1}(ξ)``. This is the kernel used by ``PoseResidual.jacobian``.
+
+    Jr^{-1} = [[Jr_so3^{-1}, -Jr_so3^{-1} Q Jr_so3^{-1}],
+               [0,           Jr_so3^{-1}]]
+    """
+    v = xi[..., :3]
+    w = xi[..., 3:]
+    rotation_inv = right_jacobian_inv_so3(w)
+    coupling = _se3_coupling_block(-v, -w)
+    return _block_upper_triangular(rotation_inv, -rotation_inv @ coupling @ rotation_inv)
 
 
 def left_jacobian_se3(xi: torch.Tensor) -> torch.Tensor:

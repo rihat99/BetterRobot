@@ -239,10 +239,17 @@ class Model:
             q_index = self.idx_qs[joint_id]
             lower = self.lower_pos_limit[q_index : q_index + joint_nq]
             upper = self.upper_pos_limit[q_index : q_index + joint_nq]
-            parts.append(self.joint_models[joint_id].random_configuration(generator, lower, upper))
+            sample = self.joint_models[joint_id].random_configuration(generator, lower, upper)
+            if not bool(torch.isfinite(sample).all()):
+                raise ValueError(
+                    f"joint '{self.joint_names[joint_id]}' has no finite position limits; "
+                    "set limits before sampling a random configuration"
+                )
+            parts.append(sample)
+        exemplar = self.joint_placements
         if not parts:
-            return torch.zeros(self.nq)
-        return torch.cat(parts, dim=-1)
+            return torch.zeros(self.nq, dtype=exemplar.dtype, device=exemplar.device)
+        return torch.cat(parts, dim=-1).to(dtype=exemplar.dtype, device=exemplar.device)
 
     def create_data(
         self,

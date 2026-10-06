@@ -59,7 +59,9 @@ def _revolute_difference(q0_slice, q1_slice) -> torch.Tensor:
 
 
 def _revolute_random(generator, lower, upper) -> torch.Tensor:
-    """Uniform sample in [lower, upper]."""
+    """Uniform sample in [lower, upper]; a missing limit is replaced by ∓π."""
+    lower = torch.where(torch.isfinite(lower), lower, torch.full_like(lower, -torch.pi))
+    upper = torch.where(torch.isfinite(upper), upper, torch.full_like(upper, torch.pi))
     return lower + (upper - lower) * torch.rand(1, generator=generator)
 
 

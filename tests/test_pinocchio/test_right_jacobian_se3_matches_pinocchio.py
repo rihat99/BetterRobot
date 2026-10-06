@@ -37,3 +37,11 @@ def test_right_jacobian_se3_small_angle():
     xi = torch.zeros(6, dtype=torch.float64)
     Jr = right_jacobian_se3(xi).detach().cpu().double().numpy()
     np.testing.assert_allclose(Jr, np.eye(6), atol=1e-10)
+
+
+@pytest.mark.parametrize("seed", list(range(8)))
+def test_right_jacobian_se3_matches_at_large_angles(seed):
+    xi = _random_xi(seed, magnitude=1.8)
+    Jr_br = right_jacobian_se3(xi).numpy()
+    Jr_pin = pin.Jexp6(pin.Motion(xi[:3].numpy(), xi[3:].numpy()))
+    np.testing.assert_allclose(Jr_br, Jr_pin, atol=1e-9, rtol=1e-7)
