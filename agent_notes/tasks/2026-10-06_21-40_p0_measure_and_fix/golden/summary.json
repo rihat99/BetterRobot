@@ -1,0 +1,55 @@
+{
+ "meta": {
+  "commit": "0953f28",
+  "torch": "2.13.0+cu129",
+  "dtype": "float64",
+  "device": "cpu",
+  "threads": 8
+ },
+ "ik_panda": {
+  "default_spread0.3": {
+   "converged_flag": 0.953125,
+   "position_error_m_median": 0.00040626435098022485,
+   "position_error_m_max": 0.006992204802555136,
+   "frac_below_1e-4_m": 0.0703125,
+   "rotation_error_rad_median": 0.00016524544198995194,
+   "iters_median": 6.0
+  },
+  "default_spread1.0": {
+   "converged_flag": 0.859375,
+   "position_error_m_median": 0.0012418747542228782,
+   "position_error_m_max": 0.6744179806180949,
+   "frac_below_1e-4_m": 0.0078125,
+   "rotation_error_rad_median": 0.0002856764538599351,
+   "iters_median": 19.0
+  },
+  "default_seconds_cpu": 2.26,
+  "no_regularizer_spread0.3": {
+   "converged_flag": 0.9296875,
+   "position_error_m_median": 6.398386750128599e-07,
+   "position_error_m_max": 0.011959422630924872,
+   "frac_below_1e-4_m": 0.9296875,
+   "rotation_error_rad_median": 3.734220292014386e-07,
+   "iters_median": 6.0
+  },
+  "no_regularizer_spread1.0": {
+   "converged_flag": 0.7265625,
+   "position_error_m_median": 2.742706859746533e-06,
+   "position_error_m_max": 0.43575810452598257,
+   "frac_below_1e-4_m": 0.671875,
+   "rotation_error_rad_median": 4.66480131223755e-07,
+   "iters_median": 20.0
+  },
+  "no_regularizer_seconds_cpu": 2.32
+ },
+ "trajopt_panda": {
+  "iters": 9,
+  "converged": true,
+  "linearization_used": "banded",
+  "whitened_residual_norm": 3.669153631784899e-06,
+  "start_position_error_m": 1.772487943264551e-12,
+  "goal_position_error_m": 2.848569294185499e-10,
+  "acceleration_rms": 2.4515564074802186e-07,
+  "seconds_cpu": 0.3
+ }
+}
