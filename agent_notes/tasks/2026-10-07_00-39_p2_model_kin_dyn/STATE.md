@@ -1,4 +1,4 @@
-# STATE — BetterRobot / 2026-10-07_00-39_p2_model_kin_dyn (updated 2026-10-07 02:05 Dubai)
+# STATE — BetterRobot / 2026-10-07_00-39_p2_model_kin_dyn (updated 2026-10-07 02:10 Dubai)
 
 ## Pointers
 - Plan: /home/rikhat.akizhanov/better/dev/BetterRobot/agent_notes/tasks/2026-10-07_00-39_p2_model_kin_dyn/PLAN.md
@@ -28,17 +28,17 @@
 
 ## Done since 01:25
 - Review of lean FK: 3 findings fixed (a0921d1). Warp removed (688efdb) with CPU record. Collision layer +
-  obstacle trajectory example (d79e570). Interim REPORT.md written (same folder). Docs Warp scrub by mars_light
-  (check `git status`; commit if clean).
+  obstacle trajectory example (d79e570). Interim REPORT.md written (same folder). Docs Warp scrub committed (33607d6).
+  Docs still describe a generic "fused implementation" in concepts/architecture.md, why_betterrobot.md,
+  conventions/extension.md, performance.md (no Warp word; owner may want them reworded).
 
 ## Next steps
-1. Commit the docs scrub if the agent left the tree clean (`grep -rni warp docs` should show only history).
-2. Dynamics on KinematicState: RNEA/CRBA/ABA read matrices instead of 7-vector poses; measure with
+1. Dynamics on KinematicState: RNEA/CRBA/ABA read matrices instead of 7-vector poses; measure with
    `benchmarks/run.py --algos rnea,crba,aba` against benchmarks/results/0953f28_cpu.json; P0 found 200-joint
    dynamics backward extremely slow (CRBA fwd+bwd at 4096: 800 s).
-3. Adversarial review of the collision layer (not yet reviewed). Finalize REPORT.md; drop the index line.
-4. Then P3 viewer (new task folder), P4 BetterHuman.
-5. GPU baselines only on a FREE GPU (all BUSY at every check so far).
+2. Adversarial review of the collision layer (not yet reviewed). Finalize REPORT.md; drop the index line.
+3. Then P3 viewer (new task folder), P4 BetterHuman.
+4. GPU baselines only on a FREE GPU (all BUSY at every check so far).
 
 ## Assumptions (made off-hours)
 - Regenerating tests/kinematics/fk_reference.npz is justified by the parser fix; evidence is pinocchio parity at 1e-12.
@@ -46,3 +46,7 @@
 - P0 golden files (IK, trajopt) were recorded with the rounded model; expect differences of about 1e-7.
 - `KinematicState` field names `joint_transform`, `frame_transform`; method `frame_pose_of(frame_id)`.
 - The old kind-group FK in _fk_matrix.py was deleted (replaced, same public functions); it is in git history.
+
+## Compact message
+P2 milestones M1-M5 are committed (last 33607d6): precision, lean FK, Warp removed, collision; interim REPORT.md
+exists. Continue with step 1 of Next steps (dynamics on KinematicState), then review collision, finalize REPORT.md.
