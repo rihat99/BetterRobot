@@ -5,6 +5,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- Removed the Warp lanes (`use_warp`, the `warp` extra, the kernel modules);
+  torch is the only implementation.
 - Joint Jacobians now assemble in one batched shared-column pass instead of a
   per-joint Python loop, cutting kernel launches from ~50 per joint to a
   constant 52 for the whole pass, independent of joint count (203-joint model,

@@ -91,9 +91,6 @@ precondition; none is started without an owner decision.
 - **Residual vectorization.** Grouping structurally identical residual
   instances into one batched evaluation instead of N Python calls. Only
   worthwhile for problems with many small residuals; measure first.
-- **Warp kernels beyond FK and RNEA.** Frame Jacobians, integrate/difference,
-  and whole-formulation kernels; a persistent CUDA-graph-captured solver
-  driver. Each kernel lands only with parity, gradcheck, and timing evidence.
 - **Optimizer extensions.** Matrix-free normal route for trajectories too long
   for banded Cholesky; banded/operator implicit backward; Schur elimination
   for trajectory-plus-shared blocks; batched per-element line-search L-BFGS.

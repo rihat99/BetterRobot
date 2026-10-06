@@ -333,9 +333,7 @@ working dtypes are `float32` and `float64`; lower precision is not part of the
 contract because pose composition and Jacobian formulas accumulate error
 along the tree.
 
-The ordinary Torch pass is the reference implementation. FK also has an
-optional fused Warp lane for eligible CUDA inputs. Both keep the same public
-tensors and are compared for value and gradient parity. See
+The Torch pass is the only implementation. See
 {doc}`the_compute_seam`.
 
 ## Common mistakes

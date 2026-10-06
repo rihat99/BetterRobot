@@ -22,7 +22,6 @@ Optional features have named extras:
 | `io-mjcf` | `mujoco` | MJCF loading |
 | `meshes` | `trimesh` | direct mesh APIs |
 | `demos` | `robot_descriptions` | example robot assets |
-| `warp` | `warp-lang` | opt-in fused FK and RNEA on supported CUDA systems |
 | `dev` | test, docs, lint, type, and benchmark tools | repository development |
 
 `yourdfpy` currently brings in `trimesh` itself. That transitive install
@@ -40,7 +39,7 @@ Then regenerate `uv.lock`, test a core-only installation, and check that
 `import better_robot` does not import an optional runtime.
 
 Optional imports stay near the function that uses them. Importing the package
-must not require a viewer, MJCF parser, example asset package, or Warp.
+must not require a viewer, MJCF parser, or example asset package.
 
 ## Versions
 

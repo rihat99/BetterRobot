@@ -26,8 +26,8 @@ learned priors) lives overwhelmingly in PyTorch, and crossing the JAX–PyTorch 
 loop costs more than either framework's advantages are worth.
 
 The honest cost: eager PyTorch is slow at short serial loops, and a robot-tree sweep is exactly
-that. We pay that cost deliberately and buy it back in two ways — `torch.compile` on the
-reference implementations, and the opt-in fused FK and RNEA lanes where they help (see below).
+that. We pay that cost deliberately and buy it back with `torch.compile` on the
+implementations.
 
 (decision-functional-lie)=
 ## Functional Lie operations, not tensor subclasses
@@ -81,20 +81,9 @@ BetterRobot once had a `backends/` protocol layer that dispatched each small Lie
 an interface, in the hope of swapping implementations later. We deleted it. Per-operation
 dispatch has the wrong granularity for acceleration: no GPU kernel worth writing replaces a single
 quaternion multiply. The unit of architecture is the **whole pass** — the FK sweep, RNEA, a
-residual with its Jacobian — as a plain function: tensors in, tensors out. A pass has a reference
-PyTorch implementation (the correctness oracle, the CPU path, the second-order-gradient path) and
-may have a fused kernel implementation behind the same signature, selected by an explicit
-argument at the call site. No registries, no protocols, no hidden global state.
-
-(decision-warp-kernels)=
-## Warp for kernels, not hand-written CUDA
-
-Where a pass earns a GPU kernel, we write it in
-[NVIDIA Warp](https://nvidia.github.io/warp/stable/index.html) — a Python-syntax kernel language —
-and not in raw CUDA. Raw CUDA can win specialized benchmarks, but it would create a second source
-language and a much larger maintenance surface. We accept that measured performance trade and buy
-back distance with kernel fusion and graph capture. The other boundary we hold: kernels are whole
-passes, never per-op. PyTorch is the truth; Warp is the speed.
+residual with its Jacobian — as a plain function: tensors in, tensors out. A pass has one
+PyTorch implementation, differentiable everywhere (the correctness oracle, the CPU path, the
+second-order-gradient path). No registries, no protocols, no hidden global state.
 
 (decision-own-lm)=
 ## Our own Levenberg–Marquardt, not our own Adam

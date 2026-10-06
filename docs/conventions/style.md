@@ -74,7 +74,7 @@ application boundary, not inside the algorithms.
 - Do not use wildcard imports.
 - Use a short relative import inside one subpackage when it improves clarity;
   otherwise use the package path.
-- Import optional runtimes such as MuJoCo, viser, or Warp inside the owning
+- Import optional runtimes such as MuJoCo or viser inside the owning
   function or behind `TYPE_CHECKING`.
 - Avoid module-level work beyond defining immutable names.
 

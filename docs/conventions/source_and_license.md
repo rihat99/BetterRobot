@@ -49,7 +49,6 @@ not claim that BetterRobot contains their code.
 | Project | Repository license | Requirement before adaptation |
 |---|---|---|
 | [JAXopt](https://github.com/google/jaxopt) | Apache-2.0 | verify the chosen revision and retain applicable notices |
-| [MuJoCo Warp](https://github.com/google-deepmind/mujoco_warp) | Apache-2.0 | verify the chosen revision and retain applicable notices |
 | [Newton](https://github.com/newton-physics/newton) | Apache-2.0 | verify the chosen revision and retain applicable notices |
 | [PyRoki](https://github.com/chungmin99/pyroki) | MIT | retain the MIT notice for adapted material |
 

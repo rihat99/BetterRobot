@@ -1,15 +1,13 @@
 # The Compute Seam
 
-BetterRobot has one public tensor API and more than one possible way to execute
-a complete algorithm. The ordinary Torch implementation is the reference. A
-pass may also have a fused implementation when measurements justify it and
-value, gradient, stream, and fallback behavior are tested.
+BetterRobot has one public tensor API and one way to execute a complete
+algorithm: the Torch implementation. It is the only implementation, and
+`use_compile` is the only optional acceleration.
 
 The seam sits around a **whole pass** such as forward kinematics or inverse
 dynamics. It does not sit around each quaternion multiply or spatial cross
-product. That granularity keeps the public API simple and gives a fused kernel
-enough work to matter. See {ref}`decision-whole-pass` and
-{ref}`decision-warp-kernels`.
+product. That granularity keeps the public API simple and gives
+`torch.compile` enough work to matter. See {ref}`decision-whole-pass`.
 
 ## One shape convention
 
@@ -30,7 +28,7 @@ and outputs preserve the resolved execution batch.
 
 The beginner-facing intuition and GPU example live in
 {doc}`/getting_started/05_batched_gpu`. This chapter explains how the model
-and optional fused passes honor the same contract.
+and the Torch passes honor the same contract.
 
 ## Structure and values cross the seam
 
@@ -41,10 +39,10 @@ A `Model` exposes two internal views:
 - `ModelValues` contains tensors that may need gradients: fixed joint and
   frame placements, inertias, limits, gravity, and related values.
 
-The split serves both execution styles. A Torch pass can loop over Python
-tuples that `torch.compile` can unroll. A device kernel can read flat topology
-tables. Both receive the same differentiable value tensors, so the accelerated
-path does not invent another robot representation.
+The split keeps topology static and values differentiable. A Torch pass can
+loop over Python tuples that `torch.compile` can unroll, and the compiled path
+receives the same differentiable value tensors, so it does not invent another
+robot representation.
 
 Public wrappers validate call inputs against the attached model. Raw passes
 consume the structure/value pair and trust that attachment boundary. This is
@@ -97,7 +95,7 @@ without changing the public convention.
 
 Query tensors and model values can have different but compatible leading
 shapes. Internally, `ExecutionBatch` resolves their right-aligned broadcast
-and flattens the common batch to an execution count `E` for a fused pass.
+and flattens the common batch to an execution count `E`.
 Index maps select which physical query and value row belongs to each execution
 row.
 
@@ -109,14 +107,13 @@ The Torch path follows the same public broadcasting rules without requiring a
 flat representation. `ExecutionBatch` is an implementation ABI, not a new
 shape convention for callers.
 
-## Torch is the reference
+## Torch is the implementation
 
-The Torch pass has three jobs:
+The Torch pass has two jobs:
 
-1. It is the ordinary CPU and GPU implementation.
-2. It is the correctness oracle for any fused lane.
-3. It is the differentiable formula used when an accelerated forward pass
-   does not own a complete derivative implementation.
+1. It is the CPU and GPU implementation.
+2. It is the differentiable formula; ordinary `loss.backward()` differentiates
+   it, so no separate derivative implementation exists.
 
 Eager execution is useful for debugging. Callers may compile a stable raw pass
 with `torch.compile` when their model and workload benefit. BetterRobot does
@@ -127,96 +124,13 @@ model metadata, but a hot path should not turn tensor values into Python
 booleans or numbers. Such a conversion synchronizes an accelerator and can
 freeze data-dependent behavior into a compiled graph.
 
-## The current fused lanes
+## One implementation
 
-Forward kinematics and RNEA have opt-in implementations in
-[NVIDIA Warp](https://nvidia.github.io/warp/stable/index.html). Callers select
-each lane explicitly on its public pass. This CPU example exercises the FK
-selector and verifies reference parity:
-
-```{testcode}
-import contextlib
-import io
-
-from better_robot import forward_kinematics
-
-with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-    data = forward_kinematics(model, q, compute_frames=True, use_warp=True)
-
-same_result = torch.allclose(data.joint_pose_world, fk.joint_pose_world)
-print("selected result matches raw:", bool(same_result))
-```
-
-```{testoutput}
-selected result matches raw: True
-```
-
-For an eligible CUDA model, dtype, and layout, the FK wrapper uses its fused
-operation. RNEA has the same pass-specific `use_warp=True` selector and its
-kernel includes the model's gravity, mimic relationships, and optional
-external forces. Ordinary calls do not select Warp automatically, and there
-is no process-wide compute selector.
-
-An explicit Warp request that cannot use its lane emits a one-shot fallback
-warning that names the reason, then preserves the result by running the Torch
-pass. Unsupported dtype, joint kind, layout, or broadcast materialization
-therefore remains visible without changing numerical semantics. During CUDA
-graph capture, a declined lane raises instead: recording an unexpected Torch
-fallback would make later replay behavior misleading.
-
-Other dynamics passes and the Jacobian passes do not currently have Warp
-implementations. The presence of a seam is not evidence that a second
-implementation exists.
-
-## A functional custom operation
-
-Each fused boundary is a pass-specific `torch.library.custom_op`. Torch owns
-fresh output tensors, Warp views those tensors and the inputs without a copy,
-and the kernel launches on Torch's current CUDA stream.
-
-Caller-owned output buffers are excluded from this boundary. A functional
-operator gives Torch clear aliasing and autograd semantics and can provide a
-FakeTensor shape function for compilation. Mutating an arbitrary output buffer
-would make those responsibilities ambiguous.
-
-## Gradient ownership
-
-The Warp FK and RNEA forward kernels do not also claim ownership of the
-gradient. Their registered autograd formulas recompute the corresponding
-Torch pass and use that graph for the vector-Jacobian product. This costs more
-than a fused hand-written backward, but it has two important properties:
-
-- derivatives of query and differentiable model tensors match the reference;
-- differentiation stays in the same direct Torch formulas as the reference.
-
-Warp views are created without deferred Warp gradients, which avoids two
-systems accumulating into the same input. A future fused backward would need
-its own callers, parity tests, and higher-order policy before replacing this
-clear ownership model.
-
-## Layout and stream rules
-
-Poses remain scalar-last and spatial vectors remain linear-first at the seam.
-The implementation does not reinterpret BetterRobot spatial vectors as
-Warp's differently ordered spatial type.
-
-Supported contiguous pose rows can be viewed directly as Warp transforms. An
-unsupported inner stride falls back to Torch; the public path does not insert
-a hidden `contiguous()` copy. The launch uses Torch's current CUDA stream so
-operations issued on a non-default stream remain correctly ordered.
-
-## CUDA graph capture
-
-The private functional FK operation and the direct FK and RNEA selection paths
-have forward replay coverage under CUDA graphs. Unsupported input during
-capture raises instead of silently recording a different lane into the graph.
-This does not imply that every future fused pass or public wrapper is
-capturable.
-
-That evidence has a deliberate boundary. The public FK and RNEA wrappers are
-not claimed as end-to-end captured solver interfaces, and the Torch-recomputed
-backward is not claimed as a captured hot backward loop. Capture support is
-described only for the paths that are actually tested.
+There is no second lane to select and no process-wide compute selector. The
+only optional acceleration is `use_compile` on `forward_kinematics`, which runs
+the same Torch formulas through a `torch.compile` lane cached per structure.
+Poses remain scalar-last and spatial vectors remain linear-first, and CUDA work
+runs on Torch's current stream.
 
 ## Why workload size matters
 
@@ -225,7 +139,7 @@ On a GPU, host dispatch and kernel launches can cost more than the arithmetic
 for a tiny model or a single query. More GPU cores do not fix that launch-bound
 case; a small CPU solve can be faster.
 
-Fusing a whole pass removes much of that dispatch cost. Conventional GPU
+Compiling a whole pass can remove some of that dispatch cost. Conventional GPU
 batching also pays off once many independent robots or a trajectory horizon
 provide enough parallel tensor work. This is why large batches and
 trajectory-optimization-sized workloads are better GPU candidates than the
@@ -233,32 +147,10 @@ one-joint teaching model in `examples/03_batched_ik.py`. The crossover still
 depends on topology, dtype, hardware, and whether backward work is included,
 so it is a measured property of a workload rather than a package-wide rule.
 
-## When a fused pass is justified
-
-A second implementation is worthwhile only when all of these are true:
-
-1. A real workload shows the whole pass is important.
-2. Fusion can remove enough launches or intermediate traffic to help.
-3. Value parity covers branches, batches, dtypes, and supported joint kinds.
-4. Gradient ownership and fallback behavior are explicit.
-5. Stream, compilation, and capture claims match tests.
-6. Unsupported inputs retain the Torch result rather than changing semantics.
-
-This threshold is intentionally higher than “a kernel can be written.” Raw
-CUDA is rejected because maintaining another source language and derivative
-surface is not justified for this project; the full trade is recorded in
-{ref}`decision-warp-kernels`.
-
 ## What callers should rely on
 
 - Public inputs and outputs are Torch tensors.
-- Leading batch behavior does not depend on the chosen lane.
-- Torch is always the reference and fallback.
-- Lane selection is explicit and pass-specific.
-- A declined explicit request warns once, except during capture where it
-  raises.
-- No fused implementation is implied for a pass unless its public function
-  documents one.
+- Torch is the only implementation.
 - A performance claim is scoped to its measured hardware, dtype, batch, and
   forward/backward workload.
 

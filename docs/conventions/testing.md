@@ -32,26 +32,18 @@ Install the development extras needed by the changed surface, then run:
 UV_CACHE_DIR=/tmp/betterrobot-uv-cache uv run pytest tests/ -q +  -m "not bench and not cuda"
 ```
 
-The manually started non-Warp workflow uses a fresh CPU installation and
-skips the Warp folder plus the one layout test that imports Warp. A close
+The manually started workflow uses a fresh CPU installation. A close
 local equivalent is:
 
 ```bash
 uv sync --extra dev --extra viewer --extra io-mjcf --extra meshes --extra demos
-uv run pytest tests +  --ignore=tests/warp +  --ignore=tests/data_model/test_layout_aliasing.py +  -m "not bench and not cuda"
+uv run pytest tests +  -m "not bench and not cuda"
 ```
 
 Also run `uv lock --check` when project metadata changes and
 `git diff --check` before handing off a patch.
 
 ## Optional runtimes
-
-Warp CPU checks need the `warp` extra:
-
-```bash
-uv sync --extra dev --extra warp
-uv run pytest tests/data_model/test_layout_aliasing.py tests/warp -q +  --ignore=tests/warp/test_fk_cuda.py
-```
 
 CUDA-marked tests require a visible CUDA device and their optional
 dependencies. A skip is not CUDA evidence. Report the GPU model, relevant

@@ -35,7 +35,7 @@ viewer
 | {doc}`kinematics_and_jacobians` | How do joint coordinates determine poses and local motion? |
 | {doc}`dynamics` | How do motion, force, inertia, and acceleration relate? |
 | {doc}`residuals_costs_and_solvers` | How does a desired outcome become a least-squares problem? |
-| {doc}`the_compute_seam` | How do batching, compilation, and the opt-in Warp pass coexist? |
+| {doc}`the_compute_seam` | How do batching and compilation coexist? |
 | {doc}`parsers_and_ir` | How do files and builders become the same model? |
 | {doc}`viewer` | How does visualization stay separate from robot computation? |
 
