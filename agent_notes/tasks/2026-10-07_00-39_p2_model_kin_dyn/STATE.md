@@ -1,4 +1,4 @@
-# STATE — BetterRobot / 2026-10-07_00-39_p2_model_kin_dyn (updated 2026-10-07 02:10 Dubai)
+# STATE — BetterRobot / 2026-10-07_00-39_p2_model_kin_dyn (updated 2026-10-07 02:50 Dubai)
 
 ## Pointers
 - Plan: /home/rikhat.akizhanov/better/dev/BetterRobot/agent_notes/tasks/2026-10-07_00-39_p2_model_kin_dyn/PLAN.md
@@ -32,13 +32,20 @@
   Docs still describe a generic "fused implementation" in concepts/architecture.md, why_betterrobot.md,
   conventions/extension.md, performance.md (no Warp word; owner may want them reworded).
 
+## Done since 02:10
+- M6 dynamics (commit 4503509): one world-frame core `dynamics/_world.py` (support-matrix sums, no joint loops);
+  state API `inverse_dynamics`, `mass_matrix`, `forward_dynamics`, `centroidal_map`, `center_of_mass`; Data API on
+  the same core; ABA = Cholesky on M. Jacobian columns built per real column (no padding). Two float32 leftovers
+  fixed (default gravity, random quaternions); pinocchio dynamics parity now 1e-15, tolerances tightened to 1e-10.
+  Table: subagents/m6_bench_table.txt (batch 1: 2-19x; tree200 CRBA fwd+bwd 4096: 823 s -> 5.4 s; forward at
+  batch 4096 on 1 CPU thread about equal, memory-bound). Full suite: 1782 passed, 1 pre-existing failure.
+- Two mars_aux reviews running: dynamics (context_review_dynamics.md), collision (context_review_collision.md).
+
 ## Next steps
-1. Dynamics on KinematicState: RNEA/CRBA/ABA read matrices instead of 7-vector poses; measure with
-   `benchmarks/run.py --algos rnea,crba,aba` against benchmarks/results/0953f28_cpu.json; P0 found 200-joint
-   dynamics backward extremely slow (CRBA fwd+bwd at 4096: 800 s).
-2. Adversarial review of the collision layer (not yet reviewed). Finalize REPORT.md; drop the index line.
+1. Integrate the two reviews (fix majors, pin with tests), commit.
+2. Finalize REPORT.md (add M6, assumptions), drop the index line, commit.
 3. Then P3 viewer (new task folder), P4 BetterHuman.
-4. GPU baselines only on a FREE GPU (all BUSY at every check so far).
+4. GPU baselines only on a FREE GPU (all BUSY at 02:45 too).
 
 ## Assumptions (made off-hours)
 - Regenerating tests/kinematics/fk_reference.npz is justified by the parser fix; evidence is pinocchio parity at 1e-12.
