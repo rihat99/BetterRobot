@@ -55,5 +55,4 @@ header from `definitions.md`; do not infer a self-hosted runner from a filename.
 | `test_trajopt_sparse_smoke.py` | Normal-suite T=50, one-update dense smoke |
 | `test_mem_watermark.py` | Explicit local/manual peak-memory tracking; not scheduled |
 | `definitions.md` | Hardware header, canonical matrix, timing rules, and evidence status |
-| `baselines/warp_fk_cuda_rtx6000_ada_b*.json` | Measured, fresh-process SMPL FK Warp-vs-compiled-Torch CUDA cases |
 | `baselines/torch_filtered_smpl_b1_rtx6000_ada.json` | Filtered B=1 SMPL FK/RNEA/IK CPU/CUDA eager/compiled evidence; not the complete canonical matrix |

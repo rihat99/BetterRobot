@@ -1035,7 +1035,6 @@ def _definition(args: argparse.Namespace) -> dict[str, object]:
             "compile wrapper creation and lazy compile-plus-first-execution are separate fields"
         ),
         "deferred_cold_costs": {
-            "warp_first_launch": "measured by the separate Warp lane harness",
             "cuda_graph_record": "not implemented by this harness",
         },
     }

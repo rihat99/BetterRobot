@@ -1,4 +1,4 @@
-"""Frozen topology shared by the torch and Warp compute lanes.
+"""Frozen topology shared by the torch compute passes.
 
 ``ModelStructure`` deliberately stores the robot topology twice: Python
 tuples keep the torch lane statically unrollable under ``torch.compile``;

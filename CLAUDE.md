@@ -42,8 +42,7 @@ enforced by `tests/contract/test_layer_dependencies.py`.
 Public wrappers validate shapes, dtype, device, and model attachment. Raw
 tensor passes below them trust validated inputs. `ModelStructure` holds static
 topology, `ModelValues` holds differentiable tensors, and mutable `Data` belongs
-to one query. Torch is the reference implementation. Optional acceleration is
-pass-specific; forward kinematics and RNEA have opt-in Warp lanes.
+to one query. Torch is the only implementation.
 
 ## Numerical contracts
 

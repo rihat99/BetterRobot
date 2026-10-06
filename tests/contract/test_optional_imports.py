@@ -2,7 +2,7 @@
 
 ``yourdfpy`` is a core dependency, but it remains confined to the URDF
 boundary.  The heavy integrations (MuJoCo, mesh rendering, Viser, demos,
-Pinocchio, and Warp) are extras or test-only dependencies and may be
+and Pinocchio) are extras or test-only dependencies and may be
 top-level-imported only by their dedicated boundary modules.  Keeping these
 imports out of the rest of ``src/`` makes ``import better_robot`` independent
 of optional extras and keeps the layered DAG honest.
@@ -27,12 +27,6 @@ RESTRICTED_OPTIONAL = {
     "viser": ("viewer/",),
     "robot_descriptions": (),  # test-only
     "pinocchio": (),  # test-only
-    "warp": (
-        "kinematics/_warp_bridge.py",
-        "kinematics/_warp_kernels.py",
-        "dynamics/_warp_bridge.py",
-        "dynamics/_warp_kernels.py",
-    ),
 }
 
 

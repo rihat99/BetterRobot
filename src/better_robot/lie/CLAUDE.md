@@ -13,7 +13,7 @@ Functional API (no classes). Plain tensors in, plain tensors out.
 
 ## Implementation
 
-The pure-Torch implementations live directly in `so3.py` and `se3.py`; PyPose was removed in P10-D. Shared quaternion, matrix, hat, and Taylor-cutoff primitives live in `so3.py` and are imported by `se3.py` or `tangents.py` as needed. There is no runtime dispatch here: an optional Warp optimisation replaces a complete FK/RNEA-style pass at that pass's integration boundary, not individual Lie primitives.
+The pure-Torch implementations live directly in `so3.py` and `se3.py`; PyPose was removed in P10-D. Shared quaternion, matrix, hat, and Taylor-cutoff primitives live in `so3.py` and are imported by `se3.py` or `tangents.py` as needed. There is no runtime dispatch here.
 
 ## Numerics
 

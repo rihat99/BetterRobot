@@ -31,7 +31,7 @@ public v0.7 result.
   returned configurations. Report success count and both error distributions;
   throughput without success is invalid.
 - BetterRobot configurations: public eager Torch is the required baseline.
-  A compiled/Warp/graph "best approved" result may be added only for features
+  A compiled/graph "best approved" result may be added only for features
   already accepted on that device/dtype; list every enabled lane. Tuned and
   default configurations are separate rows.
 

@@ -3,7 +3,7 @@
 ## Entry Points
 
 - `forward_kinematics_state(model, q)` — immutable `KinematicState` of `[R | p]` matrices; `frame_jacobian(model, state, frame, reference=...)` reads it
-- `forward_kinematics(model, q_or_data, compute_frames=False, use_warp=False, use_compile=False)` — selects one whole FK pass, fills `joint_pose_world` (and `frame_pose_world` if `compute_frames=True`)
+- `forward_kinematics(model, q_or_data, compute_frames=False, use_compile=False)` — selects one whole FK pass, fills `joint_pose_world` (and `frame_pose_world` if `compute_frames=True`)
 - `forward_kinematics_raw(structure, values, q)` — pure Torch pass returning a named `FKResult`
 - `frame_placements_raw(structure, values, joint_pose_world)` — pure frame-table pass returning a named result
 - `joint_jacobians_raw(structure, q, joint_pose_world)` — sequencing-free Jacobian pass returning a named result
@@ -91,12 +91,8 @@ meaningless radial placement gradient). Everything stays autograd- and
 
 `use_compile=True` routes the raw pass through a `torch.compile`d callable
 cached per `ModelStructure` (`dynamic=True`, so batch size varies without a
-per-size recompile; first use pays a multi-second compile). `use_warp=True`
-opts into the CUDA-validated fused whole-pass Warp lane; **`use_warp` wins**
-over `use_compile`. Unsupported Warp runtime, kind, dtype, or layout cases fall
-back to the eager Torch raw pass with a one-shot warning; a decline during CUDA
-graph capture raises. There is no per-Lie-operation or process-global compute
-selection.
+per-size recompile; first use pays a multi-second compile). There is no
+per-Lie-operation or process-global compute selection.
 
 ## Jacobian Hot Path
 

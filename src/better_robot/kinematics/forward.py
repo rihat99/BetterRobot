@@ -11,7 +11,6 @@ See ``docs/concepts/kinematics_and_jacobians.md``.
 from __future__ import annotations
 
 from dataclasses import dataclass
-import warnings
 
 import torch
 
@@ -34,20 +33,6 @@ from . import _fk_matrix
 
 #: Tolerance used by the opt-in free-flyer quaternion debug check.
 _QUAT_NORM_TOL = 0.1
-_WARNED_WARP_FALLBACKS: set[str] = set()
-
-
-def _warn_warp_fallback(reason_key: str, reason: str) -> None:
-    """Warn once when an explicit Warp FK request uses the Torch lane."""
-
-    if reason_key in _WARNED_WARP_FALLBACKS:
-        return
-    _WARNED_WARP_FALLBACKS.add(reason_key)
-    warnings.warn(
-        f"better_robot: use_warp=True requested the Warp FK lane, but {reason}; using the Torch FK lane instead.",
-        RuntimeWarning,
-        stacklevel=3,
-    )
 
 
 @dataclass(frozen=True)
@@ -170,7 +155,6 @@ def forward_kinematics(  # noqa: PLR0912 - validates and routes one public FK re
     *,
     compute_frames: bool = False,
     check_quaternion_norm: bool = False,
-    use_warp: bool = False,
     use_compile: bool = False,
 ) -> Data:
     """Compute joint (and optionally frame) placements.
@@ -189,18 +173,11 @@ def forward_kinematics(  # noqa: PLR0912 - validates and routes one public FK re
         one and raise :class:`~better_robot.exceptions.QuaternionNormError`
         otherwise.  This opt-in debug check synchronizes accelerator tensors;
         the default hot path assumes free-flyer quaternions are pre-normalized.
-    use_warp : bool
-        Opt into the CUDA-validated fused Warp FK lane when the optional ``warp``
-        extra, joint kinds, dtype, and layout are supported. Unsupported
-        inputs use the torch lane and emit a one-shot warning naming the
-        reason.
     use_compile : bool
         Opt into a ``torch.compile``d Torch FK lane, cached per model on first
         use. The first call pays a multi-second compilation; later calls reuse
         the cached callable, and ``dynamic=True`` lets the batch size vary
-        without a recompile. Precedence: ``use_warp`` wins — when it is set the
-        Warp lane runs and ``use_compile`` has no effect (a Warp fallback uses
-        the eager Torch lane).
+        without a recompile.
     Returns
     -------
     Data
@@ -216,7 +193,7 @@ def forward_kinematics(  # noqa: PLR0912 - validates and routes one public FK re
         q = q_or_data
         data = None
 
-    # Validate exactly once at the public boundary. The raw torch, Warp, and
+    # Validate exactly once at the public boundary. The raw torch and
     # frame passes below trust these inputs. Keep the tensor-to-Python norm
     # check opt-in so the default path is sync-free.
     _validate_q(model.structure, model.values, q)
@@ -236,43 +213,17 @@ def forward_kinematics(  # noqa: PLR0912 - validates and routes one public FK re
     data.q = q
     if check_quaternion_norm:
         _validate_free_flyer_quaternion_norm(model, q)
-    warp_result = None
-    if use_warp:
-        try:
-            from ._warp_bridge import try_warp_forward_kinematics  # noqa: PLC0415
-        except ModuleNotFoundError as error:
-            if error.name != "warp":
-                raise
-            if q.is_cuda and torch.cuda.is_current_stream_capturing():
-                raise RuntimeError(
-                    "better_robot: Warp FK cannot fall back to the Torch lane while CUDA "
-                    "graph capture is active because the optional Warp runtime is unavailable. "
-                    "Install the Warp extra before capture, or disable graph capture."
-                ) from error
-            _warn_warp_fallback(
-                "optional-runtime",
-                "the optional Warp runtime is unavailable",
-            )
-        else:
-            warp_result = try_warp_forward_kinematics(model.structure, model.values, q)
-    if warp_result is None:
-        if use_compile and not use_warp:
-            joint_pose_world, joint_pose_local = _fk_matrix.matrix_forward_compiled(
-                model.structure, model.values, q
-            )
-        else:
-            fk_result = forward_kinematics_raw(model.structure, model.values, q)
-            joint_pose_world = fk_result.joint_pose_world
-            joint_pose_local = fk_result.joint_pose_local
+    if use_compile:
+        joint_pose_world, joint_pose_local = _fk_matrix.matrix_forward_compiled(model.structure, model.values, q)
     else:
-        joint_pose_world, joint_pose_local = warp_result.world, warp_result.local
+        fk_result = forward_kinematics_raw(model.structure, model.values, q)
+        joint_pose_world = fk_result.joint_pose_world
+        joint_pose_local = fk_result.joint_pose_local
     data.joint_pose_world = joint_pose_world
     data.joint_pose_local = joint_pose_local
     object.__setattr__(data, "_kinematics_level", KinematicsLevel.PLACEMENTS)
 
-    if compute_frames and warp_result is not None:
-        data.frame_pose_world = warp_result.frames
-    elif compute_frames:
+    if compute_frames:
         data.frame_pose_world = frame_placements_raw(
             model.structure,
             model.values,
