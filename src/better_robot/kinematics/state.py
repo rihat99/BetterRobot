@@ -1,6 +1,6 @@
 """Immutable forward-kinematics result and the functions that consume it.
 
-``forward`` returns a frozen :class:`KinematicState`; ``frame_jacobian`` reads it.
+``forward_kinematics_state`` returns a frozen :class:`KinematicState`; ``frame_jacobian`` reads it.
 This is the interface new code is written against. It currently wraps the
 ``Data``-based passes; consumers should use the rotation / translation
 accessors, which stay valid when the storage changes from poses to matrices.
@@ -18,7 +18,7 @@ from ..lie import so3
 from .forward import forward_kinematics
 from .jacobian import frame_jacobian_raw
 
-__all__ = ["KinematicState", "forward", "frame_jacobian"]
+__all__ = ["KinematicState", "forward_kinematics_state", "frame_jacobian"]
 
 
 @dataclass(frozen=True)
@@ -50,7 +50,7 @@ class KinematicState:
         return so3.to_matrix(self.frame_pose[..., 3:])
 
 
-def forward(model: Model, q: torch.Tensor) -> KinematicState:
+def forward_kinematics_state(model: Model, q: torch.Tensor) -> KinematicState:
     """Forward kinematics. ``q: (B..., nq)`` → :class:`KinematicState` of joints and frames."""
     data = forward_kinematics(model, q, compute_frames=True)
     return KinematicState(q=data.q, joint_pose=data.joint_pose_world, frame_pose=data.frame_pose_world)

@@ -23,11 +23,11 @@ from .jacobian import (
     joint_jacobians_raw,
     joint_jacobians_time_variation_raw,
 )
-from .state import KinematicState, forward, frame_jacobian
+from .state import KinematicState, forward_kinematics_state, frame_jacobian
 
 __all__ = [
     "KinematicState",
-    "forward",
+    "forward_kinematics_state",
     "frame_jacobian",
     "forward_kinematics",
     "forward_kinematics_raw",

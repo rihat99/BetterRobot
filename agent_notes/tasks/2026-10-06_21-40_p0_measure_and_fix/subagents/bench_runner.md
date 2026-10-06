@@ -16,3 +16,9 @@ Script: /home/rikhat.akizhanov/better/dev/BetterRobot/benchmarks/run.py (new fil
   the comparison will be in scratchpad summary.txt (written by scratchpad summarize.py run1 run2).
 - Added `--max-call-s` (default 20): skips larger batches of an (algo, model, mode) after one call exceeds it, and records that in the row's error field.
 - crba tree200 forward_backward: 0.86 s at B=64, 26.3 s at B=256 (superlinear). Profiler prints "gpuGetDeviceCount failed" to stderr under CUDA_VISIBLE_DEVICES="" (harmless).
+
+## Correction after hand-back
+- The rerun chain (run 1 with --max-call-s, then run2_cpu.json, then summarize.py) exited with code 144 (killed). The hand-back said
+  it was still running; that was wrong. run2_cpu.json and summary.txt probably do not exist. The ops-reproducibility check was NOT done.
+- To finish: rerun `CUDA_VISIBLE_DEVICES="" uv run python benchmarks/run.py --device cpu --out benchmarks/results/run2_cpu.json`,
+  then `uv run python <scratchpad>/summarize.py benchmarks/results/0953f28_cpu.json benchmarks/results/run2_cpu.json`.

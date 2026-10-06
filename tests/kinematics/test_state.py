@@ -1,4 +1,4 @@
-"""``kinematics.forward`` / ``frame_jacobian`` agree with the ``Data``-based API and with autograd."""
+"""``kinematics.forward_kinematics_state`` / ``frame_jacobian`` agree with the ``Data``-based API and with autograd."""
 
 import pytest
 import torch
@@ -16,7 +16,7 @@ def test_state_matches_data_api_and_autograd():
     q = torch.stack([model.random_configuration(generator) for _ in range(4)])
     frame = "body_panda_hand"
 
-    state = kinematics.forward(model, q)
+    state = kinematics.forward_kinematics_state(model, q)
     data = br.forward_kinematics(model, q, compute_frames=True)
     torch.testing.assert_close(state.joint_pose, data.joint_pose_world)
     torch.testing.assert_close(state.frame_pose, data.frame_pose_world)
@@ -28,7 +28,7 @@ def test_state_matches_data_api_and_autograd():
     torch.testing.assert_close(jacobian, br.get_frame_jacobian(model, data, model.frame_id(frame)))
     frame_id = model.frame_id(frame)
     position_jacobian = torch.autograd.functional.jacobian(
-        lambda x: kinematics.forward(model, x).frame_translation[:, frame_id].sum(0), q
+        lambda x: kinematics.forward_kinematics_state(model, x).frame_translation[:, frame_id].sum(0), q
     )  # (3, 4, nq); Panda has nq == nv
     # The URDF parser rounds placements to float32, so their quaternions are off unit norm by ~1e-7;
     # the analytic Jacobian and autograd through FK agree only to that level.
