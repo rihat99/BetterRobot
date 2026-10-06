@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from typing import Any
 
 
-class Layer:
+class Layer(ABC):
     """Base class for everything the viewer draws.
 
     A layer owns its preloaded arrays and the viser handles it creates in ``build``. The viewer
@@ -24,13 +25,13 @@ class Layer:
         self.root = ""
         self._handles: list[Any] = []
 
+    @abstractmethod
     def build(self, scene: Any, root: str) -> None:
         """Create the scene nodes under ``root`` (a viser scene path such as ``/scene/robot``)."""
-        raise NotImplementedError
 
+    @abstractmethod
     def set_frame(self, frame: int) -> None:
         """Write frame ``frame`` (already clamped to ``num_frames - 1``) into the existing handles."""
-        raise NotImplementedError
 
     def build_gui(self, gui: Any) -> None:
         """Add per-layer controls to an open GUI folder; nothing by default."""

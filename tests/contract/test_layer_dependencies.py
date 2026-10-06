@@ -182,7 +182,7 @@ def test_no_pypose_imports() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _check_forbidden_import(allowed_file_suffix: str, forbidden_pkg: str) -> list[str]:
+def _check_forbidden_import(allowed_file_suffix: str | tuple[str, ...], forbidden_pkg: str) -> list[str]:
     """Return offenders: files (other than *allowed_file_suffix*) that contain a
     top-level import of *forbidden_pkg*.
     """
@@ -199,11 +199,11 @@ def _check_forbidden_import(allowed_file_suffix: str, forbidden_pkg: str) -> lis
 
 
 def test_only_viser_backend_imports_viser() -> None:
-    """Only ``viewer/renderers/viser_backend.py`` may import viser.
+    """Only the viewer core (``viewer/viewer.py``) and the old ``viser_backend.py`` may import viser.
 
     See ``docs/concepts/viewer.md`` ("Dependency hygiene").
     """
-    offenders = _check_forbidden_import("viser_backend.py", "viser")
+    offenders = _check_forbidden_import(("viser_backend.py", "viewer/viewer.py"), "viser")
     assert not offenders, "non-viser_backend files importing viser:\n  " + "\n  ".join(offenders)
 
 
