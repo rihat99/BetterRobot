@@ -557,7 +557,19 @@ class Problem:
             (block,) = torch.autograd.grad(
                 pulled[:, columns], probe, eye[:, None].expand(-1, batch, -1), is_grads_batched=True, retain_graph=True
             )
-            pieces.append(_Piece(columns.expand(rows, -1), block.permute(1, 2, 3, 0)))
+            block = block.permute(1, 2, 3, 0)  # (B, T_out, m, ns)
+            # An op whose backward is not itself differentiable (a custom Function, a compiled kernel)
+            # silently drops out of the product above, so compare with one ordinary backward pass.
+            weights = rows_by_knot.detach()
+            (plain,) = torch.autograd.grad(rows_by_knot, delta, weights, retain_graph=True)
+            expected = plain[:, columns]
+            got = (block * weights.unsqueeze(-1)).sum((1, 2))
+            if not torch.allclose(got, expected, rtol=1e-3, atol=1e-6 * float(expected.abs().max()) + 1e-30):
+                raise ValueError(
+                    f"term {term.name!r}: the autodiff Jacobian w.r.t. variables without a time axis is wrong, "
+                    "because an operation on that path cannot be differentiated twice. Give the term a `jac`."
+                )
+            pieces.append(_Piece(columns.expand(rows, -1), block))
         for name in sorted(depends & set(self.time)):
             span = self._slices[name]
             knots = self.variables[name].shape[1]

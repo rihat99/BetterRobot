@@ -210,8 +210,8 @@ class TorchOptim:
     manifolds and bounds. ``State.loss`` is the loss before the step (no extra evaluation).
     Adam-like optimizers keep batch elements independent; ``torch.optim.LBFGS`` couples them
     through its line search and treats the batch as one problem.
-    ``scheduler(optimizer)`` may return a ``torch.optim.lr_scheduler`` object; it is stepped
-    once per solver step.
+    ``scheduler(optimizer)`` may return a ``torch.optim.lr_scheduler`` object; its ``step()``
+    is called without arguments once per solver step.
     """
 
     def __init__(

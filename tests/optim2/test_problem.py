@@ -339,3 +339,23 @@ def test_augmented_lagrangian_reaches_the_constrained_optimum():
     torch.testing.assert_close(result.x["x"], expected, atol=1e-7, rtol=0.0)
     assert bool(result.done.all()) and result.history["violation"].shape[1] == 2
     assert "total.shift" not in problem.data and problem.terms["cap"].fn is cap
+    torch.testing.assert_close(result.loss, 0.5 * (expected - a).square().sum(-1), atol=1e-7, rtol=0.0)
+
+
+def test_shared_columns_through_a_once_differentiable_op_fail_loudly():
+    class Once(torch.autograd.Function):
+        @staticmethod
+        def forward(ctx, value):
+            ctx.save_for_backward(value)
+            return value.sin()
+
+        @staticmethod
+        def backward(ctx, grad):
+            with torch.no_grad():
+                return grad * ctx.saved_tensors[0].cos()
+
+    path = torch.linspace(0.1, 1.0, 12, dtype=torch.float64).reshape(1, 4, 3)
+    problem = optim2.Problem({"path": path, "cam": torch.full((1, 3), 0.4, dtype=torch.float64)}, time=("path",))
+    problem.residual("view", lambda path, cam: path.cos() * Once.apply(cam)[:, None], window=1)
+    with pytest.raises(ValueError, match="differentiated twice"):
+        problem.linearize()

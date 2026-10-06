@@ -46,7 +46,8 @@ def solve_constrained(
     ``½ ρ ‖c + λ/ρ‖²``, then updates the multipliers ``λ``. The penalty ``ρ`` (per batch
     element, starting at ``penalty``) grows by ``growth`` when the violation did not fall
     to a quarter. Stops when the largest violation of every batch element is below
-    ``tolerance``. ``Result.history["violation"]`` is ``(rounds, B)``.
+    ``tolerance``. ``Result.loss`` is the loss of the other terms only;
+    ``Result.history["violation"]`` is ``(rounds, B)``.
     """
     names = [*equalities, *inequalities]
     unknown = [name for name in names if name not in problem.terms or problem.terms[name].kind != "residual"]
@@ -88,7 +89,9 @@ def solve_constrained(
         rho = torch.where(violation > 0.25 * previous, rho * growth, rho)
         previous = violation
     history = {"violation": torch.stack(violations)}
-    return Result(x=current, loss=result.loss, done=violations[-1] < tolerance, iters=total, history=history)
+    with torch.no_grad():
+        loss = problem.with_(weights=dict.fromkeys(names, 0.0)).loss(current)
+    return Result(x=current, loss=loss, done=violations[-1] < tolerance, iters=total, history=history)
 
 
 __all__ = ["solve_constrained"]
