@@ -322,3 +322,20 @@ def test_phase_hooks_scheduler_and_per_knot_free_mask():
     torch.testing.assert_close(result.x["path"][..., 1], path[..., 1])
     torch.testing.assert_close(result.x["path"][..., 0], torch.full((2, 5), 2.0, dtype=torch.float64))
     assert float(problem.data["goal"].max()) == 1.0
+
+
+def test_augmented_lagrangian_reaches_the_constrained_optimum():
+    a = torch.tensor([[0.9, 0.5, 0.2], [-0.4, 0.3, 0.5]], dtype=torch.float64)
+    problem = optim2.Problem({"x": torch.zeros(2, 3, dtype=torch.float64)}, data={"a": a})
+    problem.residual("fit", lambda x, a: x - a)
+    problem.residual("total", lambda x: x.sum(-1, keepdim=True) - 1.0)
+    cap = optim2.TermFn(fn=lambda x: x[:, :1] - 0.2, reads=("x",))
+    problem.residual("cap", cap)
+    result = optim2.solve_constrained(
+        problem, optim2.LevenbergMarquardt(), equalities=("total",), inequalities=("cap",), outer=20, tolerance=1e-9
+    )
+    # Row 0: the cap is active (x0 = 0.2, the rest shares 0.8). Row 1: only the sum constraint acts.
+    expected = torch.tensor([[0.2, 0.55, 0.25], [-0.2, 0.5, 0.7]], dtype=torch.float64)
+    torch.testing.assert_close(result.x["x"], expected, atol=1e-7, rtol=0.0)
+    assert bool(result.done.all()) and result.history["violation"].shape[1] == 2
+    assert "total.shift" not in problem.data and problem.terms["cap"].fn is cap

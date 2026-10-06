@@ -6,6 +6,7 @@ This package knows nothing about robots. Robot terms live in ``better_robot.term
 from __future__ import annotations
 
 from .kernels import Cauchy, GemanMcClure, Huber, Tukey
+from .constrained import solve_constrained
 from .linear import ArrowNormal, BandedNormal, Normal
 from .manifold import Euclidean, Manifold
 from .phases import Phase, Result, run, solve, solve_layer
@@ -35,5 +36,6 @@ __all__ = [
     "check_jacobian",
     "run",
     "solve",
+    "solve_constrained",
     "solve_layer",
 ]
