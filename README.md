@@ -44,8 +44,8 @@ from robot_descriptions import panda_description
 model = br.load(panda_description.URDF_PATH)
 
 # Forward kinematics
-data = br.forward_kinematics(model, model.q_neutral, compute_frames=True)
-T_hand = data.frame_pose_world[model.frame_id("body_panda_hand")]
+state = br.forward_kinematics_state(model, model.q_neutral)
+T_hand = state.frame_pose[model.frame_id("body_panda_hand")]
 
 # Inverse kinematics
 from better_robot.tasks.ik import solve_ik
@@ -95,9 +95,9 @@ The viewer renders URDF meshes with embedded colors (DAE) or URDF material color
 src/better_robot/
   lie/           SE3/SO3 group operations
   spatial/       6D spatial algebra (Motion, Force, Inertia)
-  data_model/    Model (frozen) and Data (workspace)
-  kinematics/    forward_kinematics, Jacobians
-  dynamics/      RNEA, ABA, CRBA, centroidal dynamics
+  data_model/    Model (frozen) and joint models
+  kinematics/    forward_kinematics_state, KinematicState, Jacobians
+  dynamics/      inverse/forward dynamics, mass matrix, centroidal dynamics
   residuals/     Pose, Position, Orientation, Limits, Rest
   costs/         CostStack
   optim/         named-block Problem evaluation plus legacy LM/GN/Adam/L-BFGS

@@ -20,7 +20,6 @@ REQUIRED: frozenset[str] = frozenset(
         "Model",
         "ModelStructure",
         "ModelValues",
-        "Data",
         "Frame",
         "Joint",
         "Body",
@@ -30,20 +29,19 @@ REQUIRED: frozenset[str] = frozenset(
         # lie
         "SE3",
         # kinematics
-        "forward_kinematics",
-        "update_frame_placements",
-        "compute_joint_jacobians",
-        "compute_joint_jacobians_time_variation",
-        "get_joint_jacobian",
-        "get_joint_jacobian_time_variation",
-        "get_frame_jacobian",
-        "get_frame_jacobian_time_variation",
+        "KinematicState",
+        "forward_kinematics_state",
+        "frame_jacobian",
+        "joint_jacobian",
+        "frame_jacobian_time_variation",
+        "joint_jacobian_time_variation",
         # dynamics
-        "rnea",
-        "aba",
-        "crba",
+        "inverse_dynamics",
+        "mass_matrix",
+        "forward_dynamics",
         "center_of_mass",
-        "compute_centroidal_map",
+        "centroidal_map",
+        "centroidal_momentum",
     }
 )
 

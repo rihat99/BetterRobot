@@ -18,21 +18,15 @@ import math
 import pytest
 import torch
 
-from better_robot.exceptions import StaleCacheError
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
-from better_robot.kinematics.forward import forward_kinematics, forward_kinematics_raw
+from better_robot.kinematics.forward import forward_kinematics_raw
 from better_robot.kinematics.jacobian import (
-    compute_joint_jacobians,
-    compute_joint_jacobians_time_variation,
     frame_jacobian_time_variation_raw,
-    get_frame_jacobian,
-    get_frame_jacobian_time_variation,
-    get_joint_jacobian,
-    get_joint_jacobian_time_variation,
     joint_jacobians_raw,
     joint_jacobians_time_variation_raw,
 )
+from better_robot.kinematics import forward_kinematics_state, frame_jacobian, frame_jacobian_time_variation, joint_jacobian, joint_jacobian_time_variation
 
 _REFERENCES = ("world", "local_world_aligned", "local")
 _FD_DT = 1e-3  # fp32 central-difference step
@@ -84,11 +78,10 @@ def _q_v(model):
 
 
 def _static_jacobian(model, q, *, joint_id=None, frame_id=None, reference):
-    data = forward_kinematics(model, q, compute_frames=True)
-    compute_joint_jacobians(model, data)
+    state = forward_kinematics_state(model, q)
     if joint_id is not None:
-        return get_joint_jacobian(model, data, joint_id, reference=reference)
-    return get_frame_jacobian(model, data, frame_id, reference=reference)
+        return joint_jacobian(model, state, joint_id, reference=reference)
+    return frame_jacobian(model, state, frame_id, reference=reference)
 
 
 def _finite_diff_dot(model, q, v, *, joint_id=None, frame_id=None, reference):
@@ -100,11 +93,10 @@ def _finite_diff_dot(model, q, v, *, joint_id=None, frame_id=None, reference):
 
 
 def _getter_dot(model, q, v, *, joint_id=None, frame_id=None, reference):
-    data = forward_kinematics(model, q, compute_frames=True)
-    data.v = v
+    state = forward_kinematics_state(model, q)
     if joint_id is not None:
-        return get_joint_jacobian_time_variation(model, data, joint_id, reference=reference)
-    return get_frame_jacobian_time_variation(model, data, frame_id, reference=reference)
+        return joint_jacobian_time_variation(model, state, v, joint_id, reference=reference)
+    return frame_jacobian_time_variation(model, state, v, frame_id, reference=reference)
 
 
 # ── finite-difference cross-checks ────────────────────────────────────────────
@@ -145,11 +137,9 @@ def test_raw_matches_workspace(chain):
     poses = forward_kinematics_raw(chain.structure, chain.values, q).joint_pose_world
     raw = joint_jacobians_time_variation_raw(chain.structure, q, v, poses)
 
-    data = forward_kinematics(chain, q)
-    data.v = v
-    compute_joint_jacobians_time_variation(chain, data)
-    torch.testing.assert_close(raw.joint_jacobians_dot, data.joint_jacobians_dot)
-    torch.testing.assert_close(raw.joint_jacobians, data.joint_jacobians)
+    state = forward_kinematics_state(chain, q)
+    torch.testing.assert_close(raw.joint_jacobians_dot, torch.stack([joint_jacobian_time_variation(chain, state, v, j, reference="world") for j in range(chain.njoints)], dim=-3))
+    torch.testing.assert_close(raw.joint_jacobians, torch.stack([joint_jacobian(chain, state, j, reference="world") for j in range(chain.njoints)], dim=-3))
 
 
 def test_reuse_path_matches_fresh(chain):
@@ -174,16 +164,6 @@ def test_reuse_path_matches_fresh(chain):
     torch.testing.assert_close(frame_fresh, frame_reused)
 
 
-def test_compute_fills_joint_jacobians_byproduct(chain):
-    q, v = _q_v(chain)
-    data = forward_kinematics(chain, q)
-    data.v = v
-    assert data.joint_jacobians is None
-    compute_joint_jacobians_time_variation(chain, data)
-    assert data.joint_jacobians is not None
-    assert data.joint_jacobians_dot is not None
-
-
 # ── shapes ────────────────────────────────────────────────────────────────────
 
 
@@ -192,11 +172,9 @@ def test_batched_shapes(chain):
     batch = 3
     q_batched = q.unsqueeze(0).expand(batch, -1).clone()
     v_batched = v.unsqueeze(0).expand(batch, -1).clone()
-    data = forward_kinematics(chain, q_batched)
-    data.v = v_batched
-
-    joint_dot = get_joint_jacobian_time_variation(chain, data, chain.joint_id("j3"))
-    frame_dot = get_frame_jacobian_time_variation(chain, data, chain.frame_id("tool"))
+    state = forward_kinematics_state(chain, q_batched)
+    joint_dot = joint_jacobian_time_variation(chain, state, v_batched, chain.joint_id("j3"))
+    frame_dot = frame_jacobian_time_variation(chain, state, v_batched, chain.frame_id("tool"))
     assert joint_dot.shape == (batch, 6, chain.nv)
     assert frame_dot.shape == (batch, 6, chain.nv)
 
@@ -235,25 +213,3 @@ def test_raw_compiles_fullgraph(chain):
 
 
 # ── cache semantics ───────────────────────────────────────────────────────────
-
-
-def test_velocity_reassignment_invalidates_dot(chain):
-    """``data.joint_jacobians_dot`` clears on ``v`` reassignment, survives ``a``."""
-    q, v = _q_v(chain)
-    data = forward_kinematics(chain, q)
-    data.v = v
-    compute_joint_jacobians_time_variation(chain, data)
-    assert data.joint_jacobians_dot is not None
-
-    data.a = torch.zeros_like(v)
-    assert data.joint_jacobians_dot is not None  # a invalidates only accelerations
-
-    data.v = v * 1.1
-    assert data.joint_jacobians_dot is None  # v invalidates the velocity bucket
-
-
-def test_missing_velocity_raises(chain):
-    q, _ = _q_v(chain)
-    data = forward_kinematics(chain, q)
-    with pytest.raises(StaleCacheError):
-        compute_joint_jacobians_time_variation(chain, data)

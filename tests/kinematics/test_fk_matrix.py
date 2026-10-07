@@ -18,8 +18,9 @@ import torch
 
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
-from better_robot.kinematics.forward import forward_kinematics, forward_kinematics_raw
+from better_robot.kinematics.forward import forward_kinematics_raw
 from better_robot.lie import so3
+from better_robot.kinematics import forward_kinematics_state
 
 
 def _pose(x: float = 0.0, y: float = 0.0, z: float = 0.0) -> torch.Tensor:
@@ -151,24 +152,24 @@ def test_matrix_fk_batched_joint_placements_forward_and_grad() -> None:
 
 @pytest.mark.slow
 def test_use_compile_matches_eager() -> None:
-    """The opt-in compiled lane returns the eager result (first call compiles)."""
+    """``torch.compile`` of the state FK returns the eager result (first call compiles)."""
     if getattr(torch, "compile", None) is None:
         pytest.skip("torch.compile is unavailable")
 
     model = _mixed_kind_model()
     q = _random_config(model, batch=(3,), scale=0.8, seed=11)
 
-    eager = forward_kinematics(model, q)
-    compiled = forward_kinematics(model, q, use_compile=True)
+    eager = forward_kinematics_state(model, q)
+    compiled = torch.compile(forward_kinematics_state)(model, q)
     torch.testing.assert_close(
-        compiled.joint_pose_world,
-        eager.joint_pose_world,
+        compiled.joint_pose,
+        eager.joint_pose,
         atol=1e-4,
         rtol=1e-4,
     )
     torch.testing.assert_close(
-        compiled.joint_pose_local,
-        eager.joint_pose_local,
+        compiled.frame_pose,
+        eager.frame_pose,
         atol=1e-4,
         rtol=1e-4,
     )

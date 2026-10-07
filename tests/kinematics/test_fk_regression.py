@@ -90,16 +90,16 @@ def test_fk_matches_oracle(name, loader, reference) -> None:
     expected_joints = reference[f"{name}_joint_pose_world"]
     expected_frames = reference[f"{name}_frame_pose_world"]
     for i in range(qs.shape[0]):
-        data = br.forward_kinematics(model, qs[i], compute_frames=True)
+        state = br.forward_kinematics_state(model, qs[i])
         np.testing.assert_allclose(
-            _sign_align_poses(data.joint_pose_world.detach().cpu().numpy(), expected_joints[i]),
+            _sign_align_poses(state.joint_pose.detach().cpu().numpy(), expected_joints[i]),
             expected_joints[i],
             atol=1e-10,
             rtol=1e-10,
             err_msg=f"{name}: joint pose mismatch at sample {i}",
         )
         np.testing.assert_allclose(
-            _sign_align_poses(data.frame_pose_world.detach().cpu().numpy(), expected_frames[i]),
+            _sign_align_poses(state.frame_pose.detach().cpu().numpy(), expected_frames[i]),
             expected_frames[i],
             atol=1e-10,
             rtol=1e-10,

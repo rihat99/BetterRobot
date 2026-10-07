@@ -83,27 +83,27 @@ def test_preserved_branching_fk_and_rnea_match_default_dfs_model():
     v_default = _remap_by_name(preserved, default, v_preserved, tangent=True)
     a_default = _remap_by_name(preserved, default, a_preserved, tangent=True)
 
-    fk_preserved = br.forward_kinematics(preserved, q_preserved)
-    fk_default = br.forward_kinematics(default, q_default)
+    fk_preserved = br.forward_kinematics_state(preserved, q_preserved)
+    fk_default = br.forward_kinematics_state(default, q_default)
     for body_name in preserved.body_names:
         preserved_id = preserved.body_id(body_name)
         default_id = default.body_id(body_name)
         torch.testing.assert_close(
-            fk_preserved.joint_pose_world[preserved_id],
-            fk_default.joint_pose_world[default_id],
+            fk_preserved.joint_pose[preserved_id],
+            fk_default.joint_pose[default_id],
             rtol=1e-12,
             atol=1e-12,
         )
 
-    tau_preserved = br.rnea(
+    tau_preserved = br.inverse_dynamics(
         preserved,
-        q_preserved,
+        br.forward_kinematics_state(preserved, q_preserved),
         v_preserved,
         a_preserved,
     )
-    tau_default = br.rnea(
+    tau_default = br.inverse_dynamics(
         default,
-        q_default,
+        br.forward_kinematics_state(default, q_default),
         v_default,
         a_default,
     )

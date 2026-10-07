@@ -30,17 +30,16 @@ from better_robot.data_model.joint_models import (
 )
 from better_robot.data_model.joint_models.base import JointModel
 from better_robot.io import ModelBuilder, build_model
-from better_robot.kinematics import forward_kinematics
+from better_robot.kinematics import forward_kinematics_state
 
 
 _IDENTITY = torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
 
 
 def _assert_fk_runs(model) -> None:
-    data = forward_kinematics(model, model.q_neutral)
-    assert data.joint_pose_world is not None
-    assert data.joint_pose_world.shape == (model.njoints, 7)
-    assert torch.isfinite(data.joint_pose_world).all()
+    state = forward_kinematics_state(model, model.q_neutral)
+    assert state.joint_pose.shape == (model.njoints, 7)
+    assert torch.isfinite(state.joint_pose).all()
     assert model.lower_pos_limit.shape == (model.nq,)
     assert model.upper_pos_limit.shape == (model.nq,)
     assert model.velocity_limit.shape == (model.nv,)
@@ -193,12 +192,11 @@ def test_named_helical_preserves_pitch_in_fk():
     model = build_model(builder.finalize())
 
     q = torch.tensor([0.4])
-    data = forward_kinematics(model, q)
+    state = forward_kinematics_state(model, q)
 
     assert isinstance(model.joint_models[2], JointHelical)
     assert model.joint_models[2].pitch == pytest.approx(0.25)
-    assert data.joint_pose_world is not None
-    assert data.joint_pose_world[2, 2].item() == pytest.approx(0.1)
+    assert state.joint_pose[2, 2].item() == pytest.approx(0.1)
 
 
 def test_composite_derives_dimensions_and_runs_fk():
@@ -218,9 +216,8 @@ def test_composite_derives_dimensions_and_runs_fk():
     )
     model = build_model(builder.finalize())
 
-    data = forward_kinematics(model, torch.tensor([0.2, 0.3]))
-    assert data.joint_pose_world is not None
-    assert torch.isfinite(data.joint_pose_world).all()
+    state = forward_kinematics_state(model, torch.tensor([0.2, 0.3]))
+    assert torch.isfinite(state.joint_pose).all()
 
 
 def test_direct_joint_mimic_requires_a_concrete_target_kind():

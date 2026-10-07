@@ -1,4 +1,4 @@
-"""Use RNEA for gravity compensation and verify it with ABA."""
+"""Use inverse dynamics for gravity compensation and verify it with forward dynamics."""
 
 import torch
 
@@ -33,12 +33,13 @@ def run() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     velocity = torch.zeros(model.nv, dtype=torch.float64)
     desired_acceleration = torch.zeros_like(velocity)
 
-    gravity_torque = br.rnea(model, q, velocity, desired_acceleration)
-    recovered_acceleration = br.aba(model, q, velocity, gravity_torque)
+    state = br.forward_kinematics_state(model, q)
+    gravity_torque = br.inverse_dynamics(model, state, velocity, desired_acceleration)
+    recovered_acceleration = br.forward_dynamics(model, state, velocity, gravity_torque)
     round_trip_error = (recovered_acceleration - desired_acceleration).abs().max()
 
     print(f"gravity-compensation torque: {gravity_torque.tolist()}")
-    print(f"ABA round-trip max error: {round_trip_error.item():.3e}")
+    print(f"forward-dynamics round-trip max error: {round_trip_error.item():.3e}")
     return gravity_torque, recovered_acceleration, round_trip_error
 
 

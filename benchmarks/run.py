@@ -33,8 +33,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DTYPE = torch.float32
 ROW_BUDGET_S = 2.0
 WARMUP = 1  # one warm-up call (plan caches); the profiled call is a second warm-up before timing
-# Library Jacobian benchmarked: forward_kinematics + get_frame_jacobian(last frame, "local_world_aligned").
-JACOBIAN_FN = "get_frame_jacobian(model, forward_kinematics(model, q), frame_id=nframes-1)"
+# Library Jacobian benchmarked: forward_kinematics_state + frame_jacobian(last frame, "local_world_aligned").
+JACOBIAN_FN = "frame_jacobian(model, forward_kinematics_state(model, q), frame_id=nframes-1)"
 
 
 def urdf_path(name: str) -> str:
@@ -89,21 +89,21 @@ def algo_fn(algo: str, model: br.Model, inputs: dict[str, torch.Tensor]) -> Call
     """Return ``f(q) -> tensor`` for one library algorithm; v / a / tau are held fixed."""
     v, a, tau = inputs["v"], inputs["a"], inputs["tau"]
     if algo == "fk":
-        return lambda q: br.forward_kinematics(model, q).joint_pose_world
+        return lambda q: forward_kinematics_state(model, q).joint_pose
     if algo == "jacobian":
         frame_id = model.nframes - 1
-        return lambda q: br.get_frame_jacobian(model, br.forward_kinematics(model, q), frame_id)
+        return lambda q: frame_jacobian(model, forward_kinematics_state(model, q), frame_id)
     if algo == "fk_state":
         return lambda q: forward_kinematics_state(model, q).joint_transform
     if algo == "jacobian_state":
         frame_id = model.nframes - 1
         return lambda q: frame_jacobian(model, forward_kinematics_state(model, q), frame_id)
     if algo == "rnea":
-        return lambda q: br.rnea(model, q, v, a)
+        return lambda q: br.inverse_dynamics(model, forward_kinematics_state(model, q), v, a)
     if algo == "crba":
-        return lambda q: br.crba(model, q)
+        return lambda q: br.mass_matrix(model, forward_kinematics_state(model, q))
     if algo == "aba":
-        return lambda q: br.aba(model, q, v, tau)
+        return lambda q: br.forward_dynamics(model, forward_kinematics_state(model, q), v, tau)
     raise ValueError(f"unknown algo {algo!r}")
 
 
@@ -272,7 +272,7 @@ def main() -> None:
                     row = {"algo": algo, "model": model_name, "njoints": model.njoints, "nq": model.nq,
                            "batch": batch, "mode": mode, "impl": "better_robot"}
                     if algo == "jacobian":
-                        row["fn"] = "get_frame_jacobian"
+                        row["fn"] = "frame_jacobian"
                     previous = last_ms.get((algo, mode))
                     if previous is not None and previous[1] > args.max_call_s * 1e3:
                         row["error"] = f"skipped: batch {previous[0]} took {previous[1] / 1e3:.1f} s per call (> --max-call-s)"

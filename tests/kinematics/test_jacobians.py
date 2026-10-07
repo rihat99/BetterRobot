@@ -14,16 +14,14 @@ import torch
 
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.io.build_model import build_model
-from better_robot.kinematics.forward import forward_kinematics, forward_kinematics_raw
+from better_robot.kinematics.forward import forward_kinematics_raw
 from better_robot.kinematics.jacobian import (
-    compute_joint_jacobians,
     frame_jacobian_raw,
-    get_frame_jacobian,
-    get_joint_jacobian,
     joint_jacobians_raw,
 )
 from better_robot.kinematics.state import forward_kinematics_state
 from better_robot.terms import frame_pose
+from better_robot.kinematics import frame_jacobian, joint_jacobian
 
 
 def _id7() -> torch.Tensor:
@@ -84,9 +82,8 @@ def chain():
 
 def test_compute_joint_jacobians_shape(arm):
     q = arm.q_neutral
-    data = forward_kinematics(arm, q)
-    compute_joint_jacobians(arm, data)
-    assert data.joint_jacobians.shape == (arm.njoints, 6, arm.nv)
+    state = forward_kinematics_state(arm, q)
+    assert torch.stack([joint_jacobian(arm, state, j, reference="world") for j in range(arm.njoints)], dim=-3).shape == (arm.njoints, 6, arm.nv)
 
 
 def test_joint_jacobians_raw_matches_workspace_pass(arm):
@@ -97,10 +94,8 @@ def test_joint_jacobians_raw_matches_workspace_pass(arm):
         q,
         fk_result.joint_pose_world,
     )
-    data = forward_kinematics(arm, q)
-    compute_joint_jacobians(arm, data)
-
-    torch.testing.assert_close(raw_result.joint_jacobians, data.joint_jacobians)
+    state = forward_kinematics_state(arm, q)
+    torch.testing.assert_close(raw_result.joint_jacobians, torch.stack([joint_jacobian(arm, state, j, reference="world") for j in range(arm.njoints)], dim=-3))
 
 
 def test_joint_jacobian_plan_rebuilds_after_to(chain):
@@ -113,20 +108,20 @@ def test_joint_jacobian_plan_rebuilds_after_to(chain):
     from better_robot.kinematics import _jacobian_columns  # noqa: PLC0415
 
     q = chain.q_neutral
-    data = forward_kinematics(chain, q)
-    compute_joint_jacobians(chain, data)
+    poses = forward_kinematics_state(chain, q).joint_pose
+    reference = joint_jacobians_raw(chain.structure, q, poses).joint_jacobians
     assert getattr(chain.structure, "_joint_jacobian_plan", None) is not None
 
     moved = chain.to()
     assert getattr(moved.structure, "_joint_jacobian_plan", None) is None
 
-    moved_data = forward_kinematics(moved, moved.q_neutral)
-    compute_joint_jacobians(moved, moved_data)
+    moved_poses = forward_kinematics_state(moved, moved.q_neutral).joint_pose
+    moved_jacobians = joint_jacobians_raw(moved.structure, moved.q_neutral, moved_poses).joint_jacobians
     plan = _jacobian_columns.get_plan(moved.structure)
     device = moved.structure.idx_vs_full_tensor.device
     assert plan.column_subspace.device == device
     assert plan.support_mask.device == device
-    torch.testing.assert_close(moved_data.joint_jacobians, data.joint_jacobians)
+    torch.testing.assert_close(moved_jacobians, reference)
 
 
 @pytest.mark.parametrize("reference", ("world", "local_world_aligned", "local"))
@@ -142,9 +137,8 @@ def test_frame_jacobian_raw_matches_workspace_pass(arm, reference):
         frame_id,
         reference=reference,
     )
-    data = forward_kinematics(arm, q)
-    compute_joint_jacobians(arm, data)
-    expected = get_frame_jacobian(arm, data, frame_id, reference=reference)
+    state = forward_kinematics_state(arm, q)
+    expected = frame_jacobian(arm, state, frame_id, reference=reference)
     torch.testing.assert_close(actual, expected)
 
 
@@ -161,12 +155,11 @@ def test_get_joint_jacobian_matches_coincident_frame(arm, chain, reference):
         q = model.q_neutral.clone()
         for index in range(model.nv):
             q[index] = 0.3 * (index + 1)
-        data = forward_kinematics(model, q, compute_frames=True)
-        compute_joint_jacobians(model, data)
+        state = forward_kinematics_state(model, q)
         frame_id = model.frame_id(frame_name)
         joint_id = model.structure.frame_parent_joints[frame_id].item()
-        J_joint = get_joint_jacobian(model, data, joint_id, reference=reference)
-        J_frame = get_frame_jacobian(model, data, frame_id, reference=reference)
+        J_joint = joint_jacobian(model, state, joint_id, reference=reference)
+        J_frame = frame_jacobian(model, state, frame_id, reference=reference)
         torch.testing.assert_close(J_joint, J_frame)
 
 
@@ -190,26 +183,26 @@ def test_frame_jacobian_raw_compiles_fullgraph(arm):
 
 def test_get_frame_jacobian_shape(arm):
     q = arm.q_neutral
-    data = forward_kinematics(arm, q)
+    state = forward_kinematics_state(arm, q)
     frame_id = arm.frame_id("body_link1")
-    J = get_frame_jacobian(arm, data, frame_id)
+    J = frame_jacobian(arm, state, frame_id)
     assert J.shape == (6, arm.nv)
 
 
 def test_get_frame_jacobian_batched(arm):
     B = 3
     q = arm.q_neutral.unsqueeze(0).expand(B, -1).clone()
-    data = forward_kinematics(arm, q)
+    state = forward_kinematics_state(arm, q)
     frame_id = arm.frame_id("body_link1")
-    J = get_frame_jacobian(arm, data, frame_id)
+    J = frame_jacobian(arm, state, frame_id)
     assert J.shape == (B, 6, arm.nv)
 
 
 def test_chain_jacobian_shape(chain):
     q = chain.q_neutral
-    data = forward_kinematics(chain, q)
+    state = forward_kinematics_state(chain, q)
     frame_id = chain.frame_id("body_l2")
-    J = get_frame_jacobian(chain, data, frame_id)
+    J = frame_jacobian(chain, state, frame_id)
     assert J.shape == (6, chain.nv)  # (6, 2)
 
 
@@ -271,11 +264,11 @@ def panda_model():
 
 def test_panda_frame_jacobian_shape(panda_model):
     q = panda_model.q_neutral
-    data = forward_kinematics(panda_model, q)
+    state = forward_kinematics_state(panda_model, q)
     # Use the panda_hand frame (or first body frame)
     frame_name = "body_panda_hand" if "body_panda_hand" in panda_model.frame_name_to_id else panda_model.frame_names[1]
     frame_id = panda_model.frame_id(frame_name)
-    J = get_frame_jacobian(panda_model, data, frame_id)
+    J = frame_jacobian(panda_model, state, frame_id)
     assert J.shape == (6, panda_model.nv)
 
 

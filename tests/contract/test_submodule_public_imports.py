@@ -145,7 +145,6 @@ SUBMODULE_PATHS: list[tuple[str, str]] = [
     ("better_robot.dynamics", "crba_raw"),
     ("better_robot.dynamics", "ccrba_raw"),
     # data_model
-    ("better_robot.data_model", "KinematicsLevel"),
     # io
     ("better_robot.io", "ModelBuilder"),
     ("better_robot.io", "build_model"),
@@ -155,7 +154,6 @@ SUBMODULE_PATHS: list[tuple[str, str]] = [
     *(("better_robot.terms", name) for name in sorted(TERMS_PUBLIC)),
     *(("better_robot.optim", name) for name in sorted(OPTIM_PUBLIC)),
     # exceptions
-    ("better_robot.exceptions", "StaleCacheError"),
 ]
 
 

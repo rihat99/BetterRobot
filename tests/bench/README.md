@@ -48,7 +48,7 @@ header from `definitions.md`; do not infer a self-hosted runner from a filename.
 |------|---------|
 | `bench_lie.py` | SE3/SO3 compose/exp/log throughput |
 | `bench_forward_kinematics.py` | FK on Panda, batched and unbatched |
-| `bench_jacobian.py` | `compute_joint_jacobians` on Panda |
+| `bench_jacobian.py` | `joint_jacobian` (last joint) on Panda |
 | `bench_integrate_difference.py` | Grouped vs loop manifold operations on a length-200 SMPL-like trajectory |
 | `bench_solve_ik.py` | One-shot Panda IK |
 | `bench_trajopt_sparse.py` | Manifold trajectory dense CPU scaling harness with isolated subprocess RSS; the structured comparison awaits an all-scalar fixture |

@@ -15,8 +15,8 @@ import better_robot as br
 pytestmark = [pytest.mark.bench, pytest.mark.slow]
 
 
-def test_solve_ik_peak_memory(panda, panda_data) -> None:
-    target = panda_data.frame_pose_world[panda.frame_id(panda.frame_names[-1])].clone()
+def test_solve_ik_peak_memory(panda, panda_state) -> None:
+    target = panda_state.frame_pose[panda.frame_id(panda.frame_names[-1])].clone()
     target[..., 0] += 0.02
     before = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     _ = br.solve_ik(panda, {panda.frame_names[-1]: target})

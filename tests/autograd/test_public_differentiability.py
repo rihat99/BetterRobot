@@ -9,13 +9,11 @@ import torch
 
 import better_robot as br
 from better_robot.dynamics import aba_raw, ccrba_raw, crba_raw, rnea_raw
+from better_robot.dynamics.state import center_of_mass
 from better_robot.kinematics import (
-    compute_joint_jacobians,
     frame_jacobian_raw,
     forward_kinematics_raw,
     frame_placements_raw,
-    get_frame_jacobian,
-    get_joint_jacobian,
     joint_jacobians_raw,
 )
 
@@ -79,15 +77,13 @@ def test_fk_and_frame_raw_blocks_reach_q_and_model_values(panda) -> None:
 def test_workspace_fk_and_public_jacobians_reach_q_and_model_values(panda) -> None:
     q = _configuration(panda).requires_grad_()
     model, placements = _placement_model(panda)
-    data = br.forward_kinematics(model, q, compute_frames=True)
-    compute_joint_jacobians(model, data)
-    frame = get_frame_jacobian(model, data, _hand_frame(model))
-    joint = get_joint_jacobian(model, data, model.njoints - 1)
+    state = br.forward_kinematics_state(model, q)
+    frame = br.frame_jacobian(model, state, _hand_frame(model))
+    joint = br.joint_jacobian(model, state, model.njoints - 1, reference="world")
     _assert_gradients(
         _flatten(
-            data.joint_pose_world,
-            data.frame_pose_world,
-            data.joint_jacobians,
+            state.joint_pose,
+            state.frame_pose,
             frame,
             joint,
         ),
@@ -128,37 +124,32 @@ def _dynamics_inputs(model) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
 
 
 def _rnea(model, q, velocity, acceleration, _torque) -> torch.Tensor:
-    return br.rnea(model, q, velocity, acceleration)
+    return br.inverse_dynamics(model, br.forward_kinematics_state(model, q), velocity, acceleration)
 
 
 def _aba(model, q, velocity, _acceleration, torque) -> torch.Tensor:
-    return br.aba(model, q, velocity, torque)
+    return br.forward_dynamics(model, br.forward_kinematics_state(model, q), velocity, torque)
 
 
 def _crba(model, q, _velocity, _acceleration, _torque) -> torch.Tensor:
-    return br.crba(model, q)
-
-
-def _ccrba(model, q, velocity, _acceleration, _torque) -> torch.Tensor:
-    result = br.dynamics.ccrba(model, q, velocity)
-    return _flatten(result.centroidal_map, result.momentum)
+    return br.mass_matrix(model, br.forward_kinematics_state(model, q))
 
 
 def _centroidal_map(model, q, _velocity, _acceleration, _torque) -> torch.Tensor:
-    return br.compute_centroidal_map(model, q)
+    return br.centroidal_map(model, br.forward_kinematics_state(model, q))
 
 
 def _centroidal_momentum(model, q, velocity, _acceleration, _torque) -> torch.Tensor:
-    return br.dynamics.compute_centroidal_momentum(model, q, velocity)
+    return br.centroidal_momentum(model, br.forward_kinematics_state(model, q), velocity)
 
 
-def _center_of_mass(model, q, velocity, _acceleration, _torque) -> torch.Tensor:
-    return br.center_of_mass(model, q, velocity)
+def _center_of_mass(model, q, _velocity, _acceleration, _torque) -> torch.Tensor:
+    return center_of_mass(model, br.forward_kinematics_state(model, q))
 
 
 @pytest.mark.parametrize(
     "entry",
-    (_rnea, _aba, _crba, _ccrba, _centroidal_map, _centroidal_momentum, _center_of_mass),
+    (_rnea, _aba, _crba, _centroidal_map, _centroidal_momentum, _center_of_mass),
 )
 def test_public_dynamics_reaches_q_and_body_inertias(
     panda,

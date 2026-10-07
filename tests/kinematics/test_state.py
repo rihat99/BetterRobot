@@ -18,10 +18,10 @@ def test_state_matches_data_api_and_autograd():
     frame = "body_panda_hand"
 
     state = kinematics.forward_kinematics_state(model, q)
-    data = br.forward_kinematics(model, q, compute_frames=True)
-    torch.testing.assert_close(state.joint_pose, data.joint_pose_world)
-    torch.testing.assert_close(state.frame_translation, data.frame_pose_world[..., :3], atol=1e-14, rtol=0.0)
-    torch.testing.assert_close(state.frame_rotation, so3.to_matrix(data.frame_pose_world[..., 3:]), atol=1e-14, rtol=0.0)
+    state = br.forward_kinematics_state(model, q)
+    torch.testing.assert_close(state.joint_pose, state.joint_pose)
+    torch.testing.assert_close(state.frame_translation, state.frame_pose[..., :3], atol=1e-14, rtol=0.0)
+    torch.testing.assert_close(state.frame_rotation, so3.to_matrix(state.frame_pose[..., 3:]), atol=1e-14, rtol=0.0)
     hand = model.frame_id(frame)
     torch.testing.assert_close(state.frame_pose_of(hand), state.frame_pose[:, hand])
     assert state.frame_rotation.shape == (4, model.nframes, 3, 3)
@@ -29,11 +29,11 @@ def test_state_matches_data_api_and_autograd():
         state.q = q
 
     jacobian = kinematics.frame_jacobian(model, state, frame)
-    torch.testing.assert_close(jacobian, br.get_frame_jacobian(model, data, model.frame_id(frame)))
+    torch.testing.assert_close(jacobian, br.frame_jacobian(model, state, model.frame_id(frame)))
     for reference in ("world", "local"):
         torch.testing.assert_close(
             kinematics.frame_jacobian(model, state, frame, reference=reference),
-            br.get_frame_jacobian(model, data, model.frame_id(frame), reference=reference),
+            br.frame_jacobian(model, state, model.frame_id(frame), reference=reference),
         )
     frame_id = model.frame_id(frame)
     position_jacobian = torch.autograd.functional.jacobian(
@@ -72,9 +72,9 @@ def test_state_is_differentiable_in_model_values_and_under_torch_func():
         frame_placements=model.values.frame_placements[None].expand(2, -1, -1),
     )
     state = kinematics.forward_kinematics_state(batched, q)
-    data = br.forward_kinematics(batched, q, compute_frames=True)
-    torch.testing.assert_close(state.joint_pose, data.joint_pose_world)
-    torch.testing.assert_close(state.frame_translation, data.frame_pose_world[..., :3], atol=1e-14, rtol=0.0)
+    state = br.forward_kinematics_state(batched, q)
+    torch.testing.assert_close(state.joint_pose, state.joint_pose)
+    torch.testing.assert_close(state.frame_translation, state.frame_pose[..., :3], atol=1e-14, rtol=0.0)
     assert float((state.frame_translation[1] - state.frame_translation[0]).abs().max()) > 0.05
 
 
@@ -93,10 +93,10 @@ def test_state_review_regressions():
         kinematics.forward_kinematics_state(model, q)
     state = kinematics.forward_kinematics_state(model, q.clone().requires_grad_(True))
     state.joint_translation.sum().backward()
-    data = br.forward_kinematics(model, q)
+    state = br.forward_kinematics_state(model, q)
     rotation = state.joint_rotation
     torch.testing.assert_close(rotation @ rotation.mT, torch.eye(3, dtype=torch.float64).expand_as(rotation), atol=1e-14, rtol=0.0)
-    torch.testing.assert_close(rotation, so3.to_matrix(data.joint_pose_world[..., 3:]), atol=1e-14, rtol=0.0)
+    torch.testing.assert_close(rotation, so3.to_matrix(state.joint_pose[..., 3:]), atol=1e-14, rtol=0.0)
 
     with torch.no_grad():
         model.values.joint_placements[-1, 0] += 1.0

@@ -83,11 +83,10 @@ def run(label: str, batches: tuple[int, ...], warmup: int, samples: int) -> dict
             q = model.q_neutral.unsqueeze(0).expand(batch, -1).contiguous()
             v = torch.zeros((batch, model.nv), dtype=dtype)
             a = torch.zeros_like(v)
-            data = model.create_data(batch_shape=(batch,), device="cpu", dtype=dtype)
 
             cases: tuple[tuple[str, Callable[[], object]], ...] = (
-                ("forward_kinematics", lambda: br.forward_kinematics(model, q, compute_frames=True)),
-                ("rnea", lambda: br.rnea(model, q, v, a, data=data)),
+                ("forward_kinematics", lambda: br.forward_kinematics_state(model, q)),
+                ("rnea", lambda: br.inverse_dynamics(model, br.forward_kinematics_state(model, q), v, a)),
             )
             for operation, function in cases:
                 measurements.append(

@@ -10,5 +10,6 @@ import better_robot as br
 pytestmark = pytest.mark.bench
 
 
-def test_compute_joint_jacobians_panda(benchmark, panda, panda_data) -> None:
-    benchmark(lambda: br.compute_joint_jacobians(panda, panda_data))
+def test_joint_jacobian_panda(benchmark, panda, panda_state) -> None:
+    joint_id = panda.njoints - 1
+    benchmark(lambda: br.joint_jacobian(panda, panda_state, joint_id, reference="world"))

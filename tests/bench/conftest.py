@@ -23,6 +23,6 @@ def g1():
 
 
 @pytest.fixture
-def panda_data(panda):
+def panda_state(panda):
     q = panda.q_neutral.clone()
-    return br.forward_kinematics(panda, q, compute_frames=True)
+    return br.forward_kinematics_state(panda, q)

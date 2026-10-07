@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
-from dataclasses import FrozenInstanceError
-
 import pytest
 import torch
 
-from better_robot.dynamics import CCRBAResult, aba, ccrba, crba, rnea
+from better_robot.dynamics.state import (
+    centroidal_map,
+    centroidal_momentum,
+    forward_dynamics,
+    inverse_dynamics,
+    mass_matrix,
+)
 from better_robot.exceptions import ShapeError
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
+from better_robot.kinematics import forward_kinematics_state
 
 
 def _pose(x: float = 0.0) -> torch.Tensor:
@@ -52,15 +57,13 @@ def _inertia_batch(model, batch_shape: tuple[int, ...]) -> torch.Tensor:
     return inertias
 
 
-def test_ccrba_returns_frozen_dataclass_fields() -> None:
+def test_centroidal_map_and_momentum_shapes() -> None:
     model = _model()
-    result = ccrba(model, model.q_neutral, torch.zeros(model.nv, dtype=model.q_neutral.dtype))
+    state = forward_kinematics_state(model, model.q_neutral)
+    velocity = torch.zeros(model.nv, dtype=model.q_neutral.dtype)
 
-    assert isinstance(result, CCRBAResult)
-    assert result.centroidal_map.shape == (6, model.nv)
-    assert result.momentum.shape == (6,)
-    with pytest.raises(FrozenInstanceError):
-        result.momentum = torch.zeros_like(result.momentum)
+    assert centroidal_map(model, state).shape == (6, model.nv)
+    assert centroidal_momentum(model, state, velocity).shape == (6,)
 
 
 @pytest.mark.parametrize("batch_shape", ((3,), (2, 2)))
@@ -76,15 +79,17 @@ def test_batched_inertias_match_scalar_dynamics_loop(
     a = torch.tensor([-0.4], dtype=inertias.dtype)
 
     def evaluate(current_model):
-        tau = rnea(current_model, q, v, a)
-        mass = crba(current_model, q)
-        ddq = aba(current_model, q, v, tau)
-        centroidal = ccrba(
-            current_model,
-            q,
-            v,
+        state = forward_kinematics_state(current_model, q)
+        tau = inverse_dynamics(current_model, state, v, a)
+        mass = mass_matrix(current_model, state)
+        ddq = forward_dynamics(current_model, state, v, tau)
+        return (
+            tau,
+            mass,
+            ddq,
+            centroidal_map(current_model, state),
+            centroidal_momentum(current_model, state, v),
         )
-        return tau, mass, ddq, centroidal.centroidal_map, centroidal.momentum
 
     value_batch_loop_oracle(
         lambda: evaluate(rebound),
@@ -93,23 +98,6 @@ def test_batched_inertias_match_scalar_dynamics_loop(
         rtol=2e-10,
         atol=2e-11,
     )
-
-
-def test_dynamics_wrappers_store_the_execution_batch_in_data() -> None:
-    model = _model()
-    inertias = _inertia_batch(model, (2,))
-    rebound = model.with_values(body_inertias=inertias)
-    q = torch.tensor([0.1], dtype=inertias.dtype)
-    v = torch.tensor([0.0], dtype=inertias.dtype)
-    a = torch.tensor([0.2], dtype=inertias.dtype)
-    data = rebound.create_data()
-
-    tau = rnea(rebound, q, v, a, data=data)
-    assert tau.shape == (2, rebound.nv)
-    assert data.q.shape == (2, rebound.nq)
-    assert data.v is not None and data.v.shape == (2, rebound.nv)
-    assert data.a is not None and data.a.shape == (2, rebound.nv)
-    assert data.batch_shape == (2,)
 
 
 def test_batched_inertia_autograd_reaches_leaf() -> None:
@@ -126,7 +114,7 @@ def test_batched_inertia_autograd_reaches_leaf() -> None:
     q = torch.tensor([0.35], dtype=inertias.dtype)
     v = torch.tensor([0.1], dtype=inertias.dtype)
     a = torch.tensor([0.2], dtype=inertias.dtype)
-    tau = rnea(rebound, q, v, a)
+    tau = inverse_dynamics(rebound, forward_kinematics_state(rebound, q), v, a)
     tau.square().sum().backward()
 
     assert delta.grad is not None
@@ -144,4 +132,4 @@ def test_dynamics_value_batch_mismatch_is_an_honest_shape_error() -> None:
         ShapeError,
         match=r"cannot broadcast q batch \(2, 3\) with body_inertias batch \(2,\)",
     ):
-        rnea(rebound, q, v, v)
+        inverse_dynamics(rebound, forward_kinematics_state(rebound, q), v, v)

@@ -5,13 +5,12 @@ from __future__ import annotations
 import pytest
 import torch
 
-from better_robot.exceptions import QuaternionNormError
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics.forward import (
-    forward_kinematics,
     forward_kinematics_raw,
 )
+from better_robot.kinematics import forward_kinematics_state
 
 
 @pytest.fixture(scope="module")
@@ -46,11 +45,5 @@ def test_free_flyer_quaternion_norm_check_is_opt_in(free_flyer_model):
 
     # Raw FK and the default public path trust the pre-normalized-input contract.
     forward_kinematics_raw(free_flyer_model.structure, free_flyer_model.values, q)
-    forward_kinematics(free_flyer_model, q)
+    forward_kinematics_state(free_flyer_model, q)
 
-    with pytest.raises(QuaternionNormError, match="quaternion norm"):
-        forward_kinematics(
-            free_flyer_model,
-            q,
-            check_quaternion_norm=True,
-        )

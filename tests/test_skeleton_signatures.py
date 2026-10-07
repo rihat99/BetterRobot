@@ -15,7 +15,7 @@ import better_robot as br
 # Classes (including dataclasses / protocols / enums)
 EXPECTED_CLASSES = {
     "Model",
-    "Data",
+    "KinematicState",
     "Frame",
     "Body",
     "Joint",
@@ -26,16 +26,17 @@ EXPECTED_CLASSES = {
 # Plain callables / functions
 EXPECTED_CALLABLES = {
     "load",
-    "forward_kinematics",
-    "update_frame_placements",
-    "compute_joint_jacobians",
-    "get_joint_jacobian",
-    "get_frame_jacobian",
-    "rnea",
-    "aba",
-    "crba",
+    "forward_kinematics_state",
+    "frame_jacobian",
+    "joint_jacobian",
+    "frame_jacobian_time_variation",
+    "joint_jacobian_time_variation",
+    "inverse_dynamics",
+    "mass_matrix",
+    "forward_dynamics",
     "center_of_mass",
-    "compute_centroidal_map",
+    "centroidal_map",
+    "centroidal_momentum",
 }
 
 

@@ -15,9 +15,9 @@ from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics.forward import (
     frame_placements_raw,
-    forward_kinematics,
     forward_kinematics_raw,
 )
+from better_robot.kinematics import forward_kinematics_state
 
 
 def _id7() -> torch.Tensor:
@@ -58,19 +58,18 @@ def test_fk_raw_shapes(arm):
 def test_fk_rejects_unsupported_low_precision(arm, dtype):
     low_precision_model = arm.to(dtype=dtype)
     with pytest.raises(DtypeMismatchError, match="unsupported"):
-        forward_kinematics(low_precision_model, low_precision_model.q_neutral)
+        forward_kinematics_state(low_precision_model, low_precision_model.q_neutral)
 
 
 def test_fk_rejects_model_query_dtype_mismatch(arm):
     with pytest.raises(DtypeMismatchError, match="model.dtype"):
-        forward_kinematics(arm, arm.q_neutral.to(torch.float64))
+        forward_kinematics_state(arm, arm.q_neutral.to(torch.float64))
 
 
 def test_fk_data_shapes(arm):
     q = arm.q_neutral
-    data = forward_kinematics(arm, q)
-    assert data.joint_pose_world.shape == (arm.njoints, 7)
-    assert data.joint_pose_local.shape == (arm.njoints, 7)
+    state = forward_kinematics_state(arm, q)
+    assert state.joint_pose.shape == (arm.njoints, 7)
 
 
 def test_fk_batched_shapes(arm):
@@ -127,9 +126,9 @@ def test_revolute_z_rotation(arm):
 
 def test_update_frame_placements_shape(arm):
     q = arm.q_neutral
-    data = forward_kinematics(arm, q, compute_frames=True)
-    assert data.frame_pose_world is not None
-    assert data.frame_pose_world.shape == (arm.nframes, 7)
+    state = forward_kinematics_state(arm, q)
+    assert state.frame_pose is not None
+    assert state.frame_pose.shape == (arm.nframes, 7)
 
 
 def test_frame_placements_raw_matches_public_fk(arm):
@@ -139,17 +138,17 @@ def test_frame_placements_raw_matches_public_fk(arm):
         arm.values,
         fk_result.joint_pose_world,
     )
-    data = forward_kinematics(arm, arm.q_neutral, compute_frames=True)
+    state = forward_kinematics_state(arm, arm.q_neutral)
 
-    torch.testing.assert_close(frame_result.frame_pose_world, data.frame_pose_world)
+    torch.testing.assert_close(frame_result.frame_pose_world, state.frame_pose)
 
 
 def test_body_frame_is_at_joint(arm):
     """body_universe frame should be at identity."""
     q = arm.q_neutral
-    data = forward_kinematics(arm, q, compute_frames=True)
+    state = forward_kinematics_state(arm, q)
     f_id = arm.frame_id("body_universe")
-    T_f = data.frame_pose_world[f_id]
+    T_f = state.frame_pose[f_id]
     assert T_f[:3].norm() < 1e-6
 
 
@@ -167,9 +166,9 @@ def panda_model():
 
 def test_panda_fk_neutral_shape(panda_model):
     q = panda_model.q_neutral
-    data = forward_kinematics(panda_model, q, compute_frames=True)
-    assert data.joint_pose_world.shape == (panda_model.njoints, 7)
-    assert data.frame_pose_world.shape == (panda_model.nframes, 7)
+    state = forward_kinematics_state(panda_model, q)
+    assert state.joint_pose.shape == (panda_model.njoints, 7)
+    assert state.frame_pose.shape == (panda_model.nframes, 7)
 
 
 def test_panda_fk_universe_is_identity(panda_model):

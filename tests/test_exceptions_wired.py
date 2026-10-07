@@ -19,6 +19,7 @@ from better_robot.exceptions import (
 from better_robot.io.build_model import _check_topology_invariants, build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics.forward import forward_kinematics, forward_kinematics_raw
+from better_robot.kinematics import forward_kinematics_state
 
 
 # ────────────────────────── fixtures ──────────────────────────
@@ -63,13 +64,13 @@ def free_flyer_model():
 def test_shape_error_on_wrong_nq(arm_model):
     bad_q = torch.zeros(arm_model.nq + 3)
     with pytest.raises(ShapeError, match="trailing size"):
-        forward_kinematics(arm_model, bad_q)
+        forward_kinematics_state(arm_model, bad_q)
 
 
 def test_shape_error_on_wrong_nq_batched(arm_model):
     bad_q = torch.zeros(4, arm_model.nq + 1)
     with pytest.raises(ShapeError):
-        forward_kinematics(arm_model, bad_q)
+        forward_kinematics_state(arm_model, bad_q)
 
 
 # ────────────────────── DeviceMismatchError ──────────────────────
@@ -98,7 +99,7 @@ def test_device_mismatch_on_cpu_cuda():
     model = build_model(b.finalize())  # CPU
     q = torch.zeros(model.nq, device="cuda")
     with pytest.raises(DeviceMismatchError, match="device"):
-        forward_kinematics(model, q)
+        forward_kinematics_state(model, q)
 
 
 # ────────────────────── QuaternionNormError ──────────────────────

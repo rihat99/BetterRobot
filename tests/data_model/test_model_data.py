@@ -1,4 +1,4 @@
-"""Tests for data_model/model.py and data_model/data.py."""
+"""Tests for data_model/model.py."""
 
 import pytest
 import torch
@@ -29,18 +29,6 @@ def test_model_joint_id():
 def test_model_body_id():
     model = _make_simple_model()
     assert model.body_id("base") == 1
-
-
-def test_model_create_data():
-    model = _make_simple_model()
-    data = model.create_data()
-    assert data.q.shape == (2,)
-
-
-def test_model_create_data_batch():
-    model = _make_simple_model()
-    data = model.create_data(batch_shape=(4,))
-    assert data.q.shape == (4, 2)
 
 
 def test_model_integrate_difference():
