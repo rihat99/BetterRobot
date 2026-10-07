@@ -119,3 +119,374 @@ aba       panda     4096 forward          better_robot     3.5038     3.4871    
 USDT:2026-10-07 09:30:42 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
 USDT:2026-10-07 09:30:42 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
 aba       panda     4096 forward_backward better_robot    13.9865     9.8560     919
+USDT:2026-10-07 09:30:43 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:43 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        g1           1 forward          better_robot     1.5153     1.5020     210
+USDT:2026-10-07 09:30:43 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:43 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        g1           1 forward_backward better_robot     5.5889     5.5566     634
+USDT:2026-10-07 09:30:44 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:44 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        g1          64 forward          better_robot     1.6812     1.6697     210
+USDT:2026-10-07 09:30:44 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:44 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        g1          64 forward_backward better_robot     8.5727     6.7711     634
+USDT:2026-10-07 09:30:44 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:44 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        g1         256 forward          better_robot     1.6905     1.6757     210
+USDT:2026-10-07 09:30:44 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:44 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        g1         256 forward_backward better_robot     9.9509     8.5740     634
+USDT:2026-10-07 09:30:44 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:44 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        g1        4096 forward          better_robot     1.7146     1.6973     210
+USDT:2026-10-07 09:30:44 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:44 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        g1        4096 forward_backward better_robot    10.1704     8.7069     634
+USDT:2026-10-07 09:30:45 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:45 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  g1           1 forward          better_robot     2.3015     2.2825     339
+USDT:2026-10-07 09:30:45 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:45 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  g1           1 forward_backward better_robot    10.7712     8.1804     956
+USDT:2026-10-07 09:30:45 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:45 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  g1          64 forward          better_robot     2.5149     2.4992     339
+USDT:2026-10-07 09:30:46 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:46 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  g1          64 forward_backward better_robot    12.0151     8.6248     956
+USDT:2026-10-07 09:30:46 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:46 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  g1         256 forward          better_robot     2.5358     2.5228     339
+USDT:2026-10-07 09:30:46 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:46 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  g1         256 forward_backward better_robot    11.4039     8.6423     956
+USDT:2026-10-07 09:30:46 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:46 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  g1        4096 forward          better_robot     2.5753     2.5562     339
+USDT:2026-10-07 09:30:47 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:47 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  g1        4096 forward_backward better_robot    11.8287     9.0478     956
+USDT:2026-10-07 09:30:47 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:47 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      g1           1 forward          better_robot     2.7238     2.7075     370
+USDT:2026-10-07 09:30:47 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:47 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      g1           1 forward_backward better_robot    13.1469    11.1446     785
+USDT:2026-10-07 09:30:48 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:48 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      g1          64 forward          better_robot     3.1922     3.1406     370
+USDT:2026-10-07 09:30:48 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:48 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      g1          64 forward_backward better_robot    15.6919    12.9870     785
+USDT:2026-10-07 09:30:48 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:48 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      g1         256 forward          better_robot     3.1841     3.0991     370
+USDT:2026-10-07 09:30:48 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:48 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      g1         256 forward_backward better_robot    14.3987    12.4524     785
+USDT:2026-10-07 09:30:49 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:49 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      g1        4096 forward          better_robot     3.8238     3.8004     370
+USDT:2026-10-07 09:30:49 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:49 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      g1        4096 forward_backward better_robot    13.9329    12.1679     785
+USDT:2026-10-07 09:30:49 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:49 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      g1           1 forward          better_robot     2.1838     2.1612     294
+USDT:2026-10-07 09:30:49 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:49 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      g1           1 forward_backward better_robot     9.9083     8.5916     626
+USDT:2026-10-07 09:30:50 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:50 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      g1          64 forward          better_robot     2.3907     2.3565     294
+USDT:2026-10-07 09:30:50 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:50 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      g1          64 forward_backward better_robot    10.3318     8.9757     626
+USDT:2026-10-07 09:30:50 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:50 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      g1         256 forward          better_robot     2.4061     2.3904     294
+USDT:2026-10-07 09:30:50 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:50 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      g1         256 forward_backward better_robot    10.3514     8.9442     626
+USDT:2026-10-07 09:30:51 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:51 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      g1        4096 forward          better_robot     2.8655     2.8540     294
+USDT:2026-10-07 09:30:51 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:51 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      g1        4096 forward_backward better_robot    10.6274     9.2308     626
+USDT:2026-10-07 09:30:51 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:51 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       g1           1 forward          better_robot     3.3826     3.3614     432
+USDT:2026-10-07 09:30:52 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:52 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       g1           1 forward_backward better_robot    10.0315     9.8894     967
+USDT:2026-10-07 09:30:52 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:52 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       g1          64 forward          better_robot     3.6613     3.6459     432
+USDT:2026-10-07 09:30:52 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:52 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       g1          64 forward_backward better_robot    10.5450    10.4761     967
+USDT:2026-10-07 09:30:53 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:53 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       g1         256 forward          better_robot     3.6854     3.6670     432
+USDT:2026-10-07 09:30:53 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:53 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       g1         256 forward_backward better_robot    15.0094    10.5953     967
+USDT:2026-10-07 09:30:53 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:53 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       g1        4096 forward          better_robot     4.8581     4.8363     432
+USDT:2026-10-07 09:30:53 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:53 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       g1        4096 forward_backward better_robot    15.9209    12.8923     967
+USDT:2026-10-07 09:30:54 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:54 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        tree25       1 forward          better_robot     1.2987     1.2836     184
+USDT:2026-10-07 09:30:54 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:54 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        tree25       1 forward_backward better_robot     7.6130     6.4966     521
+USDT:2026-10-07 09:30:54 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:54 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        tree25      64 forward          better_robot     1.4257     1.4104     184
+USDT:2026-10-07 09:30:54 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:54 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        tree25      64 forward_backward better_robot     7.9265     6.8314     521
+USDT:2026-10-07 09:30:55 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:55 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        tree25     256 forward          better_robot     1.4166     1.4057     184
+USDT:2026-10-07 09:30:55 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:55 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        tree25     256 forward_backward better_robot     7.4472     4.8360     521
+USDT:2026-10-07 09:30:55 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:55 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        tree25    4096 forward          better_robot     1.4738     1.4545     184
+USDT:2026-10-07 09:30:55 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:55 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        tree25    4096 forward_backward better_robot     7.0363     5.0326     521
+USDT:2026-10-07 09:30:55 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:55 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  tree25       1 forward          better_robot     2.0943     2.0834     313
+USDT:2026-10-07 09:30:55 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:55 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  tree25       1 forward_backward better_robot    10.3371     7.0857     843
+USDT:2026-10-07 09:30:56 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:56 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  tree25      64 forward          better_robot     2.2634     2.2511     313
+USDT:2026-10-07 09:30:56 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:56 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  tree25      64 forward_backward better_robot    10.7982     9.6548     843
+USDT:2026-10-07 09:30:56 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:56 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  tree25     256 forward          better_robot     2.2588     2.2443     313
+USDT:2026-10-07 09:30:56 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:56 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  tree25     256 forward_backward better_robot    10.8012     9.5726     843
+USDT:2026-10-07 09:30:57 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:57 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  tree25    4096 forward          better_robot     2.3106     2.2944     313
+USDT:2026-10-07 09:30:57 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:57 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  tree25    4096 forward_backward better_robot    11.0180     9.8171     843
+USDT:2026-10-07 09:30:57 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:57 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      tree25       1 forward          better_robot     2.5070     2.4821     344
+USDT:2026-10-07 09:30:57 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:57 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      tree25       1 forward_backward better_robot    11.1906     9.5483     672
+USDT:2026-10-07 09:30:58 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:58 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      tree25      64 forward          better_robot     2.7986     2.7852     344
+USDT:2026-10-07 09:30:58 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:58 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      tree25      64 forward_backward better_robot    11.4417     7.2614     672
+USDT:2026-10-07 09:30:58 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:58 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      tree25     256 forward          better_robot     2.7943     2.7742     344
+USDT:2026-10-07 09:30:58 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:58 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      tree25     256 forward_backward better_robot    10.3325    10.2584     672
+USDT:2026-10-07 09:30:59 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:59 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      tree25    4096 forward          better_robot     3.0773     3.0558     344
+USDT:2026-10-07 09:30:59 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:59 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      tree25    4096 forward_backward better_robot    11.2908     7.7449     672
+USDT:2026-10-07 09:30:59 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:59 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      tree25       1 forward          better_robot     1.9901     1.9745     268
+USDT:2026-10-07 09:30:59 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:59 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      tree25       1 forward_backward better_robot     7.9395     5.9000     513
+USDT:2026-10-07 09:30:59 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:30:59 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      tree25      64 forward          better_robot     2.4153     2.1415     268
+USDT:2026-10-07 09:31:00 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:00 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      tree25      64 forward_backward better_robot     5.3145     5.2515     513
+USDT:2026-10-07 09:31:00 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:00 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      tree25     256 forward          better_robot     2.1539     2.1316     268
+USDT:2026-10-07 09:31:00 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:00 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      tree25     256 forward_backward better_robot     5.3152     5.2788     513
+USDT:2026-10-07 09:31:00 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:00 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      tree25    4096 forward          better_robot     2.3148     2.3013     268
+USDT:2026-10-07 09:31:00 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:00 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      tree25    4096 forward_backward better_robot     6.3795     6.3577     513
+USDT:2026-10-07 09:31:00 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:00 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       tree25       1 forward          better_robot     3.1653     3.1380     406
+USDT:2026-10-07 09:31:01 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:01 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       tree25       1 forward_backward better_robot    10.3728     8.9619     854
+USDT:2026-10-07 09:31:01 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:01 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       tree25      64 forward          better_robot     3.4243     3.3945     406
+USDT:2026-10-07 09:31:01 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:01 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       tree25      64 forward_backward better_robot    11.9716     9.6402     854
+USDT:2026-10-07 09:31:02 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:02 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       tree25     256 forward          better_robot     4.4061     3.4368     406
+USDT:2026-10-07 09:31:02 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:02 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       tree25     256 forward_backward better_robot     9.8698     9.6048     854
+USDT:2026-10-07 09:31:02 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:02 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       tree25    4096 forward          better_robot     3.8048     3.7821     406
+USDT:2026-10-07 09:31:02 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:02 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       tree25    4096 forward_backward better_robot    14.3442    13.6045     854
+USDT:2026-10-07 09:31:03 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:03 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        tree200      1 forward          better_robot     1.4498     1.4430     196
+USDT:2026-10-07 09:31:03 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:03 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        tree200      1 forward_backward better_robot     7.7319     5.1519     581
+USDT:2026-10-07 09:31:04 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:04 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        tree200     64 forward          better_robot     1.6116     1.5936     196
+USDT:2026-10-07 09:31:04 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:04 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        tree200     64 forward_backward better_robot     5.4666     5.4233     581
+USDT:2026-10-07 09:31:04 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:04 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        tree200    256 forward          better_robot     1.6198     1.6076     196
+USDT:2026-10-07 09:31:04 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:04 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        tree200    256 forward_backward better_robot     5.5023     5.4755     581
+USDT:2026-10-07 09:31:04 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:04 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        tree200   4096 forward          better_robot     3.7751     3.7628     196
+USDT:2026-10-07 09:31:05 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:05 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+fk        tree200   4096 forward_backward better_robot    16.8495    16.7333     581
+USDT:2026-10-07 09:31:05 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:05 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  tree200      1 forward          better_robot     2.2554     2.2429     325
+USDT:2026-10-07 09:31:06 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:06 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  tree200      1 forward_backward better_robot    10.1698     8.0319     903
+USDT:2026-10-07 09:31:06 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:06 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  tree200     64 forward          better_robot     2.5034     2.4282     325
+USDT:2026-10-07 09:31:06 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:06 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  tree200     64 forward_backward better_robot    11.7255     8.5441     903
+USDT:2026-10-07 09:31:07 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:07 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  tree200    256 forward          better_robot     3.5243     2.5306     325
+USDT:2026-10-07 09:31:07 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:07 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  tree200    256 forward_backward better_robot    11.2381     8.1409     903
+USDT:2026-10-07 09:31:07 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:07 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  tree200   4096 forward          better_robot     8.3216     8.3075     325
+USDT:2026-10-07 09:31:08 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:08 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+jacobian  tree200   4096 forward_backward better_robot    33.6057    33.5870     903
+USDT:2026-10-07 09:31:09 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:09 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      tree200      1 forward          better_robot     2.6596     2.6445     356
+USDT:2026-10-07 09:31:09 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:09 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      tree200      1 forward_backward better_robot    12.1052    10.7308     732
+USDT:2026-10-07 09:31:09 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:09 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      tree200     64 forward          better_robot     2.9690     2.9599     356
+USDT:2026-10-07 09:31:10 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:10 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      tree200     64 forward_backward better_robot    12.6946    11.0213     732
+USDT:2026-10-07 09:31:10 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:10 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      tree200    256 forward          better_robot     2.9942     2.9777     356
+USDT:2026-10-07 09:31:10 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:10 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      tree200    256 forward_backward better_robot    12.7666    11.1116     732
+USDT:2026-10-07 09:31:11 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:11 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      tree200   4096 forward          better_robot    15.5098    15.4971     356
+USDT:2026-10-07 09:31:11 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:11 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+rnea      tree200   4096 forward_backward better_robot    36.0751    36.0289     732
+USDT:2026-10-07 09:31:12 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:12 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      tree200      1 forward          better_robot     2.1407     2.1243     280
+USDT:2026-10-07 09:31:12 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:12 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      tree200      1 forward_backward better_robot     9.1457     7.9293     573
+USDT:2026-10-07 09:31:13 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:13 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      tree200     64 forward          better_robot     2.3377     2.3030     280
+USDT:2026-10-07 09:31:13 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:13 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      tree200     64 forward_backward better_robot     9.8531     8.4606     573
+USDT:2026-10-07 09:31:13 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:13 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      tree200    256 forward          better_robot     2.4601     2.4379     280
+USDT:2026-10-07 09:31:14 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:14 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      tree200    256 forward_backward better_robot     9.5377     8.3040     573
+USDT:2026-10-07 09:31:14 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:14 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      tree200   4096 forward          better_robot    13.1274    13.1098     280
+USDT:2026-10-07 09:31:14 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:14 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+crba      tree200   4096 forward_backward better_robot    43.4040    43.3891     573
+USDT:2026-10-07 09:31:16 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:16 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       tree200      1 forward          better_robot     3.3902     3.3637     418
+USDT:2026-10-07 09:31:16 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:16 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       tree200      1 forward_backward better_robot     9.8250     9.7515     914
+USDT:2026-10-07 09:31:17 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:17 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       tree200     64 forward          better_robot     3.8516     3.8168     418
+USDT:2026-10-07 09:31:17 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:17 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       tree200     64 forward_backward better_robot    10.6356    10.5418     914
+USDT:2026-10-07 09:31:18 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:18 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       tree200    256 forward          better_robot     4.1388     4.1258     418
+USDT:2026-10-07 09:31:18 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:18 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       tree200    256 forward_backward better_robot    15.0641    10.6940     914
+USDT:2026-10-07 09:31:19 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:19 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       tree200   4096 forward          better_robot    28.3743    28.3448     418
+USDT:2026-10-07 09:31:19 497168:497168 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-10-07 09:31:19 497168:497168 SyncActivityProfilerHandler.cpp:59] profiler_stop
+aba       tree200   4096 forward_backward better_robot    98.3243    95.7712     914
+fk        panda        1 forward          pinocchio      0.0004     0.0004       -
+jacobian  panda        1 forward          pinocchio      0.0007     0.0006       -
+rnea      panda        1 forward          pinocchio      0.0018     0.0017       -
+crba      panda        1 forward          pinocchio      0.0012     0.0012       -
+aba       panda        1 forward          pinocchio      0.0058     0.0058       -
+fk        g1           1 forward          pinocchio      0.0013     0.0013       -
+jacobian  g1           1 forward          pinocchio      0.0019     0.0018       -
+rnea      g1           1 forward          pinocchio      0.0054     0.0054       -
+crba      g1           1 forward          pinocchio      0.0045     0.0044       -
+aba       g1           1 forward          pinocchio      0.0197     0.0196       -
+wrote benchmarks/results/p2_world_dynamics_cuda.json (52.0 s)

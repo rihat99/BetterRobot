@@ -1,4 +1,4 @@
-# STATE — BetterRobot / 2026-10-07_02-26_p3_viewer (updated 2026-10-07 05:40 Dubai)
+# STATE — BetterRobot / 2026-10-07_02-26_p3_viewer (updated 2026-10-07 09:55 Dubai) — DONE
 
 ## Pointers
 - Plan: /home/rikhat.akizhanov/better/dev/BetterRobot/agent_notes/tasks/2026-10-07_02-26_p3_viewer/PLAN.md
@@ -22,9 +22,7 @@
 - Artifacts: `artifacts/panda.gif`, `artifacts/panda.viser` (gitignored).
 
 ## Next steps
-1. M7: mars_aux review of core/rasterizer (context file `subagents/context_review_viewer.md`), fix majors.
-2. REPORT.md, final commit, drop the index line; then P4 BetterHuman.
-3. GPU baselines (P2 leftover) only on a FREE GPU.
+- Task done: REPORT.md written, review fixes in 1306ed5. Next task: P4 BetterHuman.
 
 ## Assumptions (made off-hours)
 - Default host 127.0.0.1 instead of the design's 0.0.0.0 (session rule; explicit `host=` exposes).
