@@ -44,8 +44,8 @@ writes one step in `set_step(step)`. See [Viewer](../concepts/viewer.md) for the
 
 ## Add a parser
 
-`better_robot.io.register_parser(suffix, fn)` is the only registration API. The suffix has no leading
-dot and is matched case-insensitively. `fn` receives the source and returns an `IRModel`; `load` then
+`better_robot.io.register_parser(suffix, fn)` is the only registration API. Register a lowercase suffix with no leading
+dot; `load` lowercases the file's suffix before looking it up. `fn` receives the source and returns an `IRModel`; `load` then
 calls `build_model`. A later registration for the same suffix replaces the earlier one, and it takes
 effect once your module is imported. See [Loading and parsing](../concepts/io.md) for the
 intermediate model.

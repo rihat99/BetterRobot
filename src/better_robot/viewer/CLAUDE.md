@@ -6,7 +6,7 @@ One viewer on viser. Read `docs/concepts/viewer.md` first.
   are the built-in layers; `robot.py` is the only file that knows `Model`; `tools/` are gizmo and
   picking; `capture.py` drives a headless Chromium for `Viewer.record`.
 - Layers take numpy `(T, ...)` arrays (`as_frames` promotes static input to `T = 1`) and keep them by
-  reference: in-place edits plus `viewer.show()` update the scene. Per frame write arrays into existing
+  reference: in-place edits plus `viewer.show()` update the scene. Per step write arrays into existing
   handles; never create or remove nodes during playback.
 - `Viewer.show` is the only step-push path (one `server.atomic()` block). Keep `set_step` free of
   torch and FK; adapters precompute.

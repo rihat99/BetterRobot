@@ -48,7 +48,7 @@ def save(name, parts):
 # 1. architecture: rows follow LAYER_RANK in tests/contract/test_layer_dependencies.py
 p = head(640, 456)
 rows = [("viewer", "rank 7 · nothing imports it"), ("terms", "rank 6 · robot residuals, solve_ik"), None,
-        ("data_model", "rank 4 · Model, KinematicState"), ("spatial", "rank 3 · Motion, Force, Inertia"), ("lie", "rank 2 · SE3, SO3 formulas")]
+        ("data_model", "rank 4 · Model, ModelStructure, ModelValues"), ("spatial", "rank 3 · Motion, Force, Inertia"), ("lie", "rank 2 · SE3, SO3 formulas")]
 for i, r in enumerate(rows):
     y = 24 + i * 72
     if r:
@@ -101,18 +101,18 @@ p.append(text(320, 170, "LevenbergMarquardt, up to iters=100", 12, SUB))
 save("ik_loop.svg", p)
 
 # 11. contracts map: families and enforcer kinds from docs/contracts/00-index.md
-fams = [("C-NAME", "naming", "ruff · test · review"), ("C-TENS", "tensors", "test · review"),
+fams = [("C-NAME", "naming", "ruff (planned) · test · review"), ("C-TENS", "tensors", "test · review"),
         ("C-STATE", "state, mutability", "test · review"), ("C-DIFF", "differentiability", "test · review"),
         ("C-API", "API shape", "ruff · test · review"), ("C-ERR", "validation, errors", "ruff · test · review"),
         ("C-DEP", "dependencies", "ruff · test · review"), ("C-EXT", "extension points", "ruff · test · review"),
-        ("C-PERF", "performance", "review only"), ("C-DOC", "docs", "ruff · test · review"),
+        ("C-PERF", "performance", "review · bench advisory"), ("C-DOC", "docs", "ruff · test · review"),
         ("C-TEST", "tests", "ruff · review")]
 p = head(720, 296)
 for i, (code, name, enf) in enumerate(fams):
     x, y = 32 + (i % 4) * 168, 24 + (i // 4) * 88
     p += box(x, y, 152, 72, [code, name, enf], accent=(code == "C-PERF"))
 lx = 32 + 3 * 168
-for k, s in enumerate(["ruff: lint rule in CI", "test: pytest test", "review: human review"]):
+for k, s in enumerate(["ruff: lint rule in CI (planned = not yet selected)", "test: pytest test", "review: human review"]):
     p.append(text(lx, 228 + k * 18, s, 12, SUB, "start"))
 save("contracts_map.svg", p)
 

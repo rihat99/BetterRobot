@@ -146,11 +146,12 @@ print(state.it, state.loss)
 
 ## `solve`, `run` and friends
 
-- `solve(problem, solver, iters=50, x=None) -> Result` runs one solver until every problem is done or
-  `iters` steps pass. `Result` has `x`, `loss`, `done`, `iters` and a per-phase loss `history`.
-- `run(problem, phases)` chains `Phase`s, each with its own solver, weight overrides and frozen
+- `solve(problem, solver, *, iters=50, x=None) -> Result` runs one solver until every problem is done or
+  `iters` steps pass. `Result` has `x`, `loss`, `done`, `iters` and a per-phase loss `history`;
+  `result["q"]` is shorthand for `result.x["q"]`.
+- `run(problem, phases, *, x=None)` chains `Phase`s, each with its own solver, weight overrides and frozen
   coordinates ([Fit a clip](../guides/fit-a-clip.md)).
-- `solve_layer(problem, solver)` returns the solution attached to the autograd graph of the data
+- `solve_layer(problem, solver, *, iters=50, x=None, damping=1e-6)` returns the solution attached to the autograd graph of the data
   ([Own the loop](../guides/own-the-loop.md)).
 - `solve_constrained(problem, solver, equalities=, inequalities=)` turns named terms into hard
   constraints with an augmented Lagrangian ([Hard constraints](../guides/hard-constraints.md)).

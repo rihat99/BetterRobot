@@ -1,7 +1,7 @@
 # Viewer
 
-The viewer shows robots, bodies and data clips in a browser, and renders the same scene to a GIF, MP4 or PNG
-frames without one. After this page you will know its four ideas (layers, groups, one timeline, offline render)
+The viewer shows robots, bodies and data clips in a browser, and records the same scene through a headless
+Chromium to `.webm`, `.gif` or PNG frames. After this page you will know its four ideas (layers, groups, one timeline, headless record)
 and which call to reach for: `show`, `play`, `save` or `record`.
 
 It lives in `better_robot.viewer`, is built on [viser](https://viser.studio), and is the top of the import stack:
@@ -16,7 +16,7 @@ You give it every frame up front as numpy arrays with a leading time axis `(T, .
 `T = 1`. The layer keeps the arrays **by reference**, so editing them in place and calling `viewer.show()` updates
 the scene without rebuilding anything.
 
-![The Viewer shows layers that each hold a whole clip; the same layers render offline without a server.](../figures/viewer_layers.svg)
+![The Viewer shows layers that each hold a whole clip; `record` screenshots the same scene through headless Chromium.](../figures/viewer_layers.svg)
 
 ```python
 import numpy as np
@@ -61,7 +61,7 @@ argument re-pushes the current frame, which is what you call after editing array
 ```python
 viewer.show(10)
 cloud[:, :, 2] += 0.5   # edit the clip in place ...
-viewer.show()           # ... and re-push frame 10
+viewer.show()           # ... and re-push step 10
 ```
 
 The other three calls consume the timeline:

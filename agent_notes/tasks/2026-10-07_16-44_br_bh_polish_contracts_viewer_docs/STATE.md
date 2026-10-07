@@ -14,25 +14,18 @@ BR dev: 6ec3134 (contracts, trim, viewer batch 1), 2f7c6e2 (polish, joint shapes
 keyword-only, ids, sugar). BH dev: e898fd5, 83cc96e, 81ca789 (studio rebuilt + live-verified, docs/studio.md).
 Owner saw the viewer demo ("looks fine"); owner answered intake + 3 decision rounds (see PLAN/p0_synthesis).
 
-## Status: P5 docs (BR) in tree, UNCOMMITTED; clip job may still be running
-- Uncommitted in BR: P5a theme (mkdocs.yml, docs/stylesheets/guidebook.css, 78 output fences, `{ .no-run }` fences,
-  tests/docs/test_snippets.py extensions, scripts/docs_screenshots.mjs, pyproject mkdocs<2 pin); figures (5 drawn +
-  7 restyled, docs/figures/); stills docs/images/{panda_rest,panda_ik,g1_floating,trajectory_strip}.png; writers
-  A/B/C edits (index, getting-started, concepts/architecture rewritten, Where-next on all, clips embedded, README).
-- Background: clip job (scratchpad/clips.log; expected outputs docs/clips/{panda_trajectory,batched_ik,g1_clip_fit,
-  viewer_layers,obstacle_trajectory}.{webm,png} + docs/images/readme_ik.gif). A bash waiter (task b1gx39rr6) tails it.
-  If it died: `uv run python agent_notes/.../subagents/make_clips.py --out docs --only <section>` (env vars in its
-  docstring; port 8094). Check each clip ≤ 1.5 MB, gif ≤ 3 MB; look at posters.
+## Status: P5 BR docs COMMITTED (171509d: theme, panes, 12 figures, 5 clips + readme gif; 1580 passed, strict ok)
+- In flight (launched ~01:20): mars_aux ×2 docs-vs-code review (brief subagents/p5d_review_brief.md; scopes
+  index+getting-started+concepts / README+guides+contracts+CLAUDE.md); mars_top_opus P5c BH docs site (brief
+  subagents/p5c_bh_docs_brief.md; adds mkdocs trio to BH dev group — same pins as BR; serves 127.0.0.1:8766).
+- Uncommitted in BR: architecture.svg data_model label fixed (+ make_figs.py); full-site screenshots running into
+  vis/p5final/{light,dark} (bg task bkqs1eltg) — look at index + a concept page in both modes.
 - mkdocs serve of the dev docs still on http://127.0.0.1:8765 (task bh6kicmzx).
 
 ## Next steps
-1. Confirm clips exist; `uv run pytest tests/docs tests/viewer -q` green; `uv run mkdocs build --strict`; full BR suite;
-   commit BR ("Guidebook docs: theme, output panes, figures, clips").
-2. Docs-vs-code adversarial pass (mars_aux ×2: getting-started+concepts / guides+contracts+README), fix findings.
-   Known: architecture.svg says KinematicState lives in data_model (it is kinematics/state.py) — fix the SVG label.
-   Second guides pass if budget allows (differentiate, write-a-term, own-the-loop, benchmark still instruction-style).
-3. P5c: BetterHuman docs site — mkdocs.yml + copy BR theme assets (guidebook.css, output fence, snippet test),
-   pages from docs/*.md (architecture, studio, contracts, segmentation guide), same style; strict build; screenshots.
+2. Save the two review reports to subagents/p5d_review_{a,b}.md, fix findings (mars_light/me), rerun
+   `uv run pytest tests/docs -q` + `mkdocs build --strict`, commit BR.
+3. When P5c returns: save report to subagents/p5c_state.md, verify gates in BH, look at its screenshots, commit BH.
 4. REPORT.md (phases, commits, gates, ledgers, what is left: ruff deferred rules N/D/ANN001/SLF001, L-1/L-4/L-6/L-8
    ledger items, figure redraws 2–8, finger-joint sphere size in studio, stray marker in studio screenshot, nav-tab
    label faintness to check in a real browser), final commit, drop the index line in

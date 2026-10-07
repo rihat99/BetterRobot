@@ -71,8 +71,8 @@ derivative method.
 | **least squares** | Choose variables that make the sum of squared residual entries small. This balances many errors at once. |
 | **robust kernel** | A function that reduces the influence of large residual groups, often to limit the effect of outliers. |
 | **gradient** | The local direction in which a scalar objective increases fastest. |
-| **Gauss--Newton, GN** | A least-squares method that linearizes residuals and solves the resulting local quadratic problem. |
-| **Levenberg--Marquardt, LM** | Gauss--Newton with adjustable damping. Low damping takes a bolder Newton-like step; high damping takes a more cautious gradient-like step. |
+| **Gauss-Newton, GN** | A least-squares method that linearizes residuals and solves the resulting local quadratic problem. |
+| **Levenberg-Marquardt, LM** | Gauss-Newton with adjustable damping. Low damping takes a bolder Newton-like step; high damping takes a more cautious gradient-like step. |
 | **damping** | The LM knob that regularizes the local linear system and controls step caution. |
 | **Cholesky factorization** | A fast way to solve a positive-definite symmetric linear system. |
 | **bound** | A lower or upper limit on a Euclidean state coordinate. |
@@ -126,6 +126,6 @@ solver model.
 
 | Term | Meaning |
 |---|---|
-| **`Viewer`** | The browser viewer on viser. `viewer.add(layer, group=...)` adds a layer, `viewer.show(step)` draws one step, `Viewer.record(path, *, steps, size, fps)` renders a clip offline. |
+| **`Viewer`** | The browser viewer on viser. `viewer.add(layer, group=...)` adds a layer, `viewer.show(step)` draws one step, `Viewer.record(path, *, steps, size, fps, gpu, camera)` screenshots the live scene through headless Chromium into a clip. |
 | **`Layer`** | One drawable thing (a robot, frames, points, a skeleton) holding a whole clip. The viewer calls `layer.set_step(k)`; `layer.nsteps` is its clip length. |
 | **step** | One frame of the shared timeline. The timeline is as long as the longest layer; a shorter layer holds its last step. |

@@ -101,9 +101,9 @@ assert torch.allclose(lhs, se3.exp(se3.adjoint(yaw90) @ xi), atol=1e-5)
 ```
 
 !!! note "Frames of reference"
-    A twist is always expressed in some frame. BetterRobot names three: `LOCAL` (the moving frame's own
-    axes and origin), `WORLD` (world axes, world origin) and `LOCAL_WORLD_ALIGNED` (world axes, origin at
-    the moving frame). Frame Jacobians default to `LOCAL_WORLD_ALIGNED`. Going from that to `LOCAL`
+    A twist is always expressed in some frame. BetterRobot names three, passed as `reference=` strings: `"local"` (the moving frame's own
+    axes and origin), `"world"` (world axes, world origin) and `"local_world_aligned"` (world axes, origin at
+    the moving frame). Frame Jacobians default to `"local_world_aligned"`. Going from that to `"local"`
     needs only a rotation of both halves, not a full adjoint. See
     [Kinematics and Jacobians](kinematics-and-jacobians.md).
 

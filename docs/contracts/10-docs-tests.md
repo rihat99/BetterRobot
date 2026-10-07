@@ -27,21 +27,22 @@ def integrate(model: Model, q: Tensor, v: Tensor) -> Tensor:
 ```
 
 Enforcement: `[ruff:D]` [planned: L-7] (numpy convention, `D1xx` on public names only via per-file ignores for `_`
-modules and tests); `tests/contract/test_docstrings.py`; `tests/contract/test_docstrings.py`.
+modules and tests); `tests/contract/test_docstrings.py`.
 
 ## C-DOC-2 Every documentation snippet executes (MUST)
 
 Python blocks in `docs/` and `README.md` run under `tests/docs/` (markdown code-block runner) unless the fence
-carries the `no-run` tag (```` ```python no-run ````). A snippet that prints shows its output in a comment on the same line.
+carries the `{ .no-run }` attribute (```` ```python { .no-run } ````). A snippet that prints is followed by an
+```` ```output ```` fence holding the real output.
 
-Enforcement: `tests/docs/` (planned; until it exists, `[review]`).
+Enforcement: `tests/docs/test_snippets.py` (runs every snippet in page order and checks the output fences).
 
 ## C-DOC-3 Every contract rule has an enforcer (MUST)
 
 Each rule in `docs/contracts/` names a `ruff` code, a test file, or `[review]`. The enforcement matrix in
 `00-index` lists them; a rule whose enforcer file is missing is a ledger item, not a waiver.
 
-Enforcement: `[review]` of this directory.
+Enforcement: `tests/contract/test_contract_matrix.py`.
 
 ## C-TEST-1 Tests pin contracts and parity; no trivial tests (SHOULD)
 

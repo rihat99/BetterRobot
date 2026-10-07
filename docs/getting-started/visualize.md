@@ -1,15 +1,15 @@
 # Visualize a robot
 
 You open the browser viewer, show the Panda moving along a trajectory, step through it, and record it to a
-GIF without a browser. This page needs the `viewer` and `meshes` extras (see [Install](installation.md)).
+GIF through a headless browser. This page needs the `viewer` and `meshes` extras (see [Install](installation.md)).
 
 <figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../clips/viewer_layers.png" width="960"><source src="../clips/viewer_layers.webm" type="video/webm"></video>
-<figcaption>The viewer: a robot layer and a point layer share one timeline; the layer list on the left toggles each one.</figcaption></figure>
+<figcaption>One scene built up layer by layer: mesh, then skeleton, frames and ground, each switched on with <code>set_visible</code>; the layer list on the left toggles each one.</figcaption></figure>
 
 ## Make a clip to show
 
 The viewer shows clips: every layer holds a whole time series, `q (T, nq)`, and a shared timeline picks the
-frame. Here is a 30-frame clip that swings the Panda's first joint:
+step. Here is a 30-step clip that swings the Panda's first joint:
 
 ```python
 import tempfile
@@ -44,11 +44,11 @@ print(viewer.url, len(viewer.layers))
 http://127.0.0.1:8080 2
 ```
 
-Forward kinematics runs once for the whole clip, not once per frame.
+Forward kinematics runs once for the whole clip, not once per step.
 
 ## Step through the timeline
 
-`viewer.show(frame)` moves the timeline and pushes that frame to every visible layer:
+`viewer.show(step)` moves the timeline and pushes that step to every visible layer:
 
 ```python
 viewer.show(0)

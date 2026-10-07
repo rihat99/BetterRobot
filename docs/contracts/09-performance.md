@@ -5,6 +5,8 @@ a hot path forces a rewrite later. Everything else (fusing ops, caching tables) 
 
 ## No host synchronisation in hot paths: see `C-TENS-4`
 
+There is no `C-PERF-1`: the first performance rule lives in `02` as `C-TENS-4`, so this page starts at `C-PERF-2`.
+
 The performance reason for `C-TENS-4` (`02`): `.item()`, `.cpu()`, `bool(tensor)` and data-dependent Python
 control flow stall the GPU queue. Hot paths are the per-call code under `lie`, `kinematics`, `dynamics` and the
 solver step in `optim/solvers.py`; once-per-model setup (plan building) is not a hot path and is exempted with
@@ -30,7 +32,7 @@ Enforcement: `[review]`; `tests/bench/` guards the entry points below.
 `forward_kinematics_state`, `frame_jacobian`, `rnea`/`crba`, and `optim.solve` have a benchmark under
 `tests/bench/` (`-m bench`). A change that slows one by more than 20 % needs a reason in the PR.
 
-Enforcement: `tests/bench/` (`uv run pytest -m bench`); `[review]`.
+Enforcement: `[review]`; the benchmarks under `tests/bench/` (`uv run pytest -m bench`) are advisory, not a CI gate.
 
 ## C-PERF-4 Measure before optimising (SHOULD)
 

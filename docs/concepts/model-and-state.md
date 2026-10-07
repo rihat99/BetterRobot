@@ -106,7 +106,7 @@ three tensors; everything else is derived on demand and memoized.
 | `joint_translation`, `joint_rotation` | `(B..., njoints, 3)`, `(..., 3, 3)` | slices of `joint_transform` |
 | `frame_translation`, `frame_rotation` | `(B..., nframes, 3)`, `(..., 3, 3)` | slices of `frame_transform` |
 | `joint_pose`, `frame_pose` | `(B..., n, 7)` | the same placements as `[tx, ty, tz, qx, qy, qz, qw]` |
-| `frame_pose_of(frame_id)` | `(B..., 7)` | one frame's pose |
+| `frame_pose_of(frame)` | `(B..., 7)` | one frame's pose, by id or name |
 
 ```python
 from better_robot.kinematics.state import forward_kinematics_state

@@ -25,8 +25,8 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 
 | Rule | Enforcer |
 |------|----------|
-| C-NAME-1 | `[ruff:N803,N806]`, `[review]` |
-| C-NAME-2 | `tests/contract/test_naming.py`, `[ruff:N801,N802,N803,N806,N815,N816]` |
+| C-NAME-1 | `[ruff:N803,N806]` [planned: L-7], `[review]` |
+| C-NAME-2 | `tests/contract/test_naming.py`, `[ruff:N801,N802,N803,N806,N815,N816]` [planned: L-7] |
 | C-NAME-3 | `[review]` |
 | C-NAME-4 | `[review]` |
 | C-TENS-1 | `tests/contract/test_dtype_device.py` |
@@ -59,19 +59,19 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 | C-DEP-4 | `[review]` |
 | C-EXT-1 | `tests/contract/test_protocols.py`, `[review]` |
 | C-EXT-2 | `tests/contract/test_protocols.py`, `[review]` |
-| C-EXT-3 | `tests/contract/test_public_api.py`, `tests/contract/test_submodule_public_imports.py`, `[ruff:SLF001]` |
+| C-EXT-3 | `tests/contract/test_public_api.py`, `tests/contract/test_submodule_public_imports.py`, `[ruff:SLF001]` [planned: L-7] |
 | C-EXT-4 | `[review]` |
 | C-EXT-5 | `tests/contract/test_protocols.py`, `tests/contract/test_layer_dependencies.py`, `[review]` |
 | C-EXT-6 | `[review]` |
 | C-PERF-2 | `[review]` |
-| C-PERF-3 | `[review]` |
+| C-PERF-3 | `[review]` (benchmarks under `tests/bench/` are advisory) |
 | C-PERF-4 | `[review]` |
-| C-DOC-1 | `tests/contract/test_docstrings.py`, `[ruff:D]` |
-| C-DOC-2 | `[review]` |
-| C-DOC-3 | `[review]` |
+| C-DOC-1 | `tests/contract/test_docstrings.py`, `[ruff:D]` [planned: L-7] |
+| C-DOC-2 | `tests/docs/test_snippets.py` |
+| C-DOC-3 | `tests/contract/test_contract_matrix.py` |
 | C-DOC-4 | `tests/contract/test_docstrings.py` [planned: L-9], `[review]` |
 | C-TEST-1 | `[review]` |
-| C-TEST-2 | `[ruff:ANN001,ANN201]` |
+| C-TEST-2 | `[ruff:ANN001,ANN201]` [planned: L-7 for ANN001] |
 
 This table is generated from the pages' `Enforcement:` paragraphs and checked by
 `tests/contract/test_contract_matrix.py`. An enforcer tagged `[planned: L-<n>]` on its page is a ledger entry in
