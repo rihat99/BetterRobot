@@ -15,7 +15,7 @@ convention:
 
 The integration test ``test_centroidal_momentum_consistency`` derives
 ``h_g`` independently by running RNEA at zero acceleration to extract
-the per-body twists, then compares to ``ccrba``.
+the per-body twists, then compares to ``centroidal_momentum``.
 """
 
 from __future__ import annotations
@@ -24,8 +24,8 @@ import pytest
 import torch
 
 import better_robot as br
-from better_robot.dynamics import ccrba, center_of_mass
-from better_robot.dynamics import compute_centroidal_map, compute_centroidal_momentum
+from better_robot.dynamics.state import center_of_mass, centroidal_map, centroidal_momentum
+from better_robot.kinematics import forward_kinematics_state
 
 
 def _panda(dtype=torch.float64):
@@ -52,11 +52,9 @@ def test_hg_linear_equals_mass_times_vcom():
     for i in range(qs.shape[0]):
         q = qs[i]
         v = torch.rand(model.nv, generator=rng, dtype=torch.float64) - 0.5
-        data = model.create_data()
-        center_of_mass(model, q, v=v, data=data)
-        assert data.com_velocity is not None
-        v_com = data.com_velocity
-        h_g = ccrba(model, q, v).momentum
+        # Panda is all-revolute, so dq/dt = v and v_com is the directional derivative of the COM.
+        _, v_com = torch.func.jvp(lambda q_: center_of_mass(model, forward_kinematics_state(model, q_)), (q,), (v,))
+        h_g = centroidal_momentum(model, forward_kinematics_state(model, q), v)
         torch.testing.assert_close(h_g[:3], total_mass * v_com, rtol=1e-10, atol=1e-10)
 
 
@@ -68,10 +66,9 @@ def test_ag_times_v_equals_hg():
     for i in range(qs.shape[0]):
         q = qs[i]
         v = torch.rand(model.nv, generator=rng, dtype=torch.float64) - 0.5
-        data = model.create_data()
-        A_g = compute_centroidal_map(model, q, data=data)
+        A_g = centroidal_map(model, forward_kinematics_state(model, q))
         h_g_expected = (A_g @ v.unsqueeze(-1)).squeeze(-1)
-        h_g = compute_centroidal_momentum(model, q, v)
+        h_g = centroidal_momentum(model, forward_kinematics_state(model, q), v)
         torch.testing.assert_close(h_g, h_g_expected, rtol=1e-12, atol=1e-12)
 
 
@@ -82,7 +79,7 @@ def test_zero_velocity_gives_zero_momentum():
     for i in range(qs.shape[0]):
         q = qs[i]
         zero_v = torch.zeros(model.nv, dtype=torch.float64)
-        h_g = ccrba(model, q, zero_v).momentum
+        h_g = centroidal_momentum(model, forward_kinematics_state(model, q), zero_v)
         torch.testing.assert_close(
             h_g,
             torch.zeros(6, dtype=torch.float64),
@@ -102,7 +99,7 @@ def test_centroidal_g1_free_flyer():
     v = torch.zeros(model.nv, dtype=torch.float64)
     v[0] = 1.0
 
-    h_g = ccrba(model, q, v).momentum
+    h_g = centroidal_momentum(model, forward_kinematics_state(model, q), v)
     total_mass = sum(model.body_inertias[i, 0].item() for i in range(model.njoints))
     torch.testing.assert_close(
         h_g[0],

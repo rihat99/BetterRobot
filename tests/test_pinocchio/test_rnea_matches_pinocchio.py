@@ -6,8 +6,8 @@ import numpy as np
 import pytest
 import torch
 
-import better_robot as br
-from better_robot.dynamics import bias_forces as br_bias_forces
+from better_robot.dynamics.state import inverse_dynamics
+from better_robot.kinematics import forward_kinematics_state
 
 from .conftest import sample_panda_q
 
@@ -61,8 +61,7 @@ def test_rnea_gravity_matches_pinocchio(panda_both, i):
     q = sample_panda_q(n=4)[i]
     zeros_v = torch.zeros(br_model.nv, dtype=torch.float64)
 
-    data = br_model.create_data()
-    tau_br = br.rnea(br_model, q, zeros_v, zeros_v, data=data).detach().cpu().numpy()
+    tau_br = inverse_dynamics(br_model, forward_kinematics_state(br_model, q), zeros_v, zeros_v).detach().cpu().numpy()
     tau_pin = np.asarray(pin.computeGeneralizedGravity(pin_model, pin_data, q.detach().cpu().numpy()))
     np.testing.assert_allclose(tau_br, tau_pin, atol=1e-10, rtol=_RTOL)
 
@@ -74,8 +73,9 @@ def test_rnea_bias_matches_pinocchio(panda_both, i):
     q = sample_panda_q(n=4)[i]
     v = _random_v(br_model.nv, seed=100 + i)
 
-    data = br_model.create_data()
-    tau_br = br_bias_forces(br_model, q, v, data=data).detach().cpu().numpy()
+    tau_br = (
+        inverse_dynamics(br_model, forward_kinematics_state(br_model, q), v, torch.zeros_like(v)).detach().cpu().numpy()
+    )
     tau_pin = np.asarray(pin.nonLinearEffects(pin_model, pin_data, q.detach().cpu().numpy(), v.detach().cpu().numpy()))
     np.testing.assert_allclose(tau_br, tau_pin, atol=1e-10, rtol=_RTOL)
 
@@ -88,8 +88,7 @@ def test_rnea_full_matches_pinocchio(panda_both, i):
     v = _random_v(br_model.nv, seed=200 + i)
     a = _random_v(br_model.nv, seed=300 + i)
 
-    data = br_model.create_data()
-    tau_br = br.rnea(br_model, q, v, a, data=data).detach().cpu().numpy()
+    tau_br = inverse_dynamics(br_model, forward_kinematics_state(br_model, q), v, a).detach().cpu().numpy()
     tau_pin = np.asarray(
         pin.rnea(pin_model, pin_data, q.detach().cpu().numpy(), v.detach().cpu().numpy(), a.detach().cpu().numpy())
     )
@@ -105,8 +104,9 @@ def test_rnea_with_fext_matches_pinocchio(panda_both, i):
     a = _random_v(br_model.nv, seed=500 + i)
     br_fext, fext_pin = _random_matched_fext(br_model, pin_model, seed=600 + i)
 
-    data = br_model.create_data()
-    tau_br = br.rnea(br_model, q, v, a, fext=br_fext, data=data).detach().cpu().numpy()
+    tau_br = (
+        inverse_dynamics(br_model, forward_kinematics_state(br_model, q), v, a, fext=br_fext).detach().cpu().numpy()
+    )
 
     tau_pin = np.asarray(
         pin.rnea(
@@ -123,34 +123,10 @@ def test_rnea_bias_forces_matches_rnea_zero_accel(panda_both):
     v = _random_v(br_model.nv, seed=42)
     zeros_v = torch.zeros_like(v)
 
-    d1 = br_model.create_data()
-    d2 = br_model.create_data()
-    tau_bias = br_bias_forces(br_model, q, v, data=d1)
-    tau_rnea = br.rnea(br_model, q, v, zeros_v, data=d2)
+    tau_bias = inverse_dynamics(br_model, forward_kinematics_state(br_model, q), v, torch.zeros_like(v))
+    tau_rnea = inverse_dynamics(br_model, forward_kinematics_state(br_model, q), v, zeros_v)
 
     assert torch.allclose(tau_bias, tau_rnea, atol=1e-12)
-    assert d1.bias_forces is not None
-    assert torch.allclose(d1.bias_forces, tau_bias, atol=0)
-
-
-def test_rnea_populates_data_fields(panda_both):
-    br_model, _, _, _ = panda_both
-    q = sample_panda_q(n=1)[0]
-    v = _random_v(br_model.nv, seed=1)
-    a = _random_v(br_model.nv, seed=2)
-
-    data = br_model.create_data()
-    br.rnea(br_model, q, v, a, data=data)
-
-    assert data.tau is not None and data.tau.shape == (br_model.nv,)
-    assert data.joint_velocity_local is not None
-    assert data.joint_velocity_local.shape == (br_model.njoints, 6)
-    assert data.joint_acceleration_local is not None
-    assert data.joint_acceleration_local.shape == (br_model.njoints, 6)
-    assert data.joint_forces is not None
-    assert data.joint_forces.shape == (br_model.njoints, 6)
-    assert data.joint_pose_world is not None
-    assert data.joint_pose_local is not None
 
 
 def test_rnea_batched(panda_both):
@@ -160,12 +136,10 @@ def test_rnea_batched(panda_both):
     vs = torch.stack([_random_v(br_model.nv, s) for s in (10, 11, 12)])
     as_ = torch.stack([_random_v(br_model.nv, s) for s in (20, 21, 22)])
 
-    data_batch = br_model.create_data(batch_shape=(3,))
-    tau_batch = br.rnea(br_model, qs, vs, as_, data=data_batch)
+    tau_batch = inverse_dynamics(br_model, forward_kinematics_state(br_model, qs), vs, as_)
 
     for k in range(3):
-        data_k = br_model.create_data()
-        tau_k = br.rnea(br_model, qs[k], vs[k], as_[k], data=data_k)
+        tau_k = inverse_dynamics(br_model, forward_kinematics_state(br_model, qs[k]), vs[k], as_[k])
         assert torch.allclose(tau_batch[k], tau_k, atol=1e-12), f"mismatch at batch {k}"
 
 
@@ -179,9 +153,9 @@ def test_rnea_full_fp32_matches_pinocchio(panda_both):
         v = _random_v(br_model.nv, seed=60 + i).to(torch.float32)
         a = _random_v(br_model.nv, seed=70 + i).to(torch.float32)
         tau_br = (
-            br.rnea(
+            inverse_dynamics(
                 br_model,
-                q,
+                forward_kinematics_state(br_model, q),
                 v,
                 a,
             )
@@ -208,8 +182,7 @@ def test_rnea_autograd_runs(panda_both):
     v = _random_v(br_model.nv, seed=3).requires_grad_(True)
     a = _random_v(br_model.nv, seed=4).requires_grad_(True)
 
-    data = br_model.create_data()
-    tau = br.rnea(br_model, q, v, a, data=data)
+    tau = inverse_dynamics(br_model, forward_kinematics_state(br_model, q), v, a)
     loss = tau.pow(2).sum()
     loss.backward()
 

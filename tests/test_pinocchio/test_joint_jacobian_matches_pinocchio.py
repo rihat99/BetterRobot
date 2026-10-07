@@ -1,7 +1,7 @@
 """Joint Jacobian parity for all three reference frames.
 
 This is the regression test that anchors the ``reference=`` parameter in
-``get_joint_jacobian`` against Pinocchio's canonical convention, including
+``joint_jacobian`` against Pinocchio's canonical convention, including
 ``nq != nv`` joints (free-flyer, spherical) where a wrong frame convention
 would hide on Panda.
 
@@ -55,13 +55,7 @@ def test_joint_jacobian_matches_pinocchio(panda_both, joint_name, reference, pin
 
     for q in sample_panda_q(n=3, seed=13):
         state = _fk_both(br_model, pin_model, pin_data, q)
-        J_br = (
-            joint_jacobian(br_model, state, br_jid, reference=reference)
-            .detach()
-            .cpu()
-            .double()
-            .numpy()
-        )
+        J_br = joint_jacobian(br_model, state, br_jid, reference=reference).detach().cpu().double().numpy()
         J_pin = pin.getJointJacobian(pin_model, pin_data, pin_jid, pin_reference)
         np.testing.assert_allclose(
             J_br, J_pin, atol=2e-6, rtol=1e-5, err_msg=f"joint {joint_name}, reference {reference}"
@@ -81,9 +75,7 @@ def test_joint_jacobian_batched_matches_pinocchio(panda_both, batch_shape, refer
     state = br.forward_kinematics_state(br_model, qs)
     br_jid = br_model.joint_id("panda_joint7")
     pin_jid = pin_model.getJointId("panda_joint7")
-    J_br = (
-        joint_jacobian(br_model, state, br_jid, reference=reference).detach().cpu().numpy()
-    )
+    J_br = joint_jacobian(br_model, state, br_jid, reference=reference).detach().cpu().numpy()
 
     for batch_index in np.ndindex(batch_shape):
         q_pin = qs[batch_index].detach().cpu().numpy()
@@ -158,12 +150,7 @@ def test_joint_jacobian_spherical_matches_pinocchio():
         br_jid = br_model.joint_id(joint_name)
         pin_jid = pin_model.getJointId(joint_name)
         for reference, pin_reference in _REFERENCES:
-            J_br = (
-                joint_jacobian(br_model, state, br_jid, reference=reference)
-                .detach()
-                .cpu()
-                .numpy()
-            )
+            J_br = joint_jacobian(br_model, state, br_jid, reference=reference).detach().cpu().numpy()
             J_pin = pin.getJointJacobian(pin_model, pin_data, pin_jid, pin_reference)
             # Programmatic, fp64 end-to-end — no URDF fp32 round-trip.
             np.testing.assert_allclose(

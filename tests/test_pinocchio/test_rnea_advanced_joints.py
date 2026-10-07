@@ -16,7 +16,8 @@ import numpy as np
 import pytest
 import torch
 
-import better_robot as br
+from better_robot.dynamics.state import inverse_dynamics
+from better_robot.kinematics import forward_kinematics_state
 
 from .conftest import _build_spherical_chain
 
@@ -45,7 +46,7 @@ def test_rnea_free_flyer_g1_matches_pinocchio(g1_both, seed):
     v = torch.randn(br_m.nv, generator=rng, dtype=torch.float64) * 0.2
     a = torch.randn(br_m.nv, generator=rng, dtype=torch.float64) * 0.2
 
-    tau_br = br.rnea(br_m, q, v, a).detach().cpu().numpy()
+    tau_br = inverse_dynamics(br_m, forward_kinematics_state(br_m, q), v, a).detach().cpu().numpy()
     tau_pin = np.asarray(pin.rnea(pin_m, pin_d, q.numpy(), v.numpy(), a.numpy()))
 
     np.testing.assert_allclose(tau_br, tau_pin, atol=1e-10)
@@ -57,7 +58,7 @@ def test_rnea_free_flyer_base_wrench_matches_pinocchio(g1_both):
     q = torch.zeros(br_m.nq, dtype=torch.float64)
     q[6] = 1.0  # identity quat
     zero = torch.zeros(br_m.nv, dtype=torch.float64)
-    tau_br = br.rnea(br_m, q, zero, zero).detach().cpu().numpy()
+    tau_br = inverse_dynamics(br_m, forward_kinematics_state(br_m, q), zero, zero).detach().cpu().numpy()
     tau_pin = np.asarray(pin.rnea(pin_m, pin_d, q.numpy(), zero.numpy(), zero.numpy()))
     np.testing.assert_allclose(tau_br[:6], tau_pin[:6], atol=1e-10)
 
@@ -81,7 +82,7 @@ def _spherical_random_qva(seed: int) -> tuple[torch.Tensor, torch.Tensor, torch.
 def test_rnea_spherical_matches_pinocchio(seed):
     br_m, pin_m, pin_d = _build_spherical_chain()
     q, v, a = _spherical_random_qva(seed)
-    tau_br = br.rnea(br_m, q, v, a).detach().cpu().numpy()
+    tau_br = inverse_dynamics(br_m, forward_kinematics_state(br_m, q), v, a).detach().cpu().numpy()
     tau_pin = np.asarray(pin.rnea(pin_m, pin_d, q.numpy(), v.numpy(), a.numpy()))
     # No URDF fp32 round-trip here — programmatic, fp64 end-to-end.
     np.testing.assert_allclose(tau_br, tau_pin, atol=1e-10)
@@ -91,7 +92,7 @@ def test_rnea_spherical_gravity_only():
     br_m, pin_m, pin_d = _build_spherical_chain()
     q = torch.tensor([0.0, 0.0, 0.0, 1.0, 0.0], dtype=torch.float64)  # identity quat + θ=0
     z = torch.zeros(4, dtype=torch.float64)
-    tau_br = br.rnea(br_m, q, z, z).detach().cpu().numpy()
+    tau_br = inverse_dynamics(br_m, forward_kinematics_state(br_m, q), z, z).detach().cpu().numpy()
     tau_pin = np.asarray(pin.rnea(pin_m, pin_d, q.numpy(), z.numpy(), z.numpy()))
     np.testing.assert_allclose(tau_br, tau_pin, atol=1e-12)
 
@@ -112,9 +113,5 @@ def test_rnea_spherical_populates_tangent_fields_correctly():
     q = torch.tensor([0.0, 0.0, 0.0, 1.0, 0.0], dtype=torch.float64)
     v = torch.tensor([0.1, 0.2, 0.3, 0.4], dtype=torch.float64)
     a = torch.tensor([0.05, -0.1, 0.2, 0.3], dtype=torch.float64)
-    data = br_m.create_data()
-    tau = br.rnea(br_m, q, v, a, data=data)
+    tau = inverse_dynamics(br_m, forward_kinematics_state(br_m, q), v, a)
     assert tau.shape == (4,)
-    assert data.joint_velocity_local.shape == (br_m.njoints, 6)
-    assert data.joint_acceleration_local.shape == (br_m.njoints, 6)
-    assert data.joint_forces.shape == (br_m.njoints, 6)

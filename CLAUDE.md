@@ -2,7 +2,9 @@
 
 BetterRobot is a PyTorch-native robotics library for batched kinematics,
 dynamics, residual modeling, and nonlinear least squares. Fixed- and
-floating-base robots use the same `Model`/`Data` APIs; a floating base is a
+floating-base robots use the same state API
+(`forward_kinematics_state(model, q) -> KinematicState`, then Jacobians and
+`dynamics.state` functions on that state); a floating base is a
 `JointFreeFlyer` in the model topology.
 
 ## Start here
@@ -43,8 +45,9 @@ enforced by `tests/contract/test_layer_dependencies.py`.
 
 Public wrappers validate shapes, dtype, device, and model attachment. Raw
 tensor passes below them trust validated inputs. `ModelStructure` holds static
-topology, `ModelValues` holds differentiable tensors, and mutable `Data` belongs
-to one query. Torch is the only implementation.
+topology, `ModelValues` holds differentiable tensors, and a frozen
+`KinematicState` holds the results of one forward-kinematics query. Torch is
+the only implementation.
 
 ## Numerical contracts
 

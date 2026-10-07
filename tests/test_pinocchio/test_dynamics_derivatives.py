@@ -16,7 +16,8 @@ import pytest
 import torch
 
 import better_robot as br
-from better_robot.dynamics import aba, crba, rnea
+from better_robot.dynamics.state import forward_dynamics, inverse_dynamics, mass_matrix
+from better_robot.kinematics import forward_kinematics_state
 
 
 def _panda():
@@ -34,7 +35,7 @@ def test_rnea_gradcheck():
     a = (torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1).requires_grad_(True)
 
     def f(q_, v_, a_):
-        return rnea(model, q_, v_, a_)
+        return inverse_dynamics(model, forward_kinematics_state(model, q_), v_, a_)
 
     assert torch.autograd.gradcheck(f, (q, v, a), eps=1e-6, atol=1e-4, rtol=1e-3)
 
@@ -47,7 +48,7 @@ def test_aba_gradcheck():
     tau = (torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1).requires_grad_(True)
 
     def f(q_, v_, tau_):
-        return aba(model, q_, v_, tau_)
+        return forward_dynamics(model, forward_kinematics_state(model, q_), v_, tau_)
 
     assert torch.autograd.gradcheck(f, (q, v, tau), eps=1e-6, atol=1e-4, rtol=1e-3)
 
@@ -61,10 +62,10 @@ def test_dtau_da_matches_crba():
     a = torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1
 
     dtau_da = torch.autograd.functional.jacobian(
-        lambda acceleration: rnea(model, q, v, acceleration),
+        lambda acceleration: inverse_dynamics(model, forward_kinematics_state(model, q), v, acceleration),
         a,
     )
-    M = crba(model, q)
+    M = mass_matrix(model, forward_kinematics_state(model, q))
     torch.testing.assert_close(dtau_da, M, rtol=1e-10, atol=1e-10)
 
 
@@ -77,9 +78,9 @@ def test_dadtau_matches_minverse():
     tau = torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1
 
     da_dtau = torch.autograd.functional.jacobian(
-        lambda torque: aba(model, q, v, torque),
+        lambda torque: forward_dynamics(model, forward_kinematics_state(model, q), v, torque),
         tau,
     )
-    M = crba(model, q)
+    M = mass_matrix(model, forward_kinematics_state(model, q))
     M_inv = torch.linalg.inv(M)
     torch.testing.assert_close(da_dtau, M_inv, rtol=1e-9, atol=1e-9)
