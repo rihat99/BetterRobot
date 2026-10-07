@@ -20,10 +20,8 @@ import torch
 
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
-from better_robot.kinematics.forward import forward_kinematics_raw
 from better_robot.kinematics.jacobian import (
     frame_jacobian_time_variation_raw,
-    joint_jacobians_raw,
     joint_jacobians_time_variation_raw,
 )
 from better_robot.kinematics import forward_kinematics_state, frame_jacobian, frame_jacobian_time_variation, joint_jacobian, joint_jacobian_time_variation
@@ -134,7 +132,7 @@ def test_world_and_lwa_are_non_degenerate(chain):
 
 def test_raw_matches_workspace(chain):
     q, v = _q_v(chain)
-    poses = forward_kinematics_raw(chain.structure, chain.values, q).joint_pose_world
+    poses = forward_kinematics_state(chain, q).joint_pose
     raw = joint_jacobians_time_variation_raw(chain.structure, q, v, poses)
 
     state = forward_kinematics_state(chain, q)
@@ -144,11 +142,12 @@ def test_raw_matches_workspace(chain):
 
 def test_reuse_path_matches_fresh(chain):
     q, v = _q_v(chain)
-    poses = forward_kinematics_raw(chain.structure, chain.values, q).joint_pose_world
+    poses = forward_kinematics_state(chain, q).joint_pose
     frame_id = chain.frame_id("tool")
 
     fresh = joint_jacobians_time_variation_raw(chain.structure, q, v, poses)
-    joint_jacobians = joint_jacobians_raw(chain.structure, q, poses).joint_jacobians
+    state = forward_kinematics_state(chain, q)
+    joint_jacobians = torch.stack([joint_jacobian(chain, state, j, reference="world") for j in range(chain.njoints)], -3)
     reused = joint_jacobians_time_variation_raw(chain.structure, q, v, poses, joint_jacobians=joint_jacobians)
     torch.testing.assert_close(fresh.joint_jacobians_dot, reused.joint_jacobians_dot)
 
@@ -186,7 +185,7 @@ def test_jacrev_equals_jacfwd_through_raw(chain):
     q, v = _q_v(chain)
 
     def evaluate(q_value, v_value):
-        poses = forward_kinematics_raw(chain.structure, chain.values, q_value).joint_pose_world
+        poses = forward_kinematics_state(chain, q_value).joint_pose
         return joint_jacobians_time_variation_raw(
             chain.structure, q_value, v_value, poses
         ).joint_jacobians_dot
@@ -201,7 +200,7 @@ def test_raw_compiles_fullgraph(chain):
     q, v = _q_v(chain)
     q = q.expand(2, -1).clone()
     v = v.expand(2, -1).clone()
-    poses = forward_kinematics_raw(chain.structure, chain.values, q).joint_pose_world
+    poses = forward_kinematics_state(chain, q).joint_pose
 
     def evaluate(q_value, v_value, joint_poses):
         return joint_jacobians_time_variation_raw(

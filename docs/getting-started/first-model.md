@@ -24,7 +24,7 @@ A `Model` is immutable. Its topology (joint tree, names, index tables) is static
 ## Read the joints and frames
 
 Joint 0 is always `universe`, the fixed world. The URDF parser adds a fixed `root_joint` that attaches the
-robot to it. Frames name every body and joint; you address them by name:
+robot to it. Every body gets a frame named `body_<link>`; you address frames by name:
 
 ```python
 print(model.njoints, model.joint_names[:4])

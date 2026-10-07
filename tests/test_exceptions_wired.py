@@ -18,7 +18,6 @@ from better_robot.exceptions import (
 )
 from better_robot.io.build_model import _check_topology_invariants, build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
-from better_robot.kinematics.forward import forward_kinematics_raw
 from better_robot.kinematics import forward_kinematics_state
 
 
@@ -133,7 +132,7 @@ def test_fixed_base_bypasses_quaternion_check(arm_model):
     """The quaternion guard only fires for free-flyer roots."""
     q = arm_model.q_neutral.clone()
     # Arbitrary q value — no quaternion here, so no error should fire.
-    forward_kinematics_raw(arm_model.structure, arm_model.values, q)
+    forward_kinematics_state(arm_model, q, check_quaternion_norm=True)
 
 
 # ────────────────────── ModelInconsistencyError ──────────────────────

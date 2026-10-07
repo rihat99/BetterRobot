@@ -1,4 +1,4 @@
-"""Bench fixtures — Panda + G1 + a pre-FK'd Data."""
+"""Bench fixtures — Panda + G1 + a precomputed KinematicState."""
 
 from __future__ import annotations
 

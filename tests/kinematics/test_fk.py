@@ -13,10 +13,6 @@ import torch
 from better_robot.exceptions import DtypeMismatchError
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
-from better_robot.kinematics.forward import (
-    frame_placements_raw,
-    forward_kinematics_raw,
-)
 from better_robot.kinematics import forward_kinematics_state
 
 
@@ -49,9 +45,9 @@ def arm():
 
 def test_fk_raw_shapes(arm):
     q = arm.q_neutral
-    result = forward_kinematics_raw(arm.structure, arm.values, q)
-    assert result.joint_pose_world.shape == (arm.njoints, 7)
-    assert result.joint_pose_local.shape == (arm.njoints, 7)
+    result = forward_kinematics_state(arm, q)
+    assert result.joint_pose.shape == (arm.njoints, 7)
+    assert result.joint_transform.shape == (arm.njoints, 3, 4)
 
 
 @pytest.mark.parametrize("dtype", (torch.float16, torch.bfloat16))
@@ -75,9 +71,9 @@ def test_fk_data_shapes(arm):
 def test_fk_batched_shapes(arm):
     B = 4
     q = arm.q_neutral.unsqueeze(0).expand(B, -1).clone()
-    result = forward_kinematics_raw(arm.structure, arm.values, q)
-    assert result.joint_pose_world.shape == (B, arm.njoints, 7)
-    assert result.joint_pose_local.shape == (B, arm.njoints, 7)
+    result = forward_kinematics_state(arm, q)
+    assert result.joint_pose.shape == (B, arm.njoints, 7)
+    assert result.joint_transform.shape == (B, arm.njoints, 3, 4)
 
 
 # ── correctness at neutral ────────────────────────────────────────────────────
@@ -85,8 +81,8 @@ def test_fk_batched_shapes(arm):
 
 def test_universe_joint_is_identity(arm):
     q = arm.q_neutral
-    result = forward_kinematics_raw(arm.structure, arm.values, q)
-    T0 = result.joint_pose_world[0]
+    result = forward_kinematics_state(arm, q)
+    T0 = result.joint_pose[0]
     assert T0[:3].norm() < 1e-6, "universe translation should be zero"
     assert abs(float(T0[6]) - 1.0) < 1e-6, "universe quaternion w should be 1"
 
@@ -94,8 +90,8 @@ def test_universe_joint_is_identity(arm):
 def test_joint1_at_neutral(arm):
     """Root joint (fixed) at neutral has identity pose."""
     q = arm.q_neutral
-    result = forward_kinematics_raw(arm.structure, arm.values, q)
-    T1 = result.joint_pose_world[1]
+    result = forward_kinematics_state(arm, q)
+    T1 = result.joint_pose[1]
     # root_joint is fixed, joint_placements[1] is identity
     assert T1[:3].norm() < 1e-5
 
@@ -103,8 +99,8 @@ def test_joint1_at_neutral(arm):
 def test_joint2_translation_at_neutral(arm):
     """Joint 2 (j1 revolute) should be at z=0.1 at neutral (q=0)."""
     q = arm.q_neutral
-    result = forward_kinematics_raw(arm.structure, arm.values, q)
-    T2 = result.joint_pose_world[2]
+    result = forward_kinematics_state(arm, q)
+    T2 = result.joint_pose[2]
     assert abs(float(T2[2]) - 0.1) < 1e-5, f"Expected z=0.1, got {float(T2[2])}"
 
 
@@ -112,8 +108,8 @@ def test_revolute_z_rotation(arm):
     """Rotating joint 2 by π/2 around Z should change X→Y direction."""
     q = arm.q_neutral.clone()
     q[0] = math.pi / 2  # rotate j1 by 90 degrees
-    result = forward_kinematics_raw(arm.structure, arm.values, q)
-    T2 = result.joint_pose_world[2]
+    result = forward_kinematics_state(arm, q)
+    T2 = result.joint_pose[2]
     # Rotation part: qz should be ~sin(π/4), qw should be ~cos(π/4)
     qz = float(T2[5])
     qw = float(T2[6])
@@ -129,18 +125,6 @@ def test_update_frame_placements_shape(arm):
     state = forward_kinematics_state(arm, q)
     assert state.frame_pose is not None
     assert state.frame_pose.shape == (arm.nframes, 7)
-
-
-def test_frame_placements_raw_matches_public_fk(arm):
-    fk_result = forward_kinematics_raw(arm.structure, arm.values, arm.q_neutral)
-    frame_result = frame_placements_raw(
-        arm.structure,
-        arm.values,
-        fk_result.joint_pose_world,
-    )
-    state = forward_kinematics_state(arm, arm.q_neutral)
-
-    torch.testing.assert_close(frame_result.frame_pose_world, state.frame_pose)
 
 
 def test_body_frame_is_at_joint(arm):
@@ -173,8 +157,8 @@ def test_panda_fk_neutral_shape(panda_model):
 
 def test_panda_fk_universe_is_identity(panda_model):
     q = panda_model.q_neutral
-    result = forward_kinematics_raw(panda_model.structure, panda_model.values, q)
-    T0 = result.joint_pose_world[0]
+    result = forward_kinematics_state(panda_model, q)
+    T0 = result.joint_pose[0]
     assert T0[:3].norm() < 1e-6
     assert abs(float(T0[6]) - 1.0) < 1e-6
 
@@ -182,9 +166,5 @@ def test_panda_fk_universe_is_identity(panda_model):
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
 def test_panda_fk_dtype_preserved(panda_model, dtype):
     model = panda_model.to(dtype=dtype)
-    result = forward_kinematics_raw(
-        model.structure,
-        model.values,
-        model.q_neutral,
-    )
-    assert result.joint_pose_world.dtype == dtype
+    result = forward_kinematics_state(model, model.q_neutral)
+    assert result.joint_pose.dtype == dtype

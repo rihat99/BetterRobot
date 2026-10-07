@@ -78,8 +78,8 @@ set of parameters per configuration.
 
 ## Full Jacobians with `torch.func`
 
-The state API composes with `torch.func.jacrev`. The test suite checks that the result matches
-`torch.autograd.functional.jacobian` and the analytic `frame_jacobian`.
+The state API composes with `torch.func.jacrev`. The test suite checks `jacrev` against
+`torch.autograd.functional.jacobian`, and autograd against the analytic `frame_jacobian`.
 
 ```python
 def hand_position(x: torch.Tensor) -> torch.Tensor:

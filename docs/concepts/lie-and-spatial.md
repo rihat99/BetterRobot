@@ -18,8 +18,9 @@ module docstrings and checked by a snippet you can run.
 | wrench (`Force`) | `(..., 6)` | `[fx, fy, fz, tx, ty, tz]`, linear first |
 | spatial inertia (`Inertia`) | `(..., 10)` | `[mass, cx, cy, cz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]` |
 
-All functions broadcast over leading batch axes and keep dtype and device. They are direct torch
-formulas, so autograd flows through every one.
+All functions on tensors broadcast over leading batch axes and keep dtype and device. They are direct torch
+formulas, so autograd flows through every one. The shape constructors `Inertia.from_sphere` / `from_box` /
+`from_capsule` / `from_ellipsoid` take Python floats and build a float32 tensor unless you pass `dtype=`.
 
 ## `compose(a, b)` applies `b` first
 
@@ -58,7 +59,7 @@ assert torch.allclose(se3.log(se3.exp(xi)), xi, atol=1e-6)
 
 ## Right Jacobians perturb on the right, left Jacobians on the left
 
-`better_robot.lie.tangents` holds `hat`/`vee` and the Jacobians of `exp` with their inverses:
+`better_robot.lie.tangents` holds `hat_so3`/`vee_so3`, `hat_se3`/`vee_se3` and the Jacobians of `exp` with their inverses:
 `right_jacobian_se3`, `right_jacobian_inv_se3`, `left_jacobian_se3`, `left_jacobian_inv_se3`, and the
 `_so3` versions. For a small twist $\delta$:
 

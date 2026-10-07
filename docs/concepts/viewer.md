@@ -133,7 +133,7 @@ viewer.record(out, size=(160, 90), frames=range(3))
 print(out.exists())
 ```
 
-Without a `camera`, `record` fits a 3/4 view to the visible layers sampled over the whole clip (eight frames),
+Without a `camera`, `record` fits a 3/4 view to the visible layers sampled over the whole clip (about eight frames, every frame for short clips),
 upright along the theme's `up` axis. Pass a `Camera`, or build one with
 `better_robot.viewer.render.frame_camera(layers, frames=...)`, for a fixed view of your own.
 

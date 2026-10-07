@@ -3,7 +3,7 @@
 A ``JointModel`` is a dispatch object with fixed ``nq``/``nv`` and may carry
 static joint configuration such as an axis or helical pitch. It does not store
 per-query configuration or velocity: ``q``/``v`` live in query tensors and
-``Data``, while topology, placements, and slice indices live on ``Model``.
+``KinematicState``, while topology, placements, and slice indices live on ``Model``.
 Implementations operate on the corresponding slices of the full tensors.
 
 See ``docs/concepts/joints_bodies_frames.md`` ("The JointModel Protocol").

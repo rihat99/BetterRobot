@@ -21,26 +21,16 @@ from __future__ import annotations
 
 from . import exceptions as exceptions, io as io, spatial as spatial
 from ._version import __version__ as __version__
-from .data_model import Body, Data, Frame, Joint, Model, ModelStructure, ModelValues
-from .dynamics import (
-    aba,
-    center_of_mass,
-    compute_centroidal_map,
-    crba,
-    rnea,
-)
+from .data_model import Body, Frame, Joint, Model, ModelStructure, ModelValues
 from .io import ModelBuilder, load
-from .kinematics import (
-    compute_joint_jacobians,
-    compute_joint_jacobians_time_variation,
-    forward_kinematics,
-    get_frame_jacobian,
-    get_frame_jacobian_time_variation,
-    get_joint_jacobian,
-    get_joint_jacobian_time_variation,
-    update_frame_placements,
+from .dynamics.state import (
+    center_of_mass,
+    centroidal_map,
+    centroidal_momentum,
+    forward_dynamics,
+    inverse_dynamics,
+    mass_matrix,
 )
-from .dynamics.state import centroidal_map, centroidal_momentum, forward_dynamics, inverse_dynamics, mass_matrix
 from .kinematics.state import (
     KinematicState,
     forward_kinematics_state,
@@ -52,11 +42,10 @@ from .kinematics.state import (
 from .lie.types import SE3
 
 __all__ = [
-    # data_model (7)
+    # data_model (6)
     "Model",
     "ModelStructure",
     "ModelValues",
-    "Data",
     "Frame",
     "Joint",
     "Body",
@@ -65,27 +54,15 @@ __all__ = [
     "ModelBuilder",
     # lie (1)
     "SE3",
-    # kinematics (8)
-    "forward_kinematics",
-    "update_frame_placements",
-    "compute_joint_jacobians",
-    "compute_joint_jacobians_time_variation",
-    "get_joint_jacobian",
-    "get_joint_jacobian_time_variation",
-    "get_frame_jacobian",
-    "get_frame_jacobian_time_variation",
-    # dynamics (5)
-    "rnea",
-    "aba",
-    "crba",
-    "center_of_mass",
-    "compute_centroidal_map",
+    # kinematics (6)
     "forward_kinematics_state",
     "KinematicState",
     "frame_jacobian",
     "frame_jacobian_time_variation",
     "joint_jacobian",
     "joint_jacobian_time_variation",
+    # dynamics (6)
+    "center_of_mass",
     "inverse_dynamics",
     "mass_matrix",
     "forward_dynamics",

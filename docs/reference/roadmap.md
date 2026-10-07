@@ -14,15 +14,14 @@ contract test reports both missing source files and stale documentation
 entries.
 
 <!-- not-implemented-inventory:start -->
-- `src/better_robot/dynamics/centroidal.py`
 - `src/better_robot/io/build_model.py`
 - `src/better_robot/spatial/force.py`
 <!-- not-implemented-inventory:end -->
 
 ## Dynamics and spatial algebra
 
-`center_of_mass` computes position and, when velocity is supplied, velocity.
-Passing acceleration is not supported.
+`center_of_mass(model, state)` gives the position only; the centre-of-mass velocity is the linear part of
+`centroidal_momentum(model, state, v)` divided by the total mass. Centre-of-mass acceleration is not provided.
 
 `Force.cross_motion` raises because that operation is not a standard spatial
 primitive. Use the documented motion/force cross operation instead.

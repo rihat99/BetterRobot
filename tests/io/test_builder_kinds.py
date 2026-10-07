@@ -13,7 +13,6 @@ from better_robot.data_model.joint_models import (
     JointFixed,
     JointFreeFlyer,
     JointHelical,
-    JointMimic,
     JointPlanar,
     JointPrismaticUnaligned,
     JointPX,
@@ -218,21 +217,3 @@ def test_composite_derives_dimensions_and_runs_fk():
 
     state = forward_kinematics_state(model, torch.tensor([0.2, 0.3]))
     assert torch.isfinite(state.joint_pose).all()
-
-
-def test_direct_joint_mimic_requires_a_concrete_target_kind():
-    builder = ModelBuilder("mimic_placeholder")
-    base = builder.add_body("base")
-    source = builder.add_body("source")
-    target = builder.add_body("target")
-    builder.add_revolute_x("source_joint", parent=base, child=source)
-    builder.add_joint(
-        "target_joint",
-        kind=JointMimic(),
-        parent=base,
-        child=target,
-        mimic_source="source_joint",
-    )
-
-    with pytest.raises(NotImplementedError, match="concrete"):
-        build_model(builder.finalize())

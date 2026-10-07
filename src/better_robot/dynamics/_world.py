@@ -1,4 +1,4 @@
-"""World-frame dynamics core shared by the state API and the ``Data`` API.
+"""World-frame dynamics core behind the ``KinematicState`` dynamics API.
 
 Everything is expressed in the world frame, so every ancestor or descendant sum over the
 tree is one matmul with a constant support matrix instead of a Python loop over joints:
@@ -27,8 +27,6 @@ import torch
 
 from ..data_model.model_structure import ModelStructure
 from ..data_model.model_values import ModelValues, inertia_about_com, packed_inertias_to_6x6, spatial_inertia_matrix
-from ..kinematics._fk_matrix import matrix_core_with_transforms
-from ..kinematics._fk_matrix import prepare_inputs as prepare_fk_inputs
 from ..kinematics._jacobian_columns import JointJacobianPlan, get_plan, world_column_table_from_matrices
 from ..lie.tangents import hat_so3
 
@@ -198,21 +196,6 @@ def world_kinematics(
     return WorldKinematics(geometry.columns, geometry.rotation, geometry.translation, geometry.origin, inertia, packed)
 
 
-def world_kinematics_from_q(
-    structure: ModelStructure, values: ModelValues, q: torch.Tensor
-) -> tuple[WorldKinematics, torch.Tensor, torch.Tensor]:
-    """FK plus :func:`world_kinematics` for the ``Data`` API.
-
-    ``q`` is ``(B..., nq)`` already broadcast to the execution batch. Also returns the world and
-    parent-relative joint poses ``(B..., njoints, 7)`` that the ``Data`` results carry.
-    """
-    batch = tuple(q.shape[:-1])
-    q_full, placements = prepare_fk_inputs(structure, values, q)
-    transform, world_pose, local_pose = matrix_core_with_transforms(structure, q_full, placements)
-    geometry = world_geometry(structure, transform, get_dynamics_plan(structure))
-    return world_kinematics(geometry, values, batch, structure), world_pose, local_pose
-
-
 def apply_inertia(inertia: torch.Tensor, motion: torch.Tensor) -> torch.Tensor:
     """``I v`` for ``(njoints, 6, 6)`` or ``(N, njoints, 6, 6)`` inertias and ``(N, njoints, 6)`` twists."""
     if inertia.ndim == 3:
@@ -314,5 +297,4 @@ __all__ = [
     "spatial_inertias",
     "world_geometry",
     "world_kinematics",
-    "world_kinematics_from_q",
 ]

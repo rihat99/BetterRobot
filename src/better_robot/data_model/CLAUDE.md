@@ -1,7 +1,7 @@
-# `data_model/` — Robot Identity and Query State
+# `data_model/` — Robot Identity
 
-`Model` is the shallowly frozen robot description; `Data` is a mutable
-workspace for one query. Do not share `Data` across concurrent evaluations or
+`Model` is the shallowly frozen robot description. Query results live in a
+frozen `KinematicState` (`kinematics/state.py`), never on the model; do not
 mutate model tensors in place.
 
 `Model` stores only `structure`, `values`, `reference_configurations`, and

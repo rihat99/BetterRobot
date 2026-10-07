@@ -14,7 +14,6 @@ from .composite import JointComposite
 from .fixed import JointFixed, JointUniverse
 from .free_flyer import JointFreeFlyer
 from .helical import JointHelical
-from .mimic import JointMimic
 from .planar import JointPlanar
 from .prismatic import (
     JointPrismaticUnaligned,
@@ -52,5 +51,4 @@ __all__ = [
     "JointTranslation",
     "JointHelical",
     "JointComposite",
-    "JointMimic",
 ]

@@ -50,15 +50,19 @@ class Inertia:
         return cls(torch.zeros((*batch_shape, 10), device=device, dtype=dtype))
 
     @classmethod
-    def from_sphere(cls, mass: float, radius: float) -> "Inertia":
+    def from_sphere(
+        cls, mass: float, radius: float, *, device: torch.device | None = None, dtype: torch.dtype = torch.float32
+    ) -> "Inertia":
         """Solid sphere inertia. I = 2/5 * m * r^2 on diagonal, com at origin."""
         I_diag = (2.0 / 5.0) * mass * radius**2
         # packing: [mass, cx, cy, cz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]
-        data = torch.tensor([mass, 0.0, 0.0, 0.0, I_diag, I_diag, I_diag, 0.0, 0.0, 0.0], dtype=torch.float32)
+        data = torch.tensor([mass, 0.0, 0.0, 0.0, I_diag, I_diag, I_diag, 0.0, 0.0, 0.0], device=device, dtype=dtype)
         return cls(data)
 
     @classmethod
-    def from_box(cls, mass: float, size: torch.Tensor) -> "Inertia":
+    def from_box(
+        cls, mass: float, size: torch.Tensor, *, device: torch.device | None = None, dtype: torch.dtype = torch.float32
+    ) -> "Inertia":
         """Box inertia. ``size`` = full edge lengths (lx, ly, lz).
 
         Ixx = m/12*(ly²+lz²), Iyy = m/12*(lx²+lz²), Izz = m/12*(lx²+ly²).
@@ -68,11 +72,19 @@ class Inertia:
         Ixx = k * (ly**2 + lz**2)
         Iyy = k * (lx**2 + lz**2)
         Izz = k * (lx**2 + ly**2)
-        data = torch.tensor([mass, 0.0, 0.0, 0.0, Ixx, Iyy, Izz, 0.0, 0.0, 0.0], dtype=torch.float32)
+        data = torch.tensor([mass, 0.0, 0.0, 0.0, Ixx, Iyy, Izz, 0.0, 0.0, 0.0], device=device, dtype=dtype)
         return cls(data)
 
     @classmethod
-    def from_capsule(cls, mass: float, radius: float, length: float) -> "Inertia":
+    def from_capsule(
+        cls,
+        mass: float,
+        radius: float,
+        length: float,
+        *,
+        device: torch.device | None = None,
+        dtype: torch.dtype = torch.float32,
+    ) -> "Inertia":
         """Capsule (cylinder + 2 hemispheres) inertia along the Z axis.
 
         Uses Pinocchio's formula:
@@ -92,11 +104,13 @@ class Inertia:
             0.4 * radius**2 + (length / 2.0) * (0.75 * length + radius)
         )
         I_yy = I_xx
-        data = torch.tensor([mass, 0.0, 0.0, 0.0, I_xx, I_yy, I_zz, 0.0, 0.0, 0.0], dtype=torch.float32)
+        data = torch.tensor([mass, 0.0, 0.0, 0.0, I_xx, I_yy, I_zz, 0.0, 0.0, 0.0], device=device, dtype=dtype)
         return cls(data)
 
     @classmethod
-    def from_ellipsoid(cls, mass: float, radii: torch.Tensor) -> "Inertia":
+    def from_ellipsoid(
+        cls, mass: float, radii: torch.Tensor, *, device: torch.device | None = None, dtype: torch.dtype = torch.float32
+    ) -> "Inertia":
         """Ellipsoid inertia with principal radii (a, b, c).
 
         I = diag(2/5*m*(b²+c²), 2/5*m*(a²+c²), 2/5*m*(a²+b²)).
@@ -106,7 +120,7 @@ class Inertia:
         Ixx = k * (b**2 + c**2)
         Iyy = k * (a**2 + c**2)
         Izz = k * (a**2 + b**2)
-        data = torch.tensor([mass, 0.0, 0.0, 0.0, Ixx, Iyy, Izz, 0.0, 0.0, 0.0], dtype=torch.float32)
+        data = torch.tensor([mass, 0.0, 0.0, 0.0, Ixx, Iyy, Izz, 0.0, 0.0, 0.0], device=device, dtype=dtype)
         return cls(data)
 
     @classmethod

@@ -1,4 +1,4 @@
-"""``kinematics.forward_kinematics_state`` / ``frame_jacobian`` agree with the ``Data``-based API and with autograd."""
+"""``kinematics.forward_kinematics_state`` / ``frame_jacobian`` agree with autograd and with each other."""
 
 import pytest
 import torch

@@ -1,16 +1,14 @@
-"""Contracts for the batched matrix forward-kinematics lane.
+"""Contracts for the batched forward-kinematics pass behind ``forward_kinematics_state``.
 
-Covers the ``_fk_matrix`` rewrite behind :func:`forward_kinematics_raw`:
-parity against a hand-computed chain, the canonical-sign quaternion property,
+Parity against a hand-computed chain, the canonical-sign quaternion property,
 ``torch.func`` (jacrev/jacfwd) agreement on a mixed-kind model, batched
-joint-placement forward + gradient, and the opt-in ``use_compile`` lane.
+joint-placement forward + gradient, and ``torch.compile`` parity.
 
 All tests are float32 with loose tolerances (the library's target precision).
 """
 
 from __future__ import annotations
 
-import dataclasses
 import math
 
 import pytest
@@ -18,7 +16,6 @@ import torch
 
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
-from better_robot.kinematics.forward import forward_kinematics_raw
 from better_robot.lie import so3
 from better_robot.kinematics import forward_kinematics_state
 
@@ -66,12 +63,12 @@ def test_matrix_fk_matches_hand_computed_two_link_chain() -> None:
 
     theta1, theta2 = 0.5, -0.7
     q = torch.tensor([theta1, theta2], dtype=torch.float32)
-    result = forward_kinematics_raw(model.structure, model.values, q)
+    result = forward_kinematics_state(model, q)
 
     j1 = model.structure.joint_id("j1")
     j2 = model.structure.joint_id("j2")
-    world1 = result.joint_pose_world[j1]
-    world2 = result.joint_pose_world[j2]
+    world1 = result.joint_pose[j1]
+    world2 = result.joint_pose[j2]
 
     torch.testing.assert_close(world1[:3], torch.tensor([0.2, 0.0, 0.0]), atol=1e-5, rtol=1e-5)
     torch.testing.assert_close(so3.to_matrix(world1[3:7]), _rot_z(theta1), atol=1e-5, rtol=1e-5)
@@ -94,9 +91,9 @@ def test_matrix_fk_emits_canonical_sign_quaternions() -> None:
     # Large tangents so world rotations exceed the qw>0 hemisphere and exercise
     # multiple Shepperd branches / sign flips.
     q = _random_config(model, batch=(8,), scale=2.5, seed=3)
-    result = forward_kinematics_raw(model.structure, model.values, q)
+    result = forward_kinematics_state(model, q)
 
-    for poses in (result.joint_pose_world, result.joint_pose_local):
+    for poses in (result.joint_pose, result.frame_pose):
         quaternion = poses[..., 3:7]
         canonical = so3.from_matrix(so3.to_matrix(quaternion))
         torch.testing.assert_close(quaternion, canonical, atol=1e-5, rtol=1e-5)
@@ -110,8 +107,8 @@ def test_matrix_fk_jacrev_equals_jacfwd_on_mixed_kinds() -> None:
     q = _random_config(model, scale=1.0, seed=5)
 
     def scalar(config: torch.Tensor) -> torch.Tensor:
-        result = forward_kinematics_raw(model.structure, model.values, config)
-        return result.joint_pose_world.sum() + result.joint_pose_local.sum()
+        result = forward_kinematics_state(model, config)
+        return result.joint_pose.sum() + result.frame_pose.sum()
 
     reverse = torch.func.jacrev(scalar)(q)
     forward = torch.func.jacfwd(scalar)(q)
@@ -131,20 +128,18 @@ def test_matrix_fk_batched_joint_placements_forward_and_grad() -> None:
     batched_placements = model.values.joint_placements.unsqueeze(0) + offsets
 
     placements = batched_placements.detach().clone().requires_grad_()
-    values = dataclasses.replace(model.values, joint_placements=placements)
-    result = forward_kinematics_raw(model.structure, values, q)
-    assert result.joint_pose_world.shape == (batch, njoints, 7)
+    result = forward_kinematics_state(model.with_values(joint_placements=placements), q)
+    assert result.joint_pose.shape == (batch, njoints, 7)
 
-    gradient = torch.autograd.grad(result.joint_pose_world.sum(), placements)[0]
+    gradient = torch.autograd.grad(result.joint_pose.sum(), placements)[0]
     assert gradient.shape == (batch, njoints, 7)
     assert torch.isfinite(gradient).all()
 
     for index in range(batch):
-        element_values = dataclasses.replace(model.values, joint_placements=batched_placements[index])
-        element = forward_kinematics_raw(model.structure, element_values, q[index])
+        element = forward_kinematics_state(model.with_values(joint_placements=batched_placements[index]), q[index])
         torch.testing.assert_close(
-            result.joint_pose_world[index],
-            element.joint_pose_world,
+            result.joint_pose[index],
+            element.joint_pose,
             atol=1e-5,
             rtol=1e-5,
         )

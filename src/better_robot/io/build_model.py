@@ -16,7 +16,6 @@ from ..data_model.joint_models import (
     JointFixed,
     JointFreeFlyer,
     JointHelical,
-    JointMimic,
     JointPlanar,
     JointPrismaticUnaligned,
     JointPX,
@@ -391,14 +390,6 @@ def _kind_to_joint_model(ir_joint: IRJoint) -> JointModel:  # noqa: PLR0911, PLR
             raise IRError(
                 f"joint_model payload kind {joint_model.kind!r} does not match "
                 f"IR kind {kind!r} for joint {ir_joint.name!r}"
-            )
-        if isinstance(joint_model, JointMimic):
-            raise NotImplementedError(
-                f"Joint {ir_joint.name!r} directly selects JointMimic. "
-                "The zero-DOF placeholder cannot describe the target motion. "
-                "Use a concrete supported scalar revolute, prismatic, or "
-                "helical joint model together with mimic_source, "
-                "mimic_multiplier, and mimic_offset."
             )
         return joint_model
 

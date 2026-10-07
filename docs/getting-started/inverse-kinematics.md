@@ -25,7 +25,8 @@ q_goal = terms.random_start(model, q0, generator)
 target = forward_kinematics_state(model, q_goal).frame_pose[:, hand]  # (32, 7)
 ```
 
-`terms.random_start` draws a configuration inside the joint limits for every row of `q0`.
+`terms.random_start` redraws every bounded vector-space joint inside its limits for every row of `q0`; free-flyer,
+spherical and unbounded joints keep their `q0` values.
 
 ## Solve with one call
 

@@ -4,7 +4,6 @@ import pytest
 import torch
 
 from better_robot.data_model.model import Model
-from better_robot.data_model.data import Data
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 
@@ -75,35 +74,6 @@ def test_model_support():
     model = _make_simple_model()
     sp = model.get_support(3)
     assert sp == (0, 1, 2, 3)
-
-
-# ──────────────────────────── Data ──────────────────────────────────────
-
-
-def test_data_batch_shape():
-    d = Data(q=torch.zeros(3, 5))
-    assert d.batch_shape == (3,)
-
-
-def test_data_reset():
-    d = Data(q=torch.zeros(5))
-    d.joint_pose_world = torch.zeros(4, 7)
-    d._kinematics_level = 2
-    d.reset()
-    assert d.joint_pose_world is None
-    assert d._kinematics_level == 0
-    # q should still be there
-    assert d.q is not None
-
-
-def test_data_clone():
-    d = Data(q=torch.tensor([1.0, 2.0, 3.0]))
-    d.com_position = torch.tensor([0.1, 0.2, 0.3])
-    d_clone = d.clone()
-    assert torch.allclose(d_clone.q, d.q)
-    # Mutation of clone should not affect original
-    d_clone.q[0] = 99.0
-    assert d.q[0] != 99.0
 
 
 def _make_floating_model(dtype: torch.dtype) -> Model:

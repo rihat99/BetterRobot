@@ -14,11 +14,6 @@ import torch
 
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.io.build_model import build_model
-from better_robot.kinematics.forward import forward_kinematics_raw
-from better_robot.kinematics.jacobian import (
-    frame_jacobian_raw,
-    joint_jacobians_raw,
-)
 from better_robot.kinematics.state import forward_kinematics_state
 from better_robot.terms import frame_pose
 from better_robot.kinematics import frame_jacobian, joint_jacobian
@@ -86,60 +81,30 @@ def test_compute_joint_jacobians_shape(arm):
     assert torch.stack([joint_jacobian(arm, state, j, reference="world") for j in range(arm.njoints)], dim=-3).shape == (arm.njoints, 6, arm.nv)
 
 
-def test_joint_jacobians_raw_matches_workspace_pass(arm):
-    q = arm.q_neutral
-    fk_result = forward_kinematics_raw(arm.structure, arm.values, q)
-    raw_result = joint_jacobians_raw(
-        arm.structure,
-        q,
-        fk_result.joint_pose_world,
-    )
-    state = forward_kinematics_state(arm, q)
-    torch.testing.assert_close(raw_result.joint_jacobians, torch.stack([joint_jacobian(arm, state, j, reference="world") for j in range(arm.njoints)], dim=-3))
-
-
 def test_joint_jacobian_plan_rebuilds_after_to(chain):
     """The memoised batched-Jacobian plan follows ``ModelStructure.to``.
 
-    ``joint_jacobians_raw`` caches a static plan on the structure instance;
-    :meth:`ModelStructure.to` mints a fresh instance, so a moved model must not
-    reuse a stale plan. Mirrors the ``_fk_matrix_plan`` memoisation contract.
+    The column pass caches a static plan on the structure instance; :meth:`ModelStructure.to`
+    mints a fresh instance, so a moved model must not reuse a stale plan.
     """
     from better_robot.kinematics import _jacobian_columns  # noqa: PLC0415
 
-    q = chain.q_neutral
-    poses = forward_kinematics_state(chain, q).joint_pose
-    reference = joint_jacobians_raw(chain.structure, q, poses).joint_jacobians
+    def world_jacobians(model):
+        state = forward_kinematics_state(model, model.q_neutral)
+        return torch.stack([joint_jacobian(model, state, j, reference="world") for j in range(model.njoints)], dim=-3)
+
+    reference = world_jacobians(chain)
     assert getattr(chain.structure, "_joint_jacobian_plan", None) is not None
 
     moved = chain.to()
     assert getattr(moved.structure, "_joint_jacobian_plan", None) is None
 
-    moved_poses = forward_kinematics_state(moved, moved.q_neutral).joint_pose
-    moved_jacobians = joint_jacobians_raw(moved.structure, moved.q_neutral, moved_poses).joint_jacobians
+    moved_jacobians = world_jacobians(moved)
     plan = _jacobian_columns.get_plan(moved.structure)
     device = moved.structure.idx_vs_full_tensor.device
     assert plan.column_subspace.device == device
     assert plan.support_mask.device == device
     torch.testing.assert_close(moved_jacobians, reference)
-
-
-@pytest.mark.parametrize("reference", ("world", "local_world_aligned", "local"))
-def test_frame_jacobian_raw_matches_workspace_pass(arm, reference):
-    q = arm.q_neutral
-    frame_id = arm.frame_id("body_link1")
-    fk_result = forward_kinematics_raw(arm.structure, arm.values, q)
-    actual = frame_jacobian_raw(
-        arm.structure,
-        arm.values,
-        q,
-        fk_result.joint_pose_world,
-        frame_id,
-        reference=reference,
-    )
-    state = forward_kinematics_state(arm, q)
-    expected = frame_jacobian(arm, state, frame_id, reference=reference)
-    torch.testing.assert_close(actual, expected)
 
 
 @pytest.mark.parametrize("reference", ("world", "local_world_aligned", "local"))
@@ -163,22 +128,16 @@ def test_get_joint_jacobian_matches_coincident_frame(arm, chain, reference):
         torch.testing.assert_close(J_joint, J_frame)
 
 
-def test_frame_jacobian_raw_compiles_fullgraph(arm):
+def test_frame_jacobian_compiles_fullgraph(arm):
     q = arm.q_neutral.expand(2, -1).clone()
-    poses = forward_kinematics_raw(arm.structure, arm.values, q).joint_pose_world
+    state = forward_kinematics_state(arm, q)
     frame_id = arm.frame_id("body_link1")
 
-    def evaluate(q_value, joint_poses):
-        return frame_jacobian_raw(
-            arm.structure,
-            arm.values,
-            q_value,
-            joint_poses,
-            frame_id,
-        )
+    def evaluate(kinematic_state):
+        return frame_jacobian(arm, kinematic_state, frame_id)
 
     compiled = torch.compile(evaluate, fullgraph=True, backend="eager")
-    torch.testing.assert_close(compiled(q, poses), evaluate(q, poses))
+    torch.testing.assert_close(compiled(state), evaluate(state))
 
 
 def test_get_frame_jacobian_shape(arm):

@@ -133,17 +133,19 @@ SUBMODULE_PATHS: list[tuple[str, str]] = [
     ("better_robot.spatial", "SO3"),
     ("better_robot.spatial", "Pose"),
     # kinematics
-    ("better_robot.kinematics", "forward_kinematics_raw"),
-    ("better_robot.kinematics", "frame_placements_raw"),
-    ("better_robot.kinematics", "joint_jacobians_raw"),
-    ("better_robot.kinematics", "joint_jacobians_time_variation_raw"),
-    ("better_robot.kinematics", "frame_jacobian_raw"),
-    ("better_robot.kinematics", "frame_jacobian_time_variation_raw"),
+    ("better_robot.kinematics", "KinematicState"),
+    ("better_robot.kinematics", "forward_kinematics_state"),
+    ("better_robot.kinematics", "frame_jacobian"),
+    ("better_robot.kinematics", "joint_jacobian"),
+    ("better_robot.kinematics", "frame_jacobian_time_variation"),
+    ("better_robot.kinematics", "joint_jacobian_time_variation"),
     # dynamics
-    ("better_robot.dynamics", "rnea_raw"),
-    ("better_robot.dynamics", "aba_raw"),
-    ("better_robot.dynamics", "crba_raw"),
-    ("better_robot.dynamics", "ccrba_raw"),
+    ("better_robot.dynamics", "inverse_dynamics"),
+    ("better_robot.dynamics", "mass_matrix"),
+    ("better_robot.dynamics", "forward_dynamics"),
+    ("better_robot.dynamics", "center_of_mass"),
+    ("better_robot.dynamics", "centroidal_map"),
+    ("better_robot.dynamics", "centroidal_momentum"),
     # data_model
     # io
     ("better_robot.io", "ModelBuilder"),
@@ -163,29 +165,11 @@ def test_submodule_attribute_resolves(module_path: str, attr: str) -> None:
     assert hasattr(mod, attr), f"{module_path} is missing {attr}"
 
 
-@pytest.mark.parametrize(
-    "module_path, raw_names",
-    [
-        (
-            "better_robot.kinematics",
-            {
-                "forward_kinematics_raw",
-                "frame_placements_raw",
-                "joint_jacobians_raw",
-                "joint_jacobians_time_variation_raw",
-                "frame_jacobian_raw",
-                "frame_jacobian_time_variation_raw",
-            },
-        ),
-        (
-            "better_robot.dynamics",
-            {"rnea_raw", "aba_raw", "crba_raw", "ccrba_raw"},
-        ),
-    ],
-)
-def test_raw_passes_are_in_package_all(module_path: str, raw_names: set[str]) -> None:
-    mod = importlib.import_module(module_path)
-    assert raw_names <= set(mod.__all__)
+def test_raw_kernels_are_not_public() -> None:
+    """Raw tensor passes stay below the state API: no ``*_raw`` name in a package ``__all__``."""
+    for module_path in ("better_robot.kinematics", "better_robot.dynamics"):
+        mod = importlib.import_module(module_path)
+        assert not [name for name in mod.__all__ if name.endswith("_raw")], module_path
 
 
 def test_reference_frame_enum_stays_removed() -> None:

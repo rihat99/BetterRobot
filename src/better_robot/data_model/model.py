@@ -15,7 +15,6 @@ from .joint_models.base import JointModel
 
 if TYPE_CHECKING:
     from ..spatial.inertia import Inertia
-    from .data import Data
     from .model_structure import ModelStructure
     from .model_values import ModelValues
 
@@ -256,20 +255,6 @@ class Model:
         if not parts:
             return torch.zeros(self.nq, dtype=exemplar.dtype, device=exemplar.device)
         return torch.cat(parts, dim=-1).to(dtype=exemplar.dtype, device=exemplar.device)
-
-    def create_data(
-        self,
-        *,
-        batch_shape: tuple[int, ...] = (),
-        device: torch.device | None = None,
-        dtype: torch.dtype | None = None,
-    ) -> Data:
-        """Allocate an empty query workspace shaped for this model."""
-        from .data import Data  # noqa: PLC0415 - avoid the model/data import cycle
-
-        target_device = device or self.joint_placements.device
-        target_dtype = dtype or self.joint_placements.dtype
-        return Data(q=torch.zeros(*batch_shape, self.nq, device=target_device, dtype=target_dtype))
 
     def with_values(
         self,

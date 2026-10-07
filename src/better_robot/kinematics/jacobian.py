@@ -1,7 +1,4 @@
-"""Unified Jacobian entry points.
-
-Pinocchio-style canonical functions — a single dispatch path that replaces
-the legacy four-way fixed/floating × analytic/autodiff mess.
+"""Raw Jacobian time-variation kernels behind :mod:`.state`.
 
 See ``docs/concepts/kinematics_and_jacobians.md``.
 """
@@ -13,26 +10,15 @@ from typing import Literal
 
 import torch
 
-from ..data_model import KinematicsLevel
-from ..data_model.data import Data
 from ..data_model.execution_batch import broadcast_to_execution_batch
-from ..data_model.model import Model
 from ..data_model.model_structure import ModelStructure
 from ..data_model.model_values import ModelValues
 from ..data_model.reduced_coordinates import reduce_jacobian
-from ..exceptions import StaleCacheError
-from ..lie import se3, so3
+from ..lie import se3
 from ..lie.tangents import hat_so3
 from ._jacobian_columns import get_plan, world_column_table
 
 _ReferenceFrame = Literal["world", "local", "local_world_aligned"]
-
-
-@dataclass(frozen=True)
-class JointJacobiansResult:
-    """Fresh world-frame joint Jacobians from :func:`joint_jacobians_raw`."""
-
-    joint_jacobians: torch.Tensor
 
 
 @dataclass(frozen=True)
@@ -48,85 +34,6 @@ class JointJacobiansTimeVariationResult:
 
     joint_jacobians: torch.Tensor  #: WORLD joint Jacobian ``J`` (byproduct/reuse).
     joint_jacobians_dot: torch.Tensor  #: WORLD joint Jacobian time variation ``J̇``.
-
-
-def joint_jacobians_raw(
-    structure: ModelStructure,
-    q: torch.Tensor,
-    joint_pose_world: torch.Tensor,
-) -> JointJacobiansResult:
-    """Tensor-only joint-Jacobian primitive with no ``Data`` sequencing.
-
-    Each joint's own column block is ``Ad(oM) @ S`` and appears in a row joint's
-    Jacobian iff it supports that joint, so the pass builds one shared full-width
-    world column table (:func:`._jacobian_columns.world_column_table`) and masks
-    it per joint — no per-joint sequencing, launches independent of ``njoints``.
-    The constant :attr:`ModelStructure.joint_motion_subspaces` table replaces the
-    legacy per-joint ``joint_motion_subspace(q)`` calls (every shipped joint's
-    subspace is configuration-independent). ``joint_pose_world`` has shape
-    ``(B..., njoints, 7)`` and the result field has shape
-    ``(B..., njoints, 6, nv)``.
-    """
-    batch = tuple(joint_pose_world.shape[:-2])
-    q = broadcast_to_execution_batch(q, batch, (structure.nq,), name="q")
-    device, dtype = q.device, q.dtype
-
-    plan = get_plan(structure)
-    columns = world_column_table(structure, joint_pose_world, plan, device=device, dtype=dtype)
-    J = columns.unsqueeze(-3) * plan.support_mask  # (B..., njoints, 6, nv_full)
-    return JointJacobiansResult(joint_jacobians=reduce_jacobian(structure, J))
-
-
-def frame_jacobian_raw(
-    structure: ModelStructure,
-    values: ModelValues,
-    q: torch.Tensor,
-    joint_pose_world: torch.Tensor,
-    frame_id: int,
-    *,
-    reference: _ReferenceFrame = "local_world_aligned",
-    joint_jacobians: torch.Tensor | None = None,
-) -> torch.Tensor:
-    """Return one frame Jacobian without reading or mutating :class:`Data`.
-
-    ``joint_pose_world`` normally comes from :func:`forward_kinematics_raw`.
-    Supplying a compatible ``joint_jacobians`` tensor reuses an existing
-    :func:`joint_jacobians_raw` result; otherwise this pass computes it.
-    """
-    batch = tuple(joint_pose_world.shape[:-2])
-    q = broadcast_to_execution_batch(q, batch, (structure.nq,), name="q")
-    if joint_jacobians is None:
-        joint_jacobians = joint_jacobians_raw(structure, q, joint_pose_world).joint_jacobians
-
-    parent_index = structure.frame_parent_joints[frame_id : frame_id + 1]
-    J_parent = torch.index_select(joint_jacobians, -3, parent_index).squeeze(-3)
-    T_local = broadcast_to_execution_batch(
-        values.frame_placements[..., frame_id, :],
-        batch,
-        (7,),
-        name="frame_placements row",
-    )
-    T_parent = torch.index_select(joint_pose_world, -2, parent_index).squeeze(-2)
-    T_frame = se3.compose(T_parent, T_local)
-
-    if reference == "world":
-        return J_parent
-
-    hat_position = hat_so3(T_frame[..., :3])
-    linear = J_parent[..., :3, :] - torch.matmul(hat_position, J_parent[..., 3:, :])
-    aligned = torch.cat((linear, J_parent[..., 3:, :]), dim=-2)
-    if reference == "local_world_aligned":
-        return aligned
-    if reference == "local":
-        rotation = so3.to_matrix(T_frame[..., 3:])
-        return torch.cat(
-            (
-                torch.matmul(rotation.mT, aligned[..., :3, :]),
-                torch.matmul(rotation.mT, aligned[..., 3:, :]),
-            ),
-            dim=-2,
-        )
-    raise ValueError(f"Unsupported reference frame: {reference!r}")
 
 
 def joint_jacobians_time_variation_raw(
@@ -154,7 +61,7 @@ def joint_jacobians_time_variation_raw(
     transport is valid on **full-width** columns only — a reduced mimic column
     blends distinct owners — so the shared full-width table
     (:func:`._jacobian_columns.world_column_table`) always drives it and mimic
-    reduction is applied last, exactly like :func:`joint_jacobians_raw`.
+    reduction is applied last, exactly like the plain joint Jacobian.
 
     A supplied ``joint_jacobians`` (reduced, ``(B..., njoints, 6, nv)``) is
     reused for ``ov`` and echoed back; it never replaces the full-width build.
@@ -262,7 +169,7 @@ def frame_jacobian_time_variation_raw(
     joint_jacobians: torch.Tensor | None = None,
     joint_jacobians_dot: torch.Tensor | None = None,
 ) -> torch.Tensor:
-    """Return one frame's Jacobian time variation without touching :class:`Data`.
+    """Return one frame's Jacobian time variation from raw tensors.
 
     A rigidly attached frame shares its parent joint's WORLD ``J`` and ``J̇``;
     the closed forms in :func:`_time_variation_in_reference` then translate/rotate
@@ -294,211 +201,3 @@ def frame_jacobian_time_variation_raw(
     T_parent = torch.index_select(joint_pose_world, -2, parent_index).squeeze(-2)
     T_frame = se3.compose(T_parent, T_local)
     return _time_variation_in_reference(j_parent, dot_parent, T_frame, v, reference)
-
-
-def compute_joint_jacobians(model: Model, data: Data) -> Data:
-    """Populate ``data.joint_jacobians`` with the spatial Jacobian of every joint.
-
-    Shape: ``data.joint_jacobians = (B..., njoints, 6, nv)``. Requires
-    ``data`` to hold at least ``KinematicsLevel.PLACEMENTS`` — call
-    :func:`forward_kinematics` first; otherwise raises
-    :class:`~better_robot.exceptions.StaleCacheError`.
-
-    See docs/concepts/kinematics_and_jacobians.md.
-    """
-    data.require(KinematicsLevel.PLACEMENTS)
-    assert data.joint_pose_world is not None
-    result = joint_jacobians_raw(model.structure, data.q, data.joint_pose_world)
-    data.joint_jacobians = result.joint_jacobians
-    return data
-
-
-def get_joint_jacobian(
-    model: Model,
-    data: Data,
-    joint_id: int,
-    *,
-    reference: _ReferenceFrame = "world",
-) -> torch.Tensor:
-    """Extract the spatial Jacobian of a single joint from ``data.joint_jacobians``.
-
-    Three pinocchio-style reference frames — all returning ``(B..., 6, nv)``:
-
-    - ``"world"`` (default): linear rows are the velocity of the world-coincident
-      point of the joint (the spatial velocity at the world origin); angular rows
-      are the angular velocity in world frame. This is the cached representation.
-      Matches Pinocchio's ``WORLD``.
-    - ``"local_world_aligned"``: linear rows are the velocity of the joint origin
-      expressed in the world frame; angular rows are the angular velocity in world
-      frame. Derived from the world Jacobian by translating the linear rows to the
-      joint origin (angular rows unchanged) — a translation only, not a full
-      adjoint. Matches Pinocchio's ``LOCAL_WORLD_ALIGNED``.
-    - ``"local"``: both linear and angular rows expressed in the body-local frame
-      of the joint, via the full inverse adjoint ``Ad(oMj)⁻¹``. Matches Pinocchio's
-      ``LOCAL``.
-
-    See docs/concepts/kinematics_and_jacobians.md.
-    """
-    data.require(KinematicsLevel.PLACEMENTS)
-    if data.joint_jacobians is None:
-        compute_joint_jacobians(model, data)
-
-    J_j = data.joint_jacobians[..., joint_id, :, :]  # (B..., 6, nv)
-
-    if reference == "world":
-        return J_j
-    elif reference == "local_world_aligned":
-        p_j = data.joint_pose_world[..., joint_id, :3]
-        linear = J_j[..., :3, :] - torch.matmul(hat_so3(p_j), J_j[..., 3:, :])
-        return torch.cat((linear, J_j[..., 3:, :]), dim=-2)
-    elif reference == "local":
-        T_j = data.joint_pose_world[..., joint_id, :]
-        return torch.matmul(se3.adjoint_inv(T_j), J_j)
-    else:
-        raise ValueError(f"Unsupported reference frame: {reference!r}")
-
-
-def get_frame_jacobian(
-    model: Model,
-    data: Data,
-    frame_id: int,
-    *,
-    reference: _ReferenceFrame = "local_world_aligned",
-) -> torch.Tensor:
-    """Spatial Jacobian of an arbitrary frame.
-
-    Three pinocchio-style reference frames — all returning ``(B..., 6, nv)``:
-
-    - ``"local_world_aligned"`` (default): linear rows are the velocity of the
-      frame origin expressed in the world frame; angular rows are the angular
-      velocity expressed in the world frame. This matches Pinocchio's
-      ``LOCAL_WORLD_ALIGNED`` and is the natural basis for position/pose
-      residuals.
-    - ``"world"``: linear rows are the velocity of the world-coincident point
-      of the frame (i.e. the spatial velocity at the world origin); angular
-      rows are the angular velocity in world frame. Matches Pinocchio's
-      ``WORLD``.
-    - ``"local"``: both linear and angular rows expressed in the body-local
-      frame of this frame. Matches Pinocchio's ``LOCAL``.
-
-    See docs/concepts/kinematics_and_jacobians.md.
-    """
-    data.require(KinematicsLevel.PLACEMENTS)
-    assert data.joint_pose_world is not None, "call forward_kinematics before get_frame_jacobian"
-
-    return frame_jacobian_raw(
-        model.structure,
-        model.values,
-        data.q,
-        data.joint_pose_world,
-        frame_id,
-        reference=reference,
-        joint_jacobians=data.joint_jacobians,
-    )
-
-
-def compute_joint_jacobians_time_variation(model: Model, data: Data) -> Data:
-    """Populate ``data.joint_jacobians_dot`` with the WORLD ``J̇`` of every joint.
-
-    Shape: ``data.joint_jacobians_dot = (B..., njoints, 6, nv)``, WORLD frame,
-    such that a joint's WORLD spatial acceleration is ``a_spatial = J v̇ + J̇ v``.
-    Requires ``KinematicsLevel.PLACEMENTS`` (call :func:`forward_kinematics`
-    first) and a set ``data.v``; a missing velocity raises
-    :class:`~better_robot.exceptions.StaleCacheError`. Also fills
-    ``data.joint_jacobians`` when it is not already cached (a byproduct of the
-    same pass — no rebuild).
-
-    Level asymmetry (intentional): ``joint_jacobians_dot`` lives in the velocity
-    cache bucket, but this wrapper leaves ``_kinematics_level`` at ``PLACEMENTS``.
-    Setting ``data.v`` never promotes the level (levels track the kinematic
-    recursion, not cache presence), and neither does this producer; ``data.v``'s
-    invalidation of the velocity bucket is what governs staleness.
-
-    See docs/concepts/kinematics_and_jacobians.md.
-    """
-    data.require(KinematicsLevel.PLACEMENTS)
-    if data.v is None:
-        raise StaleCacheError(
-            "Data.v is None; set data.v (or run a velocity-producing call) "
-            "before compute_joint_jacobians_time_variation."
-        )
-    assert data.joint_pose_world is not None
-    result = joint_jacobians_time_variation_raw(
-        model.structure,
-        data.q,
-        data.v,
-        data.joint_pose_world,
-        joint_jacobians=data.joint_jacobians,
-    )
-    if data.joint_jacobians is None:
-        data.joint_jacobians = result.joint_jacobians
-    data.joint_jacobians_dot = result.joint_jacobians_dot
-    return data
-
-
-def get_joint_jacobian_time_variation(
-    model: Model,
-    data: Data,
-    joint_id: int,
-    *,
-    reference: _ReferenceFrame = "world",
-) -> torch.Tensor:
-    """Extract a single joint's Jacobian time variation ``J̇``, ``(B..., 6, nv)``.
-
-    Three pinocchio-style reference frames, matching :func:`get_joint_jacobian`
-    and derived from the cached WORLD ``J̇`` (:func:`_time_variation_in_reference`):
-
-    - ``"world"`` (default): the cache. ``a_spatial = J v̇ + J̇ v``.
-    - ``"local_world_aligned"``: linear rows track the joint origin's moving
-      point in the world frame. ``a_classical = J v̇ + J̇ v``.
-    - ``"local"``: both rows in the joint's body frame. ``a_spatial = J v̇ + J̇ v``.
-
-    Computes on miss like :func:`get_joint_jacobian`; requires
-    ``KinematicsLevel.PLACEMENTS`` and a set ``data.v``.
-
-    See docs/concepts/kinematics_and_jacobians.md.
-    """
-    data.require(KinematicsLevel.PLACEMENTS)
-    if data.joint_jacobians_dot is None:
-        compute_joint_jacobians_time_variation(model, data)
-
-    return _time_variation_in_reference(
-        data.joint_jacobians[..., joint_id, :, :],
-        data.joint_jacobians_dot[..., joint_id, :, :],
-        data.joint_pose_world[..., joint_id, :],
-        data.v,
-        reference,
-    )
-
-
-def get_frame_jacobian_time_variation(
-    model: Model,
-    data: Data,
-    frame_id: int,
-    *,
-    reference: _ReferenceFrame = "local_world_aligned",
-) -> torch.Tensor:
-    """Jacobian time variation ``J̇`` of an arbitrary frame, ``(B..., 6, nv)``.
-
-    Three pinocchio-style reference frames, matching :func:`get_frame_jacobian`.
-    Acceleration pairing: ``a_spatial = J v̇ + J̇ v`` for ``"world"``/``"local"``,
-    ``a_classical = J v̇ + J̇ v`` for ``"local_world_aligned"``. Computes on miss;
-    requires ``KinematicsLevel.PLACEMENTS`` and a set ``data.v``.
-
-    See docs/concepts/kinematics_and_jacobians.md.
-    """
-    data.require(KinematicsLevel.PLACEMENTS)
-    if data.joint_jacobians_dot is None:
-        compute_joint_jacobians_time_variation(model, data)
-
-    return frame_jacobian_time_variation_raw(
-        model.structure,
-        model.values,
-        data.q,
-        data.v,
-        data.joint_pose_world,
-        frame_id,
-        reference=reference,
-        joint_jacobians=data.joint_jacobians,
-        joint_jacobians_dot=data.joint_jacobians_dot,
-    )

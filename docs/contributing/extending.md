@@ -16,9 +16,11 @@ in the same folder are the reference implementations.
 | `kind`, `nq`, `nv`, `axis` | static joint description |
 | `joint_transform(q_slice)` | `(B..., nq) -> (B..., 7)` pose of the child relative to the joint origin |
 | `joint_motion_subspace(q_slice)` | `(B..., nq) -> (B..., 6, nv)` |
+| `joint_velocity(q_slice, v_slice)` | `(B..., 6)` spatial velocity in the joint frame |
 | `integrate(q, v)` | manifold retraction; keeps quaternions on the unit sphere |
 | `difference(q0, q1)` | local tangent from `q0` to `q1` |
 | `neutral()` | identity or default configuration |
+| `random_configuration(generator, lower, upper)` | `(nq,)` valid random configuration within the limits |
 
 Optional dynamics hooks provide the joint bias acceleration or the derivative of the motion subspace
 (`joint_motion_subspace_derivative`). When a hook is absent the dynamics use zero, which is correct

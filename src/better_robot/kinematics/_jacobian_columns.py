@@ -1,6 +1,6 @@
 """Batched column-table lane for joint Jacobians.
 
-:func:`~better_robot.kinematics.jacobian.joint_jacobians_raw` delegates its
+The Jacobian kernels in :mod:`.state` and :mod:`.jacobian` delegate their
 per-joint work here. The world Jacobian has a purely static sparsity: the
 column block owned by joint ``a`` holds ``Ad(oM_a) @ S_a`` and appears in row
 joint ``j``'s Jacobian iff ``a`` supports ``j`` (is an ancestor of, or equals,
@@ -15,7 +15,7 @@ the whole pass is three batched stages instead of a per-joint Python loop:
 
 The plan (owner map, gather index, support mask) is a pure function of
 :class:`ModelStructure`, memoised on the structure instance exactly like
-``_fk_matrix_plan``; :meth:`ModelStructure.to` mints a fresh instance, so a
+``_fk_lean_plans``; :meth:`ModelStructure.to` mints a fresh instance, so a
 moved model rebuilds its plan on the new device. Order 03's Jacobian
 time-variation pass reuses :func:`world_column_table` and the plan's owner map.
 

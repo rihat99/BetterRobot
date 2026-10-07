@@ -46,9 +46,9 @@ viewer
 The root namespace is deliberately small. `better_robot.__all__` holds the core you use in most
 scripts: `Model`, `ModelStructure`, `ModelValues`, `Joint`, `Body`, `Frame`, `load`, `ModelBuilder`,
 `forward_kinematics_state`, `KinematicState`, `frame_jacobian`, `joint_jacobian`, their time variations,
-`inverse_dynamics`, `mass_matrix`, `forward_dynamics`, `centroidal_map`, `centroidal_momentum` and `SE3`.
+`center_of_mass`, `inverse_dynamics`, `mass_matrix`, `forward_dynamics`, `centroidal_map`, `centroidal_momentum`
+and `SE3`.
 The subpackages `br.io`, `br.spatial` and `br.exceptions` are reachable as attributes of the root.
-<!-- TODO(api): root __all__ still lists the pre-state kinematics/dynamics names; update this list when they go. -->
 `tests/contract/test_public_api.py` checks that this core is present.
 
 Everything else is public only under its qualified package name and only if that package's `__all__`

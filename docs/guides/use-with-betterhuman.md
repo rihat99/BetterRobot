@@ -22,7 +22,7 @@ lives in `ModelValues`, gradients reach the shape parameters the same way they r
 
 ## Quick start
 
-This is the quick start from `/home/rikhat.akizhanov/better/dev/BetterHuman/README.md`. It does not run
+This is the quick start from the BetterHuman repository's `README.md`. It does not run
 in the documentation tests: SMPL-family model files are licensed and are not shipped with either
 package. Download them from their project pages and follow the BetterHuman README to convert them.
 
@@ -60,9 +60,8 @@ problem.cached(human_terms.human_state(identity), name="state")
 # or human_terms.reprojection(...) as terms of the problem
 ```
 
-To fit shape as well as pose, make the identity a variable with
-`problem.cached(human_terms.shaped(body), name="identity")`. [Fit a clip](fit-a-clip.md) walks through
+To fit shape as well as pose, make the identity a cached value of the shape variables with
+`problem.cached(human_terms.shaped(body), name="identity")` and read it with
+`human_terms.human_state(identity_name="identity")`. [Fit a clip](fit-a-clip.md) walks through
 a full trajectory fit; [Write a term](write-a-term.md) explains the term contract.
 
-<!-- TODO(api): the exact Problem construction for human terms (variables, cached values) was not
-re-checked here; see better_human/terms.py and the BetterHuman README. -->

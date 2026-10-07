@@ -1,11 +1,10 @@
 """Contract test: forbid old Pinocchio-style storage names.
 
 Scans every ``.py`` file under ``src/better_robot/`` for references to the
-removed ``Data`` field names. See ``docs/conventions/naming.md`` for the
-rename table.
+Pinocchio-style attribute names (``oMi``, ``oMf``, ...). See ``docs/contributing/conventions.md``.
 
 If this test fails, grep shows you the offending site; rename the
-reference to the new field (e.g. ``data.oMi`` → ``data.joint_pose_world``)
+reference to the descriptive name (e.g. ``oMi`` → ``joint_pose``)
 and run ``uv run pytest tests/contract/test_naming.py`` to confirm.
 """
 
@@ -56,7 +55,7 @@ def test_no_old_names_in_source(old_name: str, pattern: re.Pattern) -> None:
             if pattern.search(line):
                 offenders.append(f"{relative}:{lineno}: {line.strip()}")
     assert not offenders, (
-        f"Found {len(offenders)} reference(s) to deprecated Data.{old_name}:\n"
+        f"Found {len(offenders)} reference(s) to the removed attribute name {old_name}:\n"
         + "\n".join(offenders)
         + "\n\nRename to the new name (see docs/conventions/naming.md §3)."
     )

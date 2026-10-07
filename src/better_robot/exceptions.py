@@ -98,19 +98,6 @@ class BackendNotAvailableError(BetterRobotError, ImportError):
     """
 
 
-class StaleCacheError(BetterRobotError, RuntimeError):
-    """A ``Data`` cache field was read at a stricter ``KinematicsLevel``
-    than has been computed.
-
-    Remediation: call the relevant kinematics function (``forward_kinematics``
-    for placements, ``compute_joint_jacobians``-equivalents for velocities,
-    etc.). This is raised by ``Data.require(level)`` when the held level is
-    too low.
-
-    See ``docs/concepts/model_and_data.md §3.1``.
-    """
-
-
 class UnsupportedJointError(BetterRobotError, ValueError):
     """URDF/MJCF declared a joint kind without a built-in ``JointModel``.
 
@@ -135,7 +122,6 @@ __all__ = [
     "ShapeError",
     "ConvergenceError",
     "BackendNotAvailableError",
-    "StaleCacheError",
     "UnsupportedJointError",
     "SingularityWarning",
 ]

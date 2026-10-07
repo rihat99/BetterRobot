@@ -93,14 +93,17 @@ than primitives need the `meshes` extra (`pip install "better-robot[meshes]"`, w
 
 ## Common errors
 
-All library errors derive from `better_robot.exceptions.BetterRobotError`. The ones you meet when
-loading or first using a model:
+Errors raised by the library's own checks derive from `better_robot.exceptions.BetterRobotError` and
+from the matching built-in (`ValueError`, `ImportError`, `RuntimeError`), so `except ValueError` keeps
+working. Loading also lets plain Python errors through: a missing file is a `FileNotFoundError`, a
+description the parser cannot interpret is an `IRError` (a `ValueError` from `better_robot.io.ir`). The
+ones you meet when loading or first using a model:
 
 | Error | Raised when |
 |-------|-------------|
 | `BackendNotAvailableError` | an optional package (`mujoco`, `trimesh`, `viser`) is missing; the message names the extra to install |
-| `UnsupportedJointError` | the file uses a joint type the parser cannot map to a joint model |
-| `ModelInconsistencyError` | the description is not a tree, or names, parents or limits disagree |
+| `IRError` | the description cannot be mapped to a model: an unknown joint kind, a cycle in the tree, a mimic chain that loops |
+| `ModelInconsistencyError` | the joint order is not parent-before-child, or the joints' `nq` / `nv` do not add up to the model's |
 | `ShapeError` | a tensor's trailing axes do not match the model, e.g. `q` is not `(B..., nq)` |
 | `DtypeMismatchError` / `DeviceMismatchError` | an input tensor's dtype or device differs from the model's |
 

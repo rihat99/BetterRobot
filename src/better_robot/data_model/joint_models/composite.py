@@ -33,7 +33,7 @@ class JointComposite:
                 raise TypeError(f"Composite child {joint!r} does not implement JointModel")
             if joint.kind == "mimic":
                 raise ValueError(
-                    "JointMimic cannot be nested in JointComposite; attach "
+                    "A mimic joint cannot be nested in JointComposite; attach "
                     "mimic metadata to a concrete scalar joint instead"
                 )
         object.__setattr__(self, "nq", sum(joint.nq for joint in self.sub_joints))

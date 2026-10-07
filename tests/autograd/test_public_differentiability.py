@@ -8,14 +8,7 @@ import pytest
 import torch
 
 import better_robot as br
-from better_robot.dynamics import aba_raw, ccrba_raw, crba_raw, rnea_raw
 from better_robot.dynamics.state import center_of_mass
-from better_robot.kinematics import (
-    frame_jacobian_raw,
-    forward_kinematics_raw,
-    frame_placements_raw,
-    joint_jacobians_raw,
-)
 
 
 @pytest.fixture(scope="module")
@@ -62,18 +55,6 @@ def _inertia_model(model):
     return model.with_values(body_inertias=model.values.body_inertias + delta), delta
 
 
-def test_fk_and_frame_raw_blocks_reach_q_and_model_values(panda) -> None:
-    q = _configuration(panda).requires_grad_()
-    model, placements = _placement_model(panda)
-    fk = forward_kinematics_raw(model.structure, model.values, q)
-    frames = frame_placements_raw(model.structure, model.values, fk.joint_pose_world)
-    _assert_gradients(
-        _flatten(fk.joint_pose_world, fk.joint_pose_local, frames.frame_pose_world),
-        q,
-        placements,
-    )
-
-
 def test_workspace_fk_and_public_jacobians_reach_q_and_model_values(panda) -> None:
     q = _configuration(panda).requires_grad_()
     model, placements = _placement_model(panda)
@@ -92,27 +73,12 @@ def test_workspace_fk_and_public_jacobians_reach_q_and_model_values(panda) -> No
     )
 
 
-def test_joint_jacobians_raw_reaches_q_and_model_values(panda) -> None:
-    q = _configuration(panda).requires_grad_()
-    model, placements = _placement_model(panda)
-    fk = forward_kinematics_raw(model.structure, model.values, q)
-    result = joint_jacobians_raw(model.structure, q, fk.joint_pose_world)
-    _assert_gradients(result.joint_jacobians, q, placements)
-
-
-def test_frame_jacobian_raw_reaches_q_and_model_values(panda) -> None:
+def test_frame_jacobian_reaches_q_and_model_values(panda) -> None:
     q = _configuration(panda).requires_grad_()
     model, joint_placements = _placement_model(panda)
     frame_placements = torch.zeros_like(model.values.frame_placements, requires_grad=True)
     model = model.with_values(frame_placements=model.values.frame_placements + frame_placements)
-    fk = forward_kinematics_raw(model.structure, model.values, q)
-    jacobian = frame_jacobian_raw(
-        model.structure,
-        model.values,
-        q,
-        fk.joint_pose_world,
-        _hand_frame(model),
-    )
+    jacobian = br.frame_jacobian(model, br.forward_kinematics_state(model, q), _hand_frame(model))
     _assert_gradients(jacobian, q, joint_placements, frame_placements)
 
 
@@ -155,32 +121,6 @@ def test_public_dynamics_reaches_q_and_body_inertias(
     panda,
     entry: Callable,
 ) -> None:
-    q = _configuration(panda).requires_grad_()
-    model, inertias = _inertia_model(panda)
-    velocity, acceleration, torque = _dynamics_inputs(model)
-    _assert_gradients(entry(model, q, velocity, acceleration, torque), q, inertias)
-
-
-def _rnea_raw(model, q, velocity, acceleration, _torque) -> torch.Tensor:
-    return rnea_raw(model.structure, model.values, q, velocity, acceleration).tau
-
-
-def _aba_raw(model, q, velocity, _acceleration, torque) -> torch.Tensor:
-    return aba_raw(model.structure, model.values, q, velocity, torque).ddq
-
-
-def _crba_raw(model, q, _velocity, _acceleration, _torque) -> torch.Tensor:
-    return crba_raw(model.structure, model.values, q).mass_matrix
-
-
-def _ccrba_raw(model, q, velocity, _acceleration, _torque) -> torch.Tensor:
-    result = ccrba_raw(model.structure, model.values, q, velocity)
-    assert result.momentum is not None
-    return _flatten(result.centroidal_map, result.momentum)
-
-
-@pytest.mark.parametrize("entry", (_rnea_raw, _aba_raw, _crba_raw, _ccrba_raw))
-def test_raw_dynamics_reaches_q_and_body_inertias(panda, entry: Callable) -> None:
     q = _configuration(panda).requires_grad_()
     model, inertias = _inertia_model(panda)
     velocity, acceleration, torque = _dynamics_inputs(model)

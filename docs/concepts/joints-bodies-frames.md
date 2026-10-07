@@ -61,8 +61,6 @@ quaternion.
 | `JointFixed`, `JointUniverse` | 0 | 0 | `add_fixed` |
 | `JointComposite` | sum of its parts | sum of its parts | |
 
-`JointMimic` (0, 0) is a placeholder kept for import compatibility; it adds no motion.
-
 ## `idx_qs` and `idx_vs` say where a joint's coordinates live
 
 `model.nq` and `model.nv` are the totals. `model.nqs[j]` and `model.nvs[j]` are the sizes of joint `j`,

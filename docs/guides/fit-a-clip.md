@@ -1,7 +1,7 @@
 # Fit a clip in phases
 
 A motion fit rarely works as one solve: the root has to find the subject first, a cheap optimizer gets close,
-and a Gauss-Newton solver finishes on the banded system. This guide fits a floating-base humanoid to noisy marker
+and Levenberg-Marquardt finishes on the banded system. This guide fits a floating-base humanoid to noisy marker
 tracks with `optim.Phase` and `optim.run`. You keep one problem and change only weights, free coordinates and the
 solver between phases.
 

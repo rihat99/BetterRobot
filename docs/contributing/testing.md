@@ -29,7 +29,7 @@ URDFs. The tolerances are part of the contract:
 
 | Inputs | Typical `atol` |
 |--------|----------------|
-| float64 | `1e-12` to `1e-9` |
+| float64 | `1e-12` to `1e-9` for kinematics and Jacobians; up to `2e-6` for a few dynamics cases (`test_rnea_missing_joint_kinds.py`, `test_centroidal.py`) |
 | float32 | `2e-6` |
 
 A parity failure means the library changed its answer. Fix the code, not the tolerance.

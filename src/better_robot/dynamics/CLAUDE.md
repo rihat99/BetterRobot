@@ -2,12 +2,12 @@
 
 ## Entry points
 
-- `KinematicState` API (`state.py`): `inverse_dynamics(model, state, v, a, fext=)`,
+- `state.py`, all on a `KinematicState`: `inverse_dynamics(model, state, v, a, fext=)`,
   `mass_matrix(model, state)`, `forward_dynamics(model, state, v, tau, fext=)`,
-  `centroidal_map(model, state)`, `center_of_mass(model, state)`. World-frame quantities
-  are built once per state and memoised in `state._memo["world_kinematics"]`.
-- `Data` API: `rnea`, `crba`, `aba`, `ccrba`, `bias_forces`, `compute_generalized_gravity`,
-  `center_of_mass`, and the `*_raw` structure/values variants. Same core after their own FK.
+  `centroidal_map(model, state)`, `centroidal_momentum(model, state, v)`,
+  `center_of_mass(model, state)`. World-frame quantities are built once per state and
+  memoised in `state._memo["world_kinematics"]`. Bias forces are `inverse_dynamics(model,
+  state, v, 0)`; gravity torque is `inverse_dynamics(model, state, 0, 0)`.
 
 ## One core, no joint loops
 
@@ -37,5 +37,5 @@ slices is not much slower in forward mode; the mass matrix `(N, nv, nv)` is then
 ## Contracts
 
 - `fext` is per joint in the joint's own frame; gravity enters as the base acceleration.
-- `joint_forces` in `Data` is the wrench a joint transmits to its subtree, in the joint frame.
+- Inside RNEA a joint force is the wrench the joint transmits to its subtree, in the joint frame.
 - Parity with Pinocchio (`tests/test_pinocchio/`) is the oracle; do not weaken it.

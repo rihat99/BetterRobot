@@ -2,21 +2,15 @@
 
 ## Entry Points
 
-- `forward_kinematics_state(model, q)` — immutable `KinematicState` of `[R | p]` matrices; `frame_jacobian(model, state, frame, reference=...)` reads it
-- `forward_kinematics(model, q_or_data, compute_frames=False, use_compile=False)` — selects one whole FK pass, fills `joint_pose_world` (and `frame_pose_world` if `compute_frames=True`)
-- `forward_kinematics_raw(structure, values, q)` — pure Torch pass returning a named `FKResult`
-- `frame_placements_raw(structure, values, joint_pose_world)` — pure frame-table pass returning a named result
-- `joint_jacobians_raw(structure, q, joint_pose_world)` — sequencing-free Jacobian pass returning a named result
-- `frame_jacobian_raw(structure, values, q, joint_pose_world, frame_id, reference=..., joint_jacobians=None)` — pure one-frame Jacobian extraction with optional reuse of an existing joint-Jacobian pass
-- `joint_jacobians_time_variation_raw(structure, q, v, joint_pose_world, joint_jacobians=None)` — sequencing-free WORLD `J̇` pass returning a named result (echoes `J` as a byproduct)
-- `frame_jacobian_time_variation_raw(structure, values, q, v, joint_pose_world, frame_id, reference=..., joint_jacobians=None, joint_jacobians_dot=None)` — pure one-frame `J̇` extraction with optional reuse of an existing `J`/`J̇` pass
-- `update_frame_placements(model, data)` — fills `frame_pose_world` from existing `joint_pose_world`
-- `compute_joint_jacobians(model, data)` — fills `data.joint_jacobians` for all joints
-- `compute_joint_jacobians_time_variation(model, data)` — fills `data.joint_jacobians_dot` (WORLD `J̇`) for all joints; requires a set `data.v`
-- `get_frame_jacobian(model, data, frame_id, reference=...)` — extracts `(B..., 6, nv)` for one frame
-- `get_joint_jacobian(model, data, joint_id, reference=...)` — same for joints
-- `get_frame_jacobian_time_variation(model, data, frame_id, reference=...)` — extracts `(B..., 6, nv)` `J̇` for one frame
-- `get_joint_jacobian_time_variation(model, data, joint_id, reference=...)` — same for joints
+- `forward_kinematics_state(model, q, *, check_quaternion_norm=False)` — one FK pass into an immutable
+  `KinematicState` of `[R | p]` matrices (`joint_transform`, `frame_transform`); `joint_pose` / `frame_pose`,
+  `*_rotation` / `*_translation` and `frame_pose_of(id)` are views converted on first use
+- `frame_jacobian(model, state, frame_id, *, reference=...)` and `joint_jacobian(model, state, joint_id, *, reference=...)`
+  — `(B..., 6, nv)`; both default to `local_world_aligned`
+- `frame_jacobian_time_variation(model, state, v, frame_id, *, reference=...)` and
+  `joint_jacobian_time_variation(model, state, v, joint_id, *, reference=...)` — `J̇` for the same references
+- Raw kernels below them (`_fk_lean.py`, `_jacobian_columns.py`, `jacobian.py::*_time_variation_raw`)
+  take `(structure, values, ...)` and trust validated inputs; `dynamics/` reuses them
 
 All passes use one execution batch: the right-aligned broadcast of `q` with
 the joint-placement, body-inertia, and frame-placement value tables. Callers
@@ -25,7 +19,7 @@ alongside `(B, T, nq)`); no auto-unsqueeze is performed.
 
 ## Jacobian Reference Frames (critical)
 
-`get_frame_jacobian` returns **LOCAL_WORLD_ALIGNED** by default:
+`frame_jacobian` and `joint_jacobian` return **LOCAL_WORLD_ALIGNED** by default:
 - Linear rows: velocity of frame origin in world frame
 - Angular rows: angular velocity in world frame
 
@@ -39,25 +33,22 @@ J_local = torch.cat([R_ee.mT @ J_world[..., :3, :], R_ee.mT @ J_world[..., 3:, :
 # J_local = se3.adjoint_inv(T_ee) @ J_world
 ```
 
-`compute_joint_jacobians` returns WORLD-frame Jacobian (velocity at world origin).
-`get_joint_jacobian` accepts the same three references and defaults to
-**WORLD** (the cached frame). Its `local_world_aligned` translates the linear
-rows to the joint origin (angular rows unchanged) — a translation only, not a
-full adjoint, exactly like the frame LWA above.
+`reference="world"` gives the velocity at the world origin, `"local"` the body-frame twist. For a joint,
+`local_world_aligned` translates the linear rows to the joint origin (angular rows unchanged) — a
+translation only, not a full adjoint, exactly like the frame LWA above.
 
-**J̇ acceleration pairing (critical).** `get_joint_jacobian_time_variation` and
-`get_frame_jacobian_time_variation` return `J̇` for `a = J v̇ + J̇ v`, but the
+**J̇ acceleration pairing (critical).** `joint_jacobian_time_variation` and
+`frame_jacobian_time_variation` return `J̇` for `a = J v̇ + J̇ v`, but the
 `a` that closes it depends on the reference. `world` and `local` pair with the
 **spatial** acceleration; `local_world_aligned` pairs with the **classical**
 (point) acceleration, because its basis point is the moving frame origin. Do
 not compute `a` in one reference's `J̇` and interpret it as the other's
 acceleration — the mismatch is an order-one term, not roundoff.
 
-## Residual Jacobian Strategy
+## Residual Jacobians
 
-Kinematics owns no residual-Jacobian dispatcher. Object-referenced `Problem` accepts
-the literal strategies `"auto"`, `"analytic"`, `"jacrev"`, `"jacfwd"`, and
-`"finite_difference"`; finite differences remain an explicit debug oracle.
+Kinematics owns no residual-Jacobian machinery. `better_robot.terms` builds analytic term Jacobians from
+`frame_jacobian`; `better_robot.optim` falls back to autodiff when a term has no `jac`.
 
 ## FK Hot Path
 
@@ -73,30 +64,18 @@ Placements stay differentiable and may be batched. Unbatched placements are fold
 affine map (cost independent of batch size); their `4x4` form is cached on the `ModelValues`
 instance unless they require grad or are wrapped by `torch.func`.
 
-Two consumers:
-- `forward_kinematics_state(model, q) -> KinematicState` (new code): stores `joint_transform`
-  and `frame_transform` matrices; `joint_pose` / `frame_pose` are converted on first use.
-  `frame_jacobian(model, state, frame)` builds the shared world column table once per state
-  and masks it for the frame's parent joint. Panda: 44 operators for FK (was 246).
-- `forward_kinematics_raw` / `forward_kinematics` (`Data` API): `_fk_matrix.matrix_core` runs
-  the same core and converts world and local rotations to quaternions in one batched pass.
+`forward_kinematics_state` stores the `joint_transform` and `frame_transform` matrices; `joint_pose` /
+`frame_pose` are converted on first use with canonical-sign quaternions (Shepperd selection via
+`so3.from_matrix`), so a returned `q` may be `-q` relative to a quaternion-composition lane (same
+rotation). `frame_jacobian` builds the shared world column table once per state and masks it for the
+frame's parent joint. Panda: 44 operators for FK. Everything stays autograd- and `torch.func`-safe
+(jacrev and jacfwd); no host syncs.
 
-The `Data` lane emits **canonical-sign** quaternions (Shepperd selection via
-`so3.from_matrix`): a returned `q` may be `-q` relative to a
-quaternion-composition lane (same rotation). It also normalises output
-quaternions, so unnormalised placement quaternions produce results that differ
-from a non-normalising lane by a benign fp32-level gauge (forward and the
-meaningless radial placement gradient). Everything stays autograd- and
-`torch.func`-safe (jacrev and jacfwd); no host syncs.
-
-`use_compile=True` routes the raw pass through a `torch.compile`d callable
-cached per `ModelStructure` (`dynamic=True`, so batch size varies without a
-per-size recompile; first use pays a multi-second compile). There is no
-per-Lie-operation or process-global compute selection.
+There is no per-Lie-operation or process-global compute selection; `torch.compile` the caller if needed.
 
 ## Jacobian Hot Path
 
-`joint_jacobians_raw` assembles every joint Jacobian in one batched
+`_jacobian_columns.py` assembles the Jacobian column table in one batched
 shared-column pass (`_jacobian_columns.py`), not a per-joint Python loop. The
 world Jacobian has a purely static sparsity: joint `a`'s column block is
 `Ad(oM_a) @ S_a` and appears in row joint `j`'s Jacobian iff `a` supports `j`,
@@ -111,7 +90,7 @@ launches from ~50 per joint to a constant ~52 for the whole pass, independent of
 joint count (203-joint model, batch 256: forward 47.3 to 0.84 ms). The plan
 (owner map, gather index, support mask) is a pure function of `ModelStructure`,
 memoised on the structure instance (`_joint_jacobian_plan`) exactly like
-`_fk_matrix_plan`; `ModelStructure.to` mints a fresh instance, so a moved model
+`_fk_lean_plans`; `ModelStructure.to` mints a fresh instance, so a moved model
 rebuilds its plan.
 
 `joint_jacobians_time_variation_raw` reuses that same column table and owner
@@ -122,5 +101,5 @@ products, masked per joint, and mimic-reduced last. It adds a constant ~8
 launches over the Jacobian alone (one einsum for `ov`, owner gather, two cross
 pairs, cat, transpose, a second mask-multiply, a second mimic reduce) — also
 independent of joint count. LOCAL and LOCAL_WORLD_ALIGNED `J̇` are derived in
-the getters from the single WORLD cache via verified closed forms. Everything
+`state.py` from the WORLD result via verified closed forms. Everything
 stays autograd- and `torch.func`-safe; no host syncs.

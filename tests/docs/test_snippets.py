@@ -1,4 +1,4 @@
-"""Execute the Python snippets in ``docs/**/*.md`` and check that every referenced image exists."""
+"""Execute the Python snippets in ``docs/**/*.md`` and ``README.md``; check that every referenced image exists."""
 
 from __future__ import annotations
 
@@ -47,10 +47,10 @@ def _runnable_blocks(page: Path) -> list[str]:
 
 
 def _pages_with_code() -> list[Path]:
-    return [page for page in _pages() if _runnable_blocks(page)]
+    return [page for page in [*_pages(), REPO / "README.md"] if _runnable_blocks(page)]
 
 
-@pytest.mark.parametrize("page", _pages_with_code(), ids=lambda p: p.relative_to(DOCS).as_posix())
+@pytest.mark.parametrize("page", _pages_with_code(), ids=lambda p: p.relative_to(REPO).as_posix())
 def test_page_snippets_execute(page: Path) -> None:
     """Run a page's Python blocks in order in one namespace, CPU only, with a fake viser server."""
     env = {**os.environ, "CUDA_VISIBLE_DEVICES": "", "OMP_NUM_THREADS": "2", "MPLBACKEND": "Agg"}

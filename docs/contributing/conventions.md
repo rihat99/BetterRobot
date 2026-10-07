@@ -8,10 +8,9 @@ them before you add a public function. Contract tests enforce several of them (s
 
 | Kind | Rule | Examples |
 |------|------|----------|
-| Published algorithm | keep the lowercase acronym | `rnea`, `aba`, `crba`, `ccrba` |
-| Compute | form a result from inputs | `compute_centroidal_map` |
+| Published quantity | the textbook name, not the algorithm's acronym | `inverse_dynamics`, `mass_matrix`, `centroidal_map` |
 | User task | a plain action phrase | `forward_kinematics_state`, `inverse_dynamics`, `solve_ik` |
-| Raw tensor pass | the public name plus `_raw` | `rnea_raw`, `frame_jacobian_raw` |
+| Raw tensor pass | the public name plus `_raw` | `frame_jacobian_time_variation_raw` |
 | Boolean | starts with `is_`, `has_` or `should_` | |
 
 Short mathematical names stay short where the field uses them: `q`, `v`, `a`, `tau`, `nq`, `nv`,
