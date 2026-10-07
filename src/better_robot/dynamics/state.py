@@ -53,12 +53,12 @@ def _tangent(model: Model, batch: tuple[int, ...], value: torch.Tensor, name: st
 
 
 def inverse_dynamics(
-    model: Model, state: KinematicState, v: torch.Tensor, a: torch.Tensor, *, fext: torch.Tensor | None = None
+    model: Model, state: KinematicState, *, v: torch.Tensor, a: torch.Tensor, fext: torch.Tensor | None = None
 ) -> torch.Tensor:
     """``τ = M(q) a + C(q, v) v + g(q) - Jᵀ fext`` for ``v, a: (B..., nv)``. Returns ``(B..., nv)``.
 
     ``fext`` is an optional ``(B..., njoints, 6)`` wrench per joint in the joint's own frame.
-    Bias forces are ``inverse_dynamics(model, state, v, zeros)``; gravity torque uses zeros twice.
+    Bias forces are ``inverse_dynamics(model, state, v=v, a=zeros)``; gravity torque uses zeros twice.
     """
     kin, batch = _world(model, state)
     count = math.prod(batch)
@@ -81,10 +81,10 @@ def mass_matrix(model: Model, state: KinematicState) -> torch.Tensor:
 
 
 def forward_dynamics(
-    model: Model, state: KinematicState, v: torch.Tensor, tau: torch.Tensor, *, fext: torch.Tensor | None = None
+    model: Model, state: KinematicState, *, v: torch.Tensor, tau: torch.Tensor, fext: torch.Tensor | None = None
 ) -> torch.Tensor:
     """``ddq = M(q)⁻¹ (τ - C(q, v) v - g(q) + Jᵀ fext)`` for ``v, tau: (B..., nv)``. Returns ``(B..., nv)``."""
-    bias = inverse_dynamics(model, state, v, torch.zeros_like(v), fext=fext)
+    bias = inverse_dynamics(model, state, v=v, a=torch.zeros_like(v), fext=fext)
     tau = broadcast_to_execution_batch(tau, tuple(bias.shape[:-1]), (model.nv,), name="tau")
     factor = torch.linalg.cholesky(mass_matrix(model, state))
     return torch.cholesky_solve((tau - bias).unsqueeze(-1), factor).squeeze(-1)

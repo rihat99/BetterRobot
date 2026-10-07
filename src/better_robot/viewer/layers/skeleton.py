@@ -11,7 +11,6 @@ from .._math import (
     RGB,
     as_frames,
     axis_wxyz,
-    instance_mesh,
     quat_z_to,
     rgb_uint8,
     unit_box,
@@ -19,8 +18,7 @@ from .._math import (
     unit_sphere,
     xyzw_to_wxyz,
 )
-from ..layer import Geometry, Layer
-from .frames import FramesLayer
+from ..layer import Layer
 
 _IDENTITY = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
 _IDENTITY_XYZW = np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float32)
@@ -157,29 +155,9 @@ class SkeletonLayer(Layer):
             self._bones.batched_wxyzs = wxyzs
             self._bones.batched_scales = scales
 
-    def geometry(self, step: int) -> list[Geometry]:
-        colors = (self.colors if self.colors.ndim == 2 else self.colors[step]).astype(np.float32) / 255.0
-        out = []
-        for marker, index in self.groups.items():
-            if marker == "axes":
-                length = float(self.radius[index].max()) * 4.0
-                triads = FramesLayer(
-                    self.name,
-                    np.concatenate([self.joints[step, index], self.rotations[step, index]], axis=-1),
-                    axes_length=length,
-                    axes_radius=length * 0.05,
-                )
-                out += triads.geometry(0)
-                continue
-            vertices, faces = _MESHES[marker][0](1) if marker in ("sphere", "cylinder") else unit_box()
-            vertices, faces = instance_mesh(vertices, faces, *self._marker_transforms(marker, step))
-            out.append(Geometry(vertices, faces, np.repeat(colors[index], len(faces) // len(index), axis=0)))
-        if len(self._child):
-            cylinder_v, cylinder_f = unit_cylinder(8)
-            positions, wxyzs, scales = self._bone_transforms(step)
-            vertices, faces = instance_mesh(cylinder_v, cylinder_f, positions, wxyzs, scales)
-            out.append(Geometry(vertices, faces, np.asarray(self.bone_color, dtype=np.float32)))
-        return out
+    def world_points(self, step: int) -> np.ndarray | None:
+        """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
+        return self.joints[step]
 
     def _marker_transforms(self, marker: str, step: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Positions ``(N, 3)``, wxyz ``(N, 4)`` and scales ``(N, 3)`` of one marker group at ``step``."""

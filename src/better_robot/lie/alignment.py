@@ -67,8 +67,8 @@ def _normalized_fit_weights(
 def umeyama(
     source: torch.Tensor,
     target: torch.Tensor,
-    weights: torch.Tensor | None = None,
     *,
+    weights: torch.Tensor | None = None,
     estimate_scale: bool = True,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Fit a proper 3D similarity transform by weighted Umeyama alignment.

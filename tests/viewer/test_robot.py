@@ -153,4 +153,4 @@ def test_skeleton_markers_follow_joint_kind_and_axis() -> None:
     assert "/scene/s/joints" not in server.scene.nodes
     wxyz = server.scene.nodes["/scene/s/joints_cylinder"].batched_wxyzs[0]
     np.testing.assert_allclose(np.abs(wxyz), [np.sqrt(0.5), 0.0, np.sqrt(0.5), 0.0], atol=1e-6)  # +z -> +x
-    assert len(layer.geometry(0)) == 3 + 1 + 1  # triad cylinders, revolute marker, bones
+    np.testing.assert_allclose(layer.world_points(0), layer.joints[0])

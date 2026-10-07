@@ -7,8 +7,8 @@ from typing import Any
 
 import numpy as np
 
-from .._math import RGB, as_frames, compose_poses, instance_mesh, rgb_uint8, rotate, unit_sphere, xyzw_to_wxyz
-from ..layer import Geometry, Layer
+from .._math import RGB, as_frames, compose_poses, rgb_uint8, rotate, unit_sphere, xyzw_to_wxyz
+from ..layer import Layer
 
 _IDENTITY_POSE = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], dtype=np.float32)
 
@@ -46,8 +46,9 @@ class MeshLayer(Layer):
             )
         )
 
-    def geometry(self, step: int) -> list[Geometry]:
-        return [Geometry(self.vertices[step], self.faces.astype(np.int64), np.asarray(self.color, dtype=np.float32))]
+    def world_points(self, step: int) -> np.ndarray | None:
+        """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
+        return self.vertices[step]
 
     def set_step(self, step: int) -> None:
         self._mesh.vertices = self.vertices[step]
@@ -102,13 +103,14 @@ class RigidMeshLayer(Layer):
                 )
             self._nodes.append(self._track(node))
 
-    def geometry(self, step: int) -> list[Geometry]:
+    def world_points(self, step: int) -> np.ndarray | None:
+        """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
+        if not self.meshes:
+            return None
         world = compose_poses(self.body_poses[step, self._bodies], self._origins)
-        out = []
-        for index, spec in enumerate(self.meshes):
-            vertices = rotate(world[index, 3:], spec.vertices) + world[index, :3]
-            out.append(Geometry(vertices.astype(np.float32), spec.faces.astype(np.int64), _face_colors(spec)))
-        return out
+        return np.concatenate(
+            [rotate(world[i, 3:], spec.vertices) + world[i, :3] for i, spec in enumerate(self.meshes)]
+        )
 
     def set_step(self, step: int) -> None:
         world = compose_poses(self.body_poses[step, self._bodies], self._origins)
@@ -156,32 +158,9 @@ class SpheresLayer(Layer):
             )
         )
 
-    def geometry(self, step: int) -> list[Geometry]:
-        sphere_v, sphere_f = unit_sphere(1)
-        n = self.centers.shape[1]
-        wxyz = np.tile(np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32), (n, 1))
-        vertices, faces = instance_mesh(sphere_v, sphere_f, self.centers[step], wxyz, self.radii)
-        colors = np.repeat(self._colors.astype(np.float32) / 255.0, len(sphere_f), axis=0)
-        return [Geometry(vertices, faces, colors)]
+    def world_points(self, step: int) -> np.ndarray | None:
+        """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
+        return np.concatenate([self.centers[step] - self.radii[:, None], self.centers[step] + self.radii[:, None]])
 
     def set_step(self, step: int) -> None:
         self._spheres.batched_positions = self.centers[step]
-
-
-def _face_colors(spec: MeshSpec) -> np.ndarray:
-    """Per-face colours from a trimesh source's visual, else the spec colour."""
-    if spec.trimesh is not None:
-        visual = spec.trimesh.visual
-        try:
-            if visual.kind == "face":
-                return np.asarray(visual.face_colors, dtype=np.float32)[:, :3] / 255.0
-            if visual.kind == "vertex":
-                return np.asarray(visual.vertex_colors, dtype=np.float32)[spec.faces].mean(axis=1)[:, :3] / 255.0
-            if visual.kind == "texture":
-                return (
-                    np.asarray(visual.to_color().vertex_colors, dtype=np.float32)[spec.faces].mean(axis=1)[:, :3]
-                    / 255.0
-                )
-        except (AttributeError, ValueError, IndexError):
-            pass
-    return np.asarray(spec.color, dtype=np.float32)

@@ -31,10 +31,11 @@ from .constrained import solve_constrained
 from .linear import ArrowNormal, BandedNormal, Normal
 from .manifold import Euclidean, Manifold
 from .phases import Phase, Result, run, solve, solve_layer
-from .problem import Problem, TermFn, check_jacobian
+from .problem import CacheRef, Problem, TermFn, check_jacobian
 from .solvers import LBFGS, GaussNewton, LevenbergMarquardt, Solver, State, TorchOptim
 
 __all__ = [
+    "CacheRef",
     "ArrowNormal",
     "BandedNormal",
     "Cauchy",

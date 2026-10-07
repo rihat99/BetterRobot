@@ -25,6 +25,16 @@ Values = Mapping[str, torch.Tensor]
 
 
 @dataclass(frozen=True)
+class CacheRef:
+    """Handle to a value registered with ``Problem.cached``; ``str(ref)`` is its name."""
+
+    name: str
+
+    def __str__(self) -> str:
+        return self.name
+
+
+@dataclass(frozen=True)
 class TermFn:
     """A term function bundled with what it reads and, optionally, its analytic Jacobian.
 
@@ -168,15 +178,16 @@ class Problem:
 
     # ── registration ────────────────────────────────────────────────────
 
-    def cached(self, fn: Callable[..., Any], *, name: str | None = None, reads: tuple[str, ...] | None = None) -> Callable[..., Any]:
+    def cached(self, fn: Callable[..., Any], *, name: str | None = None, reads: tuple[str, ...] | None = None) -> CacheRef:
         """Register a value shared by terms, computed at most once per evaluation.
 
-        Usable as a decorator; the name defaults to the function name.
+        Usable as a decorator; the name defaults to the function name. Returns a `CacheRef`
+        handle that terms accept wherever they take a cached-value name.
         """
         name = name or fn.__name__
         self._require_new_name(name)
         self._cached[name] = (fn, self._resolve_reads(name, fn, reads))
-        return fn
+        return CacheRef(name)
 
     def residual(
         self,

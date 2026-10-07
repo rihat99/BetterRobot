@@ -78,8 +78,8 @@ def _q_v(model):
 def _static_jacobian(model, q, *, joint_id=None, frame_id=None, reference):
     state = forward_kinematics_state(model, q)
     if joint_id is not None:
-        return joint_jacobian(model, state, joint_id, reference=reference)
-    return frame_jacobian(model, state, frame_id, reference=reference)
+        return joint_jacobian(model, state, joint=joint_id, reference=reference)
+    return frame_jacobian(model, state, frame=frame_id, reference=reference)
 
 
 def _finite_diff_dot(model, q, v, *, joint_id=None, frame_id=None, reference):
@@ -137,7 +137,7 @@ def test_raw_matches_workspace(chain):
 
     state = forward_kinematics_state(chain, q)
     torch.testing.assert_close(raw.joint_jacobians_dot, torch.stack([joint_jacobian_time_variation(chain, state, v=v, joint=j, reference="world") for j in range(chain.njoints)], dim=-3))
-    torch.testing.assert_close(raw.joint_jacobians, torch.stack([joint_jacobian(chain, state, j, reference="world") for j in range(chain.njoints)], dim=-3))
+    torch.testing.assert_close(raw.joint_jacobians, torch.stack([joint_jacobian(chain, state, joint=j, reference="world") for j in range(chain.njoints)], dim=-3))
 
 
 def test_reuse_path_matches_fresh(chain):
@@ -147,7 +147,7 @@ def test_reuse_path_matches_fresh(chain):
 
     fresh = joint_jacobians_time_variation_raw(chain.structure, q, v, poses)
     state = forward_kinematics_state(chain, q)
-    joint_jacobians = torch.stack([joint_jacobian(chain, state, j, reference="world") for j in range(chain.njoints)], -3)
+    joint_jacobians = torch.stack([joint_jacobian(chain, state, joint=j, reference="world") for j in range(chain.njoints)], -3)
     reused = joint_jacobians_time_variation_raw(chain.structure, q, v, poses, joint_jacobians=joint_jacobians)
     torch.testing.assert_close(fresh.joint_jacobians_dot, reused.joint_jacobians_dot)
 

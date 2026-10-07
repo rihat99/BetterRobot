@@ -13,7 +13,7 @@ import torch
 
 from ..collision import RobotSpheres, self_distances
 from ..kinematics.state import KinematicState
-from ..optim import TermFn
+from ..optim import CacheRef, TermFn
 
 
 def sphere_clearance(
@@ -22,7 +22,7 @@ def sphere_clearance(
     *,
     margin: float,
     hinge: bool = True,
-    state: str = "state",
+    state: CacheRef | str = "state",
 ) -> TermFn:
     """Clearance of every sphere to static obstacles.
 
@@ -36,11 +36,11 @@ def sphere_clearance(
         gap = margin - distance_fn(centers, spheres.radii).flatten(centers.dim() - 2)
         return gap.clamp_min(0.0) if hinge else gap
 
-    return TermFn(fn=residual, reads=(state,))
+    return TermFn(fn=residual, reads=(str(state),))
 
 
 def self_clearance(
-    spheres: RobotSpheres, pairs: torch.Tensor, *, margin: float, hinge: bool = True, state: str = "state"
+    spheres: RobotSpheres, pairs: torch.Tensor, *, margin: float, hinge: bool = True, state: CacheRef | str = "state"
 ) -> TermFn:
     """Clearance between the sphere pairs ``pairs: (P, 2)`` (see ``collision.self_collision_pairs``).
 
@@ -51,4 +51,4 @@ def self_clearance(
         gap = margin - self_distances(spheres, kinematics, pairs=pairs)
         return gap.clamp_min(0.0) if hinge else gap
 
-    return TermFn(fn=residual, reads=(state,))
+    return TermFn(fn=residual, reads=(str(state),))

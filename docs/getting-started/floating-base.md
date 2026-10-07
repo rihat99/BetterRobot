@@ -66,7 +66,7 @@ the other 29 to the joints:
 ```python
 from better_robot.kinematics import frame_jacobian
 
-J = frame_jacobian(model, state, "body_left_ankle_roll_link")
+J = frame_jacobian(model, state, frame="body_left_ankle_roll_link")
 print(J.shape)  # (6, 35)
 assert J.shape == (6, model.nv)
 ```

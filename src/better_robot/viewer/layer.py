@@ -3,23 +3,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-
-
-@dataclass
-class Geometry:
-    """World-space triangles of one layer at one step, as drawn by the offline renderer.
-
-    ``vertices (V, 3)`` in world coordinates, ``faces (F, 3)`` vertex indices, ``colors`` either one RGB
-    ``(3,)`` in ``[0, 1]`` or one per face ``(F, 3)``.
-    """
-
-    vertices: np.ndarray
-    faces: np.ndarray
-    colors: np.ndarray
 
 
 class Layer(ABC):
@@ -30,12 +16,10 @@ class Layer(ABC):
     ``nsteps == 1`` and is pushed once. Handles registered with ``_track`` get the default
     ``set_visible`` and ``dispose``.
 
-    Subclasses implement ``build`` and ``set_step``; ``build_gui`` is optional. ``fits_camera = False``
-    keeps a layer's geometry out of the offline renderer's automatic framing (the ground grid);
-    ``listed = False`` keeps it out of the sidebar's Layers folder.
+    Subclasses implement ``build`` and ``set_step``; ``build_gui`` and ``world_points`` are optional.
+    ``listed = False`` keeps a layer out of the sidebar's Layers folder.
     """
 
-    fits_camera: bool = True
     listed: bool = True
 
     def __init__(self, name: str, nsteps: int = 1) -> None:
@@ -66,9 +50,12 @@ class Layer(ABC):
     def apply_theme(self, theme: Any) -> None:
         """Adopt defaults from the viewer's ``Theme`` before ``build``; nothing by default."""
 
-    def geometry(self, step: int) -> list[Geometry]:
-        """Triangles of step ``step`` for the offline renderer; empty for layers without 3D geometry."""
-        return []
+    def world_points(self, step: int) -> np.ndarray | None:
+        """World positions ``(N, 3)`` of what the layer draws at ``step``, used to fit ``Viewer.record``'s camera.
+
+        ``None`` (the default) keeps the layer out of the fit, as for the ground grid.
+        """
+        return None
 
     def set_visible(self, visible: bool) -> None:
         """Show or hide every tracked handle."""

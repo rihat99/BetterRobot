@@ -35,7 +35,7 @@ def test_rnea_gradcheck():
     a = (torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1).requires_grad_(True)
 
     def f(q_, v_, a_):
-        return inverse_dynamics(model, forward_kinematics_state(model, q_), v_, a_)
+        return inverse_dynamics(model, forward_kinematics_state(model, q_), v=v_, a=a_)
 
     assert torch.autograd.gradcheck(f, (q, v, a), eps=1e-6, atol=1e-4, rtol=1e-3)
 
@@ -48,7 +48,7 @@ def test_aba_gradcheck():
     tau = (torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1).requires_grad_(True)
 
     def f(q_, v_, tau_):
-        return forward_dynamics(model, forward_kinematics_state(model, q_), v_, tau_)
+        return forward_dynamics(model, forward_kinematics_state(model, q_), v=v_, tau=tau_)
 
     assert torch.autograd.gradcheck(f, (q, v, tau), eps=1e-6, atol=1e-4, rtol=1e-3)
 
@@ -62,7 +62,7 @@ def test_dtau_da_matches_crba():
     a = torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1
 
     dtau_da = torch.autograd.functional.jacobian(
-        lambda acceleration: inverse_dynamics(model, forward_kinematics_state(model, q), v, acceleration),
+        lambda acceleration: inverse_dynamics(model, forward_kinematics_state(model, q), v=v, a=acceleration),
         a,
     )
     M = mass_matrix(model, forward_kinematics_state(model, q))
@@ -78,7 +78,7 @@ def test_dadtau_matches_minverse():
     tau = torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1
 
     da_dtau = torch.autograd.functional.jacobian(
-        lambda torque: forward_dynamics(model, forward_kinematics_state(model, q), v, torque),
+        lambda torque: forward_dynamics(model, forward_kinematics_state(model, q), v=v, tau=torque),
         tau,
     )
     M = mass_matrix(model, forward_kinematics_state(model, q))

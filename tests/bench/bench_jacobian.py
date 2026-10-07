@@ -12,4 +12,4 @@ pytestmark = pytest.mark.bench
 
 def test_joint_jacobian_panda(benchmark, panda, panda_state) -> None:
     joint_id = panda.njoints - 1
-    benchmark(lambda: br.joint_jacobian(panda, panda_state, joint_id, reference="world"))
+    benchmark(lambda: br.joint_jacobian(panda, panda_state, joint=joint_id, reference="world"))

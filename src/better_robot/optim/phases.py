@@ -44,6 +44,10 @@ class Result:
     iters: int  #: total steps taken.
     history: dict[str, torch.Tensor] = field(default_factory=dict)  #: ``{phase: (steps, B)}`` losses.
 
+    def __getitem__(self, name: str) -> torch.Tensor:
+        """Final value of variable ``name``; shorthand for ``result.x[name]``."""
+        return self.x[name]
+
 
 def run(problem: Problem, phases: Sequence[Phase], *, x: Mapping[str, torch.Tensor] | None = None) -> Result:
     """Run ``phases`` in order, each starting from the previous result."""

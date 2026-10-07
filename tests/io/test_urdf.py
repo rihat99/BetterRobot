@@ -141,3 +141,9 @@ def test_g1_root_joint_is_free_flyer(g1_model):
 )
 def test_g1_dims(g1_model, attr, expected):
     assert getattr(g1_model, attr) == expected
+
+
+def test_load_dtype_and_device_kwargs():
+    model = load(_get_panda_urdf(), dtype=torch.float64, device=torch.device("cpu"))
+    assert model.values.joint_placements.dtype == torch.float64
+    assert model.values.joint_placements.device.type == "cpu"

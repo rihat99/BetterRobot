@@ -105,6 +105,7 @@ q = torch.zeros(4, model.nq)
 state = forward_kinematics_state(model, q)
 print(state.joint_transform.shape)                       # torch.Size([4, 4, 3, 4])
 print(state.frame_pose_of(model.frame_id("tool")))       # (4, 7)
+print(state.frame_pose_of("tool"))                       # same: a state knows its model's names
 ```
 
 A state belongs to one configuration. To evaluate a new `q`, call `forward_kinematics_state` again; there is

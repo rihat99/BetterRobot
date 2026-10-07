@@ -33,17 +33,7 @@ PACKAGES = [
 MAX_POSITIONAL = 2
 
 # Current violations (package.name -> positional count). Shrink, never grow.
-KEYWORD_ONLY_ALLOWLIST: dict[str, int] = {
-    "better_robot.frame_jacobian": 3,  # kinematics/state.py:183
-    "better_robot.joint_jacobian": 3,  # kinematics/state.py:206
-    "better_robot.inverse_dynamics": 4,  # dynamics/state.py:55
-    "better_robot.forward_dynamics": 4,  # dynamics/state.py:83
-    "better_robot.lie.umeyama": 3,  # lie/alignment.py:67
-    "better_robot.kinematics.frame_jacobian": 3,  # kinematics/state.py:183
-    "better_robot.kinematics.joint_jacobian": 3,  # kinematics/state.py:206
-    "better_robot.dynamics.inverse_dynamics": 4,  # dynamics/state.py:55
-    "better_robot.dynamics.forward_dynamics": 4,  # dynamics/state.py:83
-}
+KEYWORD_ONLY_ALLOWLIST: dict[str, int] = {}
 
 
 def _public_callables() -> list[tuple[str, object]]:

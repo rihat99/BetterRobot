@@ -98,14 +98,14 @@ def test_preserved_branching_fk_and_rnea_match_default_dfs_model():
     tau_preserved = br.inverse_dynamics(
         preserved,
         br.forward_kinematics_state(preserved, q_preserved),
-        v_preserved,
-        a_preserved,
+        v=v_preserved,
+        a=a_preserved,
     )
     tau_default = br.inverse_dynamics(
         default,
         br.forward_kinematics_state(default, q_default),
-        v_default,
-        a_default,
+        v=v_default,
+        a=a_default,
     )
     torch.testing.assert_close(
         tau_preserved,

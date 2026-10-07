@@ -34,8 +34,8 @@ def run() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     desired_acceleration = torch.zeros_like(velocity)
 
     state = br.forward_kinematics_state(model, q)
-    gravity_torque = br.inverse_dynamics(model, state, velocity, desired_acceleration)
-    recovered_acceleration = br.forward_dynamics(model, state, velocity, gravity_torque)
+    gravity_torque = br.inverse_dynamics(model, state, v=velocity, a=desired_acceleration)
+    recovered_acceleration = br.forward_dynamics(model, state, v=velocity, tau=gravity_torque)
     round_trip_error = (recovered_acceleration - desired_acceleration).abs().max()
 
     print(f"gravity-compensation torque: {gravity_torque.tolist()}")

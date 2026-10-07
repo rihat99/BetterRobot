@@ -164,20 +164,32 @@ class ModelStructure:
     def __post_init__(self) -> None:
         self.validate_consistency()
 
-    def joint_id(self, name: str) -> int:
-        """Return the integer id of the named joint."""
+    def joint_id(self, joint: int | str) -> int:
+        """Return the integer id of a joint given by name, or range-check and return an int id."""
 
-        return self.joint_name_to_id[name]
+        if isinstance(joint, str):
+            return self.joint_name_to_id[joint]
+        if not 0 <= joint < self.njoints:
+            raise IndexError(f"joint id {joint} out of range [0, {self.njoints})")
+        return joint
 
-    def frame_id(self, name: str) -> int:
-        """Return the integer id of the named frame."""
+    def frame_id(self, frame: int | str) -> int:
+        """Return the integer id of a frame given by name, or range-check and return an int id."""
 
-        return self.frame_name_to_id[name]
+        if isinstance(frame, str):
+            return self.frame_name_to_id[frame]
+        if not 0 <= frame < self.nframes:
+            raise IndexError(f"frame id {frame} out of range [0, {self.nframes})")
+        return frame
 
-    def body_id(self, name: str) -> int:
-        """Return the integer id of the named body."""
+    def body_id(self, body: int | str) -> int:
+        """Return the integer id of a body given by name, or range-check and return an int id."""
 
-        return self.body_name_to_id[name]
+        if isinstance(body, str):
+            return self.body_name_to_id[body]
+        if not 0 <= body < self.nbodies:
+            raise IndexError(f"body id {body} out of range [0, {self.nbodies})")
+        return body
 
     def get_subtree(self, joint_id: int) -> tuple[int, ...]:
         """Return the subtree rooted at ``joint_id``."""

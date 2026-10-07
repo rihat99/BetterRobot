@@ -85,7 +85,7 @@ def test_joint_jacobian_plan_rebuilds_after_to(chain):
 
     def world_jacobians(model):
         state = forward_kinematics_state(model, model.q_neutral)
-        return torch.stack([joint_jacobian(model, state, j, reference="world") for j in range(model.njoints)], dim=-3)
+        return torch.stack([joint_jacobian(model, state, joint=j, reference="world") for j in range(model.njoints)], dim=-3)
 
     reference = world_jacobians(chain)
     assert getattr(chain.structure, "_joint_jacobian_plan", None) is not None
@@ -117,8 +117,8 @@ def test_get_joint_jacobian_matches_coincident_frame(arm, chain, reference):
         state = forward_kinematics_state(model, q)
         frame_id = model.frame_id(frame_name)
         joint_id = model.structure.frame_parent_joints[frame_id].item()
-        J_joint = joint_jacobian(model, state, joint_id, reference=reference)
-        J_frame = frame_jacobian(model, state, frame_id, reference=reference)
+        J_joint = joint_jacobian(model, state, joint=joint_id, reference=reference)
+        J_frame = frame_jacobian(model, state, frame=frame_id, reference=reference)
         torch.testing.assert_close(J_joint, J_frame)
 
 
@@ -128,7 +128,7 @@ def test_frame_jacobian_compiles_fullgraph(arm):
     frame_id = arm.frame_id("body_link1")
 
     def evaluate(kinematic_state):
-        return frame_jacobian(arm, kinematic_state, frame_id)
+        return frame_jacobian(arm, kinematic_state, frame=frame_id)
 
     compiled = torch.compile(evaluate, fullgraph=True, backend="eager")
     torch.testing.assert_close(compiled(state), evaluate(state))

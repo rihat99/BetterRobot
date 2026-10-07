@@ -14,6 +14,7 @@ from .frame import Frame
 from .joint_models.base import JointModel
 
 if TYPE_CHECKING:
+    from ..kinematics.state import KinematicState
     from ..spatial.inertia import Inertia
     from .model_structure import ModelStructure
     from .model_values import ModelValues
@@ -188,17 +189,17 @@ class Model:
             for frame_id, (name, parent_joint, frame_type) in enumerate(static_frames)
         )
 
-    def joint_id(self, name: str) -> int:
-        """Return the integer id of the named joint."""
-        return self.structure.joint_id(name)
+    def joint_id(self, joint: int | str) -> int:
+        """Return the integer id of a joint given by name, or range-check and return an int id."""
+        return self.structure.joint_id(joint)
 
-    def frame_id(self, name: str) -> int:
-        """Return the integer id of the named frame."""
-        return self.structure.frame_id(name)
+    def frame_id(self, frame: int | str) -> int:
+        """Return the integer id of a frame given by name, or range-check and return an int id."""
+        return self.structure.frame_id(frame)
 
-    def body_id(self, name: str) -> int:
-        """Return the integer id of the named body."""
-        return self.structure.body_id(name)
+    def body_id(self, body: int | str) -> int:
+        """Return the integer id of a body given by name, or range-check and return an int id."""
+        return self.structure.body_id(body)
 
     def get_subtree(self, joint_id: int) -> tuple[int, ...]:
         """Return the subtree rooted at ``joint_id``."""
@@ -227,6 +228,13 @@ class Model:
     def difference(self, q0: torch.Tensor, q1: torch.Tensor) -> torch.Tensor:
         """Compute the universal tangent ``q1 ⊖ q0``."""
         return self.structure.difference(q0, q1)
+
+    def fk(self, q: torch.Tensor, *, check_quaternion_norm: bool = False) -> KinematicState:
+        """Run forward kinematics on ``q: (..., nq)``; shorthand for ``kinematics.forward_kinematics_state``."""
+        # kinematics ranks above data_model; a lazy import keeps the module-level DAG acyclic.
+        from ..kinematics.state import forward_kinematics_state  # noqa: PLC0415
+
+        return forward_kinematics_state(self, q, check_quaternion_norm=check_quaternion_norm)
 
     def expand_configuration(self, q: torch.Tensor) -> torch.Tensor:
         """Map ``q: (..., nq)`` to the full configuration ``(..., nq_full)`` with mimic joints filled in."""

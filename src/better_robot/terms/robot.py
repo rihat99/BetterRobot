@@ -15,7 +15,7 @@ from ..data_model.model import Model
 from ..kinematics.state import KinematicState, forward_kinematics_state, frame_jacobian
 from ..lie import se3
 from ..lie.tangents import right_jacobian_inv_se3
-from ..optim import TermFn
+from ..optim import CacheRef, TermFn
 
 
 class RobotManifold:
@@ -55,35 +55,31 @@ def kinematic_state(model: Model, *, q: str = "q") -> TermFn:
     return TermFn(fn=lambda value: forward_kinematics_state(model, value), reads=(q,))
 
 
-def _frame_id(model: Model, frame: int | str) -> int:
-    return model.frame_id(frame) if isinstance(frame, str) else frame
-
-
-def frame_pose(model: Model, frame: int | str, *, target: str, state: str = "state", q: str = "q") -> TermFn:
+def frame_pose(model: Model, frame: int | str, *, target: str, state: CacheRef | str = "state", q: str = "q") -> TermFn:
     """Pose error of ``frame`` against data ``target: (B, 7)``. Residual ``(B, 6)``, ``[linear, angular]``."""
-    frame_id = _frame_id(model, frame)
+    frame_id = model.frame_id(frame)
 
     def error(kinematics: KinematicState, goal: torch.Tensor) -> torch.Tensor:
         return se3.log(se3.compose(se3.inverse(goal), kinematics.frame_pose_of(frame_id)))
 
     def jac(kinematics: KinematicState, goal: torch.Tensor) -> dict[str, torch.Tensor]:
-        local = frame_jacobian(model, kinematics, frame_id, reference="local")
+        local = frame_jacobian(model, kinematics, frame=frame_id, reference="local")
         return {q: right_jacobian_inv_se3(error(kinematics, goal)) @ local}
 
-    return TermFn(fn=error, reads=(state, target), jac=jac)
+    return TermFn(fn=error, reads=(str(state), target), jac=jac)
 
 
-def frame_position(model: Model, frame: int | str, *, target: str, state: str = "state", q: str = "q") -> TermFn:
+def frame_position(model: Model, frame: int | str, *, target: str, state: CacheRef | str = "state", q: str = "q") -> TermFn:
     """Position error of ``frame`` against data ``target: (B, 3)``. Residual ``(B, 3)``."""
-    frame_id = _frame_id(model, frame)
+    frame_id = model.frame_id(frame)
 
     def error(kinematics: KinematicState, goal: torch.Tensor) -> torch.Tensor:
         return kinematics.frame_translation[..., frame_id, :] - goal
 
     def jac(kinematics: KinematicState, goal: torch.Tensor) -> dict[str, torch.Tensor]:
-        return {q: frame_jacobian(model, kinematics, frame_id)[..., :3, :]}
+        return {q: frame_jacobian(model, kinematics, frame=frame_id)[..., :3, :]}
 
-    return TermFn(fn=error, reads=(state, target), jac=jac)
+    return TermFn(fn=error, reads=(str(state), target), jac=jac)
 
 
 def _identity_jac(model: Model, q: str, sign_fn: Callable[[torch.Tensor], torch.Tensor]):

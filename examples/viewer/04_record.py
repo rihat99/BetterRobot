@@ -1,6 +1,8 @@
-"""Record a clip without a browser (torch rasterizer → GIF) and export it as a ``.viser`` file.
+"""Record a clip as a GIF (screenshots from a headless Chromium) and export it as a ``.viser`` file.
 
     uv run python examples/viewer/04_record.py --out /tmp/panda   # writes panda.gif and panda.viser
+
+Needs Chromium (``$BETTER_ROBOT_CHROME`` or on ``PATH``); see ``better_robot.viewer.capture``.
 """
 
 from __future__ import annotations

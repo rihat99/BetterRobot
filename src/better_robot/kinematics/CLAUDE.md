@@ -5,7 +5,7 @@
 - `forward_kinematics_state(model, q, *, check_quaternion_norm=False)` — one FK pass into an immutable
   `KinematicState` of `[R | p]` matrices (`joint_transform`, `frame_transform`); `joint_pose` / `frame_pose`,
   `*_rotation` / `*_translation` and `frame_pose_of(id)` are views converted on first use
-- `frame_jacobian(model, state, frame_id, *, reference=...)` and `joint_jacobian(model, state, joint_id, *, reference=...)`
+- `frame_jacobian(model, state, *, frame, reference=...)` and `joint_jacobian(model, state, *, joint, reference=...)`
   — `(B..., 6, nv)`; both default to `local_world_aligned`
 - `frame_jacobian_time_variation(model, state, v=v, frame=frame_id, *, reference=...)` and
   `joint_jacobian_time_variation(model, state, v=v, joint=joint_id, *, reference=...)` — `J̇` for the same references

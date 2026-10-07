@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass, field
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
-from .layer import Geometry, Layer
+from .layer import Layer
 from .layers.plot import PlotPanel
 from .theme import LIGHT, Theme
 from .timeline import Timeline
@@ -27,25 +28,6 @@ class _Group:
     node: Any
     entries: dict[str, _Entry] = field(default_factory=dict)
     offset: tuple[float, float, float] | None = None
-
-
-class _Shifted(Layer):
-    """Read-only view of a layer whose group has an ``offset``, for the offline renderer."""
-
-    def __init__(self, layer: Layer, offset: tuple[float, float, float]) -> None:
-        super().__init__(layer.name, layer.nsteps)
-        self.fits_camera = layer.fits_camera
-        self._layer = layer
-        self._offset = np.asarray(offset, dtype=np.float32)
-
-    def build(self, scene: Any, root: str) -> None:
-        raise TypeError("a shifted view is only for rendering")
-
-    def set_step(self, step: int) -> None:
-        raise TypeError("a shifted view is only for rendering")
-
-    def geometry(self, step: int) -> list[Geometry]:
-        return [Geometry(g.vertices + self._offset, g.faces, g.colors) for g in self._layer.geometry(step)]
 
 
 class Viewer:
@@ -172,22 +154,53 @@ class Viewer:
         self._push_all(self.timeline.step, force=True)
         return path
 
-    def record(self, path: str | Path, *, fps: float | None = None, **options: Any) -> Path:
-        """Render the visible layers offline (no browser) to ``.gif``, ``.mp4`` or ``.png`` steps.
+    def record(
+        self,
+        path: str | Path,
+        *,
+        steps: Sequence[int] | None = None,
+        size: tuple[int, int] = (960, 540),
+        fps: float | None = None,
+        gpu: bool = False,
+        camera: tuple[Sequence[float], Sequence[float]] | None = None,
+    ) -> Path:
+        """Screenshot the live scene in a headless Chromium for each step and write ``.webm``, ``.gif`` or PNGs.
 
-        ``options`` go to ``better_robot.viewer.render.record`` (``camera``, ``size``, ``steps``, ``background``);
-        without a ``camera`` the view is fitted to the visible layers sampled over the clip, upright along the
-        theme's ``up`` axis. Group offsets apply. Returns the written path.
+        ``size`` is ``(width, height)``; ``steps`` defaults to every step. ``camera`` is ``(position, look_at)``;
+        without it a 3/4 view, upright along the theme's ``up`` axis, is fitted to the visible layers over the clip.
+        ``path`` ending in ``.png`` writes ``<stem>_000.png, ...``; without a suffix it is a directory of frames.
+        Needs a Chromium binary (``$BETTER_ROBOT_CHROME`` or on ``PATH``) and, for ``.webm``, ffmpeg (``$FFMPEG``
+        or on ``PATH``). Machines without ``libasound.so.2`` need it on ``LD_LIBRARY_PATH``; see
+        ``better_robot.viewer.capture``. Returns ``path``.
         """
-        from .render import record  # noqa: PLC0415 - keeps torch rasterizer out of the import path
+        from .capture import HeadlessClient, fit_camera, write_frames  # noqa: PLC0415 - browser path is opt-in
 
-        layers = [
-            entry.layer if group.offset is None else _Shifted(entry.layer, group.offset)
-            for group in self._groups.values()
-            for entry in group.entries.values()
-            if entry.layer.visible
-        ]
-        return record(layers, path, fps=fps or self.timeline.fps, up=self.theme.up_vector, **options)
+        steps = list(range(self.timeline.nsteps)) if steps is None else list(steps)
+        if camera is None:
+            camera = fit_camera(self._points(steps), up=self.theme.up_vector)
+        width, height = size
+        frames = []
+        with HeadlessClient(self, size=size, gpu=gpu) as client:
+            client.render(height, width)  # the first render returns once the scene has reached the browser
+            client.set_camera(*camera, up=self.theme.up_vector)
+            for step in steps:
+                self.show(step)
+                frames.append(client.render(height, width))
+        return write_frames(frames, path, fps=fps or self.timeline.fps)
+
+    def _points(self, steps: Sequence[int]) -> np.ndarray:
+        """``Layer.world_points`` ``(N, 3)`` of the visible layers over ``steps``, group offsets applied."""
+        points = []
+        for group in self._groups.values():
+            offset = np.zeros(3) if group.offset is None else np.asarray(group.offset, dtype=np.float64)
+            for entry in group.entries.values():
+                if not entry.layer.visible:
+                    continue
+                for step in steps:
+                    layer_points = entry.layer.world_points(min(step, entry.layer.nsteps - 1))
+                    if layer_points is not None and len(layer_points):
+                        points.append(np.asarray(layer_points, dtype=np.float64).reshape(-1, 3) + offset)
+        return np.concatenate(points) if points else np.array([[1.0, 1.0, 1.0], [-1.0, -1.0, 0.0]])
 
     def rebuild(self, layer: Layer) -> None:
         """Dispose ``layer``'s scene nodes and GUI and build them again, keeping its visibility and the current step.

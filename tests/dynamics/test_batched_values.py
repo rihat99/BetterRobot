@@ -80,9 +80,9 @@ def test_batched_inertias_match_scalar_dynamics_loop(
 
     def evaluate(current_model):
         state = forward_kinematics_state(current_model, q)
-        tau = inverse_dynamics(current_model, state, v, a)
+        tau = inverse_dynamics(current_model, state, v=v, a=a)
         mass = mass_matrix(current_model, state)
-        ddq = forward_dynamics(current_model, state, v, tau)
+        ddq = forward_dynamics(current_model, state, v=v, tau=tau)
         return (
             tau,
             mass,
@@ -114,7 +114,7 @@ def test_batched_inertia_autograd_reaches_leaf() -> None:
     q = torch.tensor([0.35], dtype=inertias.dtype)
     v = torch.tensor([0.1], dtype=inertias.dtype)
     a = torch.tensor([0.2], dtype=inertias.dtype)
-    tau = inverse_dynamics(rebound, forward_kinematics_state(rebound, q), v, a)
+    tau = inverse_dynamics(rebound, forward_kinematics_state(rebound, q), v=v, a=a)
     tau.square().sum().backward()
 
     assert delta.grad is not None
@@ -132,4 +132,4 @@ def test_dynamics_value_batch_mismatch_is_an_honest_shape_error() -> None:
         ShapeError,
         match=r"cannot broadcast q batch \(2, 3\) with body_inertias batch \(2,\)",
     ):
-        inverse_dynamics(rebound, forward_kinematics_state(rebound, q), v, v)
+        inverse_dynamics(rebound, forward_kinematics_state(rebound, q), v=v, a=v)

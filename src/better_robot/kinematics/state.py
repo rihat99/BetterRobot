@@ -103,6 +103,7 @@ def _to_pose(transform: torch.Tensor) -> torch.Tensor:
 class KinematicState:
     """World placements of every joint and frame at one configuration batch."""
 
+    structure: ModelStructure  #: Model structure the state was computed from (names, counts; no tensors).
     q: torch.Tensor  #: ``(B..., nq)`` configuration the state was computed at.
     joint_transform: torch.Tensor  #: ``(B..., njoints, 3, 4)`` world ``[R | p]`` of every joint.
     frame_transform: torch.Tensor  #: ``(B..., nframes, 3, 4)`` world ``[R | p]`` of every frame.
@@ -143,9 +144,9 @@ class KinematicState:
             self._memo["frame_pose"] = _to_pose(self.frame_transform)
         return self._memo["frame_pose"]
 
-    def frame_pose_of(self, frame_id: int) -> torch.Tensor:
-        """``(B..., 7)`` world pose of one frame, without converting the others."""
-        return _to_pose(self.frame_transform[..., frame_id, :, :])
+    def frame_pose_of(self, frame: int | str) -> torch.Tensor:
+        """``(B..., 7)`` world pose of one frame (id or name), without converting the others."""
+        return _to_pose(self.frame_transform[..., self.structure.frame_id(frame), :, :])
 
 
 def forward_kinematics_state(model: Model, q: torch.Tensor, *, check_quaternion_norm: bool = False) -> KinematicState:
@@ -174,6 +175,7 @@ def forward_kinematics_state(model: Model, q: torch.Tensor, *, check_quaternion_
     # einsum is several times faster than a broadcast matmul on CPU when one side has no batch axis.
     frame_world = torch.einsum("nfab,fbc->nfac", parents, frames) if frames.ndim == 3 else parents @ frames
     return KinematicState(
+        structure=structure,
         q=q,
         joint_transform=world.view(*batch_shape, nj, 3, 4),
         frame_transform=frame_world.view(*batch_shape, nf, 3, 4),
@@ -183,8 +185,8 @@ def forward_kinematics_state(model: Model, q: torch.Tensor, *, check_quaternion_
 def frame_jacobian(
     model: Model,
     state: KinematicState,
-    frame: int | str,
     *,
+    frame: int | str,
     reference: Literal["world", "local", "local_world_aligned"] = "local_world_aligned",
 ) -> torch.Tensor:
     """Jacobian of one frame. Returns ``(B..., 6, nv)``, rows ``[linear, angular]``.
@@ -193,7 +195,7 @@ def frame_jacobian(
     with the columns that support the frame's parent joint.
     """
     structure = model.structure
-    frame_id = model.frame_id(frame) if isinstance(frame, str) else frame
+    frame_id = model.frame_id(frame)
     parent = structure.frame_parent_joint_ids[frame_id]
     return _express(
         _world_jacobian(model, state, parent),
@@ -206,8 +208,8 @@ def frame_jacobian(
 def joint_jacobian(
     model: Model,
     state: KinematicState,
-    joint: int,
     *,
+    joint: int,
     reference: Literal["world", "local", "local_world_aligned"] = "local_world_aligned",
 ) -> torch.Tensor:
     """Jacobian of one joint. Returns ``(B..., 6, nv)``, rows ``[linear, angular]``; references as `frame_jacobian`."""
@@ -232,7 +234,7 @@ def frame_jacobian_time_variation(
     Acceleration pairing ``a = J dv + dJ v``: spatial for ``"world"``/``"local"``, classical for
     ``"local_world_aligned"``.
     """
-    frame_id = model.frame_id(frame) if isinstance(frame, str) else frame
+    frame_id = model.frame_id(frame)
     return frame_jacobian_time_variation_raw(
         model.structure, model.values, state.q, v, state.joint_pose, frame_id, reference=reference
     )

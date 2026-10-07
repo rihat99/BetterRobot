@@ -18,7 +18,7 @@ class Theme:
     control_width: str = "medium"  # viser sidebar width: "small", "medium" or "large"
     joint: RGB = (0.122, 0.227, 0.408)
     link: RGB = (0.62, 0.64, 0.68)
-    robot: RGB = (0.80, 0.81, 0.83)
+    robot: RGB = (0.62, 0.63, 0.65)
     human: RGB = (0.85, 0.72, 0.62)
     point: RGB = (0.30, 0.32, 0.36)
     force: RGB = (0.74, 0.32, 0.30)

@@ -6,6 +6,7 @@ import torch
 from better_robot.data_model.model import Model
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
+from better_robot.kinematics import forward_kinematics_state
 
 
 def _make_simple_model() -> Model:
@@ -28,6 +29,16 @@ def test_model_joint_id():
 def test_model_body_id():
     model = _make_simple_model()
     assert model.body_id("base") == 1
+
+
+def test_ids_accept_int_or_name():
+    """``frame_id``/``joint_id``/``body_id`` take a name or a range-checked int returned unchanged."""
+    model = _make_simple_model()
+    assert model.joint_id(model.joint_id("j1")) == 2
+    assert model.body_id(1) == 1
+    assert model.frame_id(0) == 0
+    with pytest.raises(IndexError):
+        model.frame_id(model.nframes)
 
 
 def test_model_integrate_difference():
@@ -102,3 +113,10 @@ def test_random_configuration_rejects_unlimited_prismatic():
     model = build_model(builder.finalize())
     with pytest.raises(ValueError, match="slide"):
         model.random_configuration()
+
+
+def test_model_fk_matches_forward_kinematics_state():
+    model = _make_simple_model()
+    q = torch.randn(3, model.nq, generator=torch.Generator().manual_seed(0))
+    state = model.fk(q, check_quaternion_norm=True)
+    torch.testing.assert_close(state.frame_pose, forward_kinematics_state(model, q).frame_pose)

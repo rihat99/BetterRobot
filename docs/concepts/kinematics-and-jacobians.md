@@ -47,13 +47,13 @@ $$
 \begin{bmatrix} \nu \\ \omega \end{bmatrix} = J(q)\, v .
 $$
 
-`frame_jacobian(model, state, frame, reference=...)` accepts a frame id or a frame name.
-`joint_jacobian(model, state, joint, reference=...)` does the same for a joint's own frame.
+`frame_jacobian(model, state, *, frame, reference=...)` accepts a frame id or a frame name.
+`joint_jacobian(model, state, *, joint, reference=...)` does the same for a joint's own frame.
 
 ```python
-J = frame_jacobian(model, state, "tool")
+J = frame_jacobian(model, state, frame="tool")
 print(J.shape)                               # torch.Size([16, 3, 6, 2])
-J_joint = joint_jacobian(model, state, model.joint_id("j2"))
+J_joint = joint_jacobian(model, state, joint=model.joint_id("j2"))
 ```
 
 ## The reference frame decides what a twist means
@@ -72,8 +72,8 @@ linear rows by $\omega \times p$, where $p$ is the frame origin.
 
 ```python
 R = state.frame_rotation[..., tool, :, :]                    # (16, 3, 3, 3)
-J_local = frame_jacobian(model, state, tool, reference="local")
-J_lwa = frame_jacobian(model, state, tool)
+J_local = frame_jacobian(model, state, frame=tool, reference="local")
+J_lwa = frame_jacobian(model, state, frame=tool)
 print(torch.allclose(R @ J_local[..., :3, :], J_lwa[..., :3, :], atol=1e-5))   # True
 ```
 

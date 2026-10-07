@@ -49,9 +49,9 @@ def test_crba_consistent_with_rnea(panda_both):
 
         M = mass_matrix(br_model, forward_kinematics_state(br_model, q))
 
-        b = inverse_dynamics(br_model, forward_kinematics_state(br_model, q), v, torch.zeros_like(v))
+        b = inverse_dynamics(br_model, forward_kinematics_state(br_model, q), v=v, a=torch.zeros_like(v))
 
-        tau = inverse_dynamics(br_model, forward_kinematics_state(br_model, q), v, a)
+        tau = inverse_dynamics(br_model, forward_kinematics_state(br_model, q), v=v, a=a)
 
         lhs = (M @ a.unsqueeze(-1)).squeeze(-1) + b
         torch.testing.assert_close(lhs, tau, rtol=1e-10, atol=1e-10)

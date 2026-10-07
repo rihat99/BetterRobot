@@ -34,9 +34,9 @@ def ik_problem(
         bounds={"q": (model.lower_pos_limit, model.upper_pos_limit)},
         data={f"target/{frame}": pose for frame, pose in targets.items()},
     )
-    problem.cached(kinematic_state(model), name="state")
+    state = problem.cached(kinematic_state(model), name="state")
     for frame in targets:
-        problem.residual(f"pose/{frame}", frame_pose(model, frame, target=f"target/{frame}"))
+        problem.residual(f"pose/{frame}", frame_pose(model, frame, target=f"target/{frame}", state=state))
     if limit_weight:
         problem.residual("limits", joint_limits(model), weight=limit_weight)
     if rest_weight:

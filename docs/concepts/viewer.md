@@ -30,7 +30,7 @@ print(viewer.url, viewer.timeline.nsteps)
 The built-in layers are `PointsLayer`, `SkeletonLayer`, `FramesLayer`, `ArrowsLayer`, `GroundLayer`,
 `RigidMeshLayer`, `MeshLayer`, `SpheresLayer`, `SkinnedMeshLayer` and `CameraLayer`; `viewer.add_plot` adds a
 `PlotPanel` of time series to the GUI. A new layer type subclasses `Layer` and implements `build` (create scene
-nodes once), `set_step` (move them to step `k`) and `geometry` (triangles for the offline renderer).
+nodes once), `set_step` (move them to step `k`) and optionally `world_points` (positions that frame `record`'s camera).
 
 ## A group is the unit you toggle and remove
 
@@ -65,7 +65,7 @@ The other three calls consume the timeline:
 |---|---|---|
 | `play()` | plays by wall clock at `fps` and blocks until Ctrl-C; `play(block=False)` returns | yes, to watch |
 | `save(path)` | writes a `.viser` recording for viser's static web client | no |
-| `record(path)` | renders the visible layers offline to `.gif`, `.mp4` (needs `ffmpeg`) or `.png` frames | no |
+| `record(path)` | screenshots the scene in a headless Chromium to `.webm`, `.gif` or `.png` frames | no |
 
 ```python no-run
 viewer.play()  # blocks until Ctrl-C
@@ -118,27 +118,26 @@ picked = vertices_in_sphere(vertices, center=np.array([0.5, 0.5, 0.5]), radius=0
 print(picked.shape)
 ```
 
-## The same layers render offline
+## Recording the scene
 
-`viewer.record(path)` collects the visible layers, asks each for its triangles per frame (`Layer.geometry`), and
-draws them with a small torch rasterizer in `better_robot.viewer.render`. No browser, no GPU, no OpenGL. Options
-are `size`, `frames`, `camera` and `background`.
+`viewer.record(path)` opens the scene in a headless Chromium (`better_robot.viewer.capture`), shows each
+step and screenshots it. The output format follows the suffix: `.webm` (needs `ffmpeg`), `.gif`, `name.png`
+for numbered frames, or a directory of frames. Options are `steps`, `size` (width, height), `fps`, `gpu`
+and `camera`.
 
-```python
+```python no-run
 import tempfile
 from pathlib import Path
 
-out = Path(tempfile.mkdtemp()) / "panda.gif"
-viewer.record(out, size=(160, 90), steps=range(3))
+out = Path(tempfile.mkdtemp()) / "panda.webm"
+viewer.record(out, size=(960, 540), steps=range(0, 60, 2))
 print(out.exists())
 ```
 
-Without a `camera`, `record` fits a 3/4 view to the visible layers sampled over the whole clip (about eight frames, every frame for short clips),
-upright along the theme's `up` axis. Pass a `Camera`, or build one with
-`better_robot.viewer.render.frame_camera(layers, steps=...)`, for a fixed view of your own.
-
-`better_robot.viewer.render.record(layers, path, ...)` is the same renderer without a `Viewer`, for scripts and
-tests that never start a server.
+Without a `camera`, `record` fits a 3/4 view to the visible layers' `Layer.world_points` over the recorded
+steps, upright along the theme's `up` axis. Pass `camera=(position, look_at)` for a fixed view. The browser
+binary comes from `$BETTER_ROBOT_CHROME` or the `PATH`; the module docstring of `capture` explains the
+one-time setup.
 
 ## Themes and the up axis
 

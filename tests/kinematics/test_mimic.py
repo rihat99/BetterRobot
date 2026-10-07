@@ -65,9 +65,9 @@ def test_batched_fk_and_jacobians_equal_full_twin_with_chain_rule() -> None:
         rtol=1e-12,
         atol=1e-12,
     )
-    expected = torch.stack([joint_jacobian(full, full_state, j, reference="world") for j in range(full.njoints)], dim=-3) @ constrained.v_expansion
+    expected = torch.stack([joint_jacobian(full, full_state, joint=j, reference="world") for j in range(full.njoints)], dim=-3) @ constrained.v_expansion
     torch.testing.assert_close(
-        torch.stack([joint_jacobian(constrained, constrained_state, j, reference="world") for j in range(constrained.njoints)], dim=-3),
+        torch.stack([joint_jacobian(constrained, constrained_state, joint=j, reference="world") for j in range(constrained.njoints)], dim=-3),
         expected,
         rtol=1e-12,
         atol=1e-12,

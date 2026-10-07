@@ -102,23 +102,6 @@ def rgb_uint8(color: np.ndarray | RGB, shape: tuple[int, ...] = ()) -> np.ndarra
     return (np.clip(out, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
 
 
-def instance_mesh(
-    vertices: np.ndarray, faces: np.ndarray, positions: np.ndarray, wxyz: np.ndarray, scales: np.ndarray | float
-) -> tuple[np.ndarray, np.ndarray]:
-    """Replicate a unit mesh for N instances: ``positions (N, 3)``, ``wxyz (N, 4)``, ``scales (N,) | (N, 3)``."""
-    n = len(positions)
-    scales = np.broadcast_to(
-        np.asarray(scales, dtype=np.float32).reshape(n, -1) if np.ndim(scales) else np.float32(scales), (n, 3)
-    )
-    axis = np.asarray(wxyz, dtype=np.float32)[:, None, 1:]
-    w = np.asarray(wxyz, dtype=np.float32)[:, None, :1]
-    scaled = vertices[None] * scales[:, None]
-    t = 2.0 * np.cross(axis, scaled)
-    world = scaled + w * t + np.cross(axis, t) + np.asarray(positions, dtype=np.float32)[:, None]
-    offsets = (np.arange(n) * len(vertices))[:, None, None]
-    return world.reshape(-1, 3).astype(np.float32), (faces.astype(np.int64)[None] + offsets).reshape(-1, 3)
-
-
 def unit_cylinder(segments: int = 16) -> tuple[np.ndarray, np.ndarray]:
     """Closed cylinder of radius 1 from ``z = -0.5`` to ``z = 0.5``: ``(vertices (V, 3), faces (F, 3))``."""
     angles = np.linspace(0.0, 2.0 * np.pi, segments, endpoint=False, dtype=np.float32)

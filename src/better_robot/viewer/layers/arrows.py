@@ -6,8 +6,8 @@ from typing import Any
 
 import numpy as np
 
-from .._math import RGB, as_frames, instance_mesh, quat_z_to, rgb_uint8, unit_cone, unit_cylinder
-from ..layer import Geometry, Layer
+from .._math import RGB, as_frames, quat_z_to, rgb_uint8, unit_cone
+from ..layer import Layer
 
 
 class ArrowsLayer(Layer):
@@ -72,24 +72,9 @@ class ArrowsLayer(Layer):
         self._heads.batched_wxyzs = wxyzs
         self._heads.batched_scales = scales
 
-    def geometry(self, step: int) -> list[Geometry]:
-        vector = self.vectors[step]
-        length = np.linalg.norm(vector, axis=-1)
-        shaft = np.maximum(length - np.minimum(self.head_size, length), 0.0)
-        radius = self.head_size * 0.15
-        cylinder_v, cylinder_f = unit_cylinder(8)
-        unit = vector / np.maximum(length, 1e-9)[:, None]
-        scales = np.stack([np.full_like(shaft, radius), np.full_like(shaft, radius), shaft], axis=-1)
-        vertices, faces = instance_mesh(
-            cylinder_v, cylinder_f, self.origins[step] + unit * (shaft / 2)[:, None], quat_z_to(vector), scales
-        )
-        colors = self._colors.astype(np.float32) / 255.0
-        out = [Geometry(vertices, faces, np.repeat(colors, len(cylinder_f), axis=0))]
-        cone_v, cone_f = unit_cone(8)
-        positions, wxyzs, scales = self._head_transforms(step)
-        vertices, faces = instance_mesh(cone_v, cone_f, positions, wxyzs, scales)
-        out.append(Geometry(vertices, faces, np.repeat(colors, len(cone_f), axis=0)))
-        return out
+    def world_points(self, step: int) -> np.ndarray | None:
+        """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
+        return np.concatenate([self.origins[step], self.origins[step] + self.vectors[step]])
 
     def _segments(self, step: int) -> np.ndarray:
         tips = self.origins[step] + self.vectors[step]

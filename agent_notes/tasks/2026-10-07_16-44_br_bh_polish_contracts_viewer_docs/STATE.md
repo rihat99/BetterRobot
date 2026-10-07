@@ -15,7 +15,12 @@ only if gpu_free FREE; ffmpeg optional; chrome wrapper as dev helper.
 ## Committed 20:05 Dubai: BR dev 6ec3134, BH dev e898fd5 (P1 contracts + P2a trim 586→469 + P3a viewer batch 1 + BH adaptation).
 Owner approved API sugar (20:10): `model.fk(q)`, `Result.q`/`result["q"]`, cache handle instead of the "state"
 string, `br.load(path, dtype=, device=)` → P2c after P2b.
-Running now: P3a-3 joint shapes (mars_top_opus), P2b polish via p1_violations.md (mars_top, brief p2b_polish_brief.md).
+Committed 21:10: BR dev 2f7c6e2 (P2b polish groups 1/3/4/5/7, keyword-only 21/30 rows, P3a-3 joint shapes + RobotView slots).
+Running now: P2c-2 (mars_top: last 9 keyword-only rows, int|str ids, model.fk / Result[...] / CacheRef / load(dtype,device));
+P3b (mars_top_opus, brief p3b_record_brief.md: viewer/capture.py headless Chromium record, rasterizer trashed).
+Owner is reviewing the new viewer on http://127.0.0.1:8082 (task bmjo7nv3g, examples/viewer/02_play_trajectory.py).
+Then: commit; P4 studio shell rebuild (brief to write: p4_studio_brief.md, uses p0_bh_studio.md + BH adaptation notes);
+P5 docs BR then BH (p0_docs_refs.md Part 1, p0_assets/).
 
 ## Done before the commit (history)
 - P1: docs/contracts (11 pages, 42 rules, 5 ADRs), tests/contract/{test_keyword_only,test_frozen,test_contract_matrix}.py,

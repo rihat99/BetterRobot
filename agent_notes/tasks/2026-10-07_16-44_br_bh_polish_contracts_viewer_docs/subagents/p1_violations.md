@@ -149,3 +149,53 @@ Ruff `src` (incl. viewer) 58 -> 35 findings (measured in this worktree while the
   (`kinematics/__init__.py`, commented, not in `__all__`); `dynamics/_world.py` imports it. Not done: re-rank
   dynamics above kinematics in `test_layer_dependencies.py`.
 - LEFT L-2 (`int | str` ids), L-1, L-4, L-6, L-7, L-8, C-API-2/3 signature rows, C-STATE-2/4, C-NAME rows: not started.
+
+## P2d status (2026-10-07, keyword-only A + int|str ids B; commit pending)
+
+- FIXED C-API-2: last 9 allowlist rows. Keyword-only after the second argument in
+  `frame_jacobian(model, state, *, frame, reference=...)`, `joint_jacobian(model, state, *, joint, reference=...)`
+  (`kinematics/state.py`), `inverse_dynamics(model, state, *, v, a, fext=None)`, `forward_dynamics(model, state, *, v, tau, fext=None)`
+  (`dynamics/state.py`), `lie.umeyama(source, target, *, weights=None, estimate_scale=True)` (`lie/alignment.py`).
+  187 call sites rewritten in 35 files (src/tests/examples/docs + `tests/contract/_public_ops.py` table, `kinematics/CLAUDE.md`,
+  `dynamics/CLAUDE.md`, `docs/concepts/{dynamics,kinematics-and-jacobians}.md`). `KEYWORD_ONLY_ALLOWLIST` is now `{}`.
+  BH call site NOT edited: `/home/rikhat.akizhanov/better/dev/BetterHuman/src/better_human/terms.py:223`
+  (`inverse_dynamics(model, kinematics, mid_velocity, acceleration, fext=fext)` -> needs `v=mid_velocity, a=acceleration`).
+- FIXED L-2 (`int | str` ids): `ModelStructure.{joint,frame,body}_id(x: int | str)` and the `Model` forwarders accept a name or
+  an int (range-checked against `njoints/nframes/nbodies`, `IndexError` otherwise, returned unchanged).
+  `KinematicState` gained a frozen `structure: ModelStructure` field (first field; set by `forward_kinematics_state`, the only
+  constructor; no tensor cost) so `KinematicState.frame_pose_of(frame: int | str)` resolves names. No `joint_pose_of` exists.
+  `terms/robot.py::_frame_id` deleted; `frame_pose`/`frame_position` and `kinematics.frame_jacobian`/`frame_jacobian_time_variation`
+  now call `model.frame_id(frame)` directly. `ik_problem` keys already go through `terms.frame_pose(model, name, ...)`, unchanged.
+  Test: `tests/data_model/test_model_data.py::test_ids_accept_int_or_name`.
+- LEFT C (owner-approved sugar): `Model.fk`, `optim.Result.__getitem__`, `Problem.cached` -> `CacheRef`, `br.load(dtype, device)`
+  not started (budget). Docs do not yet mention `KinematicState.structure` or `frame_pose_of("name")`.
+- Gates (this worktree, viewer tests ignored): full suite 1474 passed / 2 failed — both `tests/docs/test_snippets.py` viewer pages
+  (`docs/concepts/viewer.md`, `docs/getting-started/visualize.md`) fail on "Viewer.record needs a Chromium binary" (environment,
+  viewer scope); after B, data_model/kinematics/contract/optim/dynamics/autograd/io/lie/test_pinocchio/collision/docs: 1413 passed,
+  same 2 failures. `ruff check src tests`: 83 (= P2b baseline; changed files carry only pre-existing FBT001/FBT002/PLC0415).
+  `mkdocs build --strict`: OK.
+
+## P2e status (2026-10-07, owner-approved sugar C1–C4; commit pending)
+
+- FIXED C1 `Model.fk(q, *, check_quaternion_norm=False) -> KinematicState` (`data_model/model.py:232-237`): forwards to
+  `kinematics.forward_kinematics_state` through an in-method import with `# noqa: PLC0415` + why-comment.
+  Allowed because `tests/contract/test_layer_dependencies.py::test_no_upward_imports` walks only top-level imports
+  (`_top_level_imports`, :95-101) and `docs/contracts/07-dependencies-layering.md:60` only requires the noqa on lazy imports.
+  `KinematicState` imported under `TYPE_CHECKING` for the annotation. Test: `tests/data_model/test_model_data.py::test_model_fk_matches_forward_kinematics_state`.
+- FIXED C2 `optim.Result.__getitem__(name) -> Tensor` returning `self.x[name]` (`optim/phases.py:47-49`; dataclass stays frozen).
+  Test: `tests/optim/test_robot_terms.py::test_result_getitem_and_ik_problem_state_handle`.
+- FIXED C3 `Problem.cached(...)` now returns a frozen `CacheRef(name)` (`__str__` = name; `optim/problem.py:27-34`, exported from
+  `optim/__init__.py`). `terms.frame_pose`/`frame_position` (`terms/robot.py`) and both collision terms (`terms/collision.py`)
+  take `state: CacheRef | str` and store `str(state)` in `reads`; `terms.ik_problem` passes the handle (`terms/ik.py:37-39`).
+  Decorator uses (`tests/optim/test_problem.py:18`, `docs/concepts/optimization.md:48`) never call the decorated fn, so the
+  changed return type is safe. Unknown cached reads already raise `KeyError` at registration: `_resolve_reads`
+  (`optim/problem.py:404-416`) includes `self._cached` in `known`; confirmed by the new
+  `tests/optim/test_problem.py::test_cached_returns_handle_and_unknown_cached_read_fails_at_registration`.
+- FIXED C4 `br.load(..., dtype=torch.float32, device=None)` kwargs already existed (`io/__init__.py:68-69`); docstring now says so.
+  Test: `tests/io/test_urdf.py::test_load_dtype_and_device_kwargs`.
+- Docs: `docs/getting-started/forward-kinematics.md` (`model.fk(q)` + `frame_pose_of("body_panda_hand")` snippet),
+  `docs/getting-started/inverse-kinematics.md` (`result["q"]` snippet), `docs/concepts/model-and-state.md:108`
+  (`frame_pose_of("tool")` next to the `frame_id` form — the only `frame_pose_of(model.frame_id(` in docs).
+- Gates (this worktree, `--ignore=tests/viewer`): 1481 passed / 0 failed / 10 skipped (the 2 viewer docs pages now pass here);
+  `ruff check src tests`: 82 (baseline 83; changed files carry only pre-existing PLC0415 at `model.py:241`, `io/__init__.py:83,98`,
+  `test_urdf.py:25,32,113`); `mkdocs build --strict`: OK.

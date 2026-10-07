@@ -56,7 +56,7 @@ def joint_torques(model: br.Model, q: torch.Tensor) -> torch.Tensor:
     v[1:-1] = (q[2:] - q[:-2]) / (2 * DT)
     a = torch.zeros_like(v)
     a[1:-1] = (q[2:] - 2 * q[1:-1] + q[:-2]) / DT**2
-    return inverse_dynamics(model, forward_kinematics_state(model, q), v, a)
+    return inverse_dynamics(model, forward_kinematics_state(model, q), v=v, a=a)
 
 
 def main() -> None:

@@ -42,7 +42,7 @@ def test_frame_jacobian_local_world_aligned(panda_both, i):
     br_fid = br_model.frame_id(TARGET_FRAME)
     pin_fid = pin_model.getFrameId(TARGET_PIN_FRAME)
 
-    J_br = frame_jacobian(br_model, state, br_fid, reference="local_world_aligned").detach().cpu().double().numpy()
+    J_br = frame_jacobian(br_model, state, frame=br_fid, reference="local_world_aligned").detach().cpu().double().numpy()
     J_pin = pin.getFrameJacobian(pin_model, pin_data, pin_fid, pin.ReferenceFrame.LOCAL_WORLD_ALIGNED)
 
     np.testing.assert_allclose(J_br, J_pin, atol=1e-10, rtol=0.0)
@@ -58,7 +58,7 @@ def test_frame_jacobian_world(panda_both, i):
     br_fid = br_model.frame_id(TARGET_FRAME)
     pin_fid = pin_model.getFrameId(TARGET_PIN_FRAME)
 
-    J_br = frame_jacobian(br_model, state, br_fid, reference="world").detach().cpu().double().numpy()
+    J_br = frame_jacobian(br_model, state, frame=br_fid, reference="world").detach().cpu().double().numpy()
     J_pin = pin.getFrameJacobian(pin_model, pin_data, pin_fid, pin.ReferenceFrame.WORLD)
 
     np.testing.assert_allclose(J_br, J_pin, atol=1e-10, rtol=0.0)
@@ -74,7 +74,7 @@ def test_frame_jacobian_local(panda_both, i):
     br_fid = br_model.frame_id(TARGET_FRAME)
     pin_fid = pin_model.getFrameId(TARGET_PIN_FRAME)
 
-    J_br = frame_jacobian(br_model, state, br_fid, reference="local").detach().cpu().double().numpy()
+    J_br = frame_jacobian(br_model, state, frame=br_fid, reference="local").detach().cpu().double().numpy()
     J_pin = pin.getFrameJacobian(pin_model, pin_data, pin_fid, pin.ReferenceFrame.LOCAL)
 
     np.testing.assert_allclose(J_br, J_pin, atol=1e-10, rtol=0.0)
@@ -109,7 +109,7 @@ def test_frame_jacobian_batched_matches_pinocchio(
         frame_jacobian(
             br_model,
             state,
-            br_fid,
+            frame=br_fid,
             reference=reference,
         )
         .detach()

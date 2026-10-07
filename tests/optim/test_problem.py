@@ -359,3 +359,12 @@ def test_shared_columns_through_a_once_differentiable_op_fail_loudly():
     problem.residual("view", lambda path, cam: path.cos() * Once.apply(cam)[:, None], window=1)
     with pytest.raises(ValueError, match="differentiated twice"):
         problem.linearize()
+
+
+def test_cached_returns_handle_and_unknown_cached_read_fails_at_registration():
+    problem = optim.Problem({"x": torch.zeros(2, 3)})
+    ref = problem.cached(lambda x: 2.0 * x, name="doubled")
+    assert isinstance(ref, optim.CacheRef) and str(ref) == "doubled"
+    problem.residual("fit", lambda doubled: doubled, reads=(str(ref),))
+    with pytest.raises(KeyError, match="tripled"):
+        problem.residual("bad", lambda tripled: tripled, reads=("tripled",))

@@ -21,7 +21,7 @@ q = model.q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit)
 q_batch = q.expand(8, 16, model.nq)  # 8 robots x 16 time steps
 state = forward_kinematics_state(model, q_batch)
 print(state.frame_pose.shape)                            # (8, 16, nframes, 7)
-print(frame_jacobian(model, state, "body_panda_hand").shape)  # (8, 16, 6, nv)
+print(frame_jacobian(model, state, frame="body_panda_hand").shape)  # (8, 16, 6, nv)
 ```
 
 Batch axes follow PyTorch broadcasting. A `(5, 1, nq)` tensor stays `(5, 1, ...)`: nothing is squeezed.

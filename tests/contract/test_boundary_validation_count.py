@@ -74,14 +74,14 @@ def test_public_passes_trust_attached_values_and_validate_inputs_once(
     # q is validated once, at the forward-kinematics boundary; dynamics on a state trusts it.
     public_calls: dict[str, tuple[Callable[[], object], int]] = {
         "forward_kinematics_state": (lambda: forward_kinematics_state(model, q), 1),
-        "inverse_dynamics": (lambda: inverse_dynamics(model, state, v, a), 0),
-        "forward_dynamics": (lambda: forward_dynamics(model, state, v, tau), 0),
+        "inverse_dynamics": (lambda: inverse_dynamics(model, state, v=v, a=a), 0),
+        "forward_dynamics": (lambda: forward_dynamics(model, state, v=v, tau=tau), 0),
         "mass_matrix": (lambda: mass_matrix(model, state), 0),
         "center_of_mass": (lambda: center_of_mass(model, state), 0),
         "centroidal_map": (lambda: centroidal_map(model, state), 0),
         "centroidal_momentum": (lambda: centroidal_momentum(model, state, v=v), 0),
         "inverse_dynamics(forward_kinematics_state)": (
-            lambda: inverse_dynamics(model, forward_kinematics_state(model, q), v, a),
+            lambda: inverse_dynamics(model, forward_kinematics_state(model, q), v=v, a=a),
             1,
         ),
     }

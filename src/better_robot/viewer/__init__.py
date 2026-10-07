@@ -4,8 +4,8 @@ A ``Viewer`` runs a viser server (``http://127.0.0.1:8080`` by default) and hold
 group is toggled, offset and removed as one unit. Every layer is fed preloaded numpy arrays with a leading time
 axis ``(T, ...)`` (static input counts as ``T = 1``) and keeps them by reference. One ``Timeline`` drives all
 layers: ``show(k)`` pushes frame ``k``, ``show()`` re-pushes after in-place edits, ``play()`` plays by wall clock,
-``save(path)`` writes a ``.viser`` recording for viser's static web client, and ``record(path)`` renders the visible
-layers offline to GIF, MP4 or PNG frames with the torch rasterizer in ``viewer.render`` (no browser).
+``save(path)`` writes a ``.viser`` recording for viser's static web client, and ``record(path)`` screenshots the
+live scene in a headless Chromium into WebM, GIF or PNG frames (``viewer.capture``).
 
 ``robot_layers(model, q)`` and ``RobotView`` turn a ``Model`` and a clip ``q (T, nq)`` into mesh, skeleton, frame
 and sphere layers with one forward-kinematics pass. ``viewer.tools`` adds a draggable ``PoseGizmo`` and numpy

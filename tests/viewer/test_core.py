@@ -8,7 +8,6 @@ import numpy as np
 import pytest
 
 from better_robot.viewer._math import quat_z_to, unit_cone, unit_cylinder, unit_sphere
-from better_robot.viewer import render
 from better_robot.viewer.layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer, SkeletonLayer
 from better_robot.viewer.theme import Theme
 from better_robot.viewer.timeline import Timeline
@@ -189,28 +188,7 @@ def test_ground_plane_follows_the_theme_up_axis_unless_given() -> None:
     viewer = Viewer(server=FakeServer(), theme=Theme(up="+y"))
     assert viewer.add(GroundLayer()).plane == "xz"
     assert viewer.add(GroundLayer("explicit", plane="xy")).plane == "xy"
-    assert GroundLayer().fits_camera is False
-
-
-def test_record_applies_group_offsets_and_the_theme_up_axis(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
-    captured: dict = {}
-
-    def fake_record(layers, path, **options):
-        captured["layers"], captured["options"] = list(layers), options
-        return path
-
-    monkeypatch.setattr(render, "record", fake_record)
-    viewer = Viewer(server=FakeServer(), theme=Theme(up="+y"))
-    joints = np.zeros((2, 2, 3), dtype=np.float32)
-    joints[:, 1, 2] = 1.0
-    plain = viewer.add(SkeletonLayer("a", joints, parents=[-1, 0], radius=0.1))
-    viewer.add(SkeletonLayer("b", joints, parents=[-1, 0], radius=0.1), group="right", offset=(2.0, 0.0, 0.0))
-    viewer.record(tmp_path / "clip.gif")
-    rendered = captured["layers"]
-    assert rendered[0] is plain and rendered[1].name == "b" and rendered[1].nsteps == 2
-    shift = rendered[1].geometry(0)[0].vertices - plain.geometry(0)[0].vertices
-    np.testing.assert_allclose(shift, np.broadcast_to([2.0, 0.0, 0.0], shift.shape), atol=1e-6)
-    assert captured["options"]["up"] == (0.0, 1.0, 0.0)
+    assert GroundLayer().world_points(0) is None  # the grid never drives Viewer.record's camera fit
 
 
 def test_timeline_controls_appear_only_once_a_layer_has_several_steps() -> None:

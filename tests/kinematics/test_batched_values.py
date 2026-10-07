@@ -111,7 +111,7 @@ def test_frame_only_batch_expands_data_and_jacobian_uses_frame_table() -> None:
         state.frame_pose[0, -1],
         state.frame_pose[1, -1],
     )
-    jacobian = frame_jacobian(rebound, state, rebound.frame_id("tip"))
+    jacobian = frame_jacobian(rebound, state, frame=rebound.frame_id("tip"))
     assert jacobian.shape == (2, 6, model.nv)
     assert not torch.allclose(jacobian[0], jacobian[1])
 

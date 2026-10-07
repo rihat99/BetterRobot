@@ -69,8 +69,8 @@ def test_rnea_crba_centroidal_and_aba_use_one_reduced_map() -> None:
 
     state = forward_kinematics_state(constrained, q)
     state_full = forward_kinematics_state(full, q_full)
-    tau = inverse_dynamics(constrained, state, v, acceleration)
-    tau_full = inverse_dynamics(full, state_full, v_full, acceleration_full)
+    tau = inverse_dynamics(constrained, state, v=v, a=acceleration)
+    tau_full = inverse_dynamics(full, state_full, v=v_full, a=acceleration_full)
     torch.testing.assert_close(tau, tau_full @ expansion, rtol=1e-11, atol=1e-11)
 
     mass = mass_matrix(constrained, state)
@@ -91,7 +91,7 @@ def test_rnea_crba_centroidal_and_aba_use_one_reduced_map() -> None:
         (centroidal @ v.unsqueeze(-1)).squeeze(-1),
     )
 
-    ddq = forward_dynamics(constrained, state, v, tau)
+    ddq = forward_dynamics(constrained, state, v=v, tau=tau)
     torch.testing.assert_close(ddq, acceleration, rtol=1e-10, atol=1e-10)
 
 
@@ -106,10 +106,10 @@ def test_projected_aba_matches_reduced_mass_and_bias_solve() -> None:
 
     state_full = forward_kinematics_state(full, q_full)
     mass_full = mass_matrix(full, state_full)
-    bias_full = inverse_dynamics(full, state_full, v_full, torch.zeros_like(v_full))
+    bias_full = inverse_dynamics(full, state_full, v=v_full, a=torch.zeros_like(v_full))
     reduced_mass = expansion.mT @ mass_full @ expansion
     reduced_bias = bias_full @ expansion
     expected = torch.linalg.solve(reduced_mass, (tau - reduced_bias).unsqueeze(-1)).squeeze(-1)
 
-    actual = forward_dynamics(constrained, forward_kinematics_state(constrained, q), v, tau)
+    actual = forward_dynamics(constrained, forward_kinematics_state(constrained, q), v=v, tau=tau)
     torch.testing.assert_close(actual, expected, rtol=1e-11, atol=1e-11)

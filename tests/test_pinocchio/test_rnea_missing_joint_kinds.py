@@ -152,8 +152,8 @@ def test_missing_joint_rnea_matches_pinocchio(missing_joint_pair):
         inverse_dynamics(
             br_model,
             forward_kinematics_state(br_model, q),
-            v,
-            acceleration,
+            v=v,
+            a=acceleration,
         )
         .detach()
         .numpy()

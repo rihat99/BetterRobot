@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 
 from .._math import RGB, as_frames, rgb_uint8, rotate, xyzw_to_wxyz
-from ..layer import Geometry, Layer
+from ..layer import Layer
 
 
 class SkinnedMeshLayer(Layer):
@@ -65,8 +65,9 @@ class SkinnedMeshLayer(Layer):
             handle.wxyz = wxyz[bone]
             handle.position = poses[bone, :3]
 
-    def geometry(self, step: int) -> list[Geometry]:
-        return [Geometry(self.skin(step), self.faces.astype(np.int64), np.asarray(self.color, dtype=np.float32))]
+    def world_points(self, step: int) -> np.ndarray | None:
+        """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
+        return self.skin(step)
 
     def skin(self, step: int) -> np.ndarray:
         """Posed vertices ``(V, 3)`` of ``step`` by linear blend skinning (CPU, numpy)."""

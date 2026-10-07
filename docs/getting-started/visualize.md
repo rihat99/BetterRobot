@@ -72,15 +72,15 @@ viewer.show()
 
 ## Record a GIF without a browser
 
-`viewer.record` renders the visible layers offline with a PyTorch rasterizer and writes `.gif`, `.mp4` or
+`viewer.record` screenshots the live scene in a headless Chromium and writes `.webm`, `.gif` or
 `.png` frames. Without a `camera` it frames the robot automatically:
 
-```python
+```python no-run
 viewer.remove_group("live")
 out = Path(tempfile.mkdtemp()) / "panda_swing.gif"
 viewer.record(out, size=(320, 240), steps=range(0, 30, 3))
 print(out.exists(), out.stat().st_size > 0)
 ```
 
-The same layers render in CI and on headless machines, since `record` never touches the server.
+It needs Chromium (`$BETTER_ROBOT_CHROME` or on `PATH`) and, for `.webm`, ffmpeg; see `better_robot.viewer.capture`.
 [Viewer](../concepts/viewer.md) explains layers, groups, tools and themes.

@@ -43,7 +43,12 @@ error = (reached[:, :3] - target[:, :3]).norm(dim=-1)
 print(f"reached (<0.1 mm): {float((error < 1e-4).float().mean()):.2f}, median error {float(error.median()):.1e} m")
 ```
 
-`result.x` is a dict of the solved variables; IK has one variable, `"q"`.
+`result.x` is a dict of the solved variables; IK has one variable, `"q"`, and `result[name]` is shorthand for `result.x[name]`:
+
+```python
+q = result["q"]  # (32, nq)
+assert q is result.x["q"]
+```
 
 ![Inverse kinematics: start configuration (left) and the solved configuration reaching the target hand pose (right).](../images/panda_ik.png)
 

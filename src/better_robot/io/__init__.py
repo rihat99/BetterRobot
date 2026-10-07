@@ -75,6 +75,8 @@ def load(
     any fixed-base URDF into a floating-base robot.
     ``preserve_joint_order=True`` retains already-topological source joint
     order; the default keeps the historical DFS layout.
+    ``dtype`` and ``device`` set where the model's tensors are built
+    (default ``torch.float32`` on the CPU), like ``model.to(...)`` after loading.
 
     See docs/concepts/parsers_and_ir.md §1.
     """

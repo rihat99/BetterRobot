@@ -6,13 +6,8 @@ from typing import Any
 
 import numpy as np
 
-from .._math import RGB, as_frames, instance_mesh, rgb_uint8
-from ..layer import Geometry, Layer
-
-_OCTAHEDRON = (
-    np.array([[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]], dtype=np.float32) * 0.5,
-    np.array([[0, 2, 4], [2, 1, 4], [1, 3, 4], [3, 0, 4], [2, 0, 5], [1, 2, 5], [3, 1, 5], [0, 3, 5]]),
-)
+from .._math import RGB, as_frames, rgb_uint8
+from ..layer import Layer
 
 
 class PointsLayer(Layer):
@@ -51,12 +46,9 @@ class PointsLayer(Layer):
             )
         )
 
-    def geometry(self, step: int) -> list[Geometry]:
-        n = self.points.shape[1]
-        wxyz = np.tile(np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32), (n, 1))
-        vertices, faces = instance_mesh(*_OCTAHEDRON, self.points[step], wxyz, self.point_size)
-        colors = (self._colors if self._colors.ndim == 2 else self._colors[step]).astype(np.float32) / 255.0
-        return [Geometry(vertices, faces, np.repeat(colors, 8, axis=0))]
+    def world_points(self, step: int) -> np.ndarray | None:
+        """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
+        return self.points[step]
 
     def set_step(self, step: int) -> None:
         self._cloud.points = self.points[step]

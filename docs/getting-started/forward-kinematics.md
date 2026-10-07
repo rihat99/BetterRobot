@@ -22,6 +22,13 @@ print(state.joint_transform.shape)  # (njoints, 3, 4)
 print(state.frame_pose_of(hand))    # (7,)
 ```
 
+`model.fk(q)` is the same call as a method, and `frame_pose_of` also takes a frame name:
+
+```python
+state = model.fk(q)
+print(state.frame_pose_of("body_panda_hand"))  # (7,)
+```
+
 `forward_kinematics_state` returns a `KinematicState`: an immutable record of one query. It stores
 `joint_transform (..., njoints, 3, 4)` and `frame_transform (..., nframes, 3, 4)`, the world `[R | p]` of
 every joint and frame, and derives the rest on demand:
@@ -58,7 +65,7 @@ print(batch_state.frame_translation[..., hand, :].shape)  # (4, 10, 3)
 `v (nv,)` to the hand twist `[linear(3), angular(3)]`:
 
 ```python
-J = frame_jacobian(model, state, "body_panda_hand")
+J = frame_jacobian(model, state, frame="body_panda_hand")
 print(J.shape)  # (6, nv)
 ```
 

@@ -35,7 +35,7 @@ manipulability gradient) need no extra code:
 ```python
 q.grad = None
 state = kinematics.forward_kinematics_state(model, q)
-jacobian = kinematics.frame_jacobian(model, state, hand)    # (4, 6, nv), LOCAL_WORLD_ALIGNED
+jacobian = kinematics.frame_jacobian(model, state, frame=hand)    # (4, 6, nv), LOCAL_WORLD_ALIGNED
 manipulability = torch.linalg.det(jacobian @ jacobian.mT)    # (4,)
 manipulability.sum().backward()
 print(q.grad.abs().max() > 0)
@@ -51,7 +51,7 @@ external wrenches `fext`.
 v = torch.zeros(4, model.nv, dtype=torch.float64, requires_grad=True)
 a = torch.zeros(4, model.nv, dtype=torch.float64)
 state = kinematics.forward_kinematics_state(model, q)
-tau = dyn.inverse_dynamics(model, state, v, a)               # (4, nv)
+tau = dyn.inverse_dynamics(model, state, v=v, a=a)               # (4, nv)
 (tau ** 2).sum().backward()
 print(v.grad.shape)                                          # (4, nv)
 ```
@@ -86,7 +86,7 @@ def hand_position(x: torch.Tensor) -> torch.Tensor:
     return kinematics.forward_kinematics_state(model, x).frame_translation[:, hand].sum(0)
 
 by_func = torch.func.jacrev(hand_position)(q_fixed)          # (3, 4, nq)
-analytic = kinematics.frame_jacobian(model, kinematics.forward_kinematics_state(model, q_fixed), hand)
+analytic = kinematics.frame_jacobian(model, kinematics.forward_kinematics_state(model, q_fixed), frame=hand)
 print(torch.allclose(by_func.permute(1, 0, 2), analytic[:, :3, :], atol=1e-10))
 ```
 

@@ -59,8 +59,8 @@ def test_workspace_fk_and_public_jacobians_reach_q_and_model_values(panda) -> No
     q = _configuration(panda).requires_grad_()
     model, placements = _placement_model(panda)
     state = br.forward_kinematics_state(model, q)
-    frame = br.frame_jacobian(model, state, _hand_frame(model))
-    joint = br.joint_jacobian(model, state, model.njoints - 1, reference="world")
+    frame = br.frame_jacobian(model, state, frame=_hand_frame(model))
+    joint = br.joint_jacobian(model, state, joint=model.njoints - 1, reference="world")
     _assert_gradients(
         _flatten(
             state.joint_pose,
@@ -78,7 +78,7 @@ def test_frame_jacobian_reaches_q_and_model_values(panda) -> None:
     model, joint_placements = _placement_model(panda)
     frame_placements = torch.zeros_like(model.values.frame_placements, requires_grad=True)
     model = model.with_values(frame_placements=model.values.frame_placements + frame_placements)
-    jacobian = br.frame_jacobian(model, br.forward_kinematics_state(model, q), _hand_frame(model))
+    jacobian = br.frame_jacobian(model, br.forward_kinematics_state(model, q), frame=_hand_frame(model))
     _assert_gradients(jacobian, q, joint_placements, frame_placements)
 
 
@@ -90,11 +90,11 @@ def _dynamics_inputs(model) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
 
 
 def _rnea(model, q, velocity, acceleration, _torque) -> torch.Tensor:
-    return br.inverse_dynamics(model, br.forward_kinematics_state(model, q), velocity, acceleration)
+    return br.inverse_dynamics(model, br.forward_kinematics_state(model, q), v=velocity, a=acceleration)
 
 
 def _aba(model, q, velocity, _acceleration, torque) -> torch.Tensor:
-    return br.forward_dynamics(model, br.forward_kinematics_state(model, q), velocity, torque)
+    return br.forward_dynamics(model, br.forward_kinematics_state(model, q), v=velocity, tau=torque)
 
 
 def _crba(model, q, _velocity, _acceleration, _torque) -> torch.Tensor:

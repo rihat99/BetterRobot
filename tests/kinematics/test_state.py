@@ -28,12 +28,12 @@ def test_state_matches_data_api_and_autograd():
     with pytest.raises(AttributeError):
         state.q = q
 
-    jacobian = kinematics.frame_jacobian(model, state, frame)
-    torch.testing.assert_close(jacobian, br.frame_jacobian(model, state, model.frame_id(frame)))
+    jacobian = kinematics.frame_jacobian(model, state, frame=frame)
+    torch.testing.assert_close(jacobian, br.frame_jacobian(model, state, frame=model.frame_id(frame)))
     for reference in ("world", "local"):
         torch.testing.assert_close(
-            kinematics.frame_jacobian(model, state, frame, reference=reference),
-            br.frame_jacobian(model, state, model.frame_id(frame), reference=reference),
+            kinematics.frame_jacobian(model, state, frame=frame, reference=reference),
+            br.frame_jacobian(model, state, frame=model.frame_id(frame), reference=reference),
         )
     frame_id = model.frame_id(frame)
     position_jacobian = torch.autograd.functional.jacobian(
@@ -62,7 +62,7 @@ def test_state_is_differentiable_in_model_values_and_under_torch_func():
     assert float(by_func[:, :, :3].abs().max()) > 0.5  # moving a joint origin moves the hand
 
     by_q = torch.func.jacrev(lambda x: kinematics.forward_kinematics_state(model, x).frame_translation[:, hand].sum(0))(q)
-    jacobian = kinematics.frame_jacobian(model, kinematics.forward_kinematics_state(model, q), hand)
+    jacobian = kinematics.frame_jacobian(model, kinematics.forward_kinematics_state(model, q), frame=hand)
     torch.testing.assert_close(by_q.permute(1, 0, 2), jacobian[:, :3, :], atol=1e-12, rtol=0.0)
 
     # Batched model values: one set of placements and frames per configuration.

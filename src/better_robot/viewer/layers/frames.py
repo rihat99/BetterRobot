@@ -6,10 +6,8 @@ from typing import Any
 
 import numpy as np
 
-from .._math import as_frames, instance_mesh, quat_z_to, rotate, unit_cylinder, xyzw_to_wxyz
-from ..layer import Geometry, Layer
-
-_AXIS_COLORS = np.array([[0.9, 0.2, 0.2], [0.2, 0.8, 0.2], [0.2, 0.3, 0.9]], dtype=np.float32)
+from .._math import as_frames, xyzw_to_wxyz
+from ..layer import Layer
 
 
 class FramesLayer(Layer):
@@ -35,19 +33,9 @@ class FramesLayer(Layer):
             )
         )
 
-    def geometry(self, step: int) -> list[Geometry]:
-        poses = self.poses[step]
-        cylinder_v, cylinder_f = unit_cylinder(6)
-        out = []
-        for axis in range(3):
-            direction = rotate(poses[:, 3:], np.eye(3, dtype=np.float32)[axis][None])
-            positions = poses[:, :3] + direction * (self.axes_length / 2)
-            scales = np.array([self.axes_radius, self.axes_radius, self.axes_length], dtype=np.float32)[None]
-            vertices, faces = instance_mesh(
-                cylinder_v, cylinder_f, positions, quat_z_to(direction), np.repeat(scales, len(poses), 0)
-            )
-            out.append(Geometry(vertices, faces, _AXIS_COLORS[axis]))
-        return out
+    def world_points(self, step: int) -> np.ndarray | None:
+        """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
+        return self.poses[step, :, :3]
 
     def set_step(self, step: int) -> None:
         self._axes.batched_positions = self.poses[step, :, :3]
