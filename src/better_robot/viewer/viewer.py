@@ -148,9 +148,11 @@ class Viewer:
 
         ``options`` go to :func:`better_robot.viewer.render.record` (``camera``, ``size``, ``frames``).
         """
-        from .render import record  # noqa: PLC0415 - keeps torch rasterizer out of the import path
+        from .render import frame_camera, record  # noqa: PLC0415 - keeps torch rasterizer out of the import path
 
         layers = [entry.layer for group in self._groups.values() for entry in group.entries.values() if entry.visible]
+        if "camera" not in options:
+            options["camera"] = frame_camera(layers, up=self.theme.up_vector)
         return record(layers, path, fps=fps or self.timeline.fps, **options)
 
     def play(self, block: bool = True) -> None:

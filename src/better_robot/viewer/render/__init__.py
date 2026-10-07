@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 from collections.abc import Iterable, Sequence
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import torch
@@ -52,8 +53,11 @@ def render_frame(
     return (image.clamp(0.0, 1.0).cpu().numpy() * 255.0 + 0.5).astype(np.uint8)
 
 
-def frame_camera(layers: Sequence[Layer], frames: Iterable[int] = (0,), **options: float) -> Camera:
-    """A 3/4 camera fitting the geometry of ``layers`` over ``frames`` (ground layers excluded)."""
+def frame_camera(layers: Sequence[Layer], frames: Iterable[int] = (0,), **options: Any) -> Camera:
+    """A 3/4 camera fitting the geometry of ``layers`` over ``frames`` (ground layers excluded).
+
+    ``options`` go to :meth:`Camera.framing` (``azimuth``, ``elevation``, ``fov``, ``margin``, ``up``).
+    """
     points = [
         geometry.vertices
         for frame in frames

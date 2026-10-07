@@ -48,16 +48,24 @@ class Camera:
         elevation: float = math.radians(25.0),
         fov: float = math.radians(45.0),
         margin: float = 1.3,
+        up: tuple[float, float, float] = (0.0, 0.0, 1.0),
     ) -> Camera:
-        """Camera on a 3/4 view that fits the bounding sphere of ``points (N, 3)`` (z up)."""
+        """Camera on a 3/4 view that fits the bounding sphere of ``points (N, 3)``; ``up`` is the world up axis."""
         points = np.asarray(points, dtype=np.float64).reshape(-1, 3)
         center = (points.min(0) + points.max(0)) / 2.0
         radius = max(float(np.linalg.norm(points - center, axis=-1).max()), 1e-3)
         distance = margin * radius / math.sin(fov / 2.0)
-        direction = np.array(
-            [math.cos(elevation) * math.cos(azimuth), math.cos(elevation) * math.sin(azimuth), math.sin(elevation)]
+        up_axis = np.asarray(up, dtype=np.float64)
+        up_axis /= np.linalg.norm(up_axis)
+        side = np.cross(np.array([0.0, 0.0, 1.0]) if abs(up_axis[2]) < 0.9 else np.array([1.0, 0.0, 0.0]), up_axis)
+        side /= np.linalg.norm(side)
+        forward = np.cross(up_axis, side)
+        direction = (
+            math.cos(elevation) * math.cos(azimuth) * side
+            + math.cos(elevation) * math.sin(azimuth) * forward
+            + math.sin(elevation) * up_axis
         )
-        return cls(tuple(center + distance * direction), tuple(center), fov=fov)
+        return cls(tuple(center + distance * direction), tuple(center), up=tuple(up_axis), fov=fov)
 
 
 def rasterize(

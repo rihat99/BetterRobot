@@ -29,6 +29,13 @@ class Theme:
     key_light_direction: tuple[float, float, float] = (-0.4, -0.6, -1.0)
     up: str = "+z"
 
+    @property
+    def up_vector(self) -> tuple[float, float, float]:
+        """``up`` as a unit vector, e.g. ``"+y"`` -> ``(0, 1, 0)``."""
+        sign = -1.0 if self.up.startswith("-") else 1.0
+        axis = "xyz".index(self.up[-1])
+        return tuple(sign if index == axis else 0.0 for index in range(3))
+
     def apply(self, server: Any) -> None:
         """Configure the GUI theme, up direction and lights of a viser server."""
         server.gui.configure_theme(

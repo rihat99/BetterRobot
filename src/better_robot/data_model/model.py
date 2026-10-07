@@ -229,6 +229,12 @@ class Model:
         """Compute the universal tangent ``q1 ⊖ q0``."""
         return self.structure.difference(q0, q1)
 
+    def expand_configuration(self, q: torch.Tensor) -> torch.Tensor:
+        """Map ``q: (..., nq)`` to the full configuration ``(..., nq_full)`` with mimic joints filled in."""
+        from .reduced_coordinates import expand_configuration
+
+        return expand_configuration(self.structure, q)
+
     def random_configuration(self, generator: torch.Generator | None = None) -> torch.Tensor:
         """Return a random valid configuration of shape ``(nq,)``."""
         parts: list[torch.Tensor] = []
