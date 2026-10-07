@@ -34,36 +34,15 @@ MAX_POSITIONAL = 2
 
 # Current violations (package.name -> positional count). Shrink, never grow.
 KEYWORD_ONLY_ALLOWLIST: dict[str, int] = {
-    "better_robot.ModelBuilder.add_collision_geom": 4,  # io/parsers/programmatic.py:129
     "better_robot.frame_jacobian": 3,  # kinematics/state.py:183
-    "better_robot.frame_jacobian_time_variation": 4,  # kinematics/state.py:222
     "better_robot.joint_jacobian": 3,  # kinematics/state.py:206
-    "better_robot.joint_jacobian_time_variation": 4,  # kinematics/state.py:241
     "better_robot.inverse_dynamics": 4,  # dynamics/state.py:55
     "better_robot.forward_dynamics": 4,  # dynamics/state.py:83
-    "better_robot.centroidal_momentum": 3,  # dynamics/state.py:109
     "better_robot.lie.umeyama": 3,  # lie/alignment.py:67
     "better_robot.kinematics.frame_jacobian": 3,  # kinematics/state.py:183
-    "better_robot.kinematics.frame_jacobian_time_variation": 4,  # kinematics/state.py:222
     "better_robot.kinematics.joint_jacobian": 3,  # kinematics/state.py:206
-    "better_robot.kinematics.joint_jacobian_time_variation": 4,  # kinematics/state.py:241
     "better_robot.dynamics.inverse_dynamics": 4,  # dynamics/state.py:55
     "better_robot.dynamics.forward_dynamics": 4,  # dynamics/state.py:83
-    "better_robot.dynamics.centroidal_momentum": 3,  # dynamics/state.py:109
-    "better_robot.collision.self_distances": 3,  # collision/robot_spheres.py:90
-    "better_robot.collision.sphere_box": 5,  # collision/distance.py:47
-    "better_robot.collision.sphere_capsule": 5,  # collision/distance.py:27
-    "better_robot.collision.sphere_halfspace": 4,  # collision/distance.py:40
-    "better_robot.collision.sphere_sdf": 5,  # collision/distance.py:63
-    "better_robot.collision.sphere_sphere": 4,  # collision/distance.py:20
-    "better_robot.io.ModelBuilder.add_collision_geom": 4,  # io/parsers/programmatic.py:129
-    "better_robot.optim.Euclidean.tangent_bounds": 3,  # optim/manifold.py:49
-    "better_robot.optim.Manifold.tangent_bounds": 3,  # optim/manifold.py:30
-    "better_robot.optim.run": 3,  # optim/phases.py:48
-    "better_robot.terms.RobotManifold.tangent_bounds": 3,  # terms/robot.py:40
-    "better_robot.terms.ik_problem": 3,  # terms/ik.py:15
-    "better_robot.terms.random_start": 3,  # terms/ik.py:47
-    "better_robot.terms.solve_ik": 3,  # terms/ik.py:58
 }
 
 

@@ -51,24 +51,31 @@ class RobotView:
     ) -> None:
         self.model = model
         self.frame_ids = [model.frame_id(frame) if isinstance(frame, str) else int(frame) for frame in frames]
-        self.spheres = spheres
-        self.layers: list[Layer] = []
+        self.sphere_model = spheres
+        # Typed layer slots (None when not drawn); ``update`` writes each one directly.
+        self.mesh: RigidMeshLayer | None = None
+        self.collision: RigidMeshLayer | None = None
+        self.skeleton: SkeletonLayer | None = None
+        self.frames: FramesLayer | None = None
+        self.spheres: SpheresLayer | None = None
         joint_poses, frame_poses, centers = self._kinematics(q)
         if visual:
             meshes = robot_meshes(model, collision=False, default_color=theme.robot)
             if meshes:
-                self.layers.append(RigidMeshLayer(name, meshes, joint_poses, opacity=opacity))
+                self.mesh = RigidMeshLayer(name, meshes, joint_poses, opacity=opacity)
         if collision:
             meshes = robot_meshes(model, collision=True, default_color=theme.force)
             if meshes:
-                self.layers.append(RigidMeshLayer(f"{name} collision", meshes, joint_poses, opacity=0.4))
+                self.collision = RigidMeshLayer(f"{name} collision", meshes, joint_poses, opacity=0.4)
         if skeleton:
-            self.layers.append(robot_skeleton(model, joint_poses, name=f"{name} skeleton", tau=tau, theme=theme))
+            self.skeleton = robot_skeleton(model, joint_poses, name=f"{name} skeleton", tau=tau, theme=theme)
         if self.frame_ids:
-            self.layers.append(FramesLayer(f"{name} frames", frame_poses))
+            self.frames = FramesLayer(f"{name} frames", frame_poses)
         if spheres is not None:
             radii = spheres.radii.detach().cpu().numpy()
-            self.layers.append(SpheresLayer(f"{name} spheres", centers, radii, colors=theme.torque))
+            self.spheres = SpheresLayer(f"{name} spheres", centers, radii, colors=theme.torque)
+        slots = (self.mesh, self.collision, self.skeleton, self.frames, self.spheres)
+        self.layers: list[Layer] = [layer for layer in slots if layer is not None]
 
     def __iter__(self) -> Iterator[Layer]:
         return iter(self.layers)
@@ -76,15 +83,16 @@ class RobotView:
     def update(self, q: torch.Tensor) -> None:
         """Recompute kinematics for ``q`` (same number of frames) into the existing layer arrays."""
         joint_poses, frame_poses, centers = self._kinematics(q)
-        for layer in self.layers:
-            if isinstance(layer, RigidMeshLayer):
-                layer.body_poses[:] = joint_poses
-            elif isinstance(layer, SkeletonLayer):
-                layer.joints[:] = joint_poses[:, 1:, :3]
-            elif isinstance(layer, FramesLayer):
-                layer.poses[:] = frame_poses
-            elif isinstance(layer, SpheresLayer):
-                layer.centers[:] = centers
+        for mesh in (self.mesh, self.collision):
+            if mesh is not None:
+                mesh.body_poses[:] = joint_poses
+        if self.skeleton is not None:
+            self.skeleton.joints[:] = joint_poses[:, 1:, :3]
+            self.skeleton.rotations[:] = joint_poses[:, 1:, 3:]
+        if self.frames is not None:
+            self.frames.poses[:] = frame_poses
+        if self.spheres is not None:
+            self.spheres.centers[:] = centers
 
     def _kinematics(self, q: torch.Tensor) -> tuple[np.ndarray, np.ndarray | None, np.ndarray | None]:
         from ..kinematics.state import forward_kinematics_state  # noqa: PLC0415 - keep the core import-light
@@ -97,7 +105,7 @@ class RobotView:
             state = forward_kinematics_state(self.model, q)
             joint_poses = state.joint_pose.cpu().numpy().astype(np.float32)
             frame_poses = state.frame_pose[:, self.frame_ids].cpu().numpy() if self.frame_ids else None
-            centers = self.spheres.centers(state).cpu().numpy() if self.spheres is not None else None
+            centers = self.sphere_model.centers(state).cpu().numpy() if self.sphere_model is not None else None
         return joint_poses, frame_poses, centers
 
 
@@ -115,14 +123,23 @@ def robot_skeleton(
     theme: Theme = LIGHT,
     radius: float = 0.02,
 ) -> SkeletonLayer:
-    """Skeleton over joints 1.. of ``joint_poses (T, njoints, 7)``; fixed joints get small spheres."""
-    moving = np.array([nv > 0 for nv in model.nvs[1:]])
-    radii = np.where(moving, radius, radius * 0.4).astype(np.float32)
+    """Skeleton over joints 1.. of ``joint_poses (T, njoints, 7)``, one marker per joint kind (``skeleton_spec``)."""
     parents = np.asarray(model.parents[1:], dtype=np.int64) - 1  # the universe becomes -1
+    kinds, axes = skeleton_spec(model)
     colors: Any = theme.joint
     if tau is not None:
         colors = _torque_colors(model, tau.detach().cpu().numpy(), theme, joint_poses.shape[0])
-    return SkeletonLayer(name, joint_poses[:, 1:, :3], parents, radius=radii, colors=colors, bone_color=theme.link)
+    return SkeletonLayer(
+        name, joint_poses[:, 1:], parents, kinds=kinds, axes=axes, radius=radius, colors=colors, bone_color=theme.link
+    )
+
+
+def skeleton_spec(model: Model) -> tuple[list[str], np.ndarray]:
+    """Joint kinds and axes ``(njoints - 1, 3)`` (joint frame; ``+z`` for joints without one) of joints 1..,
+    for ``SkeletonLayer(kinds=, axes=)``."""
+    joints = model.joint_models[1:]
+    axes = [(0.0, 0.0, 1.0) if joint.axis is None else joint.axis.detach().cpu().tolist() for joint in joints]
+    return [joint.kind for joint in joints], np.asarray(axes, dtype=np.float32).reshape(-1, 3)
 
 
 def _torque_colors(model: Model, tau: np.ndarray, theme: Theme, nsteps: int) -> np.ndarray:

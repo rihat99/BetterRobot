@@ -48,15 +48,15 @@ coincide.
 
 | Function | Distance from a sphere to |
 |----------|---------------------------|
-| `sphere_sphere(center_a, radius_a, center_b, radius_b)` | another sphere |
-| `sphere_capsule(center, radius, start, end, capsule_radius)` | a capsule around a segment |
-| `sphere_halfspace(center, radius, normal, offset)` | the solid `{x : normal . x <= offset}` |
-| `sphere_box(center, radius, box_center, box_rotation, half_extents)` | an oriented box |
-| `sphere_sdf(center, radius, grid, origin, voxel_size)` | a sampled signed distance field |
+| `sphere_sphere(center_a, radius_a, *, center_b, radius_b)` | another sphere |
+| `sphere_capsule(center, radius, *, start, end, capsule_radius)` | a capsule around a segment |
+| `sphere_halfspace(center, radius, *, normal, offset)` | the solid `{x : normal . x <= offset}` |
+| `sphere_box(center, radius, *, box_center, box_rotation, half_extents)` | an oriented box |
+| `sphere_sdf(center, radius, *, grid, origin, voxel_size)` | a sampled signed distance field |
 
 ```python
 floor = collision.sphere_halfspace(centers, spheres.radii,
-                                   torch.tensor([0.0, 0.0, 1.0], dtype=torch.float64), 0.0)
+                                   normal=torch.tensor([0.0, 0.0, 1.0], dtype=torch.float64), offset=0.0)
 print(floor)   # tensor([-0.0100, 0.3653, 0.4894]): the base sphere dips 1 cm below z = 0
 ```
 
@@ -69,7 +69,7 @@ joined by one moving joint, which touch at the joint by design. `self_distances`
 ```python
 pairs = collision.self_collision_pairs(model, spheres)
 print(pairs)   # tensor([[0, 1], [0, 2]]): base vs. link2 and base vs. tool
-print(collision.self_distances(spheres, state, pairs))
+print(collision.self_distances(spheres, state, pairs=pairs))
 ```
 
 The sphere on `body_link2` and the `tool` sphere are on the same body, so they form no pair. The base
@@ -95,7 +95,7 @@ obstacle = forward_kinematics_state(model, q_mid).frame_translation[model.frame_
 obstacle_radius = torch.tensor(0.05, dtype=torch.float64)
 
 def to_obstacle(centers, radii):
-    return collision.sphere_sphere(centers, radii, obstacle, obstacle_radius)
+    return collision.sphere_sphere(centers, radii, center_b=obstacle, radius_b=obstacle_radius)
 
 def clearance(q):
     return float(to_obstacle(spheres.centers(forward_kinematics_state(model, q)), spheres.radii).min())

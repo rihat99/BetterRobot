@@ -28,7 +28,7 @@ class Manifold(Protocol):
         ...
 
     def tangent_bounds(
-        self, x: torch.Tensor, lower: torch.Tensor, upper: torch.Tensor
+        self, x: torch.Tensor, *, lower: torch.Tensor, upper: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Allowed step range ``(B, n), (B, n)`` at ``x`` for box bounds on the ambient tensor."""
         ...
@@ -47,7 +47,7 @@ class Euclidean:
         return x
 
     def tangent_bounds(
-        self, x: torch.Tensor, lower: torch.Tensor, upper: torch.Tensor
+        self, x: torch.Tensor, *, lower: torch.Tensor, upper: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
         return (lower - x).expand_as(x).flatten(1), (upper - x).expand_as(x).flatten(1)
 

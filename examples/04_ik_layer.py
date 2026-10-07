@@ -32,7 +32,7 @@ def main() -> None:
     def solve(offset: torch.Tensor) -> torch.Tensor:
         """Joint configuration ``(B, nq)`` that puts the hand at ``home + offset``; differentiable in ``offset``."""
         target = torch.cat([home_pose[:3] + offset, home_pose[3:].expand(offset.shape[0], 4)], dim=-1)
-        problem = terms.ik_problem(model, {FRAME: target}, q_home.expand(offset.shape[0], -1))
+        problem = terms.ik_problem(model, {FRAME: target}, q0=q_home.expand(offset.shape[0], -1))
         return optim.solve_layer(problem, optim.LevenbergMarquardt(), iters=30).x["q"]
 
     q_teacher = solve(codes @ true_map).detach()

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import warnings
 
 import pytest
 
@@ -13,9 +12,6 @@ def test_all_errors_inherit_from_root() -> None:
     """Every exception class derives from :class:`BetterRobotError`."""
     for name in exc.__all__:
         obj = getattr(exc, name)
-        if name == "SingularityWarning":
-            assert issubclass(obj, Warning)
-            continue
         assert issubclass(obj, exc.BetterRobotError), name
         assert issubclass(obj, Exception), name
 
@@ -28,20 +24,9 @@ def test_all_errors_inherit_from_root() -> None:
         (exc.DtypeMismatchError, ValueError),
         (exc.QuaternionNormError, ValueError),
         (exc.ShapeError, ValueError),
-        (exc.ConvergenceError, RuntimeError),
         (exc.BackendNotAvailableError, ImportError),
-        (exc.UnsupportedJointError, ValueError),
     ],
 )
 def test_stdlib_parent(cls: type, stdlib_parent: type) -> None:
     """Existing ``except ValueError`` etc. blocks keep catching us."""
     assert issubclass(cls, stdlib_parent)
-
-
-def test_singularity_warning_is_filterable() -> None:
-    """``SingularityWarning`` behaves like a standard ``UserWarning``."""
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        warnings.warn("ill-conditioned", exc.SingularityWarning)
-    assert len(caught) == 1
-    assert issubclass(caught[0].category, UserWarning)

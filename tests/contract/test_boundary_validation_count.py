@@ -79,7 +79,7 @@ def test_public_passes_trust_attached_values_and_validate_inputs_once(
         "mass_matrix": (lambda: mass_matrix(model, state), 0),
         "center_of_mass": (lambda: center_of_mass(model, state), 0),
         "centroidal_map": (lambda: centroidal_map(model, state), 0),
-        "centroidal_momentum": (lambda: centroidal_momentum(model, state, v), 0),
+        "centroidal_momentum": (lambda: centroidal_momentum(model, state, v=v), 0),
         "inverse_dynamics(forward_kinematics_state)": (
             lambda: inverse_dynamics(model, forward_kinematics_state(model, q), v, a),
             1,

@@ -106,12 +106,14 @@ def test_robot_view_update_rewrites_layer_arrays_in_place() -> None:
     viewer = Viewer(server=server)
     for layer in view:
         viewer.add(layer)
-    before = server.scene.nodes["/scene/robot skeleton/joints"].batched_positions.copy()
+    node = "/scene/robot skeleton/joints_cylinder"  # Panda's revolute joints
+    before = server.scene.nodes[node].batched_positions.copy()
     view.update(q1)
     viewer.show()
-    after = server.scene.nodes["/scene/robot skeleton/joints"].batched_positions
+    after = server.scene.nodes[node].batched_positions
     assert not np.allclose(before, after)
-    expected = robot_layers(model, q1, visual=False, skeleton=True)[0].joints[0]
+    fresh = robot_layers(model, q1, visual=False, skeleton=True)[0]
+    expected = fresh.joints[0, fresh.groups["cylinder"]]
     np.testing.assert_allclose(after, expected, atol=1e-6)
 
 
@@ -130,3 +132,25 @@ def test_torque_colours_skip_joints_without_a_finite_limit() -> None:
     np.testing.assert_allclose(colors[:, 0], np.tile(LIGHT.joint, (3, 1)), atol=1e-6)
     with pytest.raises(ValueError):
         _torque_colors(model, np.zeros((2, model.nv), dtype=np.float32), LIGHT, nsteps=3)
+
+
+def test_skeleton_markers_follow_joint_kind_and_axis() -> None:
+    """Revolute joints become cylinders along their axis, fixed joints draw nothing, free-flyers get a triad."""
+    from better_robot.viewer import SkeletonLayer  # noqa: PLC0415
+
+    poses = np.zeros((1, 3, 7), dtype=np.float32)
+    poses[..., 6] = 1.0
+    layer = SkeletonLayer(
+        "s",
+        poses,
+        [-1, 0, 1],
+        kinds=["free_flyer", "revolute_unaligned", "fixed"],
+        axes=[[0, 0, 1], [1, 0, 0], [0, 0, 1]],
+    )
+    server = FakeServer()
+    Viewer(server=server).add(layer)
+    assert {"/scene/s/joints_axes", "/scene/s/joints_cylinder"} <= set(server.scene.nodes)
+    assert "/scene/s/joints" not in server.scene.nodes
+    wxyz = server.scene.nodes["/scene/s/joints_cylinder"].batched_wxyzs[0]
+    np.testing.assert_allclose(np.abs(wxyz), [np.sqrt(0.5), 0.0, np.sqrt(0.5), 0.0], atol=1e-6)  # +z -> +x
+    assert len(layer.geometry(0)) == 3 + 1 + 1  # triad cylinders, revolute marker, bones

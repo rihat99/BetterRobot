@@ -42,26 +42,26 @@ from .kinematics.state import (
 from .lie.types import SE3
 
 __all__ = [
-    # data_model (6)
+    # data_model
     "Model",
     "ModelStructure",
     "ModelValues",
     "Frame",
     "Joint",
     "Body",
-    # io (2)
+    # io
     "load",
     "ModelBuilder",
-    # lie (1)
+    # lie
     "SE3",
-    # kinematics (6)
+    # kinematics
     "forward_kinematics_state",
     "KinematicState",
     "frame_jacobian",
     "frame_jacobian_time_variation",
     "joint_jacobian",
     "joint_jacobian_time_variation",
-    # dynamics (6)
+    # dynamics
     "center_of_mass",
     "inverse_dynamics",
     "mass_matrix",

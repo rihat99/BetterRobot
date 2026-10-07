@@ -62,7 +62,7 @@ def test_joint_time_variation_matches_pinocchio(panda_both, joint_name, referenc
     for q, v in zip(sample_panda_q(n=3, seed=13), sample_panda_v(n=3, seed=17)):
         state = _fk_both(br_model, pin_model, pin_data, q, v)
         J_br = (
-            joint_jacobian_time_variation(br_model, state, v, br_jid, reference=reference)
+            joint_jacobian_time_variation(br_model, state, v=v, joint=br_jid, reference=reference)
             .detach()
             .cpu()
             .double()
@@ -85,7 +85,7 @@ def test_frame_time_variation_matches_pinocchio(panda_both, reference, pin_refer
     for q, v in zip(sample_panda_q(n=3, seed=19), sample_panda_v(n=3, seed=23)):
         state = _fk_both(br_model, pin_model, pin_data, q, v)
         J_br = (
-            frame_jacobian_time_variation(br_model, state, v, br_fid, reference=reference)
+            frame_jacobian_time_variation(br_model, state, v=v, frame=br_fid, reference=reference)
             .detach()
             .cpu()
             .double()
@@ -107,7 +107,7 @@ def test_joint_time_variation_batched_matches_pinocchio(panda_both, batch_shape,
     state = br.forward_kinematics_state(br_model, qs)
     br_jid = br_model.joint_id("panda_joint7")
     pin_jid = pin_model.getJointId("panda_joint7")
-    J_br = joint_jacobian_time_variation(br_model, state, vs, br_jid, reference=reference).detach().cpu().numpy()
+    J_br = joint_jacobian_time_variation(br_model, state, v=vs, joint=br_jid, reference=reference).detach().cpu().numpy()
 
     for batch_index in np.ndindex(batch_shape):
         q_pin = qs[batch_index].detach().cpu().numpy()
@@ -149,7 +149,7 @@ def test_joint_time_variation_free_flyer_matches_pinocchio(g1_both, reference, p
     for joint_name in ["root_joint", "left_hip_yaw_joint", "right_wrist_yaw_joint"]:
         br_jid = br_model.joint_id(joint_name)
         pin_jid = pin_model.getJointId(joint_name)
-        J_br = joint_jacobian_time_variation(br_model, state, v, br_jid, reference=reference).detach().cpu().numpy()
+        J_br = joint_jacobian_time_variation(br_model, state, v=v, joint=br_jid, reference=reference).detach().cpu().numpy()
         J_pin = pin.getJointJacobianTimeVariation(pin_model, pin_data, pin_jid, pin_reference)
         np.testing.assert_allclose(
             J_br, J_pin, atol=2e-6, rtol=1e-5, err_msg=f"joint {joint_name}, reference {reference}"
@@ -180,7 +180,7 @@ def test_joint_time_variation_spherical_matches_pinocchio():
         br_jid = br_model.joint_id(joint_name)
         pin_jid = pin_model.getJointId(joint_name)
         for reference, pin_reference in _REFERENCES:
-            J_br = joint_jacobian_time_variation(br_model, state, v, br_jid, reference=reference).detach().cpu().numpy()
+            J_br = joint_jacobian_time_variation(br_model, state, v=v, joint=br_jid, reference=reference).detach().cpu().numpy()
             J_pin = pin.getJointJacobianTimeVariation(pin_model, pin_data, pin_jid, pin_reference)
             # Programmatic, fp64 end-to-end — no URDF fp32 round-trip.
             np.testing.assert_allclose(

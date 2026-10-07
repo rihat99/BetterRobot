@@ -99,7 +99,7 @@ def test_add_collision_geom():
     b.add_body("base")
     b.add_body("link1")
     b.add_fixed("j1", parent="base", child="link1", origin=_identity_se3())
-    b.add_collision_geom("link1", "sphere", {"radius": 0.05}, _identity_se3())
+    b.add_collision_geom("link1", "sphere", params={"radius": 0.05}, origin=_identity_se3())
     ir = b.finalize()
     assert len(ir.bodies[1].collision_geoms) == 1
     assert ir.bodies[1].collision_geoms[0].kind == "sphere"

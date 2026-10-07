@@ -66,7 +66,7 @@ def broadcast_execution_batch_shape(
     """Return the right-aligned broadcast of query and value batches.
 
     This is the allocation-free torch-lane counterpart of
-    :func:`flatten_execution_batch`.  Event dimensions are excluded from
+    `flatten_execution_batch`.  Event dimensions are excluded from
     broadcasting.  In particular, a per-person value table ``(B, N, D)``
     does *not* implicitly acquire a trajectory axis when paired with
     ``q.shape == (B, T, nq)``; callers must pass ``(B, 1, N, D)``.

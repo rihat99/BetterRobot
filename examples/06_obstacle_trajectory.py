@@ -40,7 +40,7 @@ def main() -> None:
     obstacle, radius = hand[model.frame_id("body_panda_hand")].clone(), torch.tensor(0.08, dtype=torch.float64)
 
     def to_obstacle(centers: torch.Tensor, radii: torch.Tensor) -> torch.Tensor:
-        return collision.sphere_sphere(centers, radii, obstacle, radius)
+        return collision.sphere_sphere(centers, radii, center_b=obstacle, radius_b=radius)
 
     def clearance(q: torch.Tensor) -> float:
         return float(to_obstacle(spheres.centers(forward_kinematics_state(model, q)), spheres.radii).min())

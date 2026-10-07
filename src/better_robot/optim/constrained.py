@@ -12,7 +12,7 @@ from .problem import Problem
 from .solvers import Solver
 
 
-def _shifted(term, shift_name: str, inequality: bool):
+def _shifted(term, shift_name: str, *, inequality: bool):
     """The term ``c + shift`` (clamped at 0 from below for ``c <= 0``), reading the shift from data."""
 
     def fn(*args):
@@ -55,7 +55,7 @@ def solve_constrained(
         raise KeyError(f"constraints must name residual terms of the problem; not found: {unknown}")
     view = problem.with_()
     for name in names:
-        view.terms[name] = _shifted(problem.terms[name], f"{name}.shift", name in inequalities)
+        view.terms[name] = _shifted(problem.terms[name], f"{name}.shift", inequality=name in inequalities)
     plain = problem.with_(weights=dict.fromkeys(names, 1.0))
     current = {key: value.detach() for key, value in (x if x is not None else problem.variables).items()}
     with torch.no_grad():

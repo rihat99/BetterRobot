@@ -4,7 +4,7 @@
 
 - `state.py`, all on a `KinematicState`: `inverse_dynamics(model, state, v, a, fext=)`,
   `mass_matrix(model, state)`, `forward_dynamics(model, state, v, tau, fext=)`,
-  `centroidal_map(model, state)`, `centroidal_momentum(model, state, v)`,
+  `centroidal_map(model, state)`, `centroidal_momentum(model, state, v=v)`,
   `center_of_mass(model, state)`. World-frame quantities are built once per state and
   memoised in `state._memo["world_kinematics"]`. Bias forces are `inverse_dynamics(model,
   state, v, 0)`; gravity torque is `inverse_dynamics(model, state, 0, 0)`.

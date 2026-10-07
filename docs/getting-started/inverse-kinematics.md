@@ -21,7 +21,7 @@ hand = model.frame_id(FRAME)
 generator = torch.Generator().manual_seed(0)
 
 q0 = model.q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit).expand(32, -1)
-q_goal = terms.random_start(model, q0, generator)
+q_goal = terms.random_start(model, q0, generator=generator)
 target = forward_kinematics_state(model, q_goal).frame_pose[:, hand]  # (32, 7)
 ```
 
@@ -35,7 +35,7 @@ Levenberg-Marquardt (LM) on all 32 problems together. `restarts` retries from ra
 local minima:
 
 ```python
-result = terms.solve_ik(model, {FRAME: target}, q0, restarts=4, generator=generator)
+result = terms.solve_ik(model, {FRAME: target}, q0=q0, restarts=4, generator=generator)
 q = result.x["q"]  # (32, nq)
 
 reached = forward_kinematics_state(model, q).frame_pose[:, hand]
@@ -54,7 +54,7 @@ named tensors that returns a residual; its Jacobian comes from autograd. Here a 
 (joint 4, `q[:, 3]`) toward a preferred angle:
 
 ```python
-problem = terms.ik_problem(model, {FRAME: target}, q0)
+problem = terms.ik_problem(model, {FRAME: target}, q0=q0)
 problem.data["preferred_elbow"] = torch.tensor(-1.8, dtype=torch.float64)
 problem.residual("elbow", lambda q, preferred_elbow: q[:, 3:4] - preferred_elbow, weight=1e-3)
 

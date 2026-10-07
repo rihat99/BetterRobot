@@ -1,9 +1,9 @@
-"""Dynamics on a :class:`~better_robot.kinematics.state.KinematicState`.
+"""Dynamics on a `KinematicState`.
 
 ``inverse_dynamics``, ``mass_matrix`` and ``forward_dynamics`` read the world transforms of a
-state computed by :func:`~better_robot.kinematics.forward_kinematics_state`; the world-frame
+state computed by `forward_kinematics_state`; the world-frame
 quantities they share (Jacobian columns, world inertias) are built once per state and memoised
-on it. See :mod:`._world` for the formulas.
+on it. See `_world` for the formulas.
 """
 
 from __future__ import annotations
@@ -106,8 +106,8 @@ def centroidal_map(model: Model, state: KinematicState) -> torch.Tensor:
     return reduce_jacobian(model.structure, columns).view(*batch, 6, model.nv)
 
 
-def centroidal_momentum(model: Model, state: KinematicState, v: torch.Tensor) -> torch.Tensor:
-    """Centroidal momentum ``h_g = A_g(q) v`` for ``v: (B..., nv)``, ``(B..., 6)``; rows as :func:`centroidal_map`."""
+def centroidal_momentum(model: Model, state: KinematicState, *, v: torch.Tensor) -> torch.Tensor:
+    """Centroidal momentum ``h_g = A_g(q) v`` for ``v: (B..., nv)``, ``(B..., 6)``; rows as `centroidal_map`."""
     return (centroidal_map(model, state) @ v.unsqueeze(-1)).squeeze(-1)
 
 

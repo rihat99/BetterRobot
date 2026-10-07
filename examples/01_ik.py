@@ -28,16 +28,16 @@ def main() -> None:
     model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
     generator = torch.Generator().manual_seed(0)
     q0 = model.q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit).expand(256, -1)
-    q_goal = terms.random_start(model, q0, generator)
+    q_goal = terms.random_start(model, q0, generator=generator)
     target = forward_kinematics_state(model, q_goal).frame_pose[:, model.frame_id(FRAME)]
 
     # 1. Recipe: LM, hard joint limits, a few random restarts for the local minima.
-    result = terms.solve_ik(model, {FRAME: target}, q0, restarts=8, generator=generator)
+    result = terms.solve_ik(model, {FRAME: target}, q0=q0, restarts=8, generator=generator)
     error = position_error(model, result.x["q"], target)
     print(f"recipe      : reached (<0.1 mm) {float((error < 1e-4).float().mean()):.3f}, median {float(error.median()):.1e} m")
 
     # 2. Open problem: add a term that is just a function of named tensors. Its Jacobian is automatic.
-    problem = terms.ik_problem(model, {FRAME: target}, q0)
+    problem = terms.ik_problem(model, {FRAME: target}, q0=q0)
     problem.data["preferred_elbow"] = torch.tensor(-1.8, dtype=torch.float64)
     problem.residual("elbow", lambda q, preferred_elbow: q[:, 3:4] - preferred_elbow, weight=1e-3)
     result = optim.solve(problem, optim.LevenbergMarquardt(), iters=100)

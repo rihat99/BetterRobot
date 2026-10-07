@@ -9,14 +9,13 @@ See ``docs/concepts/parsers_and_ir.md §4``.
 
 from __future__ import annotations
 
-import math
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
 
-from ..ir import IRBody, IRFrame, IRGeom, IRJoint, IRModel
+from ..ir import IRBody, IRGeom, IRJoint, IRModel
 
 if TYPE_CHECKING:
     from ..assets import AssetResolver
@@ -115,7 +114,7 @@ def _extract_geoms(
             if filename_handler is not None and raw_path:
                 try:
                     raw_path = filename_handler(raw_path)
-                except Exception:
+                except (OSError, ValueError):
                     pass
             result.append(IRGeom(
                 kind="mesh",
@@ -138,7 +137,7 @@ def parse_urdf(
     source : str | Path | yourdfpy.URDF
     resolver : AssetResolver, optional
         Resolves mesh / texture references encountered inside the URDF.
-        Defaults to a :class:`~better_robot.io.assets.FilesystemResolver`
+        Defaults to a `FilesystemResolver`
         rooted at the URDF file's parent directory (when ``source`` is a
         path). The resolver is forwarded to ``IRModel.meta["asset_resolver"]``
         and through ``build_model`` to ``Model.meta["asset_resolver"]``.

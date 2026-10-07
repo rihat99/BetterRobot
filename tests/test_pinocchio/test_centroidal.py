@@ -54,7 +54,7 @@ def test_hg_linear_equals_mass_times_vcom():
         v = torch.rand(model.nv, generator=rng, dtype=torch.float64) - 0.5
         # Panda is all-revolute, so dq/dt = v and v_com is the directional derivative of the COM.
         _, v_com = torch.func.jvp(lambda q_: center_of_mass(model, forward_kinematics_state(model, q_)), (q,), (v,))
-        h_g = centroidal_momentum(model, forward_kinematics_state(model, q), v)
+        h_g = centroidal_momentum(model, forward_kinematics_state(model, q), v=v)
         torch.testing.assert_close(h_g[:3], total_mass * v_com, rtol=1e-10, atol=1e-10)
 
 
@@ -68,7 +68,7 @@ def test_ag_times_v_equals_hg():
         v = torch.rand(model.nv, generator=rng, dtype=torch.float64) - 0.5
         A_g = centroidal_map(model, forward_kinematics_state(model, q))
         h_g_expected = (A_g @ v.unsqueeze(-1)).squeeze(-1)
-        h_g = centroidal_momentum(model, forward_kinematics_state(model, q), v)
+        h_g = centroidal_momentum(model, forward_kinematics_state(model, q), v=v)
         torch.testing.assert_close(h_g, h_g_expected, rtol=1e-12, atol=1e-12)
 
 
@@ -79,7 +79,7 @@ def test_zero_velocity_gives_zero_momentum():
     for i in range(qs.shape[0]):
         q = qs[i]
         zero_v = torch.zeros(model.nv, dtype=torch.float64)
-        h_g = centroidal_momentum(model, forward_kinematics_state(model, q), zero_v)
+        h_g = centroidal_momentum(model, forward_kinematics_state(model, q), v=zero_v)
         torch.testing.assert_close(
             h_g,
             torch.zeros(6, dtype=torch.float64),
@@ -99,7 +99,7 @@ def test_centroidal_g1_free_flyer():
     v = torch.zeros(model.nv, dtype=torch.float64)
     v[0] = 1.0
 
-    h_g = centroidal_momentum(model, forward_kinematics_state(model, q), v)
+    h_g = centroidal_momentum(model, forward_kinematics_state(model, q), v=v)
     total_mass = sum(model.body_inertias[i, 0].item() for i in range(model.njoints))
     torch.testing.assert_close(
         h_g[0],

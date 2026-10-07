@@ -36,8 +36,6 @@ MUTABLE_ALLOWLIST: dict[str, str] = {
     "better_robot.io.IRModel": "parser IR, filled incrementally while parsing",
     "better_robot.optim.State": "solver loop state, mutated by optimizers",
     # Ledger items (p1_violations.md): plain records that should become frozen.
-    "better_robot.optim.Phase": "LEDGER: plain record, make frozen",
-    "better_robot.optim.Result": "LEDGER: plain record, make frozen",
     "better_robot.viewer.MeshSpec": "LEDGER: plain record, make frozen",
 }
 

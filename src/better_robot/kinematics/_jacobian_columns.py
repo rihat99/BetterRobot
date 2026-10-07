@@ -1,6 +1,6 @@
 """Batched column-table lane for joint Jacobians.
 
-The Jacobian kernels in :mod:`.state` and :mod:`.jacobian` delegate their
+The Jacobian kernels in `state` and `jacobian` delegate their
 per-joint work here. The world Jacobian has a purely static sparsity: the
 column block owned by joint ``a`` holds ``Ad(oM_a) @ S_a`` and appears in row
 joint ``j``'s Jacobian iff ``a`` supports ``j`` (is an ancestor of, or equals,
@@ -14,10 +14,10 @@ the whole pass is three batched stages instead of a per-joint Python loop:
     world Jacobians.
 
 The plan (owner map, gather index, support mask) is a pure function of
-:class:`ModelStructure`, memoised on the structure instance exactly like
-``_fk_lean_plans``; :meth:`ModelStructure.to` mints a fresh instance, so a
+`ModelStructure`, memoised on the structure instance exactly like
+``_fk_lean_plans``; `ModelStructure.to` mints a fresh instance, so a
 moved model rebuilds its plan on the new device. Order 03's Jacobian
-time-variation pass reuses :func:`world_column_table` and the plan's owner map.
+time-variation pass reuses `world_column_table` and the plan's owner map.
 
 See ``docs/concepts/kinematics_and_jacobians.md``.
 """
@@ -37,7 +37,7 @@ class JointJacobianPlan:
     """Static, device-resident schedule for the batched joint-Jacobian lane.
 
     Contract consumed by the time-variation pass (order 03): the shared world
-    column table from :func:`world_column_table` plus this owner map are all it
+    column table from `world_column_table` plus this owner map are all it
     needs to build ``J̇`` column-wise.
     """
 
@@ -51,7 +51,7 @@ def build_plan(structure: ModelStructure) -> JointJacobianPlan:
     """Derive the static joint-Jacobian schedule from topology.
 
     Pure function of ``structure``; device-resident and reusable for every
-    configuration. Prefer :func:`get_plan`, which memoises this.
+    configuration. Prefer `get_plan`, which memoises this.
     """
 
     device = structure.idx_vs_full_tensor.device
@@ -89,7 +89,7 @@ def get_plan(structure: ModelStructure) -> JointJacobianPlan:
     """Return the memoised joint-Jacobian plan for ``structure``.
 
     Cached as a private attribute on the (otherwise immutable) structure;
-    :meth:`ModelStructure.to` builds a fresh instance, so a moved model
+    `ModelStructure.to` builds a fresh instance, so a moved model
     rebuilds its plan on the new device.
     """
 
@@ -113,7 +113,7 @@ def world_column_table(
     Column ``c`` holds ``Ad(oM_a) @ S_a[:, k]`` for the owning joint
     ``a = plan.column_owner[c]`` and its local column ``k`` — the world Jacobian
     content of that column, independent of the row joint that reads it. Per-joint
-    masking (:attr:`JointJacobianPlan.support_mask`) and mimic reduction are the
+    masking (`JointJacobianPlan.support_mask`) and mimic reduction are the
     caller's job. Order 03's ``J̇`` pass consumes this table plus the owner map.
 
     ``joint_pose_world`` is ``(B..., njoints, 7)``; ``device``/``dtype`` fix the
@@ -136,7 +136,7 @@ def world_column_table_from_matrices(
     device: torch.device,
     dtype: torch.dtype,
 ) -> torch.Tensor:
-    """:func:`world_column_table` from world rotations ``(B..., njoints, 3, 3)`` and origins ``(B..., njoints, 3)``.
+    """`world_column_table` from world rotations ``(B..., njoints, 3, 3)`` and origins ``(B..., njoints, 3)``.
 
     Each full-width column is built from its owner's rotation and origin directly, so no padded
     ``(njoints, max_nv)`` grid is formed (a free-flyer would pad every joint to six columns).

@@ -93,8 +93,8 @@ def _finite_diff_dot(model, q, v, *, joint_id=None, frame_id=None, reference):
 def _getter_dot(model, q, v, *, joint_id=None, frame_id=None, reference):
     state = forward_kinematics_state(model, q)
     if joint_id is not None:
-        return joint_jacobian_time_variation(model, state, v, joint_id, reference=reference)
-    return frame_jacobian_time_variation(model, state, v, frame_id, reference=reference)
+        return joint_jacobian_time_variation(model, state, v=v, joint=joint_id, reference=reference)
+    return frame_jacobian_time_variation(model, state, v=v, frame=frame_id, reference=reference)
 
 
 # ── finite-difference cross-checks ────────────────────────────────────────────
@@ -136,7 +136,7 @@ def test_raw_matches_workspace(chain):
     raw = joint_jacobians_time_variation_raw(chain.structure, q, v, poses)
 
     state = forward_kinematics_state(chain, q)
-    torch.testing.assert_close(raw.joint_jacobians_dot, torch.stack([joint_jacobian_time_variation(chain, state, v, j, reference="world") for j in range(chain.njoints)], dim=-3))
+    torch.testing.assert_close(raw.joint_jacobians_dot, torch.stack([joint_jacobian_time_variation(chain, state, v=v, joint=j, reference="world") for j in range(chain.njoints)], dim=-3))
     torch.testing.assert_close(raw.joint_jacobians, torch.stack([joint_jacobian(chain, state, j, reference="world") for j in range(chain.njoints)], dim=-3))
 
 

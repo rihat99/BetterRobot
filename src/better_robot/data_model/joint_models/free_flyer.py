@@ -17,7 +17,6 @@ from dataclasses import dataclass
 import torch
 
 from ...lie import se3 as _se3
-from ...lie import so3 as _so3
 
 
 @dataclass(frozen=True)

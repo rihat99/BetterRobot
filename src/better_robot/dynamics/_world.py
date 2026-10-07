@@ -27,7 +27,7 @@ import torch
 
 from ..data_model.model_structure import ModelStructure
 from ..data_model.model_values import ModelValues, inertia_about_com, packed_inertias_to_6x6, spatial_inertia_matrix
-from ..kinematics._jacobian_columns import JointJacobianPlan, get_plan, world_column_table_from_matrices
+from ..kinematics import jacobian_columns
 from ..lie.tangents import hat_so3
 
 
@@ -35,7 +35,7 @@ from ..lie.tangents import hat_so3
 class DynamicsPlan:
     """Constant support masks derived from the topology (memoised on the structure)."""
 
-    jacobian: JointJacobianPlan
+    jacobian: jacobian_columns.JointJacobianPlan
     support: (
         torch.Tensor
     )  #: ``(njoints, njoints)`` bool — ``[i, a]`` True when joint ``a`` is on the path of joint ``i``.
@@ -51,10 +51,10 @@ class DynamicsPlan:
 
 
 def get_dynamics_plan(structure: ModelStructure) -> DynamicsPlan:
-    """Memoised :class:`DynamicsPlan` for ``structure``."""
+    """Memoised `DynamicsPlan` for ``structure``."""
     plan = getattr(structure, "_dynamics_plan", None)
     if plan is None:
-        jacobian = get_plan(structure)
+        jacobian = jacobian_columns.get_plan(structure)
         device = jacobian.column_owner.device
         support = torch.zeros((structure.njoints, structure.njoints), dtype=torch.bool, device=device)
         for joint in range(structure.njoints):
@@ -95,7 +95,7 @@ def adjoint_inverse(rotation: torch.Tensor, translation: torch.Tensor) -> torch.
 
 @dataclass(frozen=True)
 class WorldGeometry:
-    """Model-independent part of :class:`WorldKinematics` (memoised on a ``KinematicState``)."""
+    """Model-independent part of `WorldKinematics` (memoised on a ``KinematicState``)."""
 
     columns: torch.Tensor
     rotation: torch.Tensor
@@ -160,7 +160,7 @@ def world_geometry(structure: ModelStructure, transform: torch.Tensor, plan: Dyn
     rotation = transform[..., :3]
     origin = transform[:, min(1, structure.njoints - 1), :, 3]
     translation = transform[..., 3] - origin.unsqueeze(-2)
-    columns = world_column_table_from_matrices(
+    columns = jacobian_columns.world_column_table_from_matrices(
         structure, rotation, translation, plan.jacobian, device=transform.device, dtype=transform.dtype
     )
     return WorldGeometry(columns, rotation, translation, origin)
@@ -187,7 +187,7 @@ def spatial_inertias(values: ModelValues) -> torch.Tensor:
 def world_kinematics(
     geometry: WorldGeometry, values: ModelValues, batch: tuple[int, ...], structure: ModelStructure
 ) -> WorldKinematics:
-    """Attach the model's inertias (broadcast to the flattened batch ``N``) to a :class:`WorldGeometry`."""
+    """Attach the model's inertias (broadcast to the flattened batch ``N``) to a `WorldGeometry`."""
     packed, inertia = values.body_inertias, spatial_inertias(values)
     if packed.ndim > 2:
         count, nj = math.prod(batch), structure.njoints

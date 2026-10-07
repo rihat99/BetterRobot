@@ -1,6 +1,6 @@
 """Immutable forward-kinematics result and the functions that consume it.
 
-``forward_kinematics_state`` returns a frozen :class:`KinematicState` holding world
+``forward_kinematics_state`` returns a frozen `KinematicState` holding world
 transforms as ``[R | p]`` matrices; ``frame_jacobian`` reads it. This is the interface new
 code is written against. Poses in ``[t, q]`` layout are derived on request.
 """
@@ -149,9 +149,9 @@ class KinematicState:
 
 
 def forward_kinematics_state(model: Model, q: torch.Tensor, *, check_quaternion_norm: bool = False) -> KinematicState:
-    """Forward kinematics. ``q: (B..., nq)`` → :class:`KinematicState` of joints and frames.
+    """Forward kinematics. ``q: (B..., nq)`` → `KinematicState` of joints and frames.
 
-    ``check_quaternion_norm=True`` raises :class:`QuaternionNormError` when a free-flyer
+    ``check_quaternion_norm=True`` raises `QuaternionNormError` when a free-flyer
     quaternion is far from unit norm. It syncs accelerators, so it is off by default.
     """
     structure, values = model.structure, model.values
@@ -210,7 +210,7 @@ def joint_jacobian(
     *,
     reference: Literal["world", "local", "local_world_aligned"] = "local_world_aligned",
 ) -> torch.Tensor:
-    """Jacobian of one joint. Returns ``(B..., 6, nv)``, rows ``[linear, angular]``; references as :func:`frame_jacobian`."""
+    """Jacobian of one joint. Returns ``(B..., 6, nv)``, rows ``[linear, angular]``; references as `frame_jacobian`."""
     return _express(
         _world_jacobian(model, state, joint),
         state.joint_translation[..., joint, :],
@@ -222,12 +222,12 @@ def joint_jacobian(
 def frame_jacobian_time_variation(
     model: Model,
     state: KinematicState,
+    *,
     v: torch.Tensor,
     frame: int | str,
-    *,
     reference: Literal["world", "local", "local_world_aligned"] = "local_world_aligned",
 ) -> torch.Tensor:
-    """Time derivative ``dJ/dt`` of :func:`frame_jacobian` along ``v: (B..., nv)``. Returns ``(B..., 6, nv)``.
+    """Time derivative ``dJ/dt`` of `frame_jacobian` along ``v: (B..., nv)``. Returns ``(B..., 6, nv)``.
 
     Acceleration pairing ``a = J dv + dJ v``: spatial for ``"world"``/``"local"``, classical for
     ``"local_world_aligned"``.
@@ -241,12 +241,12 @@ def frame_jacobian_time_variation(
 def joint_jacobian_time_variation(
     model: Model,
     state: KinematicState,
+    *,
     v: torch.Tensor,
     joint: int,
-    *,
     reference: Literal["world", "local", "local_world_aligned"] = "local_world_aligned",
 ) -> torch.Tensor:
-    """Time derivative ``dJ/dt`` of :func:`joint_jacobian` along ``v: (B..., nv)``. Returns ``(B..., 6, nv)``."""
+    """Time derivative ``dJ/dt`` of `joint_jacobian` along ``v: (B..., nv)``. Returns ``(B..., 6, nv)``."""
     result = joint_jacobians_time_variation_raw(model.structure, state.q, v, state.joint_pose)
     return _time_variation_in_reference(
         result.joint_jacobians[..., joint, :, :],

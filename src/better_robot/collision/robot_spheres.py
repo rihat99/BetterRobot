@@ -87,8 +87,10 @@ def self_collision_pairs(model: Model, spheres: RobotSpheres) -> torch.Tensor:
     return torch.tensor(pairs, dtype=torch.long, device=spheres.frame_ids.device).reshape(-1, 2)
 
 
-def self_distances(spheres: RobotSpheres, state: KinematicState, pairs: torch.Tensor) -> torch.Tensor:
+def self_distances(spheres: RobotSpheres, state: KinematicState, *, pairs: torch.Tensor) -> torch.Tensor:
     """Signed distances ``(B..., P)`` between the sphere pairs ``pairs: (P, 2)``."""
     centers = spheres.centers(state)
     first, second = pairs[:, 0], pairs[:, 1]
-    return sphere_sphere(centers[..., first, :], spheres.radii[first], centers[..., second, :], spheres.radii[second])
+    return sphere_sphere(
+        centers[..., first, :], spheres.radii[first], center_b=centers[..., second, :], radius_b=spheres.radii[second]
+    )

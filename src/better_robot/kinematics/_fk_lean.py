@@ -189,7 +189,7 @@ def build_plan(structure: ModelStructure, dtype: torch.dtype, device: torch.devi
 
 
 def get_plan(structure: ModelStructure, dtype: torch.dtype, device: torch.device) -> LeanPlan:
-    """Memoised :func:`build_plan`; the cache lives on the structure instance."""
+    """Memoised `build_plan`; the cache lives on the structure instance."""
     cache = getattr(structure, "_fk_lean_plans", None)
     if cache is None:
         cache = {}

@@ -63,7 +63,7 @@ def test_centroidal_map_and_momentum_shapes() -> None:
     velocity = torch.zeros(model.nv, dtype=model.q_neutral.dtype)
 
     assert centroidal_map(model, state).shape == (6, model.nv)
-    assert centroidal_momentum(model, state, velocity).shape == (6,)
+    assert centroidal_momentum(model, state, v=velocity).shape == (6,)
 
 
 @pytest.mark.parametrize("batch_shape", ((3,), (2, 2)))
@@ -88,7 +88,7 @@ def test_batched_inertias_match_scalar_dynamics_loop(
             mass,
             ddq,
             centroidal_map(current_model, state),
-            centroidal_momentum(current_model, state, v),
+            centroidal_momentum(current_model, state, v=v),
         )
 
     value_batch_loop_oracle(

@@ -11,7 +11,7 @@ from .problem import Problem
 from .solvers import Solver, State
 
 
-@dataclass
+@dataclass(frozen=True)
 class Phase:
     """One stage of a solve.
 
@@ -34,7 +34,7 @@ class Phase:
     stop_every: int = 1
 
 
-@dataclass
+@dataclass(frozen=True)
 class Result:
     """Outcome of ``run``."""
 
@@ -45,7 +45,7 @@ class Result:
     history: dict[str, torch.Tensor] = field(default_factory=dict)  #: ``{phase: (steps, B)}`` losses.
 
 
-def run(problem: Problem, phases: Sequence[Phase], x: Mapping[str, torch.Tensor] | None = None) -> Result:
+def run(problem: Problem, phases: Sequence[Phase], *, x: Mapping[str, torch.Tensor] | None = None) -> Result:
     """Run ``phases`` in order, each starting from the previous result."""
     current = {name: value.detach() for name, value in (x if x is not None else problem.variables).items()}
     history: dict[str, torch.Tensor] = {}
@@ -75,7 +75,7 @@ def run(problem: Problem, phases: Sequence[Phase], x: Mapping[str, torch.Tensor]
 
 def solve(problem: Problem, solver: Solver, *, iters: int = 50, x: Mapping[str, torch.Tensor] | None = None) -> Result:
     """Run one solver for at most ``iters`` steps."""
-    return run(problem, [Phase(solver=solver, iters=iters)], x)
+    return run(problem, [Phase(solver=solver, iters=iters)], x=x)
 
 
 def solve_layer(

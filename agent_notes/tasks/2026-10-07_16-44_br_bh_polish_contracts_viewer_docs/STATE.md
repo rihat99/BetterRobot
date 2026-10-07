@@ -12,7 +12,12 @@ Owner decisions (17:35): test trim −22 % as in p0_tests.md; viewer `frame`→`
 studio UI shell rebuilt on BR viewer (domain core kept). Mine: pin mkdocs<2; Material theme.font; record on GPU
 only if gpu_free FREE; ffmpeg optional; chrome wrapper as dev helper.
 
-## Done so far (uncommitted, in tree)
+## Committed 20:05 Dubai: BR dev 6ec3134, BH dev e898fd5 (P1 contracts + P2a trim 586→469 + P3a viewer batch 1 + BH adaptation).
+Owner approved API sugar (20:10): `model.fk(q)`, `Result.q`/`result["q"]`, cache handle instead of the "state"
+string, `br.load(path, dtype=, device=)` → P2c after P2b.
+Running now: P3a-3 joint shapes (mars_top_opus), P2b polish via p1_violations.md (mars_top, brief p2b_polish_brief.md).
+
+## Done before the commit (history)
 - P1: docs/contracts (11 pages, 42 rules, 5 ADRs), tests/contract/{test_keyword_only,test_frozen,test_contract_matrix}.py,
   conventions.md + design-decisions.md folded in (trashed), ruff rules enabled/deferred, ledger p1_violations.md (L-1..L-8).
   Adversarial review p1_review.md: items 1–13 applied; 14–16 open (p1_state.md "P1c").

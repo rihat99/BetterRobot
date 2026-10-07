@@ -57,7 +57,7 @@ def parse_mjcf(
     source : str | Path
     resolver : AssetResolver, optional
         Resolves mesh / texture references encountered inside the MJCF.
-        Defaults to a :class:`~better_robot.io.assets.FilesystemResolver`
+        Defaults to a `FilesystemResolver`
         rooted at the MJCF file's parent directory.
 
     See docs/concepts/parsers_and_ir.md §5.

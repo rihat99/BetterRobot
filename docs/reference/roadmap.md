@@ -21,7 +21,7 @@ entries.
 ## Dynamics and spatial algebra
 
 `center_of_mass(model, state)` gives the position only; the centre-of-mass velocity is the linear part of
-`centroidal_momentum(model, state, v)` divided by the total mass. Centre-of-mass acceleration is not provided.
+`centroidal_momentum(model, state, v=v)` divided by the total mass. Centre-of-mass acceleration is not provided.
 
 `Force.cross_motion` raises because that operation is not a standard spatial
 primitive. Use the documented motion/force cross operation instead.

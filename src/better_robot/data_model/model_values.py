@@ -1,4 +1,4 @@
-"""Tensor-only, differentiable values paired with :class:`ModelStructure`."""
+"""Tensor-only, differentiable values paired with `ModelStructure`."""
 
 from __future__ import annotations
 

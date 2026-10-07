@@ -5,9 +5,9 @@ file.
 
 The builder exposes **named per-kind helpers** (``add_revolute_x``,
 ``add_prismatic``, ``add_free_flyer_root``, …) instead of a stringly-typed
-``kind="revolute_z"`` switch. The catch-all :meth:`ModelBuilder.add_joint`
-accepts a :class:`JointModel` instance only — passing a string raises
-:class:`TypeError` pointing at the right named helper.
+``kind="revolute_z"`` switch. The catch-all `ModelBuilder.add_joint`
+accepts a `JointModel` instance only — passing a string raises
+`TypeError` pointing at the right named helper.
 
 See ``docs/concepts/parsers_and_ir.md §6``.
 """
@@ -130,6 +130,7 @@ class ModelBuilder:
         self,
         body: str,
         kind: str,
+        *,
         params: dict,
         origin: torch.Tensor,
     ) -> None:
@@ -206,7 +207,7 @@ class ModelBuilder:
 
         ``unbounded=True`` selects URDF-``continuous`` semantics
         (no lower/upper) and produces a
-        :class:`~better_robot.data_model.joint_models.JointRevoluteUnbounded`.
+        `JointRevoluteUnbounded`.
         """
         return self._push_joint(
             name,
@@ -375,9 +376,9 @@ class ModelBuilder:
         mimic_multiplier: float = 1.0,
         mimic_offset: float = 0.0,
     ) -> str:
-        """Catch-all: register a joint via a :class:`JointModel` instance.
+        """Catch-all: register a joint via a `JointModel` instance.
 
-        Strings are not accepted; passing one raises :class:`TypeError`
+        Strings are not accepted; passing one raises `TypeError`
         with a pointer at the named helper for that kind.
         """
         if isinstance(kind, str):

@@ -1,4 +1,4 @@
-"""Raw Jacobian time-variation kernels behind :mod:`.state`.
+"""Raw Jacobian time-variation kernels behind `state`.
 
 See ``docs/concepts/kinematics_and_jacobians.md``.
 """
@@ -24,7 +24,7 @@ _ReferenceFrame = Literal["world", "local", "local_world_aligned"]
 @dataclass(frozen=True)
 class JointJacobiansTimeVariationResult:
     """World-frame joint Jacobian time variation from
-    :func:`joint_jacobians_time_variation_raw`.
+    `joint_jacobians_time_variation_raw`.
 
     Both fields are WORLD-frame and share shape ``(B..., njoints, 6, nv)``.
     ``joint_jacobians`` is the ordinary joint Jacobian, surfaced as a byproduct
@@ -50,7 +50,7 @@ def joint_jacobians_time_variation_raw(
     ``a_spatial = J v̇ + J̇ v``. The pass is transport-only: every shipped joint
     has a configuration-constant local motion subspace (no ``dS/dt`` term; see
     the zero-valued subspace-derivative hook
-    :func:`~better_robot.data_model.joint_models.base.joint_motion_subspace_derivative`),
+    `joint_motion_subspace_derivative`),
     so ``J̇`` is the frame drift of a static column table.
 
     Each owner joint ``a``'s full-width column block transports as
@@ -60,7 +60,7 @@ def joint_jacobians_time_variation_raw(
     reduced ``v`` (identical to the full-width product); the owner-keyed
     transport is valid on **full-width** columns only — a reduced mimic column
     blends distinct owners — so the shared full-width table
-    (:func:`._jacobian_columns.world_column_table`) always drives it and mimic
+    (`_jacobian_columns.world_column_table`) always drives it and mimic
     reduction is applied last, exactly like the plain joint Jacobian.
 
     A supplied ``joint_jacobians`` (reduced, ``(B..., njoints, 6, nv)``) is
@@ -172,12 +172,12 @@ def frame_jacobian_time_variation_raw(
     """Return one frame's Jacobian time variation from raw tensors.
 
     A rigidly attached frame shares its parent joint's WORLD ``J`` and ``J̇``;
-    the closed forms in :func:`_time_variation_in_reference` then translate/rotate
+    the closed forms in `_time_variation_in_reference` then translate/rotate
     to the frame origin ``oMframe = oMparent · placement``. Acceleration pairing:
     ``a_spatial = J v̇ + J̇ v`` for ``"world"``/``"local"``, ``a_classical`` for
     ``"local_world_aligned"``. Supplying compatible ``joint_jacobians`` and
     ``joint_jacobians_dot`` reuses an existing pass; either missing triggers a
-    fresh :func:`joint_jacobians_time_variation_raw` build.
+    fresh `joint_jacobians_time_variation_raw` build.
     """
     batch = tuple(joint_pose_world.shape[:-2])
     q = broadcast_to_execution_batch(q, batch, (structure.nq,), name="q")

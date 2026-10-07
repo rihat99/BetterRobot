@@ -20,10 +20,10 @@ hand = model.frame_id("body_panda_hand")
 # A batch of 64 reachable hand poses, made from random configurations.
 generator = torch.Generator().manual_seed(0)
 q0 = model.q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit).expand(64, -1)
-targets = forward_kinematics_state(model, terms.random_start(model, q0, generator)).frame_pose[:, hand]
+targets = forward_kinematics_state(model, terms.random_start(model, q0, generator=generator)).frame_pose[:, hand]
 
 # Solve all 64 inverse-kinematics problems at once, then check them with forward kinematics.
-result = terms.solve_ik(model, {"body_panda_hand": targets}, q0, restarts=4, generator=generator)
+result = terms.solve_ik(model, {"body_panda_hand": targets}, q0=q0, restarts=4, generator=generator)
 reached = forward_kinematics_state(model, result.x["q"]).frame_pose[:, hand]
 error = (reached[:, :3] - targets[:, :3]).norm(dim=-1)
 print(f"median hand position error: {float(error.median()):.1e} m")

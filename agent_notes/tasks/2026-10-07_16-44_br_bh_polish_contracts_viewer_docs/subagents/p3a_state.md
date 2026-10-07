@@ -72,3 +72,25 @@ Docs still on old API (out of scope, make tests/docs/test_snippets fail): docs/c
 docs/getting-started/visualize.md:81 (`record(..., frames=range)` -> `steps=`); docs/contracts/01-naming.md:67;
 docs/contributing/extending.md:43.
 Remaining: items 7-8 (not P3a-2).
+
+## P3a-3 (items 7-8)
+API diff:
+- `SkeletonLayer(name, joints, parents, *, kinds=None, axes=None, radius, bone_radius, colors, bone_color)`:
+  `joints` is `(T, J, 3)` positions (as before) or `(T, J, 7)` xyzw poses. `layer.joints` (T,J,3) and new
+  `layer.rotations` (T,J,4) are views of the input (by reference). `kinds=None` -> all spheres, node
+  `<root>/joints` (old behaviour, BH unaffected). With kinds: revolute/helical/mimic -> cylinder (0.8r, 0.8r, 2.5r)
+  along axis, prismatic -> box (0.6r, 0.6r, 3r), spherical/unknown/composite -> sphere, free_flyer -> add_batched_axes
+  (length 4r), planar/translation -> cube 1.4r, fixed -> nothing. Nodes `joints_cylinder|joints_box|joints_cube|joints_axes`.
+  `layer.groups: dict[marker, joint indices]`. Torque colours index per group (per-step colours kept).
+- New `_math.axis_wxyz(quat_xyzw, axis)`, `_math.unit_box()`; new public `viewer.skeleton_spec(model) -> (kinds, axes)`.
+- `robot_skeleton` passes full poses + spec; fixed joints no longer drawn (were 0.4r spheres).
+- Item 8: typed slots on RobotView: `mesh`, `collision`, `skeleton`, `frames`, `spheres` (layers, None if absent);
+  the RobotSpheres model moved `view.spheres` -> `view.sphere_model`. No isinstance in `update`.
+- Tests: test_robot.py update test now reads `joints_cylinder`; new `test_skeleton_markers_follow_joint_kind_and_axis`.
+Verification: tests/viewer 19+1 green before full run; full suite was still running at hand-off (bg log
+brc3784qc); ruff: no new findings in touched files (15 pre-existing FBT/BLE in viewer.py, timeline.py, ...).
+Screenshots: vis/p3a3/panda.png, g1.png captured but EMPTY (robot outside view: camera set via client.camera
+before scene sync; G1 groups {'cylinder': 29}). Redo: set camera after a sleep, or `v.server.initial_camera`.
+Script: scratchpad/shot_p3a3.py. Servers stopped (v.server.stop, chrome terminated).
+BH impact: none required (positions path unchanged). Any BH code reading `RobotView.spheres` as the
+RobotSpheres model must use `sphere_model`.

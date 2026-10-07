@@ -2,7 +2,7 @@
 
 See ``docs/conventions/contracts.md §2`` for the normative taxonomy.
 
-All library-raised errors inherit from :class:`BetterRobotError`. Where
+All library-raised errors inherit from `BetterRobotError`. Where
 possible, they also inherit from a standard-library exception class
 (``ValueError``, ``RuntimeError``, ``ImportError``) so existing
 ``except ValueError`` / ``except RuntimeError`` blocks keep catching the
@@ -14,9 +14,6 @@ Usage::
 
     if q.shape[-1] != model.nq:
         raise ShapeError(f"q has trailing size {q.shape[-1]}, expected {model.nq}")
-
-``SingularityWarning`` is a warning, not an exception — it is filtered
-by ``warnings.filterwarnings`` rather than caught with ``try/except``.
 """
 
 from __future__ import annotations
@@ -76,16 +73,6 @@ class ShapeError(BetterRobotError, ValueError):
     """
 
 
-class ConvergenceError(BetterRobotError, RuntimeError):
-    """Optimizer exited without reaching the requested tolerance.
-
-    Not always a bug: inspect the returned solver state for final diagnostics.
-    ``solve_ik`` returns a non-converged
-    ``IKResult`` instead of raising; callers may choose to promote that state
-    into this exception.
-    """
-
-
 class BackendNotAvailableError(BetterRobotError, ImportError):
     """An optional integration dependency is not importable.
 
@@ -98,21 +85,6 @@ class BackendNotAvailableError(BetterRobotError, ImportError):
     """
 
 
-class UnsupportedJointError(BetterRobotError, ValueError):
-    """URDF/MJCF declared a joint kind without a built-in ``JointModel``.
-
-    Register a custom ``JointModel`` — see ``docs/conventions/extension.md §2``.
-    """
-
-
-class SingularityWarning(UserWarning):
-    """Emitted when a Jacobian's condition number exceeds ``1e12``.
-
-    This is a warning, not an error: kinematics continues with the
-    best-effort result and ``optim`` falls back to damped solves.
-    """
-
-
 __all__ = [
     "BetterRobotError",
     "ModelInconsistencyError",
@@ -120,8 +92,5 @@ __all__ = [
     "DtypeMismatchError",
     "QuaternionNormError",
     "ShapeError",
-    "ConvergenceError",
     "BackendNotAvailableError",
-    "UnsupportedJointError",
-    "SingularityWarning",
 ]

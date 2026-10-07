@@ -87,7 +87,7 @@ def test_rnea_crba_centroidal_and_aba_use_one_reduced_map() -> None:
         atol=1e-11,
     )
     torch.testing.assert_close(
-        centroidal_momentum(constrained, state, v),
+        centroidal_momentum(constrained, state, v=v),
         (centroidal @ v.unsqueeze(-1)).squeeze(-1),
     )
 

@@ -168,7 +168,7 @@ class Problem:
 
     # ── registration ────────────────────────────────────────────────────
 
-    def cached(self, fn: Callable[..., Any], *, name: str | None = None, reads: tuple[str, ...] | None = None):
+    def cached(self, fn: Callable[..., Any], *, name: str | None = None, reads: tuple[str, ...] | None = None) -> Callable[..., Any]:
         """Register a value shared by terms, computed at most once per evaluation.
 
         Usable as a decorator; the name defaults to the function name.
@@ -223,7 +223,7 @@ class Problem:
         """
         self._add(name, fn, "scalar", weight, None, None, reads, None)
 
-    def with_(self, *, weights: Mapping[str, float] | None = None, free: Mapping[str, torch.Tensor] | None = None):
+    def with_(self, *, weights: Mapping[str, float] | None = None, free: Mapping[str, torch.Tensor] | None = None) -> "Problem":
         """Return a view of this problem with term weights overridden and/or coordinates frozen.
 
         ``weights[name] = 0`` switches a term off. ``free[variable]`` is a bool mask over that
@@ -360,7 +360,7 @@ class Problem:
         upper = first.new_full((first.shape[0], self.tangent_dim), float("inf"))
         for name, (low, high) in self.bounds.items():
             lower[:, self._slices[name]], upper[:, self._slices[name]] = self.manifolds[name].tangent_bounds(
-                x[name], low, high
+                x[name], lower=low, upper=high
             )
         return lower, upper
 

@@ -73,6 +73,27 @@ def quat_z_to(direction: np.ndarray) -> np.ndarray:
     return q / np.linalg.norm(q, axis=-1, keepdims=True)
 
 
+def axis_wxyz(quat: np.ndarray, axis: np.ndarray) -> np.ndarray:
+    """Scalar-first quaternions ``(..., 4)`` placing a ``+z``-aligned primitive along ``axis (..., 3)`` (given in
+    the joint frame) for joint rotations ``quat (..., 4)`` (xyzw): ``quat * shortest_arc(z, axis)``."""
+    align = np.roll(quat_z_to(axis), -1, axis=-1)  # wxyz -> xyzw
+    quat = np.asarray(quat, dtype=np.float32)
+    a = np.concatenate([np.zeros_like(quat[..., :3]), quat], axis=-1)
+    b = np.concatenate([np.zeros_like(align[..., :3]), align], axis=-1)
+    return xyzw_to_wxyz(compose_poses(a, b)[..., 3:])
+
+
+def unit_box() -> tuple[np.ndarray, np.ndarray]:
+    """Axis-aligned cube from ``-0.5`` to ``0.5``: ``(vertices (8, 3), faces (12, 3))``, outward winding."""
+    vertices = np.array([[x, y, z] for x in (-0.5, 0.5) for y in (-0.5, 0.5) for z in (-0.5, 0.5)], dtype=np.float32)
+    faces = np.array(
+        [[0, 1, 3], [0, 3, 2], [4, 6, 7], [4, 7, 5], [0, 4, 5], [0, 5, 1],
+         [2, 3, 7], [2, 7, 6], [0, 2, 6], [0, 6, 4], [1, 5, 7], [1, 7, 3]],
+        dtype=np.uint32,
+    )  # fmt: skip
+    return vertices, faces
+
+
 def rgb_uint8(color: np.ndarray | RGB, shape: tuple[int, ...] = ()) -> np.ndarray:
     """Convert colours in ``[0, 1]`` to uint8 ``(*shape, 3)``, broadcasting a single colour."""
     out = np.asarray(color, dtype=np.float32)

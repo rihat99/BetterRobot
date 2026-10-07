@@ -106,7 +106,7 @@ def _check_topology_invariants(
 ) -> None:
     """Validate the four topology invariants from ``docs/conventions/contracts.md §1.5``.
 
-    Raises :class:`~better_robot.exceptions.ModelInconsistencyError` at
+    Raises `ModelInconsistencyError` at
     build time so the caller never sees a ``Model`` in an inconsistent
     state.
     """
@@ -537,7 +537,7 @@ def _ir_stable_topo_sort(
     The heap key is the joint's IR index, so newly eligible joints are merged
     with already eligible siblings in source order. Only the selected joint
     subset participates; the explicit world joint is handled separately by
-    :func:`build_model`.
+    `build_model`.
     """
     parent_to_joints: dict[str, list[int]] = {}
     for index in ir_indices:

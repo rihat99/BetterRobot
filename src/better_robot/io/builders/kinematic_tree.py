@@ -210,7 +210,7 @@ def build_kinematic_tree_model(
 ) -> Model:
     """Build a frozen ``Model`` for a kinematic tree.
 
-    See :func:`build_kinematic_tree_body`. Set ``preserve_joint_order=True``
+    See `build_kinematic_tree_body`. Set ``preserve_joint_order=True``
     to retain the supplied, already-topological ``joint_names`` layout.
 
     ``frames`` attaches extra operational frames on top of the automatic

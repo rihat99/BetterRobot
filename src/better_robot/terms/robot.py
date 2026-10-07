@@ -38,7 +38,7 @@ class RobotManifold:
         return self.model.integrate(x, x.new_zeros(*x.shape[:-1], self.model.nv))
 
     def tangent_bounds(
-        self, x: torch.Tensor, lower: torch.Tensor, upper: torch.Tensor
+        self, x: torch.Tensor, *, lower: torch.Tensor, upper: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Step range of the vector-space joints; quaternion coordinates are unbounded."""
         structure = self.model.structure

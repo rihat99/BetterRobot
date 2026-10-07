@@ -40,7 +40,7 @@ def main() -> None:
     state = {"q": q}
 
     def follow(target: np.ndarray) -> None:
-        result = terms.solve_ik(model, {FRAME: torch.from_numpy(target).to(q)[None]}, state["q"], iters=15)
+        result = terms.solve_ik(model, {FRAME: torch.from_numpy(target).to(q)[None]}, q0=state["q"], iters=15)
         state["q"] = result.x["q"]
         robot.update(state["q"])
         viewer.show()

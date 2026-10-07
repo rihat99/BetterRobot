@@ -15,6 +15,8 @@ from typing import TYPE_CHECKING, Optional
 
 import torch
 
+from ..exceptions import BetterRobotError
+
 if TYPE_CHECKING:
     from ..data_model.joint_models.base import JointModel
 
@@ -94,5 +96,5 @@ class IRModel:
     meta: dict = field(default_factory=dict)
 
 
-class IRError(ValueError):
+class IRError(BetterRobotError, ValueError):
     """Raised by ``build_model`` when the IR is structurally invalid."""

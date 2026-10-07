@@ -83,9 +83,9 @@ def test_batched_jacobian_time_variation_equals_full_twin_with_chain_rule() -> N
 
     constrained_state = forward_kinematics_state(constrained, q)
     full_state = forward_kinematics_state(full, q_full)
-    expected = torch.stack([joint_jacobian_time_variation(full, full_state, v_full, j, reference="world") for j in range(full.njoints)], dim=-3) @ constrained.v_expansion
+    expected = torch.stack([joint_jacobian_time_variation(full, full_state, v=v_full, joint=j, reference="world") for j in range(full.njoints)], dim=-3) @ constrained.v_expansion
     torch.testing.assert_close(
-        torch.stack([joint_jacobian_time_variation(constrained, constrained_state, v, j, reference="world") for j in range(constrained.njoints)], dim=-3),
+        torch.stack([joint_jacobian_time_variation(constrained, constrained_state, v=v, joint=j, reference="world") for j in range(constrained.njoints)], dim=-3),
         expected,
         rtol=1e-12,
         atol=1e-12,

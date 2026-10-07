@@ -20,7 +20,7 @@ $$
 | `forward_dynamics(model, state, v, tau, fext=None)` | $\dot v$ | `(B..., nv)` | bias by RNEA, then a Cholesky solve with $M$ |
 | `center_of_mass(model, state)` | whole-body COM, world frame | `(B..., 3)` | mass-weighted sum |
 | `centroidal_map(model, state)` | $A_g(q)$ with $h_g = A_g v$ | `(B..., 6, nv)` | per-body momentum at the COM |
-| `centroidal_momentum(model, state, v)` | $h_g$, world axes at the COM | `(B..., 6)` | $A_g v$ |
+| `centroidal_momentum(model, state, v=v)` | $h_g$, world axes at the COM | `(B..., 6)` | $A_g v$ |
 
 `forward_dynamics` does not run the articulated-body algorithm. It computes the bias
 $C v + g - J^\top f_\text{ext}$ with one RNEA pass at zero acceleration, factors $M$ with
@@ -99,7 +99,7 @@ tau_contact = inverse_dynamics(model, state, v, a, fext=fext)
 
 ```python
 com = center_of_mass(model, state)              # (32, 3)
-h = centroidal_momentum(model, state, v)        # (32, 6)
+h = centroidal_momentum(model, state, v=v)        # (32, 6)
 print(com.shape, h.shape)
 ```
 

@@ -55,7 +55,7 @@ class Inertia:
     ) -> "Inertia":
         """Solid sphere inertia. I = 2/5 * m * r^2 on diagonal, com at origin."""
         I_diag = (2.0 / 5.0) * mass * radius**2
-        # packing: [mass, cx, cy, cz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]
+        # packing order: mass, cx, cy, cz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz
         data = torch.tensor([mass, 0.0, 0.0, 0.0, I_diag, I_diag, I_diag, 0.0, 0.0, 0.0], device=device, dtype=dtype)
         return cls(data)
 

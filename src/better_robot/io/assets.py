@@ -3,7 +3,7 @@
 Mesh / texture references inside URDF/MJCF files are paths or
 package URIs that can only be turned into a real file once you know the
 search root. The library defers that decision to a pluggable
-:class:`AssetResolver`. The resolver is set on the ``IRModel.meta`` (and
+`AssetResolver`. The resolver is set on the ``IRModel.meta`` (and
 forwarded onto ``Model.meta["asset_resolver"]``) so the viewer can find
 meshes after parsing without re-reading the URDF. Collision computation is
 currently stubbed and does not consume resolved meshes.
@@ -14,10 +14,9 @@ consumers") and ``docs/concepts/viewer.md`` ("URDFMeshMode").
 
 from __future__ import annotations
 
-import os
 import urllib.request
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -25,7 +24,7 @@ class AssetResolver(Protocol):
     """Resolve a parser-emitted asset reference (URI / relative path) to a
     concrete absolute filesystem path.
 
-    Implementations must raise :class:`FileNotFoundError` if the asset
+    Implementations must raise `FileNotFoundError` if the asset
     cannot be located — never return ``None`` for missing assets.
     """
 
@@ -92,7 +91,7 @@ class CompositeResolver:
     """Try a sequence of resolvers in order; first hit wins.
 
     Useful for "URDFs that mix ``package://`` and relative paths" — pair a
-    :class:`PackageResolver` with a :class:`FilesystemResolver`.
+    `PackageResolver` with a `FilesystemResolver`.
     """
 
     def __init__(self, resolvers: list[AssetResolver]) -> None:
@@ -117,7 +116,7 @@ class CachedDownloadResolver:
 
     Files already present in ``cache_dir`` are reused — this is **not** an
     HTTP-level cache (no ETag handling). Failures raise
-    :class:`FileNotFoundError`.
+    `FileNotFoundError`.
     """
 
     def __init__(self, cache_dir: Path | str) -> None:

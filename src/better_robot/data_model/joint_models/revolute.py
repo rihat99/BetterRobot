@@ -28,7 +28,7 @@ def _revolute_unbounded_transform(axis, q_slice) -> torch.Tensor:
 
 def _revolute_subspace(axis: torch.Tensor, q_slice: torch.Tensor) -> torch.Tensor:
     """Motion subspace S. (B..., 6, 1) — angular part along axis."""
-    # S = [0, 0, 0, ax, ay, az]^T
+    # angular part only: rows 3..5 carry the axis
     *batch, _ = q_slice.shape
     S = torch.zeros(*batch, 6, 1, dtype=q_slice.dtype, device=q_slice.device)
     S[..., 3, 0] = axis[0].to(q_slice.device, q_slice.dtype)
@@ -162,12 +162,12 @@ class JointRevoluteUnbounded:
         """q_slice = (B..., 2) = [cos θ, sin θ] → SE3 rotation by θ."""
         return _revolute_unbounded_transform(self.axis, q_slice)
 
-    def joint_motion_subspace(self, q_slice):
+    def joint_motion_subspace(self, q_slice: torch.Tensor) -> torch.Tensor:
         # Same 6×1 angular subspace
         angle = torch.atan2(q_slice[..., 1], q_slice[..., 0])
         return _revolute_subspace(self.axis, angle.unsqueeze(-1))
 
-    def joint_velocity(self, q_slice, v_slice):
+    def joint_velocity(self, q_slice: torch.Tensor, v_slice: torch.Tensor) -> torch.Tensor:
         angle = torch.atan2(q_slice[..., 1], q_slice[..., 0])
         return _revolute_velocity(self.axis, angle.unsqueeze(-1), v_slice)
 

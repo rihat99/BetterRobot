@@ -79,14 +79,14 @@ print(torch.allclose(R @ J_local[..., :3, :], J_lwa[..., :3, :], atol=1e-5))   #
 
 ## The time variation gives $\dot J$
 
-`frame_jacobian_time_variation(model, state, v, frame, reference=...)` and
-`joint_jacobian_time_variation(model, state, v, joint, reference=...)` return $\dot J (B..., 6, nv)$ at
+`frame_jacobian_time_variation(model, state, v=v, frame=frame, reference=...)` and
+`joint_jacobian_time_variation(model, state, v=v, joint=joint, reference=...)` return $\dot J (B..., 6, nv)$ at
 velocity `v (B..., nv)`, in the same reference as the matching Jacobian. Use it for the drift term
 $\dot J v$ in operational-space control and second-order task constraints.
 
 ```python
 v = torch.randn(16, 3, model.nv)
-dJ = frame_jacobian_time_variation(model, state, v, tool)
+dJ = frame_jacobian_time_variation(model, state, v=v, frame=tool)
 print(dJ.shape)                              # torch.Size([16, 3, 6, 2])
 ```
 

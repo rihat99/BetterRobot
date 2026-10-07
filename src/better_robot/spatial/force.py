@@ -10,7 +10,6 @@ from dataclasses import dataclass
 
 import torch
 
-from ..lie import tangents as _tan
 
 
 @dataclass(frozen=True)

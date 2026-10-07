@@ -18,14 +18,14 @@ def _norm(vector: torch.Tensor) -> torch.Tensor:
 
 
 def sphere_sphere(
-    center_a: torch.Tensor, radius_a: torch.Tensor, center_b: torch.Tensor, radius_b: torch.Tensor
+    center_a: torch.Tensor, radius_a: torch.Tensor, *, center_b: torch.Tensor, radius_b: torch.Tensor
 ) -> torch.Tensor:
     """Distance between spheres ``center_*: (..., 3)``, ``radius_*: (...)``. Returns ``(...)``."""
     return _norm(center_a - center_b) - radius_a - radius_b
 
 
 def sphere_capsule(
-    center: torch.Tensor, radius: torch.Tensor, start: torch.Tensor, end: torch.Tensor, capsule_radius: torch.Tensor
+    center: torch.Tensor, radius: torch.Tensor, *, start: torch.Tensor, end: torch.Tensor, capsule_radius: torch.Tensor
 ) -> torch.Tensor:
     """Sphere ``center: (..., 3)``, ``radius: (...)`` to the capsule around segment ``start, end: (..., 3)``.
 
@@ -38,7 +38,7 @@ def sphere_capsule(
 
 
 def sphere_halfspace(
-    center: torch.Tensor, radius: torch.Tensor, normal: torch.Tensor, offset: torch.Tensor | float
+    center: torch.Tensor, radius: torch.Tensor, *, normal: torch.Tensor, offset: torch.Tensor | float
 ) -> torch.Tensor:
     """Sphere to the solid ``{x : normal . x <= offset}``; ``normal: (..., 3)`` has unit length. Returns ``(...)``."""
     return (center * normal).sum(-1) - offset - radius
@@ -47,6 +47,7 @@ def sphere_halfspace(
 def sphere_box(
     center: torch.Tensor,
     radius: torch.Tensor,
+    *,
     box_center: torch.Tensor,
     box_rotation: torch.Tensor,
     half_extents: torch.Tensor,
@@ -61,7 +62,7 @@ def sphere_box(
 
 
 def sphere_sdf(
-    center: torch.Tensor, radius: torch.Tensor, grid: torch.Tensor, origin: torch.Tensor, voxel_size: float
+    center: torch.Tensor, radius: torch.Tensor, *, grid: torch.Tensor, origin: torch.Tensor, voxel_size: float
 ) -> torch.Tensor:
     """Sphere to a sampled signed distance field, by trilinear interpolation.
 

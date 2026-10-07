@@ -114,3 +114,38 @@ Positional count after `self`; limit is 2. Paths under `src/better_robot/`. Re-e
 - L-9 (C-DOC-4): 50 Sphinx roles (`:class:`, `:func:`, ...) in `src/better_robot` docstrings render as literal
   text under MkDocs (count: `grep -rEo ':(class|func|meth|mod|attr|obj|ref):' src/better_robot | wc -l`). Replace
   with backticks or mkdocstrings references, then add a no-role check to `tests/contract/test_docstrings.py`.
+
+## P2b status (2026-10-07, non-viewer polish; commit pending)
+
+Ruff `src` (incl. viewer) 58 -> 35 findings (measured in this worktree while the viewer agent also edited);
+`src tests` is 83 after (no clean baseline measured; of the 35 in `src`, 15 are intended PLC0415 lazy imports).
+
+- FIXED ruff block above, non-viewer rows: ERA001 x7 (`revolute.py:31`, `__init__.py` x5, `inertia.py:58` — comments
+  reworded, no code lost), ANN201 x4 (`revolute.py` x2, `optim/problem.py cached/with_`), BLE001 `urdf.py:118`
+  (`except (OSError, ValueError)`), FBT001 `optim/constrained.py:15` (`inequality` keyword-only), F401 x6
+  (`free_flyer.py`, `io/assets.py` x2, `urdf.py` x2, `spatial/force.py`) + `tests/bench/bench_forward_kinematics.py`.
+- LEFT ruff (not in the brief's rule list): viewer rows (other agent); `kinematic_tree.py` E741 x2; `mjcf.py`/`urdf.py`
+  PLR0912/PLR0915 x7; `mjcf.py:96` F841; `spatial/force.py:40`, `motion.py:65` F821 (forward refs); PLC0415 x15 lazy.
+- C-API-2 keyword-only (P2c pass, 2026-10-07): FIXED 21 of 30 allowlist rows (`tests/contract/test_keyword_only.py`, now 9 rows).
+  Arguments after the second are keyword-only in: `collision.sphere_sphere/sphere_capsule/sphere_halfspace/sphere_box/sphere_sdf`
+  (`collision/distance.py`), `collision.self_distances(spheres, state, *, pairs)`, `ModelBuilder.add_collision_geom(body, kind, *, params, origin)`,
+  `Manifold/Euclidean/RobotManifold.tangent_bounds(x, *, lower, upper)`, `optim.run(problem, phases, *, x=None)`,
+  `terms.random_start(model, q0, *, generator=None)`, `terms.ik_problem/solve_ik(model, targets, *, q0, ...)`,
+  `kinematics.frame_jacobian_time_variation/joint_jacobian_time_variation(model, state, *, v, frame|joint, reference=...)`,
+  `dynamics.centroidal_momentum(model, state, *, v)`. Callers updated in src/tests/examples/docs/README (`tests/contract/_public_ops.py`
+  case table included). BH `src/` has no call site of any changed function (grep 2026-10-07).
+  LEFT (9 rows): `frame_jacobian`, `joint_jacobian` (x2 each: top-level + kinematics), `inverse_dynamics`, `forward_dynamics`
+  (x2 each), `lie.umeyama` — 25/9/54/15/12 BR call sites; `inverse_dynamics` has 1 BH call site.
+- FIXED L-5 / C-STATE-1: `optim.Phase`, `optim.Result` now `frozen=True`; allowlist rows removed from
+  `tests/contract/test_frozen.py`. LEFT: `Phase.on_start` writing `problem.data` — it writes the phase's own
+  `with_` view, never the caller's `Problem` (docstring already says so); moving it to a return value changes the
+  callback signature used by callers -> owner decision.
+- FIXED C-ERR: `IRError(BetterRobotError, ValueError)` (`io/ir.py`); `ConvergenceError`, `SingularityWarning`,
+  `UnsupportedJointError` removed from `exceptions.py` and `__all__` (no mentions in docs/, BH, or src);
+  `tests/test_exceptions.py`: dropped `test_singularity_warning_is_filterable` and two parametrize rows (subjects gone).
+- FIXED L-9 / C-DOC-4: 49 Sphinx roles replaced by backtick spans in 15 non-viewer files; 1 role left in `viewer/`.
+  Not done: the no-role check in `tests/contract/test_docstrings.py`.
+- FIXED L-3 / C-DEP-1: `better_robot.kinematics.jacobian_columns` public-internal alias of `_jacobian_columns`
+  (`kinematics/__init__.py`, commented, not in `__all__`); `dynamics/_world.py` imports it. Not done: re-rank
+  dynamics above kinematics in `test_layer_dependencies.py`.
+- LEFT L-2 (`int | str` ids), L-1, L-4, L-6, L-7, L-8, C-API-2/3 signature rows, C-STATE-2/4, C-NAME rows: not started.

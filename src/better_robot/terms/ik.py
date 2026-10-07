@@ -15,8 +15,8 @@ from .robot import RobotManifold, frame_pose, joint_limits, kinematic_state, res
 def ik_problem(
     model: Model,
     targets: Mapping[str, torch.Tensor],
-    q0: torch.Tensor,
     *,
+    q0: torch.Tensor,
     limit_weight: float = 0.0,
     rest_weight: float = 0.0,
     q_rest: torch.Tensor | None = None,
@@ -44,7 +44,7 @@ def ik_problem(
     return problem
 
 
-def random_start(model: Model, q0: torch.Tensor, generator: torch.Generator | None = None) -> torch.Tensor:
+def random_start(model: Model, q0: torch.Tensor, *, generator: torch.Generator | None = None) -> torch.Tensor:
     """Copy of ``q0: (B, nq)`` with every vector-space joint that has finite limits sampled uniformly."""
     index = model.structure.manifold_euclidean_q_indices
     lower, upper = model.lower_pos_limit[index], model.upper_pos_limit[index]
@@ -58,8 +58,8 @@ def random_start(model: Model, q0: torch.Tensor, generator: torch.Generator | No
 def solve_ik(
     model: Model,
     targets: Mapping[str, torch.Tensor],
-    q0: torch.Tensor,
     *,
+    q0: torch.Tensor,
     solver: Solver | None = None,
     iters: int = 100,
     restarts: int = 0,
@@ -70,11 +70,11 @@ def solve_ik(
     ``restarts`` extra attempts start from random configurations; each batch element keeps
     its best attempt. This is what gets past the local minima of a single start.
     """
-    problem = ik_problem(model, targets, q0)
+    problem = ik_problem(model, targets, q0=q0)
     solver = solver or LevenbergMarquardt()
     best = solve(problem, solver, iters=iters)
     for _ in range(restarts):
-        attempt = solve(problem, solver, iters=iters, x={"q": random_start(model, q0, generator)})
+        attempt = solve(problem, solver, iters=iters, x={"q": random_start(model, q0, generator=generator)})
         better = attempt.loss < best.loss
         best = Result(
             x=select(better, attempt.x, best.x),

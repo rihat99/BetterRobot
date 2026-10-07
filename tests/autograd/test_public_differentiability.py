@@ -106,7 +106,7 @@ def _centroidal_map(model, q, _velocity, _acceleration, _torque) -> torch.Tensor
 
 
 def _centroidal_momentum(model, q, velocity, _acceleration, _torque) -> torch.Tensor:
-    return br.centroidal_momentum(model, br.forward_kinematics_state(model, q), velocity)
+    return br.centroidal_momentum(model, br.forward_kinematics_state(model, q), v=velocity)
 
 
 def _center_of_mass(model, q, _velocity, _acceleration, _torque) -> torch.Tensor:

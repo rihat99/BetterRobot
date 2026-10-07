@@ -48,7 +48,7 @@ def self_clearance(
     """
 
     def residual(kinematics: KinematicState) -> torch.Tensor:
-        gap = margin - self_distances(spheres, kinematics, pairs)
+        gap = margin - self_distances(spheres, kinematics, pairs=pairs)
         return gap.clamp_min(0.0) if hinge else gap
 
     return TermFn(fn=residual, reads=(state,))
