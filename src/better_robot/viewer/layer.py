@@ -30,8 +30,11 @@ class Layer(ABC):
     ``num_frames == 1`` and is pushed once. Handles registered with ``_track`` get the default
     ``set_visible`` and ``dispose``.
 
-    Subclasses implement ``build`` and ``set_frame``; ``build_gui`` is optional.
+    Subclasses implement ``build`` and ``set_frame``; ``build_gui`` is optional. ``fits_camera = False``
+    keeps a layer's geometry out of the offline renderer's automatic framing (the ground grid).
     """
+
+    fits_camera: bool = True
 
     def __init__(self, name: str, num_frames: int = 1) -> None:
         if num_frames < 1:

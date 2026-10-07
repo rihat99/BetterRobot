@@ -17,22 +17,12 @@ import torch
 from ..data_model import KinematicsLevel
 from ..data_model.data import Data
 from ..data_model.execution_batch import broadcast_to_execution_batch
-from ..data_model.joint_models import JointFreeFlyer
 from ..data_model.model import Model
 from ..data_model.model_structure import ModelStructure
 from ..data_model.model_values import ModelValues
-from ..exceptions import (
-    DeviceMismatchError,
-    DtypeMismatchError,
-    QuaternionNormError,
-    ShapeError,
-)
 from ..lie import se3
 from . import _fk_matrix
-
-
-#: Tolerance used by the opt-in free-flyer quaternion debug check.
-_QUAT_NORM_TOL = 0.1
+from .state import _validate_free_flyer_quaternion_norm, _validate_q
 
 
 @dataclass(frozen=True)
@@ -48,58 +38,6 @@ class FramePlacementsResult:
     """Fresh world-frame placements from :func:`frame_placements_raw`."""
 
     frame_pose_world: torch.Tensor
-
-
-def _validate_q(
-    structure: ModelStructure,
-    values: ModelValues,
-    q: torch.Tensor,
-) -> None:
-    """Check the shape and device of a configuration tensor.
-
-    Raises
-    ------
-    ShapeError
-        If ``q.shape[-1] != model.nq``.
-    DeviceMismatchError
-        If ``q.device`` differs from the model's tensor device.
-
-    See ``docs/conventions/contracts.md §1``.
-    """
-    if q.ndim < 1 or q.shape[-1] != structure.nq:
-        raise ShapeError(f"q has shape {tuple(q.shape)}; expected trailing size model.nq={structure.nq}")
-    if q.dtype not in (torch.float32, torch.float64):
-        raise DtypeMismatchError(f"q.dtype={q.dtype} is unsupported; use torch.float32 or torch.float64")
-    model_dtype = values.joint_placements.dtype
-    if q.dtype != model_dtype:
-        raise DtypeMismatchError(
-            f"q.dtype={q.dtype} != model.dtype={model_dtype}. Cast q or call model.to(dtype=q.dtype) before evaluation."
-        )
-    model_device = values.joint_placements.device
-    if q.device != model_device:
-        raise DeviceMismatchError(
-            f"q.device={q.device} != model.device={model_device}. Call model.to(q.device) or q.to(model.device) first."
-        )
-
-
-def _validate_free_flyer_quaternion_norm(model: Model, q: torch.Tensor) -> None:
-    """Debug-check the free-flyer quaternion norm.
-
-    This check converts a tensor predicate to a Python ``bool`` and therefore
-    synchronizes accelerators.  It must only be called from an explicitly
-    requested public-boundary check, never from tensor-only primitives.
-    """
-    if model.njoints >= 2 and isinstance(model.joint_models[1], JointFreeFlyer):
-        # Free-flyer q layout: [tx, ty, tz, qx, qy, qz, qw]
-        quat = q[..., 3:7]
-        norm = quat.norm(dim=-1)
-        if bool(((norm - 1.0).abs() > _QUAT_NORM_TOL).any()):  # bench-ok: opt-in public-boundary debug validation
-            bad = float(norm.min()), float(norm.max())  # bench-ok: opt-in public-boundary debug validation
-            raise QuaternionNormError(
-                f"free-flyer quaternion norm outside [{1 - _QUAT_NORM_TOL}, "
-                f"{1 + _QUAT_NORM_TOL}] (observed range {bad}). "
-                f"Normalise before passing."
-            )
 
 
 def forward_kinematics_raw(

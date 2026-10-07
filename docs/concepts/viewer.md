@@ -43,11 +43,8 @@ viewer.add(PointsLayer("noise", 0.01 * np.random.randn(1, 200, 3)), group="debug
 viewer.remove_group("debug")
 ```
 
-`add(..., offset=(x, y, z))` moves the whole group in the browser, which is how you put two clips side by side.
-
-!!! note "Current behaviour: offsets are browser-only"
-    The offline renderer ignores `offset`. A `record` of two offset groups draws them on top of each other; give
-    the layers shifted arrays instead if the recording must show them apart.
+`add(..., offset=(x, y, z))` moves the whole group, in the browser and in `record`, which is how you put two
+clips side by side.
 
 ## One timeline drives every layer
 
@@ -136,10 +133,9 @@ viewer.record(out, size=(160, 90), frames=range(3))
 print(out.exists())
 ```
 
-!!! note "Current behaviour: the camera is framed on frame 0"
-    Without a `camera`, `record` frames the view on frame 0 of the visible layers, upright along the theme's `up`
-    axis. A clip that travels far from its start can leave the picture; pass a `Camera` (or build one with
-    `better_robot.viewer.render.frame_camera(layers, frames=...)`) to frame other frames.
+Without a `camera`, `record` fits a 3/4 view to the visible layers sampled over the whole clip (eight frames),
+upright along the theme's `up` axis. Pass a `Camera`, or build one with
+`better_robot.viewer.render.frame_camera(layers, frames=...)`, for a fixed view of your own.
 
 `better_robot.viewer.render.record(layers, path, ...)` is the same renderer without a `Viewer`, for scripts and
 tests that never start a server.
@@ -148,7 +144,8 @@ tests that never start a server.
 
 `Viewer(theme=...)` takes a `Theme`: GUI and scene colours, lights and the `up` axis. `LIGHT` (the default) and
 `DARK` are built in. `Theme(up="+y")` is for data in a y-up convention, such as SMPL bodies; it sets the up
-direction of the browser scene and of the `record` camera.
+direction of the browser scene and of the `record` camera, and a `GroundLayer` added without an explicit
+`plane` lies in the plane perpendicular to it (`"xz"` for `+y`).
 
 ```python
 from better_robot.viewer import DARK, Theme

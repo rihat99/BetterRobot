@@ -11,7 +11,13 @@ from ..layer import Geometry, Layer
 
 
 class GroundLayer(Layer):
-    """Grid in the ``plane`` (``"xy"`` for z-up) at ``height`` along the normal."""
+    """Grid in the ``plane`` at ``height`` along its normal.
+
+    ``plane=None`` (the default) follows the viewer's theme: ``"xy"`` for a z-up theme, ``"xz"`` for y-up,
+    ``"yz"`` for x-up. Pass it explicitly to override, or when the layer is rendered without a ``Viewer``.
+    """
+
+    fits_camera = False
 
     def __init__(
         self,
@@ -19,7 +25,7 @@ class GroundLayer(Layer):
         *,
         size: float = 10.0,
         height: float = 0.0,
-        plane: str = "xy",
+        plane: str | None = None,
         cell_color: RGB = (0.78, 0.78, 0.78),
         section_color: RGB = (0.55, 0.55, 0.55),
     ) -> None:
@@ -31,13 +37,14 @@ class GroundLayer(Layer):
         self.section_color = section_color
 
     def build(self, scene: Any, root: str) -> None:
-        normal = {"xy": (0.0, 0.0, 1.0), "xz": (0.0, 1.0, 0.0), "yz": (1.0, 0.0, 0.0)}[self.plane]
+        plane = self.plane or "xy"
+        normal = {"xy": (0.0, 0.0, 1.0), "xz": (0.0, 1.0, 0.0), "yz": (1.0, 0.0, 0.0)}[plane]
         self._track(
             scene.add_grid(
                 f"{root}/grid",
                 width=self.size,
                 height=self.size,
-                plane=self.plane,
+                plane=plane,
                 cell_color=tuple(int(c) for c in rgb_uint8(self.cell_color)),
                 section_color=tuple(int(c) for c in rgb_uint8(self.section_color)),
                 position=tuple(self.height * n for n in normal),
@@ -62,7 +69,7 @@ class GroundLayer(Layer):
             )
         corners = np.stack(quads)  # (Q, 4, 2)
         lift = np.concatenate([[0.0], np.full(len(quads) - 1, 1e-3)]).astype(np.float32)
-        axes = {"xy": (0, 1, 2), "xz": (0, 2, 1), "yz": (1, 2, 0)}[self.plane]
+        axes = {"xy": (0, 1, 2), "xz": (0, 2, 1), "yz": (1, 2, 0)}[self.plane or "xy"]
         vertices = np.zeros((len(quads), 4, 3), dtype=np.float32)
         vertices[..., axes[0]] = corners[..., 0]
         vertices[..., axes[1]] = corners[..., 1]

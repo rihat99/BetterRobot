@@ -54,7 +54,7 @@ def render_frame(
 
 
 def frame_camera(layers: Sequence[Layer], frames: Iterable[int] = (0,), **options: Any) -> Camera:
-    """A 3/4 camera fitting the geometry of ``layers`` over ``frames`` (ground layers excluded).
+    """A 3/4 camera fitting the geometry of ``layers`` over ``frames`` (layers with ``fits_camera = False`` excluded).
 
     ``options`` go to ``Camera.framing`` (``azimuth``, ``elevation``, ``fov``, ``margin``, ``up``).
     """
@@ -62,7 +62,7 @@ def frame_camera(layers: Sequence[Layer], frames: Iterable[int] = (0,), **option
         geometry.vertices
         for frame in frames
         for layer in layers
-        if type(layer).__name__ != "GroundLayer"
+        if layer.fits_camera
         for geometry in layer.geometry(min(frame, layer.num_frames - 1))
     ]
     if not points:
@@ -78,15 +78,16 @@ def render_frames(
     size: tuple[int, int] = (960, 540),
     background: tuple[float, float, float] = (1.0, 1.0, 1.0),
     device: torch.device | str | None = None,
+    up: tuple[float, float, float] = (0.0, 0.0, 1.0),
 ) -> np.ndarray:
     """Images ``(N, H, W, 3)`` uint8 for ``frames`` (default: every frame of the longest layer).
 
-    Without ``camera`` a 3/4 view is fitted to the geometry sampled over the clip.
+    Without ``camera`` a 3/4 view, upright along ``up``, is fitted to the geometry sampled over the clip.
     """
     if frames is None:
         frames = range(max(layer.num_frames for layer in layers))
     frames = list(frames)
-    camera = camera or frame_camera(layers, frames[:: max(1, len(frames) // 8)])
+    camera = camera or frame_camera(layers, frames[:: max(1, len(frames) // 8)], up=up)
     return np.stack([render_frame(layers, k, camera, size=size, background=background, device=device) for k in frames])
 
 
@@ -100,17 +101,18 @@ def record(
     size: tuple[int, int] = (960, 540),
     background: tuple[float, float, float] = (1.0, 1.0, 1.0),
     device: torch.device | str | None = None,
+    up: tuple[float, float, float] = (0.0, 0.0, 1.0),
 ) -> Path:
     """Render ``layers`` over ``frames`` and write them to ``path``, chosen by its suffix.
 
     ``.gif``; ``.mp4`` (needs ``ffmpeg`` on PATH); or ``.png``, one file per frame named ``<stem>_0000.png``
-    beside ``path``. ``frames`` defaults to every frame of the longest layer; without ``camera`` a 3/4 view is
-    fitted to the clip. Returns the written path (the directory for PNG sequences).
+    beside ``path``. ``frames`` defaults to every frame of the longest layer; without ``camera`` a 3/4 view,
+    upright along ``up``, is fitted to the clip. Returns the written path (the directory for PNG sequences).
     """
     from PIL import Image  # noqa: PLC0415 - optional dependency (viser ships it)
 
     path = Path(path)
-    images = render_frames(layers, frames, camera=camera, size=size, background=background, device=device)
+    images = render_frames(layers, frames, camera=camera, size=size, background=background, device=device, up=up)
     pil = [Image.fromarray(image) for image in images]
     if path.suffix == ".gif":
         pil[0].save(path, save_all=True, append_images=pil[1:], duration=int(1000 / fps), loop=0)

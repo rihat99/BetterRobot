@@ -7,7 +7,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .layer import Layer
+import numpy as np
+
+from .layer import Geometry, Layer
+from .layers.ground import GroundLayer
 from .layers.plot import PlotPanel
 from .theme import LIGHT, Theme
 from .timeline import Timeline
@@ -25,6 +28,26 @@ class _Group:
     node: Any
     folder: Any
     entries: dict[str, _Entry] = field(default_factory=dict)
+    offset: tuple[float, float, float] | None = None
+
+
+class _Shifted(Layer):
+    """Read-only view of a layer whose group has an ``offset``, for the offline renderer."""
+
+    def __init__(self, layer: Layer, offset: tuple[float, float, float]) -> None:
+        super().__init__(layer.name, layer.num_frames)
+        self.fits_camera = layer.fits_camera
+        self._layer = layer
+        self._offset = np.asarray(offset, dtype=np.float32)
+
+    def build(self, scene: Any, root: str) -> None:
+        raise TypeError("a shifted view is only for rendering")
+
+    def set_frame(self, frame: int) -> None:
+        raise TypeError("a shifted view is only for rendering")
+
+    def geometry(self, frame: int) -> list[Geometry]:
+        return [Geometry(g.vertices + self._offset, g.faces, g.colors) for g in self._layer.geometry(frame)]
 
 
 class Viewer:
@@ -90,8 +113,11 @@ class Viewer:
             group_state = self._groups[group] = _Group(node, folder)
         if offset is not None:
             group_state.node.position = offset
+            group_state.offset = offset
         if layer.name in group_state.entries:
             raise ValueError(f"group {group!r} already has a layer named {layer.name!r}")
+        if isinstance(layer, GroundLayer) and layer.plane is None:
+            layer.plane = {"z": "xy", "y": "xz", "x": "yz"}[self.theme.up[-1]]
         layer.root = f"/{group}/{layer.name}"
         layer.build(self.server.scene, layer.root)
         entry = group_state.entries[layer.name] = _Entry(layer)
@@ -152,16 +178,18 @@ class Viewer:
         """Render the visible layers offline (no browser) to ``.gif``, ``.mp4`` or ``.png`` frames.
 
         ``options`` go to ``better_robot.viewer.render.record`` (``camera``, ``size``, ``frames``, ``background``);
-        without a ``camera`` the view is framed on frame 0 of the visible layers, upright along the theme's ``up``
-        axis. Returns the
-        written path.
+        without a ``camera`` the view is fitted to the visible layers sampled over the clip, upright along the
+        theme's ``up`` axis. Group offsets apply. Returns the written path.
         """
-        from .render import frame_camera, record  # noqa: PLC0415 - keeps torch rasterizer out of the import path
+        from .render import record  # noqa: PLC0415 - keeps torch rasterizer out of the import path
 
-        layers = [entry.layer for group in self._groups.values() for entry in group.entries.values() if entry.visible]
-        if "camera" not in options:
-            options["camera"] = frame_camera(layers, up=self.theme.up_vector)
-        return record(layers, path, fps=fps or self.timeline.fps, **options)
+        layers = [
+            entry.layer if group.offset is None else _Shifted(entry.layer, group.offset)
+            for group in self._groups.values()
+            for entry in group.entries.values()
+            if entry.visible
+        ]
+        return record(layers, path, fps=fps or self.timeline.fps, up=self.theme.up_vector, **options)
 
     def play(self, block: bool = True) -> None:
         """Start playback; with ``block`` keep the process alive until interrupted."""

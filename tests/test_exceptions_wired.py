@@ -18,7 +18,7 @@ from better_robot.exceptions import (
 )
 from better_robot.io.build_model import _check_topology_invariants, build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
-from better_robot.kinematics.forward import forward_kinematics, forward_kinematics_raw
+from better_robot.kinematics.forward import forward_kinematics_raw
 from better_robot.kinematics import forward_kinematics_state
 
 
@@ -110,7 +110,7 @@ def test_quaternion_norm_error_on_floating_base(free_flyer_model):
     # Deliberately zero out the quaternion (norm 0) — well outside the band.
     q[3:7] = 0.0
     with pytest.raises(QuaternionNormError, match="quaternion norm"):
-        forward_kinematics(
+        forward_kinematics_state(
             free_flyer_model,
             q,
             check_quaternion_norm=True,
@@ -122,7 +122,7 @@ def test_quaternion_norm_accepts_small_drift(free_flyer_model):
     q = free_flyer_model.q_neutral.clone()
     q[3:7] = q[3:7] * 1.02  # ~2% over unit norm — fine
     # No exception:
-    forward_kinematics(
+    forward_kinematics_state(
         free_flyer_model,
         q,
         check_quaternion_norm=True,
