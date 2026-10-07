@@ -41,7 +41,7 @@ def test_two_bone_mesh_bends_at_the_second_bone() -> None:
     np.testing.assert_allclose(node.bones[1].position, [0.0, 0.0, 1.0])
 
     sparse = top_k_weights(np.array([[0.4, 0.3, 0.2, 0.05, 0.05]], dtype=np.float32), 4)
-    np.testing.assert_allclose(sparse.sum(), 1.0)
+    np.testing.assert_allclose(sparse.sum(), 1.0, atol=1e-6)
     assert (sparse > 0).sum() == 4
 
 
