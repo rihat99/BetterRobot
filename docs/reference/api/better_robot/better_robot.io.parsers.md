@@ -13,7 +13,7 @@
 :titlesonly:
 :maxdepth: 1
 
-better_robot.io.parsers.urdf
 better_robot.io.parsers.mjcf
 better_robot.io.parsers.programmatic
+better_robot.io.parsers.urdf
 ```
