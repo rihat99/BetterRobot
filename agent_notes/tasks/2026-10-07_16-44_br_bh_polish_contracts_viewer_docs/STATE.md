@@ -14,24 +14,7 @@ BR dev: 6ec3134 (contracts, trim, viewer batch 1), 2f7c6e2 (polish, joint shapes
 keyword-only, ids, sugar). BH dev: e898fd5, 83cc96e, 81ca789 (studio rebuilt + live-verified, docs/studio.md).
 Owner saw the viewer demo ("looks fine"); owner answered intake + 3 decision rounds (see PLAN/p0_synthesis).
 
-## Status: P5 BR docs COMMITTED (171509d: theme, panes, 12 figures, 5 clips + readme gif; 1580 passed, strict ok)
-- In flight (launched ~01:20): mars_aux ×2 docs-vs-code review (brief subagents/p5d_review_brief.md; scopes
-  index+getting-started+concepts / README+guides+contracts+CLAUDE.md); mars_top_opus P5c BH docs site (brief
-  subagents/p5c_bh_docs_brief.md; adds mkdocs trio to BH dev group — same pins as BR; serves 127.0.0.1:8766).
-- Uncommitted in BR: architecture.svg data_model label fixed (+ make_figs.py); full-site screenshots running into
-  vis/p5final/{light,dark} (bg task bkqs1eltg) — look at index + a concept page in both modes.
-- mkdocs serve of the dev docs still on http://127.0.0.1:8765 (task bh6kicmzx).
-
-## Next steps
-2. Save the two review reports to subagents/p5d_review_{a,b}.md, fix findings (mars_light/me), rerun
-   `uv run pytest tests/docs -q` + `mkdocs build --strict`, commit BR.
-3. When P5c returns: save report to subagents/p5c_state.md, verify gates in BH, look at its screenshots, commit BH.
-4. REPORT.md (phases, commits, gates, ledgers, what is left: ruff deferred rules N/D/ANN001/SLF001, L-1/L-4/L-6/L-8
-   ledger items, figure redraws 2–8, finger-joint sphere size in studio, stray marker in studio screenshot, nav-tab
-   label faintness to check in a real browser), final commit, drop the index line in
-   `$(git rev-parse --git-common-dir)/autoresearch/STATE.md`, TG ping (env not set → skip).
-
-## Compact message
-Task 2026-10-07_16-44 (contracts/trim/viewer/studio/docs for BR+BH): phases P1–P4 committed (BR 31a37ed, BH 81ca789);
-P5 docs for BR is uncommitted in tree with a background clip job; next = finish clips, gates, commit, docs review,
-BH docs site, REPORT. Read this STATE.md and resume from "Next steps".
+## Status: DONE (2026-10-08 ~02:30 Dubai)
+All phases committed: BR dev 6ec3134, 2f7c6e2, 31a37ed, 171509d, 2892301; BH dev e898fd5, 83cc96e, 81ca789, bad0de3.
+REPORT.md written (gates, decisions, review fixes, open items). Index line dropped. Nothing pushed or merged.
+Open items for the owner are in REPORT.md "Left open".
