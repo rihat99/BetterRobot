@@ -16,7 +16,8 @@ class SkeletonLayer(Layer):
     """Joint positions ``(T, J, 3)`` and ``parents (J,)`` (``-1`` for roots) drawn as a stick figure.
 
     ``radius`` is one float or ``(J,)`` per joint; ``colors`` is one RGB, ``(J, 3)`` per joint, or
-    ``(T, J, 3)`` per frame (for torque colouring).
+    ``(T, J, 3)`` per frame (for torque colouring). ``colors`` is kept as a uint8 array ``(J, 3)`` or
+    ``(T, J, 3)``: edit it in place and call ``viewer.show()`` to recolour (per-frame colours only).
     Per frame only instance transforms are written: J sphere positions and B bone poses.
     """
 
@@ -42,14 +43,14 @@ class SkeletonLayer(Layer):
         self._child = np.nonzero(self.parents >= 0)[0]
         self._parent = self.parents[self._child]
         colors = np.asarray(colors, dtype=np.float32)
-        self._colors = rgb_uint8(colors, (self.joints.shape[1],)) if colors.ndim <= 2 else rgb_uint8(colors)
+        self.colors = rgb_uint8(colors, (self.joints.shape[1],)) if colors.ndim <= 2 else rgb_uint8(colors)
         self._spheres: Any = None
         self._bones: Any = None
 
     def build(self, scene: Any, root: str) -> None:
         vertices, faces = unit_sphere()
         n_joints = self.joints.shape[1]
-        colors = self._colors if self._colors.ndim == 2 else self._colors[0]
+        colors = self.colors if self.colors.ndim == 2 else self.colors[0]
         self._spheres = self._track(
             scene.add_batched_meshes_simple(
                 f"{root}/joints",
@@ -80,8 +81,8 @@ class SkeletonLayer(Layer):
 
     def set_frame(self, frame: int) -> None:
         self._spheres.batched_positions = self.joints[frame]
-        if self._colors.ndim == 3:
-            self._spheres.batched_colors = self._colors[frame]
+        if self.colors.ndim == 3:
+            self._spheres.batched_colors = self.colors[frame]
         if self._bones is not None:
             positions, wxyzs, scales = self._bone_transforms(frame)
             self._bones.batched_positions = positions
@@ -94,7 +95,7 @@ class SkeletonLayer(Layer):
         vertices, faces = instance_mesh(
             sphere_v, sphere_f, self.joints[frame], np.tile(_IDENTITY, (n_joints, 1)), self.radius
         )
-        colors = (self._colors if self._colors.ndim == 2 else self._colors[frame]).astype(np.float32) / 255.0
+        colors = (self.colors if self.colors.ndim == 2 else self.colors[frame]).astype(np.float32) / 255.0
         out = [Geometry(vertices, faces, np.repeat(colors, len(sphere_f), axis=0))]
         if len(self._child):
             cylinder_v, cylinder_f = unit_cylinder(8)

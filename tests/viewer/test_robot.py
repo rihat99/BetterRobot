@@ -78,7 +78,7 @@ def test_panda_layers_follow_forward_kinematics() -> None:
     skeleton = layers["robot skeleton"]
     np.testing.assert_allclose(skeleton.joints, state.joint_pose[:, 1:, :3].numpy(), atol=1e-6)
     assert skeleton.parents[0] == -1 and list(skeleton.parents[1:]) == [p - 1 for p in model.parents[2:]]
-    assert skeleton._colors.shape == (5, model.njoints - 1, 3)
+    assert skeleton.colors.shape == (5, model.njoints - 1, 3)
 
     server = FakeServer()
     viewer = Viewer(server=server)
