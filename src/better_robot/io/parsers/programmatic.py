@@ -14,6 +14,8 @@ See ``docs/concepts/parsers_and_ir.md §6``.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import torch
 
 from ...data_model.joint_models.base import JointModel
@@ -75,8 +77,10 @@ class ModelBuilder:
     >>> ir = b.finalize()
     """
 
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, *, gravity: Sequence[float] | torch.Tensor | None = None) -> None:
+        """``gravity`` is the world linear acceleration ``(3,)`` (default ``(0, 0, -9.81)``)."""
         self._name = name
+        self._gravity = None if gravity is None else torch.as_tensor(gravity, dtype=torch.float64).reshape(3)
         self._bodies: list[IRBody] = []
         self._body_names: set[str] = set()
         self._joints: list[IRJoint] = []
@@ -426,10 +430,13 @@ class ModelBuilder:
                 f"Expected exactly 1 root body (body with no incoming joint), "
                 f"found {len(root_candidates)}: {root_candidates}"
             )
-        return IRModel(
+        ir = IRModel(
             name=self._name,
             bodies=list(self._bodies),
             joints=list(self._joints),
             frames=list(self._frames),
             root_body=root_candidates[0],
         )
+        if self._gravity is not None:
+            ir.gravity = torch.cat((self._gravity, torch.zeros(3, dtype=torch.float64)))
+        return ir
