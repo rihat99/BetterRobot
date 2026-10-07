@@ -67,8 +67,29 @@ line-length = 120
 target-version = "py310"
 
 [tool.ruff.lint]
-select = ["E", "F", "PLC", "PLE", "PLR", "PLW"]
+select = ["E", "F", "PLC", "PLE", "PLR", "PLW", "B006", "B008", "T201", "E722", "TID251",
+          "FBT001", "FBT002", "BLE001", "ERA001", "ANN201"]
 ignore = ["E501", "PLR0913", "PLR2004"]
+# Contract rules deferred until the polish phase clears their violations (counts on 2026-10-07, `src/` only):
+#   "N"      113  C-NAME-2 (needs per-file ignores for N803/N806 in lie, spatial, kinematics, dynamics)
+#   "D"      305  C-DOC-1  (numpy convention; D1xx on public names only)
+#   "ANN001" 132  C-TEST-2
+#   "SLF001"  31  C-EXT-3
+# Enabled above with open violations listed in the task ledger (p1_violations.md):
+#   FBT001 9, FBT002 3, BLE001 2, ERA001 7, ANN201 4.
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ANN201", "FBT001", "FBT002", "ERA001"]
+"examples/**" = ["ANN201", "T201"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"torch.set_default_dtype".msg = "C-DEP-3: no process-wide torch settings inside the library"
+"torch.set_default_device".msg = "C-DEP-3: no process-wide torch settings inside the library"
+"torch.set_grad_enabled".msg = "C-DEP-3 / C-DIFF-4: no global autograd switches inside the library"
+"torch.use_deterministic_algorithms".msg = "C-DEP-3: no process-wide torch settings inside the library"
+"torch.manual_seed".msg = "C-DEP-3: no process-wide RNG seeding inside the library; take a generator"
+"torch.set_num_threads".msg = "C-DEP-3: no process-wide thread settings inside the library"
+"torch.set_num_interop_threads".msg = "C-DEP-3: no process-wide thread settings inside the library"
 
 [tool.mypy]
 python_version = "3.10"

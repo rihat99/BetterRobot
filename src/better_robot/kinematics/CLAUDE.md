@@ -103,3 +103,5 @@ pairs, cat, transpose, a second mask-multiply, a second mimic reduce) — also
 independent of joint count. LOCAL and LOCAL_WORLD_ALIGNED `J̇` are derived in
 `state.py` from the WORLD result via verified closed forms. Everything
 stays autograd- and `torch.func`-safe; no host syncs.
+
+Design contracts (rule IDs `C-*`, enforcement matrix, ADRs): `docs/contracts/00-index.md`.

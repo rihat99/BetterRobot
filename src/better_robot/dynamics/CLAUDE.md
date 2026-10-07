@@ -39,3 +39,5 @@ slices is not much slower in forward mode; the mass matrix `(N, nv, nv)` is then
 - `fext` is per joint in the joint's own frame; gravity enters as the base acceleration.
 - Inside RNEA a joint force is the wrench the joint transmits to its subtree, in the joint frame.
 - Parity with Pinocchio (`tests/test_pinocchio/`) is the oracle; do not weaken it.
+
+Design contracts (rule IDs `C-*`, enforcement matrix, ADRs): `docs/contracts/00-index.md`.

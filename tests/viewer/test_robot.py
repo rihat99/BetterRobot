@@ -43,7 +43,7 @@ def test_rigid_mesh_layer_moves_each_mesh_with_its_body() -> None:
     ]
     layer = RigidMeshLayer("meshes", specs, body_poses)
     layer.build(scene, "/r/meshes")
-    layer.set_frame(3)
+    layer.set_step(3)
     expected = compose_poses(body_poses[3, 2], origin)
     node = scene.nodes["/r/meshes/mesh_0"]
     np.testing.assert_allclose(node.position, expected[:3], atol=1e-6)
@@ -52,8 +52,8 @@ def test_rigid_mesh_layer_moves_each_mesh_with_its_body() -> None:
 
     deforming = MeshLayer("soft", np.zeros((6, 3, 3)), np.array([[0, 1, 2]]))
     deforming.build(scene, "/r/soft")
-    deforming.set_frame(5)
-    assert deforming.num_frames == 6 and ("/r/soft/mesh", "vertices") in scene.log
+    deforming.set_step(5)
+    assert deforming.nsteps == 6 and ("/r/soft/mesh", "vertices") in scene.log
     SpheresLayer("s", np.zeros((2, 4, 3)), np.ones(4)).build(scene, "/r/s")
     assert scene.nodes["/r/s/spheres"].props["batched_scales"].shape == (4,)
 
@@ -125,8 +125,8 @@ def test_torque_colours_skip_joints_without_a_finite_limit() -> None:
     model = br.load(g1_description.URDF_PATH, free_flyer=True)
     tau = np.zeros(model.nv, dtype=np.float32)
     tau[:6] = 1e6  # free-flyer "torques": no effort limit, must stay in the base colour
-    colors = _torque_colors(model, tau, LIGHT, num_frames=3)
+    colors = _torque_colors(model, tau, LIGHT, nsteps=3)
     assert colors.shape == (3, model.njoints - 1, 3)
     np.testing.assert_allclose(colors[:, 0], np.tile(LIGHT.joint, (3, 1)), atol=1e-6)
     with pytest.raises(ValueError):
-        _torque_colors(model, np.zeros((2, model.nv), dtype=np.float32), LIGHT, num_frames=3)
+        _torque_colors(model, np.zeros((2, model.nv), dtype=np.float32), LIGHT, nsteps=3)

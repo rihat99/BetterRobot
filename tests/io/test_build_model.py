@@ -15,7 +15,6 @@ import better_robot.io as br_io
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.io.ir import IRError
-from better_robot.data_model.model import Model
 from better_robot.data_model.joint_models import JointFreeFlyer
 
 
@@ -40,27 +39,10 @@ def _simple_arm_ir():
     return b.finalize()
 
 
-def test_returns_model():
-    model = build_model(_simple_arm_ir())
-    assert isinstance(model, Model)
-
-
-def test_ir_schema_handshake_is_retired():
-    ir = _simple_arm_ir()
-    assert "schema_version" not in ir.__dataclass_fields__
-    assert not hasattr(br_io, "IR_SCHEMA_VERSION")
-
-
 def test_frozen():
     model = build_model(_simple_arm_ir())
     with pytest.raises((dataclasses.FrozenInstanceError, AttributeError)):
         model.nq = 99  # type: ignore[misc]
-
-
-def test_joint_count():
-    # 2 bodies in IR → 2 + 2 model joints (universe + root + ir joints)
-    model = build_model(_simple_arm_ir())
-    assert model.njoints == 3  # universe, root_joint, j1
 
 
 def test_universe_joint_zero():
@@ -77,27 +59,6 @@ def test_root_joint_is_fixed_by_default():
     assert model.parents[1] == 0
 
 
-def test_revolute_z_mapped_to_jrz():
-    model = build_model(_simple_arm_ir())
-    # joint index 2 = j1 (revolute around Z)
-    assert model.joint_models[2].kind == "revolute_rz"
-
-
-def test_nq_nv():
-    model = build_model(_simple_arm_ir())
-    # JointUniverse(0) + JointFixed(0) + JointRZ(1) → nq=1, nv=1
-    assert model.nq == 1
-    assert model.nv == 1
-
-
-def test_idx_qs():
-    model = build_model(_simple_arm_ir())
-    # universe: idx_q=0, fixed: idx_q=0, j1: idx_q=0
-    assert model.idx_qs[0] == 0
-    assert model.idx_qs[1] == 0
-    assert model.idx_qs[2] == 0
-
-
 def test_limits():
     model = build_model(_simple_arm_ir())
     assert abs(float(model.lower_pos_limit[0]) - (-math.pi)) < 1e-5
@@ -106,35 +67,41 @@ def test_limits():
     assert abs(float(model.effort_limit[0]) - 100.0) < 1e-5
 
 
-def test_joint_placements_shape():
+@pytest.mark.parametrize(
+    "body_index, mass",
+    [
+        pytest.param(1, 0.5, id="root_base"),
+        pytest.param(2, 1.0, id="child_link1"),
+    ],
+)
+def test_body_inertia_mass(body_index, mass):
     model = build_model(_simple_arm_ir())
-    assert model.joint_placements.shape == (model.njoints, 7)
+    assert abs(float(model.body_inertias[body_index, 0]) - mass) < 1e-5
 
 
-def test_body_inertias_shape():
-    model = build_model(_simple_arm_ir())
-    assert model.body_inertias.shape == (model.nbodies, 10)
+def _model_with_ir_frame():
+    b = ModelBuilder("f")
+    b.add_body("root")
+    b.add_body("child")
+    b.add_fixed("j1", parent="root", child="child", origin=_id7())
+    b.add_frame("tip", parent_body="child", placement=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]))
+    return build_model(b.finalize())
 
 
-def test_root_body_inertia():
-    model = build_model(_simple_arm_ir())
-    # body 1 = base (mass=0.5)
-    assert abs(float(model.body_inertias[1, 0]) - 0.5) < 1e-5
-
-
-def test_child_body_inertia():
-    model = build_model(_simple_arm_ir())
-    # body 2 = link1 (mass=1.0)
-    assert abs(float(model.body_inertias[2, 0]) - 1.0) < 1e-5
-
-
-def test_body_frames_created():
-    model = build_model(_simple_arm_ir())
-    # Should have body_universe, body_base, body_link1
-    frame_names = set(model.frame_names)
-    assert "body_universe" in frame_names
-    assert "body_base" in frame_names
-    assert "body_link1" in frame_names
+@pytest.mark.parametrize(
+    "make_model, expected_frames",
+    [
+        pytest.param(
+            lambda: build_model(_simple_arm_ir()), ("body_universe", "body_base", "body_link1"), id="body_frames"
+        ),
+        pytest.param(_model_with_ir_frame, ("tip",), id="ir_frame"),
+    ],
+)
+def test_frames_created(make_model, expected_frames):
+    model = make_model()
+    for name in expected_frames:
+        assert name in set(model.frame_names)
+        assert name in model.frame_name_to_id
 
 
 def test_name_to_id_dicts():
@@ -206,33 +173,17 @@ def test_idx_qs_dfs_order_on_branching_tree():
     assert model.subtrees[4] == (4, 5)  # right_j1 subtree = {right_j1, right_j2}
 
 
-def test_free_flyer_root_joint():
-    ir = _simple_arm_ir()
-    model = build_model(ir, root_joint=JointFreeFlyer())
-    assert model.joint_models[1].kind == "free_flyer"
-    # nq = 7 (free flyer) + 1 (revolute) = 8
-    assert model.nq == 8
-    assert model.nv == 7
-
-
-def test_free_flyer_shortcut_via_load():
-    model = br_io.load(_simple_arm_ir, free_flyer=True)
-    assert model.joint_models[1].kind == "free_flyer"
-
-
-def test_revolute_unaligned():
+def _unaligned_model():
     b = ModelBuilder("ua")
     b.add_body("base")
     b.add_body("child")
     b.add_revolute(
         "j1", parent="base", child="child", axis=torch.tensor([0.707, 0.707, 0.0]), origin=_id7(), lower=-1.0, upper=1.0
     )
-    ir = b.finalize()
-    model = build_model(ir)
-    assert model.joint_models[2].kind == "revolute_unaligned"
+    return build_model(b.finalize())
 
 
-def test_continuous_joint():
+def _continuous_model():
     b = ModelBuilder("cont")
     b.add_body("base")
     b.add_body("wheel")
@@ -244,23 +195,39 @@ def test_continuous_joint():
         origin=_id7(),
         unbounded=True,
     )
-    ir = b.finalize()
-    model = build_model(ir)
-    assert model.joint_models[2].kind == "revolute_unbounded"
-    assert model.nq == 2  # cos,sin
-    assert model.nv == 1
+    return build_model(b.finalize())
 
 
-def test_spherical_joint():
+def _spherical_model():
     b = ModelBuilder("ball")
     b.add_body("base")
     b.add_body("child")
     b.add_spherical("j1", parent="base", child="child", origin=_id7())
-    ir = b.finalize()
-    model = build_model(ir)
-    assert model.joint_models[2].kind == "spherical"
-    assert model.nq == 4
-    assert model.nv == 3
+    return build_model(b.finalize())
+
+
+@pytest.mark.parametrize(
+    "make_model, joint_index, kind, nq, nv",
+    [
+        # joint index 2 = j1 (revolute around Z)
+        pytest.param(lambda: build_model(_simple_arm_ir()), 2, "revolute_rz", 1, 1, id="revolute_z"),
+        pytest.param(_unaligned_model, 2, "revolute_unaligned", 1, 1, id="revolute_unaligned"),
+        pytest.param(_continuous_model, 2, "revolute_unbounded", 2, 1, id="continuous"),  # nq = cos,sin
+        pytest.param(_spherical_model, 2, "spherical", 4, 3, id="spherical"),
+        # nq = 7 (free flyer) + 1 (revolute) = 8
+        pytest.param(
+            lambda: build_model(_simple_arm_ir(), root_joint=JointFreeFlyer()), 1, "free_flyer", 8, 7, id="free_flyer_root"
+        ),
+        pytest.param(
+            lambda: br_io.load(_simple_arm_ir, free_flyer=True), 1, "free_flyer", 8, 7, id="free_flyer_shortcut_via_load"
+        ),
+    ],
+)
+def test_joint_kind_mapping(make_model, joint_index, kind, nq, nv):
+    model = make_model()
+    assert model.joint_models[joint_index].kind == kind
+    assert model.nq == nq
+    assert model.nv == nv
 
 
 def test_multi_joint_chain():
@@ -335,28 +302,6 @@ def test_mimic_bad_source_raises():
     ir = b.finalize()
     with pytest.raises(IRError, match="Mimic source"):
         build_model(ir)
-
-
-def test_q_neutral():
-    b = ModelBuilder("n")
-    b.add_body("root")
-    b.add_body("child")
-    b.add_revolute_z("j1", parent="root", child="child", origin=_id7(), lower=-1.0, upper=1.0)
-    ir = b.finalize()
-    model = build_model(ir)
-    assert model.q_neutral.shape == (model.nq,)
-    assert float(model.q_neutral[0]) == pytest.approx(0.0)
-
-
-def test_ir_frame_added():
-    b = ModelBuilder("f")
-    b.add_body("root")
-    b.add_body("child")
-    b.add_fixed("j1", parent="root", child="child", origin=_id7())
-    b.add_frame("tip", parent_body="child", placement=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]))
-    ir = b.finalize()
-    model = build_model(ir)
-    assert "tip" in model.frame_name_to_id
 
 
 def test_device_dtype_kwarg():

@@ -1,4 +1,4 @@
-"""``PointsLayer``: a point cloud, static or per frame."""
+"""``PointsLayer``: a point cloud, static or per step."""
 
 from __future__ import annotations
 
@@ -51,14 +51,14 @@ class PointsLayer(Layer):
             )
         )
 
-    def geometry(self, frame: int) -> list[Geometry]:
+    def geometry(self, step: int) -> list[Geometry]:
         n = self.points.shape[1]
         wxyz = np.tile(np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32), (n, 1))
-        vertices, faces = instance_mesh(*_OCTAHEDRON, self.points[frame], wxyz, self.point_size)
-        colors = (self._colors if self._colors.ndim == 2 else self._colors[frame]).astype(np.float32) / 255.0
+        vertices, faces = instance_mesh(*_OCTAHEDRON, self.points[step], wxyz, self.point_size)
+        colors = (self._colors if self._colors.ndim == 2 else self._colors[step]).astype(np.float32) / 255.0
         return [Geometry(vertices, faces, np.repeat(colors, 8, axis=0))]
 
-    def set_frame(self, frame: int) -> None:
-        self._cloud.points = self.points[frame]
+    def set_step(self, step: int) -> None:
+        self._cloud.points = self.points[step]
         if self._colors.ndim == 3:
-            self._cloud.colors = self._colors[frame]
+            self._cloud.colors = self._colors[step]

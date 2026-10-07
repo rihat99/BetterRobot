@@ -11,7 +11,7 @@ import pytest
 import torch
 
 from better_robot.io.parsers.programmatic import ModelBuilder
-from better_robot.io.ir import IRModel, IRJoint, IRBody
+from better_robot.io.ir import IRModel
 
 
 def _identity_se3() -> torch.Tensor:
@@ -29,12 +29,6 @@ def _simple_arm() -> IRModel:
         lower=-math.pi, upper=math.pi,
     )
     return b.finalize()
-
-
-def test_finalize_returns_irmodel():
-    ir = _simple_arm()
-    assert isinstance(ir, IRModel)
-    assert ir.name == "test_arm"
 
 
 def test_root_body_detected():
@@ -59,29 +53,32 @@ def test_joint_parent_child():
     assert torch.allclose(j.axis, torch.tensor([1.0, 0.0, 0.0]))
 
 
-def test_duplicate_body_raises():
-    b = ModelBuilder("x")
-    b.add_body("base")
-    with pytest.raises(ValueError, match="already exists"):
-        b.add_body("base")
-
-
-def test_duplicate_joint_raises():
-    b = ModelBuilder("x")
+def _add_base_link1_and_j1(b):
     b.add_body("base")
     b.add_body("link1")
     b.add_revolute_z("j1", parent="base", child="link1", origin=_identity_se3())
-    with pytest.raises(ValueError, match="already exists"):
-        b.add_revolute_z("j1", parent="base", child="link1", origin=_identity_se3())
 
 
-def test_multiple_root_bodies_raises():
+@pytest.mark.parametrize(
+    ("setup", "action", "match"),
+    [
+        pytest.param(lambda b: b.add_body("base"), lambda b: b.add_body("base"),
+                     "already exists", id="duplicate_body"),
+        pytest.param(
+            _add_base_link1_and_j1,
+            lambda b: b.add_revolute_z("j1", parent="base", child="link1", origin=_identity_se3()),
+            "already exists", id="duplicate_joint",
+        ),
+        # No joints → 2 root candidates
+        pytest.param(lambda b: (b.add_body("a"), b.add_body("b")), lambda b: b.finalize(),
+                     "root body", id="multiple_root_bodies"),
+    ],
+)
+def test_builder_invalid_structure_raises(setup, action, match):
     b = ModelBuilder("x")
-    b.add_body("a")
-    b.add_body("b")
-    # No joints → 2 root candidates
-    with pytest.raises(ValueError, match="root body"):
-        b.finalize()
+    setup(b)
+    with pytest.raises(ValueError, match=match):
+        action(b)
 
 
 def test_add_frame():

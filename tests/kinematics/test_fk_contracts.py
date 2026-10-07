@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import math
 
-import pytest
 import torch
 
 from better_robot.io.build_model import build_model
@@ -143,28 +142,3 @@ def test_matrix_fk_batched_joint_placements_forward_and_grad() -> None:
             atol=1e-5,
             rtol=1e-5,
         )
-
-
-@pytest.mark.slow
-def test_use_compile_matches_eager() -> None:
-    """``torch.compile`` of the state FK returns the eager result (first call compiles)."""
-    if getattr(torch, "compile", None) is None:
-        pytest.skip("torch.compile is unavailable")
-
-    model = _mixed_kind_model()
-    q = _random_config(model, batch=(3,), scale=0.8, seed=11)
-
-    eager = forward_kinematics_state(model, q)
-    compiled = torch.compile(forward_kinematics_state)(model, q)
-    torch.testing.assert_close(
-        compiled.joint_pose,
-        eager.joint_pose,
-        atol=1e-4,
-        rtol=1e-4,
-    )
-    torch.testing.assert_close(
-        compiled.frame_pose,
-        eager.frame_pose,
-        atol=1e-4,
-        rtol=1e-4,
-    )

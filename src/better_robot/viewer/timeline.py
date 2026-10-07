@@ -1,4 +1,4 @@
-"""``Timeline``: the current frame, playback by wall clock, and its GUI controls."""
+"""``Timeline``: the current step, playback by wall clock, and its GUI controls."""
 
 from __future__ import annotations
 
@@ -9,21 +9,21 @@ from typing import Any
 
 
 class Timeline:
-    """Frame counter for ``num_frames`` frames at ``fps``.
+    """Frame counter for ``nsteps`` steps at ``fps``.
 
-    Setting ``frame`` clamps to ``[0, num_frames - 1]`` and notifies the ``on_frame`` callbacks
-    (the viewer pushes the frame from there). ``play`` starts a thread that advances by wall
-    clock, so slow pushes drop frames instead of slowing playback.
+    Setting ``step`` clamps to ``[0, nsteps - 1]`` and notifies the ``on_step`` callbacks
+    (the viewer pushes the step from there). ``play`` starts a thread that advances by wall
+    clock, so slow pushes drop steps instead of slowing playback.
     """
 
-    def __init__(self, num_frames: int = 1, fps: float = 30.0, loop: bool = True) -> None:
-        if num_frames < 1 or fps <= 0.0:
-            raise ValueError("num_frames must be at least 1 and fps positive")
-        self.num_frames = num_frames
+    def __init__(self, nsteps: int = 1, fps: float = 30.0, loop: bool = True) -> None:
+        if nsteps < 1 or fps <= 0.0:
+            raise ValueError("nsteps must be at least 1 and fps positive")
+        self.nsteps = nsteps
         self.fps = fps
         self.loop = loop
         self.speed = 1.0
-        self._frame = 0
+        self._step = 0
         self._callbacks: list[Callable[[int], None]] = []
         self._playing = threading.Event()
         self._lock = threading.Lock()
@@ -32,14 +32,14 @@ class Timeline:
         self._gui_play: Any = None
 
     @property
-    def frame(self) -> int:
-        """Current frame index; assigning clamps to ``[0, num_frames - 1]`` and runs the ``on_frame`` callbacks."""
-        return self._frame
+    def step(self) -> int:
+        """Current step index; assigning clamps to ``[0, nsteps - 1]`` and runs the ``on_step`` callbacks."""
+        return self._step
 
-    @frame.setter
-    def frame(self, value: int) -> None:
-        value = min(max(int(value), 0), self.num_frames - 1)
-        self._frame = value
+    @step.setter
+    def step(self, value: int) -> None:
+        value = min(max(int(value), 0), self.nsteps - 1)
+        self._step = value
         for callback in self._callbacks:
             callback(value)
         if self._gui_slider is not None and self._gui_slider.value != value:
@@ -47,42 +47,42 @@ class Timeline:
 
     @property
     def playing(self) -> bool:
-        """Whether the playback thread is advancing frames."""
+        """Whether the playback thread is advancing steps."""
         return self._playing.is_set()
 
     @property
     def time(self) -> float:
-        """Time of the current frame in seconds."""
-        return self._frame / self.fps
+        """Time of the current step in seconds."""
+        return self._step / self.fps
 
-    def on_frame(self, callback: Callable[[int], None]) -> None:
-        """Call ``callback(frame)`` after every frame change."""
+    def on_step(self, callback: Callable[[int], None]) -> None:
+        """Call ``callback(step)`` after every step change."""
         self._callbacks.append(callback)
 
-    def extend(self, num_frames: int) -> None:
-        """Grow to at least ``num_frames`` frames (layers added later may be longer)."""
-        if num_frames > self.num_frames:
-            self.num_frames = num_frames
+    def extend(self, nsteps: int) -> None:
+        """Grow to at least ``nsteps`` steps (layers added later may be longer)."""
+        if nsteps > self.nsteps:
+            self.nsteps = nsteps
             if self._gui_slider is not None:
-                self._gui_slider.max = num_frames - 1
+                self._gui_slider.max = nsteps - 1
 
     def play(self) -> None:
-        """Start playback in a background thread; a no-op when already playing or ``num_frames == 1``.
+        """Start playback in a background thread; a no-op when already playing or ``nsteps == 1``.
 
-        Without ``loop``, playback that sits on the last frame restarts from frame 0.
+        Without ``loop``, playback that sits on the last step restarts from step 0.
         """
         with self._lock:  # two clients clicking Play together must not start two threads
-            if self.playing or self.num_frames == 1:
+            if self.playing or self.nsteps == 1:
                 return
             self._playing.set()
             self._thread = threading.Thread(target=self._run, name="better_robot.viewer.timeline", daemon=True)
-        if not self.loop and self._frame >= self.num_frames - 1:
-            self.frame = 0
+        if not self.loop and self._step >= self.nsteps - 1:
+            self.step = 0
         self._thread.start()
         self._sync_play_button()
 
     def pause(self) -> None:
-        """Stop playback and wait for the playback thread to exit; the current frame is kept."""
+        """Stop playback and wait for the playback thread to exit; the current step is kept."""
         self._playing.clear()
         if self._thread is not None and self._thread is not threading.current_thread():
             self._thread.join()
@@ -95,26 +95,26 @@ class Timeline:
 
     def _run(self) -> None:
         start_time = time.perf_counter()
-        start_frame = self._frame
+        start_step = self._step
         while self.playing:
             elapsed = (time.perf_counter() - start_time) * self.speed
-            target = start_frame + int(elapsed * self.fps)
-            if target >= self.num_frames:
+            target = start_step + int(elapsed * self.fps)
+            if target >= self.nsteps:
                 if not self.loop:
-                    self.frame = self.num_frames - 1
+                    self.step = self.nsteps - 1
                     self._playing.clear()
                     self._sync_play_button()
                     return
-                target %= self.num_frames
-            if target != self._frame:
-                self.frame = target
+                target %= self.nsteps
+            if target != self._step:
+                self.step = target
             time.sleep(min(0.5 / (self.fps * self.speed), 0.05))
 
     def build_gui(self, gui: Any) -> None:
-        """Play/pause, frame slider, speed and loop controls in the given GUI api or folder."""
+        """Play/pause, step slider, speed and loop controls in the given GUI api or folder."""
         self._gui_play = gui.add_button("Play")
         self._gui_play.on_click(lambda _: self.toggle())
-        self._gui_slider = gui.add_slider("Frame", min=0, max=self.num_frames - 1, step=1, initial_value=self._frame)
+        self._gui_slider = gui.add_slider("Step", min=0, max=self.nsteps - 1, step=1, initial_value=self._step)
         self._gui_slider.on_update(lambda _: self._on_slider())
         speed = gui.add_slider("Speed", min=0.1, max=4.0, step=0.1, initial_value=self.speed)
         speed.on_update(lambda _: self._set_speed(speed.value))
@@ -122,8 +122,8 @@ class Timeline:
         loop.on_update(lambda _: setattr(self, "loop", bool(loop.value)))
 
     def _on_slider(self) -> None:
-        if self._gui_slider.value != self._frame:
-            self.frame = self._gui_slider.value
+        if self._gui_slider.value != self._step:
+            self.step = self._gui_slider.value
 
     def _set_speed(self, speed: float) -> None:
         was_playing = self.playing

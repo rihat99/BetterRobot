@@ -97,7 +97,6 @@ nav:
       - concepts/collision.md
       - concepts/viewer.md
       - concepts/io.md
-      - concepts/design-decisions.md
   - Guides:
       - guides/load-a-robot.md
       - guides/write-a-term.md
@@ -123,7 +122,26 @@ nav:
       - reference/glossary.md
       - reference/changelog.md
       - reference/roadmap.md
+  - Contracts:
+      - Index: contracts/00-index.md
+      - Naming: contracts/01-naming.md
+      - Tensors: contracts/02-tensors.md
+      - State and mutability: contracts/03-state-mutability.md
+      - Differentiability: contracts/04-differentiability.md
+      - API shape: contracts/05-api-shape.md
+      - Validation and errors: contracts/06-validation-errors.md
+      - Dependencies and layering: contracts/07-dependencies-layering.md
+      - Extension points: contracts/08-extension-points.md
+      - Performance: contracts/09-performance.md
+      - Docs and tests: contracts/10-docs-tests.md
+      - Decisions:
+          - Index: contracts/decisions/index.md
+          - 0001 Torch only: contracts/decisions/0001-torch-only.md
+          - 0002 Immutable FK state: contracts/decisions/0002-immutable-fk-state.md
+          - 0003 Terms as functions: contracts/decisions/0003-terms-plain-functions.md
+          - 0004 viser viewer: contracts/decisions/0004-viser-viewer.md
+          - 0005 nq and nv: contracts/decisions/0005-nq-nv.md
+          - 0006 Serialization: contracts/decisions/0006-serialization.md
   - Contributing:
-      - contributing/conventions.md
       - contributing/testing.md
       - contributing/extending.md

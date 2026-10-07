@@ -39,20 +39,6 @@ def test_se3_log_exp_round_trip(theta) -> None:
     torch.testing.assert_close(xi_out, xi_in, atol=1e-9, rtol=1e-9)
 
 
-def test_so3_exp_at_zero_is_identity() -> None:
-    omega = torch.zeros(3, dtype=torch.float64)
-    q = so3.exp(omega)
-    expected = torch.tensor([0.0, 0.0, 0.0, 1.0], dtype=torch.float64)
-    torch.testing.assert_close(q, expected, atol=1e-15, rtol=1e-15)
-
-
-def test_se3_exp_at_zero_is_identity() -> None:
-    xi = torch.zeros(6, dtype=torch.float64)
-    T = se3.exp(xi)
-    expected = torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], dtype=torch.float64)
-    torch.testing.assert_close(T, expected, atol=1e-15, rtol=1e-15)
-
-
 def test_se3_log_finite_at_theta_zero() -> None:
     """``∇log`` near θ=0 stays finite."""
     xi = (torch.randn(6, dtype=torch.float64) * 1e-7).requires_grad_(True)

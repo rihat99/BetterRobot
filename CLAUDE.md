@@ -10,8 +10,8 @@ floating-base robots use the same state API
 ## Start here
 
 - Reader documentation: `docs/index.md`
-- Architecture and contracts: `docs/concepts/architecture.md` and
-  `docs/conventions/contracts.md`
+- Architecture: `docs/concepts/architecture.md`
+- Design contracts (rule IDs `C-*`, ADRs): `docs/contracts/00-index.md`
 - Public roadmap: `docs/reference/roadmap.md`
 - Package-specific rules: the nearest `CLAUDE.md` under `src/better_robot/`
 

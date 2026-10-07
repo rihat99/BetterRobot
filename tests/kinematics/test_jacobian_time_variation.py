@@ -166,18 +166,6 @@ def test_reuse_path_matches_fresh(chain):
 # ── shapes ────────────────────────────────────────────────────────────────────
 
 
-def test_batched_shapes(chain):
-    q, v = _q_v(chain)
-    batch = 3
-    q_batched = q.unsqueeze(0).expand(batch, -1).clone()
-    v_batched = v.unsqueeze(0).expand(batch, -1).clone()
-    state = forward_kinematics_state(chain, q_batched)
-    joint_dot = joint_jacobian_time_variation(chain, state, v_batched, chain.joint_id("j3"))
-    frame_dot = frame_jacobian_time_variation(chain, state, v_batched, chain.frame_id("tool"))
-    assert joint_dot.shape == (batch, 6, chain.nv)
-    assert frame_dot.shape == (batch, 6, chain.nv)
-
-
 # ── autograd / compile safety ─────────────────────────────────────────────────
 
 

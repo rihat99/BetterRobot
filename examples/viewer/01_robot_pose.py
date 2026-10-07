@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import argparse
 
-import torch
 from robot_descriptions import panda_description
 
 import better_robot as br

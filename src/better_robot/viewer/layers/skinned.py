@@ -1,4 +1,4 @@
-"""``SkinnedMeshLayer``: linear blend skinning on the client; per frame only bone poses are sent."""
+"""``SkinnedMeshLayer``: linear blend skinning on the client; per step only bone poses are sent."""
 
 from __future__ import annotations
 
@@ -58,19 +58,19 @@ class SkinnedMeshLayer(Layer):
             )
         )
 
-    def set_frame(self, frame: int) -> None:
-        poses = self.bone_poses[frame]
+    def set_step(self, step: int) -> None:
+        poses = self.bone_poses[step]
         wxyz = xyzw_to_wxyz(poses[:, 3:])
         for bone, handle in enumerate(self._mesh.bones):
             handle.wxyz = wxyz[bone]
             handle.position = poses[bone, :3]
 
-    def geometry(self, frame: int) -> list[Geometry]:
-        return [Geometry(self.skin(frame), self.faces.astype(np.int64), np.asarray(self.color, dtype=np.float32))]
+    def geometry(self, step: int) -> list[Geometry]:
+        return [Geometry(self.skin(step), self.faces.astype(np.int64), np.asarray(self.color, dtype=np.float32))]
 
-    def skin(self, frame: int) -> np.ndarray:
-        """Posed vertices ``(V, 3)`` of ``frame`` by linear blend skinning (CPU, numpy)."""
-        bind, posed = self.bind_poses, self.bone_poses[frame]
+    def skin(self, step: int) -> np.ndarray:
+        """Posed vertices ``(V, 3)`` of ``step`` by linear blend skinning (CPU, numpy)."""
+        bind, posed = self.bind_poses, self.bone_poses[step]
         local = self.vertices[:, None] - bind[None, :, :3]  # (V, J, 3)
         conj = bind[:, 3:] * np.array([-1.0, -1.0, -1.0, 1.0], dtype=np.float32)
         local = rotate(conj[None], local)
@@ -91,7 +91,7 @@ def top_k_weights(weights: np.ndarray, k: int) -> np.ndarray:
 class CameraLayer(Layer):
     """Camera frustums at ``poses (T, 7)`` (camera-to-world, OpenCV ``+z`` forward), optional images.
 
-    ``image`` is ``(H, W, 3)`` uint8, ``(T, H, W, 3)``, or a callable ``frame -> image`` for lazy
+    ``image`` is ``(H, W, 3)`` uint8, ``(T, H, W, 3)``, or a callable ``step -> image`` for lazy
     loading; the image is shown inside the frustum.
     """
 
@@ -112,13 +112,13 @@ class CameraLayer(Layer):
         self._image = image
         self._frustum: Any = None
 
-    def image_at(self, frame: int) -> np.ndarray | None:
-        """Image shown in the frustum at ``frame``: ``(H, W, 3)``, or ``None`` when the layer has no image."""
+    def image_at(self, step: int) -> np.ndarray | None:
+        """Image shown in the frustum at ``step``: ``(H, W, 3)``, or ``None`` when the layer has no image."""
         if self._image is None:
             return None
         if callable(self._image):
-            return self._image(frame)
-        return self._image if self._image.ndim == 3 else self._image[frame]
+            return self._image(step)
+        return self._image if self._image.ndim == 3 else self._image[step]
 
     def build(self, scene: Any, root: str) -> None:
         self._frustum = self._track(
@@ -134,8 +134,8 @@ class CameraLayer(Layer):
             )
         )
 
-    def set_frame(self, frame: int) -> None:
-        self._frustum.position = self.poses[frame, :3]
-        self._frustum.wxyz = xyzw_to_wxyz(self.poses[frame, 3:])
+    def set_step(self, step: int) -> None:
+        self._frustum.position = self.poses[step, :3]
+        self._frustum.wxyz = xyzw_to_wxyz(self.poses[step, 3:])
         if self._image is not None and (callable(self._image) or self._image.ndim == 4):
-            self._frustum.image = self.image_at(frame)
+            self._frustum.image = self.image_at(step)

@@ -24,7 +24,7 @@ def test_two_bone_mesh_bends_at_the_second_bone() -> None:
     half = math.sqrt(0.5)
     posed = np.stack([bind, np.array([[0, 0, 0, 0, 0, 0, 1.0], [0, 0, 1.0, half, 0, 0, half]], dtype=np.float32)])
     layer = SkinnedMeshLayer("body", vertices, faces, weights, bind, posed)
-    assert layer.num_frames == 2
+    assert layer.nsteps == 2
     np.testing.assert_allclose(layer.skin(0), vertices, atol=1e-6)
     bent = layer.skin(1)
     np.testing.assert_allclose(bent[[0, 4]], vertices[[0, 4]], atol=1e-6)  # on bone 0 only / at bone 1
@@ -36,7 +36,7 @@ def test_two_bone_mesh_bends_at_the_second_bone() -> None:
     assert node.props["skin_weights"].shape == (9, 2)
     np.testing.assert_allclose(node.props["bone_wxyzs"][1], [1.0, 0.0, 0.0, 0.0])
     node.bones = [server.scene.nodes["/g/body/mesh"].__class__(None, "bone", f"b{i}", {}) for i in range(2)]
-    layer.set_frame(1)
+    layer.set_step(1)
     np.testing.assert_allclose(node.bones[1].wxyz, [half, half, 0.0, 0.0], atol=1e-6)
     np.testing.assert_allclose(node.bones[1].position, [0.0, 0.0, 1.0])
 
@@ -56,9 +56,9 @@ def test_camera_layer_moves_the_frustum_and_swaps_images() -> None:
     layer.build(scene, "/g/cam")
     node = scene.nodes["/g/cam/frustum"]
     assert node.props["image"].max() == 0 and node.props["aspect"] == 1.5
-    layer.set_frame(2)
+    layer.set_step(2)
     assert node.position[0] == 2.0 and node.image.min() == 255
     lazy = CameraLayer("lazy", poses, fov=1.0, aspect=1.0, image=lambda k: images[k])
     lazy.build(scene, "/g/lazy")
-    lazy.set_frame(1)
+    lazy.set_step(1)
     assert scene.nodes["/g/lazy/frustum"].image.shape == (4, 6, 3)

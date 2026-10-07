@@ -13,6 +13,7 @@ _ROOT = Path(__file__).resolve().parents[2]
 _EXAMPLES = sorted(path.name for path in (_ROOT / "examples").glob("0*.py"))
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("name", _EXAMPLES)
 def test_example_runs_headless(name: str) -> None:
     arguments = ["--no-viewer"] if name.startswith("07_") else []

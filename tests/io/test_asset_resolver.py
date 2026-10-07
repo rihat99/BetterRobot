@@ -7,7 +7,6 @@ from pathlib import Path
 import pytest
 
 from better_robot.io.assets import (
-    AssetResolver,
     CompositeResolver,
     FilesystemResolver,
     PackageResolver,
@@ -74,8 +73,3 @@ def test_composite_resolver_all_fail_raises(asset_tree):
     ])
     with pytest.raises(FileNotFoundError):
         composite.resolve("absent.stl")
-
-
-def test_protocol_runtime_check(asset_tree):
-    resolver = FilesystemResolver(base_path=asset_tree)
-    assert isinstance(resolver, AssetResolver)

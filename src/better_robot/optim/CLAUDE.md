@@ -39,3 +39,5 @@ uv run python examples/01_ik.py   # 02..05 likewise
 
 A new Jacobian route or linear-solver path must be compared against `Problem(dense=True)`
 and row-by-row autodiff in `tests/optim/test_problem.py`.
+
+Design contracts (rule IDs `C-*`, enforcement matrix, ADRs): `docs/contracts/00-index.md`.

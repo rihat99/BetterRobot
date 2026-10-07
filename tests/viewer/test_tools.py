@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import threading
+import time
+
 import numpy as np
 
 from better_robot.viewer.tools import CameraFrustum, PoseGizmo, project, ray_hit, vertices_in_rect, vertices_in_sphere
@@ -20,9 +23,32 @@ def test_gizmo_reports_poses_in_xyzw_order_and_fires_callbacks() -> None:
     handle.position = np.array([4.0, 5.0, 6.0])
     handle.wxyz = np.array([1.0, 0.0, 0.0, 0.0])
     handle.fire()
-    np.testing.assert_allclose(seen[0], [4.0, 5.0, 6.0, 0.0, 0.0, 0.0, 1.0])
+    assert gizmo.wait(timeout=5.0)
+    np.testing.assert_allclose(seen[-1], [4.0, 5.0, 6.0, 0.0, 0.0, 0.0, 1.0])
     gizmo.pose = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
     np.testing.assert_allclose(handle.wxyz, [0.0, 1.0, 0.0, 0.0])
+
+
+def test_gizmo_drops_stale_poses_and_calls_back_off_the_caller_thread() -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    seen: list[tuple[np.ndarray, threading.Thread]] = []
+
+    def slow(pose: np.ndarray) -> None:
+        time.sleep(0.05)
+        seen.append((pose, threading.current_thread()))
+
+    gizmo = PoseGizmo(viewer, "target", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], on_change=slow)
+    handle = server.scene.nodes["/tools/target"]
+    handle.wxyz = np.array([1.0, 0.0, 0.0, 0.0])
+    for step in range(50):
+        handle.position = np.array([float(step), 0.0, 0.0])
+        handle.fire()
+    assert gizmo.wait(timeout=5.0)
+    assert 1 <= len(seen) <= 4
+    np.testing.assert_allclose(seen[-1][0][:3], [49.0, 0.0, 0.0])
+    assert all(thread is not threading.main_thread() for _, thread in seen)
+    gizmo.remove()
 
 
 def test_ray_hit_sphere_and_rect_selection() -> None:

@@ -43,13 +43,6 @@ def arm():
 # ── shape checks ─────────────────────────────────────────────────────────────
 
 
-def test_fk_raw_shapes(arm):
-    q = arm.q_neutral
-    result = forward_kinematics_state(arm, q)
-    assert result.joint_pose.shape == (arm.njoints, 7)
-    assert result.joint_transform.shape == (arm.njoints, 3, 4)
-
-
 @pytest.mark.parametrize("dtype", (torch.float16, torch.bfloat16))
 def test_fk_rejects_unsupported_low_precision(arm, dtype):
     low_precision_model = arm.to(dtype=dtype)
@@ -60,20 +53,6 @@ def test_fk_rejects_unsupported_low_precision(arm, dtype):
 def test_fk_rejects_model_query_dtype_mismatch(arm):
     with pytest.raises(DtypeMismatchError, match="model.dtype"):
         forward_kinematics_state(arm, arm.q_neutral.to(torch.float64))
-
-
-def test_fk_data_shapes(arm):
-    q = arm.q_neutral
-    state = forward_kinematics_state(arm, q)
-    assert state.joint_pose.shape == (arm.njoints, 7)
-
-
-def test_fk_batched_shapes(arm):
-    B = 4
-    q = arm.q_neutral.unsqueeze(0).expand(B, -1).clone()
-    result = forward_kinematics_state(arm, q)
-    assert result.joint_pose.shape == (B, arm.njoints, 7)
-    assert result.joint_transform.shape == (B, arm.njoints, 3, 4)
 
 
 # ── correctness at neutral ────────────────────────────────────────────────────
@@ -120,13 +99,6 @@ def test_revolute_z_rotation(arm):
 # ── frame placements ─────────────────────────────────────────────────────────
 
 
-def test_update_frame_placements_shape(arm):
-    q = arm.q_neutral
-    state = forward_kinematics_state(arm, q)
-    assert state.frame_pose is not None
-    assert state.frame_pose.shape == (arm.nframes, 7)
-
-
 def test_body_frame_is_at_joint(arm):
     """body_universe frame should be at identity."""
     q = arm.q_neutral
@@ -146,25 +118,3 @@ def panda_model():
     from better_robot.io import load  # noqa: PLC0415
 
     return load(panda_description.URDF_PATH)
-
-
-def test_panda_fk_neutral_shape(panda_model):
-    q = panda_model.q_neutral
-    state = forward_kinematics_state(panda_model, q)
-    assert state.joint_pose.shape == (panda_model.njoints, 7)
-    assert state.frame_pose.shape == (panda_model.nframes, 7)
-
-
-def test_panda_fk_universe_is_identity(panda_model):
-    q = panda_model.q_neutral
-    result = forward_kinematics_state(panda_model, q)
-    T0 = result.joint_pose[0]
-    assert T0[:3].norm() < 1e-6
-    assert abs(float(T0[6]) - 1.0) < 1e-6
-
-
-@pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
-def test_panda_fk_dtype_preserved(panda_model, dtype):
-    model = panda_model.to(dtype=dtype)
-    result = forward_kinematics_state(model, model.q_neutral)
-    assert result.joint_pose.dtype == dtype

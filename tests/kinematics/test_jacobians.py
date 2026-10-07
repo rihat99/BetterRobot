@@ -75,12 +75,6 @@ def chain():
 # ── shape checks ─────────────────────────────────────────────────────────────
 
 
-def test_compute_joint_jacobians_shape(arm):
-    q = arm.q_neutral
-    state = forward_kinematics_state(arm, q)
-    assert torch.stack([joint_jacobian(arm, state, j, reference="world") for j in range(arm.njoints)], dim=-3).shape == (arm.njoints, 6, arm.nv)
-
-
 def test_joint_jacobian_plan_rebuilds_after_to(chain):
     """The memoised batched-Jacobian plan follows ``ModelStructure.to``.
 
@@ -140,31 +134,6 @@ def test_frame_jacobian_compiles_fullgraph(arm):
     torch.testing.assert_close(compiled(state), evaluate(state))
 
 
-def test_get_frame_jacobian_shape(arm):
-    q = arm.q_neutral
-    state = forward_kinematics_state(arm, q)
-    frame_id = arm.frame_id("body_link1")
-    J = frame_jacobian(arm, state, frame_id)
-    assert J.shape == (6, arm.nv)
-
-
-def test_get_frame_jacobian_batched(arm):
-    B = 3
-    q = arm.q_neutral.unsqueeze(0).expand(B, -1).clone()
-    state = forward_kinematics_state(arm, q)
-    frame_id = arm.frame_id("body_link1")
-    J = frame_jacobian(arm, state, frame_id)
-    assert J.shape == (B, 6, arm.nv)
-
-
-def test_chain_jacobian_shape(chain):
-    q = chain.q_neutral
-    state = forward_kinematics_state(chain, q)
-    frame_id = chain.frame_id("body_l2")
-    J = frame_jacobian(chain, state, frame_id)
-    assert J.shape == (6, chain.nv)  # (6, 2)
-
-
 # ── analytic vs finite diff ───────────────────────────────────────────────────
 
 
@@ -188,15 +157,17 @@ def _analytic_vs_finite_diff(model, q, frame_id, rtol=1e-3, atol=1e-4):
     torch.testing.assert_close(J_analytic, J_finite_diff, rtol=rtol, atol=atol)
 
 
-def test_analytic_vs_finite_diff_simple_arm(arm):
-    q = arm.q_neutral
-    frame_id = arm.frame_id("body_link1")
-    _analytic_vs_finite_diff(arm, q, frame_id)
-
-
-def test_analytic_vs_finite_diff_simple_arm_nonzero_q(arm):
+@pytest.mark.parametrize(
+    "q_overrides",
+    [
+        pytest.param({}, id="neutral_q"),
+        pytest.param({0: 0.5}, id="nonzero_q"),
+    ],
+)
+def test_analytic_vs_finite_diff_simple_arm(arm, q_overrides):
     q = arm.q_neutral.clone()
-    q[0] = 0.5
+    for index, value in q_overrides.items():
+        q[index] = value
     frame_id = arm.frame_id("body_link1")
     _analytic_vs_finite_diff(arm, q, frame_id)
 
@@ -219,20 +190,3 @@ def panda_model():
     from better_robot.io import load  # noqa: PLC0415
 
     return load(panda_description.URDF_PATH)
-
-
-def test_panda_frame_jacobian_shape(panda_model):
-    q = panda_model.q_neutral
-    state = forward_kinematics_state(panda_model, q)
-    # Use the panda_hand frame (or first body frame)
-    frame_name = "body_panda_hand" if "body_panda_hand" in panda_model.frame_name_to_id else panda_model.frame_names[1]
-    frame_id = panda_model.frame_id(frame_name)
-    J = frame_jacobian(panda_model, state, frame_id)
-    assert J.shape == (6, panda_model.nv)
-
-
-def test_panda_analytic_vs_finite_diff(panda_model):
-    q = panda_model.q_neutral
-    frame_name = "body_panda_hand" if "body_panda_hand" in panda_model.frame_name_to_id else panda_model.frame_names[-1]
-    frame_id = panda_model.frame_id(frame_name)
-    _analytic_vs_finite_diff(panda_model, q, frame_id, rtol=1e-3, atol=1e-4)

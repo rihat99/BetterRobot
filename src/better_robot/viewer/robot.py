@@ -125,12 +125,12 @@ def robot_skeleton(
     return SkeletonLayer(name, joint_poses[:, 1:, :3], parents, radius=radii, colors=colors, bone_color=theme.link)
 
 
-def _torque_colors(model: Model, tau: np.ndarray, theme: Theme, num_frames: int) -> np.ndarray:
+def _torque_colors(model: Model, tau: np.ndarray, theme: Theme, nsteps: int) -> np.ndarray:
     """``(T, njoints - 1, 3)`` colours from ``|tau_j| / effort_limit_j``; joints without a torque or a finite
     limit keep the base colour."""
     tau = tau.reshape(-1, model.nv)
-    if tau.shape[0] not in (1, num_frames):
-        raise ValueError(f"tau must have {num_frames} frames or one, got {tau.shape[0]}")
+    if tau.shape[0] not in (1, nsteps):
+        raise ValueError(f"tau must have {nsteps} frames or one, got {tau.shape[0]}")
     limits = model.values.effort_limit.detach().cpu().numpy().reshape(-1)
     # Joints without a finite effort limit (free-flyer, unbounded URDF joints) keep the base colour.
     finite = np.isfinite(limits) & (limits > 0)
@@ -141,7 +141,7 @@ def _torque_colors(model: Model, tau: np.ndarray, theme: Theme, num_frames: int)
             block = np.abs(tau[:, start : start + count]) / limits[start : start + count]
             ratio[:, joint] = block.max(axis=1)
     colors = colormap(ratio, theme.joint, theme.force)
-    return np.broadcast_to(colors, (num_frames, *colors.shape[1:])).copy()
+    return np.broadcast_to(colors, (nsteps, *colors.shape[1:])).copy()
 
 
 def robot_meshes(model: Model, *, collision: bool = False, default_color: Any = (0.8, 0.8, 0.8)) -> list[MeshSpec]:

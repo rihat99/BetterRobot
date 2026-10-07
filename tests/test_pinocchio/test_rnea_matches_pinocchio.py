@@ -117,7 +117,7 @@ def test_rnea_with_fext_matches_pinocchio(panda_both, i):
 
 
 def test_rnea_bias_forces_matches_rnea_zero_accel(panda_both):
-    """Internal consistency: bias_forces(q, v) == rnea(q, v, 0)."""
+    """Internal consistency: bias forces b(q, v) == inverse_dynamics(q, v, 0)."""
     br_model, _, _, _ = panda_both
     q = sample_panda_q(n=1)[0]
     v = _random_v(br_model.nv, seed=42)

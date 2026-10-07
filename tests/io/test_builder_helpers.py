@@ -55,15 +55,6 @@ def test_add_revolute_with_explicit_axis():
     assert model.joint_models[2].kind == "revolute_ry"
 
 
-def test_add_spherical():
-    b = ModelBuilder("s")
-    base = b.add_body("base")
-    tip = b.add_body("tip", mass=1.0)
-    b.add_spherical("j", parent=base, child=tip)
-    model = build_model(b.finalize())
-    assert model.joint_models[2].kind == "spherical"
-
-
 def test_add_free_flyer_root():
     b = ModelBuilder("ff")
     base = b.add_body("base", mass=1.0)
@@ -73,15 +64,6 @@ def test_add_free_flyer_root():
     model = build_model(b.finalize())
     # Joint 1 is the free-flyer root.
     assert model.joint_models[1].kind == "free_flyer"
-
-
-def test_add_fixed():
-    b = ModelBuilder("f")
-    base = b.add_body("base", mass=0.0)
-    a = b.add_body("a", mass=1.0)
-    b.add_fixed("j", parent=base, child=a)
-    model = build_model(b.finalize())
-    assert model.joint_models[2].kind == "fixed"
 
 
 def test_legacy_string_kind_raises_with_helper_pointer():

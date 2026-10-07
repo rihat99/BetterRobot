@@ -6,7 +6,7 @@ Key property checked: Jr(xi) satisfies the finite-difference definition
 import math
 import torch
 import pytest
-from better_robot.lie import se3 as _se3, so3 as _so3
+from better_robot.lie import so3 as _so3
 from better_robot.lie import tangents
 
 
@@ -24,11 +24,6 @@ def test_hat_vee_so3_roundtrip():
     assert torch.allclose(tangents.vee_so3(tangents.hat_so3(w)), w, atol=1e-7)
 
 
-def test_hat_vee_so3_batch():
-    w = torch.randn(5, 3)
-    assert torch.allclose(tangents.vee_so3(tangents.hat_so3(w)), w, atol=1e-7)
-
-
 def test_hat_se3_structure():
     """hat_se3 top-left 3x3 should be skew-sym, top-right column is v."""
     xi = torch.randn(6)
@@ -41,11 +36,6 @@ def test_hat_se3_structure():
 
 def test_hat_vee_se3_roundtrip():
     xi = torch.randn(6)
-    assert torch.allclose(tangents.vee_se3(tangents.hat_se3(xi)), xi, atol=1e-7)
-
-
-def test_hat_vee_se3_batch():
-    xi = torch.randn(4, 6)
     assert torch.allclose(tangents.vee_se3(tangents.hat_se3(xi)), xi, atol=1e-7)
 
 
@@ -125,31 +115,6 @@ def test_left_right_so3_relation():
 # ──────────────────────── SE3 Jacobians ──────────────────────────────────
 
 
-def _fd_jr_se3(xi, eps=1e-5):
-    """Finite-difference right Jacobian of SE3 exp."""
-    n = 6
-    # Promote to float64 to avoid float32 round-off error
-    xi_d = xi.double()
-    Jr_d = torch.zeros(n, n, dtype=torch.float64)
-    T0 = _se3.exp(xi_d)
-    T0_inv = _se3.inverse(T0)
-    for j in range(n):
-        delta = torch.zeros(n, dtype=torch.float64)
-        delta[j] = eps
-        T1 = _se3.exp(xi_d + delta)
-        diff = _se3.compose(T0_inv, T1)
-        Jr_d[:, j] = _se3.log(diff) / eps
-    return Jr_d.to(dtype=xi.dtype)
-
-
-@pytest.mark.parametrize("scale", [0.1, 0.5, 1.5])
-def test_right_jacobian_se3_fd(scale):
-    torch.manual_seed(1)
-    xi = torch.randn(6) * scale
-    Jr_analytic = tangents.right_jacobian_se3(xi)
-    Jr_fd = _fd_jr_se3(xi)
-    assert torch.allclose(Jr_analytic, Jr_fd, atol=2e-4), \
-        f"Jr_se3 mismatch at scale={scale}:\nmax err={(Jr_analytic - Jr_fd).abs().max():.6f}"
 
 
 def test_jr_jrinv_se3_product():

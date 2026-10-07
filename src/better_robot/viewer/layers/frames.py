@@ -35,8 +35,8 @@ class FramesLayer(Layer):
             )
         )
 
-    def geometry(self, frame: int) -> list[Geometry]:
-        poses = self.poses[frame]
+    def geometry(self, step: int) -> list[Geometry]:
+        poses = self.poses[step]
         cylinder_v, cylinder_f = unit_cylinder(6)
         out = []
         for axis in range(3):
@@ -49,6 +49,6 @@ class FramesLayer(Layer):
             out.append(Geometry(vertices, faces, _AXIS_COLORS[axis]))
         return out
 
-    def set_frame(self, frame: int) -> None:
-        self._axes.batched_positions = self.poses[frame, :, :3]
-        self._axes.batched_wxyzs = xyzw_to_wxyz(self.poses[frame, :, 3:])
+    def set_step(self, step: int) -> None:
+        self._axes.batched_positions = self.poses[step, :, :3]
+        self._axes.batched_wxyzs = xyzw_to_wxyz(self.poses[step, :, 3:])

@@ -78,7 +78,7 @@ viewer.show()
 ```python
 viewer.remove_group("live")
 out = Path(tempfile.mkdtemp()) / "panda_swing.gif"
-viewer.record(out, size=(320, 240), frames=range(0, 30, 3))
+viewer.record(out, size=(320, 240), steps=range(0, 30, 3))
 print(out.exists(), out.stat().st_size > 0)
 ```
 

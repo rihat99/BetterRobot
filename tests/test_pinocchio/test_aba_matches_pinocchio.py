@@ -2,9 +2,9 @@
 
 Acceptance for P11-D4:
 
-* ``aba(q, v, rnea(q, v, a)) == a`` to fp64 ulp on Panda (fixed-base) and
+* ``forward_dynamics(q, v, inverse_dynamics(q, v, a)) == a`` to fp64 ulp on Panda (fixed-base) and
   G1 (free-flyer).
-* ``aba(q, v, τ)`` matches ``pin.aba`` on Panda. The looser 1e-4 atol is
+* ``forward_dynamics(q, v, τ)`` matches ``pin.aba`` on Panda. The looser 1e-4 atol is
   the URDF inertia round-trip noise (see comment in
   ``test_rnea_matches_pinocchio.py``).
 """
@@ -41,7 +41,7 @@ def test_aba_matches_pinocchio(panda_both):
 
 
 def test_aba_inverse_of_rnea_panda(panda_both):
-    """``aba(q, v, rnea(q, v, a)) == a`` to fp64 ulp."""
+    """``forward_dynamics(q, v, inverse_dynamics(q, v, a)) == a`` to fp64 ulp."""
     br_model, _, _, _ = panda_both
     qs = sample_panda_q(8, seed=2)
     rng = torch.Generator().manual_seed(3)

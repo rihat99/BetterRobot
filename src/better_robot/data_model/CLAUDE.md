@@ -34,3 +34,5 @@ Implement the `JointModel` protocol in `joint_models/`, add the public kind and
 dimensions, then wire the centralized dispatch and `io/build_model.py`.
 Algorithms must not duplicate parser-string dispatch. Preserve scalar-last
 quaternions and linear-first tangents throughout.
+
+Design contracts (rule IDs `C-*`, enforcement matrix, ADRs): `docs/contracts/00-index.md`.

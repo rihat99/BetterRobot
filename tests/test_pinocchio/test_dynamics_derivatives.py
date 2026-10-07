@@ -5,9 +5,9 @@ The forward routines are pure differentiable PyTorch, so the standard
 end-to-end check. We use small random ``q, v, a`` to keep central-FD
 runtime manageable on CPU.
 
-* ``rnea`` — gradient through the full kinematic chain.
-* ``aba`` — same identity confirmed via ``aba(q, v, rnea(q, v, a)) == a``.
-* ``∂τ/∂a`` from autograd matches ``crba`` to fp64.
+* ``inverse_dynamics`` — gradient through the full kinematic chain.
+* ``forward_dynamics`` — same identity confirmed via ``forward_dynamics(q, v, inverse_dynamics(q, v, a)) == a``.
+* ``∂τ/∂a`` from autograd matches ``mass_matrix`` to fp64.
 """
 
 from __future__ import annotations

@@ -1,14 +1,7 @@
 """Tests for lie/se3.py — SE3 group operations."""
 import math
-import pytest
 import torch
 from better_robot.lie import se3
-
-
-def test_identity_shape():
-    T = se3.identity()
-    assert T.shape == (7,)
-    assert torch.allclose(T, torch.tensor([0., 0., 0., 0., 0., 0., 1.]))
 
 
 def test_identity_batch():
@@ -36,31 +29,12 @@ def test_exp_log_roundtrip():
     assert torch.allclose(xi, xi_back, atol=1e-5)
 
 
-def test_act():
-    """Apply identity → point unchanged."""
-    T = se3.identity()
-    p = torch.tensor([1., 2., 3.])
-    assert torch.allclose(se3.act(T, p), p, atol=1e-6)
-
-
 def test_act_translation():
     """Pure translation shifts the point."""
     T = torch.tensor([1., 0., 0., 0., 0., 0., 1.])  # translate by (1,0,0)
     p = torch.tensor([0., 0., 0.])
     result = se3.act(T, p)
     assert torch.allclose(result, torch.tensor([1., 0., 0.]), atol=1e-6)
-
-
-def test_adjoint_shape():
-    T = se3.exp(torch.randn(6))
-    Ad = se3.adjoint(T)
-    assert Ad.shape == (6, 6)
-
-
-def test_adjoint_batch():
-    T = se3.exp(torch.randn(4, 6))
-    Ad = se3.adjoint(T)
-    assert Ad.shape == (4, 6, 6)
 
 
 def test_adjoint_inv_is_inverse():
@@ -100,11 +74,3 @@ def test_normalize():
     T_norm = se3.normalize(T)
     q = T_norm[3:]
     assert torch.allclose(q.norm(), torch.tensor(1.0), atol=1e-6)
-
-
-def test_apply_base_shape():
-    """apply_base broadcasts over N links."""
-    base = se3.identity()
-    poses = se3.identity().unsqueeze(0).expand(5, 7).clone()
-    result = se3.apply_base(base, poses)
-    assert result.shape == (5, 7)

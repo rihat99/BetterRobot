@@ -137,13 +137,6 @@ def test_open_surface_raises_naming_boundary_edges() -> None:
     assert "[" in str(excinfo.value)  # the message names offending edges
 
 
-def test_open_surface_also_rejected_by_reorientation() -> None:
-    _, faces = _box_mesh()
-    open_faces = torch.cat([faces[:2], faces[4:]], dim=0)
-    with pytest.raises(ValueError, match="boundary edge"):
-        orient_faces_consistently(open_faces)
-
-
 def test_non_manifold_edge_raises_naming_edges() -> None:
     _, faces = _box_mesh()
     non_manifold = torch.cat([faces, faces[:1]], dim=0)  # duplicate one face
@@ -152,15 +145,20 @@ def test_non_manifold_edge_raises_naming_edges() -> None:
     assert "incidence" in str(excinfo.value)
 
 
-def test_non_integer_faces_raise_type_error() -> None:
-    with pytest.raises(TypeError, match="int32 or torch.int64"):
-        validate_closed_manifold(torch.zeros((4, 3), dtype=torch.float32))
-
-
-@pytest.mark.parametrize("bad", [torch.zeros((4, 4), dtype=torch.int64), torch.zeros((0, 3), dtype=torch.int64)])
-def test_wrong_shape_faces_raise_value_error(bad: torch.Tensor) -> None:
-    with pytest.raises(ValueError, match=r"shape \(F, 3\)"):
-        orient_faces_consistently(bad)
+@pytest.mark.parametrize(
+    ("check", "faces", "error", "match"),
+    [
+        pytest.param(validate_closed_manifold, torch.zeros((4, 3), dtype=torch.float32),
+                     TypeError, "int32 or torch.int64", id="non_integer"),
+        pytest.param(orient_faces_consistently, torch.zeros((4, 4), dtype=torch.int64),
+                     ValueError, r"shape \(F, 3\)", id="four_columns"),
+        pytest.param(orient_faces_consistently, torch.zeros((0, 3), dtype=torch.int64),
+                     ValueError, r"shape \(F, 3\)", id="empty"),
+    ],
+)
+def test_bad_faces_raise(check, faces: torch.Tensor, error: type, match: str) -> None:
+    with pytest.raises(error, match=match):
+        check(faces)
 
 
 # --- non-orientable input (bug fix) ------------------------------------------

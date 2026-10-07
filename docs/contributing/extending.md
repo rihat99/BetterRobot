@@ -2,7 +2,7 @@
 
 BetterRobot has four extension points: joint models, optimization terms, viewer layers and file
 parsers. None of them uses a registry of classes; you pass your object where it is needed. This page
-gives the contract for each.
+gives the contract for each; the normative rules are in [contracts/08-extension-points](../contracts/08-extension-points.md).
 
 ## Add a joint model
 
@@ -40,7 +40,7 @@ and must not learn about robots.
 
 Subclass `better_robot.viewer.layer.Layer`. A layer holds its own `(T, ...)` arrays, creates scene
 nodes in `build(scene, root)` (register handles with `_track` so visibility and disposal work), and
-writes one frame in `set_frame(frame)`. See [Viewer](../concepts/viewer.md) for the built-in layers.
+writes one step in `set_step(step)`. See [Viewer](../concepts/viewer.md) for the built-in layers.
 
 ## Add a parser
 
@@ -57,4 +57,4 @@ intermediate model.
 - Optional dependencies are imported lazily inside the function that needs them and raise
   `BackendNotAvailableError` when missing (`tests/contract/test_optional_imports.py`).
 - Add an abstraction only when at least two in-tree callers need it.
-- Follow the [conventions](conventions.md) for names, shapes and validation.
+- Follow the [design contracts](../contracts/00-index.md) for names, shapes and validation; the per-extension-point rules are in [08-extension-points](../contracts/08-extension-points.md).

@@ -46,16 +46,16 @@ class MeshLayer(Layer):
             )
         )
 
-    def geometry(self, frame: int) -> list[Geometry]:
-        return [Geometry(self.vertices[frame], self.faces.astype(np.int64), np.asarray(self.color, dtype=np.float32))]
+    def geometry(self, step: int) -> list[Geometry]:
+        return [Geometry(self.vertices[step], self.faces.astype(np.int64), np.asarray(self.color, dtype=np.float32))]
 
-    def set_frame(self, frame: int) -> None:
-        self._mesh.vertices = self.vertices[frame]
+    def set_step(self, step: int) -> None:
+        self._mesh.vertices = self.vertices[step]
 
 
 @dataclass
 class MeshSpec:
-    """One rigid mesh attached to ``body`` at ``origin`` (``(7,)`` xyzw pose in the body frame).
+    """One rigid mesh attached to ``body`` at ``origin`` (``(7,)`` xyzw pose in the body step).
 
     ``trimesh`` keeps a textured/vertex-coloured source for ``add_mesh_trimesh``; otherwise the
     mesh is sent as ``vertices``/``faces`` with one ``color``.
@@ -70,9 +70,9 @@ class MeshSpec:
 
 
 class RigidMeshLayer(Layer):
-    """Rigid meshes following ``body_poses (T, B, 7)``: one node per mesh, per frame only poses move.
+    """Rigid meshes following ``body_poses (T, B, 7)``: one node per mesh, per step only poses move.
 
-    Arrays are read at ``set_frame`` time, so editing ``body_poses`` in place and calling
+    Arrays are read at ``set_step`` time, so editing ``body_poses`` in place and calling
     ``viewer.show()`` updates the scene (live tools).
     """
 
@@ -102,16 +102,16 @@ class RigidMeshLayer(Layer):
                 )
             self._nodes.append(self._track(node))
 
-    def geometry(self, frame: int) -> list[Geometry]:
-        world = compose_poses(self.body_poses[frame, self._bodies], self._origins)
+    def geometry(self, step: int) -> list[Geometry]:
+        world = compose_poses(self.body_poses[step, self._bodies], self._origins)
         out = []
         for index, spec in enumerate(self.meshes):
             vertices = rotate(world[index, 3:], spec.vertices) + world[index, :3]
             out.append(Geometry(vertices.astype(np.float32), spec.faces.astype(np.int64), _face_colors(spec)))
         return out
 
-    def set_frame(self, frame: int) -> None:
-        world = compose_poses(self.body_poses[frame, self._bodies], self._origins)
+    def set_step(self, step: int) -> None:
+        world = compose_poses(self.body_poses[step, self._bodies], self._origins)
         wxyz = xyzw_to_wxyz(world[:, 3:])
         for index, node in enumerate(self._nodes):
             node.position = world[index, :3]
@@ -156,16 +156,16 @@ class SpheresLayer(Layer):
             )
         )
 
-    def geometry(self, frame: int) -> list[Geometry]:
+    def geometry(self, step: int) -> list[Geometry]:
         sphere_v, sphere_f = unit_sphere(1)
         n = self.centers.shape[1]
         wxyz = np.tile(np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32), (n, 1))
-        vertices, faces = instance_mesh(sphere_v, sphere_f, self.centers[frame], wxyz, self.radii)
+        vertices, faces = instance_mesh(sphere_v, sphere_f, self.centers[step], wxyz, self.radii)
         colors = np.repeat(self._colors.astype(np.float32) / 255.0, len(sphere_f), axis=0)
         return [Geometry(vertices, faces, colors)]
 
-    def set_frame(self, frame: int) -> None:
-        self._spheres.batched_positions = self.centers[frame]
+    def set_step(self, step: int) -> None:
+        self._spheres.batched_positions = self.centers[step]
 
 
 def _face_colors(spec: MeshSpec) -> np.ndarray:

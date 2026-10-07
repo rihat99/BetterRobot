@@ -12,7 +12,7 @@ from better_robot.data_model.joint_models.revolute import (
     JointRX, JointRY, JointRZ, JointRevoluteUnaligned, JointRevoluteUnbounded,
 )
 from better_robot.data_model.joint_models.prismatic import (
-    JointPX, JointPY, JointPZ, JointPrismaticUnaligned,
+    JointPX, JointPY, JointPZ,
 )
 from better_robot.data_model.joint_models.spherical import JointSpherical
 from better_robot.data_model.joint_models.free_flyer import JointFreeFlyer
@@ -38,34 +38,50 @@ def _check_integrate_difference(jm, q, v):
 
 # ──────────────────────── JointFixed / Universe ──────────────────────────
 
-def test_joint_fixed_transform_is_identity():
-    jm = JointFixed()
-    T = jm.joint_transform(torch.zeros(0))
-    assert T.shape == (7,)
-    assert torch.allclose(T, torch.tensor([0., 0., 0., 0., 0., 0., 1.]))
+_IDENTITY_POSE = [0., 0., 0., 0., 0., 0., 1.]
 
 
-def test_joint_universe_same_as_fixed():
-    jm = JointUniverse()
-    T = jm.joint_transform(torch.zeros(0))
-    assert torch.allclose(T, torch.tensor([0., 0., 0., 0., 0., 0., 1.]))
+@pytest.mark.parametrize(
+    "make_value, expected, atol",
+    [
+        pytest.param(lambda: JointFixed().joint_transform(torch.zeros(0)), _IDENTITY_POSE, 1e-8, id="fixed_transform"),
+        pytest.param(
+            lambda: JointUniverse().joint_transform(torch.zeros(0)), _IDENTITY_POSE, 1e-8, id="universe_transform"
+        ),
+        pytest.param(lambda: JointRX().joint_transform(torch.zeros(1)), _IDENTITY_POSE, 1e-6, id="rx_zero_transform"),
+        pytest.param(lambda: JointPX().joint_transform(torch.zeros(1)), _IDENTITY_POSE, 1e-6, id="px_zero_transform"),
+        pytest.param(lambda: JointPY().joint_transform(torch.zeros(1)), _IDENTITY_POSE, 1e-6, id="py_zero_transform"),
+        pytest.param(lambda: JointPZ().joint_transform(torch.zeros(1)), _IDENTITY_POSE, 1e-6, id="pz_zero_transform"),
+        pytest.param(lambda: JointRX().neutral(), [0.], 1e-8, id="rx_neutral"),
+        pytest.param(lambda: JointRY().neutral(), [0.], 1e-8, id="ry_neutral"),
+        pytest.param(lambda: JointRZ().neutral(), [0.], 1e-8, id="rz_neutral"),
+        pytest.param(lambda: JointSpherical().neutral(), [0., 0., 0., 1.], 1e-8, id="spherical_neutral"),
+        pytest.param(lambda: JointFreeFlyer().neutral(), _IDENTITY_POSE, 1e-8, id="free_flyer_neutral"),
+        # Was a translation-only check (T[:3] == 0, atol 1e-5); the full identity pose is stricter.
+        pytest.param(
+            lambda: JointFreeFlyer().joint_transform(JointFreeFlyer().neutral()),
+            _IDENTITY_POSE,
+            1e-5,
+            id="free_flyer_transform_at_neutral",
+        ),
+        # [x=0, y=0, cos=1, sin=0]
+        pytest.param(lambda: JointPlanar().neutral(), [0., 0., 1., 0.], 1e-8, id="planar_neutral"),
+        pytest.param(
+            lambda: JointPlanar().joint_transform(JointPlanar().neutral()),
+            _IDENTITY_POSE,
+            1e-5,
+            id="planar_transform_at_neutral",
+        ),
+    ],
+)
+def test_identity_and_neutral(make_value, expected, atol):
+    value = make_value()
+    expected = torch.tensor(expected)
+    assert value.shape == expected.shape
+    assert torch.allclose(value, expected, atol=atol)
 
 
 # ──────────────────────── Revolute ──────────────────────────────────────
-
-@pytest.mark.parametrize("jm", [JointRX(), JointRY(), JointRZ()])
-def test_revolute_aligned_transform_shape(jm):
-    q = torch.tensor([0.5])
-    T = jm.joint_transform(q)
-    assert T.shape == (7,)
-    # Should be pure rotation (no translation)
-    assert torch.allclose(T[:3], torch.zeros(3), atol=1e-6)
-
-
-def test_revolute_rx_zero_is_identity():
-    jm = JointRX()
-    T = jm.joint_transform(torch.zeros(1))
-    assert torch.allclose(T, torch.tensor([0., 0., 0., 0., 0., 0., 1.]), atol=1e-6)
 
 
 def test_revolute_rz_90deg():
@@ -80,11 +96,6 @@ def test_revolute_integrate_difference():
     q = torch.tensor([0.3])
     v = torch.tensor([0.5])
     _check_integrate_difference(jm, q, v)
-
-
-@pytest.mark.parametrize("jm", [JointRX(), JointRY(), JointRZ()])
-def test_revolute_aligned_neutral(jm):
-    assert torch.allclose(jm.neutral(), torch.zeros(1))
 
 
 def test_revolute_unaligned_transform():
@@ -105,20 +116,7 @@ def test_revolute_unbounded_roundtrip():
     assert torch.allclose(v, v_back, atol=1e-5)
 
 
-@pytest.mark.parametrize("jm", [JointRX(), JointRY(), JointRZ()])
-def test_revolute_batch(jm):
-    q = torch.randn(3, 1)
-    T = jm.joint_transform(q)
-    assert T.shape == (3, 7)
-
-
 # ──────────────────────── Prismatic ──────────────────────────────────────
-
-@pytest.mark.parametrize("jm", [JointPX(), JointPY(), JointPZ()])
-def test_prismatic_zero_is_identity(jm):
-    T = jm.joint_transform(torch.zeros(1))
-    assert torch.allclose(T, torch.tensor([0., 0., 0., 0., 0., 0., 1.]), atol=1e-6)
-
 
 def test_prismatic_px_translation():
     jm = JointPX()
@@ -135,20 +133,6 @@ def test_prismatic_integrate_difference():
 
 
 # ──────────────────────── Spherical ──────────────────────────────────────
-
-def test_spherical_neutral_is_identity():
-    jm = JointSpherical()
-    q = jm.neutral()
-    assert torch.allclose(q, torch.tensor([0., 0., 0., 1.]))
-
-
-def test_spherical_transform_shape():
-    jm = JointSpherical()
-    q = jm.neutral()
-    T = jm.joint_transform(q)
-    assert T.shape == (7,)
-    assert torch.allclose(T[:3], torch.zeros(3), atol=1e-6)
-
 
 def test_spherical_integrate_difference():
     jm = JointSpherical()
@@ -184,43 +168,13 @@ def test_spherical_identical_difference_has_finite_gradient(theta):
     torch.testing.assert_close(q.grad, torch.zeros_like(q))
 
 
-def test_spherical_batch():
-    jm = JointSpherical()
-    q = torch.randn(4, 4)
-    q = q / q.norm(dim=-1, keepdim=True)
-    T = jm.joint_transform(q)
-    assert T.shape == (4, 7)
-
-
 # ──────────────────────── FreeFlyer ──────────────────────────────────────
-
-def test_free_flyer_neutral():
-    jm = JointFreeFlyer()
-    q = jm.neutral()
-    assert q.shape == (7,)
-    assert torch.allclose(q, torch.tensor([0., 0., 0., 0., 0., 0., 1.]))
-
-
-def test_free_flyer_transform_is_identity_at_neutral():
-    jm = JointFreeFlyer()
-    q = jm.neutral()
-    T = jm.joint_transform(q)
-    assert torch.allclose(T[:3], torch.zeros(3), atol=1e-5)
-
 
 def test_free_flyer_integrate_difference():
     jm = JointFreeFlyer()
     q = jm.neutral()
     v = torch.randn(6) * 0.2
     _check_integrate_difference(jm, q, v)
-
-
-def test_free_flyer_batch():
-    jm = JointFreeFlyer()
-    B = 5
-    q = jm.neutral().unsqueeze(0).expand(B, 7).clone()
-    T = jm.joint_transform(q)
-    assert T.shape == (B, 7)
 
 
 # ──────────────────────── Translation ────────────────────────────────────
@@ -241,22 +195,6 @@ def test_translation_integrate_difference():
 
 
 # ──────────────────────── Planar ─────────────────────────────────────────
-
-def test_planar_neutral():
-    jm = JointPlanar()
-    q = jm.neutral()
-    assert q.shape == (4,)
-    # [x=0, y=0, cos=1, sin=0]
-    assert torch.allclose(q, torch.tensor([0., 0., 1., 0.]))
-
-
-def test_planar_transform_zero():
-    jm = JointPlanar()
-    q = jm.neutral()
-    T = jm.joint_transform(q)
-    assert T.shape == (7,)
-    assert torch.allclose(T[:3], torch.zeros(3), atol=1e-5)
-
 
 def test_planar_integrate_difference():
     jm = JointPlanar()

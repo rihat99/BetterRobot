@@ -36,15 +36,15 @@ def test_fifty_frame_scene_builds_and_pushes_every_frame(tmp_path: Path) -> None
         viewer.add(FramesLayer("frames", poses))
         viewer.add(PointsLayer("cloud", rng.normal(size=(50, 1000, 3))), group="scan")
         start = time.perf_counter()
-        for frame in range(50):
-            viewer.show(frame)
+        for step in range(50):
+            viewer.show(step)
         per_frame = (time.perf_counter() - start) / 50
-        assert viewer.timeline.frame == 49
+        assert viewer.timeline.step == 49
         assert per_frame < 2e-3, f"{per_frame * 1e3:.2f} ms per frame"
         viewer.remove_group("scan")
         assert len(viewer.layers) == 4
         path = viewer.save(tmp_path / "clip.viser")
         assert path.stat().st_size > 50 * 4 * 24 * 4  # at least the per-frame skeleton arrays
-        assert viewer.timeline.frame == 49
+        assert viewer.timeline.step == 49
     finally:
         viewer.server.stop()

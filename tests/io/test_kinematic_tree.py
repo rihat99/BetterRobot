@@ -76,67 +76,41 @@ def test_per_body_mass_sequence():
     assert masses == [1.0, 2.0, 3.0]
 
 
-def test_mass_sequence_length_mismatch_raises():
-    translations = torch.zeros(2, 3, dtype=torch.float32)
-    with pytest.raises(ValueError, match="mass_per_body length"):
-        build_kinematic_tree_body(
-            name="m",
-            joint_names=["a", "b"],
-            parents=[-1, 0],
-            translations=translations,
-            mass_per_body=[1.0, 2.0, 3.0],
-        )
-
-
-def test_parents_length_mismatch_raises():
-    with pytest.raises(ValueError, match="parents length"):
-        build_kinematic_tree_body(
-            name="m",
-            joint_names=["a", "b"],
-            parents=[-1],
-            translations=torch.zeros(2, 3),
-        )
-
-
-def test_parents_root_not_minus_one_raises():
-    with pytest.raises(ValueError, match="parents\\[0\\] must be -1"):
-        build_kinematic_tree_body(
-            name="m",
-            joint_names=["a", "b"],
-            parents=[0, 0],
-            translations=torch.zeros(2, 3),
-        )
-
-
-def test_translations_bad_shape_raises():
-    with pytest.raises(ValueError, match="translations shape"):
-        build_kinematic_tree_body(
-            name="m",
-            joint_names=["a", "b"],
-            parents=[-1, 0],
-            translations=torch.zeros(3, 3),
-        )
-
-
-def test_parent_index_out_of_range_raises():
-    with pytest.raises(ValueError, match="must reference an earlier index"):
-        build_kinematic_tree_body(
-            name="m",
-            joint_names=["a", "b", "c"],
-            parents=[-1, 0, 5],
-            translations=torch.zeros(3, 3),
-        )
-
-
-def test_parent_forward_reference_raises():
-    """A non-root joint may only reference an earlier index."""
-    with pytest.raises(ValueError, match="must reference an earlier index"):
-        build_kinematic_tree_body(
-            name="m",
-            joint_names=["a", "b", "c"],
-            parents=[-1, 2, 0],
-            translations=torch.zeros(3, 3),
-        )
+@pytest.mark.parametrize(
+    ("kwargs", "match"),
+    [
+        pytest.param(
+            dict(joint_names=["a", "b"], parents=[-1, 0],
+                 translations=torch.zeros(2, 3, dtype=torch.float32),
+                 mass_per_body=[1.0, 2.0, 3.0]),
+            "mass_per_body length", id="mass_sequence_length",
+        ),
+        pytest.param(
+            dict(joint_names=["a", "b"], parents=[-1], translations=torch.zeros(2, 3)),
+            "parents length", id="parents_length",
+        ),
+        pytest.param(
+            dict(joint_names=["a", "b"], parents=[0, 0], translations=torch.zeros(2, 3)),
+            "parents\\[0\\] must be -1", id="root_not_minus_one",
+        ),
+        pytest.param(
+            dict(joint_names=["a", "b"], parents=[-1, 0], translations=torch.zeros(3, 3)),
+            "translations shape", id="translations_shape",
+        ),
+        pytest.param(
+            dict(joint_names=["a", "b", "c"], parents=[-1, 0, 5], translations=torch.zeros(3, 3)),
+            "must reference an earlier index", id="parent_out_of_range",
+        ),
+        # A non-root joint may only reference an earlier index.
+        pytest.param(
+            dict(joint_names=["a", "b", "c"], parents=[-1, 2, 0], translations=torch.zeros(3, 3)),
+            "must reference an earlier index", id="parent_forward_reference",
+        ),
+    ],
+)
+def test_kinematic_tree_input_validation_raises(kwargs, match):
+    with pytest.raises(ValueError, match=match):
+        build_kinematic_tree_body(name="m", **kwargs)
 
 
 def test_branching_tree_parity_ir():
@@ -265,52 +239,26 @@ def test_per_body_com_and_inertia_packed_into_model_body_inertias():
         assert torch.allclose(I.inertia_matrix, inertias[j])
 
 
-def test_com_per_body_shape_mismatch_raises():
-    with pytest.raises(ValueError, match="com_per_body shape"):
-        build_kinematic_tree_body(
-            **_tiny_tree_kwargs(),
-            com_per_body=torch.zeros(2, 3),
-        )
+@pytest.mark.parametrize(
+    ("override", "match"),
+    [
+        pytest.param({"com_per_body": torch.zeros(2, 3)}, "com_per_body shape", id="com_shape"),
+        pytest.param({"com_per_body": [torch.zeros(3), torch.zeros(3)]},
+                     "com_per_body length", id="com_sequence_length"),
+        pytest.param({"com_per_body": [torch.zeros(3), torch.zeros(2), torch.zeros(3)]},
+                     r"com_per_body\[1\]", id="com_bad_element"),
+        pytest.param({"inertia_per_body": torch.zeros(2, 3, 3)},
+                     "inertia_per_body shape", id="inertia_shape"),
+        pytest.param({"inertia_per_body": [torch.eye(3), torch.eye(3)]},
+                     "inertia_per_body length", id="inertia_sequence_length"),
+        pytest.param({"inertia_per_body": [torch.zeros(3), torch.eye(3), torch.eye(3)]},
+                     r"inertia_per_body\[0\]", id="inertia_bad_element"),
+    ],
+)
+def test_com_and_inertia_per_body_mismatch_raises(override, match):
+    with pytest.raises(ValueError, match=match):
+        build_kinematic_tree_body(**_tiny_tree_kwargs(), **override)
 
-
-def test_com_per_body_sequence_length_mismatch_raises():
-    with pytest.raises(ValueError, match="com_per_body length"):
-        build_kinematic_tree_body(
-            **_tiny_tree_kwargs(),
-            com_per_body=[torch.zeros(3), torch.zeros(3)],
-        )
-
-
-def test_com_per_body_bad_element_shape_raises():
-    with pytest.raises(ValueError, match=r"com_per_body\[1\]"):
-        build_kinematic_tree_body(
-            **_tiny_tree_kwargs(),
-            com_per_body=[torch.zeros(3), torch.zeros(2), torch.zeros(3)],
-        )
-
-
-def test_inertia_per_body_shape_mismatch_raises():
-    with pytest.raises(ValueError, match="inertia_per_body shape"):
-        build_kinematic_tree_body(
-            **_tiny_tree_kwargs(),
-            inertia_per_body=torch.zeros(2, 3, 3),
-        )
-
-
-def test_inertia_per_body_sequence_length_mismatch_raises():
-    with pytest.raises(ValueError, match="inertia_per_body length"):
-        build_kinematic_tree_body(
-            **_tiny_tree_kwargs(),
-            inertia_per_body=[torch.eye(3), torch.eye(3)],
-        )
-
-
-def test_inertia_per_body_bad_element_shape_raises():
-    with pytest.raises(ValueError, match=r"inertia_per_body\[0\]"):
-        build_kinematic_tree_body(
-            **_tiny_tree_kwargs(),
-            inertia_per_body=[torch.zeros(3), torch.eye(3), torch.eye(3)],
-        )
 
 
 def test_com_and_inertia_defaults_preserve_existing_behavior():

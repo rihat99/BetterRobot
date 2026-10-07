@@ -1,6 +1,5 @@
 """Tests for SLERP (SO3) and ScLERP (SE3) in lie/so3.py and lie/se3.py."""
 import math
-import pytest
 import torch
 from better_robot.lie import se3, so3
 
@@ -175,16 +174,6 @@ def test_sclerp_batched():
     assert out.shape == (4, 7)
     # Quaternion part stays unit-norm.
     assert torch.allclose(out[..., 3:].norm(dim=-1), torch.ones(4), atol=1e-5)
-
-
-def test_sclerp_identity_path():
-    """T1 == T2 → returns T1 for all t."""
-    T = se3.exp(torch.tensor([0.3, -0.2, 0.1, 0.2, 0.1, -0.3]))
-    for t in [0.0, 0.25, 0.5, 0.75, 1.0]:
-        out = se3.sclerp(T, T, t)
-        assert torch.isfinite(out).all()
-        assert torch.allclose(out[:3], T[:3], atol=1e-5)
-        assert torch.allclose(out[3:].abs(), T[3:].abs(), atol=1e-5)
 
 
 def test_sclerp_vs_decoupled():

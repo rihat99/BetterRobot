@@ -2,7 +2,7 @@
 
 Acceptance for P11-D3:
 
-* ``M(q) @ a + bias_forces(q, v) == rnea(q, v, a)`` — internal consistency.
+* ``M(q) @ a + b(q, v) == inverse_dynamics(q, v, a)`` — internal consistency.
 * ``M(q_neutral)`` is symmetric and positive-definite.
 * ``M(q)`` matches ``pin.crba`` element-wise on Panda at fp64 (1e-10 rel
   tolerance; the measured gap is 1e-15).
@@ -38,7 +38,7 @@ def test_crba_matches_pinocchio(panda_both):
 
 
 def test_crba_consistent_with_rnea(panda_both):
-    """``M(q) @ a + b(q, v) == rnea(q, v, a)`` to fp64 noise."""
+    """``M(q) @ a + b(q, v) == inverse_dynamics(q, v, a)`` to fp64 noise."""
     br_model, _, _, _ = panda_both
     qs = sample_panda_q(4, seed=1)
     rng = torch.Generator().manual_seed(2)

@@ -35,10 +35,12 @@ def main() -> None:
     robot = RobotView(model, q, skeleton=True, frames=[FRAME])
     for layer in robot:
         viewer.add(layer, group="panda")
+    # PoseGizmo calls ``follow`` on its own worker thread with only the newest pose, one call at a
+    # time, so ``state`` has a single writer. A short warm-started solve keeps up with the mouse.
     state = {"q": q}
 
     def follow(target: np.ndarray) -> None:
-        result = terms.solve_ik(model, {FRAME: torch.from_numpy(target).to(q)[None]}, state["q"], iters=30)
+        result = terms.solve_ik(model, {FRAME: torch.from_numpy(target).to(q)[None]}, state["q"], iters=15)
         state["q"] = result.x["q"]
         robot.update(state["q"])
         viewer.show()

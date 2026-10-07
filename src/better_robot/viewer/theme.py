@@ -1,13 +1,12 @@
-"""``Theme``: the palette and lighting shared by every layer and app built on the viewer."""
+"""``Theme``: the palette and GUI settings shared by every layer and app built on the viewer."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
 
-import numpy as np
 
-from ._math import RGB, quat_z_to, rgb_uint8
+from ._math import RGB, rgb_uint8
 
 
 @dataclass(frozen=True)
@@ -15,18 +14,18 @@ class Theme:
     """Colours in ``[0, 1]`` RGB plus the few scene settings the viewer applies at start-up."""
 
     dark: bool = False
-    brand: RGB = (0.16, 0.45, 0.85)
-    joint: RGB = (0.20, 0.60, 1.00)
-    link: RGB = (0.72, 0.72, 0.72)
-    robot: RGB = (0.80, 0.80, 0.80)
+    brand_color: RGB = (0.122, 0.227, 0.408)  # navy #1f3a68: GUI accent and skeleton joints
+    control_width: str = "medium"  # viser sidebar width: "small", "medium" or "large"
+    joint: RGB = (0.122, 0.227, 0.408)
+    link: RGB = (0.62, 0.64, 0.68)
+    robot: RGB = (0.80, 0.81, 0.83)
     human: RGB = (0.85, 0.72, 0.62)
-    point: RGB = (0.25, 0.25, 0.25)
-    force: RGB = (0.90, 0.25, 0.20)
-    torque: RGB = (0.95, 0.60, 0.10)
-    target: RGB = (0.10, 0.75, 0.35)
-    grid_cell: RGB = (0.78, 0.78, 0.78)
-    grid_section: RGB = (0.55, 0.55, 0.55)
-    key_light_direction: tuple[float, float, float] = (-0.4, -0.6, -1.0)
+    point: RGB = (0.30, 0.32, 0.36)
+    force: RGB = (0.74, 0.32, 0.30)
+    torque: RGB = (0.82, 0.60, 0.30)
+    target: RGB = (0.27, 0.58, 0.47)
+    grid_cell: RGB = (0.86, 0.87, 0.89)
+    grid_section: RGB = (0.70, 0.72, 0.76)
     up: str = "+z"
 
     @property
@@ -37,22 +36,25 @@ class Theme:
         return tuple(sign if index == axis else 0.0 for index in range(3))
 
     def apply(self, server: Any) -> None:
-        """Configure the GUI theme, up direction and lights of a viser server."""
+        """Configure the GUI theme, up direction and viser's default lights on a viser server."""
         server.gui.configure_theme(
             dark_mode=self.dark,
+            brand_color=tuple(int(c) for c in rgb_uint8(self.brand_color)),
             control_layout="collapsible",
-            brand_color=tuple(int(c) for c in rgb_uint8(self.brand)),
+            control_width=self.control_width,
             show_logo=False,
+            show_share_button=False,
         )
         server.scene.set_up_direction(self.up)
-        server.scene.configure_default_lights(enabled=False)
-        # Directional lights shine along their local -z axis.
-        direction = -np.asarray(self.key_light_direction, dtype=np.float32)
-        server.scene.add_light_directional("/lights/key", intensity=2.5, cast_shadow=True, wxyz=quat_z_to(direction))
-        server.scene.add_light_hemisphere(
-            "/lights/fill", sky_color=(230, 235, 255), ground_color=(120, 110, 100), intensity=1.2
-        )
+        server.scene.configure_default_lights(enabled=True, cast_shadow=False)
 
 
 LIGHT = Theme()
-DARK = Theme(dark=True, grid_cell=(0.30, 0.30, 0.30), grid_section=(0.45, 0.45, 0.45), point=(0.80, 0.80, 0.80))
+DARK = Theme(
+    dark=True,
+    joint=(0.45, 0.60, 0.85),
+    link=(0.55, 0.57, 0.60),
+    grid_cell=(0.30, 0.30, 0.30),
+    grid_section=(0.45, 0.45, 0.45),
+    point=(0.80, 0.80, 0.80),
+)

@@ -16,9 +16,9 @@ class SkeletonLayer(Layer):
     """Joint positions ``(T, J, 3)`` and ``parents (J,)`` (``-1`` for roots) drawn as a stick figure.
 
     ``radius`` is one float or ``(J,)`` per joint; ``colors`` is one RGB, ``(J, 3)`` per joint, or
-    ``(T, J, 3)`` per frame (for torque colouring). ``colors`` is kept as a uint8 array ``(J, 3)`` or
-    ``(T, J, 3)``: edit it in place and call ``viewer.show()`` to recolour (per-frame colours only).
-    Per frame only instance transforms are written: J sphere positions and B bone poses.
+    ``(T, J, 3)`` per step (for torque colouring). ``colors`` is kept as a uint8 array ``(J, 3)`` or
+    ``(T, J, 3)``: edit it in place and call ``viewer.show()`` to recolour (per-step colours only).
+    Per step only instance transforms are written: J sphere positions and B bone poses.
     """
 
     def __init__(
@@ -79,34 +79,34 @@ class SkeletonLayer(Layer):
                 )
             )
 
-    def set_frame(self, frame: int) -> None:
-        self._spheres.batched_positions = self.joints[frame]
+    def set_step(self, step: int) -> None:
+        self._spheres.batched_positions = self.joints[step]
         if self.colors.ndim == 3:
-            self._spheres.batched_colors = self.colors[frame]
+            self._spheres.batched_colors = self.colors[step]
         if self._bones is not None:
-            positions, wxyzs, scales = self._bone_transforms(frame)
+            positions, wxyzs, scales = self._bone_transforms(step)
             self._bones.batched_positions = positions
             self._bones.batched_wxyzs = wxyzs
             self._bones.batched_scales = scales
 
-    def geometry(self, frame: int) -> list[Geometry]:
+    def geometry(self, step: int) -> list[Geometry]:
         sphere_v, sphere_f = unit_sphere(1)
         n_joints = self.joints.shape[1]
         vertices, faces = instance_mesh(
-            sphere_v, sphere_f, self.joints[frame], np.tile(_IDENTITY, (n_joints, 1)), self.radius
+            sphere_v, sphere_f, self.joints[step], np.tile(_IDENTITY, (n_joints, 1)), self.radius
         )
-        colors = (self.colors if self.colors.ndim == 2 else self.colors[frame]).astype(np.float32) / 255.0
+        colors = (self.colors if self.colors.ndim == 2 else self.colors[step]).astype(np.float32) / 255.0
         out = [Geometry(vertices, faces, np.repeat(colors, len(sphere_f), axis=0))]
         if len(self._child):
             cylinder_v, cylinder_f = unit_cylinder(8)
-            positions, wxyzs, scales = self._bone_transforms(frame)
+            positions, wxyzs, scales = self._bone_transforms(step)
             vertices, faces = instance_mesh(cylinder_v, cylinder_f, positions, wxyzs, scales)
             out.append(Geometry(vertices, faces, np.asarray(self.bone_color, dtype=np.float32)))
         return out
 
-    def _bone_transforms(self, frame: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        start = self.joints[frame, self._parent]
-        end = self.joints[frame, self._child]
+    def _bone_transforms(self, step: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        start = self.joints[step, self._parent]
+        end = self.joints[step, self._child]
         vector = end - start
         length = np.linalg.norm(vector, axis=-1)
         scales = np.stack(

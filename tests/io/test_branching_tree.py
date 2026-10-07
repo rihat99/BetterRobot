@@ -6,7 +6,6 @@ Exercises ``build_model`` / ``load`` on a representative 24-body free-flyer +
 
 from __future__ import annotations
 
-import pytest
 
 from better_robot.io import build_model, load
 from better_robot.io.ir import IRModel
@@ -14,54 +13,27 @@ from better_robot.io.ir import IRModel
 from tests.support.branching_tree import JOINT_NAMES, make_branching_tree_body
 
 
-@pytest.fixture(scope="module")
-def branching_model():
-    return load(make_branching_tree_body)
-
-
-def test_branching_model_builds(branching_model):
+def test_branching_model_structure():
+    branching_model = load(make_branching_tree_body)
     assert branching_model is not None
-
-
-def test_branching_root_joint_is_free_flyer(branching_model):
     assert branching_model.joint_models[1].kind == "free_flyer"
-
-
-def test_branching_has_23_spherical_joints(branching_model):
     spherical_count = sum(1 for jm in branching_model.joint_models if jm.kind == "spherical")
     assert spherical_count == 23
-
-
-def test_branching_njoints(branching_model):
     # universe + root_joint(free_flyer, from IR "root") + 23 spherical = 25
     assert branching_model.njoints == 25
-
-
-def test_branching_nq(branching_model):
     # free_flyer(7) + 23*spherical(4) = 7 + 92 = 99
     assert branching_model.nq == 99
-
-
-def test_branching_nv(branching_model):
     # free_flyer(6) + 23*spherical(3) = 6 + 69 = 75
     assert branching_model.nv == 75
-
-
-def test_branching_body_names_include_root(branching_model):
     assert "j0" in branching_model.body_name_to_id
-
-
-def test_branching_all_joint_names_present(branching_model):
     for bname in JOINT_NAMES:
         assert bname in branching_model.body_name_to_id, f"Missing body: {bname}"
-
-
-def test_branching_topo_order_valid(branching_model):
     order = branching_model.topo_order
     for pos, j in enumerate(order):
         p = branching_model.parents[j]
         if p >= 0:
             assert list(order).index(p) < pos
+    assert branching_model.q_neutral.shape == (branching_model.nq,)
 
 
 def test_branching_ir_directly():
@@ -79,7 +51,3 @@ def test_branching_custom_height():
     ir = make_branching_tree_body(height=1.8, mass=80.0)
     model = build_model(ir)
     assert model.nq == 99  # topology doesn't change with height
-
-
-def test_branching_q_neutral_shape(branching_model):
-    assert branching_model.q_neutral.shape == (branching_model.nq,)

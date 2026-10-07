@@ -76,8 +76,8 @@ def main() -> None:
     moving = [name for name, nv in zip(model.joint_names, model.nvs) if nv]
     viewer.add_plot("torque", tau.numpy(), labels=moving)
     if args.check:
-        for frame in range(KNOTS):
-            viewer.show(frame)
+        for step in range(KNOTS):
+            viewer.show(step)
         viewer.server.stop()
         return
     print(f"playing at {viewer.url}")

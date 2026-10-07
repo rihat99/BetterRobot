@@ -23,3 +23,5 @@ For a new format, add a parser returning `IRModel` and register its suffix with
 `register_parser`; downstream model construction should not change. Keep asset
 resolution separate from topology and retain geometry metadata even when an
 asset is unavailable.
+
+Design contracts (rule IDs `C-*`, enforcement matrix, ADRs): `docs/contracts/00-index.md`.

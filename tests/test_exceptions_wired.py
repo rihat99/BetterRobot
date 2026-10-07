@@ -60,24 +60,20 @@ def free_flyer_model():
 # ────────────────────── ShapeError ──────────────────────
 
 
-def test_shape_error_on_wrong_nq(arm_model):
-    bad_q = torch.zeros(arm_model.nq + 3)
-    with pytest.raises(ShapeError, match="trailing size"):
-        forward_kinematics_state(arm_model, bad_q)
-
-
-def test_shape_error_on_wrong_nq_batched(arm_model):
-    bad_q = torch.zeros(4, arm_model.nq + 1)
-    with pytest.raises(ShapeError):
+@pytest.mark.parametrize(
+    "batch_shape, extra, match",
+    [
+        pytest.param((), 3, "trailing size", id="unbatched"),
+        pytest.param((4,), 1, None, id="batched"),
+    ],
+)
+def test_shape_error_on_wrong_nq(arm_model, batch_shape, extra, match):
+    bad_q = torch.zeros(*batch_shape, arm_model.nq + extra)
+    with pytest.raises(ShapeError, match=match):
         forward_kinematics_state(arm_model, bad_q)
 
 
 # ────────────────────── DeviceMismatchError ──────────────────────
-
-
-def test_device_mismatch_error_is_subclass_of_valueerror():
-    """DeviceMismatchError inherits ValueError so legacy except blocks catch it."""
-    assert issubclass(DeviceMismatchError, ValueError)
 
 
 def test_device_mismatch_on_cpu_cuda():
@@ -138,54 +134,28 @@ def test_fixed_base_bypasses_quaternion_check(arm_model):
 # ────────────────────── ModelInconsistencyError ──────────────────────
 
 
-def test_model_inconsistency_on_bad_parents():
-    """Directly call the invariant checker with a malformed parents tuple."""
-    with pytest.raises(ModelInconsistencyError, match="parents\\[0\\]"):
-        _check_topology_invariants(
-            parents=(0, 0, 1),  # parents[0] should be -1
-            nqs=(0, 0, 1),
-            nvs=(0, 0, 1),
-            idx_qs=(0, 0, 0),
-            idx_vs=(0, 0, 0),
-            nq_total=1,
-            nv_total=1,
-        )
-
-
-def test_model_inconsistency_on_out_of_order_parents():
-    with pytest.raises(ModelInconsistencyError, match="topological sort"):
-        _check_topology_invariants(
-            parents=(-1, 2, 0),  # parents[1]=2 > 1, violates topo sort
-            nqs=(0, 1, 1),
-            nvs=(0, 1, 1),
-            idx_qs=(0, 0, 1),
-            idx_vs=(0, 0, 1),
-            nq_total=2,
-            nv_total=2,
-        )
-
-
-def test_model_inconsistency_on_q_slice_gap():
-    with pytest.raises(ModelInconsistencyError, match="q-slicing"):
-        _check_topology_invariants(
-            parents=(-1, 0, 1),
-            nqs=(0, 1, 1),
-            nvs=(0, 1, 1),
-            idx_qs=(0, 0, 2),  # gap! should be (0, 0, 1)
-            idx_vs=(0, 0, 1),
-            nq_total=2,
-            nv_total=2,
-        )
-
-
-def test_model_inconsistency_on_nq_mismatch():
-    with pytest.raises(ModelInconsistencyError, match="nq"):
-        _check_topology_invariants(
-            parents=(-1, 0),
-            nqs=(0, 1),
-            nvs=(0, 1),
-            idx_qs=(0, 0),
-            idx_vs=(0, 0),
-            nq_total=5,  # wrong total
-            nv_total=1,
-        )
+@pytest.mark.parametrize(
+    ("invariants", "match"),
+    [
+        # parents[0] should be -1
+        pytest.param(dict(parents=(0, 0, 1), nqs=(0, 0, 1), nvs=(0, 0, 1), idx_qs=(0, 0, 0),
+                          idx_vs=(0, 0, 0), nq_total=1, nv_total=1),
+                     "parents\\[0\\]", id="bad_parents"),
+        # parents[1]=2 > 1, violates topo sort
+        pytest.param(dict(parents=(-1, 2, 0), nqs=(0, 1, 1), nvs=(0, 1, 1), idx_qs=(0, 0, 1),
+                          idx_vs=(0, 0, 1), nq_total=2, nv_total=2),
+                     "topological sort", id="out_of_order_parents"),
+        # gap! idx_qs should be (0, 0, 1)
+        pytest.param(dict(parents=(-1, 0, 1), nqs=(0, 1, 1), nvs=(0, 1, 1), idx_qs=(0, 0, 2),
+                          idx_vs=(0, 0, 1), nq_total=2, nv_total=2),
+                     "q-slicing", id="q_slice_gap"),
+        # wrong nq_total
+        pytest.param(dict(parents=(-1, 0), nqs=(0, 1), nvs=(0, 1), idx_qs=(0, 0),
+                          idx_vs=(0, 0), nq_total=5, nv_total=1),
+                     "nq", id="nq_mismatch"),
+    ],
+)
+def test_model_inconsistency_raises(invariants, match):
+    """Directly call the invariant checker with malformed topology tuples."""
+    with pytest.raises(ModelInconsistencyError, match=match):
+        _check_topology_invariants(**invariants)

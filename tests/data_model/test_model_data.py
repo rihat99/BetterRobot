@@ -39,14 +39,6 @@ def test_model_integrate_difference():
     assert torch.allclose(v, v_back, atol=1e-5)
 
 
-def test_model_integrate_shape():
-    model = _make_simple_model()
-    q = torch.zeros(3, 2)  # batch of 3
-    v = torch.randn(3, 2)
-    q_new = model.integrate(q, v)
-    assert q_new.shape == (3, 2)
-
-
 def test_model_random_configuration():
     model = _make_simple_model()
     q = model.random_configuration()

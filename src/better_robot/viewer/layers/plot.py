@@ -1,4 +1,4 @@
-"""``PlotPanel``: time series in the sidebar with a marker at the current frame."""
+"""``PlotPanel``: time series in the sidebar with a marker at the current step."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ _PALETTE = (
 
 
 class PlotPanel(Layer):
-    """Series ``(T, K)`` against time ``t = frame / fps`` (uPlot); a dot per series marks the frame.
+    """Series ``(T, K)`` against time ``t = step / fps`` (uPlot); a dot per series marks the step.
 
     Lives in the GUI, not the 3D scene: ``build`` does nothing and ``build_gui`` creates the chart.
     """
@@ -46,8 +46,8 @@ class PlotPanel(Layer):
         data = (self.time, *(self.series[:, k].astype(np.float64) for k in range(self.series.shape[1])))
         self._plot = gui.add_uplot(data, self._series_config(0), aspect=1.6, legend={"show": False})
 
-    def set_frame(self, frame: int) -> None:
-        self._plot.series = self._series_config(frame)
+    def set_step(self, step: int) -> None:
+        self._plot.series = self._series_config(step)
 
     def set_visible(self, visible: bool) -> None:
         self._plot.visible = visible
@@ -55,8 +55,8 @@ class PlotPanel(Layer):
     def dispose(self) -> None:
         self._plot.remove()
 
-    def _series_config(self, frame: int) -> tuple[dict[str, Any], ...]:
-        marker = {"show": True, "size": 8, "filter": (frame,)}
+    def _series_config(self, step: int) -> tuple[dict[str, Any], ...]:
+        marker = {"show": True, "size": 8, "filter": (step,)}
         return (
             {"label": "t"},
             *(

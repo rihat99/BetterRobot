@@ -24,13 +24,13 @@ viewer = Viewer()                        # viser server on http://127.0.0.1:8080
 cloud = np.random.rand(100, 50, 3)       # T = 100 frames of 50 points
 points = viewer.add(PointsLayer("cloud", cloud))
 viewer.add(GroundLayer(size=3.0))
-print(viewer.url, viewer.timeline.num_frames)
+print(viewer.url, viewer.timeline.nsteps)
 ```
 
 The built-in layers are `PointsLayer`, `SkeletonLayer`, `FramesLayer`, `ArrowsLayer`, `GroundLayer`,
 `RigidMeshLayer`, `MeshLayer`, `SpheresLayer`, `SkinnedMeshLayer` and `CameraLayer`; `viewer.add_plot` adds a
 `PlotPanel` of time series to the GUI. A new layer type subclasses `Layer` and implements `build` (create scene
-nodes once), `set_frame` (move them to frame `k`) and `geometry` (triangles for the offline renderer).
+nodes once), `set_step` (move them to step `k`) and `geometry` (triangles for the offline renderer).
 
 ## A group is the unit you toggle and remove
 
@@ -129,13 +129,13 @@ import tempfile
 from pathlib import Path
 
 out = Path(tempfile.mkdtemp()) / "panda.gif"
-viewer.record(out, size=(160, 90), frames=range(3))
+viewer.record(out, size=(160, 90), steps=range(3))
 print(out.exists())
 ```
 
 Without a `camera`, `record` fits a 3/4 view to the visible layers sampled over the whole clip (about eight frames, every frame for short clips),
 upright along the theme's `up` axis. Pass a `Camera`, or build one with
-`better_robot.viewer.render.frame_camera(layers, frames=...)`, for a fixed view of your own.
+`better_robot.viewer.render.frame_camera(layers, steps=...)`, for a fixed view of your own.
 
 `better_robot.viewer.render.record(layers, path, ...)` is the same renderer without a `Viewer`, for scripts and
 tests that never start a server.

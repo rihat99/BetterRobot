@@ -9,6 +9,8 @@ Enforces ``docs/concepts/architecture.md §Public API contract``:
 
 from __future__ import annotations
 
+import inspect
+
 import better_robot as br
 from better_robot.lie import SE3 as LieSE3
 
@@ -80,3 +82,12 @@ def test_all_is_list_of_str() -> None:
 
 def test_root_se3_remains_the_lie_type_after_optim() -> None:
     assert br.SE3 is LieSE3
+
+
+def test_solve_ik_signature_shape() -> None:
+    from better_robot.terms import solve_ik  # noqa: PLC0415
+
+    params = inspect.signature(solve_ik).parameters
+    assert list(params)[:3] == ["model", "targets", "q0"]
+    assert params["solver"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert params["iters"].kind is inspect.Parameter.KEYWORD_ONLY

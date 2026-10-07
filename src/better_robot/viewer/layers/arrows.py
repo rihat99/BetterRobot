@@ -65,15 +65,15 @@ class ArrowsLayer(Layer):
             )
         )
 
-    def set_frame(self, frame: int) -> None:
-        self._shafts.points = self._segments(frame)
-        positions, wxyzs, scales = self._head_transforms(frame)
+    def set_step(self, step: int) -> None:
+        self._shafts.points = self._segments(step)
+        positions, wxyzs, scales = self._head_transforms(step)
         self._heads.batched_positions = positions
         self._heads.batched_wxyzs = wxyzs
         self._heads.batched_scales = scales
 
-    def geometry(self, frame: int) -> list[Geometry]:
-        vector = self.vectors[frame]
+    def geometry(self, step: int) -> list[Geometry]:
+        vector = self.vectors[step]
         length = np.linalg.norm(vector, axis=-1)
         shaft = np.maximum(length - np.minimum(self.head_size, length), 0.0)
         radius = self.head_size * 0.15
@@ -81,25 +81,25 @@ class ArrowsLayer(Layer):
         unit = vector / np.maximum(length, 1e-9)[:, None]
         scales = np.stack([np.full_like(shaft, radius), np.full_like(shaft, radius), shaft], axis=-1)
         vertices, faces = instance_mesh(
-            cylinder_v, cylinder_f, self.origins[frame] + unit * (shaft / 2)[:, None], quat_z_to(vector), scales
+            cylinder_v, cylinder_f, self.origins[step] + unit * (shaft / 2)[:, None], quat_z_to(vector), scales
         )
         colors = self._colors.astype(np.float32) / 255.0
         out = [Geometry(vertices, faces, np.repeat(colors, len(cylinder_f), axis=0))]
         cone_v, cone_f = unit_cone(8)
-        positions, wxyzs, scales = self._head_transforms(frame)
+        positions, wxyzs, scales = self._head_transforms(step)
         vertices, faces = instance_mesh(cone_v, cone_f, positions, wxyzs, scales)
         out.append(Geometry(vertices, faces, np.repeat(colors, len(cone_f), axis=0)))
         return out
 
-    def _segments(self, frame: int) -> np.ndarray:
-        tips = self.origins[frame] + self.vectors[frame]
-        return np.stack([self.origins[frame], tips], axis=1)
+    def _segments(self, step: int) -> np.ndarray:
+        tips = self.origins[step] + self.vectors[step]
+        return np.stack([self.origins[step], tips], axis=1)
 
-    def _head_transforms(self, frame: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        vector = self.vectors[frame]
+    def _head_transforms(self, step: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        vector = self.vectors[step]
         length = np.linalg.norm(vector, axis=-1)
         head = np.minimum(self.head_size, length)
         unit = vector / np.maximum(length, 1e-9)[:, None]
-        base = self.origins[frame] + vector - unit * head[:, None]
+        base = self.origins[step] + vector - unit * head[:, None]
         scales = np.stack([head * 0.5, head * 0.5, head], axis=-1)
         return base, quat_z_to(vector), scales

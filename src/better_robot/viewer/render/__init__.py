@@ -1,7 +1,7 @@
-"""Offline rendering of layers without a browser: PNG frames, GIF, or MP4 when ffmpeg is on PATH.
+"""Offline rendering of layers without a browser: PNG steps, GIF, or MP4 when ffmpeg is on PATH.
 
 The same ``(T, ...)`` arrays the interactive viewer pushes are turned into world triangles by
-``Layer.geometry(frame)`` and drawn by the torch rasterizer in ``rasterizer.py``.
+``Layer.geometry(step)`` and drawn by the torch rasterizer in ``rasterizer.py``.
 """
 
 from __future__ import annotations
@@ -24,17 +24,17 @@ __all__ = ["Camera", "frame_camera", "record", "render_frame", "render_frames"]
 
 def render_frame(
     layers: Sequence[Layer],
-    frame: int,
+    step: int,
     camera: Camera,
     *,
     size: tuple[int, int] = (960, 540),
     background: tuple[float, float, float] = (1.0, 1.0, 1.0),
     device: torch.device | str | None = None,
 ) -> np.ndarray:
-    """One ``(H, W, 3)`` uint8 image of ``frame`` (clamped per layer) from every layer's geometry."""
+    """One ``(H, W, 3)`` uint8 image of ``step`` (clamped per layer) from every layer's geometry."""
     vertices, faces, colors, offset = [], [], [], 0
     for layer in layers:
-        for geometry in layer.geometry(min(frame, layer.num_frames - 1)):
+        for geometry in layer.geometry(min(step, layer.nsteps - 1)):
             vertices.append(np.asarray(geometry.vertices, dtype=np.float32))
             faces.append(np.asarray(geometry.faces, dtype=np.int64) + offset)
             colors.append(np.broadcast_to(np.asarray(geometry.colors, dtype=np.float32), (len(geometry.faces), 3)))
@@ -53,17 +53,17 @@ def render_frame(
     return (image.clamp(0.0, 1.0).cpu().numpy() * 255.0 + 0.5).astype(np.uint8)
 
 
-def frame_camera(layers: Sequence[Layer], frames: Iterable[int] = (0,), **options: Any) -> Camera:
-    """A 3/4 camera fitting the geometry of ``layers`` over ``frames`` (layers with ``fits_camera = False`` excluded).
+def frame_camera(layers: Sequence[Layer], steps: Iterable[int] = (0,), **options: Any) -> Camera:
+    """A 3/4 camera fitting the geometry of ``layers`` over ``steps`` (layers with ``fits_camera = False`` excluded).
 
     ``options`` go to ``Camera.framing`` (``azimuth``, ``elevation``, ``fov``, ``margin``, ``up``).
     """
     points = [
         geometry.vertices
-        for frame in frames
+        for step in steps
         for layer in layers
         if layer.fits_camera
-        for geometry in layer.geometry(min(frame, layer.num_frames - 1))
+        for geometry in layer.geometry(min(step, layer.nsteps - 1))
     ]
     if not points:
         return Camera((3.0, 2.0, 2.0))
@@ -72,7 +72,7 @@ def frame_camera(layers: Sequence[Layer], frames: Iterable[int] = (0,), **option
 
 def render_frames(
     layers: Sequence[Layer],
-    frames: Iterable[int] | None = None,
+    steps: Iterable[int] | None = None,
     *,
     camera: Camera | None = None,
     size: tuple[int, int] = (960, 540),
@@ -80,15 +80,15 @@ def render_frames(
     device: torch.device | str | None = None,
     up: tuple[float, float, float] = (0.0, 0.0, 1.0),
 ) -> np.ndarray:
-    """Images ``(N, H, W, 3)`` uint8 for ``frames`` (default: every frame of the longest layer).
+    """Images ``(N, H, W, 3)`` uint8 for ``steps`` (default: every step of the longest layer).
 
     Without ``camera`` a 3/4 view, upright along ``up``, is fitted to the geometry sampled over the clip.
     """
-    if frames is None:
-        frames = range(max(layer.num_frames for layer in layers))
-    frames = list(frames)
-    camera = camera or frame_camera(layers, frames[:: max(1, len(frames) // 8)], up=up)
-    return np.stack([render_frame(layers, k, camera, size=size, background=background, device=device) for k in frames])
+    if steps is None:
+        steps = range(max(layer.nsteps for layer in layers))
+    steps = list(steps)
+    camera = camera or frame_camera(layers, steps[:: max(1, len(steps) // 8)], up=up)
+    return np.stack([render_frame(layers, k, camera, size=size, background=background, device=device) for k in steps])
 
 
 def record(
@@ -96,23 +96,23 @@ def record(
     path: str | Path,
     *,
     fps: float = 30.0,
-    frames: Iterable[int] | None = None,
+    steps: Iterable[int] | None = None,
     camera: Camera | None = None,
     size: tuple[int, int] = (960, 540),
     background: tuple[float, float, float] = (1.0, 1.0, 1.0),
     device: torch.device | str | None = None,
     up: tuple[float, float, float] = (0.0, 0.0, 1.0),
 ) -> Path:
-    """Render ``layers`` over ``frames`` and write them to ``path``, chosen by its suffix.
+    """Render ``layers`` over ``steps`` and write them to ``path``, chosen by its suffix.
 
-    ``.gif``; ``.mp4`` (needs ``ffmpeg`` on PATH); or ``.png``, one file per frame named ``<stem>_0000.png``
-    beside ``path``. ``frames`` defaults to every frame of the longest layer; without ``camera`` a 3/4 view,
+    ``.gif``; ``.mp4`` (needs ``ffmpeg`` on PATH); or ``.png``, one file per step named ``<stem>_0000.png``
+    beside ``path``. ``steps`` defaults to every step of the longest layer; without ``camera`` a 3/4 view,
     upright along ``up``, is fitted to the clip. Returns the written path (the directory for PNG sequences).
     """
     from PIL import Image  # noqa: PLC0415 - optional dependency (viser ships it)
 
     path = Path(path)
-    images = render_frames(layers, frames, camera=camera, size=size, background=background, device=device, up=up)
+    images = render_frames(layers, steps, camera=camera, size=size, background=background, device=device, up=up)
     pil = [Image.fromarray(image) for image in images]
     if path.suffix == ".gif":
         pil[0].save(path, save_all=True, append_images=pil[1:], duration=int(1000 / fps), loop=0)

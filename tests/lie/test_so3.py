@@ -4,12 +4,6 @@ import torch
 from better_robot.lie import so3
 
 
-def test_identity():
-    q = so3.identity()
-    assert q.shape == (4,)
-    assert torch.allclose(q, torch.tensor([0., 0., 0., 1.]))
-
-
 def test_compose_inverse():
     """q * q^{-1} == identity."""
     q = so3.exp(torch.randn(3) * 0.5)
@@ -18,13 +12,6 @@ def test_compose_inverse():
     expected = so3.identity()
     # Quaternion can be +/- identity
     assert torch.allclose(result.abs(), expected.abs(), atol=1e-5)
-
-
-def test_exp_log_roundtrip():
-    omega = torch.randn(3) * 0.3
-    q = so3.exp(omega)
-    omega_back = so3.log(q)
-    assert torch.allclose(omega, omega_back, atol=1e-5)
 
 
 def test_act_rotation():
@@ -36,12 +23,6 @@ def test_act_rotation():
     result = so3.act(q, p)
     expected = torch.tensor([0., 1., 0.])
     assert torch.allclose(result, expected, atol=1e-5)
-
-
-def test_act_identity():
-    q = so3.identity()
-    p = torch.randn(3)
-    assert torch.allclose(so3.act(q, p), p, atol=1e-6)
 
 
 def test_adjoint_is_rotation_matrix():

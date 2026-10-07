@@ -18,6 +18,7 @@ class GroundLayer(Layer):
     """
 
     fits_camera = False
+    listed = False
 
     def __init__(
         self,
@@ -36,6 +37,10 @@ class GroundLayer(Layer):
         self.cell_color = cell_color
         self.section_color = section_color
 
+    def apply_theme(self, theme: Any) -> None:
+        if self.plane is None:
+            self.plane = {"z": "xy", "y": "xz", "x": "yz"}[theme.up[-1]]
+
     def build(self, scene: Any, root: str) -> None:
         plane = self.plane or "xy"
         normal = {"xy": (0.0, 0.0, 1.0), "xz": (0.0, 1.0, 0.0), "yz": (1.0, 0.0, 0.0)}[plane]
@@ -51,7 +56,7 @@ class GroundLayer(Layer):
             )
         )
 
-    def geometry(self, frame: int) -> list[Geometry]:
+    def geometry(self, step: int) -> list[Geometry]:
         """A plane quad plus grid lines (1 m sections) as thin quads, in the layer's plane."""
         half, step, width = self.size / 2.0, 1.0, 0.006
         ticks = np.arange(-half, half + 1e-6, step, dtype=np.float32)
@@ -80,5 +85,5 @@ class GroundLayer(Layer):
         )
         return [Geometry(vertices.reshape(-1, 3), faces.reshape(-1, 3), colors.astype(np.float32))]
 
-    def set_frame(self, frame: int) -> None:
+    def set_step(self, step: int) -> None:
         pass
