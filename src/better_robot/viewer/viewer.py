@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from .layer import Layer
@@ -121,6 +122,28 @@ class Viewer:
             self._push_all(self.timeline.frame, force=True)
         else:
             self.timeline.frame = frame
+
+    def save(self, path: str | Path, *, fps: float | None = None) -> Path:
+        """Record every frame into a ``.viser`` file that plays in viser's static client, no Python needed."""
+        path = Path(path)
+        fps = fps or self.timeline.fps
+        serializer = self.server.get_scene_serializer()
+        for frame in range(self.timeline.num_frames):
+            self._push_all(frame, force=True)
+            serializer.insert_sleep(1.0 / fps)
+        path.write_bytes(serializer.serialize())
+        self._push_all(self.timeline.frame, force=True)
+        return path
+
+    def record(self, path: str | Path, *, fps: float | None = None, **options: Any) -> Path:
+        """Render the visible layers offline (no browser) to ``.gif``, ``.mp4`` or ``.png`` frames.
+
+        ``options`` go to :func:`better_robot.viewer.render.record` (``camera``, ``size``, ``frames``).
+        """
+        from .render import record  # noqa: PLC0415 - keeps torch rasterizer out of the import path
+
+        layers = [entry.layer for group in self._groups.values() for entry in group.entries.values() if entry.visible]
+        return record(layers, path, fps=fps or self.timeline.fps, **options)
 
     def play(self, block: bool = True) -> None:
         """Start playback; with ``block`` keep the process alive until interrupted."""

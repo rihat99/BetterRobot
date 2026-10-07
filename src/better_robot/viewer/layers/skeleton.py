@@ -6,8 +6,8 @@ from typing import Any
 
 import numpy as np
 
-from .._math import RGB, as_frames, quat_z_to, rgb_uint8, unit_cylinder, unit_sphere
-from ..layer import Layer
+from .._math import RGB, as_frames, instance_mesh, quat_z_to, rgb_uint8, unit_cylinder, unit_sphere
+from ..layer import Geometry, Layer
 
 _IDENTITY = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
 
@@ -87,6 +87,21 @@ class SkeletonLayer(Layer):
             self._bones.batched_positions = positions
             self._bones.batched_wxyzs = wxyzs
             self._bones.batched_scales = scales
+
+    def geometry(self, frame: int) -> list[Geometry]:
+        sphere_v, sphere_f = unit_sphere(1)
+        n_joints = self.joints.shape[1]
+        vertices, faces = instance_mesh(
+            sphere_v, sphere_f, self.joints[frame], np.tile(_IDENTITY, (n_joints, 1)), self.radius
+        )
+        colors = (self._colors if self._colors.ndim == 2 else self._colors[frame]).astype(np.float32) / 255.0
+        out = [Geometry(vertices, faces, np.repeat(colors, len(sphere_f), axis=0))]
+        if len(self._child):
+            cylinder_v, cylinder_f = unit_cylinder(8)
+            positions, wxyzs, scales = self._bone_transforms(frame)
+            vertices, faces = instance_mesh(cylinder_v, cylinder_f, positions, wxyzs, scales)
+            out.append(Geometry(vertices, faces, np.asarray(self.bone_color, dtype=np.float32)))
+        return out
 
     def _bone_transforms(self, frame: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         start = self.joints[frame, self._parent]

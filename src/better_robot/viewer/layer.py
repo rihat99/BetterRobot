@@ -3,7 +3,20 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Any
+
+import numpy as np
+
+
+@dataclass
+class Geometry:
+    """World-space triangles for the offline renderer: ``vertices (V, 3)``, ``faces (F, 3)``,
+    ``colors`` one RGB in ``[0, 1]`` or ``(F, 3)`` per face."""
+
+    vertices: np.ndarray
+    faces: np.ndarray
+    colors: np.ndarray
 
 
 class Layer(ABC):
@@ -35,6 +48,10 @@ class Layer(ABC):
 
     def build_gui(self, gui: Any) -> None:
         """Add per-layer controls to an open GUI folder; nothing by default."""
+
+    def geometry(self, frame: int) -> list[Geometry]:
+        """Triangles of frame ``frame`` for the offline renderer; empty for layers without 3D geometry."""
+        return []
 
     def set_visible(self, visible: bool) -> None:
         """Show or hide every tracked handle."""

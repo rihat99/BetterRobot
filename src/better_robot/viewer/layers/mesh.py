@@ -7,8 +7,8 @@ from typing import Any
 
 import numpy as np
 
-from .._math import RGB, as_frames, compose_poses, rgb_uint8, unit_sphere, xyzw_to_wxyz
-from ..layer import Layer
+from .._math import RGB, as_frames, compose_poses, instance_mesh, rgb_uint8, rotate, unit_sphere, xyzw_to_wxyz
+from ..layer import Geometry, Layer
 
 _IDENTITY_POSE = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], dtype=np.float32)
 
@@ -45,6 +45,9 @@ class MeshLayer(Layer):
                 flat_shading=self.flat_shading,
             )
         )
+
+    def geometry(self, frame: int) -> list[Geometry]:
+        return [Geometry(self.vertices[frame], self.faces.astype(np.int64), np.asarray(self.color, dtype=np.float32))]
 
     def set_frame(self, frame: int) -> None:
         self._mesh.vertices = self.vertices[frame]
@@ -99,6 +102,14 @@ class RigidMeshLayer(Layer):
                 )
             self._nodes.append(self._track(node))
 
+    def geometry(self, frame: int) -> list[Geometry]:
+        world = compose_poses(self.body_poses[frame, self._bodies], self._origins)
+        out = []
+        for index, spec in enumerate(self.meshes):
+            vertices = rotate(world[index, 3:], spec.vertices) + world[index, :3]
+            out.append(Geometry(vertices.astype(np.float32), spec.faces.astype(np.int64), _face_colors(spec)))
+        return out
+
     def set_frame(self, frame: int) -> None:
         world = compose_poses(self.body_poses[frame, self._bodies], self._origins)
         wxyz = xyzw_to_wxyz(world[:, 3:])
@@ -145,5 +156,32 @@ class SpheresLayer(Layer):
             )
         )
 
+    def geometry(self, frame: int) -> list[Geometry]:
+        sphere_v, sphere_f = unit_sphere(1)
+        n = self.centers.shape[1]
+        wxyz = np.tile(np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32), (n, 1))
+        vertices, faces = instance_mesh(sphere_v, sphere_f, self.centers[frame], wxyz, self.radii)
+        colors = np.repeat(self._colors.astype(np.float32) / 255.0, len(sphere_f), axis=0)
+        return [Geometry(vertices, faces, colors)]
+
     def set_frame(self, frame: int) -> None:
         self._spheres.batched_positions = self.centers[frame]
+
+
+def _face_colors(spec: MeshSpec) -> np.ndarray:
+    """Per-face colours from a trimesh source's visual, else the spec colour."""
+    if spec.trimesh is not None:
+        visual = spec.trimesh.visual
+        try:
+            if visual.kind == "face":
+                return np.asarray(visual.face_colors, dtype=np.float32)[:, :3] / 255.0
+            if visual.kind == "vertex":
+                return np.asarray(visual.vertex_colors, dtype=np.float32)[spec.faces].mean(axis=1)[:, :3] / 255.0
+            if visual.kind == "texture":
+                return (
+                    np.asarray(visual.to_color().vertex_colors, dtype=np.float32)[spec.faces].mean(axis=1)[:, :3]
+                    / 255.0
+                )
+        except (AttributeError, ValueError, IndexError):
+            pass
+    return np.asarray(spec.color, dtype=np.float32)

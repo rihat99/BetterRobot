@@ -6,8 +6,10 @@ from typing import Any
 
 import numpy as np
 
-from .._math import as_frames, xyzw_to_wxyz
-from ..layer import Layer
+from .._math import as_frames, instance_mesh, quat_z_to, rotate, unit_cylinder, xyzw_to_wxyz
+from ..layer import Geometry, Layer
+
+_AXIS_COLORS = np.array([[0.9, 0.2, 0.2], [0.2, 0.8, 0.2], [0.2, 0.3, 0.9]], dtype=np.float32)
 
 
 class FramesLayer(Layer):
@@ -32,6 +34,20 @@ class FramesLayer(Layer):
                 axes_radius=self.axes_radius,
             )
         )
+
+    def geometry(self, frame: int) -> list[Geometry]:
+        poses = self.poses[frame]
+        cylinder_v, cylinder_f = unit_cylinder(6)
+        out = []
+        for axis in range(3):
+            direction = rotate(poses[:, 3:], np.eye(3, dtype=np.float32)[axis][None])
+            positions = poses[:, :3] + direction * (self.axes_length / 2)
+            scales = np.array([self.axes_radius, self.axes_radius, self.axes_length], dtype=np.float32)[None]
+            vertices, faces = instance_mesh(
+                cylinder_v, cylinder_f, positions, quat_z_to(direction), np.repeat(scales, len(poses), 0)
+            )
+            out.append(Geometry(vertices, faces, _AXIS_COLORS[axis]))
+        return out
 
     def set_frame(self, frame: int) -> None:
         self._axes.batched_positions = self.poses[frame, :, :3]

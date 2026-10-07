@@ -6,8 +6,13 @@ from typing import Any
 
 import numpy as np
 
-from .._math import RGB, as_frames, rgb_uint8
-from ..layer import Layer
+from .._math import RGB, as_frames, instance_mesh, rgb_uint8
+from ..layer import Geometry, Layer
+
+_OCTAHEDRON = (
+    np.array([[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]], dtype=np.float32) * 0.5,
+    np.array([[0, 2, 4], [2, 1, 4], [1, 3, 4], [3, 0, 4], [2, 0, 5], [1, 2, 5], [3, 1, 5], [0, 3, 5]]),
+)
 
 
 class PointsLayer(Layer):
@@ -45,6 +50,13 @@ class PointsLayer(Layer):
                 precision="float32",
             )
         )
+
+    def geometry(self, frame: int) -> list[Geometry]:
+        n = self.points.shape[1]
+        wxyz = np.tile(np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32), (n, 1))
+        vertices, faces = instance_mesh(*_OCTAHEDRON, self.points[frame], wxyz, self.point_size)
+        colors = (self._colors if self._colors.ndim == 2 else self._colors[frame]).astype(np.float32) / 255.0
+        return [Geometry(vertices, faces, np.repeat(colors, 8, axis=0))]
 
     def set_frame(self, frame: int) -> None:
         self._cloud.points = self.points[frame]
