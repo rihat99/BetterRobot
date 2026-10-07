@@ -6,8 +6,8 @@ questions asked; assumptions are listed at the end. Plan: `PLAN.md` in this fold
 
 ## Outcome in one paragraph
 
-The three old viewers' job in BetterRobot is now one package, `src/better_robot/viewer/` (about 1,650 lines, was
-2,463): a `Viewer` on viser with groups of `Layer`s and a `Timeline`; layers hold preloaded `(T, ...)` numpy
+The three old viewers' job in BetterRobot is now one package, `src/better_robot/viewer/` (2,160 lines including the rasterizer and tools; the old one
+was 2,463 without recording): a `Viewer` on viser with groups of `Layer`s and a `Timeline`; layers hold preloaded `(T, ...)` numpy
 arrays and push one frame at a time into batched scene nodes; `RobotView`/`robot_layers` turn a `Model` and a
 clip `q (T, nq)` into mesh, skeleton (torque-coloured), frame and collision-sphere layers with one FK call;
 tools (`PoseGizmo`, picking) sit on top; a torch rasterizer records GIF/PNG/MP4 without a browser and
