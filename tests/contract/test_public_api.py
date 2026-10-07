@@ -44,11 +44,6 @@ REQUIRED: frozenset[str] = frozenset(
         "crba",
         "center_of_mass",
         "compute_centroidal_map",
-        # tasks
-        "solve_ik",
-        "solve_trajopt",
-        "solve_contact_forces",
-        "Trajectory",
     }
 )
 

@@ -8,13 +8,13 @@ deprecation. See ``docs/concepts/architecture.md §Public API contract``.
 
 Layered DAG (arrows point from dependent to dependency)::
 
-    tasks → optim → residuals → kinematics ↴
-                                  │         dynamics ↴
-                                  ▼                   ▼
-                                 data_model ── spatial ── lie
+    terms → kinematics, dynamics, collision → data_model → spatial → lie
+      │
+      ▼
+    optim                     (imports only torch; knows nothing about robots)
 
-    io → data_model           (io reads nothing from optim or tasks)
-    viewer → tasks            (topmost; no-one imports from viewer)
+    io → data_model           (io reads nothing from optim or terms)
+    viewer → terms            (topmost; no-one imports from viewer)
 """
 
 from __future__ import annotations
@@ -41,7 +41,6 @@ from .kinematics import (
     update_frame_placements,
 )
 from .lie.types import SE3
-from .tasks import Trajectory, solve_contact_forces, solve_ik, solve_trajopt
 
 __all__ = [
     # data_model (7)
@@ -72,9 +71,4 @@ __all__ = [
     "crba",
     "center_of_mass",
     "compute_centroidal_map",
-    # tasks (4)
-    "solve_ik",
-    "solve_trajopt",
-    "solve_contact_forces",
-    "Trajectory",
 ]

@@ -4,7 +4,7 @@ import pytest
 import torch
 
 import better_robot as br
-from better_robot import collision, optim2, terms
+from better_robot import collision, optim, terms
 from better_robot.kinematics import forward_kinematics_state
 
 DT = torch.float64
@@ -128,12 +128,12 @@ def test_terms_pass_check_jacobian(panda):
         return collision.sphere_sphere(centers, radii, obstacle, size)
 
     q = 0.3 * _randn(1, 6, panda.nq, seed=10)
-    problem = optim2.Problem({"q": q}, manifolds={"q": terms.RobotManifold(panda)}, time=("q",))
+    problem = optim.Problem({"q": q}, manifolds={"q": terms.RobotManifold(panda)}, time=("q",))
     problem.cached(terms.kinematic_state(panda), name="state")
     world = terms.sphere_clearance(spheres, to_obstacle, margin=2.0)
     assert world.fn(forward_kinematics_state(panda, q)).shape == (1, 6, 4)
     problem.residual("world", world, window=1)
     pairs = collision.self_collision_pairs(panda, spheres)
     problem.residual("self", terms.self_clearance(spheres, pairs, margin=2.0), window=1)
-    errors = optim2.check_jacobian(problem)
+    errors = optim.check_jacobian(problem)
     assert errors["world"] < 1e-9 and errors["self"] < 1e-9

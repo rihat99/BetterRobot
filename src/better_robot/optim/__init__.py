@@ -1,68 +1,41 @@
-"""Object-referenced least-squares problems, optimizers, and linear solvers."""
+"""Optimization over named tensors: plain-function terms, torch.optim, Gauss-Newton and LM.
+
+This package knows nothing about robots. Robot terms live in ``better_robot.terms``.
+"""
 
 from __future__ import annotations
 
-from ..residuals.base import DiagonalWeight, Difference, Residual, ScalarCost, ScaleWeight, Weight, residual
-from ..residuals.structure import TemporalPattern
-from .implicit import ImplicitDiffConfig, ImplicitDifferentiationError
-from .kernels import Cauchy, GemanMcClure, Huber, L2, RobustKernel, Tukey
-from .lm import GaussNewton, LevenbergMarquardt, LinearizationDecision, LinearizationMode
-from .optimizers import Optimizer, OptimizerInfo, OptimizerStatus, TorchOptimizer
-from .problem import AutodiffFallbackWarning, JacobianStrategy, Problem
-from .solvers import (
-    BandedCholesky,
-    Cholesky,
-    InformativeLinearSolver,
-    LinearSolveResult,
-    LinearSolveStatus,
-    LinearSolver,
-    LinearSystem,
-)
-from .temporal import BlockBandedMatrix, LinearizationReason, StructuredNormal, TemporalAnalysis
-from .variables import Bounds, RobotVariable, SE3Variable, SO3Variable, Variable
+from .kernels import Cauchy, GemanMcClure, Huber, Tukey
+from .constrained import solve_constrained
+from .linear import ArrowNormal, BandedNormal, Normal
+from .manifold import Euclidean, Manifold
+from .phases import Phase, Result, run, solve, solve_layer
+from .problem import Problem, TermFn, check_jacobian
+from .solvers import LBFGS, GaussNewton, LevenbergMarquardt, Solver, State, TorchOptim
 
 __all__ = [
-    "Bounds",
-    "Residual",
-    "Weight",
-    "ScaleWeight",
-    "DiagonalWeight",
-    "Difference",
-    "ScalarCost",
-    "residual",
-    "RobustKernel",
-    "L2",
-    "Huber",
+    "ArrowNormal",
+    "BandedNormal",
     "Cauchy",
-    "Tukey",
-    "GemanMcClure",
-    "LinearSystem",
-    "LinearSolver",
-    "InformativeLinearSolver",
-    "LinearSolveResult",
-    "LinearSolveStatus",
-    "Cholesky",
-    "BandedCholesky",
-    "BlockBandedMatrix",
-    "Variable",
-    "SO3Variable",
-    "SE3Variable",
-    "RobotVariable",
-    "TemporalPattern",
-    "TemporalAnalysis",
-    "StructuredNormal",
-    "LinearizationMode",
-    "LinearizationReason",
-    "LinearizationDecision",
-    "AutodiffFallbackWarning",
-    "Problem",
-    "JacobianStrategy",
-    "Optimizer",
-    "OptimizerInfo",
-    "OptimizerStatus",
-    "TorchOptimizer",
-    "LevenbergMarquardt",
+    "Euclidean",
     "GaussNewton",
-    "ImplicitDiffConfig",
-    "ImplicitDifferentiationError",
+    "GemanMcClure",
+    "Huber",
+    "LBFGS",
+    "LevenbergMarquardt",
+    "Manifold",
+    "Normal",
+    "Phase",
+    "Problem",
+    "Result",
+    "Solver",
+    "State",
+    "TermFn",
+    "TorchOptim",
+    "Tukey",
+    "check_jacobian",
+    "run",
+    "solve",
+    "solve_constrained",
+    "solve_layer",
 ]

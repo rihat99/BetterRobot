@@ -7,12 +7,9 @@ Exercises ``build_model`` / ``load`` on a representative 24-body free-flyer +
 from __future__ import annotations
 
 import pytest
-import torch
 
 from better_robot.io import build_model, load
 from better_robot.io.ir import IRModel
-from better_robot.optim import RobotVariable
-from better_robot.residuals.regularization import RestResidual
 
 from tests.support.branching_tree import JOINT_NAMES, make_branching_tree_body
 
@@ -86,16 +83,3 @@ def test_branching_custom_height():
 
 def test_branching_q_neutral_shape(branching_model):
     assert branching_model.q_neutral.shape == (branching_model.nq,)
-
-
-def test_branching_rest_residual_backward_is_nan_free(branching_model):
-    """RestResidual traverses one free-flyer and 23 identity SO3 logs."""
-    q_rest = branching_model.q_neutral.to(dtype=torch.float64)
-    q = q_rest.detach().clone().requires_grad_(True)
-    q_variable = RobotVariable(branching_model, q, name="q")
-    residual = RestResidual(q_variable, q_rest).error()
-    residual.square().sum().backward()
-
-    assert q.grad is not None
-    assert torch.isfinite(q.grad).all()
-    torch.testing.assert_close(q.grad, torch.zeros_like(q))

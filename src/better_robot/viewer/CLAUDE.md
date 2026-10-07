@@ -11,7 +11,7 @@ One viewer on viser. Read `docs/concepts/viewer.md` first.
 - `Viewer.show` is the only frame-push path (one `server.atomic()` block). Keep `set_frame` free of
   torch and FK; adapters precompute.
 - viser is imported in `viewer.py` only; trimesh in `robot.py` only; no pyrender/imageio
-  (`tests/contract/test_layer_dependencies.py`). The core never imports BetterHuman or `tasks`.
+  (`tests/contract/test_layer_dependencies.py`). The core never imports BetterHuman.
 - Default host is `127.0.0.1`; tests use `tests/viewer/fake_server.py`, plus one loopback smoke test.
 - A renderable layer implements `geometry(frame)` (world triangles); `render/rasterizer.py` is pure
   torch and must stay device-agnostic.

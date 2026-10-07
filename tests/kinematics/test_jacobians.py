@@ -22,8 +22,8 @@ from better_robot.kinematics.jacobian import (
     get_joint_jacobian,
     joint_jacobians_raw,
 )
-from better_robot.optim import Problem, RobotVariable
-from better_robot.residuals.pose import PoseResidual
+from better_robot.kinematics.state import forward_kinematics_state
+from better_robot.terms import frame_pose
 
 
 def _id7() -> torch.Tensor:
@@ -217,31 +217,22 @@ def test_chain_jacobian_shape(chain):
 
 
 def _analytic_vs_finite_diff(model, q, frame_id, rtol=1e-3, atol=1e-4):
-    """Helper: compare analytic and central-FD Jacobians for PoseResidual."""
-    data = forward_kinematics(model, q, compute_frames=True)
-    T_target = data.frame_pose_world[frame_id].clone()  # use current pose as target → r≈0 near neutral
-
-    q_variable = RobotVariable(model, q, name="q")
-    residual = PoseResidual(q_variable, frame_id=frame_id, target=T_target)
-    problem = Problem([residual])
-    J_analytic = problem.jacobian_blocks(strategy="analytic")[(residual.name, q_variable.name)]
+    """Helper: the analytic ``jac`` of ``terms.frame_pose`` against a central-FD Jacobian of its residual."""
+    target = forward_kinematics_state(model, q).frame_pose_of(frame_id).clone()  # r ≈ 0 near neutral
+    term = frame_pose(model, frame_id, target="target")
+    J_analytic = term.jac(forward_kinematics_state(model, q), target)["q"]
 
     eps = 1e-3 if q.dtype == torch.float32 else 1e-7
     columns = []
     for index in range(model.nv):
         delta = torch.zeros(model.nv, dtype=q.dtype, device=q.device)
         delta[index] = eps
-        q_plus = model.integrate(q, delta)
-        q_minus = model.integrate(q, -delta)
-        problem.update({"q": q_plus})
-        plus = problem.error()
-        problem.update({"q": q_minus})
-        minus = problem.error()
+        plus = term.fn(forward_kinematics_state(model, model.integrate(q, delta)), target)
+        minus = term.fn(forward_kinematics_state(model, model.integrate(q, -delta)), target)
         columns.append((plus - minus) / (2.0 * eps))
     J_finite_diff = torch.stack(columns, dim=-1)
 
     assert J_analytic.shape == J_finite_diff.shape, f"Shape mismatch: {J_analytic.shape} vs {J_finite_diff.shape}"
-    # Near the target pose, both Jacobians should agree
     torch.testing.assert_close(J_analytic, J_finite_diff, rtol=rtol, atol=atol)
 
 
@@ -264,18 +255,6 @@ def test_analytic_vs_finite_diff_chain_j1(chain):
     q[1] = -0.4
     frame_id = chain.frame_id("body_l2")
     _analytic_vs_finite_diff(chain, q, frame_id)
-
-
-def test_pose_residual_resolves_frame_name(arm):
-    q = arm.q_neutral
-    data = forward_kinematics(arm, q, compute_frames=True)
-    frame_name = "body_link1"
-    target = data.frame_pose_world[arm.frame_id(frame_name)].clone()
-    q_variable = RobotVariable(arm, q, name="q")
-    residual = PoseResidual(q_variable, frame=frame_name, target=target)
-
-    assert residual.frame_id == arm.frame_id(frame_name)
-    torch.testing.assert_close(residual.error(), torch.zeros(6))
 
 
 # ── panda Jacobian check ──────────────────────────────────────────────────────

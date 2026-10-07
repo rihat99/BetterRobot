@@ -1,6 +1,6 @@
 """Kinematic terms and the configuration manifold of a robot model.
 
-Each factory returns a :class:`~better_robot.optim2.TermFn`. Kinematic terms read a cached
+Each factory returns a :class:`~better_robot.optim.TermFn`. Kinematic terms read a cached
 :class:`~better_robot.kinematics.KinematicState` (register it with :func:`kinematic_state`)
 so one forward-kinematics pass serves every term.
 """
@@ -15,7 +15,7 @@ from ..data_model.model import Model
 from ..kinematics.state import KinematicState, forward_kinematics_state, frame_jacobian
 from ..lie import se3
 from ..lie.tangents import right_jacobian_inv_se3
-from ..optim2 import TermFn
+from ..optim import TermFn
 
 
 class RobotManifold:

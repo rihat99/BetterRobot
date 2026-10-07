@@ -8,11 +8,6 @@ from typing import Protocol, runtime_checkable
 import torch
 
 
-def _group_rows(rows: torch.Tensor, group_size: int) -> torch.Tensor:
-    """View the last residual axis as contiguous robust groups."""
-    return rows.reshape(*rows.shape[:-1], rows.shape[-1] // group_size, group_size)
-
-
 @runtime_checkable
 class RobustKernel(Protocol):
     """Down-weight outliers without changing residual structure."""

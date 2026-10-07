@@ -13,10 +13,9 @@ from typing import get_origin
 
 import better_robot
 import pytest
-from better_robot import exceptions, optim, residuals
+from better_robot import exceptions, optim, terms
 
 PUBLIC_TYPE_ALIASES: dict[ModuleType, frozenset[str]] = {
-    optim: frozenset({"LinearSystem", "LinearizationMode", "JacobianStrategy"}),
 }
 
 
@@ -37,7 +36,7 @@ def test_every_public_symbol_has_a_docstring() -> None:
     )
 
 
-@pytest.mark.parametrize("module", [exceptions, optim, residuals], ids=lambda module: module.__name__)
+@pytest.mark.parametrize("module", [exceptions, optim, terms], ids=lambda module: module.__name__)
 def test_public_submodule_symbols_have_docstrings(module: ModuleType) -> None:
     """Every entry in a supported public submodule's ``__all__`` is documented."""
     assert not (offenders := _undocumented(module)), offenders

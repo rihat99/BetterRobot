@@ -18,8 +18,6 @@ from better_robot.kinematics import (
     get_joint_jacobian,
     joint_jacobians_raw,
 )
-from better_robot.optim import RobotVariable
-from better_robot.residuals import PoseResidual
 
 
 @pytest.fixture(scope="module")
@@ -207,13 +205,3 @@ def test_integrate_and_difference_reach_q(panda) -> None:
     target = panda.integrate(_configuration(panda), step)
     q_difference = _configuration(panda).requires_grad_()
     _assert_gradients(panda.difference(q_difference, target), q_difference)
-
-
-def test_pose_residual_reaches_q_and_model_values(panda) -> None:
-    q = _configuration(panda).requires_grad_()
-    model, placements = _placement_model(panda)
-    target_q = model.integrate(_configuration(model), torch.full((model.nv,), 0.02, dtype=q.dtype))
-    target = br.forward_kinematics(model, target_q, compute_frames=True).frame_pose_world[_hand_frame(model)].detach()
-    q_variable = RobotVariable(model, q, name="q")
-    residual = PoseResidual(q_variable, frame_id=_hand_frame(model), target=target)
-    _assert_gradients(residual.error(), q, placements)

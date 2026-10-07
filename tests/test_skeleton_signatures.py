@@ -19,7 +19,6 @@ EXPECTED_CLASSES = {
     "Frame",
     "Body",
     "Joint",
-    "Trajectory",
     "SE3",
     "ModelBuilder",
 }
@@ -37,8 +36,6 @@ EXPECTED_CALLABLES = {
     "crba",
     "center_of_mass",
     "compute_centroidal_map",
-    "solve_ik",
-    "solve_trajopt",
 }
 
 
@@ -103,13 +100,9 @@ def test_data_legacy_aliases_are_removed() -> None:
 
 
 def test_solve_ik_signature_shape() -> None:
-    sig = inspect.signature(br.solve_ik)
-    params = sig.parameters
-    assert "model" in params
-    assert "targets" in params
-    assert "initial_q" in params
-    assert "cost_cfg" in params
-    assert "optimizer_cfg" in params
-    assert params["differentiable"].kind is inspect.Parameter.KEYWORD_ONLY
-    assert params["differentiable"].default is False
-    assert "robot_collision" not in params
+    from better_robot.terms import solve_ik  # noqa: PLC0415
+
+    params = inspect.signature(solve_ik).parameters
+    assert list(params)[:3] == ["model", "targets", "q0"]
+    assert params["solver"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert params["iters"].kind is inspect.Parameter.KEYWORD_ONLY

@@ -33,19 +33,9 @@ dev = [
     "hypothesis>=6.100",
     "pin>=2.7",
     "pyperf>=2.7",
-    # Sphinx 8 removed SphinxUnreferencedFootnotesDetector that
-    # myst-parser still tries to deregister at setup; pin to <8 until
-    # myst-parser ships a fix (tracked upstream in executablebooks/MyST-Parser).
-    "sphinx>=7.0,<8",
-    "myst-parser>=2.0,<4",
-    "myst-nb>=1.1,<1.3",
-    "sphinx-book-theme>=1.1",
-    "sphinx-design>=0.5",
-    "sphinx-autodoc2>=0.5",
-    "sphinx-copybutton>=0.5",
-    "sphinxcontrib-bibtex>=2.6",
-    "sphinx-tabs>=3.4",
-    "ghp-import>=2.1",
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.26",
+    "matplotlib>=3.8",
     "ruff",
     "pyright",
     "mypy>=1.10",

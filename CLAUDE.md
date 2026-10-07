@@ -19,7 +19,7 @@ floating-base robots use the same `Model`/`Data` APIs; a floating base is a
 UV_CACHE_DIR=/tmp/betterrobot-uv-cache uv run pytest tests/ -q -m "not bench and not cuda"
 uv run ruff check src/ tests/
 uv run sphinx-build -b html docs docs/_build/html
-uv run python examples/01_basic_ik.py
+uv run python examples/01_ik.py
 ```
 
 ## Architecture
@@ -27,11 +27,13 @@ uv run python examples/01_basic_ik.py
 Imports point down the checked package DAG:
 
 ```text
-viewer -> tasks -> optim -> residuals
-                              |
+viewer -> terms
+            |
 io   kinematics   dynamics   collision
  \       |           |          /
           data_model -> spatial -> lie
+
+optim (imports only torch; knows nothing about robots)
 ```
 
 Kinematics and dynamics share an architectural rank; dynamics may reuse raw
@@ -58,18 +60,12 @@ to one query. Torch is the only implementation.
 
 ## Optimization
 
-`better_robot.optim` has one supported representation: object-owned `Variable`
-instances, fixed-width `Residual` objects that reference everything they read,
-evaluation-scoped `Node` objects for shared work, and a `Problem` that harvests
-that graph. Batched LM/GN and `TorchOptimizer` consume the same representation;
-`solve_ik` and `solve_trajopt` are recipes over it. Finite differences are an
-explicit debug strategy; normal differentiation uses analytic blocks or
-`torch.func`.
-
-Public optimizers own their problem and expose `step()` and `optimize()`.
-LM's private tensor update must remain fixed-shape and free of host
-synchronization; the eager driver may check whether every batch element is
-terminal once per iteration. Node memos live for one evaluation epoch only. See
+`better_robot.optim` optimizes named tensors with plain-function terms: a
+`Problem` holds the variables and `TermFn` terms, and LM, Gauss-Newton, L-BFGS
+or a wrapped `torch.optim` optimizer solves it (`solve`, `run` with `Phase`s,
+`solve_layer` for differentiable use, `solve_constrained` for hard
+constraints). It imports only torch. Robot terms (poses, limits, collision,
+`ik_problem`, `solve_ik`) live in `better_robot.terms`. See
 `src/better_robot/optim/CLAUDE.md` before changing optimizer behavior.
 
 ## Working rules

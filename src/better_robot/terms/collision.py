@@ -2,7 +2,7 @@
 
 Residuals are ``margin - distance``, hinged at zero by default so a clear configuration costs nothing.
 With ``hinge=False`` the plain ``margin - distance`` is the inequality ``<= 0`` for
-:func:`~better_robot.optim2.solve_constrained`. Jacobians come from autodiff.
+:func:`~better_robot.optim.solve_constrained`. Jacobians come from autodiff.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ import torch
 
 from ..collision import RobotSpheres, self_distances
 from ..kinematics.state import KinematicState
-from ..optim2 import TermFn
+from ..optim import TermFn
 
 
 def sphere_clearance(

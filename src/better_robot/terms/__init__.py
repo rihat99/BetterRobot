@@ -1,4 +1,4 @@
-"""Robot cost terms for ``better_robot.optim2``: plain functions with optional analytic Jacobians."""
+"""Robot cost terms for ``better_robot.optim``: plain functions with optional analytic Jacobians."""
 
 from __future__ import annotations
 

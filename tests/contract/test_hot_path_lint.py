@@ -1,7 +1,6 @@
 """Forbid hot-path patterns that break ``torch.compile`` and CUDA throughput.
 
-AST-walks ``kinematics/``, ``dynamics/``, ``optim/lm.py``,
-``optim/optimizers.py``, ``residuals/``, and ``lie/`` and fails the test
+AST-walks ``kinematics/``, ``dynamics/``, ``optim/solvers.py`` and ``lie/`` and fails the test
 if any forbidden idiom appears:
 
 * ``.item()`` / ``.cpu()`` — force a CUDA-host sync.
@@ -26,12 +25,11 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2] / "src" / "better_robot"
-WATCHED_DIRS = ("kinematics", "dynamics", "residuals", "lie")
-# Keep this list narrow: public ``Problem``/``VarSpec`` methods intentionally
-# perform host-side boundary validation, while the prevalidated solver update
-# must remain sync-free.  ``run`` and initialization may use a reasoned
-# ``# bench-ok`` exemption at their documented eager/static boundaries.
-WATCHED_FILES = ("optim/lm.py", "optim/optimizers.py")
+WATCHED_DIRS = ("kinematics", "dynamics", "lie")
+# Keep this list narrow: public ``Problem`` methods intentionally perform
+# host-side boundary validation, while the solver update must remain sync-free.
+# Drivers may use a reasoned ``# bench-ok`` exemption at their eager boundaries.
+WATCHED_FILES = ("optim/solvers.py",)
 ALLOC_FNS = ("zeros", "ones", "empty", "full", "rand", "randn", "eye")
 
 # Calls with these names are tensor evidence when reached through ``torch``.
@@ -505,15 +503,14 @@ def test_no_forbidden_hot_path_patterns(file: Path) -> None:
     ),
 )
 def test_new_forbidden_patterns_are_detected(name: str, src: str, needle: str) -> None:
-    path = ROOT / "optim/lm.py" if name == "int_tensor" else Path(f"{name}.py")
+    path = ROOT / "optim/solvers.py" if name == "int_tensor" else Path(f"{name}.py")
     violations = _find_violations(path, src)
     assert any(needle in violation for violation in violations), violations
 
 
 def test_optimizer_update_modules_are_watched() -> None:
     watched = {path.relative_to(ROOT).as_posix() for path in _find_hot_path_files()}
-    assert "optim/lm.py" in watched
-    assert "optim/optimizers.py" in watched
+    assert "optim/solvers.py" in watched
 
 
 def test_scalar_float_conversions_are_not_tensor_syncs() -> None:

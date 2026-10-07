@@ -1,6 +1,6 @@
 """Play an optimized trajectory with joints coloured by torque and a torque plot.
 
-The trajectory comes from the problem of ``examples/optim2/02_trajectory.py``; torques from
+The trajectory comes from the problem of ``examples/02_trajectory.py``; torques from
 inverse dynamics on finite-difference velocities and accelerations.
 
     uv run python examples/viewer/02_play_trajectory.py
@@ -16,7 +16,7 @@ import torch
 from robot_descriptions import panda_description
 
 import better_robot as br
-from better_robot import optim2, terms
+from better_robot import optim, terms
 from better_robot.dynamics import inverse_dynamics
 from better_robot.kinematics import forward_kinematics_state
 from better_robot.viewer import GroundLayer, Viewer, robot_layers
@@ -36,7 +36,7 @@ def optimize_trajectory(model: br.Model) -> torch.Tensor:
     target[:, -1] = pose_goal
     end_weight = torch.zeros(KNOTS, 1, dtype=torch.float64)
     end_weight[0], end_weight[-1] = 1e6, 1e4
-    problem = optim2.Problem(
+    problem = optim.Problem(
         {"q": q_start.repeat(1, KNOTS, 1)},
         manifolds={"q": terms.RobotManifold(model)},
         bounds={"q": (model.lower_pos_limit, model.upper_pos_limit)},
@@ -47,7 +47,7 @@ def optimize_trajectory(model: br.Model) -> torch.Tensor:
     problem.residual("ends", terms.frame_pose(model, FRAME, target="target"), weight=end_weight, window=1)
     problem.residual("velocity", terms.finite_difference(model, order=1, dt=DT), weight=1e-3)
     problem.residual("acceleration", terms.finite_difference(model, order=2, dt=DT), weight=1e-4)
-    return optim2.solve(problem, optim2.LevenbergMarquardt(), iters=200).x["q"][0]
+    return optim.solve(problem, optim.LevenbergMarquardt(), iters=200).x["q"][0]
 
 
 def joint_torques(model: br.Model, q: torch.Tensor) -> torch.Tensor:

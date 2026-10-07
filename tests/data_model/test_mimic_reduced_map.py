@@ -24,8 +24,6 @@ from better_robot.data_model.reduced_coordinates import (
     expand_tangent,
 )
 from better_robot.io import IRError, ModelBuilder, build_model
-from better_robot.optim import RobotVariable
-from better_robot.residuals import JointPositionLimit
 
 
 _IDENTITY = torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
@@ -151,20 +149,6 @@ def test_every_supported_concrete_scalar_kind_builds_a_reduced_map(factory) -> N
         expanded[model.idx_qs_full[target_id]],
         torch.tensor(-0.2, dtype=torch.float64),
     )
-
-
-def test_sign_aware_limits_and_generalized_capacities_are_reduced() -> None:
-    model = build_model(_mimic_ir(), dtype=torch.float64)
-
-    torch.testing.assert_close(model.lower_pos_limit, torch.tensor([-0.25], dtype=torch.float64))
-    torch.testing.assert_close(model.upper_pos_limit, torch.tensor([0.375], dtype=torch.float64))
-    torch.testing.assert_close(model.velocity_limit, torch.tensor([2.0], dtype=torch.float64))
-    torch.testing.assert_close(model.effort_limit, torch.tensor([19.0], dtype=torch.float64))
-
-    q = RobotVariable(model, torch.tensor([0.5], dtype=torch.float64), name="q")
-    result = JointPositionLimit(q).error()
-    assert result.shape == (2,)
-    torch.testing.assert_close(result, torch.tensor([0.0, 0.125], dtype=torch.float64))
 
 
 def test_mimic_chains_compose_multiplier_and_offset() -> None:
