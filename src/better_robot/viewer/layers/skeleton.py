@@ -15,7 +15,8 @@ _IDENTITY = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
 class SkeletonLayer(Layer):
     """Joint positions ``(T, J, 3)`` and ``parents (J,)`` (``-1`` for roots) drawn as a stick figure.
 
-    ``colors`` is one RGB, ``(J, 3)`` per joint, or ``(T, J, 3)`` per frame (for torque colouring).
+    ``radius`` is one float or ``(J,)`` per joint; ``colors`` is one RGB, ``(J, 3)`` per joint, or
+    ``(T, J, 3)`` per frame (for torque colouring).
     Per frame only instance transforms are written: J sphere positions and B bone poses.
     """
 
@@ -25,7 +26,7 @@ class SkeletonLayer(Layer):
         joints: np.ndarray,
         parents: np.ndarray | list[int],
         *,
-        radius: float = 0.02,
+        radius: float | np.ndarray = 0.02,
         bone_radius: float | None = None,
         colors: np.ndarray | RGB = (0.20, 0.60, 1.00),
         bone_color: RGB = (0.72, 0.72, 0.72),
@@ -35,8 +36,8 @@ class SkeletonLayer(Layer):
         self.parents = np.asarray(parents, dtype=np.int64)
         if self.parents.shape != (self.joints.shape[1],):
             raise ValueError("parents must have one entry per joint")
-        self.radius = radius
-        self.bone_radius = radius * 0.6 if bone_radius is None else bone_radius
+        self.radius = np.broadcast_to(np.asarray(radius, dtype=np.float32), (self.joints.shape[1],))
+        self.bone_radius = float(self.radius.max()) * 0.6 if bone_radius is None else bone_radius
         self.bone_color = bone_color
         self._child = np.nonzero(self.parents >= 0)[0]
         self._parent = self.parents[self._child]
@@ -56,7 +57,7 @@ class SkeletonLayer(Layer):
                 faces,
                 batched_wxyzs=np.tile(_IDENTITY, (n_joints, 1)),
                 batched_positions=self.joints[0],
-                batched_scales=np.full(n_joints, self.radius, dtype=np.float32),
+                batched_scales=self.radius,
                 batched_colors=colors,
                 lod="off",
             )

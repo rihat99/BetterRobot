@@ -25,6 +25,37 @@ def xyzw_to_wxyz(q: np.ndarray) -> np.ndarray:
     return np.concatenate([q[..., 3:4], q[..., :3]], axis=-1)
 
 
+def compose_poses(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Compose xyzw poses ``(..., 7)``: ``a ∘ b`` (apply ``b`` in the frame of ``a``), broadcasting."""
+    a, b = np.broadcast_arrays(np.asarray(a, dtype=np.float32), np.asarray(b, dtype=np.float32))
+    qa, qb = a[..., 3:], b[..., 3:]
+    xa, ya, za, wa = (qa[..., i] for i in range(4))
+    xb, yb, zb, wb = (qb[..., i] for i in range(4))
+    quat = np.stack(
+        [
+            wa * xb + xa * wb + ya * zb - za * yb,
+            wa * yb - xa * zb + ya * wb + za * xb,
+            wa * zb + xa * yb - ya * xb + za * wb,
+            wa * wb - xa * xb - ya * yb - za * zb,
+        ],
+        axis=-1,
+    )
+    return np.concatenate([a[..., :3] + rotate(qa, b[..., :3]), quat], axis=-1)
+
+
+def rotate(q: np.ndarray, v: np.ndarray) -> np.ndarray:
+    """Rotate vectors ``v (..., 3)`` by unit quaternions ``q (..., 4)`` in xyzw order."""
+    xyz, w = q[..., :3], q[..., 3:4]
+    t = 2.0 * np.cross(xyz, v)
+    return v + w * t + np.cross(xyz, t)
+
+
+def colormap(values: np.ndarray, low: RGB, high: RGB) -> np.ndarray:
+    """Linear blend from ``low`` to ``high`` for ``values`` in ``[0, 1]`` (clamped): ``(..., 3)``."""
+    t = np.clip(np.asarray(values, dtype=np.float32), 0.0, 1.0)[..., None]
+    return (1.0 - t) * np.asarray(low, dtype=np.float32) + t * np.asarray(high, dtype=np.float32)
+
+
 def quat_z_to(direction: np.ndarray) -> np.ndarray:
     """Shortest-arc quaternion (wxyz) rotating ``+z`` onto each ``direction`` ``(..., 3)``.
 

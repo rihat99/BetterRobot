@@ -20,14 +20,13 @@ class FramesLayer(Layer):
         super().__init__(name, self.poses.shape[0])
         self.axes_length = axes_length
         self.axes_radius = axes_radius
-        self._wxyz = np.ascontiguousarray(xyzw_to_wxyz(self.poses[..., 3:]))
         self._axes: Any = None
 
     def build(self, scene: Any, root: str) -> None:
         self._axes = self._track(
             scene.add_batched_axes(
                 f"{root}/axes",
-                batched_wxyzs=self._wxyz[0],
+                batched_wxyzs=xyzw_to_wxyz(self.poses[0, :, 3:]),
                 batched_positions=self.poses[0, :, :3],
                 axes_length=self.axes_length,
                 axes_radius=self.axes_radius,
@@ -36,4 +35,4 @@ class FramesLayer(Layer):
 
     def set_frame(self, frame: int) -> None:
         self._axes.batched_positions = self.poses[frame, :, :3]
-        self._axes.batched_wxyzs = self._wxyz[frame]
+        self._axes.batched_wxyzs = xyzw_to_wxyz(self.poses[frame, :, 3:])
