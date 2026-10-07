@@ -82,8 +82,9 @@ def top_k_weights(weights: np.ndarray, k: int) -> np.ndarray:
     """Keep the ``k`` largest weights per row and renormalise rows to sum to one."""
     if weights.shape[1] <= k:
         return weights / np.maximum(weights.sum(axis=1, keepdims=True), 1e-12)
-    cutoff = np.partition(weights, -k, axis=1)[:, -k][:, None]
-    kept = np.where(weights >= cutoff, weights, 0.0)
+    top = np.argpartition(weights, -k, axis=1)[:, -k:]
+    kept = np.zeros_like(weights)
+    np.put_along_axis(kept, top, np.take_along_axis(weights, top, axis=1), axis=1)
     return kept / np.maximum(kept.sum(axis=1, keepdims=True), 1e-12)
 
 
