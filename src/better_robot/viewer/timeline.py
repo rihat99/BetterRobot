@@ -26,6 +26,7 @@ class Timeline:
         self._frame = 0
         self._callbacks: list[Callable[[int], None]] = []
         self._playing = threading.Event()
+        self._lock = threading.Lock()
         self._thread: threading.Thread | None = None
         self._gui_slider: Any = None
         self._gui_play: Any = None
@@ -64,12 +65,13 @@ class Timeline:
                 self._gui_slider.max = num_frames - 1
 
     def play(self) -> None:
-        if self.playing or self.num_frames == 1:
-            return
+        with self._lock:  # two clients clicking Play together must not start two threads
+            if self.playing or self.num_frames == 1:
+                return
+            self._playing.set()
+            self._thread = threading.Thread(target=self._run, name="better_robot.viewer.timeline", daemon=True)
         if not self.loop and self._frame >= self.num_frames - 1:
             self.frame = 0
-        self._playing.set()
-        self._thread = threading.Thread(target=self._run, name="better_robot.viewer.timeline", daemon=True)
         self._thread.start()
         self._sync_play_button()
 

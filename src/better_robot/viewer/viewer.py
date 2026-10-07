@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -58,6 +59,7 @@ class Viewer:
         self.timeline = Timeline(1, fps)
         self.timeline.on_frame(lambda frame: self._push_all(frame, force=False))
         self._groups: dict[str, _Group] = {}
+        self._lock = threading.RLock()  # the playback thread pushes while the main thread adds/removes
         self._timeline_folder = server.gui.add_folder("Timeline")
         with self._timeline_folder:
             self.timeline.build_gui(server.gui)
@@ -75,6 +77,10 @@ class Viewer:
 
         ``offset`` moves the whole group (side-by-side comparisons). Returns the layer.
         """
+        with self._lock:
+            return self._add(layer, group, offset)
+
+    def _add(self, layer: Layer, group: str, offset: tuple[float, float, float] | None) -> Layer:
         group_state = self._groups.get(group)
         if group_state is None:
             node = self.server.scene.add_frame(f"/{group}", show_axes=False)
@@ -101,19 +107,21 @@ class Viewer:
 
     def remove_group(self, group: str) -> None:
         """Dispose every layer of ``group`` and remove its scene node and GUI folder."""
-        group_state = self._groups.pop(group)
-        for entry in group_state.entries.values():
-            entry.layer.dispose()
-        group_state.node.remove()
-        group_state.folder.remove()
+        with self._lock:
+            group_state = self._groups.pop(group)
+            for entry in group_state.entries.values():
+                entry.layer.dispose()
+            group_state.node.remove()
+            group_state.folder.remove()
 
     def set_visible(self, layer: Layer, visible: bool) -> None:
         """Hide a layer (skipped by ``show``) or show it, catching up to the current frame."""
-        entry = self._entry(layer)
-        entry.visible = visible
-        layer.set_visible(visible)
-        if visible:
-            self._push(entry, self.timeline.frame)
+        with self._lock:
+            entry = self._entry(layer)
+            entry.visible = visible
+            layer.set_visible(visible)
+            if visible:
+                self._push(entry, self.timeline.frame)
 
     def show(self, frame: int | None = None) -> None:
         """Move the timeline to ``frame``; with no argument re-push the current frame to every
@@ -165,7 +173,7 @@ class Viewer:
             entry.frame = frame
 
     def _push_all(self, frame: int, force: bool) -> None:
-        with self.server.atomic():
+        with self._lock, self.server.atomic():
             for group in self._groups.values():
                 for entry in group.entries.values():
                     if entry.visible:

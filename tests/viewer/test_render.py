@@ -51,3 +51,37 @@ def test_layers_render_through_geometry_and_record_writes_files(tmp_path: Path) 
     assert record(layers, tmp_path / "clip.gif", fps=5, size=(80, 45)).stat().st_size > 0
     assert record(layers, tmp_path / "frames" / "clip.png", size=(80, 45)) == tmp_path / "frames"
     assert sorted(p.name for p in (tmp_path / "frames").iterdir()) == ["clip_0000.png", "clip_0001.png"]
+
+
+def _brute_force_coverage(tri: np.ndarray, size: tuple[int, int]) -> np.ndarray:
+    """Pixel-centre edge test for one screen-space triangle ``(3, 2)``; the rasterizer must match it."""
+    width, height = size
+    xs, ys = np.meshgrid(np.arange(width) + 0.5, np.arange(height) + 0.5)
+    a, b, c = tri
+
+    def edge(p, q):
+        return (q[0] - p[0]) * (ys - p[1]) - (q[1] - p[1]) * (xs - p[0])
+
+    w = np.stack([edge(b, c), edge(c, a), edge(a, b)])
+    return (w >= 0).all(0) | (w <= 0).all(0)
+
+
+def test_small_and_edge_triangles_cover_exactly_the_brute_force_pixels() -> None:
+    # At distance 32 with fov 90° and a 64 px image, screen = world for points on z = 0 (``up`` = -y makes
+    # the camera's right axis +x and its down axis +y, like image coordinates).
+    camera = Camera(position=(32.0, 32.0, -32.0), target=(32.0, 32.0, 0.0), up=(0.0, -1.0, 0.0), fov=math.radians(90.0))
+    cases = [
+        [(10.6, 10.6), (14.6, 10.6), (14.6, 14.6)],  # width 4: last column was lost before the fix
+        [(10.6, 10.6), (18.55, 10.6), (18.55, 18.55)],  # width 8
+        [(2.0, -2.4), (6.0, -2.4), (4.0, 1.5)],  # partly above the image: nothing may land on row 0 wrongly
+        [(-3.0, 5.0), (40.0, 7.0), (20.0, 60.0)],  # large: tile path
+    ]
+    for case in cases:
+        tri = np.array(case)
+        vertices = torch.tensor(np.concatenate([tri, np.zeros((3, 1))], axis=1), dtype=torch.float32)
+        image = rasterize(
+            vertices, torch.tensor([[0, 1, 2]]), torch.ones(1, 3), camera, (64, 64), background=(0.0, 0.0, 0.0)
+        )
+        drawn = (image[..., 0] > 0).numpy()
+        expected = _brute_force_coverage(tri, (64, 64))
+        assert np.array_equal(drawn, expected), f"{tri.tolist()}: {int(drawn.sum())} drawn vs {int(expected.sum())}"

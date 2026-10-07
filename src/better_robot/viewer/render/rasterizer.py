@@ -32,6 +32,8 @@ class Camera:
         forward = np.asarray(self.target, dtype=np.float64) - position
         forward /= np.linalg.norm(forward)
         right = np.cross(forward, np.asarray(self.up, dtype=np.float64))
+        if np.linalg.norm(right) < 1e-9:  # looking along ``up``: any perpendicular axis will do
+            right = np.cross(forward, np.array([1.0, 0.0, 0.0]) if abs(forward[0]) < 0.9 else np.array([0.0, 1.0, 0.0]))
         right /= np.linalg.norm(right)
         down = np.cross(forward, right)
         rotation = np.stack([right, down, forward])  # rows: camera axes in world coordinates
@@ -85,7 +87,8 @@ def rasterize(
     # Small triangles get one block anchored at their bounding box; large ones are binned into tiles.
     extent = (tri.amax(dim=1) - tri.amin(dim=1)).amax(dim=1)
     indices, depths, owners = [], [], []
-    classes = [(extent <= 4, 4, True), ((extent > 4) & (extent <= 8), 8, True), (extent > 8, TILE, False)]
+    # An anchored block starts at floor(lo), so it needs one pixel more than the bound to reach hi.
+    classes = [(extent <= 4, 5, True), ((extent > 4) & (extent <= 8), 9, True), (extent > 8, TILE, False)]
     for mask, block, anchored in classes:
         selected = mask.nonzero().squeeze(1)
         if selected.numel() == 0:
@@ -95,7 +98,7 @@ def rasterize(
         a, b, c = tri[face, 0, None], tri[face, 1, None], tri[face, 2, None]
         w0, w1, w2 = _edge(b, c, pixel), _edge(c, a, pixel), _edge(a, b, pixel)
         inside = ((w0 >= 0) & (w1 >= 0) & (w2 >= 0)) | ((w0 <= 0) & (w1 <= 0) & (w2 <= 0))
-        inside &= (pixel[..., 0] < width) & (pixel[..., 1] < height)
+        inside &= (pixel >= 0).all(-1) & (pixel[..., 0] < width) & (pixel[..., 1] < height)
         bary = torch.stack([w0, w1, w2], dim=-1) / area[face, None, None]
         pixel_depth = 1.0 / (bary / tri_depth[face, None]).sum(-1).clamp(min=1e-9)
         indices.append(index[inside])

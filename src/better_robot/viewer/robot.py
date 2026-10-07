@@ -121,21 +121,27 @@ def robot_skeleton(
     parents = np.asarray(model.parents[1:], dtype=np.int64) - 1  # the universe becomes -1
     colors: Any = theme.joint
     if tau is not None:
-        colors = _torque_colors(model, tau.detach().cpu().numpy(), theme)
+        colors = _torque_colors(model, tau.detach().cpu().numpy(), theme, joint_poses.shape[0])
     return SkeletonLayer(name, joint_poses[:, 1:, :3], parents, radius=radii, colors=colors, bone_color=theme.link)
 
 
-def _torque_colors(model: Model, tau: np.ndarray, theme: Theme) -> np.ndarray:
-    """``(T, njoints - 1, 3)`` colours from ``|tau_j| / effort_limit_j``; fixed joints keep the base colour."""
+def _torque_colors(model: Model, tau: np.ndarray, theme: Theme, num_frames: int) -> np.ndarray:
+    """``(T, njoints - 1, 3)`` colours from ``|tau_j| / effort_limit_j``; joints without a torque or a finite
+    limit keep the base colour."""
     tau = tau.reshape(-1, model.nv)
+    if tau.shape[0] not in (1, num_frames):
+        raise ValueError(f"tau must have {num_frames} frames or one, got {tau.shape[0]}")
     limits = model.values.effort_limit.detach().cpu().numpy().reshape(-1)
-    limits = np.where(np.isfinite(limits) & (limits > 0), limits, np.abs(tau).max(axis=0) + 1e-9)
+    # Joints without a finite effort limit (free-flyer, unbounded URDF joints) keep the base colour.
+    finite = np.isfinite(limits) & (limits > 0)
+    limits = np.where(finite, limits, np.inf)
     ratio = np.zeros((tau.shape[0], model.njoints - 1), dtype=np.float32)
     for joint, (start, count) in enumerate(zip(model.idx_vs[1:], model.nvs[1:])):
         if count:
             block = np.abs(tau[:, start : start + count]) / limits[start : start + count]
             ratio[:, joint] = block.max(axis=1)
-    return colormap(ratio, theme.joint, theme.force)
+    colors = colormap(ratio, theme.joint, theme.force)
+    return np.broadcast_to(colors, (num_frames, *colors.shape[1:])).copy()
 
 
 def robot_meshes(model: Model, *, collision: bool = False, default_color: Any = (0.8, 0.8, 0.8)) -> list[MeshSpec]:

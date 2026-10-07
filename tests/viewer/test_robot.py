@@ -113,3 +113,20 @@ def test_robot_view_update_rewrites_layer_arrays_in_place() -> None:
     assert not np.allclose(before, after)
     expected = robot_layers(model, q1, visual=False, skeleton=True)[0].joints[0]
     np.testing.assert_allclose(after, expected, atol=1e-6)
+
+
+def test_torque_colours_skip_joints_without_a_finite_limit() -> None:
+    pytest.importorskip("robot_descriptions")
+    from robot_descriptions import g1_description  # noqa: PLC0415 - optional test dependency
+
+    from better_robot.viewer.robot import _torque_colors  # noqa: PLC0415
+    from better_robot.viewer.theme import LIGHT  # noqa: PLC0415
+
+    model = br.load(g1_description.URDF_PATH, free_flyer=True)
+    tau = np.zeros(model.nv, dtype=np.float32)
+    tau[:6] = 1e6  # free-flyer "torques": no effort limit, must stay in the base colour
+    colors = _torque_colors(model, tau, LIGHT, num_frames=3)
+    assert colors.shape == (3, model.njoints - 1, 3)
+    np.testing.assert_allclose(colors[:, 0], np.tile(LIGHT.joint, (3, 1)), atol=1e-6)
+    with pytest.raises(ValueError):
+        _torque_colors(model, np.zeros((2, model.nv), dtype=np.float32), LIGHT, num_frames=3)
