@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 320" width="680" height="320" font-family="Helvetica, Arial, sans-serif">
+<defs>
+<marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1f2328"/></marker>
+<marker id="an" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1f3a68"/></marker>
+</defs>
+<!-- background: white card so the figure reads on light and dark site themes -->
+<rect x="1" y="1" width="678" height="318" rx="12" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="168" y="36" font-size="12" fill="#424a53" text-anchor="start" font-weight="normal">knot t →</text>
+<rect x="168" y="56" width="56" height="40" rx="4" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="196" y="81" font-size="13" fill="#1f2328" text-anchor="middle" font-weight="normal">q[0]</text>
+<rect x="232" y="56" width="56" height="40" rx="4" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="260" y="81" font-size="13" fill="#1f2328" text-anchor="middle" font-weight="normal">q[1]</text>
+<rect x="296" y="56" width="56" height="40" rx="4" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="324" y="81" font-size="13" fill="#1f2328" text-anchor="middle" font-weight="normal">q[2]</text>
+<rect x="360" y="56" width="56" height="40" rx="4" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="388" y="81" font-size="13" fill="#1f2328" text-anchor="middle" font-weight="normal">q[3]</text>
+<rect x="424" y="56" width="56" height="40" rx="4" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="452" y="81" font-size="13" fill="#1f2328" text-anchor="middle" font-weight="normal">q[4]</text>
+<rect x="488" y="56" width="56" height="40" rx="4" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="516" y="81" font-size="13" fill="#1f2328" text-anchor="middle" font-weight="normal">q[5]</text>
+<text x="152" y="74" font-size="13" fill="#1f2328" text-anchor="end" font-weight="bold">q  (B, T, nq)</text>
+<text x="152" y="90" font-size="12" fill="#1f3a68" text-anchor="end" font-weight="normal">time=(&quot;q&quot;,)</text>
+<rect x="290" y="48" width="132" height="56" rx="6" fill="none" stroke="#1f3a68" stroke-width="2"/>
+<polyline points="356,104 356,136" fill="none" stroke="#1f3a68" stroke-width="2" marker-end="url(#an)"/>
+<rect x="196" y="136" width="320" height="48" rx="6" fill="#f3f5f8" stroke="#1f3a68" stroke-width="2"/>
+<text x="356.0" y="157.0" font-size="15" fill="#1f3a68" text-anchor="middle" font-weight="bold">window=2: row t reads q[t], q[t+1]</text>
+<text x="356.0" y="174.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">e.g. a finite-difference velocity term</text>
+<rect x="168" y="232" width="376" height="48" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text x="356.0" y="253.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">time-free variable (B, k), e.g. body shape</text>
+<text x="356.0" y="270.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">read by every knot → arrow column in JᵀJ</text>
+<text x="152" y="260" font-size="12" fill="#424a53" text-anchor="end" font-weight="normal">no time axis</text>
+</svg>

@@ -31,8 +31,17 @@ spherical and unbounded joints keep their `q0` values.
 ## Solve with one call
 
 `terms.solve_ik` builds a pose term per target frame, keeps the joints inside their limits, and runs
-Levenberg-Marquardt (LM) on all 32 problems together. `restarts` retries from random starts to escape
-local minima:
+Levenberg-Marquardt (LM) on all 32 problems together. Each iteration evaluates the residual
+$r(q)$ (pose error and limit violations) and its Jacobian $J = \partial r / \partial q$, then takes the
+damped step $\Delta q = -(J^\top J + \lambda D)^{-1} J^\top r$, where $D = \mathrm{diag}(J^\top J)$ and
+$\lambda$ grows when a step is rejected, then integrates it with `model.integrate`, so configurations
+stay on the manifold:
+
+![The IK loop: forward kinematics gives the pose error, the Jacobian gives the step, Model.integrate applies it, and the loop repeats until the residual is small.](../figures/ik_loop.svg){ width="860" }
+
+*One LM iteration of `solve_ik`; the whole loop is batched over the 32 targets.*
+
+`restarts` retries from random starts to escape local minima:
 
 ```python
 result = terms.solve_ik(model, {FRAME: target}, q0=q0, restarts=4, generator=generator)
@@ -42,6 +51,9 @@ reached = forward_kinematics_state(model, q).frame_pose[:, hand]
 error = (reached[:, :3] - target[:, :3]).norm(dim=-1)
 print(f"reached (<0.1 mm): {float((error < 1e-4).float().mean()):.2f}, median error {float(error.median()):.1e} m")
 ```
+```output
+reached (<0.1 mm): 0.97, median error 2.3e-12 m
+```
 
 `result.x` is a dict of the solved variables; IK has one variable, `"q"`, and `result[name]` is shorthand for `result.x[name]`:
 
@@ -50,7 +62,10 @@ q = result["q"]  # (32, nq)
 assert q is result.x["q"]
 ```
 
-![Inverse kinematics: start configuration (left) and the solved configuration reaching the target hand pose (right).](../images/panda_ik.png)
+<figure markdown>
+  ![Inverse kinematics: start configuration (left) and the solved configuration reaching the target hand pose (right).](../images/panda_ik.png){ width="860" }
+  <figcaption>Start configuration (left) and the solved configuration reaching the target hand pose (right).</figcaption>
+</figure>
 
 ## Add your own term
 
@@ -67,6 +82,10 @@ result = optim.solve(problem, optim.LevenbergMarquardt(), iters=100)
 for name, loss in problem.losses(result.x).items():
     print(f"{name}: {float(loss.mean()):.2e}")
 ```
+```output
+pose/body_panda_hand: 2.27e-02
+elbow: 6.95e-04
+```
 
 The lambda's argument names select the tensors it receives: `q` is the variable, `preferred_elbow` comes
 from `problem.data`.
@@ -79,5 +98,8 @@ The same problem runs under any `torch.optim` optimizer. Adam needs many more st
 result = optim.solve(problem, optim.TorchOptim(torch.optim.Adam, lr=0.05), iters=300)
 ```
 
-[Optimization](../concepts/optimization.md) explains problems, terms and solvers;
-[Write a term](../guides/write-a-term.md) goes further. Next: [floating-base robots](floating-base.md).
+## Where next
+
+- [Floating-base robots](floating-base.md) — the same `solve_ik` on a humanoid whose base is a joint.
+- [Optimization](../concepts/optimization.md) — problems, terms and solvers in depth.
+- [Write a term](../guides/write-a-term.md) — residual shapes, weights and Jacobians for your own terms.

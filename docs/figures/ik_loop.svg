@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 312" width="640" height="312" font-family="Helvetica, Arial, sans-serif">
+<defs>
+<marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1f2328"/></marker>
+<marker id="an" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1f3a68"/></marker>
+</defs>
+<!-- background: white card so the figure reads on light and dark site themes -->
+<rect x="1" y="1" width="638" height="310" rx="12" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<rect x="24" y="24" width="176" height="72" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="112.0" y="49.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">residual r(q)</text>
+<text x="112.0" y="66.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">pose error per target</text>
+<text x="112.0" y="82.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">(+ optional limit, rest)</text>
+<rect x="232" y="24" width="176" height="72" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="320.0" y="49.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">Jacobian J</text>
+<text x="320.0" y="66.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">dr/dδ from frame</text>
+<text x="320.0" y="82.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">Jacobians</text>
+<rect x="440" y="24" width="176" height="72" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="528.0" y="57.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">normal equations</text>
+<text x="528.0" y="74.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">JᵀJ and Jᵀr</text>
+<rect x="440" y="216" width="176" height="72" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="528.0" y="241.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">damped step</text>
+<text x="528.0" y="258.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">(JᵀJ + λD) δ = −Jᵀr</text>
+<text x="528.0" y="274.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">δ kept inside q limits</text>
+<rect x="232" y="216" width="176" height="72" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="320.0" y="241.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">retract</text>
+<text x="320.0" y="258.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">q ← Model.integrate(q, δ)</text>
+<text x="320.0" y="274.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">(RobotManifold)</text>
+<rect x="24" y="216" width="176" height="72" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="112.0" y="241.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">accept or reject</text>
+<text x="112.0" y="258.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">gain ratio updates λ</text>
+<text x="112.0" y="274.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">(Nielsen rule)</text>
+<polyline points="200,60 232,60" fill="none" stroke="#1f3a68" stroke-width="2" marker-end="url(#an)"/>
+<polyline points="408,60 440,60" fill="none" stroke="#1f3a68" stroke-width="2" marker-end="url(#an)"/>
+<polyline points="528,96 528,216" fill="none" stroke="#1f3a68" stroke-width="2" marker-end="url(#an)"/>
+<polyline points="440,252 408,252" fill="none" stroke="#1f3a68" stroke-width="2" marker-end="url(#an)"/>
+<polyline points="232,252 200,252" fill="none" stroke="#1f3a68" stroke-width="2" marker-end="url(#an)"/>
+<polyline points="112,216 112,96" fill="none" stroke="#1f3a68" stroke-width="2" marker-end="url(#an)"/>
+<text x="320" y="150" font-size="13" fill="#1f2328" text-anchor="middle" font-weight="bold">solve_ik(model, targets, q0=...)</text>
+<text x="320" y="170" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">LevenbergMarquardt, up to iters=100</text>
+</svg>

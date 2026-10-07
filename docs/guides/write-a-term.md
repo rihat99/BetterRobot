@@ -87,6 +87,10 @@ result = solve(problem, LevenbergMarquardt(), iters=50)
 radius_error = (result.x["x"].norm(dim=-1) - 2.0).abs().max()
 print(f"largest distance from the circle: {float(radius_error):.1e}")
 ```
+```output
+{'circle': 0.0, 'smooth': 0.0}
+largest distance from the circle: 2.0e-13
+```
 
 Use float64 when you check: in float32 the reference itself has errors around `1e-6`.
 
@@ -104,3 +108,9 @@ built this way: factories that return `TermFn`s reading the cached `state`.
 - Output `(B, ..., m)`; with `window=k`, `(B, T - k + 1, m)`.
 - `jac` blocks in tangent coordinates, shapes from the table above.
 - `check_jacobian` below `1e-9` in float64 in a test.
+
+## Where next
+
+- [Fit a clip](fit-a-clip.md): terms with `window` inside a phased trajectory fit.
+- [Enforce hard constraints](hard-constraints.md): the same term as an exact constraint.
+- [Extending BetterRobot](../contributing/extending.md): ship a term inside the library.

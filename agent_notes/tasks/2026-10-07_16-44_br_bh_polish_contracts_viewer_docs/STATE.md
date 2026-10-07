@@ -1,43 +1,44 @@
-# STATE — BR+BH / 2026-10-07_16-44_br_bh_polish_contracts_viewer_docs (updated 2026-10-07 16:50 Dubai)
+# STATE — BR+BH / 2026-10-07_16-44_br_bh_polish_contracts_viewer_docs (updated 2026-10-08 00:40 Dubai)
 
 ## Pointers
 - Plan: /home/rikhat.akizhanov/better/dev/BetterRobot/agent_notes/tasks/2026-10-07_16-44_br_bh_polish_contracts_viewer_docs/PLAN.md
-- Subagent context: `subagents/context.md`; discovery outputs `subagents/p0_*.md`.
-- Worktrees: BR `/home/rikhat.akizhanov/better/dev/BetterRobot`, BH `/home/rikhat.akizhanov/better/dev/BetterHuman` (both `dev`).
+- Subagent notes (`subagents/`): context.md; p0_*.md + p0_synthesis.md (discovery); p1_* (contracts: review,
+  violations ledger, state); p2_tests_ledger.md, drop_tests.py; p3a_state.md, p3b_state.md (viewer);
+  p4_state.md, drive_studio.py (studio); p5a/p5b briefs, make_clips.py, make_figs.py (docs).
+- Worktrees: BR `/home/rikhat.akizhanov/better/dev/BetterRobot`, BH `/home/rikhat.akizhanov/better/dev/BetterHuman`, both `dev`.
 - Rules: commit per phase on dev only, never push/merge; trash not rm; 127.0.0.1 only; mars_* only (≤6, one mars_top);
-  no new deps (Playwright dev extra approved); never weaken tests. Owner present (working hours).
+  no new deps; never weaken tests. Owner present (working hours 10–22 Dubai; it is past 22 now → off-hours rules).
 
-## Status: P0 done (p0_*.md + p0_synthesis.md). P1 / P2a / P3a running in parallel (17:45 Dubai)
-Owner decisions (17:35): test trim −22 % as in p0_tests.md; viewer `frame`→`step`; monograms in math code only;
-studio UI shell rebuilt on BR viewer (domain core kept). Mine: pin mkdocs<2; Material theme.font; record on GPU
-only if gpu_free FREE; ffmpeg optional; chrome wrapper as dev helper.
+## Commits so far
+BR dev: 6ec3134 (contracts, trim, viewer batch 1), 2f7c6e2 (polish, joint shapes), 31a37ed (headless record,
+keyword-only, ids, sugar). BH dev: e898fd5, 83cc96e, 81ca789 (studio rebuilt + live-verified, docs/studio.md).
+Owner saw the viewer demo ("looks fine"); owner answered intake + 3 decision rounds (see PLAN/p0_synthesis).
 
-## Committed 20:05 Dubai: BR dev 6ec3134, BH dev e898fd5 (P1 contracts + P2a trim 586→469 + P3a viewer batch 1 + BH adaptation).
-Owner approved API sugar (20:10): `model.fk(q)`, `Result.q`/`result["q"]`, cache handle instead of the "state"
-string, `br.load(path, dtype=, device=)` → P2c after P2b.
-Committed 21:10: BR dev 2f7c6e2 (P2b polish groups 1/3/4/5/7, keyword-only 21/30 rows, P3a-3 joint shapes + RobotView slots).
-Running now: P2c-2 (mars_top: last 9 keyword-only rows, int|str ids, model.fk / Result[...] / CacheRef / load(dtype,device));
-P3b (mars_top_opus, brief p3b_record_brief.md: viewer/capture.py headless Chromium record, rasterizer trashed).
-Owner is reviewing the new viewer on http://127.0.0.1:8082 (task bmjo7nv3g, examples/viewer/02_play_trajectory.py).
-Then: commit; P4 studio shell rebuild (brief to write: p4_studio_brief.md, uses p0_bh_studio.md + BH adaptation notes);
-P5 docs BR then BH (p0_docs_refs.md Part 1, p0_assets/).
-
-## Done before the commit (history)
-- P1: docs/contracts (11 pages, 42 rules, 5 ADRs), tests/contract/{test_keyword_only,test_frozen,test_contract_matrix}.py,
-  conventions.md + design-decisions.md folded in (trashed), ruff rules enabled/deferred, ledger p1_violations.md (L-1..L-8).
-  Adversarial review p1_review.md: items 1–13 applied; 14–16 open (p1_state.md "P1c").
-- P2a: 76 drops applied by owner via `subagents/drop_tests.py --apply` (19:05); parity docstrings fixed; `slow` marker on examples.
-- P3a: gizmo latest-wins worker (5.8 s→0.3 s), viser default lights, navy LIGHT theme (`Theme.brand_color`), rename
-  `frame`→`step`/`nsteps`, lazy Timeline, one Layers panel + `Viewer.rebuild` + `Layer.listed`. Items 7–8 (joint
-  shapes, RobotView chain) open. Stale docs: concepts/viewer.md, getting-started/visualize.md (2 snippet failures).
-  BH call sites to update listed in p3a_state.md (num_frames/set_frame in viz/).
-
-## Running
-- mars_top_opus P1d: tests/contract/{test_dtype_device,test_no_inplace}.py + BH docs/contracts addendum + BH contract tests.
-- mars_top_opus P2a-2: test merges + orphan cleanup + BH merges → p2_tests_ledger.md.
-- mkdocs serve of BR docs on http://127.0.0.1:8765 (task bh6kicmzx) — informational only.
+## Status: P5 docs (BR) in tree, UNCOMMITTED; clip job may still be running
+- Uncommitted in BR: P5a theme (mkdocs.yml, docs/stylesheets/guidebook.css, 78 output fences, `{ .no-run }` fences,
+  tests/docs/test_snippets.py extensions, scripts/docs_screenshots.mjs, pyproject mkdocs<2 pin); figures (5 drawn +
+  7 restyled, docs/figures/); stills docs/images/{panda_rest,panda_ik,g1_floating,trajectory_strip}.png; writers
+  A/B/C edits (index, getting-started, concepts/architecture rewritten, Where-next on all, clips embedded, README).
+- Background: clip job (scratchpad/clips.log; expected outputs docs/clips/{panda_trajectory,batched_ik,g1_clip_fit,
+  viewer_layers,obstacle_trajectory}.{webm,png} + docs/images/readme_ik.gif). A bash waiter (task b1gx39rr6) tails it.
+  If it died: `uv run python agent_notes/.../subagents/make_clips.py --out docs --only <section>` (env vars in its
+  docstring; port 8094). Check each clip ≤ 1.5 MB, gif ≤ 3 MB; look at posters.
+- mkdocs serve of the dev docs still on http://127.0.0.1:8765 (task bh6kicmzx).
 
 ## Next steps
-1. P1e (short): review items 14–16. Then run all gates, show owner the diff summary, commit P1+P2a+P3a on dev (BR, BH).
-2. P3a-3: joint shapes by kind + RobotView chain; P3b: drop rasterizer, headless `record` (chrome wrapper), 04_record.
-3. P2b polish through p1_violations.md (+ API sugar list for owner). P4 studio shell. P5 docs BR then BH.
+1. Confirm clips exist; `uv run pytest tests/docs tests/viewer -q` green; `uv run mkdocs build --strict`; full BR suite;
+   commit BR ("Guidebook docs: theme, output panes, figures, clips").
+2. Docs-vs-code adversarial pass (mars_aux ×2: getting-started+concepts / guides+contracts+README), fix findings.
+   Known: architecture.svg says KinematicState lives in data_model (it is kinematics/state.py) — fix the SVG label.
+   Second guides pass if budget allows (differentiate, write-a-term, own-the-loop, benchmark still instruction-style).
+3. P5c: BetterHuman docs site — mkdocs.yml + copy BR theme assets (guidebook.css, output fence, snippet test),
+   pages from docs/*.md (architecture, studio, contracts, segmentation guide), same style; strict build; screenshots.
+4. REPORT.md (phases, commits, gates, ledgers, what is left: ruff deferred rules N/D/ANN001/SLF001, L-1/L-4/L-6/L-8
+   ledger items, figure redraws 2–8, finger-joint sphere size in studio, stray marker in studio screenshot, nav-tab
+   label faintness to check in a real browser), final commit, drop the index line in
+   `$(git rev-parse --git-common-dir)/autoresearch/STATE.md`, TG ping (env not set → skip).
+
+## Compact message
+Task 2026-10-07_16-44 (contracts/trim/viewer/studio/docs for BR+BH): phases P1–P4 committed (BR 31a37ed, BH 81ca789);
+P5 docs for BR is uncommitted in tree with a background clip job; next = finish clips, gates, commit, docs review,
+BH docs site, REPORT. Read this STATE.md and resume from "Next steps".

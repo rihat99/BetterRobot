@@ -13,7 +13,7 @@ Gradients flow from every output to every float input (`q`, `v`, model parameter
 and `dynamics/state_manifold.py:64,72` detaches a manifold projection, which needs a `Differentiability`
 section or a fix `[planned: L-6]`.
 
-```python no-run
+```python { .no-run }
 # good  (illustrative)
 """... Differentiability: `solve` returns detached values; use `solve_layer` to backpropagate
 through the solution (implicit function theorem)."""
@@ -30,7 +30,7 @@ in float64 on every `lie`/`spatial`/`kinematics` entry point); `[review]` for ne
 dependent shapes make the trace invalid. Use `torch.where`, boolean masks, and fixed iteration counts with
 masked updates. Loop bounds come from Python ints (`model.nv`, `max_iters`), never from tensor contents.
 
-```python no-run
+```python { .no-run }
 # good  (lie/so3.py)
 small = theta < eps
 coef = torch.where(small, taylor(theta), exact(theta))
@@ -47,7 +47,7 @@ Functions with a removable singularity (`log` near identity, `exp` near zero, `a
 near-zero vector) use a Taylor branch under `torch.where` *and* mask the unused branch's inputs so the
 gradient is finite (the "double-where" pattern). The docstring names the switch threshold.
 
-```python no-run
+```python { .no-run }
 # good
 safe_theta = torch.where(small, torch.ones_like(theta), theta)   # keeps NaN out of the dead branch's grad
 coef = torch.where(small, 1 - theta**2 / 6, torch.sin(safe_theta) / safe_theta)

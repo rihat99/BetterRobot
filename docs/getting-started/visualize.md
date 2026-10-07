@@ -3,6 +3,9 @@
 You open the browser viewer, show the Panda moving along a trajectory, step through it, and record it to a
 GIF without a browser. This page needs the `viewer` and `meshes` extras (see [Install](installation.md)).
 
+<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../clips/viewer_layers.png" width="960"><source src="../clips/viewer_layers.webm" type="video/webm"></video>
+<figcaption>The viewer: a robot layer and a point layer share one timeline; the layer list on the left toggles each one.</figcaption></figure>
+
 ## Make a clip to show
 
 The viewer shows clips: every layer holds a whole time series, `q (T, nq)`, and a shared timeline picks the
@@ -37,6 +40,9 @@ for layer in robot_layers(model, clip, frames=["body_panda_hand"]):
     viewer.add(layer)
 print(viewer.url, len(viewer.layers))
 ```
+```output
+http://127.0.0.1:8080 2
+```
 
 Forward kinematics runs once for the whole clip, not once per frame.
 
@@ -52,7 +58,7 @@ viewer.show(29)
 `viewer.play()` runs the timeline at the viewer's `fps` and blocks until you stop it, so call it last in a
 script:
 
-```python no-run
+```python { .no-run }
 viewer.play()
 ```
 
@@ -75,7 +81,7 @@ viewer.show()
 `viewer.record` screenshots the live scene in a headless Chromium and writes `.webm`, `.gif` or
 `.png` frames. Without a `camera` it frames the robot automatically:
 
-```python no-run
+```python { .no-run }
 viewer.remove_group("live")
 out = Path(tempfile.mkdtemp()) / "panda_swing.gif"
 viewer.record(out, size=(320, 240), steps=range(0, 30, 3))
@@ -83,4 +89,9 @@ print(out.exists(), out.stat().st_size > 0)
 ```
 
 It needs Chromium (`$BETTER_ROBOT_CHROME` or on `PATH`) and, for `.webm`, ffmpeg; see `better_robot.viewer.capture`.
-[Viewer](../concepts/viewer.md) explains layers, groups, tools and themes.
+
+## Where next
+
+- [Viewer](../concepts/viewer.md) — layers, groups, tools and themes in depth.
+- [Fit a clip](../guides/fit-a-clip.md) — optimize a motion against point data and watch both layers together.
+- [Optimize a trajectory](trajectories.md) — back to the problem that produced this clip.

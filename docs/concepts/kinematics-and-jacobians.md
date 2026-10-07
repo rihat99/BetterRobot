@@ -32,6 +32,9 @@ state = forward_kinematics_state(model, q)
 tool = model.frame_id("tool")
 print(state.frame_pose_of(tool).shape)      # torch.Size([16, 3, 7])
 ```
+```output
+torch.Size([16, 3, 7])
+```
 
 Poses use the layout `[tx, ty, tz, qx, qy, qz, qw]` with the quaternion scalar last; see
 [Lie groups and spatial algebra](lie-and-spatial.md).
@@ -55,6 +58,9 @@ J = frame_jacobian(model, state, frame="tool")
 print(J.shape)                               # torch.Size([16, 3, 6, 2])
 J_joint = joint_jacobian(model, state, joint=model.joint_id("j2"))
 ```
+```output
+torch.Size([16, 3, 6, 2])
+```
 
 ## The reference frame decides what a twist means
 
@@ -76,6 +82,9 @@ J_local = frame_jacobian(model, state, frame=tool, reference="local")
 J_lwa = frame_jacobian(model, state, frame=tool)
 print(torch.allclose(R @ J_local[..., :3, :], J_lwa[..., :3, :], atol=1e-5))   # True
 ```
+```output
+True
+```
 
 ## The time variation gives $\dot J$
 
@@ -88,6 +97,9 @@ $\dot J v$ in operational-space control and second-order task constraints.
 v = torch.randn(16, 3, model.nv)
 dJ = frame_jacobian_time_variation(model, state, v=v, frame=tool)
 print(dJ.shape)                              # torch.Size([16, 3, 6, 2])
+```
+```output
+torch.Size([16, 3, 6, 2])
 ```
 
 ## Batching and gradients
@@ -110,3 +122,8 @@ The tests in `tests/test_pinocchio/` compare each function against Pinocchio's i
 | Jacobian time variation | `test_jacobian_time_variation_matches_pinocchio.py` | `2e-6` |
 
 API details: [kinematics reference](../reference/api/kinematics.md).
+
+## Where next
+
+- [Dynamics](dynamics.md): forces and accelerations on the same `KinematicState`.
+- [Optimization](optimization.md): Jacobians feed the Gauss-Newton step.

@@ -53,6 +53,9 @@ problem.residual("fit", lambda doubled, target: doubled - target)
 problem.scalar("small", lambda x: (x**2).sum(-1), weight=1e-2)
 print({name: tuple(value.shape) for name, value in problem.losses().items()})  # each (4,)
 ```
+```output
+{'fit': (4,), 'small': (4,)}
+```
 
 `reads=` overrides the parameter names when the function takes `*args` or its names clash.
 A term never touches the solver: it maps tensors to tensors, so the same function serves autograd,
@@ -108,6 +111,9 @@ The same terms give two views of the problem.
 normal, loss = problem.linearize(problem.variables)
 print(type(normal).__name__, tuple(loss.shape))  # Normal (4,)
 ```
+```output
+Normal (4,)
+```
 
 A `scalar` term contributes its gradient to `linearize` but not its curvature, so Gauss-Newton and LM
 treat it as a first-order term.
@@ -134,6 +140,9 @@ while not bool(state.done.all()) and state.it < 50:
     state = solver.step(problem, state)
 print(state.it, state.loss)
 ```
+```output
+4 tensor([0., 0., 0., 0.])
+```
 
 ## `solve`, `run` and friends
 
@@ -156,8 +165,11 @@ loose = problem.with_(weights={"fit": 0.5})
 result = solve(loose, TorchOptim(torch.optim.Adam, lr=0.1), iters=100)
 print(result.loss)
 ```
+```output
+tensor([2.3851e-07, 3.0286e-06, 1.1951e-06, 5.3854e-07])
+```
 
-## Next
+## Where next
 
 - [Time and structure](time-and-structure.md): trajectories, windows and the banded solve.
 - [Write a term](../guides/write-a-term.md): a custom term with an analytic Jacobian.

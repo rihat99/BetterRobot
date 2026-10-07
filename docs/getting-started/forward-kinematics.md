@@ -21,12 +21,21 @@ state = forward_kinematics_state(model, q)
 print(state.joint_transform.shape)  # (njoints, 3, 4)
 print(state.frame_pose_of(hand))    # (7,)
 ```
+```output
+torch.Size([14, 3, 4])
+tensor([ 1.0731e-01, -3.2653e-17,  9.2494e-01,  9.2332e-01,  3.8245e-01,
+        -3.2237e-02, -1.3353e-02], dtype=torch.float64)
+```
 
 `model.fk(q)` is the same call as a method, and `frame_pose_of` also takes a frame name:
 
 ```python
 state = model.fk(q)
 print(state.frame_pose_of("body_panda_hand"))  # (7,)
+```
+```output
+tensor([ 1.0731e-01, -3.2653e-17,  9.2494e-01,  9.2332e-01,  3.8245e-01,
+        -3.2237e-02, -1.3353e-02], dtype=torch.float64)
 ```
 
 `forward_kinematics_state` returns a `KinematicState`: an immutable record of one query. It stores
@@ -40,7 +49,10 @@ every joint and frame, and derives the rest on demand:
 | `joint_pose`, `frame_pose` | `(..., n, 7)` | pose `[tx, ty, tz, qx, qy, qz, qw]` |
 | `frame_pose_of(i)` | `(..., 7)` | pose of frame `i` only |
 
-![The Panda at its neutral configuration, hand frame shown.](../images/panda_rest.png)
+<figure markdown>
+  ![The Panda at its neutral configuration, hand frame shown.](../images/panda_rest.png){ width="560" }
+  <figcaption>The Panda at its neutral configuration, hand frame shown.</figcaption>
+</figure>
 
 ## Batch it
 
@@ -56,6 +68,10 @@ batch_state = forward_kinematics_state(model, q_batch)
 print(batch_state.frame_pose.shape)                       # (4, 10, nframes, 7)
 print(batch_state.frame_translation[..., hand, :].shape)  # (4, 10, 3)
 ```
+```output
+torch.Size([4, 10, 14, 7])
+torch.Size([4, 10, 3])
+```
 
 [GPU and batching](gpu-and-batching.md) explains the batch-axis rule in full.
 
@@ -67,6 +83,9 @@ print(batch_state.frame_translation[..., hand, :].shape)  # (4, 10, 3)
 ```python
 J = frame_jacobian(model, state, frame="body_panda_hand")
 print(J.shape)  # (6, nv)
+```
+```output
+torch.Size([6, 8])
 ```
 
 The default `reference="local_world_aligned"` expresses the twist at the frame origin with world axes.
@@ -83,5 +102,13 @@ height = forward_kinematics_state(model, q_grad).frame_translation[hand, 2]
 height.backward()
 print(q_grad.grad)
 ```
+```output
+tensor([ 0.0000e+00, -1.0731e-01,  0.0000e+00,  2.4806e-02, -3.3616e-18,
+         8.0323e-02,  0.0000e+00,  0.0000e+00], dtype=torch.float64)
+```
 
-Next: [solve inverse kinematics](inverse-kinematics.md).
+## Where next
+
+- [Solve inverse kinematics](inverse-kinematics.md) — go the other way: from a hand pose to a configuration.
+- [Kinematics and Jacobians](../concepts/kinematics-and-jacobians.md) — the three Jacobian conventions and why the default is local-world-aligned.
+- [Run on a GPU and in batches](gpu-and-batching.md) — the batch-axis rule in full.

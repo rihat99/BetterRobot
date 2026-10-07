@@ -12,7 +12,7 @@ Private helpers (`_name`) and the raw tensor passes in `kinematics`/`dynamics` d
 call the helpers in `better_robot._validation` and nothing else re-checks. Validation must not read tensor
 values (no `isfinite`, no `.item()`), because that is a host sync (`02`) and breaks `vmap` (`04`).
 
-```python no-run
+```python { .no-run }
 # good  (illustrative; real entry point: kinematics/state.py:151)
 def forward_kinematics_state(model, q):
     _validation.check_tensor(q, ...)                 # shape (..., nq), dtype, device
@@ -40,7 +40,7 @@ A message names the parameter, the expected structure and what arrived, with no 
 `"q: expected shape (..., 7) for model 'panda', got (3, 9)"`. Include the frame/joint name when an id fails to
 resolve, and the list of valid names when it is short (≤ 20).
 
-```python no-run
+```python { .no-run }
 # good
 raise ShapeError(f"q: expected trailing axis {model.nq}, got {q.shape[-1]}")
 # bad
@@ -55,7 +55,7 @@ Never catch `Exception`/bare `except`, never fall back to a default on failure (
 the world frame). Optional dependencies raise `ImportError` with the install hint at first use (`07`), not
 later with an `AttributeError`.
 
-```python no-run
+```python { .no-run }
 # good
 try:
     import viser

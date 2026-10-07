@@ -12,7 +12,7 @@ A *term* is a plain function (`optim.TermFn`, `optim/problem.py:28`) whose argum
 no state and are never subclasses; `optim.Term` (`optim/problem.py:46`) is the record `Problem` keeps per
 registered term, not a base class for users. See ADR [0003](decisions/0003-terms-plain-functions.md).
 
-```python no-run
+```python { .no-run }
 # good  (terms/robot.py:62)
 def frame_pose(model, frame, *, target, state="state", q="q") -> TermFn:   # factory
     def term(state, target): ...                                           # reads "state", "target"
@@ -34,7 +34,7 @@ rather than `isinstance` on concrete joint classes `[planned: L-1]`: today `kine
 `io/build_model.py:387`, `io/parsers/programmatic.py:394` and `joint_models/composite.py:32` still do. A
 joint-type registry does not exist and needs an ADR before one is added.
 
-```python no-run
+```python { .no-run }
 # good  (illustrative)
 register_parser(".sdf", parse_sdf)              # io: suffix -> parser
 joint = JointPlanar(...)                        # any object satisfying JointModel

@@ -28,7 +28,7 @@ type, or an explicit `format="urdf" | "mjcf" | "builder"`.
 `load` takes a path to a `.urdf` or MJCF `.xml` file. The `robot_descriptions` package provides paths for
 many published robots; it is an optional dependency.
 
-```python no-run
+```python { .no-run }
 import torch
 import better_robot as br
 from robot_descriptions import panda_description
@@ -67,6 +67,9 @@ builder.add_frame("tip", parent_body="link",
 model = build_model(builder.finalize())
 print(model.nq, model.nv, model.upper_pos_limit)
 ```
+```output
+1 1 tensor([1.5000])
+```
 
 Joint methods: `add_revolute` (any axis) and `add_revolute_x/y/z`, `add_prismatic` and
 `add_prismatic_x/y/z`, `add_spherical`, `add_planar`, `add_fixed`, `add_free_flyer_root`. Each takes the
@@ -86,6 +89,9 @@ method as a source:
 floating = br.load(builder.finalize, free_flyer=True)
 print(floating.nq, floating.nv)              # 8 7
 ```
+```output
+8 7
+```
 
 The base configuration is `q[:7] = [tx, ty, tz, qx, qy, qz, qw]` and the base velocity is `v[:6]`.
 Because `nq != nv`, step configurations with `model.integrate(q, v)`; see
@@ -98,3 +104,9 @@ Because `nq != nv`, step configurations with `model.integrate(q, v)`; see
 and device ([validation contract](architecture.md#inputs-are-validated-once-at-the-boundary)).
 
 API details: [io reference](../reference/api/io.md).
+
+## Where next
+
+- [Model and state](model-and-state.md): what the built `Model` contains.
+- [Joints, bodies and frames](joints-bodies-frames.md): the parts a parser fills in.
+- [Architecture](architecture.md): where `io` sits in the package layers.

@@ -24,6 +24,9 @@ height = state.frame_translation[:, hand, 2]        # (4,)
 height.sum().backward()
 print(q.grad.shape)                                   # (4, nq)
 ```
+```output
+torch.Size([4, 8])
+```
 
 `forward_kinematics_state` returns a `KinematicState` with world transforms `joint_transform
 (B..., njoints, 3, 4)` and `frame_transform (B..., nframes, 3, 4)`, plus derived views
@@ -40,6 +43,9 @@ manipulability = torch.linalg.det(jacobian @ jacobian.mT)    # (4,)
 manipulability.sum().backward()
 print(q.grad.abs().max() > 0)
 ```
+```output
+tensor(True)
+```
 
 ## Gradients with respect to `v` and `a`
 
@@ -55,6 +61,9 @@ tau = dyn.inverse_dynamics(model, state, v=v, a=a)               # (4, nv)
 (tau ** 2).sum().backward()
 print(v.grad.shape)                                          # (4, nv)
 ```
+```output
+torch.Size([4, 8])
+```
 
 ## Gradients with respect to model parameters
 
@@ -69,6 +78,9 @@ q_fixed = q.detach()
 reach = kinematics.forward_kinematics_state(tuned, q_fixed).frame_translation[:, hand].norm(dim=-1)
 reach.sum().backward()
 print(placements.grad.shape)                                 # same shape as joint_placements
+```
+```output
+torch.Size([14, 7])
 ```
 
 The same pattern fits link lengths or masses to data: make `body_inertias` a leaf tensor, pass it
@@ -89,6 +101,9 @@ by_func = torch.func.jacrev(hand_position)(q_fixed)          # (3, 4, nq)
 analytic = kinematics.frame_jacobian(model, kinematics.forward_kinematics_state(model, q_fixed), frame=hand)
 print(torch.allclose(by_func.permute(1, 0, 2), analytic[:, :3, :], atol=1e-10))
 ```
+```output
+True
+```
 
 `jacrev` of `inverse_dynamics` with respect to `a` gives the mass matrix, one diagonal block per
 batch element; `dyn.mass_matrix(model, state)` computes it directly and is cheaper.
@@ -98,5 +113,8 @@ batch element; `dyn.mass_matrix(model, state)` computes it directly and is cheap
     Gradients through `q` on a floating base flow through the quaternion entries; take steps with
     `model.integrate(q, dv)` so the quaternion stays on the unit sphere.
 
-To differentiate through a whole solve rather than one function, see `solve_layer` in
-[Optimization](../concepts/optimization.md).
+## Where next
+
+- [Own the loop](own-the-loop.md): differentiate through a whole solve with `solve_layer`.
+- [Write a term](write-a-term.md): give a term an analytic Jacobian and check it against autograd.
+- [Model and state](../concepts/model-and-state.md): which model tensors are differentiable.

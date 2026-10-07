@@ -11,7 +11,7 @@ An output has the dtype and device of its tensor inputs. A function never casts,
 Model parameters live on one device; a query tensor on another device is an error raised at the boundary
 (`06`), not a hidden `.to()`.
 
-```python no-run
+```python { .no-run }
 # good  (illustrative; real entry point: kinematics/state.py:151)
 out = torch.empty((*q.shape[:-1], 7), dtype=q.dtype, device=q.device)
 # bad
@@ -27,7 +27,7 @@ float32 and float64 inputs and asserts the output dtype; skips cuda when absent)
 A function accepts any number of leading axes and broadcasts them across its tensor arguments. Never
 `unsqueeze` to a fixed rank, never loop over `q.shape[0]`.
 
-```python no-run
+```python { .no-run }
 # good
 X = compose(X_WA[..., None, :], X_AB)          # (B, 1, 7) with (J, 7) -> (B, J, 7)
 # bad
@@ -43,7 +43,7 @@ Enforcement: `tests/contract/test_dtype_device.py` (runs each entry point with s
 Every public function or field that takes or returns a tensor documents the shape with trailing-axes
 notation. The numpy-style `Parameters`/`Returns` lines carry `(..., n)` so the shape is greppable.
 
-```python no-run
+```python { .no-run }
 # good
 """Return frame poses.
 
@@ -65,7 +65,7 @@ annotation is `Tensor`, the docstring contains `shape (`).
 `torch.func` tracing. They are allowed only in `viewer`, `io` export paths, and tests. Convergence tests in
 `optim` use tensor masks, not Python branches (`04`).
 
-```python no-run
+```python { .no-run }
 # good
 converged = (step_norm < tol)               # tensor mask, stays on device
 # bad

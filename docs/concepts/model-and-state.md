@@ -42,6 +42,10 @@ model = build_model(builder.finalize())
 print(model.nq, model.nv, model.joint_names)   # 2 2 ('universe', 'root_joint', 'j1', 'j2')
 print(type(model.structure).__name__, type(model.values).__name__)
 ```
+```output
+2 2 ('universe', 'root_joint', 'j1', 'j2')
+ModelStructure ModelValues
+```
 
 Joint 0 is always `universe`. A fixed-base model gets a fixed `root_joint`; a floating-base model gets
 a free-flyer there instead (see [Joints, bodies and frames](joints-bodies-frames.md)).
@@ -60,6 +64,9 @@ try:
 except dataclasses.FrozenInstanceError:
     print("models are frozen")
 ```
+```output
+models are frozen
+```
 
 ## `with_values` returns a changed copy
 
@@ -74,6 +81,9 @@ placements = model.joint_placements.expand(8, -1, -1).clone()   # (8, njoints, 7
 placements[:, 3, 2] = torch.linspace(0.2, 0.4, 8)               # z offset of joint j2
 batched = model.with_values(joint_placements=placements)
 print(batched.joint_placements.shape)                            # torch.Size([8, 4, 7])
+```
+```output
+torch.Size([8, 4, 7])
 ```
 
 Gradients flow through `with_values`: pass a tensor with `requires_grad=True` and differentiate any
@@ -107,6 +117,15 @@ print(state.joint_transform.shape)                       # torch.Size([4, 4, 3, 
 print(state.frame_pose_of(model.frame_id("tool")))       # (4, 7)
 print(state.frame_pose_of("tool"))                       # same: a state knows its model's names
 ```
+```output
+torch.Size([4, 4, 3, 4])
+tensor([[0.0000, 0.0000, 0.5500, 0.0000, 0.0000, 0.0000, 1.0000],
+        [0.0000, 0.0000, 0.5500, 0.0000, 0.0000, 0.0000, 1.0000],
+        [0.0000, 0.0000, 0.5500, 0.0000, 0.0000, 0.0000, 1.0000],
+        [0.0000, 0.0000, 0.5500, 0.0000, 0.0000, 0.0000, 1.0000]])
+tensor([[0.0000, 0.0000, 0.5500, 0.0000, 0.0000, 0.0000, 1.0000],
+...
+```
 
 A state belongs to one configuration. To evaluate a new `q`, call `forward_kinematics_state` again; there is
 no update-in-place. Jacobians ([Kinematics and Jacobians](kinematics-and-jacobians.md)) and dynamics
@@ -124,7 +143,15 @@ v = torch.full((4, model.nv), 0.1)
 q_next = model.integrate(q, v)
 print(torch.allclose(model.difference(q, q_next), v))    # True
 ```
+```output
+True
+```
 
 Other helpers on `Model`: `random_configuration()`, `q_neutral`, `frame_id(name)`, `joint_id(name)`,
 `body_id(name)`, `get_subtree(joint_id)`, `get_support(joint_id)`. The full list is in the
 [data_model API reference](../reference/api/data_model.md).
+
+## Where next
+
+- [Joints, bodies and frames](joints-bodies-frames.md): what the structure inside a `Model` is made of.
+- [Kinematics and Jacobians](kinematics-and-jacobians.md): what you can read from a `KinematicState`.

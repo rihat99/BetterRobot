@@ -58,7 +58,13 @@ from robot_descriptions import panda_description
 model = br.load(panda_description.URDF_PATH)
 print(model.name, model.nq, torch.cuda.is_available())
 ```
+```output
+ 8 False
+```
 
 The first `robot_descriptions` import downloads the robot repository into `~/.cache`; later runs are offline.
 
-Next: [load your first model](first-model.md).
+## Where next
+
+- [Load your first model](first-model.md) — the Panda, and what a `Model` holds.
+- [Visualize a robot](visualize.md) — needs the `viewer` and `meshes` extras installed above.

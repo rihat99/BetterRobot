@@ -81,6 +81,15 @@ with torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CPU]) as
 
 print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=8))
 ```
+```output
+------------------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                    Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg    # of Calls  
+------------------------  ------------  ------------  ------------  ------------  ------------  ------------  
+               aten::bmm        33.01%     357.755us        33.13%     359.085us      23.939us            15  
+                aten::mm         8.62%      93.431us         8.69%      94.152us      94.152us             1  
+      aten::index_select         8.00%      86.740us         8.47%      91.827us      22.957us             4  
+...
+```
 
 On GPU, add `ProfilerActivity.CUDA` to `activities` and call `torch.cuda.synchronize()` before
 leaving the block. `prof.export_chrome_trace("trace.json")` writes a timeline you can open in
@@ -95,4 +104,7 @@ the default test command skips them:
 uv run pytest tests/bench -m bench -q
 ```
 
-See [Testing](../contributing/testing.md) for the markers.
+## Where next
+
+- [Testing](../contributing/testing.md): the `bench` and `cuda` markers.
+- [Performance contract](../contracts/09-performance.md): the rules the benchmark guards.

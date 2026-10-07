@@ -21,6 +21,7 @@ from typing import Any
 import numpy as np
 
 _CHROME_NAMES = ("chromium", "google-chrome", "chrome-headless-shell")
+FOV = math.radians(50.0)  # vertical field of view `fit_camera` assumes and `HeadlessClient.set_camera` sets
 
 
 def find_chrome() -> str:
@@ -48,14 +49,16 @@ def fit_camera(
     up: Sequence[float] = (0.0, 0.0, 1.0),
     azimuth: float = math.radians(35.0),
     elevation: float = math.radians(25.0),
-    fov: float = math.radians(50.0),
-    margin: float = 1.15,
+    fov: float = FOV,
+    aspect: float = 16.0 / 9.0,
+    fill: float = 0.7,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """``(position, look_at)`` of a 3/4 view fitting the bounding sphere of ``points (N, 3)``; ``up`` is the world up axis."""
+    """``(position, look_at)`` of a 3/4 view where ``points (N, 3)`` span ``fill`` of the frame height (or width).
+
+    ``up`` is the world up axis, ``fov`` the vertical field of view and ``aspect`` width / height. The projected
+    bounding box is fitted, not the bounding sphere, so tall thin subjects are not framed as if they were wide.
+    """
     points = np.asarray(points, dtype=np.float64).reshape(-1, 3)
-    center = (points.min(0) + points.max(0)) / 2.0
-    radius = max(float(np.linalg.norm(points - center, axis=-1).max()), 1e-3)
-    distance = margin * radius / math.sin(fov / 2.0)
     up_axis = np.asarray(up, dtype=np.float64) / np.linalg.norm(up)
     side = np.cross(np.array([0.0, 0.0, 1.0]) if abs(up_axis[2]) < 0.9 else np.array([1.0, 0.0, 0.0]), up_axis)
     side /= np.linalg.norm(side)
@@ -65,7 +68,26 @@ def fit_camera(
         + math.cos(elevation) * math.sin(azimuth) * forward
         + math.sin(elevation) * up_axis
     )
-    return center + distance * direction, center
+    right = np.cross(-direction, up_axis)
+    right /= np.linalg.norm(right)
+    screen_up = np.cross(right, -direction)
+    # Start centred on the box of the points seen along the view direction; back off until every point projects
+    # inside the fill rectangle (depth >= |x| / tan_x and |y| / tan_y); then re-centre on the perspective box.
+    x, y = points @ right, points @ screen_up
+    look_at = (x.min() + x.max()) / 2 * right + (y.min() + y.max()) / 2 * screen_up
+    look_at = look_at + float((points @ direction).mean()) * direction
+    tan_y = fill * math.tan(fov / 2.0)
+    tan_x = tan_y * aspect
+    for _ in range(8):
+        offset = points - look_at
+        depth_needed = np.maximum(np.abs(offset @ screen_up) / tan_y, np.abs(offset @ right) / tan_x)
+        distance = max(float((offset @ direction + depth_needed).max()), 1e-3)
+        depth = distance - offset @ direction
+        screen_x, screen_y = offset @ right / depth, offset @ screen_up / depth
+        look_at = look_at + distance * (
+            (screen_x.max() + screen_x.min()) / 2 * right + (screen_y.max() + screen_y.min()) / 2 * screen_up
+        )
+    return look_at + distance * direction, look_at
 
 
 class HeadlessClient:
@@ -131,6 +153,7 @@ class HeadlessClient:
     def set_camera(self, position: Sequence[float], look_at: Sequence[float], up: Sequence[float]) -> None:
         """Place the browser's camera; call it after the scene has arrived (first ``render``)."""
         with self.client.atomic():
+            self.client.camera.fov = FOV
             self.client.camera.up_direction = tuple(map(float, up))
             self.client.camera.position = tuple(map(float, position))
             self.client.camera.look_at = tuple(map(float, look_at))

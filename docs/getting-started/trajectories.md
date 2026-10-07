@@ -43,6 +43,10 @@ end_weight[0], end_weight[-1] = 1e6, 1e4
 `time=("q",)` tells the problem that axis -2 of `q` is time. Terms that couple neighbouring knots then
 produce a banded Jacobian, which LM solves in time linear in the number of knots:
 
+![Time structure: q is a (1, T, nq) tensor, each term sees a window of neighbouring knots, and the Jacobian is block-banded.](../figures/time_structure.svg){ width="860" }
+
+*A time axis turns the problem into windows of neighbouring knots; the banded solver never forms the dense normal matrix.*
+
 ```python
 problem = optim.Problem(
     {"q": q_start.repeat(1, KNOTS, 1)},
@@ -74,8 +78,21 @@ reached = forward_kinematics_state(model, q).frame_pose[:, hand]
 print(f"{result.iters} LM steps, goal error {float((reached[-1, :3] - pose_goal[:3]).norm()):.1e} m")
 print(f"peak joint speed {float(((q[1:] - q[:-1]) / DT).abs().max()):.2f} rad/s")
 ```
+```output
+149 LM steps, goal error 1.4e-05 m
+peak joint speed 0.86 rad/s
+```
 
-![A 20-knot Panda trajectory solved with banded Levenberg-Marquardt, five knots shown.](../images/trajectory_strip.png)
+<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../clips/panda_trajectory.png" width="960"><source src="../clips/panda_trajectory.webm" type="video/webm"></video>
+<figcaption>The solved 20-knot trajectory played back in the viewer: a smooth sweep from the ready pose to the hand target.</figcaption></figure>
 
-[Time and structure](../concepts/time-and-structure.md) explains windows and banded solves.
-Next: [run it on a GPU and in batches](gpu-and-batching.md).
+<figure markdown>
+  ![A 20-knot Panda trajectory solved with banded Levenberg-Marquardt, five knots shown.](../images/trajectory_strip.png){ width="860" }
+  <figcaption>Five of the 20 knots side by side.</figcaption>
+</figure>
+
+## Where next
+
+- [Run it on a GPU and in batches](gpu-and-batching.md) — the same problem for many start poses at once.
+- [Time and structure](../concepts/time-and-structure.md) — windows, banded solves and why they are linear in the knot count.
+- [Visualize a robot](visualize.md) — play this trajectory back and record it.

@@ -19,6 +19,7 @@ This page defines the words used across the documentation, then gives their comp
 | **`ModelStructure`** | Immutable topology, index tables, and joint metadata. |
 | **`ModelValues`** | Differentiable model tensors such as placements, inertias, limits, and gravity. |
 | **`KinematicState`** | The immutable result of `forward_kinematics_state(model, q)`: world transforms of every joint and frame, `(B..., n, 3, 4)`, plus derived poses. Jacobians and the dynamics algorithms read it; each query makes its own. |
+| **`model.fk(q)`** | Shorthand for `forward_kinematics_state(model, q)`. Read one frame's pose `(B..., 7)` with `state.frame_pose_of("name")`. |
 
 ## Poses and motion
 
@@ -63,6 +64,7 @@ derivative method.
 | **term** | A plain function of named tensors (variables and data) that returns a residual `(B, ..., k)` the solver drives towards zero, or a scalar cost. Its Jacobian comes from autograd unless the term supplies `jac`. |
 | **`Problem`** | The container of variables, data and weighted terms. `Problem.loss` feeds autograd optimizers; `Problem.linearize` builds normal equations for the Gauss--Newton family. |
 | **`Phase`** | One stage of a staged solve: term weight overrides, frozen coordinates, an iteration budget and an optional start hook, run in sequence by `optim.run`. |
+| **`CacheRef`** | What `Problem.cached(fn, name=...)` returns: a named value computed once per evaluation (for example the kinematic state) that every term reading that name shares. |
 | **window** | The number of consecutive knots a time-local term reads. A window of 2 couples knot `t` with `t + 1`. |
 | **banded normal** | The block-banded normal matrix that time-local terms produce; with time-free variables it gains an arrow border. Both are solved in time linear in the number of knots. |
 | **variable** | A value the optimizer may change. One problem can contain several variables with different shapes and manifolds. |
@@ -119,3 +121,11 @@ solver model.
 | **MJCF** | MuJoCo's XML model format. |
 | **intermediate representation, IR** | The parser-neutral model that URDF, MJCF, and programmatic construction produce before `build_model`. |
 | **asset resolver** | An object that maps a mesh or asset URI to a local path. |
+
+## Viewer
+
+| Term | Meaning |
+|---|---|
+| **`Viewer`** | The browser viewer on viser. `viewer.add(layer, group=...)` adds a layer, `viewer.show(step)` draws one step, `Viewer.record(path, *, steps, size, fps)` renders a clip offline. |
+| **`Layer`** | One drawable thing (a robot, frames, points, a skeleton) holding a whole clip. The viewer calls `layer.set_step(k)`; `layer.nsteps` is its clip length. |
+| **step** | One frame of the shared timeline. The timeline is as long as the longest layer; a shorter layer holds its last step. |

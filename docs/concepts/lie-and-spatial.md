@@ -40,6 +40,10 @@ print(se3.act(yaw90, torch.tensor([1.0, 0.0, 0.0])))   # tensor([1., 1., 0.])
 identity = se3.compose(yaw90, se3.inverse(yaw90))
 assert torch.allclose(identity, se3.identity(), atol=1e-6)
 ```
+```output
+tensor([-1.0000e+00, -2.3842e-07,  0.0000e+00])
+tensor([1.0000, 1.0000, 0.0000])
+```
 
 `se3` also provides `from_matrix`, `to_matrix`, `from_axis_angle`, `from_translation`, `normalize` and
 `sclerp`; `so3` adds `from_euler`, `to_euler` and `slerp`. The value classes `SE3`, `SO3` and `Pose` in
@@ -126,6 +130,16 @@ print(type(momentum).__name__, momentum.linear)   # Force tensor([0.2000, 0.4000
 moved = Motion(xi).se3_action(yaw90)
 assert torch.allclose(moved.data, se3.adjoint(yaw90) @ xi)
 ```
+```output
+tensor([2.0000, 0.0000, 0.0000, 0.0000, 0.0080, 0.0080, 0.0080, 0.0000, 0.0000,
+        0.0000])
+Force tensor([0.2000, 0.4000, 0.6000])
+```
 
 Model inertias use the same 10-vector: `model.body_inertias (nbodies, 10)` (see
 [Model and state](model-and-state.md)). [Dynamics](dynamics.md) builds on these types.
+
+## Where next
+
+- [Kinematics and Jacobians](kinematics-and-jacobians.md): these types applied to a whole robot.
+- [Dynamics](dynamics.md): spatial inertia and force in RNEA and CRBA.

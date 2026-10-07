@@ -56,13 +56,25 @@ kinematics and dynamics function (see [Differentiate](../guides/differentiate.md
 
 ## Docs snippets run
 
-`tests/docs/test_snippets.py` runs every `python` block of each page in order, in one namespace, on
-CPU, with a fake viewer server, 120 s per page. Tag a block that must not run with `python no-run`.
+`tests/docs/test_snippets.py` runs every `python` block of each page (and `README.md`) in order, in one
+namespace, on CPU, with a fake viewer server, 120 s per page. It also checks that every image, poster and
+clip a page references exists. The rules for a page:
+
+| Fence | Meaning |
+|---|---|
+| ```` ```python ```` | runs in CI, in page order |
+| ```` ```python { .no-run } ```` | shown but not run (licensed data, a live server) |
+| ```` ```output ```` | directly after a block that prints: its real output |
 
 ```bash
-uv run pytest tests/docs -q -k load-a-robot   # one page
-uv run mkdocs build --strict                  # broken links fail the build
+uv run pytest tests/docs -q -k load-a-robot                                     # one page
+BR_DOCS_CAPTURE=1 BR_DOCS_CAPTURE_DIR=/tmp/out uv run pytest tests/docs -q -k load-a-robot   # write real outputs
+uv run mkdocs build --strict                                                    # broken links fail the build
+BETTER_ROBOT_CHROME=<chromium> node scripts/docs_screenshots.mjs /tmp/shots     # every page as light/dark PNGs
 ```
+
+The capture run writes `<page>.outputs.json` with each block's stdout; paste it into the `output` fence. Look at
+the screenshots of the pages you changed before you open a pull request.
 
 ## Never weaken a test
 
@@ -70,3 +82,8 @@ Do not skip, `xfail`, loosen a tolerance or delete an assertion to land a change
 architecture or contract test fails, the change is wrong or the contract must change on purpose; in
 the second case update the test, the docs and the nearest `CLAUDE.md` together, and say so in the
 pull request.
+
+## Where next
+
+- [Extending BetterRobot](extending.md): the four extension points and their tests.
+- [Design contracts](../contracts/00-index.md): the rules the contract tests enforce.

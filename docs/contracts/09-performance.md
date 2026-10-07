@@ -15,7 +15,7 @@ solver step in `optim/solvers.py`; once-per-model setup (plan building) is not a
 Work over a batch axis is one tensor op. A Python loop is allowed only over a *structural* axis whose length
 is a Python int fixed by the model (joints in a kinematic chain, LM iterations), never over batch elements.
 
-```python no-run
+```python { .no-run }
 # good  (illustrative; real entry point: kinematics/state.py:151)
 for joint in model.joints:                 # structural, len = model.njoints
     X_WB = X_WB @ joint_placement(joint, q[..., joint.idx_q])   # batched over `...`

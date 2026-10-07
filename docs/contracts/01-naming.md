@@ -14,7 +14,7 @@ velocity of B in W with respect to the configuration.
 Composition reads left to right: `X_WB = X_WA @ X_AB`. Use these names for locals and private helpers in
 `lie`, `spatial`, `kinematics`, `dynamics` and nowhere else.
 
-```python no-run
+```python { .no-run }
 # good  (illustrative; real entry point: kinematics/state.py:151)
 X_WB = X_WA @ X_AB
 V_WB = adjoint(X_WB) @ V_B
@@ -31,7 +31,7 @@ Public functions, parameters and fields are full words in `snake_case`; classes 
 `UPPER_CASE`. No abbreviations beyond the glossary set (`q`, `v`, `nq`, `nv`, `fk`, `ik`, `lm`). A user never has to
 know monogram notation to call the library.
 
-```python no-run
+```python { .no-run }
 # good
 def forward_kinematics_state(model: Model, q: Tensor) -> KinematicState: ...
 # bad
@@ -46,7 +46,7 @@ A name that mentions a layout must match the layout in `02-tensors`: quaternions
 `linear_angular`. Never name something `wxyz` or `angular_linear` unless it converts to that layout, and then the
 name says `to_` / `from_`.
 
-```python no-run
+```python { .no-run }
 # good
 quat_xyzw = pose[..., 3:7]
 def twist_to_angular_first(V: Tensor) -> Tensor: ...
@@ -62,7 +62,7 @@ Angles are radians, lengths metres, time seconds; a parameter in another unit ca
 A frame argument is `frame`, a joint `joint`, a body `body`; the viewer's time axis is `step` (`nsteps`,
 `set_step`). The word *frame* always means a robot frame, never an animation frame.
 
-```python no-run
+```python { .no-run }
 # good
 viewer.set_step(10)
 # bad

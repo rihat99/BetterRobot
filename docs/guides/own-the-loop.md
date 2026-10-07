@@ -27,6 +27,9 @@ for _ in range(300):
     optimizer.step()
 print(problem.losses({"x": x.detach()}))  # per-term (4,) losses
 ```
+```output
+{'fit': tensor([0.0005, 0.0010, 0.0006, 0.0002]), 'small': tensor([0.0237, 0.0487, 0.0301, 0.0083])}
+```
 
 The loop steps the ambient tensor. For a variable on a manifold (a robot configuration with a free-flyer
 quaternion) or with `bounds`, call `problem.project(x)` after each step to map it back. Because the loss is
@@ -46,6 +49,9 @@ solver = TorchOptim(
 )
 result = solve(problem, solver, iters=300)
 print(result.loss)
+```
+```output
+tensor([0.0241, 0.0497, 0.0307, 0.0085])
 ```
 
 Adam-like optimizers keep batch elements independent. `torch.optim.LBFGS` couples them through its line
@@ -69,6 +75,12 @@ result.x["x"].sum().backward()
 print(target.grad)  # ones: x* = target, so dx*/dtarget = I
 assert torch.allclose(target.grad, torch.ones(4, 2), atol=1e-4)
 ```
+```output
+tensor([[1.0000, 1.0000],
+        [1.0000, 1.0000],
+        [1.0000, 1.0000],
+        [1.0000, 1.0000]])
+```
 
 !!! note "When the derivative is valid"
     The solve must have converged (check `result.done`). Coordinates on an active bound get zero
@@ -83,7 +95,7 @@ configuration trains the network through the solve.
 uv run python examples/04_ik_layer.py
 ```
 
-## See also
+## Where next
 
 - [Optimization](../concepts/optimization.md): `loss` versus `linearize`, and the `init`/`step` protocol
   if you want to drive a built-in solver step by step.

@@ -36,6 +36,11 @@ print(model.parents)       # (-1, 0, 1, 2)
 print([type(jm).__name__ for jm in model.joint_models])
 # ['JointUniverse', 'JointFixed', 'JointRZ', 'JointRY']
 ```
+```output
+('universe', 'root_joint', 'j1', 'j2')
+(-1, 0, 1, 2)
+['JointUniverse', 'JointFixed', 'JointRZ', 'JointRY']
+```
 
 Joint 0 is always `universe`, the world. Its parent is `-1`. Joint 1, `root_joint`, connects the world
 to the root body; on a fixed-base model it is a `JointFixed`. Joints are numbered so that a parent
@@ -75,6 +80,11 @@ j2 = model.joint_id("j2")
 q = torch.tensor([0.1, 0.5])
 print(q[..., model.idx_qs[j2] : model.idx_qs[j2] + model.nqs[j2]])   # tensor([0.5000])
 ```
+```output
+2 2
+(0, 0, 0, 1) (0, 0, 1, 1)
+tensor([0.5000])
+```
 
 ## A floating base is a free-flyer `root_joint`
 
@@ -92,6 +102,11 @@ print(floating.nq, floating.nv)        # 9 8
 print(floating.idx_qs, floating.idx_vs)  # (0, 0, 7, 8) (0, 0, 6, 7)
 print(floating.q_neutral)              # identity pose, then the arm joints at 0
 ```
+```output
+9 8
+(0, 0, 7, 8) (0, 0, 6, 7)
+tensor([0., 0., 0., 0., 0., 0., 1., 0., 0.])
+```
 
 ## Step configurations with `integrate` and `difference`
 
@@ -108,6 +123,11 @@ print(q1[:3])                          # tensor([0.9589, 0.2448, 0.0000])
 print(floating.difference(floating.q_neutral, q1))   # recovers v
 assert torch.allclose(floating.difference(floating.q_neutral, q1), v, atol=1e-6)
 ```
+```output
+tensor([0.9589, 0.2448, 0.0000])
+tensor([1.0000e+00, 1.4901e-08, 0.0000e+00, 0.0000e+00, 0.0000e+00, 5.0000e-01,
+        0.0000e+00, 0.0000e+00])
+```
 
 `integrate` and `difference` broadcast over leading batch axes like every public function. Optimizers
 use them through `terms.RobotManifold(model)` (see [Optimization](optimization.md)).
@@ -123,6 +143,10 @@ print(model.frame_names)   # ('body_universe', 'body_base', 'body_link1', 'body_
 tool = model.frame_id("tool")
 print(tool)                # 4
 ```
+```output
+('body_universe', 'body_base', 'body_link1', 'body_link2', 'tool')
+4
+```
 
 A frame's world pose comes from forward kinematics. The returned `KinematicState` holds every joint and
 frame transform; `frame_pose_of(frame_id)` gives one pose `(B..., 7)`.
@@ -133,8 +157,14 @@ from better_robot.kinematics import forward_kinematics_state
 state = forward_kinematics_state(model, torch.tensor([0.0, 0.5]))
 print(state.frame_pose_of(tool))   # tensor([0.1199, 0.0000, 0.5194, 0.0000, 0.2474, 0.0000, 0.9689])
 ```
+```output
+tensor([0.1199, 0.0000, 0.5194, 0.0000, 0.2474, 0.0000, 0.9689])
+```
 
 The tool sits 0.25 m above `j2`, which sits 0.3 m above `j1`. Rotating `j2` by 0.5 rad about `y` tilts
 the tool forward: $0.25 \sin 0.5 \approx 0.120$ in `x` and $0.3 + 0.25 \cos 0.5 \approx 0.519$ in `z`.
-[Kinematics and Jacobians](kinematics-and-jacobians.md) covers the rest of the state and the frame
-Jacobians.
+
+## Where next
+
+- [Lie groups and spatial algebra](lie-and-spatial.md): the pose and twist conventions joints produce.
+- [Kinematics and Jacobians](kinematics-and-jacobians.md): how joint motions compose into frame poses and Jacobians.

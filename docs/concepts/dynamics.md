@@ -53,6 +53,9 @@ tau = inverse_dynamics(model, state, v=v, a=a)
 M = mass_matrix(model, state)
 print(tau.shape, M.shape)                       # torch.Size([32, 2]) torch.Size([32, 2, 2])
 ```
+```output
+torch.Size([32, 2]) torch.Size([32, 2, 2])
+```
 
 ## Forward and inverse dynamics invert each other
 
@@ -61,6 +64,9 @@ Feeding the torques back recovers the acceleration:
 ```python
 a_back = forward_dynamics(model, state, v=v, tau=tau)
 print(torch.allclose(a_back, a, atol=1e-8))     # True
+```
+```output
+True
 ```
 
 ## Bias and gravity terms are inverse dynamics with zeros
@@ -102,6 +108,9 @@ com = center_of_mass(model, state)              # (32, 3)
 h = centroidal_momentum(model, state, v=v)        # (32, 6)
 print(com.shape, h.shape)
 ```
+```output
+torch.Size([32, 3]) torch.Size([32, 6])
+```
 
 ## The floating base is part of the tree
 
@@ -118,3 +127,8 @@ entries of `tau` are the wrench the base would need, which is zero for a physica
 | COM, centroidal map | `test_centroidal.py` | `1e-7`–`1e-12` |
 
 API details: [dynamics reference](../reference/api/dynamics.md).
+
+## Where next
+
+- [Optimization](optimization.md): put dynamics residuals into a least-squares problem.
+- [Time and structure](time-and-structure.md): trajectories whose knots are coupled by dynamics.

@@ -17,6 +17,9 @@ from robot_descriptions import panda_description
 model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
 print(model.nq, model.nv, model.njoints)
 ```
+```output
+8 8 14
+```
 
 `dtype` defaults to `torch.float32`; `device=` places every model tensor on one device.
 [`robot_descriptions`](https://github.com/robot-descriptions/robot_descriptions.py) is an optional
@@ -28,7 +31,7 @@ Any URDF path on disk works the same way.
 MJCF parsing goes through MuJoCo's own compiler, so it needs the `io-mjcf` extra
 (`pip install "better-robot[io-mjcf]"`). Without it, `load` raises `BackendNotAvailableError`.
 
-```python no-run
+```python { .no-run }
 model = br.load("scene.xml")              # .xml / .mjcf picks the MJCF parser
 model = br.load("robot.xml", format="mjcf")
 ```
@@ -39,11 +42,19 @@ A floating base is one more joint, a `JointFreeFlyer`, at the root of the tree. 
 configuration entries (position and a scalar-last quaternion) and 6 velocity entries, so `nq` and `nv`
 differ. Use `model.integrate` and `model.difference` instead of adding to `q`.
 
+![Unitree G1 loaded with a free-flyer root](../images/g1_floating.png){ width=560 }
+
+*The G1 with `free_flyer=True`: the first seven entries of `q` place the pelvis in the world.*
+
 ```python
 floating = br.load(panda_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
 print(floating.nq - model.nq, floating.nv - model.nv)  # 7 6
 q0 = floating.q_neutral
 print(q0[:7])  # identity base pose: [0, 0, 0, 0, 0, 0, 1]
+```
+```output
+7 6
+tensor([0., 0., 0., 0., 0., 0., 1.], dtype=torch.float64)
 ```
 
 `free_flyer=True` is a shortcut for `root_joint=JointFreeFlyer()`; pass `root_joint=` for any other
@@ -65,6 +76,9 @@ builder.add_revolute_y("shoulder", parent="base", child="link",
 pendulum = br.io.build_model(builder.finalize(), dtype=torch.float64)
 print(pendulum.joint_names)
 ```
+```output
+('universe', 'root_joint', 'shoulder')
+```
 
 `origin` is a pose `[tx, ty, tz, qx, qy, qz, qw]` with the quaternion scalar last.
 
@@ -79,6 +93,10 @@ print(model.structure.joint_names[:3])
 hand = model.frame_id("body_panda_hand")
 joint = model.joint_id("panda_joint4")
 print(hand, joint, model.frame_names[hand])
+```
+```output
+('universe', 'root_joint', 'panda_joint1')
+10 5 body_panda_hand
 ```
 
 The URDF parser names the frame of each link `body_<link name>`; print `model.frame_names` to see
@@ -119,5 +137,12 @@ try:
 except ShapeError as error:
     print(type(error).__name__)
 ```
+```output
+ShapeError
+```
 
-Next: [compute kinematics and Jacobians](../concepts/kinematics-and-jacobians.md) on the loaded model.
+## Where next
+
+- [Kinematics and Jacobians](../concepts/kinematics-and-jacobians.md): run forward kinematics on the loaded model.
+- [Joints, bodies and frames](../concepts/joints-bodies-frames.md): what the names you looked up refer to.
+- [Model and state](../concepts/model-and-state.md): why the loaded `Model` is frozen.

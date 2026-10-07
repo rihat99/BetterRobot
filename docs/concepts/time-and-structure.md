@@ -10,6 +10,10 @@ and how to stage a solve in phases with `run`.
 time. Each slice `q[:, t]` is a **knot**. Variables not listed in `time` (body shape, a camera, a mass) stay
 `(B, *event)` and are shared by every knot.
 
+![Time variables carry a T axis of knots; windowed terms touch k neighbouring knots; time-free variables are shared by all knots](../figures/time_structure.svg){ width=760 }
+
+*A window-`k` term reads `k` consecutive knots of `q`; a time-free variable such as body shape feeds every knot.*
+
 ## Windows make terms time-local
 
 `window=k` on `residual` declares a time-local term: the output is `(B, T - k + 1, m)` and row `t` depends
@@ -30,6 +34,9 @@ problem.residual("acceleration", lambda x: x[:, 2:] - 2 * x[:, 1:-1] + x[:, :-2]
 normal, loss = problem.linearize(problem.variables)
 print(type(normal).__name__)  # BandedNormal
 assert max(check_jacobian(problem).values()) < 1e-6
+```
+```output
+BandedNormal
 ```
 
 The window does two things. Autodiff of a windowed term costs `k · m` backward passes instead of one per
@@ -85,6 +92,9 @@ normal, _ = problem.linearize(problem.variables)
 print(type(normal).__name__)  # ArrowNormal
 result = solve(problem, LevenbergMarquardt(), iters=30)
 ```
+```output
+ArrowNormal
+```
 
 ## The cost of a solve is linear in `T`
 
@@ -116,13 +126,16 @@ phases = [
 result = run(problem, phases)
 print(result.iters, {name: tuple(h.shape) for name, h in result.history.items()})
 ```
+```output
+28 {'smooth': (15, 2), 'fit': (13, 2)}
+```
 
 `Phase.on_start(problem, x)` runs before the first step and may return new variables or refresh
 `problem.data` (the phase's own copy), for example contact labels; `on_step(problem, state)` runs after each
 step for logging. `Result.history[name]` is the `(steps, B)` loss of each phase. A full example with weight
 schedules and free masks is [Fit a clip](../guides/fit-a-clip.md).
 
-## Next
+## Where next
 
 - [Optimization](optimization.md): terms, solvers and `check_jacobian`.
 - [Trajectories](../getting-started/trajectories.md): the Panda trajectory tutorial.

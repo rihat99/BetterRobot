@@ -36,6 +36,9 @@ state = forward_kinematics_state(model, torch.tensor([0.0, 0.5], dtype=torch.flo
 centers = spheres.centers(state)
 print(centers.shape)   # torch.Size([3, 3]): (B..., S, 3), in WORLD
 ```
+```output
+torch.Size([3, 3])
+```
 
 `centers(state)` reads the frame poses from a `KinematicState`, so it batches and differentiates like
 forward kinematics (see [Kinematics and Jacobians](kinematics-and-jacobians.md)).
@@ -59,6 +62,9 @@ floor = collision.sphere_halfspace(centers, spheres.radii,
                                    normal=torch.tensor([0.0, 0.0, 1.0], dtype=torch.float64), offset=0.0)
 print(floor)   # tensor([-0.0100, 0.3653, 0.4894]): the base sphere dips 1 cm below z = 0
 ```
+```output
+tensor([-0.0100,  0.3653,  0.4894], dtype=torch.float64)
+```
 
 ## Self-collision skips pairs that touch by construction
 
@@ -70,6 +76,11 @@ joined by one moving joint, which touch at the joint by design. `self_distances`
 pairs = collision.self_collision_pairs(model, spheres)
 print(pairs)   # tensor([[0, 1], [0, 2]]): base vs. link2 and base vs. tool
 print(collision.self_distances(spheres, state, pairs=pairs))
+```
+```output
+tensor([[0, 1],
+        [0, 2]])
+tensor([0.2599, 0.3945], dtype=torch.float64)
 ```
 
 The sphere on `body_link2` and the `tool` sphere are on the same body, so they form no pair. The base
@@ -122,7 +133,18 @@ print(f"straight {clearance(straight):+.3f} m, optimized {clearance(result.x['q'
 # straight -0.070 m, optimized +0.019 m
 assert clearance(result.x["q"][0]) > clearance(straight)
 ```
+```output
+straight -0.070 m, optimized +0.019 m
+```
 
 The clearance before optimization is negative: the tool sphere passes through the obstacle. After the
 solve it sits just under the 0.02 m margin, because the soft weight trades clearance against smoothness. Raise the weight or switch to the
 hard inequality to enforce it exactly.
+
+<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../clips/obstacle_trajectory.png" width="960"><source src="../clips/obstacle_trajectory.webm" type="video/webm"></video><figcaption>The Panda, modelled as spheres, follows a trajectory that a clearance term bends around a spherical obstacle (<code>examples/06_obstacle_trajectory.py</code>).</figcaption></figure>
+
+## Where next
+
+- [Optimization](optimization.md): how the clearance residual joins a `Problem` and which solver runs it.
+- [Hard constraints](../guides/hard-constraints.md): enforce the margin exactly with `solve_constrained`.
+- [Viewer](viewer.md): show spheres, obstacles and the optimized trajectory.

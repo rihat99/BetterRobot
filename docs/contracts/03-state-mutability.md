@@ -11,7 +11,7 @@ around, and build new ones instead of changing them. See ADR [0002](decisions/00
 `optim/phases.py:15,38`, are not yet: `[planned: L-5]`). Derived quantities are computed by
 functions or cached properties, never by assignment after construction.
 
-```python no-run
+```python { .no-run }
 # good  (spatial/motion.py)
 @dataclass(frozen=True)
 class Motion:
@@ -30,7 +30,7 @@ Enforcement: `tests/contract/test_frozen.py` (imports every public dataclass, as
 A function never takes a state to fill in. To change a model parameter, build a new `ModelValues` with
 `dataclasses.replace` or the builder API.
 
-```python no-run
+```python { .no-run }
 # good
 state = forward_kinematics_state(model, q)
 model2 = replace(model, values=replace(model.values, joint_placements=new_X))
@@ -46,7 +46,7 @@ In-place ops (`x.add_()`, `x[...] = `, `x.copy_()`) on a tensor the caller passe
 break autograd when the tensor needs gradient, and are rejected by `torch.func.vmap`. Clone first, or build the
 output with out-of-place ops. In-place ops on a tensor the function itself created are fine.
 
-```python no-run
+```python { .no-run }
 # good
 q_next = q + dq
 # bad

@@ -1,13 +1,17 @@
 # Fit a clip in phases
 
 A motion fit rarely works as one solve: the root has to find the subject first, a cheap optimizer gets close,
-and Levenberg-Marquardt finishes on the banded system. This guide fits a floating-base humanoid to noisy marker
-tracks with `optim.Phase` and `optim.run`. You keep one problem and change only weights, free coordinates and the
-solver between phases.
+and Levenberg-Marquardt finishes on the banded system. After this guide you can fit a floating-base humanoid to
+noisy marker tracks with `optim.Phase` and `optim.run`: you build one problem and change only weights, free
+coordinates and the solver between phases.
 
-Read [Time and structure](../concepts/time-and-structure.md) first if time variables and `window` are new to you.
+<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../clips/g1_clip_fit.png" width="960"><source src="../clips/g1_clip_fit.webm" type="video/webm"></video>
+<figcaption>A Unitree G1 clip fitted to noisy marker tracks with three phases.</figcaption></figure>
 
-## Build one problem over the whole clip
+!!! note "Before you start"
+    Read [Time and structure](../concepts/time-and-structure.md) first if time variables and `window` are new to you.
+
+## One problem covers the whole clip
 
 The unknown is the whole clip `q (B, T, nq)`. `time=("q",)` marks it as a time variable, so the solver sees a
 block-tridiagonal normal matrix instead of a dense one. The example's Unitree G1 has a free-flyer root
@@ -52,10 +56,21 @@ problem.residual("smooth", terms.finite_difference(model, order=2, dt=1 / FPS), 
 problem.residual("rest", lambda q: q[..., 7:] - model.q_neutral[7:], weight=1e-3, window=1)
 ```
 
+The problem minimises one sum over knots $t$ and markers $m$:
+
+$$
+\min_{q_{1..T}} \sum_{t,m} \rho\big(p_m(q_t) - \hat p_{t,m}\big)
+ + w_s \sum_t \big\| (q_{t+1} \ominus q_t) - (q_t \ominus q_{t-1}) \big\|^2 / \Delta t^4
+ + w_r \sum_t \| q_t^{\text{joints}} - q^{\text{neutral}} \|^2
+$$
+
+where $p_m(q_t)$ is the forward-kinematics position of marker $m$, $\hat p_{t,m}$ its observation, $\rho$ the Huber
+kernel, $a \ominus b$ is `model.difference(b, a)` (a tangent vector), and $w_s = 10^{-5}$, $w_r = 10^{-3}$ are the `smooth` and `rest` weights.
+
 The terms do not know about phases. `markers` and `rest` touch one knot each (`window=1`); `smooth` is a
 second-order finite difference over neighbouring knots. The Huber kernel keeps the outliers from dragging the fit.
 
-## Describe each phase by what changes
+## A phase says only what changes
 
 A `Phase` is a solver, an iteration count, and overrides. Everything not overridden comes from the problem.
 
@@ -99,7 +114,7 @@ schedule = [optim.Phase(optim.LevenbergMarquardt(), 3, name=f"smooth={w:g}", wei
 annealed = optim.run(problem, schedule, x=result.x)
 ```
 
-## Read the result
+## `result.history` shows each phase's progress
 
 `result.x` holds the fitted variables and `result.history` maps each phase name to its loss per step.
 
@@ -109,6 +124,16 @@ for name, losses in result.history.items():
 fitted = forward_kinematics_state(model, result.x["q"]).frame_pose[:, :, marker_ids, :3]
 print(f"mean marker error {float((fitted - true_positions).norm(dim=-1).mean()) * 1e3:.1f} mm")
 ```
+```output
+root  : loss 0.1537 -> 0.1088 in 5 steps
+lbfgs : loss 0.8268 -> 0.1644 in 10 steps
+lm    : loss 0.1069 -> 0.0856 in 5 steps
+mean marker error 17.2 mm
+```
+
+Each line is one phase: its loss after the first and the last step. Losses are comparable only within a phase,
+because `root` runs with `smooth` switched off. The 17 mm error is measured against the noise-free markers, after
+only 20 steps in total.
 
 The full example uses 120 knots and more iterations:
 
@@ -116,7 +141,7 @@ The full example uses 120 knots and more iterations:
 uv run python examples/03_clip_fit_phases.py
 ```
 
-## Related
+## Where next
 
 - [Optimization](../concepts/optimization.md): `Problem`, terms, kernels and solvers.
 - [Time and structure](../concepts/time-and-structure.md): time variables, `window`, banded solves.

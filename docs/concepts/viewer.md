@@ -7,6 +7,8 @@ and which call to reach for: `show`, `play`, `save` or `record`.
 It lives in `better_robot.viewer`, is built on [viser](https://viser.studio), and is the top of the import stack:
 nothing else in the library imports it. viser is imported only when you create a `Viewer`.
 
+<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../clips/viewer_layers.png" width="960"><source src="../clips/viewer_layers.webm" type="video/webm"></video><figcaption>One scene built up layer by layer: mesh, then skeleton, frames and ground, each switched on with <code>set_visible</code>.</figcaption></figure>
+
 ## A layer holds a whole clip
 
 A `Layer` is one named thing in the scene: a point cloud, a skeleton, rigid meshes, coordinate frames, arrows.
@@ -25,6 +27,9 @@ cloud = np.random.rand(100, 50, 3)       # T = 100 frames of 50 points
 points = viewer.add(PointsLayer("cloud", cloud))
 viewer.add(GroundLayer(size=3.0))
 print(viewer.url, viewer.timeline.nsteps)
+```
+```output
+http://127.0.0.1:8080 100
 ```
 
 The built-in layers are `PointsLayer`, `SkeletonLayer`, `FramesLayer`, `ArrowsLayer`, `GroundLayer`,
@@ -67,7 +72,7 @@ The other three calls consume the timeline:
 | `save(path)` | writes a `.viser` recording for viser's static web client | no |
 | `record(path)` | screenshots the scene in a headless Chromium to `.webm`, `.gif` or `.png` frames | no |
 
-```python no-run
+```python { .no-run }
 viewer.play()  # blocks until Ctrl-C
 ```
 
@@ -117,6 +122,9 @@ vertices = np.random.rand(1000, 3)
 picked = vertices_in_sphere(vertices, center=np.array([0.5, 0.5, 0.5]), radius=0.2)
 print(picked.shape)
 ```
+```output
+(37,)
+```
 
 ## Recording the scene
 
@@ -125,7 +133,7 @@ step and screenshots it. The output format follows the suffix: `.webm` (needs `f
 for numbered frames, or a directory of frames. Options are `steps`, `size` (width, height), `fps`, `gpu`
 and `camera`.
 
-```python no-run
+```python { .no-run }
 import tempfile
 from pathlib import Path
 
@@ -153,12 +161,15 @@ dark_viewer = Viewer(theme=DARK, port=8081)
 y_up_viewer = Viewer(theme=Theme(up="+y"), port=8082)
 print(y_up_viewer.theme.up_vector)
 ```
+```output
+(0.0, 1.0, 0.0)
+```
 
 `Viewer(server=...)` reuses an existing `viser.ViserServer` (or a fake one in tests), and `viewer.server` is the
 escape hatch for custom GUI. The default host is `127.0.0.1`, so the server is reachable only from your machine;
 forward the port over SSH to view it remotely.
 
-## Where to go next
+## Where next
 
 - [Visualize a robot](../getting-started/visualize.md) walks through a first scene and a recording.
 - `examples/viewer/` has runnable scripts: a robot pose, an IK gizmo, recording a clip.

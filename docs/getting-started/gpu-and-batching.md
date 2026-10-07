@@ -3,6 +3,9 @@
 You learn the two rules that make BetterRobot fast: batch axes lead, event axes trail; and the model and
 your tensors share one device and dtype. You run a batched query on CPU and see the CUDA version.
 
+<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../clips/batched_ik.png" width="960"><source src="../clips/batched_ik.webm" type="video/webm"></video>
+<figcaption>One `solve_ik` call on a batch of targets: every Panda in the grid is one row of the same `q` tensor.</figcaption></figure>
+
 ## Batch axes lead, event axes trail
 
 Every public tensor ends in its event shape: `q (..., nq)`, a pose `(..., 7)`, a transform `(..., 3, 4)`.
@@ -23,6 +26,10 @@ state = forward_kinematics_state(model, q_batch)
 print(state.frame_pose.shape)                            # (8, 16, nframes, 7)
 print(frame_jacobian(model, state, frame="body_panda_hand").shape)  # (8, 16, 6, nv)
 ```
+```output
+torch.Size([8, 16, 14, 7])
+torch.Size([8, 16, 6, 8])
+```
 
 Batch axes follow PyTorch broadcasting. A `(5, 1, nq)` tensor stays `(5, 1, ...)`: nothing is squeezed.
 Prefer one call on a big batch over a Python loop of small calls; each call has a fixed launch cost.
@@ -42,6 +49,10 @@ except Exception as error:
 model64 = model.to(dtype=torch.float64)
 print(forward_kinematics_state(model64, q64).frame_pose.dtype)
 ```
+```output
+DtypeMismatchError q.dtype=torch.float64 != model.dtype=torch.float32. Cast q or call model.to(dtype=q.dtype) before evaluation.
+torch.float64
+```
 
 Use `float64` for tests, parity checks and tight IK tolerances; `float32` for throughput.
 
@@ -49,7 +60,7 @@ Use `float64` for tests, parity checks and tight IK tolerances; `float32` for th
 
 Only the device changes:
 
-```python no-run
+```python { .no-run }
 device = torch.device("cuda")
 model = br.load(panda_description.URDF_PATH, device=device, dtype=torch.float32)
 q_batch = model.q_neutral.expand(4096, model.nq).clone()
@@ -70,7 +81,14 @@ different commits (`bbbb669`, `9f85980`), so treat them as orders of magnitude.
 | forward dynamics (ABA) | 1.30 | 3.19 | 81.0 | 3.50 |
 
 A single query is faster on the CPU. On the GPU the cost hardly grows from 1 to 4096 queries, so large
-batches run 18–26x faster than on one CPU thread. [Benchmark and profile](../guides/benchmark-and-profile.md)
-shows how to measure your own case.
+batches run 18–26x faster than on one CPU thread.
 
-Next: [visualize a robot](visualize.md).
+!!! tip
+    Batch first, then move to CUDA. A batch of one gains nothing from the GPU; a batch of thousands
+    costs about the same as a batch of one.
+
+## Where next
+
+- [Visualize a robot](visualize.md) — show one of those batched solutions in the viewer.
+- [Benchmark and profile](../guides/benchmark-and-profile.md) — measure your own robot and batch size.
+- [Architecture](../concepts/architecture.md) — where the batching and device contract lives in the layers.

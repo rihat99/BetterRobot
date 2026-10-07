@@ -58,3 +58,8 @@ intermediate model.
   `BackendNotAvailableError` when missing (`tests/contract/test_optional_imports.py`).
 - Add an abstraction only when at least two in-tree callers need it.
 - Follow the [design contracts](../contracts/00-index.md) for names, shapes and validation; the per-extension-point rules are in [08-extension-points](../contracts/08-extension-points.md).
+
+## Where next
+
+- [Testing](testing.md): the parity, contract and docs tests every extension must pass.
+- [Write a term](../guides/write-a-term.md): a term with an analytic Jacobian, step by step.

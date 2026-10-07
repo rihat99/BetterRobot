@@ -95,3 +95,30 @@ def test_points_apply_group_offset_and_skip_hidden_or_pointless_layers() -> None
     hidden = viewer.add(PointsLayer("h", np.full((1, 3), 50.0)), group="b")
     viewer.set_visible(hidden, False)
     np.testing.assert_allclose(viewer._points([0]), [[0.0, 2.0, 0.0], [1.0, 2.0, 0.0]])
+
+
+def _frame_fill(points: np.ndarray, position: np.ndarray, look_at: np.ndarray, up: np.ndarray) -> tuple[float, float]:
+    """Fractions of frame height and width that ``points (N, 3)`` span through a pinhole at ``position``."""
+    forward = (look_at - position) / np.linalg.norm(look_at - position)
+    right = np.cross(forward, up) / np.linalg.norm(np.cross(forward, up))
+    screen_up = np.cross(right, forward)
+    offset = points - position
+    depth = offset @ forward
+    tan_half = np.tan(capture.FOV / 2)
+    y = (offset @ screen_up) / depth / tan_half
+    x = (offset @ right) / depth / (tan_half * 16 / 9)
+    return float(y.max() - y.min()) / 2, float(x.max() - x.min()) / 2
+
+
+@pytest.mark.parametrize(("extent", "binding"), [((0.2, 0.2, 1.6), "height"), ((6.0, 0.3, 0.3), "width")])
+def test_fit_camera_fills_seventy_percent_of_the_binding_frame_axis(
+    extent: tuple[float, float, float], binding: str
+) -> None:
+    corners = np.array(np.meshgrid(*[[0.0, e] for e in extent])).reshape(3, -1).T + np.array([1.0, -2.0, 0.5])
+    points = np.concatenate([corners, np.random.default_rng(0).uniform(0, 1, (200, 3)) * extent + [1.0, -2.0, 0.5]])
+    up = np.array([0.0, 0.0, 1.0])
+    position, look_at = capture.fit_camera(points, up=up)
+    height_fill, width_fill = _frame_fill(points, position, look_at, up)
+    fill = height_fill if binding == "height" else width_fill
+    assert 0.62 < fill <= 0.701
+    assert max(height_fill, width_fill) <= 0.701

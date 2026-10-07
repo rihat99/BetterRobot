@@ -27,7 +27,7 @@ becomes a public-internal `kinematics.jacobian_columns` `[planned: L-3]`). `opti
 the standard library. `terms` imports `optim` and the robot packages. `viewer` imports anything.
 `exceptions`, `_typing`, `_validation` are rank zero and import nothing from the package.
 
-```python no-run
+```python { .no-run }
 # good  (illustrative; see terms/robot.py)
 from better_robot.kinematics import frame_jacobian
 # bad  (illustrative)
@@ -43,7 +43,7 @@ Enforcement: `tests/contract/test_layer_dependencies.py` (ast walk of every modu
 needs them, wrapped so the first use raises `ImportError` with the install hint (`06`). Importing
 `better_robot` or any core package must succeed with none of the extras installed.
 
-```python no-run
+```python { .no-run }
 # good  (illustrative)
 def _viser():
     try:

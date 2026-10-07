@@ -11,7 +11,7 @@ A new computation is a module-level function taking a model/state and tensors. A
 viser server) or an evolving run (`optim.run` phases). Methods on data classes are thin conveniences that
 delegate to functions.
 
-```python no-run
+```python { .no-run }
 # good
 def frame_jacobian(state: KinematicState, frame: int | str, *, reference=LOCAL_WORLD_ALIGNED) -> Tensor: ...
 # bad
@@ -28,7 +28,7 @@ A public callable takes at most two positional arguments (typically the model/st
 Everything else sits after `*`. This lets us add parameters without breaking calls and makes call sites
 readable without the signature.
 
-```python no-run
+```python { .no-run }
 # good
 def solve_ik(model, target_pose, *, frame, q0=None, max_iters=50): ...
 # bad
@@ -53,7 +53,7 @@ Today `Model.frame_id(name)` (`data_model/model.py:195`) takes a `str` only and
 `frame_id` to `int | str` and routes every public id parameter through it. `terms.frame_pose`
 (`terms/robot.py:62`) already accepts `int | str`.
 
-```python no-run
+```python { .no-run }
 # good  (terms/robot.py:62)
 frame_pose(model, "panda_hand", target="goal"); frame_pose(model, 8, target="goal")
 # bad  (kinematics/state.py:146, until L-2 lands)

@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 296" width="720" height="296" font-family="Helvetica, Arial, sans-serif">
+<defs>
+<marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1f2328"/></marker>
+<marker id="an" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1f3a68"/></marker>
+</defs>
+<!-- background: white card so the figure reads on light and dark site themes -->
+<rect x="1" y="1" width="718" height="294" rx="12" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<rect x="32" y="24" width="152" height="72" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="108.0" y="49.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">C-NAME</text>
+<text x="108.0" y="66.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">naming</text>
+<text x="108.0" y="82.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">ruff · test · review</text>
+<rect x="200" y="24" width="152" height="72" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="276.0" y="49.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">C-TENS</text>
+<text x="276.0" y="66.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">tensors</text>
+<text x="276.0" y="82.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">test · review</text>
+<rect x="368" y="24" width="152" height="72" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="444.0" y="49.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">C-STATE</text>
+<text x="444.0" y="66.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">state, mutability</text>
+<text x="444.0" y="82.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">test · review</text>
+<rect x="536" y="24" width="152" height="72" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="612.0" y="49.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">C-DIFF</text>
+<text x="612.0" y="66.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">differentiability</text>
+<text x="612.0" y="82.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">test · review</text>
+<rect x="32" y="112" width="152" height="72" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="108.0" y="137.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">C-API</text>
+<text x="108.0" y="154.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">API shape</text>
+<text x="108.0" y="170.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">ruff · test · review</text>
+<rect x="200" y="112" width="152" height="72" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="276.0" y="137.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">C-ERR</text>
+<text x="276.0" y="154.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">validation, errors</text>
+<text x="276.0" y="170.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">ruff · test · review</text>
+<rect x="368" y="112" width="152" height="72" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="444.0" y="137.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">C-DEP</text>
+<text x="444.0" y="154.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">dependencies</text>
+<text x="444.0" y="170.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">ruff · test · review</text>
+<rect x="536" y="112" width="152" height="72" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="612.0" y="137.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">C-EXT</text>
+<text x="612.0" y="154.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">extension points</text>
+<text x="612.0" y="170.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">ruff · test · review</text>
+<rect x="32" y="200" width="152" height="72" rx="6" fill="#f3f5f8" stroke="#1f3a68" stroke-width="2"/>
+<text x="108.0" y="225.0" font-size="15" fill="#1f3a68" text-anchor="middle" font-weight="bold">C-PERF</text>
+<text x="108.0" y="242.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">performance</text>
+<text x="108.0" y="258.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">review only</text>
+<rect x="200" y="200" width="152" height="72" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="276.0" y="225.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">C-DOC</text>
+<text x="276.0" y="242.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">docs</text>
+<text x="276.0" y="258.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">ruff · test · review</text>
+<rect x="368" y="200" width="152" height="72" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="444.0" y="225.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">C-TEST</text>
+<text x="444.0" y="242.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">tests</text>
+<text x="444.0" y="258.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">ruff · review</text>
+<text x="536" y="228" font-size="12" fill="#424a53" text-anchor="start" font-weight="normal">ruff: lint rule in CI</text>
+<text x="536" y="246" font-size="12" fill="#424a53" text-anchor="start" font-weight="normal">test: pytest test</text>
+<text x="536" y="264" font-size="12" fill="#424a53" text-anchor="start" font-weight="normal">review: human review</text>
+</svg>

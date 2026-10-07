@@ -10,7 +10,7 @@ or rewritten from now on adds numpy-style `Parameters` / `Returns` sections (fun
 (dataclasses); existing public symbols need only the docstring and the shape line (`C-TENS-3`), and are
 upgraded when touched. Private helpers need a docstring only when the maths is not obvious.
 
-```python no-run
+```python { .no-run }
 # good
 def integrate(model: Model, q: Tensor, v: Tensor) -> Tensor:
     """Advance a configuration by a tangent step.

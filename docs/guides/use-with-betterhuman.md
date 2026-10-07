@@ -4,7 +4,7 @@ BetterHuman is a separate package that builds SMPL-family human bodies (SMPL, SM
 ordinary BetterRobot models. This page lists what it adds on top of BetterRobot and shows its quick
 start, so you can tell which package owns which step.
 
-## What BetterHuman adds
+## BetterHuman adds bodies, not a second library
 
 | Piece | What it is |
 |-------|------------|
@@ -20,13 +20,13 @@ followed by spherical joints, so `model.integrate`, `forward_kinematics_state`, 
 lives in `ModelValues`, gradients reach the shape parameters the same way they reach any model tensor
 (see [Differentiate](differentiate.md)).
 
-## Quick start
+## A body is a BetterRobot model with a baked identity
 
 This is the quick start from the BetterHuman repository's `README.md`. It does not run
 in the documentation tests: SMPL-family model files are licensed and are not shipped with either
 package. Download them from their project pages and follow the BetterHuman README to convert them.
 
-```python no-run
+```python { .no-run }
 import torch
 import better_human as bh
 from better_human.viz import HumanView
@@ -38,21 +38,29 @@ q[:, 1] = 1.0                                    # root 1 m up (y-up, metres)
 state = identity.forward(q)                      # HumanState for 4 poses
 print(state.vertices().shape, state.joints.shape)  # (4, 6890, 3) (4, 24, 3)
 
-view = HumanView(identity.forward(identity.q_neutral))   # viewer layers, updated in place
-# from better_robot.viewer import Viewer
-# viewer = Viewer(); [viewer.add(layer, group="human") for layer in view]
-# view.update(state_for_next_frame); viewer.show()
+from better_robot.viewer import Viewer
+
+view = HumanView(identity.forward(identity.q_neutral))   # viewer layers with T = 1, updated in place
+viewer = Viewer()
+for layer in view:
+    viewer.add(layer, group="human")
+viewer.show()
+view.update(identity.forward(q[:1]))                     # rewrite the layers for a new pose
+viewer.show()
 ```
+
+`bake` fixes the shape once, `forward` poses the baked body for a batch of configurations, and `HumanView`
+turns one state into ordinary viewer layers.
 
 Per-frame groups such as the SMPL-X expression go to `forward`:
 `identity.forward(q, stream={"expression": torch.zeros(B, 10)})`.
 
-## Fit a pose with human terms
+## Human terms mix with robot terms in one `Problem`
 
 The terms follow the `TermFn` contract of `better_robot.optim`, so they mix freely with robot terms
 from `better_robot.terms` in one `Problem`. Register the human state once, then add terms that read it:
 
-```python no-run
+```python { .no-run }
 from better_human import terms as human_terms
 
 problem.cached(human_terms.human_state(identity), name="state")
@@ -62,6 +70,10 @@ problem.cached(human_terms.human_state(identity), name="state")
 
 To fit shape as well as pose, make the identity a cached value of the shape variables with
 `problem.cached(human_terms.shaped(body), name="identity")` and read it with
-`human_terms.human_state(identity_name="identity")`. [Fit a clip](fit-a-clip.md) walks through
-a full trajectory fit; [Write a term](write-a-term.md) explains the term contract.
+`human_terms.human_state(identity_name="identity")`.
+
+## Where next
+
+- [Fit a clip](fit-a-clip.md): a full trajectory fit in phases.
+- [Write a term](write-a-term.md): the term contract the human terms follow.
 
