@@ -14,7 +14,9 @@ class PoseGizmo:
     """Transform controls at ``pose`` ``[x, y, z, qx, qy, qz, qw]``; ``on_change(pose)`` fires on drags.
 
     Tools are not layers: they hold the viewer and callbacks and sit outside the frame loop.
-    ``scale`` is the handle size in metres (viser's default of 1 dwarfs a robot).
+    ``scale`` is the handle size in metres (viser's default of 1 dwarfs a robot). Extra
+    ``options`` go to viser's ``add_transform_controls`` (``disable_sliders=True`` and
+    ``disable_axes=True`` make a rotation-only handle).
     """
 
     def __init__(
@@ -25,10 +27,11 @@ class PoseGizmo:
         *,
         on_change: Callable[[np.ndarray], None] | None = None,
         scale: float = 0.15,
+        **options: Any,
     ) -> None:
         pose = np.asarray(pose, dtype=np.float32)
         self.handle = viewer.server.scene.add_transform_controls(
-            f"/tools/{name}", scale=scale, position=pose[:3], wxyz=xyzw_to_wxyz(pose[3:])
+            f"/tools/{name}", scale=scale, position=pose[:3], wxyz=xyzw_to_wxyz(pose[3:]), **options
         )
         self._callbacks: list[Callable[[np.ndarray], None]] = [on_change] if on_change else []
         self.handle.on_update(lambda _: self._notify())
