@@ -200,3 +200,14 @@ Full suite after all commits (72de682): 1785 passed, 2 skipped, 1 failed, the fa
 - Names: `joint_transform`, `frame_transform`, `frame_pose_of`, `RobotSpheres`, `sphere_clearance`.
 - The `trash` helper used by the collision agent put the stub files under the main checkout's `trash/`
   (`/home/rikhat.akizhanov/better/BetterRobot/trash/`), not the worktree's.
+
+## Addendum (2026-10-07 09:30 Dubai): GPU numbers
+
+GPU 4 (RTX PRO 6000 Blackwell) was FREE this morning, so the benchmark ran once on CUDA
+(`benchmarks/results/p2_world_dynamics_cuda.json`, commit 9f85980, float32, full table in
+`subagents/m6_bench_table_cuda.txt`). There is no pre-P2 GPU file, so this is a baseline for the new code, not
+a before/after. The shape is as the operator counts predict: every call is launch-bound and flat in batch size up
+to 256 (Panda RNEA 2.6 ms at batch 1, 2.9 ms at 4096; CRBA 2.0 → 2.2 ms; ABA 3.2 → 3.5 ms), and only tree200 at
+batch 4096 becomes compute-bound (RNEA 15.5 ms, CRBA 13.1 ms, ABA 28.4 ms; forward+backward 36 / 43 / 98 ms).
+Batch-1 GPU latency is 1.3–3.4 ms per algorithm, i.e. per-op launch overhead over ~200–400 ops; a CUDA graph
+or `torch.compile` would be the next lever, not the formulation.
