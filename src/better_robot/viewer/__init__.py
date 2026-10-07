@@ -1,49 +1,40 @@
-"""``better_robot.viewer`` — viser-backed visualisation helpers.
+"""``better_robot.viewer``: one modular viewer on viser.
 
-Topmost in the DAG — nothing imports from ``viewer``.
-
-Scope: interactive viser-backed rendering of one robot via
-``SkeletonMode`` / ``URDFMeshMode`` plus ``GridOverlay`` /
-``FrameAxesOverlay``, with straight-through-the-frames trajectory
-playback, target gizmos, force vectors, and public primitive styling.
-
-All heavy rendering dependencies (viser, trimesh, and later pyrender /
-imageio-ffmpeg) are imported lazily inside their respective submodules.
-This module can be imported on machines with none of those packages
-installed; the relevant error fires only when a code path that needs a
-missing library is first taken.
-
-See ``docs/concepts/viewer.md §13``.
+``Viewer`` owns a server, groups of ``Layer``s and a ``Timeline``; layers are fed preloaded
+``(T, ...)`` numpy arrays and pushed one frame at a time. ``robot_layers`` / ``RobotView`` turn a
+``Model`` and a clip ``q (T, nq)`` into layers. Tools (``viewer.tools``) and offline rendering
+(``viewer.render``) sit on top. viser is imported only when a ``Viewer`` is created.
 """
 
 from __future__ import annotations
 
-from . import helpers
-from .primitive import PrimitiveHandle
-from .render_modes.base import RenderContext, RenderMode
-from .render_modes.skeleton import SkeletonMode
-from .render_modes.urdf_mesh import URDFMeshMode
-from .renderers.base import RendererBackend
-from .renderers.viser_backend import ViserBackend
-from .scene import Scene
-from .trajectory_player import TrajectoryPlayer
-from .visualizer import Visualizer
+from .layer import Layer
+from .layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer, SkeletonLayer
+from .layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
+from .layers.plot import PlotPanel
+from .robot import RobotView, robot_layers, robot_meshes
+from .theme import DARK, LIGHT, Theme
+from .timeline import Timeline
+from .viewer import Viewer
 
 __all__ = [
-    # Interactive facade (V1)
-    "Visualizer",
-    "Scene",
-    # Render modes
-    "RenderMode",
-    "RenderContext",
-    "SkeletonMode",
-    "URDFMeshMode",
-    # Renderer backends
-    "RendererBackend",
-    "ViserBackend",
-    # Playback and styling
-    "TrajectoryPlayer",
-    "PrimitiveHandle",
-    # misc
-    "helpers",
+    "DARK",
+    "LIGHT",
+    "ArrowsLayer",
+    "FramesLayer",
+    "GroundLayer",
+    "Layer",
+    "MeshLayer",
+    "MeshSpec",
+    "PlotPanel",
+    "PointsLayer",
+    "RigidMeshLayer",
+    "RobotView",
+    "SkeletonLayer",
+    "SpheresLayer",
+    "Theme",
+    "Timeline",
+    "Viewer",
+    "robot_layers",
+    "robot_meshes",
 ]

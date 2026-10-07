@@ -168,3 +168,16 @@ def test_quaternion_z_to_direction_and_closed_unit_meshes() -> None:
         edges = np.sort(np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]), axis=1)
         _, counts = np.unique(edges, axis=0, return_counts=True)
         assert (counts == 2).all() and faces.max() == len(vertices) - 1
+
+
+def test_plot_panel_lives_in_the_gui_and_marks_the_current_frame() -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    panel = viewer.add_plot("tau", np.random.default_rng(0).normal(size=(20, 3)), labels=["a", "b", "c"])
+    plot = next(control for control in server.gui.controls if control.kind == "uplot")
+    assert len(plot.props["args"][0]) == 4 and plot.props["args"][0][0][-1] == pytest.approx(19 / 30)
+    viewer.show(7)
+    assert plot.series[1]["points"]["filter"] == (7,) and plot.series[1]["label"] == "a"
+    assert panel.num_frames == 20 and viewer.timeline.num_frames == 20
+    viewer.remove_group("plots")
+    assert plot.removed

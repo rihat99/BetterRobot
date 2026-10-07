@@ -7,7 +7,6 @@ Usage:
 """
 
 import argparse
-import time
 
 import torch
 import better_robot as br
@@ -50,26 +49,29 @@ def main() -> None:
     if args.no_viewer:
         return
 
-    from better_robot.viewer import Visualizer  # noqa: PLC0415 - optional viewer extra
+    from better_robot.viewer import GroundLayer, RobotView, Viewer  # noqa: PLC0415 - optional viewer extra
+    from better_robot.viewer.tools import PoseGizmo  # noqa: PLC0415
 
-    viewer = Visualizer(model, port=8081)
-    viewer.update(result.q)
-    overlay = viewer.add_ik_targets(targets, scale=0.12)
-    viewer.show(block=False)
+    viewer = Viewer(port=8081)
+    viewer.add(GroundLayer())
+    robot = RobotView(model, result.q, skeleton=True)
+    for layer in robot:
+        viewer.add(layer, group="robot")
+    live = {"q": result.q, "targets": dict(targets)}
 
-    print("Viewer at http://localhost:8081  — drag gizmos, Ctrl-C to exit.")
+    def follow(name: str, pose) -> None:  # noqa: ANN001 - numpy pose (7,) from the gizmo
+        live["targets"][name] = torch.as_tensor(pose, dtype=live["q"].dtype)
+        r = solve_ik(model, targets=live["targets"], initial_q=live["q"], cost_cfg=COST, optimizer_cfg=OPT)
+        live["q"] = r.q
+        robot.update(r.q)
+        viewer.show()
 
-    last = {k: v.clone() for k, v in overlay.live_targets().items()}
-    try:
-        while True:
-            cur = overlay.live_targets()
-            if any(not torch.allclose(cur[k], last[k], atol=1e-4) for k in cur):
-                r = solve_ik(model, targets=cur, initial_q=viewer.last_q, cost_cfg=COST, optimizer_cfg=OPT)
-                viewer.update(r.q)
-                last = {k: v.clone() for k, v in cur.items()}
-            time.sleep(0.02)
-    except KeyboardInterrupt:
-        print("\nExit.")
+    gizmos = [
+        PoseGizmo(viewer, name, pose.numpy(), scale=0.12, on_change=lambda p, name=name: follow(name, p))
+        for name, pose in live["targets"].items()
+    ]
+    print(f"Viewer at {viewer.url} — drag the {len(gizmos)} gizmo(s), Ctrl-C to exit.")
+    viewer.server.sleep_forever()
 
 
 if __name__ == "__main__":

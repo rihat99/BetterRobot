@@ -164,18 +164,14 @@ def main() -> None:
         return
 
     # --- Viewer playback ------------------------------------------------------
-    from better_robot.viewer import Visualizer  # noqa: PLC0415
+    from better_robot.viewer import GroundLayer, Viewer, robot_layers  # noqa: PLC0415
 
-    viewer = Visualizer(model, port=8080)
-    player = viewer.add_trajectory(result.trajectory)
-    viewer.show(block=False)
-    print(f"Viewer at http://localhost:8080 — playing {T} frames at {args.fps} fps. Ctrl-C to exit.")
-    try:
-        while True:
-            player.play(fps=args.fps)
-            time.sleep(0.5)
-    except KeyboardInterrupt:
-        print("\nExit.")
+    viewer = Viewer(port=8080, fps=args.fps)
+    viewer.add(GroundLayer())
+    for layer in robot_layers(model, q_opt, skeleton=True):
+        viewer.add(layer, group="panda")
+    print(f"Viewer at {viewer.url} — playing {T} frames at {args.fps} fps. Ctrl-C to exit.")
+    viewer.play()
 
 
 if __name__ == "__main__":

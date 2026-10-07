@@ -82,7 +82,8 @@ class FakeGui:
         def call(*args: Any, **kwargs: Any) -> FakeHandle | None:
             if not method.startswith("add_"):
                 return None
-            handle = FakeHandle(None, method[4:], str(args[0]), kwargs)
+            label = args[0] if args and isinstance(args[0], str) else method[4:]
+            handle = FakeHandle(None, method[4:], label, {"args": args, **kwargs})
             self.controls.append(handle)
             return handle
 

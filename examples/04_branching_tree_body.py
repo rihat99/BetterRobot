@@ -47,13 +47,15 @@ def main() -> None:
     print(f"Root position: {data.joint_pose_world[0, :3]}")
 
     if not args.no_viewer:
-        from better_robot.viewer import Visualizer  # noqa: PLC0415 - optional viewer extra
+        from better_robot.viewer import GroundLayer, Viewer, robot_layers  # noqa: PLC0415 - optional viewer extra
 
-        viewer = Visualizer(model, port=8081)
-        viewer.update(q0)
-        print("\nOpening viewer at http://localhost:8081 — press Ctrl-C to exit.")
-        print("Only SkeletonMode is available (no URDF meshes for a programmatic body).")
-        viewer.show(block=True)
+        viewer = Viewer(port=8081)
+        viewer.add(GroundLayer())
+        for layer in robot_layers(model, q0, skeleton=True):  # no meshes for a programmatic body
+            viewer.add(layer)
+        viewer.show()
+        print(f"\nOpening viewer at {viewer.url} — press Ctrl-C to exit.")
+        viewer.server.sleep_forever()
     else:
         print("Viewer skipped (--no-viewer).")
 

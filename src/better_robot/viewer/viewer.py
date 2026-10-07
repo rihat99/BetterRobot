@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .layer import Layer
+from .layers.plot import PlotPanel
 from .theme import LIGHT, Theme
 from .timeline import Timeline
 
@@ -92,6 +93,10 @@ class Viewer:
         self.timeline.extend(layer.num_frames)
         self._push(entry, self.timeline.frame)
         return layer
+
+    def add_plot(self, name: str, series: Any, *, labels: list[str] | None = None, group: str = "plots") -> PlotPanel:
+        """Sidebar chart of ``series (T, K)`` against time with a marker at the current frame."""
+        return self.add(PlotPanel(name, series, labels=labels, fps=self.timeline.fps), group=group)  # type: ignore[return-value]
 
     def remove_group(self, group: str) -> None:
         """Dispose every layer of ``group`` and remove its scene node and GUI folder."""
