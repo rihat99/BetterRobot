@@ -188,7 +188,7 @@ def _check_forbidden_import(allowed_file_suffix: str | tuple[str, ...], forbidde
     """
     offenders: list[str] = []
     for path in _iter_py_files():
-        if str(path).endswith(allowed_file_suffix):
+        if allowed_file_suffix and str(path).endswith(allowed_file_suffix):
             continue
         text = path.read_text()
         for lineno, line in enumerate(text.splitlines(), start=1):
@@ -199,44 +199,36 @@ def _check_forbidden_import(allowed_file_suffix: str | tuple[str, ...], forbidde
 
 
 def test_only_viser_backend_imports_viser() -> None:
-    """Only the viewer core (``viewer/viewer.py``) and the old ``viser_backend.py`` may import viser.
+    """Only the viewer core (``viewer/viewer.py``) may import viser; layers and tools use handles.
 
     See ``docs/concepts/viewer.md`` ("Dependency hygiene").
     """
-    offenders = _check_forbidden_import(("viser_backend.py", "viewer/viewer.py"), "viser")
-    assert not offenders, "non-viser_backend files importing viser:\n  " + "\n  ".join(offenders)
+    offenders = _check_forbidden_import("viewer/viewer.py", "viser")
+    assert not offenders, "files other than viewer/viewer.py importing viser:\n  " + "\n  ".join(offenders)
 
 
 def test_only_offscreen_backend_imports_pyrender() -> None:
-    """Only ``viewer/renderers/offscreen_backend.py`` may import pyrender.
+    """Nothing imports pyrender: offline rendering is the torch rasterizer in ``viewer/render``.
 
     See ``docs/concepts/viewer.md`` ("Dependency hygiene").
     """
-    offenders = _check_forbidden_import("offscreen_backend.py", "pyrender")
-    assert not offenders, "non-offscreen_backend files importing pyrender:\n  " + "\n  ".join(offenders)
+    offenders = _check_forbidden_import((), "pyrender")
+    assert not offenders, "files importing pyrender:\n  " + "\n  ".join(offenders)
 
 
 def test_only_urdf_mesh_imports_trimesh() -> None:
-    """Only ``viewer/render_modes/urdf_mesh.py`` may import trimesh.
+    """Only the robot adapter ``viewer/robot.py`` may import trimesh (mesh files and primitives).
 
     See ``docs/concepts/viewer.md`` ("Dependency hygiene").
     """
-    offenders = _check_forbidden_import("urdf_mesh.py", "trimesh")
-    assert not offenders, "non-urdf_mesh files importing trimesh:\n  " + "\n  ".join(offenders)
+    offenders = _check_forbidden_import("viewer/robot.py", "trimesh")
+    assert not offenders, "files other than viewer/robot.py importing trimesh:\n  " + "\n  ".join(offenders)
 
 
 def test_only_recorder_imports_imageio() -> None:
-    """Only ``viewer/recorder.py`` may import imageio.
+    """Nothing imports imageio: recordings go through PIL and, for MP4, the ``ffmpeg`` binary.
 
     See ``docs/concepts/viewer.md`` ("Dependency hygiene").
     """
-    offenders: list[str] = []
-    for path in _iter_py_files():
-        if str(path).endswith("recorder.py"):
-            continue
-        text = path.read_text()
-        for lineno, line in enumerate(text.splitlines(), start=1):
-            stripped = line.strip()
-            if stripped.startswith("import imageio") or stripped.startswith("from imageio"):
-                offenders.append(f"{path.relative_to(SRC)}:{lineno}: {stripped}")
-    assert not offenders, "non-recorder files importing imageio:\n  " + "\n  ".join(offenders)
+    offenders = _check_forbidden_import((), "imageio")
+    assert not offenders, "files importing imageio:\n  " + "\n  ".join(offenders)

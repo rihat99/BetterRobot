@@ -112,11 +112,11 @@ simple without making advanced callers leave the supported path.
 
 ## The viewer stays at the edge
 
-`viewer` translates model and trajectory data into interactive or offscreen
-rendering. Nothing in the computational core imports it. Optional packages
-such as `viser`, `pyrender`, and mesh loaders are imported only at their
-integration boundaries, so `import better_robot` does not require a rendering
-environment.
+`viewer` turns models and clips into layers of preloaded arrays, shown in a
+browser through viser or rendered offline by a torch rasterizer. Nothing in
+the computational core imports it. Optional packages such as `viser` and mesh
+loaders are imported only at their integration boundaries, so
+`import better_robot` does not require a rendering environment.
 
 The same rule applies to optional acceleration. Torch is the only
 implementation; `torch.compile` wraps whole passes and never becomes another

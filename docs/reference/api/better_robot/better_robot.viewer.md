@@ -13,9 +13,9 @@
 :titlesonly:
 :maxdepth: 3
 
-better_robot.viewer.renderers
-better_robot.viewer.render_modes
-better_robot.viewer.overlays
+better_robot.viewer.tools
+better_robot.viewer.layers
+better_robot.viewer.render
 ```
 
 ## Submodules
@@ -24,11 +24,9 @@ better_robot.viewer.overlays
 :titlesonly:
 :maxdepth: 1
 
-better_robot.viewer.trajectory_player
-better_robot.viewer.visualizer
-better_robot.viewer.panels
-better_robot.viewer.primitive
-better_robot.viewer.scene
-better_robot.viewer.helpers
-better_robot.viewer.themes
+better_robot.viewer.theme
+better_robot.viewer.viewer
+better_robot.viewer.layer
+better_robot.viewer.robot
+better_robot.viewer.timeline
 ```

@@ -19,7 +19,7 @@ dictionary is a public plugin API.
 | add a linear solver | `LinearSolver` protocol |
 | add a robust loss | `RobustKernel` protocol |
 | add a file format | `register_parser(suffix, function)` |
-| add a viewer mode | `RenderMode` protocol and `Scene.add_mode` |
+| add a viewer layer | `Layer` subclass (`build`, `set_frame`, optional `geometry`) |
 | add an asset source | `AssetResolver` protocol |
 
 ## Residuals
@@ -218,15 +218,15 @@ replaces the earlier callable.
 See {doc}`/concepts/parsers_and_ir` for the intermediate model and
 {doc}`/guides/load_a_robot` for normal loading.
 
-## Viewer modes
+## Viewer layers
 
-A `RenderMode` provides `name`, `description`,
-`is_available(model, data)`, `attach(context, model, data)`,
-`update(data)`, `set_visible(visible)`, and `detach()`.
-
-Attach an instance with `Scene.add_mode`. Third-party modes are not found
-through the viewer's internal tables. See {doc}`/guides/visualize` for a
-complete viewer example.
+A `Layer` subclass holds its own `(T, ...)` arrays, creates scene nodes in
+`build(scene, root)` (register handles with `_track` for the default
+visibility and disposal) and writes one frame in `set_frame(frame)`.
+Implement `geometry(frame)` to make it renderable offline and `build_gui(gui)`
+for per-layer controls. Add an instance with `Viewer.add(layer, group)`; the
+core never imports the package that defines it. See {doc}`/guides/visualize`
+for a complete viewer example.
 
 ## Asset resolvers
 

@@ -38,8 +38,6 @@ from better_robot.optim import (
 )
 from better_robot.residuals.base import Residual
 from better_robot.residuals.pose import OrientationResidual, PoseResidual, PositionResidual
-from better_robot.viewer.render_modes.base import RenderMode
-from better_robot.viewer.render_modes.skeleton import SkeletonMode
 
 
 def _is_runtime_checkable(proto: type) -> bool:
@@ -48,7 +46,7 @@ def _is_runtime_checkable(proto: type) -> bool:
 
 @pytest.mark.parametrize(
     "proto",
-    [LinearSolver, InformativeLinearSolver, RobustKernel, JointModel, RenderMode],
+    [LinearSolver, InformativeLinearSolver, RobustKernel, JointModel],
 )
 def test_protocol_is_runtime_checkable(proto: type) -> None:
     """Every extension-seam Protocol must support ``isinstance``."""
@@ -123,10 +121,3 @@ def test_robust_kernel_instances_satisfy_protocol() -> None:
 )
 def test_joint_model_instances_satisfy_protocol(jm) -> None:
     assert isinstance(jm, JointModel), type(jm).__name__
-
-
-# ── Render modes ──────────────────────────────────────────────────────────────
-
-
-def test_render_mode_instance_satisfies_protocol() -> None:
-    assert isinstance(SkeletonMode(), RenderMode)
