@@ -12,6 +12,7 @@ from .layer import Layer
 from .layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer, SkeletonLayer
 from .layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from .layers.plot import PlotPanel
+from .layers.skinned import CameraLayer, SkinnedMeshLayer
 from .robot import RobotView, robot_layers, robot_meshes
 from .theme import DARK, LIGHT, Theme
 from .timeline import Timeline
@@ -21,6 +22,7 @@ __all__ = [
     "DARK",
     "LIGHT",
     "ArrowsLayer",
+    "CameraLayer",
     "FramesLayer",
     "GroundLayer",
     "Layer",
@@ -31,6 +33,7 @@ __all__ = [
     "RigidMeshLayer",
     "RobotView",
     "SkeletonLayer",
+    "SkinnedMeshLayer",
     "SpheresLayer",
     "Theme",
     "Timeline",
