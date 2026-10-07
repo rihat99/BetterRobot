@@ -20,8 +20,20 @@ from ..lie import so3
 from ._fk_lean import lean_core, placement_matrices
 from .forward import _validate_q
 from ._jacobian_columns import get_plan, world_column_table_from_matrices
+from .jacobian import (
+    _time_variation_in_reference,
+    frame_jacobian_time_variation_raw,
+    joint_jacobians_time_variation_raw,
+)
 
-__all__ = ["KinematicState", "forward_kinematics_state", "frame_jacobian"]
+__all__ = [
+    "KinematicState",
+    "forward_kinematics_state",
+    "frame_jacobian",
+    "frame_jacobian_time_variation",
+    "joint_jacobian",
+    "joint_jacobian_time_variation",
+]
 
 
 def _to_pose(transform: torch.Tensor) -> torch.Tensor:
@@ -118,21 +130,91 @@ def frame_jacobian(
     """
     structure = model.structure
     frame_id = model.frame_id(frame) if isinstance(frame, str) else frame
+    parent = structure.frame_parent_joint_ids[frame_id]
+    return _express(
+        _world_jacobian(model, state, parent),
+        state.frame_translation[..., frame_id, :],
+        state.frame_rotation[..., frame_id, :, :],
+        reference,
+    )
+
+
+def joint_jacobian(
+    model: Model,
+    state: KinematicState,
+    joint: int,
+    *,
+    reference: Literal["world", "local", "local_world_aligned"] = "local_world_aligned",
+) -> torch.Tensor:
+    """Jacobian of one joint. Returns ``(B..., 6, nv)``, rows ``[linear, angular]``; references as :func:`frame_jacobian`."""
+    return _express(
+        _world_jacobian(model, state, joint),
+        state.joint_translation[..., joint, :],
+        state.joint_rotation[..., joint, :, :],
+        reference,
+    )
+
+
+def frame_jacobian_time_variation(
+    model: Model,
+    state: KinematicState,
+    v: torch.Tensor,
+    frame: int | str,
+    *,
+    reference: Literal["world", "local", "local_world_aligned"] = "local_world_aligned",
+) -> torch.Tensor:
+    """Time derivative ``dJ/dt`` of :func:`frame_jacobian` along ``v: (B..., nv)``. Returns ``(B..., 6, nv)``.
+
+    Acceleration pairing ``a = J dv + dJ v``: spatial for ``"world"``/``"local"``, classical for
+    ``"local_world_aligned"``.
+    """
+    frame_id = model.frame_id(frame) if isinstance(frame, str) else frame
+    return frame_jacobian_time_variation_raw(
+        model.structure, model.values, state.q, v, state.joint_pose, frame_id, reference=reference
+    )
+
+
+def joint_jacobian_time_variation(
+    model: Model,
+    state: KinematicState,
+    v: torch.Tensor,
+    joint: int,
+    *,
+    reference: Literal["world", "local", "local_world_aligned"] = "local_world_aligned",
+) -> torch.Tensor:
+    """Time derivative ``dJ/dt`` of :func:`joint_jacobian` along ``v: (B..., nv)``. Returns ``(B..., 6, nv)``."""
+    result = joint_jacobians_time_variation_raw(model.structure, state.q, v, state.joint_pose)
+    return _time_variation_in_reference(
+        result.joint_jacobians[..., joint, :, :],
+        result.joint_jacobians_dot[..., joint, :, :],
+        state.joint_pose[..., joint, :],
+        v,
+        reference,
+    )
+
+
+def _world_jacobian(model: Model, state: KinematicState, joint: int) -> torch.Tensor:
+    """WORLD Jacobian of ``joint``, ``(B..., 6, nv)``; the column table is built once per state."""
+    structure = model.structure
     plan = get_plan(structure)
     if "jacobian_columns" not in state._memo:
         state._memo["jacobian_columns"] = world_column_table_from_matrices(
             structure, state.joint_rotation, state.joint_translation, plan, device=state.q.device, dtype=state.q.dtype
         )
-    parent = structure.frame_parent_joint_ids[frame_id]
-    world = reduce_jacobian(structure, state._memo["jacobian_columns"] * plan.support_mask[parent])
+    return reduce_jacobian(structure, state._memo["jacobian_columns"] * plan.support_mask[joint])
+
+
+def _express(world: torch.Tensor, position: torch.Tensor, rotation: torch.Tensor, reference: str) -> torch.Tensor:
+    """Re-express a WORLD Jacobian ``(B..., 6, nv)`` at a point ``position (B..., 3)`` with axes ``rotation``."""
     if reference == "world":
         return world
     angular = world[..., 3:, :]
-    position = state.frame_translation[..., frame_id, :].unsqueeze(-1)
-    aligned = torch.cat((world[..., :3, :] - torch.linalg.cross(position, angular, dim=-2), angular), dim=-2)
+    aligned = torch.cat(
+        (world[..., :3, :] - torch.linalg.cross(position.unsqueeze(-1), angular, dim=-2), angular), dim=-2
+    )
     if reference == "local_world_aligned":
         return aligned
     if reference == "local":
-        rotation = state.frame_rotation[..., frame_id, :, :].mT
+        rotation = rotation.mT
         return torch.cat((rotation @ aligned[..., :3, :], rotation @ aligned[..., 3:, :]), dim=-2)
     raise ValueError(f"Unsupported reference frame: {reference!r}")

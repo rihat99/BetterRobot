@@ -18,7 +18,7 @@ floating-base robots use the same `Model`/`Data` APIs; a floating base is a
 ```bash
 UV_CACHE_DIR=/tmp/betterrobot-uv-cache uv run pytest tests/ -q -m "not bench and not cuda"
 uv run ruff check src/ tests/
-uv run sphinx-build -b html docs docs/_build/html
+uv run mkdocs build --strict
 uv run python examples/01_ik.py
 ```
 

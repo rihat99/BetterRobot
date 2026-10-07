@@ -1,9 +1,26 @@
-"""``better_robot.viewer``: one modular viewer on viser.
+"""Interactive and offline viewing of robots, bodies and data clips, built on viser.
 
-``Viewer`` owns a server, groups of ``Layer``s and a ``Timeline``; layers are fed preloaded
-``(T, ...)`` numpy arrays and pushed one frame at a time. ``robot_layers`` / ``RobotView`` turn a
-``Model`` and a clip ``q (T, nq)`` into layers. Tools (``viewer.tools``) and offline rendering
-(``viewer.render``) sit on top. viser is imported only when a ``Viewer`` is created.
+A ``Viewer`` runs a viser server (``http://127.0.0.1:8080`` by default) and holds named groups of ``Layer``s; a
+group is toggled, offset and removed as one unit. Every layer is fed preloaded numpy arrays with a leading time
+axis ``(T, ...)`` (static input counts as ``T = 1``) and keeps them by reference. One ``Timeline`` drives all
+layers: ``show(k)`` pushes frame ``k``, ``show()`` re-pushes after in-place edits, ``play()`` plays by wall clock,
+``save(path)`` writes a ``.viser`` recording for viser's static web client, and ``record(path)`` renders the visible
+layers offline to GIF, MP4 or PNG frames with the torch rasterizer in ``viewer.render`` (no browser).
+
+``robot_layers(model, q)`` and ``RobotView`` turn a ``Model`` and a clip ``q (T, nq)`` into mesh, skeleton, frame
+and sphere layers with one forward-kinematics pass. ``viewer.tools`` adds a draggable ``PoseGizmo`` and numpy
+picking (``ray_hit``, ``vertices_in_sphere``, ``vertices_in_rect``). ``LIGHT`` and ``DARK`` are the built-in
+``Theme``s; ``Theme(up="+y")`` sets the up axis of the browser scene and of the ``record`` camera. viser is
+imported only when a ``Viewer`` is created.
+
+```python
+import numpy as np
+from better_robot.viewer import PointsLayer, Viewer
+
+viewer = Viewer()
+viewer.add(PointsLayer("cloud", np.random.rand(100, 50, 3)))  # T = 100 frames of 50 points
+viewer.play()  # blocks until Ctrl-C
+```
 """
 
 from __future__ import annotations

@@ -11,8 +11,11 @@ import numpy as np
 
 @dataclass
 class Geometry:
-    """World-space triangles for the offline renderer: ``vertices (V, 3)``, ``faces (F, 3)``,
-    ``colors`` one RGB in ``[0, 1]`` or ``(F, 3)`` per face."""
+    """World-space triangles of one layer at one frame, as drawn by the offline renderer.
+
+    ``vertices (V, 3)`` in world coordinates, ``faces (F, 3)`` vertex indices, ``colors`` either one RGB
+    ``(3,)`` in ``[0, 1]`` or one per face ``(F, 3)``.
+    """
 
     vertices: np.ndarray
     faces: np.ndarray

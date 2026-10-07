@@ -1,14 +1,14 @@
 """Face-table topology helpers for closed triangle meshes.
 
-Companions to :meth:`better_robot.spatial.Inertia.from_mesh`. That integrator
+Companions to ``Inertia.from_mesh``. That integrator
 folds a single *global* winding sign but trusts every face to already agree on
 orientation; it silently returns a wrong result for a surface whose faces are
 inconsistently wound. These helpers operate on the **integer face table only**
 — they never touch vertex values, so reorientation is a one-time spawn-time
 precompute and the downstream vertex integration stays fully differentiable.
 
-- :func:`validate_closed_manifold` rejects open and non-manifold surfaces.
-- :func:`orient_faces_consistently` rewinds each connected component so all its
+- ``validate_closed_manifold`` rejects open and non-manifold surfaces.
+- ``orient_faces_consistently`` rewinds each connected component so all its
   faces agree, replacing the historical ``trimesh.fix_normals`` step.
 
 See ``docs/concepts/lie_and_spatial.md`` and ``spatial/inertia.py``.
@@ -91,7 +91,7 @@ def _build_face_adjacency(face_list: list[list[int]]) -> list[list[tuple[int, in
     Each undirected edge is grouped; only edges with incidence two produce a
     link. Boundary (incidence 1) and non-manifold (incidence > 2) edges are
     left out, so the graph is well defined for both the strict manifold path
-    and the best-effort :func:`orient_faces_by_component` path. ``weight`` is
+    and the best-effort ``orient_faces_by_component`` path. ``weight`` is
     the product of the two faces' traversal directions on the shared edge
     (+1 for ``min -> max``, -1 for ``max -> min``).
     """
@@ -169,7 +169,7 @@ def orient_faces_consistently(faces: torch.Tensor) -> torch.Tensor:
     connected component, this walks the face-adjacency graph over shared edges
     and reverses any neighbour that would otherwise traverse the shared edge in
     the same direction. Only the integer vertex order of each row changes, so
-    the result plugs directly into :meth:`Inertia.from_mesh`, which then folds
+    the result plugs directly into ``Inertia.from_mesh``, which then folds
     the remaining single global winding sign from the enclosed volume.
 
     The graph walk runs on the host, which is appropriate for a spawn-time
@@ -179,14 +179,14 @@ def orient_faces_consistently(faces: torch.Tensor) -> torch.Tensor:
     ----------
     faces
         Integer triangle table shaped ``(F, 3)`` of a closed 2-manifold
-        surface, as accepted by :func:`validate_closed_manifold`.
+        surface, as accepted by ``validate_closed_manifold``.
 
     Returns
     -------
     torch.Tensor
         A ``(F, 3)`` table on the input device and dtype. Each connected
         component is internally consistent (all faces agree on winding). A
-        single closed surface is exactly what :meth:`Inertia.from_mesh`
+        single closed surface is exactly what ``Inertia.from_mesh``
         expects; integrate disjoint components separately, because their
         relative orientation is undetermined by topology alone.
 
@@ -196,7 +196,7 @@ def orient_faces_consistently(faces: torch.Tensor) -> torch.Tensor:
         If ``faces`` is not an integer tensor.
     ValueError
         If ``faces`` is not a closed 2-manifold surface (see
-        :func:`validate_closed_manifold`), or if that surface is non-orientable
+        ``validate_closed_manifold``), or if that surface is non-orientable
         (a consistent winding then does not exist).
     """
     _check_face_table(faces)
@@ -213,7 +213,7 @@ def orient_faces_consistently(faces: torch.Tensor) -> torch.Tensor:
 def orient_faces_by_component(vertices: torch.Tensor, faces: torch.Tensor) -> torch.Tensor:
     """Best-effort outward reorientation that tolerates imperfect topology.
 
-    A companion to :func:`orient_faces_consistently` for authored meshes that
+    A companion to ``orient_faces_consistently`` for authored meshes that
     are *not* strict closed 2-manifolds — parts stitched at a shared seam with
     boundary edges, non-manifold T-junctions, or several disconnected shells.
     Adjacency is built only over edges shared by exactly two faces (boundary
@@ -221,7 +221,7 @@ def orient_faces_by_component(vertices: torch.Tensor, faces: torch.Tensor) -> to
     two-manifold patch becomes a connected component. Every component is first
     made internally consistent and then flipped, if needed, so its mean-centered
     signed volume is non-negative — i.e. every component faces outward. Passing
-    the result to :meth:`Inertia.from_mesh` (with the same ``vertices``) then
+    the result to ``Inertia.from_mesh`` (with the same ``vertices``) then
     needs no global sign fold and the component volumes add constructively.
 
     Only the integer face table changes, so the orientation is a one-time
@@ -233,7 +233,7 @@ def orient_faces_by_component(vertices: torch.Tensor, faces: torch.Tensor) -> to
     vertices
         Floating tensor shaped ``(V, 3)`` giving the reference (rest) geometry
         the face table indexes. It is used only to sign each component's
-        volume; it is mean-centered exactly as :meth:`Inertia.from_mesh`
+        volume; it is mean-centered exactly as ``Inertia.from_mesh``
         centers, so pass the same vertex array to both.
     faces
         Integer triangle table shaped ``(F, 3)``.

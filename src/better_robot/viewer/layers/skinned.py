@@ -113,6 +113,7 @@ class CameraLayer(Layer):
         self._frustum: Any = None
 
     def image_at(self, frame: int) -> np.ndarray | None:
+        """Image shown in the frustum at ``frame``: ``(H, W, 3)``, or ``None`` when the layer has no image."""
         if self._image is None:
             return None
         if callable(self._image):

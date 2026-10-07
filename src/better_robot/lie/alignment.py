@@ -1,4 +1,8 @@
-"""Differentiable point-set alignment."""
+"""Differentiable weighted point-set alignment.
+
+``umeyama`` fits ``target ~= scale * (rotation @ source) + translation`` and returns
+``(scale (...), rotation (..., 3, 3), translation (..., 3))`` as plain tensors, not a pose.
+"""
 
 from __future__ import annotations
 

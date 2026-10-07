@@ -16,7 +16,7 @@ class Phase:
     """One stage of a solve.
 
     ``weights`` overrides term weights by name (0 switches a term off). ``free`` freezes
-    tangent coordinates (see :meth:`Problem.with_`). ``on_start(problem, x)`` runs before
+    tangent coordinates (see ``Problem.with_``). ``on_start(problem, x)`` runs before
     the first step; it may return replacement variables and may write ``problem.data`` (the
     phase's own copy) to refresh what terms read, such as contact labels.
     ``on_step(problem, state)`` runs after every step, for logging; ``problem.losses(state.x)``
@@ -36,7 +36,7 @@ class Phase:
 
 @dataclass
 class Result:
-    """Outcome of :func:`run`."""
+    """Outcome of ``run``."""
 
     x: dict[str, torch.Tensor]
     loss: torch.Tensor  #: ``(B,)`` final loss under the last phase's weights.

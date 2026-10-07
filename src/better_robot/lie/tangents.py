@@ -1,15 +1,12 @@
-"""Right/left Jacobians, ``hat``/``vee``, small-angle-safe tangent algebra.
+"""``hat``/``vee`` and the left and right Jacobians of the SO(3) and SE(3) exponentials.
 
-These are what ``kinematics/jacobian.py`` uses to drop the legacy
-``Jlog ≈ I`` approximation in the pose residual Jacobian.
+Tangent layouts: SO(3) ``(..., 3)`` = ``[wx, wy, wz]``; SE(3) ``(..., 6)`` = ``[vx, vy, vz, wx, wy, wz]``, linear
+first. The Jacobians follow the perturbation conventions below, with ``*`` the group product (``compose``):
 
-Conventions
------------
-- SO3 tangent: ``(..., 3)`` = ``[wx, wy, wz]``
-- SE3 tangent: ``(..., 6)`` = ``[vx, vy, vz, wx, wy, wz]`` (translation first,
-  rotation second)
+- right: ``exp(xi + d) ~= exp(xi) * exp(Jr(xi) @ d)`` (perturbation in the body / ``LOCAL`` frame);
+- left: ``exp(xi + d) ~= exp(Jl(xi) @ d) * exp(xi)`` (perturbation in the ``WORLD`` frame); ``Jl(xi) = Jr(-xi)``.
 
-See ``docs/concepts/lie_and_spatial.md §5``.
+All are small-angle safe (Taylor branches near zero) and return ``(..., 3, 3)`` or ``(..., 6, 6)``.
 """
 
 from __future__ import annotations
@@ -211,12 +208,7 @@ def _se3_coupling_block(v: torch.Tensor, w: torch.Tensor) -> torch.Tensor:
     WV = W @ V
     VW = V @ W
     WVW = WV @ W
-    return (
-        0.5 * V
-        + c1 * (WV + VW + WVW)
-        + c2 * (W @ WV + VW @ W - 3.0 * WVW)
-        + c3 * (WVW @ W + W @ WVW)
-    )
+    return 0.5 * V + c1 * (WV + VW + WVW) + c2 * (W @ WV + VW @ W - 3.0 * WVW) + c3 * (WVW @ W + W @ WVW)
 
 
 def _block_upper_triangular(diagonal: torch.Tensor, coupling: torch.Tensor) -> torch.Tensor:

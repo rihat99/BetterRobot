@@ -106,4 +106,16 @@ def centroidal_map(model: Model, state: KinematicState) -> torch.Tensor:
     return reduce_jacobian(model.structure, columns).view(*batch, 6, model.nv)
 
 
-__all__ = ["center_of_mass", "centroidal_map", "forward_dynamics", "inverse_dynamics", "mass_matrix"]
+def centroidal_momentum(model: Model, state: KinematicState, v: torch.Tensor) -> torch.Tensor:
+    """Centroidal momentum ``h_g = A_g(q) v`` for ``v: (B..., nv)``, ``(B..., 6)``; rows as :func:`centroidal_map`."""
+    return (centroidal_map(model, state) @ v.unsqueeze(-1)).squeeze(-1)
+
+
+__all__ = [
+    "center_of_mass",
+    "centroidal_map",
+    "centroidal_momentum",
+    "forward_dynamics",
+    "inverse_dynamics",
+    "mass_matrix",
+]

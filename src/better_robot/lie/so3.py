@@ -1,9 +1,10 @@
-"""SO3 group operations implemented directly with PyTorch tensors.
+"""SO(3) group operations on ``(..., 4)`` unit quaternions ``[qx, qy, qz, qw]`` (scalar last).
 
-Storage convention: ``(..., 4)`` unit quaternion ``[qx, qy, qz, qw]``
-(scalar-last). Tangent vectors are ``(..., 3)``.
-
-See ``docs/concepts/lie_and_spatial.md §4``.
+Tangents are ``(..., 3)`` rotation vectors ``[wx, wy, wz]`` (axis times angle, radians). ``compose(a, b)`` equals
+the matrix product ``R_a @ R_b``; ``inverse(q)`` is the conjugate. ``exp`` maps a rotation vector to a quaternion
+and ``log`` returns the rotation vector with angle in ``[0, pi]``; ``q`` and ``-q`` give the same ``log``. Euler
+helpers use ``Rz(yaw) @ Ry(pitch) @ Rx(roll)`` with input ``[roll, pitch, yaw]``. Leading batch axes broadcast;
+dtype and device are preserved.
 """
 
 from __future__ import annotations
@@ -200,7 +201,7 @@ def from_euler(euler: torch.Tensor) -> torch.Tensor:
     quaternion is scalar-last ``[qx, qy, qz, qw]``.
 
     This is the fixed library convention; the function deliberately does
-    not accept other axis orders.  See :func:`to_euler` for the inverse and
+    not accept other axis orders.  See ``to_euler`` for the inverse and
     its gimbal-lock behaviour.
     """
     if not isinstance(euler, torch.Tensor) or not euler.is_floating_point():
@@ -225,7 +226,7 @@ def to_euler(q: torch.Tensor) -> torch.Tensor:
     """Convert a unit quaternion to extrinsic XYZ Euler angles.
 
     Returns ``[..., (roll, pitch, yaw)]`` in radians for the same active
-    convention as :func:`from_euler`: ``Rz(yaw) @ Ry(pitch) @ Rx(roll)``.
+    convention as ``from_euler``: ``Rz(yaw) @ Ry(pitch) @ Rx(roll)``.
     The principal branch has roll/yaw in ``[-pi, pi]`` and pitch in
     ``[-pi/2, pi/2]``.  As with every Euler representation, roll and yaw
     are not individually identifiable at pitch ``+/- pi/2``.

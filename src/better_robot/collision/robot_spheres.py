@@ -1,4 +1,9 @@
-"""A robot approximated by spheres rigidly attached to its frames."""
+"""A robot approximated by spheres rigidly attached to its frames, and self-collision distances between them.
+
+``RobotSpheres`` stores, per sphere, a frame id, an offset in that frame and a radius. ``self_collision_pairs``
+filters pairs that cannot collide (same rigid body, or bodies joined by one moving joint); ``self_distances``
+evaluates the signed sphere-sphere distances for the remaining pairs.
+"""
 
 from __future__ import annotations
 
@@ -14,9 +19,16 @@ from .distance import sphere_sphere
 
 @dataclass(frozen=True)
 class RobotSpheres:
-    """Spheres ``s`` with centre ``frame_ids[s]`` pose applied to ``offsets[s]``.
+    """``S`` spheres, each rigidly attached to a model frame.
 
-    ``frame_ids: (S,)`` long, ``offsets: (S, 3)`` in the frame, ``radii: (S,)``.
+    Sphere ``s`` has its centre at ``offsets[s]`` in the coordinates of frame ``frame_ids[s]`` and radius
+    ``radii[s]``. Shapes: ``frame_ids (S,)`` long, ``offsets (S, 3)``, ``radii (S,)``; build it with ``from_frames``
+    so dtype and device match the model.
+
+    ```python
+    spheres = RobotSpheres.from_frames(model, {"body_panda_link7": [((0.0, 0.0, 0.05), 0.06)]})
+    centers = spheres.centers(forward_kinematics_state(model, q))  # (B..., S, 3), WORLD
+    ```
     """
 
     frame_ids: torch.Tensor
@@ -43,7 +55,7 @@ class RobotSpheres:
         )
 
     def centers(self, state: KinematicState) -> torch.Tensor:
-        """World centres ``(B..., S, 3)`` from ``state.frame_transform: (B..., nframes, 3, 4)``."""
+        """Sphere centres ``(B..., S, 3)`` in ``WORLD``, from the frame poses in ``state`` (``KinematicState``)."""
         rotation = state.frame_rotation[..., self.frame_ids, :, :]
         translation = state.frame_translation[..., self.frame_ids, :]
         return translation + (rotation @ self.offsets[..., None])[..., 0]

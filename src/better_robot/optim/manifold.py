@@ -1,8 +1,8 @@
 """Manifolds: how a variable is stepped along a tangent vector.
 
 A variable tensor has shape ``(B, *event)``. Its tangent is always flat, ``(B, n)``.
-Second-order solvers step with :meth:`Manifold.retract`; ``torch.optim`` steps the
-ambient tensor and calls :meth:`Manifold.project` afterwards.
+Second-order solvers step with ``Manifold.retract``; ``torch.optim`` steps the
+ambient tensor and calls ``Manifold.project`` afterwards.
 """
 
 from __future__ import annotations

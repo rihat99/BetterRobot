@@ -21,7 +21,7 @@ class Normal:
 
         A coordinate that sits on a bound and whose gradient pushes it outward is frozen: its
         gradient entry becomes 0 and its row and column of ``H`` become the identity. The step
-        of the other coordinates is clamped to the box by :meth:`solve`.
+        of the other coordinates is clamped to the box by ``solve``.
         """
         blocked = ((lower >= -tolerance) & (self.g > 0)) | ((upper <= tolerance) & (self.g < 0))
         out = self.masked(~blocked)
@@ -89,7 +89,7 @@ class BandLayout:
 class BandedNormal:
     """Normal equations of a trajectory problem stored as a block-tridiagonal matrix.
 
-    Same interface as :class:`Normal`; ``g`` and every ``delta`` use the problem's column order.
+    Same interface as ``Normal``; ``g`` and every ``delta`` use the problem's column order.
     Padding rows (when the horizon is not a multiple of the group size) carry an identity diagonal.
     """
 
@@ -119,7 +119,7 @@ class BandedNormal:
         return BandedNormal(diagonal, upper, self.g * keep, self.layout, self.lower, self.upper_bound)
 
     def restrict(self, lower: torch.Tensor, upper: torch.Tensor, *, tolerance: float = 1e-9) -> BandedNormal:
-        """Box-constrain the step; see :meth:`Normal.restrict`."""
+        """Box-constrain the step; see ``Normal.restrict``."""
         blocked = ((lower >= -tolerance) & (self.g > 0)) | ((upper <= tolerance) & (self.g < 0))
         out = self.masked(~blocked)
         return BandedNormal(out.diagonal, out.upper, out.g, self.layout, lower, upper)
@@ -206,7 +206,7 @@ class BandedNormal:
 class ArrowNormal:
     """Block-tridiagonal normal equations bordered by variables shared over time (an arrowhead matrix).
 
-    Same interface as :class:`Normal`. The time part is eliminated by the banded factorization
+    Same interface as ``Normal``. The time part is eliminated by the banded factorization
     and the shared part by a dense Schur complement, so cost stays linear in the horizon.
     """
 
@@ -229,7 +229,7 @@ class ArrowNormal:
         return ArrowNormal(self.band.masked(keep_time), border, corner, self.g * keep, self.lower, self.upper)
 
     def restrict(self, lower: torch.Tensor, upper: torch.Tensor, *, tolerance: float = 1e-9) -> ArrowNormal:
-        """Box-constrain the step; see :meth:`Normal.restrict`."""
+        """Box-constrain the step; see ``Normal.restrict``."""
         blocked = ((lower >= -tolerance) & (self.g > 0)) | ((upper <= tolerance) & (self.g < 0))
         out = self.masked(~blocked)
         return ArrowNormal(out.band, out.border, out.corner, out.g, lower, upper)

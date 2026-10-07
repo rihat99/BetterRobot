@@ -40,6 +40,15 @@ from .kinematics import (
     get_joint_jacobian_time_variation,
     update_frame_placements,
 )
+from .dynamics.state import centroidal_map, centroidal_momentum, forward_dynamics, inverse_dynamics, mass_matrix
+from .kinematics.state import (
+    KinematicState,
+    forward_kinematics_state,
+    frame_jacobian,
+    frame_jacobian_time_variation,
+    joint_jacobian,
+    joint_jacobian_time_variation,
+)
 from .lie.types import SE3
 
 __all__ = [
@@ -71,4 +80,15 @@ __all__ = [
     "crba",
     "center_of_mass",
     "compute_centroidal_map",
+    "forward_kinematics_state",
+    "KinematicState",
+    "frame_jacobian",
+    "frame_jacobian_time_variation",
+    "joint_jacobian",
+    "joint_jacobian_time_variation",
+    "inverse_dynamics",
+    "mass_matrix",
+    "forward_dynamics",
+    "centroidal_map",
+    "centroidal_momentum",
 ]

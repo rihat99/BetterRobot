@@ -1,6 +1,6 @@
 """Solvers: ``init(problem, x) -> State`` and ``step(problem, state) -> State``.
 
-Every tensor in :class:`State` is batch-first. A step computes all batch elements and keeps
+Every tensor in ``State`` is batch-first. A step computes all batch elements and keeps
 the old value where an element is done or its step was rejected, so shapes never change
 and nothing inside ``step`` reads a tensor back to Python.
 """
@@ -20,19 +20,25 @@ from .problem import Problem
 class State:
     """Optimizer state of a batch of problems."""
 
-    x: dict[str, torch.Tensor]
+    x: dict[str, torch.Tensor]  #: variables, each ``(B, *event)``.
     loss: torch.Tensor  #: ``(B,)`` loss at ``x``.
     done: torch.Tensor  #: ``(B,)`` bool, per-problem convergence.
-    it: int = 0
+    it: int = 0  #: steps taken so far.
     extra: dict[str, Any] = field(default_factory=dict)  #: solver-owned (damping, moments, ...).
 
 
 class Solver(Protocol):
-    """Anything with ``init`` and ``step`` is a solver."""
+    """Anything with ``init`` and ``step`` is a solver.
 
-    def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State: ...
+    ``solve`` and ``run`` call ``init`` once and then ``step`` up to the iteration budget, stopping
+    early once every batch element is done (see ``Phase.stop_every``).
+    """
 
-    def step(self, problem: Problem, state: State) -> State: ...
+    def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
+        """Start state at variables ``x``: loss evaluated, nothing done, solver-owned ``extra`` set up."""
+
+    def step(self, problem: Problem, state: State) -> State:
+        """One iteration for every batch element; done or rejected elements keep their values."""
 
 
 def select(mask: torch.Tensor, new: dict[str, torch.Tensor], old: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
@@ -55,7 +61,9 @@ class LevenbergMarquardt:
 
     A problem is done when its gradient is below ``gtol``, an accepted step changes the loss
     by less than ``ftol`` (relative) or the variables by less than ``xtol``, or its damping
-    has reached the maximum (no step is accepted any more).
+    has reached the maximum (no step is accepted any more). ``damping`` is the initial damping.
+    ``gtol`` bounds the largest gradient entry; a tolerance left at ``None`` takes a default the
+    dtype can resolve (``1e-8, 1e-12, 1e-10`` in float64, ``1e-7, 0, 0`` otherwise).
     """
 
     def __init__(
@@ -130,7 +138,9 @@ class LBFGS:
 
     Every step evaluates the loss at ``line_search`` step sizes (1, ½, ¼, ...) for all
     problems and each problem takes the largest one that satisfies the Armijo condition.
-    A problem that finds none keeps its variables and drops its history.
+    A problem that finds none keeps its variables and drops its history. ``history`` is the
+    number of stored curvature pairs, ``armijo`` the sufficient-decrease constant and ``gtol``
+    bounds the largest gradient entry (``None`` takes the dtype default, as for LM).
     """
 
     def __init__(
@@ -211,7 +221,8 @@ class TorchOptim:
     Adam-like optimizers keep batch elements independent; ``torch.optim.LBFGS`` couples them
     through its line search and treats the batch as one problem.
     ``scheduler(optimizer)`` may return a ``torch.optim.lr_scheduler`` object; its ``step()``
-    is called without arguments once per solver step.
+    is called without arguments once per solver step. Extra keyword arguments go to
+    ``optimizer_cls``, e.g. ``TorchOptim(torch.optim.Adam, lr=1e-2)``.
     """
 
     def __init__(

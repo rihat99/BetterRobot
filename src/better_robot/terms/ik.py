@@ -65,7 +65,7 @@ def solve_ik(
     restarts: int = 0,
     generator: torch.Generator | None = None,
 ) -> Result:
-    """Solve :func:`ik_problem` with LM (or ``solver``). The configuration is ``result.x["q"]``.
+    """Solve ``ik_problem`` with LM (or ``solver``). The configuration is ``result.x["q"]``.
 
     ``restarts`` extra attempts start from random configurations; each batch element keeps
     its best attempt. This is what gets past the local minima of a single start.

@@ -49,9 +49,11 @@ class PoseGizmo:
         self.handle.wxyz = xyzw_to_wxyz(pose[3:])
 
     def on_change(self, callback: Callable[[np.ndarray], None]) -> None:
+        """Also call ``callback(pose (7,))`` on every drag."""
         self._callbacks.append(callback)
 
     def remove(self) -> None:
+        """Remove the handle from the scene."""
         self.handle.remove()
 
     def _notify(self) -> None:

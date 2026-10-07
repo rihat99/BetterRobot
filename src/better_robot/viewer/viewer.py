@@ -66,10 +66,12 @@ class Viewer:
 
     @property
     def url(self) -> str:
+        """Address to open in a browser, e.g. ``http://127.0.0.1:8080``."""
         return f"http://{self.host}:{self.port}"
 
     @property
     def layers(self) -> list[Layer]:
+        """Every added layer, visible or not, in group order then insertion order."""
         return [entry.layer for group in self._groups.values() for entry in group.entries.values()]
 
     def add(self, layer: Layer, group: str = "scene", *, offset: tuple[float, float, float] | None = None) -> Layer:
@@ -124,8 +126,11 @@ class Viewer:
                 self._push(entry, self.timeline.frame)
 
     def show(self, frame: int | None = None) -> None:
-        """Move the timeline to ``frame``; with no argument re-push the current frame to every
-        visible layer (call this after editing a layer's arrays in place)."""
+        """Move the timeline to ``frame`` and push it to every visible layer.
+
+        With no argument, re-push the current frame to every visible layer even if it already shows it; call this
+        after editing a layer's arrays in place.
+        """
         if frame is None or frame == self.timeline.frame:
             self._push_all(self.timeline.frame, force=True)
         else:
@@ -146,7 +151,10 @@ class Viewer:
     def record(self, path: str | Path, *, fps: float | None = None, **options: Any) -> Path:
         """Render the visible layers offline (no browser) to ``.gif``, ``.mp4`` or ``.png`` frames.
 
-        ``options`` go to :func:`better_robot.viewer.render.record` (``camera``, ``size``, ``frames``).
+        ``options`` go to ``better_robot.viewer.render.record`` (``camera``, ``size``, ``frames``, ``background``);
+        without a ``camera`` the view is framed on frame 0 of the visible layers, upright along the theme's ``up``
+        axis. Returns the
+        written path.
         """
         from .render import frame_camera, record  # noqa: PLC0415 - keeps torch rasterizer out of the import path
 

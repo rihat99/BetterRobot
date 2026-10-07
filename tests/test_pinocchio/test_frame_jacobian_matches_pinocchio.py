@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 
 import better_robot as br
-from better_robot.kinematics.jacobian import get_frame_jacobian
+from better_robot.kinematics import frame_jacobian
 
 from .conftest import sample_panda_q
 
@@ -24,12 +24,12 @@ TARGET_PIN_FRAME = "panda_hand"
 
 
 def _fk_both(br_model, pin_model, pin_data, q):
-    data = br.forward_kinematics(br_model, q, compute_frames=True)
+    state = br.forward_kinematics_state(br_model, q)
     q_pin = q.detach().cpu().double().numpy()
     pin.forwardKinematics(pin_model, pin_data, q_pin)
     pin.updateFramePlacements(pin_model, pin_data)
     pin.computeJointJacobians(pin_model, pin_data, q_pin)
-    return data
+    return state
 
 
 @pytest.mark.parametrize("i", range(4))
@@ -38,12 +38,12 @@ def test_frame_jacobian_local_world_aligned(panda_both, i):
     qs = sample_panda_q(n=4, seed=10)
     q = qs[i]
 
-    data = _fk_both(br_model, pin_model, pin_data, q)
+    state = _fk_both(br_model, pin_model, pin_data, q)
     br_fid = br_model.frame_id(TARGET_FRAME)
     pin_fid = pin_model.getFrameId(TARGET_PIN_FRAME)
 
-    J_br = get_frame_jacobian(
-        br_model, data, br_fid, reference="local_world_aligned"
+    J_br = frame_jacobian(
+        br_model, state, br_fid, reference="local_world_aligned"
     ).detach().cpu().double().numpy()
     J_pin = pin.getFrameJacobian(
         pin_model, pin_data, pin_fid, pin.ReferenceFrame.LOCAL_WORLD_ALIGNED
@@ -58,12 +58,12 @@ def test_frame_jacobian_world(panda_both, i):
     qs = sample_panda_q(n=4, seed=11)
     q = qs[i]
 
-    data = _fk_both(br_model, pin_model, pin_data, q)
+    state = _fk_both(br_model, pin_model, pin_data, q)
     br_fid = br_model.frame_id(TARGET_FRAME)
     pin_fid = pin_model.getFrameId(TARGET_PIN_FRAME)
 
-    J_br = get_frame_jacobian(
-        br_model, data, br_fid, reference="world"
+    J_br = frame_jacobian(
+        br_model, state, br_fid, reference="world"
     ).detach().cpu().double().numpy()
     J_pin = pin.getFrameJacobian(
         pin_model, pin_data, pin_fid, pin.ReferenceFrame.WORLD
@@ -78,12 +78,12 @@ def test_frame_jacobian_local(panda_both, i):
     qs = sample_panda_q(n=4, seed=12)
     q = qs[i]
 
-    data = _fk_both(br_model, pin_model, pin_data, q)
+    state = _fk_both(br_model, pin_model, pin_data, q)
     br_fid = br_model.frame_id(TARGET_FRAME)
     pin_fid = pin_model.getFrameId(TARGET_PIN_FRAME)
 
-    J_br = get_frame_jacobian(
-        br_model, data, br_fid, reference="local"
+    J_br = frame_jacobian(
+        br_model, state, br_fid, reference="local"
     ).detach().cpu().double().numpy()
     J_pin = pin.getFrameJacobian(
         pin_model, pin_data, pin_fid, pin.ReferenceFrame.LOCAL
@@ -114,13 +114,13 @@ def test_frame_jacobian_batched_matches_pinocchio(
         br_model.nq,
     )
 
-    data = br.forward_kinematics(br_model, qs, compute_frames=True)
+    state = br.forward_kinematics_state(br_model, qs)
     br_fid = br_model.frame_id(TARGET_FRAME)
     pin_fid = pin_model.getFrameId(TARGET_PIN_FRAME)
     J_br = (
-        get_frame_jacobian(
+        frame_jacobian(
             br_model,
-            data,
+            state,
             br_fid,
             reference=reference,
         )

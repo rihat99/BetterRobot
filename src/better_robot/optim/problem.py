@@ -105,19 +105,27 @@ class Evaluation:
 class Problem:
     """A batch of independent optimization problems over named tensors.
 
-    Parameters
-    ----------
-    variables : initial values, each ``(B, *event)`` with the same ``B``.
-    manifolds : per-variable :class:`Manifold`; missing entries are Euclidean.
-    bounds : per-variable ``(lower, upper)`` broadcastable to the variable; enforced by
-        clamping after every step.
-    data : tensors that terms read but that are not optimized (targets, network outputs).
-    time : names of variables shaped ``(B, T, *event)`` whose second axis is time. Terms
-        registered with ``window=`` are time-local in these variables, which makes their
-        Jacobians cheap. When every residual term is either time-local or reads no time
-        variable, the normal equations are block-tridiagonal, bordered by the variables
-        without a time axis (body shape, a camera), and solved in time linear in ``T``.
-    dense : force dense normal equations even when the block-tridiagonal form applies.
+    Register terms with ``residual`` (least squares) or ``scalar`` (any ``(B,)`` loss) and shared
+    intermediates with ``cached``; then minimize with ``solve`` or ``run``.
+
+    - ``variables``: initial values, each ``(B, *event)`` with the same ``B``.
+    - ``manifolds``: per-variable ``Manifold``; missing entries are ``Euclidean``.
+    - ``bounds``: per-variable ``(lower, upper)`` broadcastable to the variable; enforced by
+      clamping after every step.
+    - ``data``: tensors that terms read but that are not optimized (targets, network outputs).
+    - ``time``: names of variables shaped ``(B, T, *event)`` whose second axis is time. Terms
+      registered with ``window=`` are time-local in these variables, which makes their
+      Jacobians cheap. When every residual term is either time-local or reads no time
+      variable, the normal equations are block-tridiagonal (``BandedNormal``), bordered by the
+      variables without a time axis such as body shape or a camera (``ArrowNormal``), and solved
+      in time linear in ``T``.
+    - ``dense``: force dense normal equations (``Normal``) even when the banded form applies.
+
+    ```python
+    problem = Problem({"x": torch.zeros(4, 2)}, data={"target": torch.randn(4, 2)})
+    problem.residual("fit", lambda x, target: x - target)
+    normal, loss = problem.linearize(problem.variables)  # Normal, (4,)
+    ```
     """
 
     def __init__(
@@ -194,7 +202,7 @@ class Problem:
         ``k · m`` backward passes instead of one per row, and an analytic ``jac`` returns blocks
         ``(B, T - k + 1, m, k, n)`` per time variable and ``(B, T - k + 1, m, n)`` per variable
         without a time axis. The declaration is trusted: a row that reads outside its window
-        gives a wrong Jacobian. :func:`check_jacobian` tests it.
+        gives a wrong Jacobian. ``check_jacobian`` tests it.
         """
         jac = jac if jac is not None else getattr(fn, "jac", None)
         window = window if window is not None else getattr(fn, "window", None)

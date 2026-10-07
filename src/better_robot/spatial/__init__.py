@@ -1,10 +1,13 @@
-"""``better_robot.spatial`` — 6D spatial algebra value types.
+"""6D spatial algebra value types: twists, wrenches, rigid-body inertia, plus mesh-inertia helpers.
 
-Exposes ``Motion`` (twist), ``Force`` (wrench), ``Inertia``, and
-``Symmetric3`` — thin dataclasses around ``torch.Tensor`` with named methods.
-Heavy math routes through ``better_robot.lie``.
-
-See ``docs/concepts/lie_and_spatial.md``.
+- ``Motion`` ``(..., 6)`` = ``[vx, vy, vz, wx, wy, wz]`` and ``Force`` ``(..., 6)`` = ``[fx, fy, fz, tx, ty, tz]``:
+  linear first, angular second, the same order as the ``lie`` tangents.
+- ``Inertia`` ``(..., 10)`` = ``[mass, cx, cy, cz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]``; ``c`` is the centre of mass and
+  ``I`` the rotational inertia about the centre of mass, both in the body frame.
+- ``Symmetric3`` ``(..., 6)`` = ``[xx, yy, zz, xy, xz, yz]``.
+- Each is a frozen dataclass around one tensor (``.data``); methods return new values. ``SE3``, ``SO3`` and
+  ``Pose`` are re-exported from ``better_robot.lie``. Mesh helpers: ``validate_closed_manifold``,
+  ``orient_faces_consistently``, ``orient_faces_by_component`` (inputs for ``Inertia.from_mesh``).
 """
 
 from __future__ import annotations

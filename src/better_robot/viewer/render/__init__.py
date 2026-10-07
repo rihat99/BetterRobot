@@ -56,7 +56,7 @@ def render_frame(
 def frame_camera(layers: Sequence[Layer], frames: Iterable[int] = (0,), **options: Any) -> Camera:
     """A 3/4 camera fitting the geometry of ``layers`` over ``frames`` (ground layers excluded).
 
-    ``options`` go to :meth:`Camera.framing` (``azimuth``, ``elevation``, ``fov``, ``margin``, ``up``).
+    ``options`` go to ``Camera.framing`` (``azimuth``, ``elevation``, ``fov``, ``margin``, ``up``).
     """
     points = [
         geometry.vertices
@@ -101,8 +101,12 @@ def record(
     background: tuple[float, float, float] = (1.0, 1.0, 1.0),
     device: torch.device | str | None = None,
 ) -> Path:
-    """Write ``path`` as ``.gif``, ``.mp4`` (needs ``ffmpeg`` on PATH), or ``.png`` (one file per frame,
-    ``name_0000.png``). Returns the written path (the directory for PNG sequences)."""
+    """Render ``layers`` over ``frames`` and write them to ``path``, chosen by its suffix.
+
+    ``.gif``; ``.mp4`` (needs ``ffmpeg`` on PATH); or ``.png``, one file per frame named ``<stem>_0000.png``
+    beside ``path``. ``frames`` defaults to every frame of the longest layer; without ``camera`` a 3/4 view is
+    fitted to the clip. Returns the written path (the directory for PNG sequences).
+    """
     from PIL import Image  # noqa: PLC0415 - optional dependency (viser ships it)
 
     path = Path(path)

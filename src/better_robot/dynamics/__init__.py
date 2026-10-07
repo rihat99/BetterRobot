@@ -24,7 +24,7 @@ from .rnea import (
     rnea,
     rnea_raw,
 )
-from .state import centroidal_map, forward_dynamics, inverse_dynamics, mass_matrix
+from .state import centroidal_map, centroidal_momentum, forward_dynamics, inverse_dynamics, mass_matrix
 
 __all__ = [
     "rnea",
@@ -45,4 +45,5 @@ __all__ = [
     "mass_matrix",
     "forward_dynamics",
     "centroidal_map",
+    "centroidal_momentum",
 ]

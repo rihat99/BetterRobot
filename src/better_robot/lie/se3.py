@@ -1,10 +1,10 @@
-"""SE3 group operations implemented directly with PyTorch tensors.
+"""SE(3) group operations on ``(..., 7)`` pose tensors ``[tx, ty, tz, qx, qy, qz, qw]`` (quaternion scalar last).
 
-Storage convention: ``(..., 7)`` tensor ``[tx, ty, tz, qx, qy, qz, qw]``
-(scalar-last quaternion). Tangent vectors are ``(..., 6)``
-``[vx, vy, vz, wx, wy, wz]``.
-
-See ``docs/concepts/lie_and_spatial.md §3``.
+Tangents are ``(..., 6)`` twists ``[vx, vy, vz, wx, wy, wz]``, linear first. ``compose(a, b)`` equals the
+homogeneous product ``a @ b``; ``inverse(t)`` is the rigid inverse; ``act(t, p)`` maps a point ``p (..., 3)`` by
+``R p + t``. ``exp`` is the full SE(3) exponential (translation ``V(w) v``) and ``log`` is its inverse, so
+``log(exp(xi)) == xi`` for ``|w| < pi``. ``adjoint(t) (..., 6, 6)`` satisfies
+``adjoint(T) @ xi == log(T * exp(xi) * T^-1)``. Leading batch axes broadcast; dtype and device are preserved.
 """
 
 from __future__ import annotations

@@ -2,7 +2,7 @@
 
 Residuals are ``margin - distance``, hinged at zero by default so a clear configuration costs nothing.
 With ``hinge=False`` the plain ``margin - distance`` is the inequality ``<= 0`` for
-:func:`~better_robot.optim.solve_constrained`. Jacobians come from autodiff.
+``better_robot.optim.solve_constrained``. Jacobians come from autodiff.
 """
 
 from __future__ import annotations

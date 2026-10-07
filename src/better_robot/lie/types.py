@@ -131,7 +131,7 @@ class SE3:
 
     @property
     def rotation(self) -> SO3:
-        """SO(3) part as an :class:`SO3` value."""
+        """SO(3) part as an ``SO3`` value."""
         return SO3(self.tensor[..., 3:7])
 
     # ── methods ──────────────────────────────────────────────────────

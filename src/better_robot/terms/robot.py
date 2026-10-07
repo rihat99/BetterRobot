@@ -1,7 +1,7 @@
 """Kinematic terms and the configuration manifold of a robot model.
 
-Each factory returns a :class:`~better_robot.optim.TermFn`. Kinematic terms read a cached
-:class:`~better_robot.kinematics.KinematicState` (register it with :func:`kinematic_state`)
+Each factory returns a ``better_robot.optim.TermFn``. Kinematic terms read a cached
+``better_robot.kinematics.KinematicState`` (register it with ``kinematic_state``)
 so one forward-kinematics pass serves every term.
 """
 
@@ -19,7 +19,11 @@ from ..optim import TermFn
 
 
 class RobotManifold:
-    """Configuration manifold of ``model``: ``q: (B, nq)`` or ``(B, T, nq)``, tangent ``nv`` per configuration."""
+    """Configuration manifold of ``model``: ``q: (B, nq)`` or ``(B, T, nq)``, tangent ``nv`` per configuration.
+
+    ``retract`` is ``model.integrate``; ``project`` integrates a zero step, which renormalizes quaternion joints.
+    Pass it as ``Problem(..., manifolds={"q": RobotManifold(model)})``.
+    """
 
     def __init__(self, model: Model) -> None:
         self.model = model
@@ -33,7 +37,9 @@ class RobotManifold:
     def project(self, x: torch.Tensor) -> torch.Tensor:
         return self.model.integrate(x, x.new_zeros(*x.shape[:-1], self.model.nv))
 
-    def tangent_bounds(self, x: torch.Tensor, lower: torch.Tensor, upper: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def tangent_bounds(
+        self, x: torch.Tensor, lower: torch.Tensor, upper: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Step range of the vector-space joints; quaternion coordinates are unbounded."""
         structure = self.model.structure
         q_index, v_index = structure.manifold_euclidean_q_indices, structure.manifold_euclidean_v_indices

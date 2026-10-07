@@ -33,6 +33,7 @@ class Timeline:
 
     @property
     def frame(self) -> int:
+        """Current frame index; assigning clamps to ``[0, num_frames - 1]`` and runs the ``on_frame`` callbacks."""
         return self._frame
 
     @frame.setter
@@ -46,6 +47,7 @@ class Timeline:
 
     @property
     def playing(self) -> bool:
+        """Whether the playback thread is advancing frames."""
         return self._playing.is_set()
 
     @property
@@ -65,6 +67,10 @@ class Timeline:
                 self._gui_slider.max = num_frames - 1
 
     def play(self) -> None:
+        """Start playback in a background thread; a no-op when already playing or ``num_frames == 1``.
+
+        Without ``loop``, playback that sits on the last frame restarts from frame 0.
+        """
         with self._lock:  # two clients clicking Play together must not start two threads
             if self.playing or self.num_frames == 1:
                 return
@@ -76,6 +82,7 @@ class Timeline:
         self._sync_play_button()
 
     def pause(self) -> None:
+        """Stop playback and wait for the playback thread to exit; the current frame is kept."""
         self._playing.clear()
         if self._thread is not None and self._thread is not threading.current_thread():
             self._thread.join()
@@ -83,6 +90,7 @@ class Timeline:
         self._sync_play_button()
 
     def toggle(self) -> None:
+        """Pause when playing, play otherwise (the sidebar's Play button)."""
         self.pause() if self.playing else self.play()
 
     def _run(self) -> None:

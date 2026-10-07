@@ -1,8 +1,9 @@
-"""Signed distances from spheres to simple shapes. Negative means penetration.
+"""Signed distances from spheres to spheres, capsules, half-spaces, oriented boxes and sampled SDF grids.
 
-Every function broadcasts over leading batch axes ``(...)``; the trailing axis of a point is 3.
-Distances use a norm whose gradient is zero (not NaN) at a zero vector, so gradients stay finite
-even when a sphere centre lies exactly on a segment or another centre.
+Each function takes a sphere ``center (..., 3)``, ``radius (...)`` and one shape, and returns ``(...)``: positive is
+the gap between surfaces, negative is penetration depth. Leading batch axes broadcast; all inputs are in one common
+frame (usually ``WORLD``). The norm has a zero (not NaN) gradient at a zero vector, so gradients stay finite even
+when a centre lies exactly on a segment or on another centre.
 """
 
 from __future__ import annotations

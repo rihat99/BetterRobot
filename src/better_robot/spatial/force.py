@@ -1,8 +1,7 @@
-"""``Force`` — 6D spatial wrench value type (dual of ``Motion``).
+"""``Force``: a 6D spatial wrench, dual of ``Motion``, stored as ``(..., 6)``.
 
-Stored as ``(..., 6)`` tensor ``[fx, fy, fz, tx, ty, tz]``.
-
-See ``docs/concepts/lie_and_spatial.md §7``.
+Layout ``[fx, fy, fz, tx, ty, tz]``: force first, torque second. ``se3_action(T)`` maps a wrench by the dual
+adjoint ``Ad(T^-1)^T``, so the power ``force . twist`` is the same in every frame.
 """
 
 from __future__ import annotations
@@ -39,10 +38,10 @@ class Force:
         return self.data[..., 3:]
 
     def cross_motion(self, other) -> "Motion":  # other: Motion
-        """Not a standard spatial operation — use :meth:`Motion.cross_force`.
+        """Not a standard spatial operation — use ``Motion.cross_force``.
 
         ``Force × Motion`` is not part of the spatial-algebra primitives.
-        The dual of :meth:`Motion.cross_force` is what callers usually want.
+        The dual of ``Motion.cross_force`` is what callers usually want.
         """
         raise NotImplementedError(
             "Force.cross_motion is not a standard spatial operation. "
@@ -54,7 +53,7 @@ class Force:
         """Apply an SE3 transform to the wrench (dual adjoint action).
 
         ``T`` may be a raw ``(..., 7)`` tensor or an
-        :class:`~better_robot.lie.types.SE3` value (its ``.tensor`` is
+        ``SE3`` value (its ``.tensor`` is
         unwrapped).
 
         ``F_new = Ad(T)^{-T} * F = Ad^*(T) * F``;
@@ -62,10 +61,11 @@ class Force:
         """
         from ..lie import se3 as _se3
         from ..lie.types import SE3 as _SE3
+
         if isinstance(T, _SE3):
             T = T.tensor
         # Dual action: Ad^{-T}(T) * f = Ad(T^{-1})^T * f
-        Ad_inv = _se3.adjoint_inv(T)    # (..., 6, 6)  = Ad(T^{-1})
+        Ad_inv = _se3.adjoint_inv(T)  # (..., 6, 6)  = Ad(T^{-1})
         Ad_inv_T = Ad_inv.transpose(-1, -2)  # (..., 6, 6)
         return Force((Ad_inv_T @ self.data.unsqueeze(-1)).squeeze(-1))
 

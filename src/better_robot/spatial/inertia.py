@@ -1,9 +1,8 @@
-"""``Inertia`` — packed spatial inertia of a rigid body.
+"""``Inertia``: spatial inertia of a rigid body, packed as a ``(..., 10)`` tensor.
 
-Stored as a ``(..., 10)`` tensor
-``[mass, cx, cy, cz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]``.
-
-See ``docs/concepts/lie_and_spatial.md §7``.
+Layout ``[mass, cx, cy, cz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]``: mass, centre of mass ``c`` in the body frame, and the
+symmetric rotational inertia about the centre of mass (not the frame origin), in body-frame axes. The 6x6 matrix
+acting on linear-first twists is ``[[m I3, -m hat(c)], [m hat(c), I_c - m hat(c)^2]]``.
 """
 
 from __future__ import annotations
@@ -296,11 +295,11 @@ class Inertia:
     def se3_action(self, T) -> "Inertia":
         """Transform the inertia by an SE3 pose.
 
-        ``T`` may be either a raw ``(..., 7)`` tensor or an :class:`SE3`
+        ``T`` may be either a raw ``(..., 7)`` tensor or an ``SE3``
         value-class instance (the ``.tensor`` attribute is unwrapped).
 
         ``I_new = Ad(T)^{-T} · I_6×6 · Ad(T)^{-1}``, then repack. Blocks are
-        extracted under the linear-first layout set by :meth:`_to_6x6`:
+        extracted under the linear-first layout set by ``_to_6x6``:
         ``M = [[m·I3, −m·hat(c)], [m·hat(c), I_o]]``.
         """
         from ..lie import se3 as _se3  # noqa: PLC0415 - keep spatial/lie imports cycle-safe

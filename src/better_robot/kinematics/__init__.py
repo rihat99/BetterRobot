@@ -23,12 +23,22 @@ from .jacobian import (
     joint_jacobians_raw,
     joint_jacobians_time_variation_raw,
 )
-from .state import KinematicState, forward_kinematics_state, frame_jacobian
+from .state import (
+    KinematicState,
+    forward_kinematics_state,
+    frame_jacobian,
+    frame_jacobian_time_variation,
+    joint_jacobian,
+    joint_jacobian_time_variation,
+)
 
 __all__ = [
     "KinematicState",
     "forward_kinematics_state",
     "frame_jacobian",
+    "frame_jacobian_time_variation",
+    "joint_jacobian",
+    "joint_jacobian_time_variation",
     "forward_kinematics",
     "forward_kinematics_raw",
     "frame_placements_raw",

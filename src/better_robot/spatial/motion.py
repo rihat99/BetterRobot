@@ -1,9 +1,7 @@
-"""``Motion`` — 6D spatial twist value type.
+"""``Motion``: a 6D spatial twist (velocity or acceleration) stored as ``(..., 6)``.
 
-Stored as a ``(..., 6)`` tensor ``[vx, vy, vz, wx, wy, wz]``. Methods return
-new ``Motion`` instances (value-typed dataclass).
-
-See ``docs/concepts/lie_and_spatial.md §7``.
+Layout ``[vx, vy, vz, wx, wy, wz]``: linear first, angular second. The tensor carries no frame tag; the caller
+names it (``LOCAL``, ``WORLD``, ``LOCAL_WORLD_ALIGNED``). ``se3_action(T)`` maps a twist by ``Ad(T)``.
 """
 
 from __future__ import annotations
@@ -54,8 +52,8 @@ class Motion:
 
         Result: [hat(w_v)@v_u + hat(v_v)@w_u,  hat(w_v)@w_u]
         """
-        vv = self.linear    # (..., 3)
-        wv = self.angular   # (..., 3)
+        vv = self.linear  # (..., 3)
+        wv = self.angular  # (..., 3)
         vu = other.linear
         wu = other.angular
         H_wv = _tan.hat_so3(wv)
@@ -73,6 +71,7 @@ class Motion:
         Note: hat^T = -hat, so hat(w)^T @ x = -hat(w) @ x = hat(-w) @ x
         """
         from .force import Force
+
         vv = self.linear
         wv = self.angular
         fl = other.linear
@@ -89,14 +88,15 @@ class Motion:
         """Apply an SE3 transform via the adjoint: ``Ad(T) * v``.
 
         ``T`` may be a raw ``(..., 7)`` tensor or an
-        :class:`~better_robot.lie.types.SE3` value (its ``.tensor`` is
+        ``SE3`` value (its ``.tensor`` is
         unwrapped).
         """
         from ..lie import se3 as _se3
         from ..lie.types import SE3 as _SE3
+
         if isinstance(T, _SE3):
             T = T.tensor
-        Ad = _se3.adjoint(T)   # (..., 6, 6)
+        Ad = _se3.adjoint(T)  # (..., 6, 6)
         return Motion((Ad @ self.data.unsqueeze(-1)).squeeze(-1))
 
     def compose(self, other: "Motion") -> "Motion":
@@ -112,4 +112,5 @@ class Motion:
 
     def __sub__(self, other: "Motion") -> "Motion":
         return Motion(self.data - other.data)
+
     # NB: no __mul__ — scale vs. cross is ambiguous. Use named methods.

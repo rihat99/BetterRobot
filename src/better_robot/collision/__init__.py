@@ -1,7 +1,13 @@
-"""``better_robot.collision`` — signed distances between spheres and simple shapes, and a robot as spheres.
+"""Signed distances between spheres and simple shapes, and a robot approximated by spheres.
 
-Functional, batched and differentiable; torch only. Negative distance means penetration.
-Collision lives in its own layer parallel to ``kinematics``/``dynamics``.
+- Geometry is attached to the robot as ``RobotSpheres``: sphere ``s`` is rigidly fixed to frame ``frame_ids[s]`` at
+  ``offsets[s]`` (in that frame's coordinates) with radius ``radii[s]``. ``RobotSpheres.centers(state)`` places them
+  in ``WORLD`` from a ``KinematicState``.
+- Every distance function returns a signed scalar per query, ``(...)``: positive is the gap between surfaces,
+  zero is touching, negative is penetration depth. Gradients stay finite at coincident points.
+- ``self_collision_pairs`` lists sphere pairs that can collide; ``self_distances`` returns ``(B..., P)`` for them.
+- Functional, batched over leading axes, differentiable, torch only. Robot terms built on this live in
+  ``better_robot.terms``.
 """
 
 from __future__ import annotations

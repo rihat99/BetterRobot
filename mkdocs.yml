@@ -1,0 +1,129 @@
+site_name: BetterRobot
+site_description: PyTorch-native, batched, differentiable kinematics, dynamics, optimisation and visualisation.
+docs_dir: docs
+strict: true
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - content.code.copy
+    - content.tabs.link
+    - search.suggest
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue grey
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue grey
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+extra_css:
+  - stylesheets/extra.css
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: numpy
+            show_source: false
+            members_order: source
+            separate_signature: true
+            show_signature_annotations: true
+            merge_init_into_class: true
+            show_root_heading: false
+            show_root_toc_entry: false
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            heading_level: 2
+            filters: ["!^_"]
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - getting-started/installation.md
+      - getting-started/first-model.md
+      - getting-started/forward-kinematics.md
+      - getting-started/inverse-kinematics.md
+      - getting-started/floating-base.md
+      - getting-started/trajectories.md
+      - getting-started/gpu-and-batching.md
+      - getting-started/visualize.md
+  - Concepts:
+      - concepts/architecture.md
+      - concepts/model-and-state.md
+      - concepts/joints-bodies-frames.md
+      - concepts/lie-and-spatial.md
+      - concepts/kinematics-and-jacobians.md
+      - concepts/dynamics.md
+      - concepts/optimization.md
+      - concepts/time-and-structure.md
+      - concepts/collision.md
+      - concepts/viewer.md
+      - concepts/io.md
+      - concepts/design-decisions.md
+  - Guides:
+      - guides/load-a-robot.md
+      - guides/write-a-term.md
+      - guides/own-the-loop.md
+      - guides/hard-constraints.md
+      - guides/fit-a-clip.md
+      - guides/differentiate.md
+      - guides/benchmark-and-profile.md
+      - guides/use-with-betterhuman.md
+  - Reference:
+      - API:
+          - better_robot: reference/api/better_robot.md
+          - data_model: reference/api/data_model.md
+          - io: reference/api/io.md
+          - lie: reference/api/lie.md
+          - spatial: reference/api/spatial.md
+          - kinematics: reference/api/kinematics.md
+          - dynamics: reference/api/dynamics.md
+          - collision: reference/api/collision.md
+          - optim: reference/api/optim.md
+          - terms: reference/api/terms.md
+          - viewer: reference/api/viewer.md
+      - reference/glossary.md
+      - reference/changelog.md
+      - reference/roadmap.md
+  - Contributing:
+      - contributing/conventions.md
+      - contributing/testing.md
+      - contributing/extending.md
