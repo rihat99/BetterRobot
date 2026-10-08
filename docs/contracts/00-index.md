@@ -29,6 +29,7 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 | C-NAME-2 | `tests/contract/test_naming.py`, `[ruff:N801,N802,N803,N806,N815,N816]` [planned: L-7] |
 | C-NAME-3 | `[review]` |
 | C-NAME-4 | `[review]` |
+| C-NAME-5 | `tests/contract/test_se3_vocabulary.py` |
 | C-TENS-1 | `tests/contract/test_dtype_device.py` |
 | C-TENS-2 | `tests/contract/test_dtype_device.py`, `[review]` |
 | C-TENS-3 | `tests/contract/test_docstrings.py` |

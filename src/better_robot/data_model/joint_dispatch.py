@@ -31,7 +31,7 @@ _PRISMATIC_CODES = {
 }
 
 
-def joint_transform(
+def joint_placement(
     joint: JointModel,
     kind_code: int,
     axis: torch.Tensor,
@@ -58,7 +58,7 @@ def joint_transform(
         return _prismatic_transform(axis, q_slice)
     if kind_code == JOINT_KIND_CODES["helical"]:
         return _helical_transform(axis, pitch, q_slice)
-    return joint.joint_transform(q_slice)
+    return joint.joint_placement(q_slice)
 
 
-__all__ = ["joint_transform"]
+__all__ = ["joint_placement"]

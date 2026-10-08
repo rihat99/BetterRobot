@@ -5,6 +5,26 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- Breaking: `terms.frame_pose`, `terms.frame_position` and `terms.self_clearance` take `frame`, `target` and
+  `pairs` keyword-only, like the kinematics functions. Joint ids accept `int | str` everywhere a frame id does;
+  unknown names raise `UnknownNameError` (a `KeyError`). `HumanState.vertices`/`frame_poses` are properties
+  in BetterHuman; `Rig.corrective_features` gains a keyword-only `identity`.
+- Breaking: `JointModel.joint_transform` is `joint_placement` (and `data_model.joint_dispatch.joint_transform`
+  is `joint_placement`); it returns the joint's local `(B..., 7)` pose, and "transform" means a world 3x4 matrix.
+- `io.parse(source, format=...)` returns the IR; `load` is `build_model(parse(...))`. URDF `<dynamics>` and MJCF
+  `damping`/`frictionloss`/`armature` now reach `ModelValues` (they were silently zero). MJCF is marked
+  experimental (known gaps listed in the io page).
+- Solvers write `grad_norm`, `step_norm`, `accepted` (LM: `damping`) per step into `Result.diagnostics`;
+  `Result.state` warm-starts `solve`/`run` via `state=`. A `time=` problem that falls back to the dense sink warns.
+- FK, RNEA and CRBA run under `torch.compile(fullgraph=True)`; `so3.to_euler` is exact at pitch ±π/2.
+- `self_collision_pairs(..., ignore=)`, `RobotSpheres.to()`; ADR 0007 (derivatives contract) and ADR 0008
+  (geometry brick).
+- Viewer: `Viewer.add(..., times=)` for per-layer sample times, `Viewer.on_pointer`/`clear_pointer`,
+  `tools.nearest_on_ray`, `layers/camera.py`; `Trajectory` dataclass; SE(3) vocabulary (placement / pose /
+  transform) in the naming contract and glossary.
+- Fixed: zero-size batches through FK, dynamics and every solver; URDF inertia ignored `<inertial><origin rpy>`;
+  `Viewer.url` reported the requested port instead of the bound one; benchmark scripts broken by keyword-only args.
+
 - Removed the Warp lanes (`use_warp`, the `warp` extra, the kernel modules);
   torch is the only implementation.
 - Joint Jacobians now assemble in one batched shared-column pass instead of a

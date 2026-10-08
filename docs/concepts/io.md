@@ -23,6 +23,31 @@ ModelBuilder.finalize() -->  /
 `better_robot.load(source, ...)` does both stages. It picks the parser from the file suffix, the argument
 type, or an explicit `format="urdf" | "mjcf" | "builder"`.
 
+`better_robot.io.parse(source, format=...)` runs only the first stage and returns the `IRModel`.
+Composition lives on the IR: parse several sources, merge or edit their `bodies`, `joints` and `frames`
+records, then call `build_model(ir)`. `load(source)` is `build_model(parse(source))` plus the root-joint
+options below.
+
+```python
+import better_robot as br
+from better_robot.io import ModelBuilder, build_model, parse
+
+builder = ModelBuilder("arm")
+builder.add_body("base", mass=1.0)
+builder.add_body("link", mass=0.5)
+builder.add_revolute_z("shoulder", parent="base", child="link")
+
+ir = parse(builder.finalize)   # IRModel, no topology decisions yet
+model = build_model(ir)
+assert model.nq == br.load(builder.finalize).nq == 1
+```
+
+!!! warning "MJCF support is experimental"
+    The MJCF parser reads the uncompiled `MjSpec` and has known gaps: a jointed body's own `pos`/`quat`
+    is dropped, joint `range` is not converted from degrees, `limited="auto"` is read as limited, inertia
+    ignores `iquat`/`fullinertia` and geom-derived mass, and `euler`/`axisangle`/`xyaxes`/`zaxis`
+    orientations are ignored. Check MJCF-loaded kinematics against MuJoCo before relying on them.
+
 ## Load a robot description
 
 `load` takes a path to a `.urdf` or MJCF `.xml` file. The `robot_descriptions` package provides paths for

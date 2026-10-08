@@ -18,13 +18,24 @@ from .problem import Problem
 
 @dataclass
 class State:
-    """Optimizer state of a batch of problems."""
+    """Optimizer state of a batch of problems.
+
+    After a ``step``, ``extra`` holds the diagnostic keys of ``DIAGNOSTICS`` that the solver
+    computes, each ``(B,)``: ``grad_norm`` (largest gradient entry before the step), ``step_norm``
+    (largest entry of the step taken, 0 where none was taken), ``accepted`` (bool, the step
+    moved the variables) and ``damping`` (LM only, damping for the next step). LM, Gauss-Newton
+    and L-BFGS write the first three; ``TorchOptim`` writes none. ``run`` stacks them into
+    ``Result.diagnostics``. ``warm_keys`` on a solver names the ``extra`` entries a warm start keeps.
+    """
 
     x: dict[str, torch.Tensor]  #: variables, each ``(B, *event)``.
     loss: torch.Tensor  #: ``(B,)`` loss at ``x``.
     done: torch.Tensor  #: ``(B,)`` bool, per-problem convergence.
     it: int = 0  #: steps taken so far.
     extra: dict[str, Any] = field(default_factory=dict)  #: solver-owned (damping, moments, ...).
+
+
+DIAGNOSTICS = ("grad_norm", "step_norm", "accepted", "damping")
 
 
 class Solver(Protocol):
@@ -66,6 +77,8 @@ class LevenbergMarquardt:
     dtype can resolve (``1e-8, 1e-12, 1e-10`` in float64, ``1e-7, 0, 0`` otherwise).
     """
 
+    warm_keys = ("damping", "growth")
+
     def __init__(
         self, *, damping: float = 1e-3, gtol: float | None = None, ftol: float | None = None, xtol: float | None = None
     ) -> None:
@@ -94,14 +107,21 @@ class LevenbergMarquardt:
         new_damping = torch.where(accept, damping * shrink, damping * growth).clamp(1e-12, 1e12)
         new_growth = torch.where(accept, torch.full_like(growth, 2.0), growth * 2.0)
         gtol, ftol, xtol = _tolerances(state.loss.dtype, self.gtol, self.ftol, self.xtol)
-        small_gradient = normal.g.abs().amax(-1) < gtol
-        small_change = accept & ((decrease <= ftol * state.loss.abs()) | (delta.abs().amax(-1) < xtol))
+        grad_norm, step_norm = normal.g.abs().amax(-1), delta.abs().amax(-1)
+        small_gradient = grad_norm < gtol
+        small_change = accept & ((decrease <= ftol * state.loss.abs()) | (step_norm < xtol))
         return State(
             x=select(accept, candidate, state.x),
             loss=torch.where(accept, loss_new, state.loss),
             done=state.done | small_gradient | small_change | (new_damping >= 1e12),
             it=state.it + 1,
-            extra={"damping": new_damping, "growth": new_growth},
+            extra={
+                "damping": new_damping,
+                "growth": new_growth,
+                "grad_norm": grad_norm,
+                "step_norm": torch.where(accept, step_norm, torch.zeros_like(step_norm)),
+                "accepted": accept,
+            },
         )
 
 
@@ -127,10 +147,24 @@ class GaussNewton:
             loss_new = problem.loss(candidate)
         move = torch.isfinite(loss_new) & ~state.done
         gtol, _, xtol = _tolerances(state.loss.dtype, self.gtol, None, self.xtol)
-        done = state.done | (normal.g.abs().amax(-1) < gtol) | (delta.abs().amax(-1) < xtol)
+        grad_norm, step_norm = normal.g.abs().amax(-1), delta.abs().amax(-1)
+        done = state.done | (grad_norm < gtol) | (step_norm < xtol)
+        extra = {"grad_norm": grad_norm, "step_norm": torch.where(move, step_norm, torch.zeros_like(step_norm))}
         return State(
-            x=select(move, candidate, state.x), loss=torch.where(move, loss_new, state.loss), done=done, it=state.it + 1
+            x=select(move, candidate, state.x),
+            loss=torch.where(move, loss_new, state.loss),
+            done=done,
+            it=state.it + 1,
+            extra={**extra, "accepted": move},
         )
+
+
+def _projected(g: torch.Tensor, bounds: tuple[torch.Tensor, torch.Tensor] | None) -> torch.Tensor:
+    """Gradient ``(B, n)`` with the entries that push against an active step bound zeroed."""
+    if bounds is None:
+        return g
+    lower, upper = bounds
+    return g * ~(((lower >= -1e-9) & (g > 0)) | ((upper <= 1e-9) & (g < 0)))
 
 
 class LBFGS:
@@ -147,6 +181,8 @@ class LBFGS:
         self, *, history: int = 10, line_search: int = 8, armijo: float = 1e-4, gtol: float | None = None
     ) -> None:
         self.history, self.line_search, self.armijo, self.gtol = history, line_search, armijo, gtol
+
+    warm_keys = ("s", "y", "rho")
 
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
         loss, g = problem.gradient(x)
@@ -173,9 +209,9 @@ class LBFGS:
     def step(self, problem: Problem, state: State) -> State:
         g, s, y, rho = (state.extra[key] for key in ("g", "s", "y", "rho"))
         bounds = problem.step_bounds(state.x)
+        g = _projected(g, bounds)
         if bounds is not None:
             lower, upper = bounds
-            g = g * ~(((lower >= -1e-9) & (g > 0)) | ((upper <= 1e-9) & (g < 0)))
         direction = self._direction(g, s, y, rho)
         slope = (g * direction).sum(-1)
         uphill = slope >= 0
@@ -208,8 +244,10 @@ class LBFGS:
         rho_new = torch.where(keep[:, None], pushed(rho, 1.0 / curvature.clamp_min(1e-30)), rho)
         rho_new = torch.where(found[:, None], rho_new, torch.zeros_like(rho_new))  # failed search: forget history
         gtol, _, _ = _tolerances(g.dtype, self.gtol, None, None)
-        done = state.done | (g.abs().amax(-1) < gtol)
-        extra = {"g": g_new, "s": s_new, "y": y_new, "rho": rho_new}
+        grad_norm = _projected(g_new, problem.step_bounds(best_x)).abs().amax(-1)  # at the new point
+        done = state.done | (grad_norm < gtol)
+        extra = {"g": g_new, "s": s_new, "y": y_new, "rho": rho_new, "grad_norm": grad_norm}
+        extra.update(step_norm=best_step.abs().amax(-1), accepted=found)
         return State(x=best_x, loss=best_loss, done=done, it=state.it + 1, extra=extra)
 
 

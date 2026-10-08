@@ -57,6 +57,7 @@ packages = ["src/better_robot"]
 
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"
+python_files = ["test_*.py", "bench_*.py"]  # bench_* files carry the bench marker; -m bench selects them
 markers = [
     "slow: long-running tests (skip with '-m \"not slow\"')",
     "cuda: tests requiring a CUDA device",

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import copy
 import inspect
+import warnings
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -475,7 +476,14 @@ class Problem:
         windows = [t.window for t in residuals if t.window is not None]
         if self.dense or not self.time or not windows:
             return None
-        if any(t.window is None and self._depends(t.reads) & set(self.time) for t in residuals):
+        unwindowed = [t.name for t in residuals if t.window is None and self._depends(t.reads) & set(self.time)]
+        if unwindowed:
+            # Python's default filter shows this once per call site, not once per solver step.
+            warnings.warn(
+                f"time problem uses dense normal equations: residual terms {unwindowed} read a time variable "
+                "without window=; declare window= for the banded solve or pass dense=True to silence this",
+                stacklevel=2,
+            )
             return None
         knots = {self.variables[name].shape[1] for name in self.time}
         if len(knots) != 1:

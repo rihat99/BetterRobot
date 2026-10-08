@@ -19,7 +19,7 @@ from dataclasses import dataclass
 
 import torch
 
-from ..data_model.joint_dispatch import joint_transform
+from ..data_model.joint_dispatch import joint_placement
 from ..data_model.model_structure import JOINT_KIND_CODES, ModelStructure
 from ..data_model.model_values import ModelValues
 from ..lie import se3
@@ -207,9 +207,11 @@ def placement_matrices(values: ModelValues) -> tuple[torch.Tensor, torch.Tensor]
     Constant placements are converted once and kept on the values object; an in-place edit of
     the tensors invalidates the copy. Placements that require grad, or that are being
     transformed by ``torch.func``, or calls in inference mode, convert on every call so each
-    call owns its graph.
+    call owns its graph. Under ``torch.compile`` the conversion is traced into the graph.
     """
     joints, frames = values.joint_placements, values.frame_placements
+    if torch.compiler.is_compiling():  # tensor-version reads and attribute writes break a fullgraph trace
+        return se3.to_matrix(joints), se3.to_matrix(frames)
     wrapped = torch._C._functorch.is_functorch_wrapped_tensor
     if joints.requires_grad or frames.requires_grad or wrapped(joints) or wrapped(frames):
         return se3.to_matrix(joints), se3.to_matrix(frames)
@@ -266,7 +268,7 @@ def lean_core(
     else:
         joint = plan.bias + torch.einsum("njf,jfab->njab", gathered, plan.weight)
         for slot, joint_id, start, width in plan.fallbacks:
-            pose = joint_transform(
+            pose = joint_placement(
                 structure.joint_models[joint_id],
                 structure.joint_kind_codes[joint_id],
                 structure.joint_axes[joint_id],

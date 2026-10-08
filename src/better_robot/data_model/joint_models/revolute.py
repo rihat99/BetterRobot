@@ -78,7 +78,7 @@ class _Revolute:
     def _axis_for_ops(self):
         return self._joint_axis
 
-    def joint_transform(self, q_slice):
+    def joint_placement(self, q_slice):
         return _revolute_transform(self._axis_for_ops(), q_slice)
 
     def joint_motion_subspace(self, q_slice):
@@ -158,7 +158,7 @@ class JointRevoluteUnbounded:
     nq: int = 2
     nv: int = 1
 
-    def joint_transform(self, q_slice: torch.Tensor) -> torch.Tensor:
+    def joint_placement(self, q_slice: torch.Tensor) -> torch.Tensor:
         """q_slice = (B..., 2) = [cos θ, sin θ] → SE3 rotation by θ."""
         return _revolute_unbounded_transform(self.axis, q_slice)
 

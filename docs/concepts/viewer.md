@@ -35,7 +35,7 @@ http://127.0.0.1:8080 100
 The built-in layers are `PointsLayer`, `SkeletonLayer`, `FramesLayer`, `ArrowsLayer`, `GroundLayer`,
 `RigidMeshLayer`, `MeshLayer`, `SpheresLayer`, `SkinnedMeshLayer` and `CameraLayer`; `viewer.add_plot` adds a
 `PlotPanel` of time series to the GUI. A new layer type subclasses `Layer` and implements `build` (create scene
-nodes once), `set_step` (move them to step `k`) and optionally `world_points` (positions that frame `record`'s camera).
+nodes once), `set_step` (move them to step `k`) and optionally `world_points` (positions that `record`'s camera fits).
 
 ## A group is the unit you toggle and remove
 
@@ -53,10 +53,19 @@ clips side by side.
 
 ## One timeline drives every layer
 
-The `Viewer` owns one `Timeline`. Its length grows to the longest layer added; a layer shorter than the timeline
-holds its last frame. `show(k)` is the only place frames reach the layers: every visible layer gets frame
-`min(k, T - 1)` inside one atomic server update, and layers already on that frame are skipped. `show()` with no
-argument re-pushes the current frame, which is what you call after editing arrays in place.
+The `Viewer` owns one `Timeline` of integer steps at `fps`. Its length grows to the longest layer added; a layer
+shorter than the timeline holds its last step. `show(k)` is the only place steps reach the layers: every visible
+layer gets its sample for step `k` inside one atomic server update, and layers already on that sample are skipped.
+`show()` with no argument re-pushes the current step, which is what you call after editing arrays in place.
+
+A layer recorded at another rate passes its sample times in seconds: `viewer.add(layer, times=t)` with `t` of
+shape `(T,)`, non-decreasing. Step `k` then shows the latest sample at or before `k / fps`, so a 10 Hz layer and a
+30 Hz layer play in sync on a 30 fps timeline. Without `times` (the default) sample `k` is shown at step `k`. The
+layer itself still receives a plain integer sample index in `set_step`.
+
+```python { .no-run }
+viewer.add(PointsLayer("mocap", markers_10hz), times=np.arange(len(markers_10hz)) / 10.0)
+```
 
 ```python
 viewer.show(10)
@@ -113,7 +122,12 @@ by joint torque), `spheres` (collision spheres), `theme`, `opacity`.
 `better_robot.viewer.tools` holds two things. `PoseGizmo(viewer, name, pose, on_change=...)` is a draggable
 transform handle that calls `on_change(pose)` on every drag; `examples/viewer/03_ik_gizmo.py` uses it to re-solve
 IK and call `robot.update(q)` live. Picking is plain numpy over vertices, so it also works on data you never
-showed: `ray_hit`, `vertices_in_sphere` and `vertices_in_rect`.
+showed: `ray_hit`, `nearest_on_ray` (the point nearest the camera within a radius of a click ray),
+`vertices_in_sphere` and `vertices_in_rect`.
+
+viser has a single scene-pointer slot, so the viewer owns it: a tool calls `viewer.on_pointer("click", callback)`
+(or `"rect-select"`) and `viewer.clear_pointer()` when it is done. A new registration replaces the previous one;
+never call `viewer.server.scene.on_pointer_event` directly.
 
 ```python
 from better_robot.viewer.tools import vertices_in_sphere
@@ -168,6 +182,19 @@ print(y_up_viewer.theme.up_vector)
 `Viewer(server=...)` reuses an existing `viser.ViserServer` (or a fake one in tests), and `viewer.server` is the
 escape hatch for custom GUI. The default host is `127.0.0.1`, so the server is reachable only from your machine;
 forward the port over SSH to view it remotely.
+
+## Lazy inputs
+
+The convention for large per-step data is a callable `step -> array` evaluated only when that step is shown.
+Today `CameraLayer(image=...)` accepts it (decoding video frames on demand); the other layers take eager
+`(T, ...)` arrays, because they need every sample up front for `nsteps` and for `world_points`.
+
+## Limits
+
+- One integer timeline per viewer. Per-layer `times` resample onto it; there is no continuous time axis.
+- viser is the only backend ([ADR 0004](../contracts/decisions/0004-viser-viewer.md)).
+- No GUI brick: `viewer.server.gui` is the sanctioned API for studio-style panels built on the viewer.
+- `record` needs a headless Chromium (`BETTER_ROBOT_CHROME`); `save` does not.
 
 ## Where next
 

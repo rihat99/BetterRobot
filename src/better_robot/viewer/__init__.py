@@ -29,7 +29,8 @@ from .layer import Layer
 from .layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer, SkeletonLayer
 from .layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from .layers.plot import PlotPanel
-from .layers.skinned import CameraLayer, SkinnedMeshLayer
+from .layers.camera import CameraLayer
+from .layers.skinned import SkinnedMeshLayer
 from .robot import RobotView, robot_layers, robot_meshes, skeleton_spec
 from .theme import DARK, LIGHT, Theme
 from .timeline import Timeline

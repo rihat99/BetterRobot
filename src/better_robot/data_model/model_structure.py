@@ -17,7 +17,7 @@ from typing import Mapping
 
 import torch
 
-from ..exceptions import DeviceMismatchError, ShapeError
+from ..exceptions import DeviceMismatchError, ShapeError, UnknownNameError
 from ..lie import se3, so3
 from .frame import FrameType
 from .joint_models.base import JointModel
@@ -168,6 +168,8 @@ class ModelStructure:
         """Return the integer id of a joint given by name, or range-check and return an int id."""
 
         if isinstance(joint, str):
+            if joint not in self.joint_name_to_id:
+                raise UnknownNameError(f"unknown joint name {joint!r}")
             return self.joint_name_to_id[joint]
         if not 0 <= joint < self.njoints:
             raise IndexError(f"joint id {joint} out of range [0, {self.njoints})")
@@ -177,6 +179,8 @@ class ModelStructure:
         """Return the integer id of a frame given by name, or range-check and return an int id."""
 
         if isinstance(frame, str):
+            if frame not in self.frame_name_to_id:
+                raise UnknownNameError(f"unknown frame name {frame!r}")
             return self.frame_name_to_id[frame]
         if not 0 <= frame < self.nframes:
             raise IndexError(f"frame id {frame} out of range [0, {self.nframes})")
@@ -186,20 +190,22 @@ class ModelStructure:
         """Return the integer id of a body given by name, or range-check and return an int id."""
 
         if isinstance(body, str):
+            if body not in self.body_name_to_id:
+                raise UnknownNameError(f"unknown body name {body!r}")
             return self.body_name_to_id[body]
         if not 0 <= body < self.nbodies:
             raise IndexError(f"body id {body} out of range [0, {self.nbodies})")
         return body
 
-    def get_subtree(self, joint_id: int) -> tuple[int, ...]:
-        """Return the subtree rooted at ``joint_id``."""
+    def get_subtree(self, joint_id: int | str) -> tuple[int, ...]:
+        """Return the subtree rooted at ``joint_id`` (id or name)."""
 
-        return self.subtrees[joint_id]
+        return self.subtrees[self.joint_id(joint_id)]
 
-    def get_support(self, joint_id: int) -> tuple[int, ...]:
-        """Return the joint chain from joint 0 to ``joint_id``."""
+    def get_support(self, joint_id: int | str) -> tuple[int, ...]:
+        """Return the joint chain from joint 0 to ``joint_id`` (id or name)."""
 
-        return self.supports[joint_id]
+        return self.supports[self.joint_id(joint_id)]
 
     def q_permutation(
         self,
@@ -225,7 +231,7 @@ class ModelStructure:
 
         unknown = [name for name in order if name not in self.joint_name_to_id]
         if unknown:
-            raise ValueError(f"other_joint_order contains unknown joint names: {unknown}")
+            raise UnknownNameError(f"other_joint_order contains unknown joint names: {unknown}")
 
         provided = set(order)
         missing = [

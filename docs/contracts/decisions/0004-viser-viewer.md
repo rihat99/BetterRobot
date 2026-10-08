@@ -15,6 +15,11 @@ One Python dependency gives scene, GUI and recordings; the torch rasterizer make
 browser client cannot. The viewer sits at the top of the import DAG; nothing imports it, and viser is imported
 only when a `Viewer` is created.
 
+## Note 2026-10-08
+viser stays the only backend. `viewer.server.gui` is the sanctioned API for studio GUIs (no separate GUI brick).
+The viewer owns viser's single scene-pointer slot (`Viewer.on_pointer` / `clear_pointer`). An `.npz` export of
+the layer data is planned so other front ends can replay a scene without viser.
+
 ## Alternatives considered
 meshcat (no GUI widgets, weaker recording); rerun (own data model, duplicate state); a native OpenGL window
 (needs a display on the compute machine).

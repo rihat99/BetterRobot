@@ -53,6 +53,8 @@ def solve_constrained(
     unknown = [name for name in names if name not in problem.terms or problem.terms[name].kind != "residual"]
     if unknown or not names:
         raise KeyError(f"constraints must name residual terms of the problem; not found: {unknown}")
+    if outer < 1:
+        raise ValueError(f"outer must be at least 1, got {outer}")
     view = problem.with_()
     for name in names:
         view.terms[name] = _shifted(problem.terms[name], f"{name}.shift", inequality=name in inequalities)

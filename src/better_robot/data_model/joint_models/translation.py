@@ -19,7 +19,7 @@ class JointTranslation:
     nv: int = 3
     axis: torch.Tensor | None = None
 
-    def joint_transform(self, q_slice: torch.Tensor) -> torch.Tensor:
+    def joint_placement(self, q_slice: torch.Tensor) -> torch.Tensor:
         """Pure translation SE3. (B..., 3) → (B..., 7)."""
         zeros3 = torch.zeros(*q_slice.shape[:-1], 3, dtype=q_slice.dtype, device=q_slice.device)
         ones   = torch.ones(*q_slice.shape[:-1], 1,  dtype=q_slice.dtype, device=q_slice.device)

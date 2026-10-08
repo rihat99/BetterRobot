@@ -44,7 +44,7 @@ def main() -> None:
         time=("q",),
     )
     problem.cached(terms.kinematic_state(model), name="state")
-    problem.residual("ends", terms.frame_pose(model, FRAME, target="target"), weight=end_weight, window=1)
+    problem.residual("ends", terms.frame_pose(model, frame=FRAME, target="target"), weight=end_weight, window=1)
     problem.residual("velocity", terms.finite_difference(model, order=1, dt=DT), weight=1e-3)
     problem.residual("acceleration", terms.finite_difference(model, order=2, dt=DT), weight=1e-4)
 

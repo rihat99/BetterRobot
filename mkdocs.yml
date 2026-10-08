@@ -159,6 +159,8 @@ nav:
           - 0004 viser viewer: contracts/decisions/0004-viser-viewer.md
           - 0005 nq and nv: contracts/decisions/0005-nq-nv.md
           - 0006 Serialization: contracts/decisions/0006-serialization.md
+          - 0007 Derivatives contract: contracts/decisions/0007-derivatives-contract.md
+          - 0008 Geometry brick: contracts/decisions/0008-geometry-brick.md
   - Contributing:
       - contributing/testing.md
       - contributing/extending.md

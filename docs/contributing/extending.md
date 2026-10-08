@@ -14,7 +14,7 @@ in the same folder are the reference implementations.
 | Member | Contract |
 |--------|----------|
 | `kind`, `nq`, `nv`, `axis` | static joint description |
-| `joint_transform(q_slice)` | `(B..., nq) -> (B..., 7)` pose of the child relative to the joint origin |
+| `joint_placement(q_slice)` | `(B..., nq) -> (B..., 7)` pose of the child relative to the joint origin |
 | `joint_motion_subspace(q_slice)` | `(B..., nq) -> (B..., 6, nv)` |
 | `joint_velocity(q_slice, v_slice)` | `(B..., 6)` spatial velocity in the joint frame |
 | `integrate(q, v)` | manifold retraction; keeps quaternions on the unit sphere |

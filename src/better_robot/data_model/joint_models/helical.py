@@ -33,7 +33,7 @@ class JointHelical:
     nq: int = 1
     nv: int = 1
 
-    def joint_transform(self, q_slice: torch.Tensor) -> torch.Tensor:
+    def joint_placement(self, q_slice: torch.Tensor) -> torch.Tensor:
         """Combined rotation + translation. q_slice: (B..., 1) → (B..., 7)."""
         return _helical_transform(self.axis, self.pitch, q_slice)
 

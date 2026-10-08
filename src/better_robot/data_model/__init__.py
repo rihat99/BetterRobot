@@ -15,6 +15,7 @@ from .joint import JOINT_DIMENSIONS, Joint
 from .model import Model
 from .model_structure import ModelStructure
 from .model_values import ModelValues
+from .trajectory import Trajectory
 
 __all__ = [
     "Model",
@@ -25,4 +26,5 @@ __all__ = [
     "Body",
     "Joint",
     "JOINT_DIMENSIONS",
+    "Trajectory",
 ]

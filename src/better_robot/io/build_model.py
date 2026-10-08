@@ -781,9 +781,16 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
     velocity_limit = torch.tensor(vel_lim, dtype=dtype)
     effort_limit = torch.tensor(eff_lim, dtype=dtype)
     rotor_inertia = torch.zeros(nv_full, dtype=dtype)
-    armature = torch.zeros(nv_full, dtype=dtype)
-    friction = torch.zeros(nv_full, dtype=dtype)
-    damping = torch.zeros(nv_full, dtype=dtype)
+    # Scalar IR joint dynamics apply to every velocity coordinate of the joint, like the limits above.
+    joint_dynamics = [
+        (ir_j.armature, ir_j.friction, ir_j.damping) if (ir_j := _ir_joint_for(j_idx)) is not None else (0.0, 0.0, 0.0)
+        for j_idx in range(len(joint_models_list))
+    ]
+    armature, friction, damping = (
+        torch.tensor([row[k] for row, jm in zip(joint_dynamics, joint_models_list) for _ in range(jm.nv)], dtype=dtype)
+        .reshape(nv_full)
+        for k in range(3)
+    )
 
     # ── 11. Body inertias ─────────────────────────────────────────────────────
     ir_body_map: dict[str, IRBody] = {b.name: b for b in ir.bodies}

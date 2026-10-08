@@ -145,3 +145,4 @@ this page disagree, the rule wins and this page has a bug.
 - [Model and state](model-and-state.md): the two objects every function takes.
 - [Lie groups and spatial algebra](lie-and-spatial.md): the conventions the bottom two ranks fix.
 - [Design contracts](../contracts/00-index.md): the full rule list with its checks.
+- [Roadmap](../reference/roadmap.md): what landed in this version and what comes next, per theme.

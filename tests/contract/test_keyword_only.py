@@ -87,3 +87,19 @@ def test_allowlist_has_no_stale_entries() -> None:
 
 def test_top_level_package_exports_exist() -> None:
     assert better_robot.__all__
+
+
+ID_PARAMETERS = {"frame", "joint", "body", "frame_id", "joint_id", "body_id", "frames", "joints"}
+
+
+def test_kinematics_dynamics_ids_are_keyword_only() -> None:
+    """Identifier arguments after ``(model, state)`` are never positional, so call sites name them."""
+    offenders = [
+        f"{qualname}({param.name})"
+        for qualname, fn in CALLABLES
+        if qualname.startswith(("better_robot.kinematics.", "better_robot.dynamics."))
+        and qualname.count(".") == 2
+        for param in inspect.signature(fn).parameters.values()
+        if param.name in ID_PARAMETERS and param.kind != param.KEYWORD_ONLY
+    ]
+    assert not offenders, offenders

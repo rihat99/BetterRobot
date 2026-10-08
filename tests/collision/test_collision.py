@@ -134,6 +134,33 @@ def test_terms_pass_check_jacobian(panda):
     assert world.fn(forward_kinematics_state(panda, q)).shape == (1, 6, 4)
     problem.residual("world", world, window=1)
     pairs = collision.self_collision_pairs(panda, spheres)
-    problem.residual("self", terms.self_clearance(spheres, pairs, margin=2.0), window=1)
+    problem.residual("self", terms.self_clearance(spheres, pairs=pairs, margin=2.0), window=1)
     errors = optim.check_jacobian(problem)
     assert errors["world"] < 1e-9 and errors["self"] < 1e-9
+
+
+def test_pairs_ignore_frame_pairs(panda):
+    spheres = _spheres(panda)  # 0 link3, 1 link5, 2 hand, 3 link4
+    ignore = [("body_panda_hand", "body_panda_link3"), (panda.frame_id("body_panda_link5"), "body_panda_hand")]
+    assert collision.self_collision_pairs(panda, spheres, ignore=ignore).tolist() == [[0, 1], [2, 3]]
+    with pytest.raises(br.exceptions.UnknownNameError):
+        collision.self_collision_pairs(panda, spheres, ignore=[("no_such_frame", "body_panda_hand")])
+
+
+def test_spheres_to_and_batched_offsets(panda):
+    spheres = _spheres(panda)
+    moved = spheres.to(dtype=torch.float32)
+    assert moved.offsets.dtype == moved.radii.dtype == torch.float32 and moved.frame_ids.dtype == torch.long
+    assert spheres.to(device="cpu", dtype=DT).offsets.dtype == DT
+    # Per-sample offsets (B, S, 3) broadcast against a (B,) state: sample b uses its own offsets.
+    q = 0.3 * _randn(2, panda.nq, seed=3)
+    state = forward_kinematics_state(panda, q)
+    offsets = torch.stack([spheres.offsets, spheres.offsets + 0.1])
+    batched = collision.RobotSpheres(frame_ids=spheres.frame_ids, offsets=offsets, radii=spheres.radii)
+    centers = batched.centers(state)
+    assert centers.shape == (2, 4, 3)
+    for b in range(2):
+        single = collision.RobotSpheres(frame_ids=spheres.frame_ids, offsets=offsets[b], radii=spheres.radii)
+        assert torch.allclose(centers[b], single.centers(state)[b])
+    pairs = collision.self_collision_pairs(panda, spheres)
+    assert collision.self_distances(batched, state, pairs=pairs).shape == (2, pairs.shape[0])

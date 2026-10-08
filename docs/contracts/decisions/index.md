@@ -16,3 +16,5 @@ Decision ("We will …") / Consequences / Alternatives considered / Enforcement 
 | [0004](0004-viser-viewer.md) | One viewer, built on viser | Accepted |
 | [0005](0005-nq-nv.md) | Configurations and velocities have different sizes | Accepted |
 | [0006](0006-serialization.md) | Serialization and format versioning of Model and IR | Proposed |
+| [0007](0007-derivatives-contract.md) | Derivatives contract: autograd first, analytic later | Accepted |
+| [0008](0008-geometry-brick.md) | Geometry is a separate brick | Accepted |

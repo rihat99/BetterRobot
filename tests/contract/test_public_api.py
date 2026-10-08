@@ -25,6 +25,7 @@ REQUIRED: frozenset[str] = frozenset(
         "Frame",
         "Joint",
         "Body",
+        "Trajectory",
         # io
         "load",
         "ModelBuilder",

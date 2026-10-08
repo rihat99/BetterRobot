@@ -11,19 +11,14 @@ blocking baseline or gate merges.
 uv run pytest tests/bench/bench_*.py -m bench --benchmark-only
 ```
 
-The trajectory scaling benchmark is a separate fresh-process harness, not
-a pytest-benchmark micro-benchmark:
+`pytest -m bench` collects the `bench_*.py` files (`python_files` in
+`pyproject.toml`). On a shared machine pin one thread so rows are comparable
+(`torch.set_num_threads(1)`, and `--threads 1` for `benchmarks/run.py`, its
+default).
 
-```bash
-uv run python tests/bench/bench_trajopt_sparse.py
-```
-
-Use `--quick --allow-unpinned` for a single dense T=50 harness check and
-`--output <path>` to retain any run. The repository does not ship a trajectory
-baseline: the full canonical sweep could not complete enough dense points
-within its committed timeout and memory bounds, and the structured lane now
-awaits an all-scalar fixture with exact temporal blocks. Current runs are
-diagnostic rather than an acceptance comparison.
+The trajectory scaling harness `bench_trajopt_sparse.py` is no longer in this
+directory (it was moved to the repository `trash/`); there is no trajectory
+benchmark or baseline today.
 
 ## Bumping the baseline
 

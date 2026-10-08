@@ -40,7 +40,7 @@ def sphere_clearance(
 
 
 def self_clearance(
-    spheres: RobotSpheres, pairs: torch.Tensor, *, margin: float, hinge: bool = True, state: CacheRef | str = "state"
+    spheres: RobotSpheres, *, pairs: torch.Tensor, margin: float, hinge: bool = True, state: CacheRef | str = "state"
 ) -> TermFn:
     """Clearance between the sphere pairs ``pairs: (P, 2)`` (see ``collision.self_collision_pairs``).
 

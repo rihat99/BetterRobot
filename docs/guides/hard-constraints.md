@@ -92,7 +92,7 @@ problem = optim.Problem(
 )
 problem.cached(terms.kinematic_state(model), name="state")
 problem.residual("stay", lambda q, q_start: q - q_start)
-problem.residual("reach", terms.frame_position(model, "body_panda_hand", target="goal"))
+problem.residual("reach", terms.frame_position(model, frame="body_panda_hand", target="goal"))
 problem.residual("under", lambda state, ceiling: state.frame_pose[:, elbow, 2:3] - ceiling)
 
 hard = optim.solve_constrained(

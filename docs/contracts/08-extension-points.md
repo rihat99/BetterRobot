@@ -1,8 +1,8 @@
 # 08 Extension points
 
-The library grows by adding *to* fixed seams, not by editing their consumers. There are three seams: terms
-(plain functions), joint types and loaders (registries behind protocols), and the public surface (names
-without `_`). A new seam needs an ADR. The how-to lives in [extending](../contributing/extending.md).
+The library grows by adding *to* fixed seams, not by editing their consumers. There are five seams: terms
+(plain functions), joint types and loaders (registries behind protocols), the public surface (names
+without `_`), the optimizer's linear sink (below), and collision `distance_fn` obstacles (below). A new seam needs an ADR. The how-to lives in [extending](../contributing/extending.md).
 
 ## C-EXT-1 Terms are plain functions (MUST)
 
@@ -14,7 +14,7 @@ registered term, not a base class for users. See ADR [0003](decisions/0003-terms
 
 ```python { .no-run }
 # good  (terms/robot.py:62)
-def frame_pose(model, frame, *, target, state="state", q="q") -> TermFn:   # factory
+def frame_pose(model, *, frame, target, state="state", q="q") -> TermFn:   # factory
     def term(state, target): ...                                           # reads "state", "target"
     return term
 # bad
@@ -80,3 +80,30 @@ may change or remove public API after the deprecation period of `C-EXT-4`, and e
 a "Breaking" heading in `docs/reference/changelog.md` with the migration.
 
 Enforcement: `[review]`; changelog entry checked in review.
+
+## Optimization: normal equations are assembled through a sink (SHOULD)
+
+`Problem.linearize` never builds a matrix itself: it hands Jacobian products to a sink and asks it for the
+normal equations. The three sinks in `optim/linear.py` (`DenseSink`, `BandSink`, `ArrowSink`) share two
+methods, `add(columns_a, columns_b, values)` to accumulate a block of `JᵀJ` and `finish(g)` to return a
+`Normal`, `BandedNormal` or `ArrowNormal` with the common `solve` / `restrict` / `predicted_decrease`
+interface. A future block-sparse structure (for example a contact graph) is a new sink plus a new normal class
+behind this seam; solvers and terms do not change.
+
+## Collision: obstacles plug in through `distance_fn` (MUST)
+
+`terms.sphere_clearance(spheres, distance_fn, *, margin)` is the seam for any environment shape: a new obstacle
+type is a function `distance_fn(centers: (B..., S, 3), radii: (S,)) -> (B..., S)` or `(B..., S, K)` (signed
+distance, positive outside, differentiable in `centers`), usually a closure over a `collision.sphere_*`
+primitive. The term and the solvers never change for a new shape. Robot geometry beyond spheres and closest
+points follow [ADR 0008](decisions/0008-geometry-brick.md).
+
+```python { .no-run }
+# good: a new shape is a new function
+def to_table(centers, radii):
+    return collision.sphere_box(centers, radii, box_center=center, box_rotation=rotation, half_extents=size)
+terms.sphere_clearance(spheres, to_table, margin=0.02)
+# bad: a new term class or a solver branch per obstacle type
+```
+
+Enforcement: `[review]`; `tests/collision/test_collision.py` runs a closure through `check_jacobian`.

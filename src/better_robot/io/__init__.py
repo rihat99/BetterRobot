@@ -58,6 +58,40 @@ def _detect_format(source: Any, hint: str) -> str:
     raise ValueError("Cannot infer format for non-path source; pass format= explicitly.")
 
 
+def parse(
+    source: str | Path | Any | Callable[[], IRModel],
+    *,
+    format: Literal["auto", "urdf", "mjcf", "builder"] = "auto",
+) -> IRModel:
+    """Parse a robot description into an editable ``IRModel`` without building a ``Model``.
+
+    Composition lives on the IR: parse several sources, merge or edit their
+    ``bodies``/``joints``/``frames`` records, then call ``build_model(ir)``.
+    ``load(source)`` is ``build_model(parse(source))`` plus root-joint options.
+    """
+    if callable(source) and not isinstance(source, (str, Path)):
+        # Programmatic builder: callable that returns an IRModel
+        ir = source()
+        if not isinstance(ir, IRModel):
+            raise ValueError(f"Programmatic builder must return an IRModel, got {type(ir)}")
+    else:
+        # Try to detect if it's a yourdfpy.URDF object
+        try:
+            import yourdfpy  # noqa: PLC0415 - optional dependency, imported only when needed
+
+            if isinstance(source, yourdfpy.URDF):
+                ir = parse_urdf(source)
+            else:
+                suffix = _detect_format(source, format)
+                ir = _PARSERS[suffix](source)
+        except ImportError:
+            # yourdfpy not available; just try the suffix route
+            suffix = _detect_format(source, format)
+            ir = _PARSERS[suffix](source)
+
+    return ir
+
+
 def load(
     source: str | Path | Any | Callable[[], IRModel],
     *,
@@ -80,32 +114,13 @@ def load(
 
     See docs/concepts/parsers_and_ir.md §1.
     """
-    from ..data_model.joint_models import JointFreeFlyer
+    from ..data_model.joint_models import JointFreeFlyer  # noqa: PLC0415 - only the free_flyer=True path needs it
 
     # Resolve root_joint
     if free_flyer and root_joint is None:
         root_joint = JointFreeFlyer()
 
-    # Parse → IRModel
-    if callable(source) and not isinstance(source, (str, Path)):
-        # Programmatic builder: callable that returns an IRModel
-        ir = source()
-        if not isinstance(ir, IRModel):
-            raise ValueError(f"Programmatic builder must return an IRModel, got {type(ir)}")
-    else:
-        # Try to detect if it's a yourdfpy.URDF object
-        try:
-            import yourdfpy
-
-            if isinstance(source, yourdfpy.URDF):
-                ir = parse_urdf(source)
-            else:
-                suffix = _detect_format(source, format)
-                ir = _PARSERS[suffix](source)
-        except ImportError:
-            # yourdfpy not available; just try the suffix route
-            suffix = _detect_format(source, format)
-            ir = _PARSERS[suffix](source)
+    ir = parse(source, format=format)
 
     return build_model(
         ir,
@@ -117,6 +132,7 @@ def load(
 
 
 __all__ = [
+    "parse",
     "load",
     "build_model",
     "register_parser",

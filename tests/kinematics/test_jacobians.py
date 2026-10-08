@@ -140,7 +140,7 @@ def test_frame_jacobian_compiles_fullgraph(arm):
 def _analytic_vs_finite_diff(model, q, frame_id, rtol=1e-3, atol=1e-4):
     """Helper: the analytic ``jac`` of ``terms.frame_pose`` against a central-FD Jacobian of its residual."""
     target = forward_kinematics_state(model, q).frame_pose_of(frame_id).clone()  # r ≈ 0 near neutral
-    term = frame_pose(model, frame_id, target="target")
+    term = frame_pose(model, frame=frame_id, target="target")
     J_analytic = term.jac(forward_kinematics_state(model, q), target)["q"]
 
     eps = 1e-3 if q.dtype == torch.float32 else 1e-7

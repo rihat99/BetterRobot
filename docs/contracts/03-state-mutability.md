@@ -62,8 +62,20 @@ tensor's `_version` counter is unchanged).
 If a function caches (for example a joint-ordering table), the cache lives in a named attribute or a
 `functools.lru_cache` keyed on immutable inputs, never in a module-level mutable or a hidden attribute set on
 the user's object. A cache never changes a result, only its cost. Documented exception: `KinematicState._memo`
-(`kinematics/state.py:110`) is a private memo dict inside the frozen state, filled only by the state's own
-methods; it is the one allowed hidden cache.
+(`kinematics/state.py:111`) is a private memo dict inside the frozen state. Its allowed keys, each derived only
+from the state's own `joint_transform`/`frame_transform` and the model structure, are:
+
+| key | filled by | value |
+|-----|-----------|-------|
+| `"joint_pose"` | `KinematicState.joint_pose` | `(B..., njoints, 7)` world poses |
+| `"frame_pose"` | `KinematicState.frame_pose` | `(B..., nframes, 7)` world poses |
+| `"jacobian_columns"` | Jacobian helpers in `kinematics/state.py` | world Jacobian column table |
+| `"world_geometry"` | `dynamics/state.py` (`WorldGeometry`) | per-joint world rotations, translations, columns |
+
+A new key is added to this table in the same change that writes it. The model-side caches
+(`ModelStructure._fk_lean_plans`, `ModelValues._fk_placement_matrices`, `ModelValues._spatial_inertias_cache`)
+are invalidated by the tensors' `_version` and are bypassed when the tensors require grad, are `torch.func`
+wrapped, are inference tensors, or are being traced by `torch.compile`.
 
 Enforcement: `[review]`.
 

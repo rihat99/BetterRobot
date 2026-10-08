@@ -36,7 +36,7 @@ def ik_problem(
     )
     state = problem.cached(kinematic_state(model), name="state")
     for frame in targets:
-        problem.residual(f"pose/{frame}", frame_pose(model, frame, target=f"target/{frame}", state=state))
+        problem.residual(f"pose/{frame}", frame_pose(model, frame=frame, target=f"target/{frame}", state=state))
     if limit_weight:
         problem.residual("limits", joint_limits(model), weight=limit_weight)
     if rest_weight:

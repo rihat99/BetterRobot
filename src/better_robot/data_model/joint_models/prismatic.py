@@ -53,7 +53,7 @@ class _Prismatic:
     def _axis_for_ops(self):
         return self._joint_axis
 
-    def joint_transform(self, q_slice):
+    def joint_placement(self, q_slice):
         return _prismatic_transform(self._axis_for_ops(), q_slice)
 
     def joint_motion_subspace(self, q_slice):

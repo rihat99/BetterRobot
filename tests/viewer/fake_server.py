@@ -55,6 +55,20 @@ class FakeScene:
     def __init__(self) -> None:
         self.nodes: dict[str, FakeHandle] = {}
         self.log: list[tuple[str, str]] = []
+        self.pointer: tuple[str, Any] | None = None
+
+    def on_pointer_event(self, event_type: str) -> Any:
+        """viser's single pointer slot: registering while one is held is a bug in the caller."""
+        assert self.pointer is None, "pointer slot already taken"
+
+        def register(callback: Any) -> Any:
+            self.pointer = (event_type, callback)
+            return callback
+
+        return register
+
+    def remove_pointer_callback(self) -> None:
+        self.pointer = None
 
     def __getattr__(self, method: str) -> Any:
         if not method.startswith(("add_", "set_", "configure_")):

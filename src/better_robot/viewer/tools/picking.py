@@ -62,6 +62,18 @@ def ray_hit(
     return origin + t[face] * direction, face
 
 
+def nearest_on_ray(points: np.ndarray, origin: np.ndarray, direction: np.ndarray, radius: float) -> int | None:
+    """Index of the point ``(N, 3)`` within ``radius`` of the ray nearest its ``origin (3,)``, or ``None``.
+
+    ``direction (3,)`` need not be unit length; points behind the origin are ignored.
+    """
+    direction = direction / np.linalg.norm(direction)
+    along = (points - origin) @ direction
+    distance = np.linalg.norm(points - origin - along[:, None] * direction, axis=-1)
+    hits = np.flatnonzero((distance <= radius) & (along > 0))
+    return None if hits.size == 0 else int(hits[np.argmin(along[hits])])
+
+
 def vertices_in_sphere(vertices: np.ndarray, center: np.ndarray, radius: float) -> np.ndarray:
     """Indices of ``vertices (V, 3)`` within ``radius`` of ``center (3,)``."""
     distance_squared = ((np.asarray(vertices) - np.asarray(center)) ** 2).sum(-1)

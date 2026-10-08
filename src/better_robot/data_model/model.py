@@ -201,12 +201,12 @@ class Model:
         """Return the integer id of a body given by name, or range-check and return an int id."""
         return self.structure.body_id(body)
 
-    def get_subtree(self, joint_id: int) -> tuple[int, ...]:
-        """Return the subtree rooted at ``joint_id``."""
+    def get_subtree(self, joint_id: int | str) -> tuple[int, ...]:
+        """Return the subtree rooted at ``joint_id`` (id or name)."""
         return self.structure.get_subtree(joint_id)
 
-    def get_support(self, joint_id: int) -> tuple[int, ...]:
-        """Return the joint chain from joint 0 to ``joint_id``."""
+    def get_support(self, joint_id: int | str) -> tuple[int, ...]:
+        """Return the joint chain from joint 0 to ``joint_id`` (id or name)."""
         return self.structure.get_support(joint_id)
 
     def q_permutation(self, other_joint_order: Sequence[str]) -> tuple[torch.Tensor, torch.Tensor]:

@@ -170,9 +170,11 @@ def spatial_inertias(values: ModelValues) -> torch.Tensor:
     """``values.spatial_inertias()`` cached on the values object, invalidated by in-place edits.
 
     Same policy as ``kinematics._fk_lean.placement_matrices``: no cache when the inertias require
-    grad, are ``torch.func``-wrapped or inference tensors.
+    grad, are ``torch.func``-wrapped or inference tensors, or under ``torch.compile``.
     """
     packed = values.body_inertias
+    if torch.compiler.is_compiling():  # see `placement_matrices`: no cache inside a traced graph
+        return packed_inertias_to_6x6(packed)
     if packed.requires_grad or torch._C._functorch.is_functorch_wrapped_tensor(packed):
         return packed_inertias_to_6x6(packed)
     if torch.is_inference_mode_enabled() or packed.is_inference():

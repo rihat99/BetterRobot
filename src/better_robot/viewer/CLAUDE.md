@@ -10,6 +10,9 @@ One viewer on viser. Read `docs/concepts/viewer.md` first.
   handles; never create or remove nodes during playback.
 - `Viewer.show` is the only step-push path (one `server.atomic()` block). Keep `set_step` free of
   torch and FK; adapters precompute.
+- Time: one integer `step` timeline; a layer with `times` (seconds) is mapped by `Viewer._index`, and
+  `set_step` always receives a sample index. Tools register scene-pointer callbacks only through
+  `Viewer.on_pointer` / `clear_pointer` (viser has one slot).
 - viser is imported in `viewer.py` only; trimesh in `robot.py` only; no pyrender/imageio
   (`tests/contract/test_layer_dependencies.py`). The core never imports BetterHuman.
 - Default host is `127.0.0.1`; tests use `tests/viewer/fake_server.py`, plus one loopback smoke test.

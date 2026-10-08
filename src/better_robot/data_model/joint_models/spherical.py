@@ -22,7 +22,7 @@ class JointSpherical:
     nv: int = 3
     axis: torch.Tensor | None = None
 
-    def joint_transform(self, q_slice: torch.Tensor) -> torch.Tensor:
+    def joint_placement(self, q_slice: torch.Tensor) -> torch.Tensor:
         """q_slice = (B..., 4) quaternion [qx,qy,qz,qw] → SE3 (B..., 7).
 
         Pure rotation: translation = 0.

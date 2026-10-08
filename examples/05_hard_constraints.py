@@ -36,7 +36,7 @@ def main() -> None:
     )
     problem.cached(terms.kinematic_state(model), name="state")
     problem.residual("stay", lambda q, q_start: q - q_start)
-    problem.residual("reach", terms.frame_position(model, HAND, target="goal"))
+    problem.residual("reach", terms.frame_position(model, frame=HAND, target="goal"))
     problem.residual("under", lambda state, ceiling: state.frame_pose[:, elbow, 2:3] - ceiling)
 
     soft = optim.solve(problem.with_(weights={"reach": 100.0, "under": 0.0}), optim.LevenbergMarquardt(), iters=50)

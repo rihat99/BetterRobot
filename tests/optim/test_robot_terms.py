@@ -27,7 +27,7 @@ def test_analytic_jacobians_match_autodiff(panda):
     goal = forward_kinematics_state(panda, _random_q(panda, 6, 1)).frame_pose[:, panda.frame_id(FRAME)]
     problem = terms.ik_problem(panda, {FRAME: goal}, q0=q + 4.0, limit_weight=2.0, rest_weight=0.5)
     problem.data["point"] = goal[:, :3]
-    problem.residual("position", terms.frame_position(panda, FRAME, target="point"), kernel=optim.Huber(delta=0.1))
+    problem.residual("position", terms.frame_position(panda, frame=FRAME, target="point"), kernel=optim.Huber(delta=0.1))
     errors = optim.check_jacobian(problem, {"q": q + 4.0})
     assert set(errors) == {f"pose/{FRAME}", "limits", "rest", "position"}
     # 1e-5: URDF values are float32-rounded, which limits analytic-vs-autodiff agreement of H.

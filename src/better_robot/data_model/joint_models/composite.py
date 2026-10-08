@@ -39,7 +39,7 @@ class JointComposite:
         object.__setattr__(self, "nq", sum(joint.nq for joint in self.sub_joints))
         object.__setattr__(self, "nv", sum(joint.nv for joint in self.sub_joints))
 
-    def joint_transform(self, q_slice: torch.Tensor) -> torch.Tensor:
+    def joint_placement(self, q_slice: torch.Tensor) -> torch.Tensor:
         """Compose sub-joint transforms left-to-right."""
         iq = 0
         result = _se3.identity(
@@ -49,7 +49,7 @@ class JointComposite:
         )
         for jm in self.sub_joints:
             qj = q_slice[..., iq : iq + jm.nq]
-            Tj = jm.joint_transform(qj)
+            Tj = jm.joint_placement(qj)
             result = _se3.compose(result, Tj)
             iq += jm.nq
         return result

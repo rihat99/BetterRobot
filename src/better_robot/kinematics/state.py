@@ -209,10 +209,11 @@ def joint_jacobian(
     model: Model,
     state: KinematicState,
     *,
-    joint: int,
+    joint: int | str,
     reference: Literal["world", "local", "local_world_aligned"] = "local_world_aligned",
 ) -> torch.Tensor:
-    """Jacobian of one joint. Returns ``(B..., 6, nv)``, rows ``[linear, angular]``; references as `frame_jacobian`."""
+    """Jacobian of one joint (id or name). Returns ``(B..., 6, nv)``, rows ``[linear, angular]``; references as `frame_jacobian`."""
+    joint = model.joint_id(joint)
     return _express(
         _world_jacobian(model, state, joint),
         state.joint_translation[..., joint, :],
@@ -245,10 +246,11 @@ def joint_jacobian_time_variation(
     state: KinematicState,
     *,
     v: torch.Tensor,
-    joint: int,
+    joint: int | str,
     reference: Literal["world", "local", "local_world_aligned"] = "local_world_aligned",
 ) -> torch.Tensor:
     """Time derivative ``dJ/dt`` of `joint_jacobian` along ``v: (B..., nv)``. Returns ``(B..., 6, nv)``."""
+    joint = model.joint_id(joint)
     result = joint_jacobians_time_variation_raw(model.structure, state.q, v, state.joint_pose)
     return _time_variation_in_reference(
         result.joint_jacobians[..., joint, :, :],

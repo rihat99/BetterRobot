@@ -9,7 +9,7 @@ from typing import Any
 
 
 class Timeline:
-    """Frame counter for ``nsteps`` steps at ``fps``.
+    """Step counter for ``nsteps`` steps at ``fps``.
 
     Setting ``step`` clamps to ``[0, nsteps - 1]`` and notifies the ``on_step`` callbacks
     (the viewer pushes the step from there). ``play`` starts a thread that advances by wall

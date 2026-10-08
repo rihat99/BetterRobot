@@ -80,8 +80,19 @@ class BackendNotAvailableError(BetterRobotError, ImportError):
 
         load("robot.urdf")  # raises if the optional `yourdfpy` parser is absent
 
-    The historical class name is retained because the exception is already a
-    public import; it is not evidence of a runtime compute-backend registry.
+    The name is reserved for a future kernel brick (an optional compiled
+    backend behind the same public signatures); today it only reports a missing
+    optional integration dependency. It is not evidence of a runtime
+    compute-backend registry.
+    """
+
+
+class UnknownNameError(BetterRobotError, KeyError):
+    """A joint, frame or body name is not in the model.
+
+    Example::
+
+        model.joint_id("no_such_joint")  # raises; ids may be ``int`` or ``str`` everywhere
     """
 
 
@@ -92,5 +103,6 @@ __all__ = [
     "DtypeMismatchError",
     "QuaternionNormError",
     "ShapeError",
+    "UnknownNameError",
     "BackendNotAvailableError",
 ]

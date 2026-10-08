@@ -28,7 +28,7 @@ class JointFreeFlyer:
     nv: int = 6
     axis: torch.Tensor | None = None
 
-    def joint_transform(self, q_slice: torch.Tensor) -> torch.Tensor:
+    def joint_placement(self, q_slice: torch.Tensor) -> torch.Tensor:
         """SE3 tensor from the 7-component configuration slice.
 
         q_slice = (B..., 7) = [tx, ty, tz, qx, qy, qz, qw] → (B..., 7) (same, normalized).

@@ -9,7 +9,10 @@ between the robot's own links, and add clearance terms to an optimization proble
 `RobotSpheres` approximates the robot by `S` spheres. Sphere `s` sits at `offsets[s]` in the
 coordinates of frame `frame_ids[s]` and has radius `radii[s]`: `frame_ids (S,)`, `offsets (S, 3)`,
 `radii (S,)`. Build it with `RobotSpheres.from_frames`, which takes frame names or ids (see
-[Joints, bodies and frames](joints-bodies-frames.md)) and matches the model's dtype and device.
+[Joints, bodies and frames](joints-bodies-frames.md)) and matches the model's dtype and device;
+`spheres.to(device=..., dtype=...)` moves it (frame ids stay `long`). `offsets` may also carry batch axes,
+`(B..., S, 3)`, for per-sample sphere placement (for example a body shape per batch row): they broadcast
+against the state's batch axes in `centers`, while `frame_ids` and `radii` stay unbatched.
 
 ```python
 import torch
@@ -57,6 +60,10 @@ coincide.
 | `sphere_box(center, radius, *, box_center, box_rotation, half_extents)` | an oriented box |
 | `sphere_sdf(center, radius, *, grid, origin, voxel_size)` | a sampled signed distance field |
 
+`sphere_sdf` interpolates the grid trilinearly. A centre outside the grid is clamped to the boundary, so the
+distance there is the boundary value and its gradient with respect to the centre is zero: a clearance term
+cannot push a sphere back into the grid from outside. Make the grid cover the whole workspace.
+
 ```python
 floor = collision.sphere_halfspace(centers, spheres.radii,
                                    normal=torch.tensor([0.0, 0.0, 1.0], dtype=torch.float64), offset=0.0)
@@ -70,7 +77,9 @@ tensor([-0.0100,  0.3653,  0.4894], dtype=torch.float64)
 
 `self_collision_pairs(model, spheres)` lists the sphere pairs `(P, 2)` that can move relative to each
 other. It drops pairs on the same rigid body (frames joined only by fixed joints) and pairs on bodies
-joined by one moving joint, which touch at the joint by design. `self_distances` returns `(B..., P)`.
+joined by one moving joint, which touch at the joint by design. `ignore=[(frame_a, frame_b), ...]` (names
+or ids, either order) drops more frame pairs, such as links whose spheres overlap at every reachable `q`.
+`self_distances` returns `(B..., P)`.
 
 ```python
 pairs = collision.self_collision_pairs(model, spheres)
@@ -89,7 +98,7 @@ and `link1` are joined by `j1`, so they would form none either.
 ## Clearance terms go into a problem
 
 `terms.sphere_clearance(spheres, distance_fn, margin=...)` builds a residual `margin - distance` for
-every sphere and obstacle; `terms.self_clearance(spheres, pairs, margin=...)` does the same for sphere
+every sphere and obstacle; `terms.self_clearance(spheres, pairs=pairs, margin=...)` does the same for sphere
 pairs. Both are hinged at zero by default, so a clear configuration costs nothing. With `hinge=False`
 the residual is the inequality `margin - distance <= 0` for `optim.solve_constrained`. Both read the
 cached kinematic state named `"state"`.
@@ -142,6 +151,14 @@ solve it sits just under the 0.02 m margin, because the soft weight trades clear
 hard inequality to enforce it exactly.
 
 <figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/obstacle_trajectory.png" width="960"><source src="../../clips/obstacle_trajectory.webm" type="video/webm"></video><figcaption>The Panda, modelled as spheres, follows a trajectory that a clearance term bends around a spherical obstacle (<code>examples/06_obstacle_trajectory.py</code>).</figcaption></figure>
+
+## Extending collision
+
+A new obstacle type is a new `distance_fn(centers: (B..., S, 3), radii: (S,)) -> (B..., S)` or `(B..., S, K)`
+for `sphere_clearance`; the term and the solvers do not change (contract
+[08, collision section](../contracts/08-extension-points.md)). Robot geometry beyond spheres (capsules, shapes
+fitted to meshes from the IR), closest points and contact follow
+[ADR 0008: geometry is a separate brick](../contracts/decisions/0008-geometry-brick.md).
 
 ## Where next
 

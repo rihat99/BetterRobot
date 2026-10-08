@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import torch
 
 from .problem import Problem
-from .solvers import Solver, State
+from .solvers import DIAGNOSTICS, Solver, State
 
 
 @dataclass(frozen=True)
@@ -43,26 +43,52 @@ class Result:
     done: torch.Tensor  #: ``(B,)`` convergence flag of the last phase.
     iters: int  #: total steps taken.
     history: dict[str, torch.Tensor] = field(default_factory=dict)  #: ``{phase: (steps, B)}`` losses.
+    #: ``{phase: {key: (steps, B)}}`` per-step solver diagnostics (key set: ``State`` docstring).
+    diagnostics: dict[str, dict[str, torch.Tensor]] = field(default_factory=dict)
+    state: State | None = None  #: final solver state of the last phase; pass as ``state=`` to warm-start.
 
     def __getitem__(self, name: str) -> torch.Tensor:
         """Final value of variable ``name``; shorthand for ``result.x[name]``."""
         return self.x[name]
 
 
-def run(problem: Problem, phases: Sequence[Phase], *, x: Mapping[str, torch.Tensor] | None = None) -> Result:
-    """Run ``phases`` in order, each starting from the previous result."""
-    current = {name: value.detach() for name, value in (x if x is not None else problem.variables).items()}
+def run(
+    problem: Problem,
+    phases: Sequence[Phase],
+    *,
+    x: Mapping[str, torch.Tensor] | None = None,
+    state: State | None = None,
+) -> Result:
+    """Run ``phases`` in order, each starting from the previous result.
+
+    ``state`` (a previous ``Result.state``) warm-starts the first phase: its solver keeps the
+    ``warm_keys`` entries of ``state.extra`` (LM damping, L-BFGS memory) and recomputes the rest
+    at the start point, which is ``x``, else ``state.x``, else the problem's variables. The batch
+    size must match.
+    """
+    if state is not None and not isinstance(state, State):
+        raise TypeError(f"state must be a solver State (e.g. Result.state), got {type(state).__name__}")
+    start = x if x is not None else state.x if state is not None else problem.variables
+    current = {name: value.detach() for name, value in start.items()}
     history: dict[str, torch.Tensor] = {}
-    total, view, state = 0, problem, None
+    diagnostics: dict[str, dict[str, torch.Tensor]] = {}
+    total, view, warm, state = 0, problem, state, None
     for phase in phases:
         view = problem.with_(weights=phase.weights, free=phase.free)
         if phase.on_start is not None:
             current = phase.on_start(view, current) or current
         state = phase.solver.init(view, current)
-        losses = []
+        if warm is not None:
+            # optim imports only torch, so a plain ValueError stands in for ShapeError here.
+            if warm.done.shape != state.done.shape:
+                raise ValueError(f"warm-start state has batch {tuple(warm.done.shape)}, problem has {tuple(state.done.shape)}")
+            kept = {key: warm.extra[key] for key in getattr(phase.solver, "warm_keys", ()) if key in warm.extra}
+            state, warm = replace(state, extra={**state.extra, **kept}), None
+        losses, steps = [], []
         for iteration in range(phase.iters):
             state = phase.solver.step(view, state)
             losses.append(state.loss)
+            steps.append({key: state.extra[key] for key in DIAGNOSTICS if key in state.extra})
             if phase.on_step is not None:
                 phase.on_step(view, state)
             if phase.stop_every and (iteration + 1) % phase.stop_every == 0 and bool(state.done.all()):
@@ -71,15 +97,23 @@ def run(problem: Problem, phases: Sequence[Phase], *, x: Mapping[str, torch.Tens
         current = {name: value.detach() for name, value in state.x.items()}
         if losses:
             history[phase.name] = torch.stack(losses)
+            diagnostics[phase.name] = {key: torch.stack([step[key] for step in steps]) for key in steps[0]}
     with torch.no_grad():
         loss = view.loss(current)
     done = state.done if state is not None else torch.zeros_like(loss, dtype=torch.bool)
-    return Result(x=current, loss=loss, done=done, iters=total, history=history)
+    return Result(x=current, loss=loss, done=done, iters=total, history=history, diagnostics=diagnostics, state=state)
 
 
-def solve(problem: Problem, solver: Solver, *, iters: int = 50, x: Mapping[str, torch.Tensor] | None = None) -> Result:
-    """Run one solver for at most ``iters`` steps."""
-    return run(problem, [Phase(solver=solver, iters=iters)], x=x)
+def solve(
+    problem: Problem,
+    solver: Solver,
+    *,
+    iters: int = 50,
+    x: Mapping[str, torch.Tensor] | None = None,
+    state: State | None = None,
+) -> Result:
+    """Run one solver for at most ``iters`` steps; ``state`` warm-starts it (see ``run``)."""
+    return run(problem, [Phase(solver=solver, iters=iters)], x=x, state=state)
 
 
 def solve_layer(
@@ -114,7 +148,7 @@ def solve_layer(
         normal, g = normal.masked(~blocked), g * ~blocked
     step = normal.solve(damping, g=g)
     attached = problem._retract(result.x, step - step.detach())
-    return Result(x=attached, loss=result.loss, done=result.done, iters=result.iters, history=result.history)
+    return replace(result, x=attached)
 
 
 __all__ = ["Phase", "Result", "run", "solve", "solve_layer"]

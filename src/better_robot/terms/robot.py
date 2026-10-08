@@ -55,7 +55,7 @@ def kinematic_state(model: Model, *, q: str = "q") -> TermFn:
     return TermFn(fn=lambda value: forward_kinematics_state(model, value), reads=(q,))
 
 
-def frame_pose(model: Model, frame: int | str, *, target: str, state: CacheRef | str = "state", q: str = "q") -> TermFn:
+def frame_pose(model: Model, *, frame: int | str, target: str, state: CacheRef | str = "state", q: str = "q") -> TermFn:
     """Pose error of ``frame`` against data ``target: (B, 7)``. Residual ``(B, 6)``, ``[linear, angular]``."""
     frame_id = model.frame_id(frame)
 
@@ -69,7 +69,7 @@ def frame_pose(model: Model, frame: int | str, *, target: str, state: CacheRef |
     return TermFn(fn=error, reads=(str(state), target), jac=jac)
 
 
-def frame_position(model: Model, frame: int | str, *, target: str, state: CacheRef | str = "state", q: str = "q") -> TermFn:
+def frame_position(model: Model, *, frame: int | str, target: str, state: CacheRef | str = "state", q: str = "q") -> TermFn:
     """Position error of ``frame`` against data ``target: (B, 3)``. Residual ``(B, 3)``."""
     frame_id = model.frame_id(frame)
 

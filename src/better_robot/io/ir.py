@@ -39,6 +39,10 @@ class IRJoint:
     mimic_multiplier: float = 1.0
     mimic_offset: float = 0.0
     pitch: float = 0.0
+    # Per-velocity-coordinate joint dynamics (URDF ``<dynamics>``, MJCF ``armature``/``frictionloss``/``damping``).
+    damping: float = 0.0
+    friction: float = 0.0
+    armature: float = 0.0
     # Programmatic-builder payload only. File parsers leave this as ``None``;
     # it is intentionally outside the parser-IR serialization contract.
     joint_model: Optional[JointModel] = field(

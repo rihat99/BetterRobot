@@ -9,6 +9,8 @@ dtype and device are preserved.
 
 from __future__ import annotations
 
+import math
+
 import torch
 
 
@@ -228,8 +230,10 @@ def to_euler(q: torch.Tensor) -> torch.Tensor:
     Returns ``[..., (roll, pitch, yaw)]`` in radians for the same active
     convention as ``from_euler``: ``Rz(yaw) @ Ry(pitch) @ Rx(roll)``.
     The principal branch has roll/yaw in ``[-pi, pi]`` and pitch in
-    ``[-pi/2, pi/2]``.  As with every Euler representation, roll and yaw
-    are not individually identifiable at pitch ``+/- pi/2``.
+    ``[-pi/2, pi/2]``.  At pitch ``+/- pi/2`` (gimbal lock) roll and yaw are
+    not individually identifiable; there the result has yaw ``0``, pitch
+    exactly ``+/- pi/2`` and the combined angle in roll, so the round trip
+    through ``from_euler`` is exact.
     """
     if not isinstance(q, torch.Tensor) or not q.is_floating_point():
         raise TypeError("q must be a floating torch.Tensor")
@@ -238,16 +242,25 @@ def to_euler(q: torch.Tensor) -> torch.Tensor:
 
     q = normalize(q)
     qx, qy, qz, qw = q.unbind(dim=-1)
-    roll = torch.atan2(
-        2.0 * (qw * qx + qy * qz),
-        1.0 - 2.0 * (qx.square() + qy.square()),
-    )
     sin_pitch = 2.0 * (qw * qy - qz * qx)
-    pitch = torch.asin(sin_pitch.clamp(-1.0, 1.0))
+    roll_sin, roll_cos = 2.0 * (qw * qx + qy * qz), 1.0 - 2.0 * (qx.square() + qy.square())
+    # The regular formulas read atan2(~0, ~0) when cos(pitch) = hypot(roll_sin, roll_cos) is
+    # rounding-sized; the band is set in angle (sqrt(eps) rad) because a sine band of a few
+    # ulps is ~1e-3 rad in float32. Masked inputs keep both branches' gradients finite
+    # (C-DIFF-3) and leave every other input bit-identical.
+    lock = torch.hypot(roll_sin, roll_cos) < math.sqrt(torch.finfo(q.dtype).eps)
+    zero, one = torch.zeros_like(qx), torch.ones_like(qx)
+    roll = torch.atan2(torch.where(lock, zero, roll_sin), torch.where(lock, one, roll_cos))
+    pitch = torch.asin(torch.where(lock, zero, sin_pitch).clamp(-1.0, 1.0))
     yaw = torch.atan2(
-        2.0 * (qw * qz + qx * qy),
-        1.0 - 2.0 * (qy.square() + qz.square()),
+        torch.where(lock, zero, 2.0 * (qw * qz + qx * qy)),
+        torch.where(lock, one, 1.0 - 2.0 * (qy.square() + qz.square())),
     )
+    # At the lock q = +/-(qy(+/-pi/2) * qx(roll - +/-yaw)), so tan(combined / 2) = qx / qw for both signs.
+    lock_qx, lock_qw = torch.where(lock, qx, zero), torch.where(lock, qw, one)
+    lock_roll = torch.atan2(2.0 * lock_qx * lock_qw, lock_qw.square() - lock_qx.square())
+    roll = torch.where(lock, lock_roll, roll)
+    pitch = torch.where(lock, torch.copysign(torch.full_like(pitch, math.pi / 2), sin_pitch), pitch)
     return torch.stack((roll, pitch, yaw), dim=-1)
 
 

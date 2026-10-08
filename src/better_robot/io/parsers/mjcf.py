@@ -8,6 +8,14 @@ it.
 Covered: bodies, joints (hinge/slide/ball/free), sites (→ frames).
 Not covered (deferred to future work): mesh loading, tendons, actuators.
 
+Experimental: the parser reads the uncompiled ``MjSpec``, so known gaps
+remain. A jointed body's own ``pos``/``quat`` is dropped (only ``jnt.pos``
+is used); joint ``range`` is not converted from degrees under the default
+``compiler angle="degree"``; ``limited="auto"`` is read as limited;
+inertia ignores ``iquat``/``fullinertia`` and geom-derived mass;
+``euler``/``axisangle``/``xyaxes``/``zaxis`` orientations are ignored.
+Check MJCF-loaded kinematics against MuJoCo before relying on them.
+
 See ``docs/concepts/parsers_and_ir.md §5``.
 """
 
@@ -24,6 +32,12 @@ from ..ir import IRBody, IRFrame, IRGeom, IRJoint, IRModel
 if TYPE_CHECKING:
     from ..assets import AssetResolver
 
+
+
+def _scalar_attr(element: object, name: str) -> float:
+    """Return a scalar MJCF attribute as ``float``; absent or ``None`` means the MuJoCo default ``0``."""
+    value = getattr(element, name, None)
+    return 0.0 if value is None else float(np.asarray(value, dtype=np.float64).reshape(-1)[0])
 
 def _pos_quat_to_se3(pos: np.ndarray | None, quat: np.ndarray | None) -> torch.Tensor:
     """Convert MuJoCo pos (3,) + quat (w,x,y,z) to [tx,ty,tz,qx,qy,qz,qw]."""
@@ -167,6 +181,9 @@ def parse_mjcf(
                 origin=origin,
                 lower=lo,
                 upper=hi,
+                damping=_scalar_attr(jnt, "damping"),
+                friction=_scalar_attr(jnt, "frictionloss"),
+                armature=_scalar_attr(jnt, "armature"),
             ))
 
         if parent_name is not None and not body.joints:

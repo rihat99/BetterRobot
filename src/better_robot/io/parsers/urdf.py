@@ -271,6 +271,8 @@ def parse_urdf(
             upper=upper,
             velocity_limit=vel_limit,
             effort_limit=effort_limit,
+            damping=float(getattr(joint.dynamics, "damping", None) or 0.0),
+            friction=float(getattr(joint.dynamics, "friction", None) or 0.0),
             mimic_source=mimic_source,
             mimic_multiplier=mimic_mult,
             mimic_offset=mimic_off,

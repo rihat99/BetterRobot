@@ -1,6 +1,6 @@
 """Tests for data_model/joint_models/*.py — every joint family.
 
-Phase 2 criteria: joint_transform, integrate, difference, neutral on a random
+Phase 2 criteria: joint_placement, integrate, difference, neutral on a random
 batch are tested against hand-derived references for every joint family.
 """
 import math
@@ -44,14 +44,14 @@ _IDENTITY_POSE = [0., 0., 0., 0., 0., 0., 1.]
 @pytest.mark.parametrize(
     "make_value, expected, atol",
     [
-        pytest.param(lambda: JointFixed().joint_transform(torch.zeros(0)), _IDENTITY_POSE, 1e-8, id="fixed_transform"),
+        pytest.param(lambda: JointFixed().joint_placement(torch.zeros(0)), _IDENTITY_POSE, 1e-8, id="fixed_transform"),
         pytest.param(
-            lambda: JointUniverse().joint_transform(torch.zeros(0)), _IDENTITY_POSE, 1e-8, id="universe_transform"
+            lambda: JointUniverse().joint_placement(torch.zeros(0)), _IDENTITY_POSE, 1e-8, id="universe_transform"
         ),
-        pytest.param(lambda: JointRX().joint_transform(torch.zeros(1)), _IDENTITY_POSE, 1e-6, id="rx_zero_transform"),
-        pytest.param(lambda: JointPX().joint_transform(torch.zeros(1)), _IDENTITY_POSE, 1e-6, id="px_zero_transform"),
-        pytest.param(lambda: JointPY().joint_transform(torch.zeros(1)), _IDENTITY_POSE, 1e-6, id="py_zero_transform"),
-        pytest.param(lambda: JointPZ().joint_transform(torch.zeros(1)), _IDENTITY_POSE, 1e-6, id="pz_zero_transform"),
+        pytest.param(lambda: JointRX().joint_placement(torch.zeros(1)), _IDENTITY_POSE, 1e-6, id="rx_zero_transform"),
+        pytest.param(lambda: JointPX().joint_placement(torch.zeros(1)), _IDENTITY_POSE, 1e-6, id="px_zero_transform"),
+        pytest.param(lambda: JointPY().joint_placement(torch.zeros(1)), _IDENTITY_POSE, 1e-6, id="py_zero_transform"),
+        pytest.param(lambda: JointPZ().joint_placement(torch.zeros(1)), _IDENTITY_POSE, 1e-6, id="pz_zero_transform"),
         pytest.param(lambda: JointRX().neutral(), [0.], 1e-8, id="rx_neutral"),
         pytest.param(lambda: JointRY().neutral(), [0.], 1e-8, id="ry_neutral"),
         pytest.param(lambda: JointRZ().neutral(), [0.], 1e-8, id="rz_neutral"),
@@ -59,7 +59,7 @@ _IDENTITY_POSE = [0., 0., 0., 0., 0., 0., 1.]
         pytest.param(lambda: JointFreeFlyer().neutral(), _IDENTITY_POSE, 1e-8, id="free_flyer_neutral"),
         # Was a translation-only check (T[:3] == 0, atol 1e-5); the full identity pose is stricter.
         pytest.param(
-            lambda: JointFreeFlyer().joint_transform(JointFreeFlyer().neutral()),
+            lambda: JointFreeFlyer().joint_placement(JointFreeFlyer().neutral()),
             _IDENTITY_POSE,
             1e-5,
             id="free_flyer_transform_at_neutral",
@@ -67,7 +67,7 @@ _IDENTITY_POSE = [0., 0., 0., 0., 0., 0., 1.]
         # [x=0, y=0, cos=1, sin=0]
         pytest.param(lambda: JointPlanar().neutral(), [0., 0., 1., 0.], 1e-8, id="planar_neutral"),
         pytest.param(
-            lambda: JointPlanar().joint_transform(JointPlanar().neutral()),
+            lambda: JointPlanar().joint_placement(JointPlanar().neutral()),
             _IDENTITY_POSE,
             1e-5,
             id="planar_transform_at_neutral",
@@ -86,7 +86,7 @@ def test_identity_and_neutral(make_value, expected, atol):
 
 def test_revolute_rz_90deg():
     jm = JointRZ()
-    T = jm.joint_transform(torch.tensor([math.pi / 2]))
+    T = jm.joint_placement(torch.tensor([math.pi / 2]))
     p = _se3.act(T, torch.tensor([1., 0., 0.]))
     assert torch.allclose(p, torch.tensor([0., 1., 0.]), atol=1e-5)
 
@@ -102,7 +102,7 @@ def test_revolute_unaligned_transform():
     axis = torch.tensor([1., 1., 0.]) / math.sqrt(2.0)
     jm = JointRevoluteUnaligned(axis=axis)
     q = torch.tensor([math.pi])
-    T = jm.joint_transform(q)
+    T = jm.joint_placement(q)
     assert T.shape == (7,)
     assert torch.allclose(T[:3], torch.zeros(3), atol=1e-5)
 
@@ -120,7 +120,7 @@ def test_revolute_unbounded_roundtrip():
 
 def test_prismatic_px_translation():
     jm = JointPX()
-    T = jm.joint_transform(torch.tensor([2.0]))
+    T = jm.joint_placement(torch.tensor([2.0]))
     p = _se3.act(T, torch.zeros(3))
     assert torch.allclose(p, torch.tensor([2., 0., 0.]), atol=1e-5)
 
@@ -182,7 +182,7 @@ def test_free_flyer_integrate_difference():
 def test_translation_transform():
     jm = JointTranslation()
     q = torch.tensor([1., 2., 3.])
-    T = jm.joint_transform(q)
+    T = jm.joint_placement(q)
     p = _se3.act(T, torch.zeros(3))
     assert torch.allclose(p, q, atol=1e-5)
 
@@ -210,7 +210,7 @@ def test_helical_zero_pitch_is_revolute():
     axis = torch.tensor([0., 0., 1.])
     jm = JointHelical(axis=axis, pitch=0.0)
     q = torch.tensor([math.pi / 2])
-    T = jm.joint_transform(q)
+    T = jm.joint_placement(q)
     # Should have no translation
     assert torch.allclose(T[:3], torch.zeros(3), atol=1e-5)
 
@@ -221,6 +221,6 @@ def test_helical_nonzero_pitch():
     pitch = 0.1
     jm = JointHelical(axis=axis, pitch=pitch)
     angle = torch.tensor([math.pi])
-    T = jm.joint_transform(angle)
+    T = jm.joint_placement(angle)
     # Translation should be pitch * pi along z
     assert abs(float(T[2]) - pitch * math.pi) < 1e-5

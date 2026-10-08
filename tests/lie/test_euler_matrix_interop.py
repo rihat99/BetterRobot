@@ -94,3 +94,40 @@ def test_se3_matrix_roundtrip_preserves_translation_and_rotation() -> None:
 def test_euler_and_matrix_interop_reject_integer_tensors(function, value: torch.Tensor) -> None:
     with pytest.raises(TypeError, match="floating torch.Tensor"):
         function(value)
+
+
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
+@pytest.mark.parametrize("pitch_sign", [1.0, -1.0])
+def test_to_euler_gimbal_lock_puts_combined_angle_in_roll(dtype, pitch_sign):
+    """At pitch ``+/-pi/2`` yaw is 0, pitch is exact and the round trip through ``from_euler`` is exact."""
+    euler = torch.tensor([[0.3, pitch_sign * math.pi / 2, -0.5], [-2.0, pitch_sign * math.pi / 2, 2.5]], dtype=dtype)
+    quaternion = so3.from_euler(euler)
+    recovered = so3.to_euler(quaternion)
+    combined = euler[:, 0] - pitch_sign * euler[:, 2]
+    torch.testing.assert_close(recovered[:, 1], euler[:, 1], rtol=0.0, atol=0.0)
+    torch.testing.assert_close(recovered[:, 2], torch.zeros_like(combined), rtol=0.0, atol=0.0)
+    torch.testing.assert_close(torch.cos(recovered[:, 0]), torch.cos(combined))
+    torch.testing.assert_close(torch.sin(recovered[:, 0]), torch.sin(combined))
+    round_trip = so3.from_euler(recovered)
+    torch.testing.assert_close(round_trip * torch.sign((round_trip * quaternion).sum(-1, keepdim=True)), quaternion)
+    leaf = quaternion.clone().requires_grad_()
+    so3.to_euler(leaf).sum().backward()
+    assert torch.isfinite(leaf.grad).all()
+
+
+def test_to_euler_near_gimbal_lock_float32_keeps_regular_round_trip():
+    """0.5 mrad from the lock float32 still uses the regular formulas (error 1.5e-5; a 1e-3 rad band gave 4.8e-4)."""
+    quaternion = so3.from_euler(torch.tensor([[0.3, math.pi / 2 - 5e-4, 0.7]], dtype=torch.float32))
+    round_trip = so3.from_euler(so3.to_euler(quaternion))
+    round_trip = round_trip * torch.sign((round_trip * quaternion).sum(-1, keepdim=True))
+    assert (round_trip - quaternion).abs().max().item() <= 3.5e-5
+
+
+def test_to_euler_off_gimbal_lock_matches_regular_formula_bitwise():
+    """The gimbal-lock branch leaves every other input bit-identical to the regular closed form."""
+    quaternion = torch.randn(4096, 4, generator=torch.Generator().manual_seed(1), dtype=torch.float64)
+    qx, qy, qz, qw = so3.normalize(quaternion).unbind(-1)
+    roll = torch.atan2(2.0 * (qw * qx + qy * qz), 1.0 - 2.0 * (qx.square() + qy.square()))
+    pitch = torch.asin((2.0 * (qw * qy - qz * qx)).clamp(-1.0, 1.0))
+    yaw = torch.atan2(2.0 * (qw * qz + qx * qy), 1.0 - 2.0 * (qy.square() + qz.square()))
+    assert torch.equal(so3.to_euler(quaternion), torch.stack((roll, pitch, yaw), dim=-1))

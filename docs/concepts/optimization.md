@@ -121,7 +121,9 @@ treat it as a first-order term.
 ## Solvers are `init` and `step`
 
 A solver implements the `Solver` protocol: `init(problem, x) -> State` and
-`step(problem, state) -> State`. `State` holds `x`, the `(B,)` `loss`, the `(B,)` bool `done`, the step
+`step(problem, state) -> State`. After each step a solver writes fixed diagnostic keys into `State.extra`,
+each `(B,)`: `grad_norm`, `step_norm` and `accepted` (LM, Gauss-Newton, L-BFGS) and `damping` (LM); the
+`State` docstring is the reference for the key set. `State` holds `x`, the `(B,)` `loss`, the `(B,)` bool `done`, the step
 count `it`, and `extra` for solver-owned values (damping, moments).
 
 | Solver | Uses | Notes |
@@ -146,8 +148,11 @@ print(state.it, state.loss)
 
 ## `solve`, `run` and friends
 
-- `solve(problem, solver, *, iters=50, x=None) -> Result` runs one solver until every problem is done or
-  `iters` steps pass. `Result` has `x`, `loss`, `done`, `iters` and a per-phase loss `history`;
+- `solve(problem, solver, *, iters=50, x=None, state=None) -> Result` runs one solver until every problem is
+  done or `iters` steps pass. `Result.state` is the final solver state; passing it back as `state=` warm-starts
+  the next solve (LM keeps its damping, L-BFGS its curvature memory) from `x`, else `state.x`.
+  `Result.diagnostics[phase][key]` stacks the diagnostic keys per step, `(steps, B)`.
+  `Result` has `x`, `loss`, `done`, `iters` and a per-phase loss `history`;
   `result["q"]` is shorthand for `result.x["q"]`.
 - `run(problem, phases, *, x=None)` chains `Phase`s, each with its own solver, weight overrides and frozen
   coordinates ([Fit a clip](../guides/fit-a-clip.md)).
@@ -169,6 +174,15 @@ print(result.loss)
 ```output
 tensor([2.3851e-07, 3.0286e-06, 1.1951e-06, 5.3854e-07])
 ```
+
+## Reserved vocabulary
+
+Every variable has exactly one batch axis `(B, *event)` ([C-TENS-5](../contracts/02-tensors.md)). A
+`time=` problem whose time-local terms are mixed with a term that reads a time variable without `window=`
+falls back to dense normal equations and warns; declare `window=` or pass `dense=True`.
+
+The term kinds are `residual` and `scalar`. The names `equality` and `inequality` are reserved for future
+constraint term kinds; they are vocabulary only. Hard constraints today go through `solve_constrained`.
 
 ## Where next
 

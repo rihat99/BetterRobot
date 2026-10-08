@@ -30,6 +30,8 @@ exactly one); `[review]`.
 Every raised error is a subclass of `better_robot.exceptions.BetterRobotError` (`ShapeError`, `DeviceError`,
 `ModelError`, `IRError`, ...). Plain `ValueError`/`RuntimeError` are not raised by the library. An exception
 class exists only if something raises it; never-raised types are removed.
+An unknown joint, frame or body name raises `UnknownNameError` (also a `KeyError`); every public id
+argument accepts `int | str` and resolves through `model.joint_id` / `model.frame_id` / `model.body_id`.
 
 Enforcement: `tests/contract/test_public_api.py` (every class in `exceptions.__all__` is raised somewhere in
 `src/`); `[review]`.

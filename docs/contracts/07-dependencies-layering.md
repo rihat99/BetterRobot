@@ -55,6 +55,9 @@ def _viser():
 import trimesh
 ```
 
+`better_robot.exceptions.BackendNotAvailableError` is reserved for a future kernel brick (an optional compiled
+backend behind the same public signatures); no compute-backend registry exists today.
+
 Enforcement: `tests/contract/test_optional_imports.py` (subprocess with `sys.modules[name] = None` for each
 extra, then `import better_robot` and the core packages); `tests/contract/test_optional_imports.py`;
 Lazy imports inside functions trip `[ruff:PLC0415]`; each intended one carries `# noqa: PLC0415`.

@@ -21,6 +21,8 @@ class Layer(ABC):
     """
 
     listed: bool = True
+    #: Sample times ``(nsteps,)`` in seconds, set by ``Viewer.add(times=...)``; ``None`` = one sample per step.
+    times: np.ndarray | None = None
 
     def __init__(self, name: str, nsteps: int = 1) -> None:
         if nsteps < 1:

@@ -26,6 +26,11 @@ Optimization layer over named tensors. It imports only torch. Robot terms live i
   rejected batch elements keep their old values through `torch.where`.
 - Cached values are computed at most once per evaluation and stay inside the autodiff trace.
 - `window=` is trusted; `check_jacobian` is the test for it and for every analytic `jac`.
+- After `step`, `State.extra` carries the diagnostic keys named in `solvers.DIAGNOSTICS` (key set in the
+  `State` docstring); `run` stacks them into `Result.diagnostics`. A solver's `warm_keys` are the `extra`
+  entries a warm start (`state=`) keeps; everything else is recomputed by `init`.
+- A `time=` problem that mixes windowed terms with an unwindowed term reading a time variable warns and
+  goes dense. Normal equations are built through a sink (`add`/`finish`); a new structure is a new sink.
 - `Problem.with_` returns a view with its own `terms`, `data`, `weights`; never mutate the parent.
 - Linear solves run in float64 with unit-diagonal scaling whatever the problem dtype.
 - No `NotImplementedError` here (the contract test inventories those); raise `ValueError`.

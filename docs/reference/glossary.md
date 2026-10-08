@@ -20,12 +20,15 @@ This page defines the words used across the documentation, then gives their comp
 | **`ModelValues`** | Differentiable model tensors such as placements, inertias, limits, and gravity. |
 | **`KinematicState`** | The immutable result of `forward_kinematics_state(model, q)`: world transforms of every joint and frame, `(B..., n, 3, 4)`, plus derived poses. Jacobians and the dynamics algorithms read it; each query makes its own. |
 | **`model.fk(q)`** | Shorthand for `forward_kinematics_state(model, q)`. Read one frame's pose `(B..., 7)` with `state.frame_pose_of("name")`. |
+| **`Trajectory`** | A frozen sampled motion: `q (T, nq)`, optional `v (T, nv)` and `times (T,)` in seconds; `len(trajectory)` is `T` and `trajectory.at(step)` returns `(q, v)` at one sample. |
 
 ## Poses and motion
 
 | Term | Meaning |
 |---|---|
-| **pose** | A position and orientation together. BetterRobot stores one as `[tx, ty, tz, qx, qy, qz, qw]`. |
+| **pose** | A position and orientation together, computed in the world frame. BetterRobot stores one as `[tx, ty, tz, qx, qy, qz, qw]`. |
+| **placement** | A pose expressed in the parent frame, as a 7-vector: the model constants `joint_placements` / `frame_placements`, and the q-dependent `JointModel.joint_placement` of one joint. |
+| **transform** | A world pose written as a `(..., 3, 4)` rotation-translation matrix (`frame_transform`). See [C-NAME-5](../contracts/01-naming.md). |
 | **rotation quaternion** | Four numbers `[qx, qy, qz, qw]` that represent a 3D rotation without the singularities of three-angle coordinates. The four numbers have unit norm, so they contain three independent degrees of freedom. |
 | **quaternion double cover** | A quaternion and its negation represent the same physical rotation. |
 | **SO(3)** | The mathematical space of all 3D rotations. |

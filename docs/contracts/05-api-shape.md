@@ -55,7 +55,7 @@ Today `Model.frame_id(name)` (`data_model/model.py:195`) takes a `str` only and
 
 ```python { .no-run }
 # good  (terms/robot.py:62)
-frame_pose(model, "panda_hand", target="goal"); frame_pose(model, 8, target="goal")
+frame_pose(model, frame="panda_hand", target="goal"); frame_pose(model, frame=8, target="goal")
 # bad  (kinematics/state.py:146, until L-2 lands)
 def frame_pose_of(self, frame_id: int): ...   # forces users to look up ids themselves
 ```

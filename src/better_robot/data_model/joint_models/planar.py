@@ -20,7 +20,7 @@ class JointPlanar:
     nv: int = 3
     axis: torch.Tensor | None = None
 
-    def joint_transform(self, q_slice: torch.Tensor) -> torch.Tensor:
+    def joint_placement(self, q_slice: torch.Tensor) -> torch.Tensor:
         """SE3 with translation [x, y, 0] and rotation θ about Z.
 
         q_slice: (B..., 4) = [x, y, cos θ, sin θ] → (B..., 7).

@@ -62,7 +62,7 @@ class JointModel(Protocol):
     nv: int
     axis: torch.Tensor | None
 
-    def joint_transform(self, q_slice: torch.Tensor) -> torch.Tensor:
+    def joint_placement(self, q_slice: torch.Tensor) -> torch.Tensor:
         """``(B..., nq) → (B..., 7)``. SE3 of child frame in parent frame."""
         ...
 

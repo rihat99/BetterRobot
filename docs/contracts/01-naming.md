@@ -59,8 +59,9 @@ Enforcement: `[review]`.
 ## C-NAME-4 Units and frames in parameter names when ambiguous (SHOULD)
 
 Angles are radians, lengths metres, time seconds; a parameter in another unit carries the unit (`timeout_ms`).
-A frame argument is `frame`, a joint `joint`, a body `body`; the viewer's time axis is `step` (`nsteps`,
-`set_step`). The word *frame* always means a robot frame, never an animation frame.
+A frame argument is `frame`, a joint `joint`, a body `body`; the viewer's time axis is the integer `step`
+(`nsteps`, `set_step`), and a layer's optional `times` are its sample times in seconds. The word *frame* always
+means a robot frame, never an animation frame.
 
 ```python { .no-run }
 # good
@@ -70,3 +71,26 @@ viewer.set_frame(10)      # collides with the robot-frame meaning
 ```
 
 Enforcement: `[review]`.
+
+## C-NAME-5 SE(3) vocabulary: placement, pose, transform (MUST)
+
+Three words name a rigid-body quantity, and each has one meaning:
+
+| Word | Meaning | Layout |
+|------|---------|--------|
+| placement | a pose expressed in the parent frame: the model constants (`joint_placements`, `frame_placements`) and a joint's own q-dependent motion (`JointModel.joint_placement`), as in Pinocchio | `(..., 7)` |
+| pose | computed world quantity (`frame_pose`, `joint_pose`) | `(..., 7)` |
+| transform | the same world quantity as a 3x4 rotation-translation matrix (`frame_transform`, `joint_transform`) | `(..., 3, 4)` |
+
+A 7-vector layout is `[tx, ty, tz, qx, qy, qz, qw]`. Do not use synonyms (`tf`, `xform`, `homogeneous`), do not
+name a matrix a pose or placement (`pose_matrix`), and do not call a world quantity a placement.
+
+```python { .no-run }
+# good
+state.frame_pose            # (B..., nframes, 7) world
+state.frame_transform       # (B..., nframes, 3, 4) world
+# bad
+frame_tf, pose_matrix, world_placement
+```
+
+Enforcement: `tests/contract/test_se3_vocabulary.py`.

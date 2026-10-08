@@ -19,7 +19,7 @@ class JointFixed:
     nv: int = 0
     axis: torch.Tensor | None = None
 
-    def joint_transform(self, q_slice: torch.Tensor) -> torch.Tensor:
+    def joint_placement(self, q_slice: torch.Tensor) -> torch.Tensor:
         """Returns identity SE3 (the fixed offset is in model.joint_placements)."""
         # q_slice is empty (nq=0); return a scalar identity SE3
         return torch.tensor([0., 0., 0., 0., 0., 0., 1.],
@@ -59,7 +59,7 @@ class JointUniverse:
     nv: int = 0
     axis: torch.Tensor | None = None
 
-    def joint_transform(self, q_slice: torch.Tensor) -> torch.Tensor:
+    def joint_placement(self, q_slice: torch.Tensor) -> torch.Tensor:
         return torch.tensor([0., 0., 0., 0., 0., 0., 1.], dtype=torch.float32)
 
     def joint_motion_subspace(self, q_slice: torch.Tensor) -> torch.Tensor:

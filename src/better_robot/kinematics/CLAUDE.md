@@ -57,7 +57,7 @@ features of `q` (`sin`/`cos` of revolute angles, quaternion products, translatio
 coordinates), so one `addmm` with a constant matrix built from topology and joint axes gives
 all joint transforms; the world chain is one matmul per tree level. Transforms are `[R | p]`
 matrices `(N, njoints, 3, 4)`; nothing is converted to quaternions inside the pass. Rare kinds
-(planar, translation, helical, composite) go through `joint_dispatch.joint_transform` one by
+(planar, translation, helical, composite) go through `joint_dispatch.joint_placement` one by
 one. The plan is memoised on the structure per dtype/device (`_fk_lean_plans`).
 
 Placements stay differentiable and may be batched. Unbatched placements are folded into the
