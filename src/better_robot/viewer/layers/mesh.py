@@ -139,6 +139,7 @@ class SpheresLayer(Layer):
             raise ValueError("radii must have one entry per sphere")
         self._colors = rgb_uint8(colors, (self.centers.shape[1],))
         self.opacity = opacity
+        self._elements = self.centers.shape[1]
         self._spheres: Any = None
 
     def build(self, scene: Any, root: str) -> None:
@@ -160,7 +161,12 @@ class SpheresLayer(Layer):
 
     def world_points(self, step: int) -> np.ndarray | None:
         """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
-        return np.concatenate([self.centers[step] - self.radii[:, None], self.centers[step] + self.radii[:, None]])
+        centers, radii = self.centers[step], self.radii[:, None]
+        if self.valid is not None and self.valid.ndim == 2:
+            centers, radii = centers[self.valid[step]], radii[self.valid[step]]
+        return np.concatenate([centers - radii, centers + radii])
 
     def set_step(self, step: int) -> None:
         self._spheres.batched_positions = self.centers[step]
+        if self.valid is not None and self.valid.ndim == 2:
+            self._spheres.batched_scales = self.radii * self.valid[step]  # radius 0 hides an invalid sphere

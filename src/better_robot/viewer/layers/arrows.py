@@ -14,7 +14,8 @@ class ArrowsLayer(Layer):
     """Arrows from ``origins (T, N, 3)`` along ``vectors (T, N, 3) * scale``.
 
     Zero vectors draw nothing (their head scale is 0), so N stays fixed across frames; use
-    them for inactive contacts. ``colors`` is one RGB or ``(N, 3)``.
+    them for inactive contacts (a ``(T, N)`` ``valid`` in ``Viewer.add`` does the same).
+    ``colors`` is one RGB or ``(N, 3)``.
     """
 
     def __init__(
@@ -35,7 +36,7 @@ class ArrowsLayer(Layer):
         super().__init__(name, self.origins.shape[0])
         self.head_size = head_size
         self.line_width = line_width
-        n_arrows = self.origins.shape[1]
+        n_arrows = self._elements = self.origins.shape[1]
         self._colors = rgb_uint8(colors, (n_arrows,))
         self._shafts: Any = None
         self._heads: Any = None
@@ -74,14 +75,23 @@ class ArrowsLayer(Layer):
 
     def world_points(self, step: int) -> np.ndarray | None:
         """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
-        return np.concatenate([self.origins[step], self.origins[step] + self.vectors[step]])
+        origins, tips = self.origins[step], self.origins[step] + self.vectors[step]
+        if self.valid is not None and self.valid.ndim == 2:
+            origins, tips = origins[self.valid[step]], tips[self.valid[step]]
+        return np.concatenate([origins, tips])
+
+    def _vectors(self, step: int) -> np.ndarray:
+        """Vectors ``(N, 3)`` drawn at ``step``: zero where a ``(T, N)`` ``valid`` marks the arrow invalid."""
+        if self.valid is None or self.valid.ndim == 1:
+            return self.vectors[step]
+        return self.vectors[step] * self.valid[step][:, None]
 
     def _segments(self, step: int) -> np.ndarray:
-        tips = self.origins[step] + self.vectors[step]
+        tips = self.origins[step] + self._vectors(step)
         return np.stack([self.origins[step], tips], axis=1)
 
     def _head_transforms(self, step: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        vector = self.vectors[step]
+        vector = self._vectors(step)
         length = np.linalg.norm(vector, axis=-1)
         head = np.minimum(self.head_size, length)
         unit = vector / np.maximum(length, 1e-9)[:, None]

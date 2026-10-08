@@ -21,6 +21,7 @@ class _Entry:
     layer: Layer
     step: int = -1  # last step pushed; -1 = never
     checkbox: Any = None  # the layer's row in the sidebar's Layers folder
+    shown: bool = True  # nodes shown; False while a visible layer sits on a sample its ``valid`` marks invalid
 
 
 @dataclass
@@ -86,13 +87,16 @@ class Viewer:
         *,
         offset: tuple[float, float, float] | None = None,
         times: np.ndarray | Sequence[float] | None = None,
+        valid: np.ndarray | None = None,
     ) -> Layer:
         """Build ``layer`` under ``/<group>/<layer.name>`` and push the current step to it.
 
         ``offset`` moves the whole group (side-by-side comparisons). ``times`` ``(T,)`` gives the
         non-decreasing sample times of the layer in seconds (``T = layer.nsteps``); timeline step ``k``
         then shows the latest sample at or before ``k / fps``. ``None`` keeps one sample per step.
-        Returns the layer.
+        ``valid`` ``(T,)`` bool hides the layer on the samples where it is false (a person not tracked in
+        that frame); ``(T, N)`` hides single elements of a layer that draws ``N`` (``SpheresLayer``,
+        ``ArrowsLayer``). It is kept by reference, like the layer's arrays. Returns the layer.
         """
         if times is not None:
             times = np.asarray(times, dtype=np.float64)
@@ -102,11 +106,21 @@ class Viewer:
                 raise ValueError("times must be finite")
             if np.any(np.diff(times) < 0):
                 raise ValueError("times must be non-decreasing")
+        if valid is not None:
+            valid = np.asarray(valid, dtype=bool)
+            shapes = [(layer.nsteps,)] + ([(layer.nsteps, layer._elements)] if layer._elements is not None else [])
+            if valid.shape not in shapes:
+                raise ValueError(f"valid must have shape {' or '.join(map(str, shapes))}, got {valid.shape}")
         with self._lock:
-            return self._add(layer, group, offset, times)
+            return self._add(layer, group, offset, times, valid)
 
     def _add(
-        self, layer: Layer, group: str, offset: tuple[float, float, float] | None, times: np.ndarray | None = None
+        self,
+        layer: Layer,
+        group: str,
+        offset: tuple[float, float, float] | None,
+        times: np.ndarray | None = None,
+        valid: np.ndarray | None = None,
     ) -> Layer:
         group_state = self._groups.get(group)
         if group_state is None:
@@ -118,8 +132,8 @@ class Viewer:
         if layer.name in group_state.entries:
             raise ValueError(f"group {group!r} already has a layer named {layer.name!r}")
         # Assigned only once the add can no longer be refused, and always, so a re-added layer
-        # never keeps the times of an earlier add.
-        layer.times = times
+        # never keeps the times or validity of an earlier add.
+        layer.times, layer.valid = times, valid
         layer.apply_theme(self.theme)
         layer.root = f"/{group}/{layer.name}"
         entry = group_state.entries[layer.name] = _Entry(layer)
@@ -152,6 +166,7 @@ class Viewer:
             entry = self._entry(layer)
             layer._visible = visible  # also for subclasses whose set_visible skips the base class
             layer.set_visible(visible)
+            entry.shown = visible
             if entry.checkbox is not None and entry.checkbox.value != visible:
                 entry.checkbox.value = visible
             if visible:
@@ -223,7 +238,11 @@ class Viewer:
                 if not entry.layer.visible:
                     continue
                 for step in steps:
-                    layer_points = entry.layer.world_points(self._index(entry.layer, step))
+                    index = self._index(entry.layer, step)
+                    valid = entry.layer.valid
+                    if valid is not None and valid.ndim == 1 and not valid[index]:
+                        continue
+                    layer_points = entry.layer.world_points(index)
                     if layer_points is not None and len(layer_points):
                         points.append(np.asarray(layer_points, dtype=np.float64).reshape(-1, 3) + offset)
         return np.concatenate(points) if points else np.array([[1.0, 1.0, 1.0], [-1.0, -1.0, 0.0]])
@@ -242,6 +261,7 @@ class Viewer:
                 entry.checkbox = None
             self._build(entry, group)
             layer.set_visible(layer.visible)
+            entry.shown = layer.visible
             if layer.visible:
                 self._push(entry, self.timeline.step)
 
@@ -309,6 +329,11 @@ class Viewer:
         if force or step != entry.step:
             entry.layer.set_step(step)
             entry.step = step
+            valid = entry.layer.valid
+            if valid is not None and valid.ndim == 1 and bool(valid[step]) != entry.shown:
+                entry.shown = bool(valid[step])
+                entry.layer.set_visible(entry.shown)
+                entry.layer._visible = True  # hidden for this sample only; the layer's own switch stays on
 
     def _push_all(self, step: int, force: bool) -> None:
         with self._lock, self.server.atomic():

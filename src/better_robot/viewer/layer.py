@@ -23,6 +23,11 @@ class Layer(ABC):
     listed: bool = True
     #: Sample times ``(nsteps,)`` in seconds, set by ``Viewer.add(times=...)``; ``None`` = one sample per step.
     times: np.ndarray | None = None
+    #: Per-sample validity, set by ``Viewer.add(valid=...)``: ``(nsteps,)`` bool hides the whole layer on invalid
+    #: samples, ``(nsteps, N)`` hides single elements; ``None`` = always shown.
+    valid: np.ndarray | None = None
+    #: ``N`` for layers that hide single elements under a ``(nsteps, N)`` ``valid``; ``None`` = whole-layer only.
+    _elements: int | None = None
 
     def __init__(self, name: str, nsteps: int = 1) -> None:
         if nsteps < 1:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from better_robot.viewer import CameraLayer
+from better_robot.viewer import ArrowsLayer, CameraLayer, PointsLayer, SpheresLayer
 from better_robot.viewer.layer import Layer
 from better_robot.viewer.layers.skinned import CameraLayer as SkinnedCameraLayer
 from better_robot.viewer.tools import nearest_on_ray
@@ -98,3 +98,40 @@ def test_nearest_on_ray_picks_the_closest_point_in_front_of_the_origin() -> None
 def test_camera_layer_lives_in_its_own_module_and_is_re_exported() -> None:
     assert CameraLayer.__module__ == "better_robot.viewer.layers.camera"
     assert SkinnedCameraLayer is CameraLayer
+
+
+def test_valid_hides_a_layer_on_invalid_samples_without_touching_its_switch() -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    valid = np.array([True, True, False, False, True])
+    layer = viewer.add(PointsLayer("person", np.zeros((5, 4, 3))), valid=valid)
+    cloud = server.scene.nodes["/scene/person/points"]
+    viewer.show(2)
+    assert cloud.visible is False and layer.visible  # hidden for the sample; the sidebar switch stays on
+    viewer.show(3)
+    assert cloud.writes.count("visible") == 1  # still invalid: no second write
+    viewer.show(4)
+    assert cloud.visible is True
+    viewer.set_visible(layer, False)
+    viewer.show(2)
+    viewer.set_visible(layer, True)  # shown again on an invalid sample: stays hidden
+    assert cloud.visible is False and layer.visible
+    valid[2] = True  # kept by reference: edit in place and re-push
+    viewer.show()
+    assert cloud.visible is True
+    with pytest.raises(ValueError, match="valid must have shape"):
+        viewer.add(PointsLayer("bad", np.zeros((5, 4, 3))), valid=np.ones((5, 4), bool))  # points: whole layer only
+
+
+def test_valid_per_element_hides_single_spheres_and_arrows() -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    keep = np.array([[True, False], [False, True]])
+    viewer.add(SpheresLayer("contacts", np.ones((2, 2, 3)), np.array([0.1, 0.2])), valid=keep)
+    viewer.add(ArrowsLayer("forces", np.zeros((2, 2, 3)), np.ones((2, 2, 3))), valid=keep)
+    viewer.show(1)
+    np.testing.assert_allclose(server.scene.nodes["/scene/contacts/spheres"].batched_scales, [0.0, 0.2])
+    np.testing.assert_allclose(server.scene.nodes["/scene/forces/heads"].batched_scales[0], 0.0)
+    shafts = server.scene.nodes["/scene/forces/shafts"].points
+    np.testing.assert_allclose(shafts[0, 1], shafts[0, 0])  # zero-length shaft
+    assert len(viewer._points([1])) == 4  # camera fit: one sphere (2 corners) + one arrow (origin, tip)

@@ -67,6 +67,10 @@ layer itself still receives a plain integer sample index in `set_step`.
 viewer.add(PointsLayer("mocap", markers_10hz), times=np.arange(len(markers_10hz)) / 10.0)
 ```
 
+`viewer.add(layer, valid=v)` with a bool `v` of shape `(T,)` hides the layer on the samples where `v` is false, such
+as a person who is not tracked in that frame; its sidebar switch stays on. A `(T, N)` mask hides single spheres of a
+`SpheresLayer` or arrows of an `ArrowsLayer`. Like the layer's arrays, `v` is kept by reference.
+
 ```python
 viewer.show(10)
 cloud[:, :, 2] += 0.5   # edit the clip in place ...
