@@ -35,7 +35,9 @@ http://127.0.0.1:8080 100
 The built-in layers are `PointsLayer`, `SkeletonLayer`, `FramesLayer`, `ArrowsLayer`, `GroundLayer`,
 `RigidMeshLayer`, `MeshLayer`, `SpheresLayer`, `SkinnedMeshLayer` and `CameraLayer`; `viewer.add_plot` adds a
 `PlotPanel` of time series to the GUI, and `ImagePanel(name, images)` puts an image per step there, such as the input
-video (`(T, H, W, 3)` uint8, or a callable `step -> image` with `nsteps=`). A new layer type subclasses `Layer` and implements `build` (create scene
+video (`(T, H, W, 3)` uint8, or a callable `step -> image` with `nsteps=`). `PointsLayer`, `SkeletonLayer`,
+`SpheresLayer` and `ArrowsLayer` take one colour, one per element `(N, 3)`, or one per step `(T, N, 3)`, such as a
+contact turning red or green. A new layer type subclasses `Layer` and implements `build` (create scene
 nodes once), `set_step` (move them to step `k`) and optionally `world_points` (positions that `record`'s camera fits).
 
 ## A group is the unit you toggle and remove

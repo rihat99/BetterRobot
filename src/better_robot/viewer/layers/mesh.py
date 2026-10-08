@@ -121,7 +121,10 @@ class RigidMeshLayer(Layer):
 
 
 class SpheresLayer(Layer):
-    """Spheres with ``centers (T, S, 3)`` and ``radii (S,)`` as one batched node (collision models)."""
+    """Spheres with ``centers (T, S, 3)`` and ``radii (S,)`` as one batched node (collision models, contacts).
+
+    ``colors`` is one RGB, ``(S, 3)``, or ``(T, S, 3)`` per step (a contact turning red or green).
+    """
 
     def __init__(
         self,
@@ -137,7 +140,10 @@ class SpheresLayer(Layer):
         self.radii = np.asarray(radii, dtype=np.float32)
         if self.radii.shape != (self.centers.shape[1],):
             raise ValueError("radii must have one entry per sphere")
-        self._colors = rgb_uint8(colors, (self.centers.shape[1],))
+        colors = np.asarray(colors, dtype=np.float32)
+        self._colors = rgb_uint8(colors, (self.centers.shape[1],)) if colors.ndim <= 2 else rgb_uint8(colors)
+        if self._colors.ndim == 3 and self._colors.shape != self.centers.shape:
+            raise ValueError(f"per-step colors must be (T, S, 3) = {self.centers.shape}, got {self._colors.shape}")
         self.opacity = opacity
         self._elements = self.centers.shape[1]
         self._spheres: Any = None
@@ -153,7 +159,7 @@ class SpheresLayer(Layer):
                 batched_wxyzs=np.tile(xyzw_to_wxyz(_IDENTITY_POSE[3:]), (n, 1)),
                 batched_positions=self.centers[0],
                 batched_scales=self.radii,
-                batched_colors=self._colors,
+                batched_colors=self._colors if self._colors.ndim == 2 else self._colors[0],
                 opacity=None if self.opacity >= 1.0 else self.opacity,
                 lod="off",
             )
@@ -168,5 +174,7 @@ class SpheresLayer(Layer):
 
     def set_step(self, step: int) -> None:
         self._spheres.batched_positions = self.centers[step]
+        if self._colors.ndim == 3:
+            self._spheres.batched_colors = self._colors[step]
         if self.valid is not None and self.valid.ndim == 2:
             self._spheres.batched_scales = self.radii * self.valid[step]  # radius 0 hides an invalid sphere

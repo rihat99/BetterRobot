@@ -15,7 +15,7 @@ class ArrowsLayer(Layer):
 
     Zero vectors draw nothing (their head scale is 0), so N stays fixed across frames; use
     them for inactive contacts (a ``(T, N)`` ``valid`` in ``Viewer.add`` does the same).
-    ``colors`` is one RGB or ``(N, 3)``.
+    ``colors`` is one RGB, ``(N, 3)``, or ``(T, N, 3)`` per step.
     """
 
     def __init__(
@@ -37,16 +37,20 @@ class ArrowsLayer(Layer):
         self.head_size = head_size
         self.line_width = line_width
         n_arrows = self._elements = self.origins.shape[1]
-        self._colors = rgb_uint8(colors, (n_arrows,))
+        colors = np.asarray(colors, dtype=np.float32)
+        self._colors = rgb_uint8(colors, (n_arrows,)) if colors.ndim <= 2 else rgb_uint8(colors)
+        if self._colors.ndim == 3 and self._colors.shape != self.origins.shape:
+            raise ValueError(f"per-step colors must be (T, N, 3) = {self.origins.shape}, got {self._colors.shape}")
         self._shafts: Any = None
         self._heads: Any = None
 
     def build(self, scene: Any, root: str) -> None:
+        colors = self._colors if self._colors.ndim == 2 else self._colors[0]
         self._shafts = self._track(
             scene.add_line_segments(
                 f"{root}/shafts",
                 self._segments(0),
-                colors=np.repeat(self._colors[:, None], 2, axis=1),
+                colors=np.repeat(colors[:, None], 2, axis=1),
                 line_width=self.line_width,
             )
         )
@@ -60,7 +64,7 @@ class ArrowsLayer(Layer):
                 batched_wxyzs=wxyzs,
                 batched_positions=positions,
                 batched_scales=scales,
-                batched_colors=self._colors,
+                batched_colors=colors,
                 lod="off",
                 cast_shadow=False,
             )
@@ -72,6 +76,9 @@ class ArrowsLayer(Layer):
         self._heads.batched_positions = positions
         self._heads.batched_wxyzs = wxyzs
         self._heads.batched_scales = scales
+        if self._colors.ndim == 3:
+            self._shafts.colors = np.repeat(self._colors[step][:, None], 2, axis=1)
+            self._heads.batched_colors = self._colors[step]
 
     def world_points(self, step: int) -> np.ndarray | None:
         """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""

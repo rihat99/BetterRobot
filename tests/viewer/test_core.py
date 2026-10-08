@@ -10,6 +10,7 @@ import pytest
 from better_robot.viewer._math import quat_z_to, unit_cone, unit_cylinder, unit_sphere
 from better_robot.viewer.layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer, SkeletonLayer
 from better_robot.viewer.layers.image import ImagePanel
+from better_robot.viewer.layers.mesh import SpheresLayer
 from better_robot.viewer.theme import Theme
 from better_robot.viewer.timeline import Timeline
 from better_robot.viewer.viewer import Viewer
@@ -159,6 +160,27 @@ def test_skeleton_bones_join_parent_and_child_and_arrows_hide_zero_vectors() -> 
     np.testing.assert_allclose(heads.props["batched_positions"][0], [0.0, 0.0, 1.9])
     np.testing.assert_allclose(heads.props["batched_scales"][1], 0.0)
     np.testing.assert_allclose(scene.nodes["/g/a/shafts"].props["args"][0][0, 1], [0.0, 0.0, 2.0])
+
+
+def test_spheres_and_arrows_take_per_step_colours() -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    colours = np.zeros((3, 2, 3))
+    colours[1, 0] = (1.0, 0.0, 0.0)  # contact 0 turns red at step 1
+    viewer.add(SpheresLayer("contacts", np.zeros((3, 2, 3)), np.full(2, 0.05), colors=colours))
+    viewer.add(ArrowsLayer("forces", np.zeros((3, 2, 3)), np.ones((3, 2, 3)), colors=colours))
+    spheres, heads = server.scene.nodes["/scene/contacts/spheres"], server.scene.nodes["/scene/forces/heads"]
+    shafts = server.scene.nodes["/scene/forces/shafts"]
+    viewer.show(1)
+    np.testing.assert_array_equal(spheres.batched_colors, [[255, 0, 0], [0, 0, 0]])
+    np.testing.assert_array_equal(heads.batched_colors, [[255, 0, 0], [0, 0, 0]])
+    np.testing.assert_array_equal(shafts.colors[0], [[255, 0, 0], [255, 0, 0]])
+    viewer.show(2)
+    assert not spheres.batched_colors.any()
+    static = viewer.add(SpheresLayer("static", np.zeros((3, 2, 3)), np.full(2, 0.05), colors=(0.0, 1.0, 0.0)))
+    assert static._colors.shape == (2, 3)  # one colour stays static: never rewritten per step
+    with pytest.raises(ValueError, match="per-step colors"):
+        ArrowsLayer("bad", np.zeros((3, 2, 3)), np.ones((3, 2, 3)), colors=np.zeros((2, 2, 3)))
 
 
 def test_quaternion_z_to_direction_and_closed_unit_meshes() -> None:
