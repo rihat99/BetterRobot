@@ -62,9 +62,17 @@ class Timeline:
     def extend(self, nsteps: int) -> None:
         """Grow to at least ``nsteps`` steps (layers added later may be longer)."""
         if nsteps > self.nsteps:
-            self.nsteps = nsteps
-            if self._gui_slider is not None:
-                self._gui_slider.max = nsteps - 1
+            self.resize(nsteps)
+
+    def resize(self, nsteps: int) -> None:
+        """Set the number of steps to ``nsteps`` (at least 1); a current step past the end moves to the new last step."""
+        if nsteps < 1:
+            raise ValueError("nsteps must be at least 1")
+        self.nsteps = nsteps
+        if self._gui_slider is not None:
+            self._gui_slider.max = nsteps - 1
+        if self._step > nsteps - 1:
+            self.step = nsteps - 1
 
     def play(self) -> None:
         """Start playback in a background thread; a no-op when already playing or ``nsteps == 1``.

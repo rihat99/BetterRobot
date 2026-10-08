@@ -135,3 +135,18 @@ def test_valid_per_element_hides_single_spheres_and_arrows() -> None:
     shafts = server.scene.nodes["/scene/forces/shafts"].points
     np.testing.assert_allclose(shafts[0, 1], shafts[0, 0])  # zero-length shaft
     assert len(viewer._points([1])) == 4  # camera fit: one sphere (2 corners) + one arrow (origin, tip)
+
+
+def test_remove_group_shrinks_the_timeline_to_the_remaining_layers() -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    viewer.add(_Recorder("long", 10), group="clip_a")
+    short = viewer.add(_Recorder("short", 4), group="clip_b")
+    viewer.show(8)
+    viewer.remove_group("clip_a")
+    assert viewer.timeline.nsteps == 4 and viewer.timeline.step == 3
+    assert server.gui.control("Step").max == 3 and short.shown[-1] == 3
+    viewer.remove_group("clip_b")
+    assert viewer.timeline.nsteps == 1 and viewer.timeline.step == 0
+    viewer.add(_Recorder("next", 6), group="clip_c")
+    assert viewer.timeline.nsteps == 6

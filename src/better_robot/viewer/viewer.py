@@ -151,7 +151,11 @@ class Viewer:
         return self.add(PlotPanel(name, series, labels=labels, fps=self.timeline.fps), group=group)  # type: ignore[return-value]
 
     def remove_group(self, group: str) -> None:
-        """Dispose every layer of ``group`` and remove its scene node and GUI folder."""
+        """Dispose every layer of ``group``, remove its scene node and GUI folder, and fit the timeline to the rest.
+
+        The timeline shrinks to the longest remaining layer (one step when none is left), so a clip browser can
+        swap one clip's group for the next.
+        """
         with self._lock:
             group_state = self._groups.pop(group)
             for entry in group_state.entries.values():
@@ -159,6 +163,7 @@ class Viewer:
                 if entry.checkbox is not None:
                     entry.checkbox.remove()
             group_state.node.remove()
+            self.timeline.resize(max((self._span(layer) for layer in self.layers), default=1))
 
     def set_visible(self, layer: Layer, visible: bool) -> None:
         """Hide a layer (skipped by ``show``) or show it, catching up to the current step."""

@@ -41,7 +41,8 @@ nodes once), `set_step` (move them to step `k`) and optionally `world_points` (p
 
 `viewer.add(layer, group="...")` puts the layer under the scene node `/<group>/<layer.name>`. The default group is
 `"scene"`. Each group gets a GUI folder with one visibility checkbox per layer, and `remove_group` tears the whole
-group down. Layer names must be unique inside a group.
+group down and shrinks the timeline to the longest remaining layer, so a clip browser can swap one clip's group for
+the next. Layer names must be unique inside a group.
 
 ```python
 viewer.add(PointsLayer("noise", 0.01 * np.random.randn(1, 200, 3)), group="debug")
@@ -53,7 +54,7 @@ clips side by side.
 
 ## One timeline drives every layer
 
-The `Viewer` owns one `Timeline` of integer steps at `fps`. Its length grows to the longest layer added; a layer
+The `Viewer` owns one `Timeline` of integer steps at `fps`. Its length follows the longest layer; a layer
 shorter than the timeline holds its last step. `show(k)` is the only place steps reach the layers: every visible
 layer gets its sample for step `k` inside one atomic server update, and layers already on that sample are skipped.
 `show()` with no argument re-pushes the current step, which is what you call after editing arrays in place.
