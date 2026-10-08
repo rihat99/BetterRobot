@@ -14,7 +14,9 @@ BR dev: 6ec3134 (contracts, trim, viewer batch 1), 2f7c6e2 (polish, joint shapes
 keyword-only, ids, sugar). BH dev: e898fd5, 83cc96e, 81ca789 (studio rebuilt + live-verified, docs/studio.md).
 Owner saw the viewer demo ("looks fine"); owner answered intake + 3 decision rounds (see PLAN/p0_synthesis).
 
-## Status: DONE (2026-10-08 ~02:30 Dubai)
+## Status: DONE (2026-10-08 11:00 Dubai)
+Follow-up after the owner's look: BR 23070f4 (FramesLayer draws nothing for zero frames — fixed the white HumanStudio
+page). All servers stopped. Owner has not yet reviewed the docs/studio in depth.
 All phases committed: BR dev 6ec3134, 2f7c6e2, 31a37ed, 171509d, 2892301; BH dev e898fd5, 83cc96e, 81ca789, bad0de3.
 REPORT.md written (gates, decisions, review fixes, open items). Index line dropped. Nothing pushed or merged.
 Open items for the owner are in REPORT.md "Left open".
