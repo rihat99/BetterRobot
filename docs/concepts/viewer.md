@@ -34,7 +34,8 @@ http://127.0.0.1:8080 100
 
 The built-in layers are `PointsLayer`, `SkeletonLayer`, `FramesLayer`, `ArrowsLayer`, `GroundLayer`,
 `RigidMeshLayer`, `MeshLayer`, `SpheresLayer`, `SkinnedMeshLayer` and `CameraLayer`; `viewer.add_plot` adds a
-`PlotPanel` of time series to the GUI. A new layer type subclasses `Layer` and implements `build` (create scene
+`PlotPanel` of time series to the GUI, and `ImagePanel(name, images)` puts an image per step there, such as the input
+video (`(T, H, W, 3)` uint8, or a callable `step -> image` with `nsteps=`). A new layer type subclasses `Layer` and implements `build` (create scene
 nodes once), `set_step` (move them to step `k`) and optionally `world_points` (positions that `record`'s camera fits).
 
 ## A group is the unit you toggle and remove
@@ -191,7 +192,7 @@ forward the port over SSH to view it remotely.
 ## Lazy inputs
 
 The convention for large per-step data is a callable `step -> array` evaluated only when that step is shown.
-Today `CameraLayer(image=...)` accepts it (decoding video frames on demand); the other layers take eager
+Today `CameraLayer(image=...)` and `ImagePanel` accept it (decoding video frames on demand); the other layers take eager
 `(T, ...)` arrays, because they need every sample up front for `nsteps` and for `world_points`.
 
 ## Limits

@@ -9,6 +9,7 @@ import pytest
 
 from better_robot.viewer._math import quat_z_to, unit_cone, unit_cylinder, unit_sphere
 from better_robot.viewer.layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer, SkeletonLayer
+from better_robot.viewer.layers.image import ImagePanel
 from better_robot.viewer.theme import Theme
 from better_robot.viewer.timeline import Timeline
 from better_robot.viewer.viewer import Viewer
@@ -188,6 +189,27 @@ def test_plot_panel_lives_in_the_gui_and_marks_the_current_frame() -> None:
     assert panel.nsteps == 20 and viewer.timeline.nsteps == 20
     viewer.remove_group("plots")
     assert plot.removed
+
+
+def test_image_panel_shows_the_image_of_the_current_step_eager_or_lazy() -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    frames = np.arange(4 * 2 * 3 * 3, dtype=np.uint8).reshape(4, 2, 3, 3)
+    viewer.add(ImagePanel("video", frames), group="video")
+    asked = []
+    lazy = ImagePanel("lazy", lambda step: asked.append(step) or frames[step], nsteps=4)
+    viewer.add(lazy, group="video", times=np.arange(4) / 10.0)  # a 10 Hz video on the 30 fps timeline
+    eager_image, lazy_image = (control for control in server.gui.controls if control.kind == "image")
+    viewer.show(3)  # 0.1 s: the lazy panel's sample 1
+    np.testing.assert_array_equal(eager_image.image, frames[3])
+    np.testing.assert_array_equal(lazy_image.image, frames[1])
+    assert asked == [0, 0, 1]  # built at sample 0, pushed at 0, then only the shown sample is decoded
+    viewer.set_visible(lazy, False)
+    assert lazy_image.visible is False
+    with pytest.raises(ValueError, match="nsteps"):
+        ImagePanel("no_length", lambda step: frames[0])
+    viewer.remove_group("video")
+    assert eager_image.removed and lazy_image.removed
 
 
 def test_ground_plane_follows_the_theme_up_axis_unless_given() -> None:

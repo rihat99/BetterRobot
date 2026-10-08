@@ -27,6 +27,7 @@ from __future__ import annotations
 
 from .layer import Layer
 from .layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer, SkeletonLayer
+from .layers.image import ImagePanel
 from .layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from .layers.plot import PlotPanel
 from .layers.camera import CameraLayer
@@ -43,6 +44,7 @@ __all__ = [
     "CameraLayer",
     "FramesLayer",
     "GroundLayer",
+    "ImagePanel",
     "Layer",
     "MeshLayer",
     "MeshSpec",
