@@ -5,6 +5,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- Optim: a term may return `(value, info)`; `Problem.evaluate(x)` gives the loss, per-term losses and the
+  `info` dicts from one evaluation. Every solver writes `State.extra["terms"]` (`TorchOptim` also
+  `extra["info"]`), so `Phase.on_step` logs per-term losses without a second forward.
 - Breaking: `terms.frame_pose`, `terms.frame_position` and `terms.self_clearance` take `frame`, `target` and
   `pairs` keyword-only, like the kinematics functions. Joint ids accept `int | str` everywhere a frame id does;
   unknown names raise `UnknownNameError` (a `KeyError`). `HumanState.vertices`/`frame_poses` are properties

@@ -117,7 +117,8 @@ class Problem:
     """A batch of independent optimization problems over named tensors.
 
     Register terms with ``residual`` (least squares) or ``scalar`` (any ``(B,)`` loss) and shared
-    intermediates with ``cached``; then minimize with ``solve`` or ``run``.
+    intermediates with ``cached``; then minimize with ``solve`` or ``run``. A term may return
+    ``(value, info)`` to report diagnostics beside its value (see ``evaluate``).
 
     - ``variables``: initial values, each ``(B, *event)`` with the same ``B``.
     - ``manifolds``: per-variable ``Manifold``; missing entries are ``Euclidean``.
@@ -262,23 +263,43 @@ class Problem:
 
     # ── evaluation ──────────────────────────────────────────────────────
 
+    def evaluate(
+        self, x: Values | None = None
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor], dict[str, dict[str, Any]]]:
+        """Total loss, the loss of every active term and the terms' ``info``, from one evaluation.
+
+        A term may return ``(value, info)`` instead of ``value``: ``info`` is a dict of diagnostics (counts,
+        inlier ratios) kept beside the loss and never differentiated; its tensors are detached.
+
+        Returns
+        -------
+        loss : Tensor, shape (B,)
+            Differentiable w.r.t. ``x``; the sum of ``terms`` in registration order.
+        terms : dict[str, Tensor]
+            ``{name: (B,)}`` weighted loss of every active term.
+        info : dict[str, dict]
+            ``{name: info}`` for the active terms that returned one.
+        """
+        evaluation = Evaluation(self, x if x is not None else self.variables)
+        terms: dict[str, torch.Tensor] = {}
+        info: dict[str, dict[str, Any]] = {}
+        for term in self._active():
+            value = self._weighted(term, evaluation, info)
+            terms[term.name] = value if term.kind == "scalar" else self._residual_loss(term, value)
+        return sum(terms.values(), start=self._zeros()), terms, info
+
     def losses(self, x: Values | None = None) -> dict[str, torch.Tensor]:
         """Loss of every active term. Returns ``{name: (B,)}``."""
-        evaluation = Evaluation(self, x if x is not None else self.variables)
-        out = {}
-        for term in self._active():
-            value = self._weighted(term, evaluation)
-            out[term.name] = value if term.kind == "scalar" else self._residual_loss(term, value)
-        return out
+        return self.evaluate(x)[1]
 
     def loss(self, x: Values | None = None) -> torch.Tensor:
         """Total loss per batch element, differentiable w.r.t. ``x``. Returns ``(B,)``."""
-        return sum(self.losses(x).values(), start=self._zeros())
+        return self.evaluate(x)[0]
 
     def residuals(self, x: Values | None = None) -> dict[str, torch.Tensor]:
         """Unweighted output of every active residual term."""
         evaluation = Evaluation(self, x if x is not None else self.variables)
-        return {t.name: t.fn(*evaluation.args(t.reads)) for t in self._active() if t.kind == "residual"}
+        return {t.name: self._output(t, evaluation) for t in self._active() if t.kind == "residual"}
 
     def linearize(self, x: Values | None = None) -> tuple[Normal | BandedNormal | ArrowNormal, torch.Tensor]:
         """Gauss-Newton normal equations and the loss at ``x``. Returns ``(Normal, (B,))``.
@@ -441,9 +462,21 @@ class Problem:
         first = next(iter(self.variables.values()))
         return first.new_zeros(first.shape[0])
 
-    def _weighted(self, term: Term, evaluation: Evaluation) -> torch.Tensor:
-        """Scalar term times its weight, or residual times the square root of its weight."""
+    @staticmethod
+    def _output(term: Term, evaluation: Evaluation, info: dict[str, dict[str, Any]] | None = None) -> torch.Tensor:
+        """Value of ``term``; the ``info`` dict of a term returning ``(value, info)`` goes to ``info[term.name]``."""
         value = term.fn(*evaluation.args(term.reads))
+        if isinstance(value, tuple):
+            value, extra = value
+            if info is not None:
+                info[term.name] = {key: v.detach() if isinstance(v, torch.Tensor) else v for key, v in extra.items()}
+        return value
+
+    def _weighted(
+        self, term: Term, evaluation: Evaluation, info: dict[str, dict[str, Any]] | None = None
+    ) -> torch.Tensor:
+        """Scalar term times its weight, or residual times the square root of its weight."""
+        value = self._output(term, evaluation, info)
         weight = self.weights.get(term.name, term.weight)
         if isinstance(weight, torch.Tensor) and weight.ndim not in (0, value.ndim - 1, value.ndim):
             raise ValueError(

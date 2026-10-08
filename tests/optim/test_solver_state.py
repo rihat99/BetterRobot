@@ -92,3 +92,53 @@ def test_solve_constrained_rejects_zero_outer_rounds() -> None:
     problem = _rosenbrock()
     with pytest.raises(ValueError, match="outer"):
         optim.solve_constrained(problem, optim.LevenbergMarquardt(), equalities=["anchor"], outer=0)
+
+
+def _counted_problem(*, with_info: bool) -> tuple[optim.Problem, list[int]]:
+    """Rosenbrock with a scalar term that may return ``(value, info)``; ``calls`` counts forward passes."""
+    problem, calls = _rosenbrock(), []
+
+    @problem.cached
+    def square(x):
+        calls.append(1)
+        return x**2
+
+    def small(x, square):
+        value = 1e-2 * square.sum(-1)
+        return (value, {"largest": x.abs().amax(-1), "label": "x"}) if with_info else value
+
+    problem.scalar("small", small)
+    return problem, calls
+
+
+def test_term_info_and_per_term_losses_come_from_the_step_evaluation() -> None:
+    problem, calls = _counted_problem(with_info=True)
+    seen = []
+
+    def log(view, state):
+        seen.append((len(calls), state.extra["terms"], state.extra["info"], state.loss))
+
+    adam = optim.TorchOptim(torch.optim.Adam, lr=1e-2)
+    result = optim.run(problem, [optim.Phase(adam, iters=3, stop_every=0, on_step=log)])
+    assert [count for count, *_ in seen] == [1, 2, 3]  # one forward per step: logging re-evaluates nothing
+    _, terms, info, loss = seen[-1]
+    assert set(terms) == {"valley", "anchor", "small"} and terms["small"].shape == (2,)
+    torch.testing.assert_close(sum(terms.values()), loss)
+    assert info["small"]["label"] == "x" and not info["small"]["largest"].requires_grad
+    plain, _ = _counted_problem(with_info=False)
+    reference = optim.run(plain, [optim.Phase(optim.TorchOptim(torch.optim.Adam, lr=1e-2), iters=3, stop_every=0)])
+    torch.testing.assert_close(result["x"], reference["x"], atol=0, rtol=0)  # info never enters the loss
+    total, per_term, term_info = problem.evaluate(result.x)
+    torch.testing.assert_close(total, problem.loss(result.x))
+    assert set(per_term) == set(terms) and set(term_info) == {"small"}
+
+
+@pytest.mark.parametrize("solver", [optim.LevenbergMarquardt(), optim.GaussNewton(damping=1e-3), optim.LBFGS()])
+def test_second_order_solvers_report_per_term_losses_at_the_accepted_point(solver) -> None:
+    problem, _ = _counted_problem(with_info=True)
+    result = optim.solve(problem, solver, iters=4)
+    terms = result.state.extra["terms"]
+    expected = problem.losses(result.state.x)
+    assert set(terms) == set(expected)
+    for name, value in expected.items():
+        torch.testing.assert_close(terms[name], value.detach())

@@ -59,7 +59,9 @@ print({name: tuple(value.shape) for name, value in problem.losses().items()})  #
 
 `reads=` overrides the parameter names when the function takes `*args` or its names clash.
 A term never touches the solver: it maps tensors to tensors, so the same function serves autograd,
-Gauss-Newton and your own loop.
+Gauss-Newton and your own loop. A term may also return `(value, info)`, where `info` is a dict of
+diagnostics (a contact count, an inlier ratio) that is detached and never enters the loss;
+`problem.evaluate(x)` returns the total loss, the per-term losses and these `info` dicts from one evaluation.
 
 ### Analytic Jacobians and `TermFn`
 
@@ -124,7 +126,9 @@ A solver implements the `Solver` protocol: `init(problem, x) -> State` and
 `step(problem, state) -> State`. After each step a solver writes fixed diagnostic keys into `State.extra`,
 each `(B,)`: `grad_norm`, `step_norm` and `accepted` (LM, Gauss-Newton, L-BFGS) and `damping` (LM); the
 `State` docstring is the reference for the key set. `State` holds `x`, the `(B,)` `loss`, the `(B,)` bool `done`, the step
-count `it`, and `extra` for solver-owned values (damping, moments).
+count `it`, and `extra` for solver-owned values (damping, moments). Every solver also writes
+`extra["terms"]`, the detached `(B,)` loss of each active term from the evaluation `loss` comes from, and
+`TorchOptim` writes `extra["info"]`, so a `Phase.on_step` logger needs no second forward.
 
 | Solver | Uses | Notes |
 |---|---|---|

@@ -81,7 +81,7 @@ A `Phase` is a solver, an iteration count, and overrides. Everything not overrid
 | `weights` | replaces term weights by name for this phase; `0.0` switches a term off |
 | `free` | per-variable boolean mask over the flattened tangent; `False` freezes a coordinate |
 | `on_start(problem, x)` | runs first; may return new variables or rewrite the phase's copy of `problem.data` |
-| `on_step(problem, state)` | runs after every step, for logging |
+| `on_step(problem, state)` | runs after every step, for logging; `state.extra["terms"]` holds each term's loss |
 | `stop_every` | how often the driver checks whether every batch element has converged; `0` runs exactly `iters` |
 
 ```python

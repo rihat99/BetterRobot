@@ -28,7 +28,9 @@ Optimization layer over named tensors. It imports only torch. Robot terms live i
 - `window=` is trusted; `check_jacobian` is the test for it and for every analytic `jac`.
 - After `step`, `State.extra` carries the diagnostic keys named in `solvers.DIAGNOSTICS` (key set in the
   `State` docstring); `run` stacks them into `Result.diagnostics`. A solver's `warm_keys` are the `extra`
-  entries a warm start (`state=`) keeps; everything else is recomputed by `init`.
+  entries a warm start (`state=`) keeps; everything else is recomputed by `init`. Every solver also writes
+  `extra["terms"]` (per-term losses of the evaluation `State.loss` comes from; `TorchOptim` adds `extra["info"]`,
+  the dicts of terms returning `(value, info)`), kept as device tensors: no host sync.
 - A `time=` problem that mixes windowed terms with an unwindowed term reading a time variable warns and
   goes dense. Normal equations are built through a sink (`add`/`finish`); a new structure is a new sink.
 - `Problem.with_` returns a view with its own `terms`, `data`, `weights`; never mutate the parent.

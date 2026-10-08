@@ -19,9 +19,10 @@ class Phase:
     tangent coordinates (see ``Problem.with_``). ``on_start(problem, x)`` runs before
     the first step; it may return replacement variables and may write ``problem.data`` (the
     phase's own copy) to refresh what terms read, such as contact labels.
-    ``on_step(problem, state)`` runs after every step, for logging; ``problem.losses(state.x)``
-    gives the loss of every term. Every ``stop_every`` iterations the driver stops early if
-    all problems are done; 0 runs exactly ``iters`` steps.
+    ``on_step(problem, state)`` runs after every step, for logging; ``state.extra["terms"]`` holds
+    the loss of every term (and, under ``TorchOptim``, ``state.extra["info"]`` the terms' info dicts)
+    from the step's own evaluation, so logging costs no second forward. Every ``stop_every``
+    iterations the driver stops early if all problems are done; 0 runs exactly ``iters`` steps.
     """
 
     solver: Solver
