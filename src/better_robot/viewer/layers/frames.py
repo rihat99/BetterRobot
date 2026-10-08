@@ -23,6 +23,10 @@ class FramesLayer(Layer):
         self._axes: Any = None
 
     def build(self, scene: Any, root: str) -> None:
+        # viser's batched-axes node crashes the client when it holds zero instances; an empty layer draws nothing.
+        if self.poses.shape[1] == 0:
+            self._axes = None
+            return
         self._axes = self._track(
             scene.add_batched_axes(
                 f"{root}/axes",
@@ -38,5 +42,7 @@ class FramesLayer(Layer):
         return self.poses[step, :, :3]
 
     def set_step(self, step: int) -> None:
+        if self._axes is None:
+            return
         self._axes.batched_positions = self.poses[step, :, :3]
         self._axes.batched_wxyzs = xyzw_to_wxyz(self.poses[step, :, 3:])

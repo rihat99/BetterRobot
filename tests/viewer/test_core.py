@@ -124,6 +124,12 @@ def test_frames_points_and_ground_layers_write_the_expected_arrays() -> None:
     np.testing.assert_array_equal(node.batched_positions[:, 0], 1.0)
     np.testing.assert_array_equal(node.batched_wxyzs, np.tile([1.0, 0.0, 0.0, 0.0], (3, 1)))
 
+    # Zero frames: viser's batched-axes client crashes on an empty instance list, so nothing is added.
+    empty = FramesLayer("none", np.zeros((1, 0, 7), dtype=np.float32))
+    empty.build(scene, "/g/none")
+    empty.set_step(0)
+    assert "/g/none/axes" not in scene.nodes
+
     points = PointsLayer("pts", np.ones((4, 3)), colors=(1.0, 0.0, 0.0))
     assert points.nsteps == 1
     points.build(scene, "/g/pts")
