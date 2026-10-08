@@ -11,7 +11,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Viewer: `Viewer.add(..., valid=)` hides a layer on invalid samples (`(T,)`) or single spheres/arrows (`(T, N)`).
   `remove_group` shrinks the timeline to the remaining layers (`Timeline.resize`). `ImagePanel`: a sidebar image
   per step from `(T, H, W, 3)` or a lazy `step -> image`. `SpheresLayer` and `ArrowsLayer` take per-step
-  colours `(T, N, 3)`.
+  colours `(T, N, 3)`. `GroundLayer(origin=, normal=, fill=, fill_color=)` draws a tilted, filled floor.
 - Breaking: `terms.frame_pose`, `terms.frame_position` and `terms.self_clearance` take `frame`, `target` and
   `pairs` keyword-only, like the kinematics functions. Joint ids accept `int | str` everywhere a frame id does;
   unknown names raise `UnknownNameError` (a `KeyError`). `HumanState.vertices`/`frame_poses` are properties

@@ -174,7 +174,9 @@ one-time setup.
 `Viewer(theme=...)` takes a `Theme`: GUI and scene colours, lights and the `up` axis. `LIGHT` (the default) and
 `DARK` are built in. `Theme(up="+y")` is for data in a y-up convention, such as SMPL bodies; it sets the up
 direction of the browser scene and of the `record` camera, and a `GroundLayer` added without an explicit
-`plane` lies in the plane perpendicular to it (`"xz"` for `+y`).
+`plane` lies in the plane perpendicular to it (`"xz"` for `+y`). `GroundLayer(origin=p, normal=n, fill=0.3)`
+instead tilts the grid onto the plane through `p` with normal `n`, such as a fitted floor, over a translucent fill
+(`fill` is its opacity; 0, the default, draws lines only).
 
 ```python
 from better_robot.viewer import DARK, Theme

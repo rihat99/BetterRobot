@@ -7,7 +7,7 @@ import time
 import numpy as np
 import pytest
 
-from better_robot.viewer._math import quat_z_to, unit_cone, unit_cylinder, unit_sphere
+from better_robot.viewer._math import quat_z_to, rotate, unit_cone, unit_cylinder, unit_sphere
 from better_robot.viewer.layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer, SkeletonLayer
 from better_robot.viewer.layers.image import ImagePanel
 from better_robot.viewer.layers.mesh import SpheresLayer
@@ -239,6 +239,21 @@ def test_ground_plane_follows_the_theme_up_axis_unless_given() -> None:
     assert viewer.add(GroundLayer()).plane == "xz"
     assert viewer.add(GroundLayer("explicit", plane="xy")).plane == "xy"
     assert GroundLayer().world_points(0) is None  # the grid never drives Viewer.record's camera fit
+
+
+def test_ground_tilts_to_a_normal_through_an_origin_and_fills() -> None:
+    scene = FakeServer().scene
+    normal = np.array([0.0, 1.0, 1.0]) / np.sqrt(2.0)
+    GroundLayer(origin=(1.0, 2.0, 3.0), normal=(0.0, 1.0, 1.0), height=0.5, fill=0.4).build(scene, "/g/floor")
+    grid = scene.nodes["/g/floor/grid"].props
+    w, x, y, z = grid["wxyz"]
+    np.testing.assert_allclose(rotate(np.array([x, y, z, w]), np.array([0.0, 0.0, 1.0])), normal, atol=1e-6)
+    np.testing.assert_allclose(grid["position"], np.array([1.0, 2.0, 3.0]) + 0.5 * normal)
+    assert grid["plane"] == "xy" and grid["plane_opacity"] == 0.4
+    GroundLayer(plane="xz").build(scene, "/g/flat")
+    assert scene.nodes["/g/flat/grid"].props["plane_opacity"] == 0.0  # lines only by default
+    with pytest.raises(ValueError, match="normal"):
+        GroundLayer(normal=(0.0, 0.0, 0.0))
 
 
 def test_timeline_controls_appear_only_once_a_layer_has_several_steps() -> None:
