@@ -7,7 +7,7 @@ and which call to reach for: `show`, `play`, `save` or `record`.
 It lives in `better_robot.viewer`, is built on [viser](https://viser.studio), and is the top of the import stack:
 nothing else in the library imports it. viser is imported only when you create a `Viewer`.
 
-<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../clips/viewer_layers.png" width="960"><source src="../clips/viewer_layers.webm" type="video/webm"></video><figcaption>One scene built up layer by layer: mesh, then skeleton, frames and ground, each switched on with <code>set_visible</code>.</figcaption></figure>
+<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/viewer_layers.png" width="960"><source src="../../clips/viewer_layers.webm" type="video/webm"></video><figcaption>One scene built up layer by layer: mesh, then skeleton, frames and ground, each switched on with <code>set_visible</code>.</figcaption></figure>
 
 ## A layer holds a whole clip
 

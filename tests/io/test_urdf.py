@@ -147,3 +147,19 @@ def test_load_dtype_and_device_kwargs():
     model = load(_get_panda_urdf(), dtype=torch.float64, device=torch.device("cpu"))
     assert model.values.joint_placements.dtype == torch.float64
     assert model.values.joint_placements.device.type == "cpu"
+
+
+def test_inertia_is_rotated_from_inertial_frame_into_link_frame(tmp_path):
+    """An ``<inertial><origin rpy=...>`` rotates the inertia tensor (URDF spec, Pinocchio)."""
+    pin = pytest.importorskip("pinocchio")
+    urdf = tmp_path / "r.urdf"
+    urdf.write_text(
+        '<robot name="r"><link name="base"/>'
+        '<link name="l1"><inertial><origin xyz="0.1 0.2 0.3" rpy="0.3 -0.5 1.1"/><mass value="2"/>'
+        '<inertia ixx="1" ixy="0.1" ixz="0" iyy="2" iyz="0" izz="3"/></inertial></link>'
+        '<joint name="j1" type="revolute"><parent link="base"/><child link="l1"/><axis xyz="0 0 1"/>'
+        '<limit lower="-1" upper="1" effort="1" velocity="1"/></joint></robot>'
+    )
+    body = next(b for b in parse_urdf(urdf).bodies if b.name == "l1")
+    expected = torch.tensor(pin.buildModelFromUrdf(str(urdf)).inertias[1].inertia)
+    torch.testing.assert_close(body.inertia.to(torch.float64), expected)

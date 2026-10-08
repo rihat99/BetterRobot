@@ -368,3 +368,25 @@ def test_cached_returns_handle_and_unknown_cached_read_fails_at_registration():
     problem.residual("fit", lambda doubled: doubled, reads=(str(ref),))
     with pytest.raises(KeyError, match="tripled"):
         problem.residual("bad", lambda tripled: tripled, reads=("tripled",))
+
+
+@pytest.mark.parametrize(
+    "solver",
+    [optim.LevenbergMarquardt(), optim.GaussNewton(), optim.LBFGS(), optim.TorchOptim(torch.optim.Adam, lr=0.1)],
+)
+def test_solvers_accept_an_empty_batch(solver):
+    problem = optim.Problem({"x": torch.zeros(0, 2)}, data={"goal": torch.zeros(0, 2)})
+    problem.residual("fit", lambda x, goal: x - goal)
+    result = optim.solve(problem, solver, iters=2)
+    assert result.x["x"].shape == (0, 2) and result.loss.shape == (0,)
+
+
+def test_scalar_term_that_reads_only_data_linearizes():
+    # A constant scalar term adds to the loss but not to the gradient; linearize used to raise.
+    problem = optim.Problem({"x": torch.zeros(2, 3)}, data={"a": torch.ones(2, 3)})
+    problem.residual("fit", lambda x: x - 1.0)
+    problem.scalar("const", lambda a: (a**2).sum(-1))
+    normal, loss = problem.linearize()
+    expected_loss, expected_g = problem.gradient()
+    torch.testing.assert_close(loss, expected_loss)
+    torch.testing.assert_close(normal.g, expected_g)

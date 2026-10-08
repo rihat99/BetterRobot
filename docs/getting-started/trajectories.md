@@ -83,7 +83,7 @@ print(f"peak joint speed {float(((q[1:] - q[:-1]) / DT).abs().max()):.2f} rad/s"
 peak joint speed 0.86 rad/s
 ```
 
-<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../clips/panda_trajectory.png" width="960"><source src="../clips/panda_trajectory.webm" type="video/webm"></video>
+<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/panda_trajectory.png" width="960"><source src="../../clips/panda_trajectory.webm" type="video/webm"></video>
 <figcaption>The solved 20-knot trajectory played back in the viewer: a smooth sweep from the ready pose to the hand target.</figcaption></figure>
 
 <figure markdown>

@@ -4,7 +4,7 @@ import pytest
 import torch
 
 import better_robot as br
-from better_robot import kinematics
+from better_robot import dynamics, kinematics
 from better_robot.lie import so3
 
 
@@ -102,3 +102,15 @@ def test_state_review_regressions():
         model.values.joint_placements[-1, 0] += 1.0
     moved = kinematics.forward_kinematics_state(model, q)
     torch.testing.assert_close(moved.joint_translation[:, -1, 0], state.joint_translation[:, -1, 0].detach() + 1.0)
+
+
+def test_empty_batch_flows_through_fk_and_dynamics():
+    """A zero-size batch must not hit ``reshape(0, -1)``, which cannot infer the trailing size."""
+    panda_description = pytest.importorskip("robot_descriptions.panda_description")
+
+    model = br.load(panda_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
+    state = br.forward_kinematics_state(model, model.q_neutral.expand(0, -1))
+    v = torch.zeros(0, model.nv, dtype=torch.float64)
+    assert state.frame_pose.shape == (0, model.nframes, 7)
+    assert dynamics.forward_dynamics(model, state, v=v, tau=v).shape == (0, model.nv)
+    assert dynamics.inverse_dynamics(model, state, v=v, a=v).shape == (0, model.nv)

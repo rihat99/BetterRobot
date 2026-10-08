@@ -5,7 +5,7 @@ and Levenberg-Marquardt finishes on the banded system. After this guide you can 
 noisy marker tracks with `optim.Phase` and `optim.run`: you build one problem and change only weights, free
 coordinates and the solver between phases.
 
-<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../clips/g1_clip_fit.png" width="960"><source src="../clips/g1_clip_fit.webm" type="video/webm"></video>
+<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/g1_clip_fit.png" width="960"><source src="../../clips/g1_clip_fit.webm" type="video/webm"></video>
 <figcaption>A Unitree G1 clip fitted to noisy marker tracks with three phases.</figcaption></figure>
 
 !!! note "Before you start"

@@ -123,7 +123,7 @@ $d(q_t) \ge \text{margin}$, written as the inequality $\text{margin} - d(q_t) \l
 path around it. The example solves it twice, once with the clearance as a weighted hinge penalty and once as a hard
 inequality, so you can compare them.
 
-<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../clips/obstacle_trajectory.png" width="960"><source src="../clips/obstacle_trajectory.webm" type="video/webm"></video>
+<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/obstacle_trajectory.png" width="960"><source src="../../clips/obstacle_trajectory.webm" type="video/webm"></video>
 <figcaption>The Panda's trajectory around a spherical obstacle (examples/06).</figcaption></figure>
 
 ```bash

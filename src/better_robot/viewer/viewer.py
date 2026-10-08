@@ -55,6 +55,8 @@ class Viewer:
             import viser  # noqa: PLC0415 - optional dependency, imported at the boundary
 
             server = viser.ViserServer(host=host, port=port, verbose=False)
+            # viser moves to the next free port when ``port`` is taken; ``url`` (and record) must follow it.
+            port = server.get_port()
         self.server = server
         self.host, self.port = host, port
         self.theme = theme or LIGHT

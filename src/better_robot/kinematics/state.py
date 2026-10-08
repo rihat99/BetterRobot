@@ -170,7 +170,7 @@ def forward_kinematics_state(model: Model, q: torch.Tensor, *, check_quaternion_
         placements = placements.broadcast_to(*batch_shape, nj, 4, 4).reshape(count, nj, 4, 4)
     if frames.ndim > 3:
         frames = frames.broadcast_to(*batch_shape, nf, 4, 4).reshape(count, nf, 4, 4)
-    world, _ = lean_core(structure, q_full.reshape(count, -1), placements)
+    world, _ = lean_core(structure, q_full.reshape(count, structure.nq_full), placements)
     parents = world.index_select(1, structure.frame_parent_joints.to(torch.int64))
     # einsum is several times faster than a broadcast matmul on CPU when one side has no batch axis.
     frame_world = torch.einsum("nfab,fbc->nfac", parents, frames) if frames.ndim == 3 else parents @ frames

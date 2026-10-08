@@ -29,7 +29,7 @@ class RobotManifold:
         self.model = model
 
     def tangent_dim(self, x: torch.Tensor) -> int:
-        return x[0].numel() // self.model.nq * self.model.nv
+        return x.shape[1:].numel() // self.model.nq * self.model.nv
 
     def retract(self, x: torch.Tensor, delta: torch.Tensor) -> torch.Tensor:
         return self.model.integrate(x, delta.reshape(*x.shape[:-1], self.model.nv))

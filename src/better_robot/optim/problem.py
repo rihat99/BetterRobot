@@ -323,8 +323,11 @@ class Problem:
                     continue
                 rows = reweighted.detach()
                 _accumulate(sink, g, pieces, rows.flatten(2) if term.window is not None else rows.flatten(1)[:, None])
-            if scalar_total is not None:
-                g += torch.autograd.grad(scalar_total.sum(), delta, retain_graph=True)[0]
+            # A scalar term may read only data or cached values that do not depend on the variables.
+            if scalar_total is not None and scalar_total.requires_grad:
+                g += torch.autograd.grad(
+                    scalar_total.sum(), delta, retain_graph=True, allow_unused=True, materialize_grads=True
+                )[0]
             if dense_rows:
                 stacked = torch.cat(dense_rows, dim=1)  # (B, M)
                 # Batch elements are independent, so row i of every element comes from one backward pass.
@@ -540,7 +543,9 @@ class Problem:
                 pieces.append(_Piece(columns, block * scale))
             else:
                 columns = torch.arange(span.start, span.stop, device=block.device)[None]
-                pieces.append(_Piece(columns, block.reshape(batch, 1, -1, span.stop - span.start) * scale))
+                # Explicit row count: a -1 is ambiguous when the batch is empty.
+                rows = weighted.shape[1:].numel()
+                pieces.append(_Piece(columns, block.reshape(batch, 1, rows, span.stop - span.start) * scale))
         return pieces
 
     def _windowed_pieces(self, term: Term, reweighted: torch.Tensor, delta: torch.Tensor) -> list[_Piece]:

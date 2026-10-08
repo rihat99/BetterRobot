@@ -3,7 +3,7 @@
 You learn the two rules that make BetterRobot fast: batch axes lead, event axes trail; and the model and
 your tensors share one device and dtype. You run a batched query on CPU and see the CUDA version.
 
-<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../clips/batched_ik.png" width="960"><source src="../clips/batched_ik.webm" type="video/webm"></video>
+<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/batched_ik.png" width="960"><source src="../../clips/batched_ik.webm" type="video/webm"></video>
 <figcaption>One <code>solve_ik</code> call on a batch of targets: every Panda in the grid is one row of the same <code>q</code> tensor.</figcaption></figure>
 
 ## Batch axes lead, event axes trail

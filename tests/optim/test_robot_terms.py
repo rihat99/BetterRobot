@@ -50,3 +50,11 @@ def test_result_getitem_and_ik_problem_state_handle(panda):
     assert result["q"] is result.x["q"]
     problem = terms.ik_problem(panda, {FRAME: goal}, q0=_random_q(panda, 4, 3))
     assert problem.terms[f"pose/{FRAME}"].reads[0] == "state"
+
+
+def test_robot_manifold_accepts_an_empty_batch(panda):
+    # tangent_dim used to index x[0], which raises IndexError for B == 0.
+    problem = optim.Problem({"q": torch.zeros(0, panda.nq, dtype=torch.float64)}, manifolds={"q": terms.RobotManifold(panda)})
+    problem.residual("rest", terms.rest(panda, torch.zeros(panda.nq, dtype=torch.float64)))
+    result = optim.solve(problem, optim.LevenbergMarquardt(), iters=2)
+    assert result.x["q"].shape == (0, panda.nq) and result.loss.shape == (0,)

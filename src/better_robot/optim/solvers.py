@@ -271,10 +271,10 @@ class TorchOptim:
             gradient = params[name].grad
             if gradient is None:
                 continue
-            if gradient[0].numel() != mask.shape[-1]:
+            if gradient.shape[1:].numel() != mask.shape[-1]:
                 raise ValueError(
                     f"free mask of {name!r} is in tangent coordinates ({mask.shape[-1]}) but the variable has "
-                    f"{gradient[0].numel()} ambient coordinates; use a second-order solver for this phase"
+                    f"{gradient.shape[1:].numel()} ambient coordinates; use a second-order solver for this phase"
                 )
             gradient.mul_(
                 mask.to(gradient.dtype).reshape(-1, *gradient.shape[1:])

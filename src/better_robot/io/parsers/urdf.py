@@ -193,6 +193,11 @@ def parse_urdf(
                         [[ixx, ixy, ixz], [ixy, iyy, iyz], [ixz, iyz, izz]],
                         dtype=torch.float64,
                     )
+                # URDF gives the inertia in the inertial frame; the IR wants it in the
+                # link frame at the COM, so rotate by the inertial origin (R I R^T).
+                if link.inertial.origin is not None:
+                    rot = torch.tensor(link.inertial.origin[:3, :3].astype(np.float64))
+                    inertia = rot @ inertia.to(torch.float64) @ rot.T
 
         fn_handler = getattr(urdf, "_filename_handler", None)
         mat_map = getattr(urdf, "_material_map", None)

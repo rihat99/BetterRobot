@@ -255,7 +255,7 @@ def lean_core(
     if plan.inverse_order is not None:
         placement = placement.index_select(-3, plan.order)
     if features:
-        gathered = torch.cat(features, dim=-1).index_select(1, plan.feature_index).view(count, nj, -1)
+        gathered = torch.cat(features, dim=-1).index_select(1, plan.feature_index).view(count, nj, plan.feature_index.numel() // nj)
     else:
         gathered = plan.bias.new_zeros(count, nj, 1)
     if placement.ndim == 3 and not plan.fallbacks:

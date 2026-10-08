@@ -141,7 +141,7 @@ The clearance before optimization is negative: the tool sphere passes through th
 solve it sits just under the 0.02 m margin, because the soft weight trades clearance against smoothness. Raise the weight or switch to the
 hard inequality to enforce it exactly.
 
-<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../clips/obstacle_trajectory.png" width="960"><source src="../clips/obstacle_trajectory.webm" type="video/webm"></video><figcaption>The Panda, modelled as spheres, follows a trajectory that a clearance term bends around a spherical obstacle (<code>examples/06_obstacle_trajectory.py</code>).</figcaption></figure>
+<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/obstacle_trajectory.png" width="960"><source src="../../clips/obstacle_trajectory.webm" type="video/webm"></video><figcaption>The Panda, modelled as spheres, follows a trajectory that a clearance term bends around a spherical obstacle (<code>examples/06_obstacle_trajectory.py</code>).</figcaption></figure>
 
 ## Where next
 

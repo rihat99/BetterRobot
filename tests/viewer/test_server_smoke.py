@@ -48,3 +48,17 @@ def test_fifty_frame_scene_builds_and_pushes_every_frame(tmp_path: Path) -> None
         assert viewer.timeline.step == 49
     finally:
         viewer.server.stop()
+
+
+def test_url_follows_viser_when_requested_port_is_taken() -> None:
+    """viser moves to the next free port when the requested one is busy; ``Viewer.url`` must say where."""
+    with socket.socket() as blocker:
+        blocker.bind(("127.0.0.1", 0))
+        blocker.listen()
+        taken = blocker.getsockname()[1]
+        viewer = Viewer(port=taken)
+        try:
+            assert viewer.port == viewer.server.get_port() != taken
+            assert viewer.url == f"http://127.0.0.1:{viewer.port}"
+        finally:
+            viewer.server.stop()

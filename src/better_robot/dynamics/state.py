@@ -49,7 +49,7 @@ def _world(model: Model, state: KinematicState) -> tuple[WorldKinematics, tuple[
 def _tangent(model: Model, batch: tuple[int, ...], value: torch.Tensor, name: str) -> torch.Tensor:
     """Broadcast a ``(..., nv)`` tangent to the state's batch, flattened to ``(N, nv_full)``."""
     value = broadcast_to_execution_batch(value, batch, (model.nv,), name=name)
-    return expand_tangent(model.structure, value).reshape(math.prod(batch), -1)
+    return expand_tangent(model.structure, value).reshape(math.prod(batch), model.structure.nv_full)
 
 
 def inverse_dynamics(

@@ -38,7 +38,7 @@ class Euclidean:
     """Plain tensor: the tangent is the flattened event."""
 
     def tangent_dim(self, x: torch.Tensor) -> int:
-        return x[0].numel()
+        return x.shape[1:].numel()
 
     def retract(self, x: torch.Tensor, delta: torch.Tensor) -> torch.Tensor:
         return x + delta.reshape(x.shape)
