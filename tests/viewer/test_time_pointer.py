@@ -150,3 +150,20 @@ def test_remove_group_shrinks_the_timeline_to_the_remaining_layers() -> None:
     assert viewer.timeline.nsteps == 1 and viewer.timeline.step == 0
     viewer.add(_Recorder("next", 6), group="clip_c")
     assert viewer.timeline.nsteps == 6
+
+
+def test_set_fps_changes_the_rate_and_remaps_timed_layers() -> None:
+    viewer = Viewer(server=FakeServer(), fps=30.0)
+    clip = viewer.add(_Recorder("clip", 12))
+    video = viewer.add(_Recorder("video", 10), times=np.arange(10) / 10.0)
+    assert viewer.timeline.nsteps == 28
+    viewer.show(6)
+    viewer.set_fps(10.0)  # step = frame of a 10 fps clip
+    assert viewer.timeline.fps == 10.0 and viewer.timeline.nsteps == 12 and viewer.timeline.step == 6
+    assert video.shown[-1] == 6 and clip.shown[-1] == 6
+    viewer.timeline.play()
+    viewer.set_fps(60.0)
+    assert viewer.timeline.playing  # playback continues at the new rate
+    viewer.timeline.pause()
+    with pytest.raises(ValueError, match="fps must be positive"):
+        viewer.set_fps(0.0)

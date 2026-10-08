@@ -163,7 +163,24 @@ class Viewer:
                 if entry.checkbox is not None:
                     entry.checkbox.remove()
             group_state.node.remove()
-            self.timeline.resize(max((self._span(layer) for layer in self.layers), default=1))
+            self._fit_timeline()
+
+    def set_fps(self, fps: float) -> None:
+        """Play the timeline at ``fps`` steps per second, such as the frame rate of the clip on screen.
+
+        The current step is kept and playback continues. Layers added with ``times`` are mapped onto the new
+        step length and the timeline is fitted to them; a `PlotPanel` keeps the time axis it was built with.
+        """
+        if not fps > 0.0:
+            raise ValueError(f"fps must be positive, got {fps}")
+        playing = self.timeline.playing
+        self.timeline.pause()  # outside the lock: the playback thread takes it to push steps
+        with self._lock:
+            self.timeline.fps = float(fps)
+            self._fit_timeline()
+            self._push_all(self.timeline.step, force=False)
+        if playing:
+            self.timeline.play()
 
     def set_visible(self, layer: Layer, visible: bool) -> None:
         """Hide a layer (skipped by ``show``) or show it, catching up to the current step."""
@@ -314,6 +331,10 @@ class Viewer:
         if self._pointer is not None:
             self.server.scene.remove_pointer_callback()
             self._pointer = None
+
+    def _fit_timeline(self) -> None:
+        """Size the timeline to the longest layer, one step when there is none."""
+        self.timeline.resize(max((self._span(layer) for layer in self.layers), default=1))
 
     def _span(self, layer: Layer) -> int:
         """Timeline steps ``layer`` needs: its sample count, or enough steps to reach its last time."""

@@ -65,7 +65,8 @@ layer gets its sample for step `k` inside one atomic server update, and layers a
 A layer recorded at another rate passes its sample times in seconds: `viewer.add(layer, times=t)` with `t` of
 shape `(T,)`, non-decreasing. Step `k` then shows the latest sample at or before `k / fps`, so a 10 Hz layer and a
 30 Hz layer play in sync on a 30 fps timeline. Without `times` (the default) sample `k` is shown at step `k`. The
-layer itself still receives a plain integer sample index in `set_step`.
+layer itself still receives a plain integer sample index in `set_step`. `viewer.set_fps(f)` changes the rate of the
+timeline itself, keeping one step per frame of the clip on screen; a clip browser calls it when it switches clips.
 
 ```python { .no-run }
 viewer.add(PointsLayer("mocap", markers_10hz), times=np.arange(len(markers_10hz)) / 10.0)
