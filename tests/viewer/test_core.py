@@ -162,6 +162,27 @@ def test_skeleton_bones_join_parent_and_child_and_arrows_hide_zero_vectors() -> 
     np.testing.assert_allclose(scene.nodes["/g/a/shafts"].props["args"][0][0, 1], [0.0, 0.0, 2.0])
 
 
+def test_skeleton_takes_per_bone_radii_and_per_step_joint_radii() -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    joints = np.array([[[0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 0.0, 2.0]]] * 2, dtype=np.float32)
+    bones = np.array([0.0, 0.05, 0.0], dtype=np.float32)  # entry j: the bone into joint j; 0 hides it
+    radius = np.array([[0.1, 0.1, 0.1], [0.1, 0.2, 0.0]], dtype=np.float32)  # (T, J): sized per step
+    viewer.add(SkeletonLayer("s", joints, parents=[-1, 0, 1], radius=radius, bone_radius=bones))
+    viewer.add(SkeletonLayer("c", joints, parents=[-1, 0, 1], radius=0.1, bone_radius=0.02))
+    nodes = server.scene.nodes
+    viewer.show(0)
+    np.testing.assert_allclose(nodes["/scene/s/bones"].batched_scales, [[0.05, 0.05, 1.0], [0.0, 0.0, 1.0]])
+    np.testing.assert_allclose(nodes["/scene/c/bones"].batched_scales[:, :2], 0.02)
+    server.scene.log.clear()
+    viewer.show(1)
+    np.testing.assert_allclose(nodes["/scene/s/joints"].batched_scales, [[0.1] * 3, [0.2] * 3, [0.0] * 3])
+    # A constant radius never rewrites the joint scales: per-step cost unchanged.
+    assert ("/scene/c/joints", "batched_scales") not in server.scene.log
+    with pytest.raises(ValueError, match="radius"):
+        SkeletonLayer("bad", joints, parents=[-1, 0, 1], radius=np.ones((3, 3)))
+
+
 def test_solid_arrows_keep_a_fixed_head_and_hide_zero_and_invalid_vectors() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)

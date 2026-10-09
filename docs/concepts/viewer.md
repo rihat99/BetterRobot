@@ -39,7 +39,9 @@ video (`(T, H, W, 3)` uint8, or a callable `step -> image` with `nsteps=`). `Poi
 `SpheresLayer` and `ArrowsLayer` take one colour, one per element `(N, 3)`, or one per step `(T, N, 3)`, such as a
 contact turning red or green. `ArrowsLayer` draws line shafts `line_width` pixels wide by default; with
 `shaft_radius=` (metres) its arrows are solid, a cylinder and a cone of fixed length `head_size` and radius
-`head_radius`, so forces keep their thickness at any zoom. A new layer type subclasses `Layer` and implements
+`head_radius`, so forces keep their thickness at any zoom. `SkeletonLayer` takes a joint `radius` per joint `(J,)`
+or per step `(T, J)` (joints sized by torque) and a `bone_radius` per bone `(J,)`, entry `j` for the bone into joint
+`j` (thin finger bones); a radius of 0 hides that marker or bone. A new layer type subclasses `Layer` and implements
 `build` (create scene nodes once), `set_step` (move them to step `k`) and optionally `world_points` (positions
 that `record`'s camera fits).
 

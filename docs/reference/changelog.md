@@ -15,6 +15,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `Viewer.set_fps` changes the timeline rate during playback and re-maps layers added with `times`.
 - Viewer: `ArrowsLayer(..., shaft_radius=, head_radius=)` draws solid arrows (cylinder shaft, cone head of
   fixed length `head_size`, sizes in metres) instead of pixel-wide line shafts.
+- Viewer: `SkeletonLayer(radius=)` takes `(T, J)` per-step joint radii (marker scales are then written per step)
+  and `bone_radius=` a `(J,)` radius per bone (entry `j` for the bone into joint `j`); 0 hides a marker or bone.
 - Breaking: `terms.frame_pose`, `terms.frame_position` and `terms.self_clearance` take `frame`, `target` and
   `pairs` keyword-only, like the kinematics functions. Joint ids accept `int | str` everywhere a frame id does;
   unknown names raise `UnknownNameError` (a `KeyError`). `HumanState.vertices`/`frame_poses` are properties
