@@ -162,6 +162,36 @@ def test_skeleton_bones_join_parent_and_child_and_arrows_hide_zero_vectors() -> 
     np.testing.assert_allclose(scene.nodes["/g/a/shafts"].props["args"][0][0, 1], [0.0, 0.0, 2.0])
 
 
+def test_solid_arrows_keep_a_fixed_head_and_hide_zero_and_invalid_vectors() -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    vectors = np.array([[[0.0, 0.0, 2.0], [0.05, 0.0, 0.0], [0.0, 0.0, 0.0]]] * 2)
+    colours = np.zeros((2, 3, 3))
+    colours[1] = (0.0, 0.0, 1.0)
+    keep = np.ones((2, 3), bool)
+    keep[1, 0] = False
+    viewer.add(
+        ArrowsLayer(
+            "f", np.zeros((2, 3, 3)), vectors, colors=colours, head_size=0.1, shaft_radius=0.02, head_radius=0.04
+        ),
+        valid=keep,
+    )
+    shafts, heads = server.scene.nodes["/scene/f/shafts"], server.scene.nodes["/scene/f/heads"]
+    assert shafts.kind == "batched_meshes_simple"
+    viewer.show(0)
+    # Long arrow: shaft up to the head's base, head of full size; short arrow: head alone, poking behind the origin.
+    np.testing.assert_allclose(shafts.batched_positions[0], [0.0, 0.0, 0.95], atol=1e-6)
+    np.testing.assert_allclose(shafts.batched_scales[:2], [[0.02, 0.02, 1.9], [0.0, 0.0, 0.0]], atol=1e-6)
+    np.testing.assert_allclose(heads.batched_positions[:2], [[0.0, 0.0, 1.9], [-0.05, 0.0, 0.0]], atol=1e-6)
+    np.testing.assert_allclose(heads.batched_scales[:2], [[0.04, 0.04, 0.1], [0.04, 0.04, 0.1]], atol=1e-6)
+    np.testing.assert_allclose(heads.batched_scales[2], 0.0)
+    np.testing.assert_allclose(shafts.batched_scales[2], 0.0)
+    viewer.show(1)  # the long arrow is invalid here; per-step colours reach the shafts too
+    np.testing.assert_allclose(shafts.batched_scales[0], 0.0)
+    np.testing.assert_allclose(heads.batched_scales[0], 0.0)
+    np.testing.assert_array_equal(shafts.batched_colors, np.full((3, 3), [0, 0, 255]))
+
+
 def test_spheres_and_arrows_take_per_step_colours() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
