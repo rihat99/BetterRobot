@@ -19,8 +19,7 @@ references
 DESIGN_RULES.md
 
 # Agent task scratch
-agent_notes/**/vis/
-agent_notes/**/artifacts/
 trash/
 .claude/
 site/
+agent_notes/
