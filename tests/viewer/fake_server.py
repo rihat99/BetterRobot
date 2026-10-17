@@ -114,9 +114,14 @@ class FakeServer:
         self.gui = FakeGui()
         self.atomic_blocks = 0
         self.port = port
+        self.initial_camera = FakeHandle(None, "camera", "initial_camera", {})
+        self.clients: dict[int, Any] = {}  # connected browsers, each with a ``camera`` handle
 
     def get_port(self) -> int:
         return self.port
+
+    def get_clients(self) -> dict[int, Any]:
+        return dict(self.clients)
 
     @contextlib.contextmanager
     def atomic(self):

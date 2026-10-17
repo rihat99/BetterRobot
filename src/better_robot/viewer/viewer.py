@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import threading
 from dataclasses import dataclass, field
 from collections.abc import Callable, Sequence
@@ -14,6 +15,9 @@ from .layer import Layer
 from .layers.plot import PlotPanel
 from .theme import LIGHT, Theme
 from .timeline import Timeline
+
+#: What the camera fits when no visible layer has points: a 2 x 2 x 1 m box standing on the origin.
+_EMPTY_SCENE_POINTS = np.array([[1.0, 1.0, 1.0], [-1.0, -1.0, 0.0]])
 
 
 @dataclass
@@ -165,6 +169,13 @@ class Viewer:
             group_state.node.remove()
             self._fit_timeline()
 
+    def set_offset(self, group: str, offset: tuple[float, float, float]) -> None:
+        """Move the whole ``group`` to ``offset``, as ``add(..., offset=)`` does, e.g. from a side-by-side slider."""
+        with self._lock:
+            group_state = self._groups[group]
+            group_state.node.position = offset
+            group_state.offset = offset
+
     def set_fps(self, fps: float) -> None:
         """Play the timeline at ``fps`` steps per second, such as the frame rate of the clip on screen.
 
@@ -240,7 +251,8 @@ class Viewer:
 
         steps = list(range(self.timeline.nsteps)) if steps is None else list(steps)
         if camera is None:
-            camera = fit_camera(self._points(steps), up=self.theme.up_vector)
+            points = self._points(steps)
+            camera = fit_camera(points if len(points) else _EMPTY_SCENE_POINTS, up=self.theme.up_vector)
         width, height = size
         frames = []
         with HeadlessClient(self, size=size, gpu=gpu) as client:
@@ -251,8 +263,44 @@ class Viewer:
                 frames.append(client.render(height, width))
         return write_frames(frames, path, fps=fps or self.timeline.fps)
 
+    def aim(
+        self,
+        *,
+        steps: Sequence[int] | None = None,
+        azimuth: float = math.radians(35.0),
+        elevation: float = math.radians(25.0),
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Point the connected browsers and every new one (viser's initial camera, also "Reset View") at the visible
+        layers: ``record``'s 3/4 view, upright along the theme's ``up`` axis and seen from ``azimuth`` and
+        ``elevation`` (radians, see ``capture.fit_camera``), fitted to the bounding box of the visible layers'
+        ``world_points`` at each of ``steps`` (default: the current step; steps with nothing visible are skipped). The
+        browsers take the field of view the fit assumes. Returns ``(position, look_at)``.
+        """
+        from .capture import FOV, fit_camera  # noqa: PLC0415 - the capture module is the opt-in browser path
+
+        corners = []
+        with self._lock:
+            for step in [self.timeline.step] if steps is None else steps:
+                points = self._points([step])
+                if not len(points):  # nothing visible at this step: it does not pull the view to the origin
+                    continue
+                # A step's box corners stand in for its points: fitting every vertex of a mesh clip takes minutes.
+                corners.append(np.stack(np.meshgrid(*zip(points.min(0), points.max(0))), -1).reshape(-1, 3))
+        position, look_at = fit_camera(
+            np.concatenate(corners) if corners else _EMPTY_SCENE_POINTS,
+            up=self.theme.up_vector,
+            azimuth=azimuth,
+            elevation=elevation,
+        )
+        for camera in [self.server.initial_camera, *(client.camera for client in self.server.get_clients().values())]:
+            camera.fov = FOV
+            camera.position = position  # before look_at: a client's position drags its look_at along
+            camera.look_at = look_at
+        return position, look_at
+
     def _points(self, steps: Sequence[int]) -> np.ndarray:
-        """``Layer.world_points`` ``(N, 3)`` of the visible layers over ``steps``, group offsets applied."""
+        """``Layer.world_points`` ``(N, 3)`` of the visible layers over ``steps``, group offsets applied; ``N = 0`` when
+        nothing visible has points."""
         points = []
         for group in self._groups.values():
             offset = np.zeros(3) if group.offset is None else np.asarray(group.offset, dtype=np.float64)
@@ -267,7 +315,7 @@ class Viewer:
                     layer_points = entry.layer.world_points(index)
                     if layer_points is not None and len(layer_points):
                         points.append(np.asarray(layer_points, dtype=np.float64).reshape(-1, 3) + offset)
-        return np.concatenate(points) if points else np.array([[1.0, 1.0, 1.0], [-1.0, -1.0, 0.0]])
+        return np.concatenate(points) if points else np.empty((0, 3))
 
     def rebuild(self, layer: Layer) -> None:
         """Dispose ``layer``'s scene nodes and GUI and build them again, keeping its visibility and the current step.

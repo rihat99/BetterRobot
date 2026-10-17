@@ -154,3 +154,50 @@ def test_skeleton_markers_follow_joint_kind_and_axis() -> None:
     wxyz = server.scene.nodes["/scene/s/joints_cylinder"].batched_wxyzs[0]
     np.testing.assert_allclose(np.abs(wxyz), [np.sqrt(0.5), 0.0, np.sqrt(0.5), 0.0], atol=1e-6)  # +z -> +x
     np.testing.assert_allclose(layer.world_points(0), layer.joints[0])
+
+
+def test_robot_skeleton_hides_the_bones_given_a_zero_radius() -> None:
+    pytest.importorskip("robot_descriptions")
+    from robot_descriptions import g1_description  # noqa: PLC0415 - optional test dependency
+
+    from better_robot.viewer import robot_skeleton  # noqa: PLC0415
+
+    model = br.load(g1_description.URDF_PATH, free_flyer=True)
+    poses = _random_poses((2, model.njoints))
+    massless = (model.body_inertias[1:, 0] == 0).numpy()  # the G1's IMU / camera mounts
+    assert massless.any()
+    layer = robot_skeleton(model, poses, bone_radius=np.where(massless, 0.0, 0.01))
+    server = FakeServer()
+    Viewer(server=server).add(layer)
+    scales = server.scene.nodes["/scene/skeleton/bones"].props["batched_scales"]
+    np.testing.assert_allclose(scales[:, 0], np.where(massless, 0.0, 0.01)[layer.parents >= 0])
+    assert robot_skeleton(model, poses).bone_radius == pytest.approx(0.012)  # unchanged default: 0.6 * radius
+
+
+def test_torque_spheres_grow_and_redden_up_to_the_limit_and_mark_joints_past_it() -> None:
+    pytest.importorskip("robot_descriptions")
+    from robot_descriptions import g1_description  # noqa: PLC0415 - optional test dependency
+
+    from better_robot.viewer import LIGHT, torque_spheres  # noqa: PLC0415
+    from better_robot.viewer._math import rgb_uint8  # noqa: PLC0415
+
+    model = br.load(g1_description.URDF_PATH, free_flyer=True)
+    limits = model.values.effort_limit.numpy()
+    half, over, idle = 3, 4, 5  # revolute joints (layer entries 2, 3, 4)
+    tau = np.zeros((2, model.nv), dtype=np.float32)
+    tau[:, :6] = 1e6  # free-flyer "torques": no effort limit, so no sphere
+    tau[:, model.idx_vs[half]] = 0.5 * limits[model.idx_vs[half]]
+    tau[1, model.idx_vs[over]] = -2.0 * limits[model.idx_vs[over]]
+    poses = _random_poses((2, model.njoints))
+    layer = torque_spheres(model, poses, tau=torch.from_numpy(tau), radius=(0.01, 0.05), over_limit=(1.0, 1.0, 0.0))
+    np.testing.assert_allclose(layer.joints, poses[:, 1:, :3])
+    assert (layer.parents == -1).all()  # spheres only
+    np.testing.assert_allclose(layer.radius[:, [0, 1]], 0.0)  # the free flyer and a fixed joint draw nothing
+    np.testing.assert_allclose(layer.radius[:, [half - 1, idle - 1]], [[0.03, 0.01], [0.03, 0.01]], atol=1e-6)
+    np.testing.assert_allclose(layer.radius[:, over - 1], [0.01, 0.05], atol=1e-6)
+    middle = (np.asarray(LIGHT.joint) + np.asarray(LIGHT.force)) / 2
+    expected = rgb_uint8(np.stack([middle, LIGHT.joint, LIGHT.joint]))
+    np.testing.assert_array_equal(layer.colors[0, [half - 1, idle - 1, over - 1]], expected)
+    np.testing.assert_array_equal(layer.colors[1, over - 1], rgb_uint8((1.0, 1.0, 0.0)))
+    one_frame = torque_spheres(model, poses, tau=tau[0])  # numpy (nv,): broadcast over the clip
+    np.testing.assert_array_equal(one_frame.radius[1], torque_spheres(model, poses, tau=tau).radius[0])

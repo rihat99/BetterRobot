@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-viewer = ["viser>=0.2.0"]
+viewer = ["viser>=1.0.18"]
 io-mjcf = ["mujoco>=3.1"]
 meshes = ["trimesh>=4.0.0"]
 demos = ["robot_descriptions>=1.0.0"]

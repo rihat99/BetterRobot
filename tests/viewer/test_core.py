@@ -79,6 +79,17 @@ def test_remove_group_disposes_layers_and_the_group_node() -> None:
         viewer.add(_skeleton(name="keep"))
 
 
+def test_set_offset_moves_a_group_after_it_was_added() -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    viewer.add(PointsLayer("p", np.zeros((1, 3))), group="robot", offset=(0.0, 2.0, 0.0))
+    viewer.set_offset("robot", (0.0, 3.0, 0.0))
+    assert server.scene.nodes["/robot"].position == (0.0, 3.0, 0.0)
+    np.testing.assert_allclose(viewer._points([0]), [[0.0, 3.0, 0.0]])  # record and aim frame the moved group
+    with pytest.raises(KeyError):
+        viewer.set_offset("missing", (0.0, 0.0, 0.0))
+
+
 def test_timeline_clamps_loops_and_drives_the_gui_slider() -> None:
     timeline = Timeline(5, fps=100.0)
     seen: list[int] = []

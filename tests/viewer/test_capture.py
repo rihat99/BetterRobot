@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -14,7 +15,7 @@ from better_robot.viewer import capture
 from better_robot.viewer.layers import GroundLayer, PointsLayer
 from better_robot.viewer.viewer import Viewer
 
-from .fake_server import FakeServer
+from .fake_server import FakeHandle, FakeServer
 
 
 class FakeClient:
@@ -95,6 +96,38 @@ def test_points_apply_group_offset_and_skip_hidden_or_pointless_layers() -> None
     hidden = viewer.add(PointsLayer("h", np.full((1, 3), 50.0)), group="b")
     viewer.set_visible(hidden, False)
     np.testing.assert_allclose(viewer._points([0]), [[0.0, 2.0, 0.0], [1.0, 2.0, 0.0]])
+
+
+def test_aim_points_new_and_connected_browsers_at_the_visible_layers() -> None:
+    server = FakeServer()
+    client = SimpleNamespace(camera=FakeHandle(None, "camera", "client", {}))
+    server.clients[0] = client
+    viewer = Viewer(server=server)
+    points = np.zeros((3, 2, 3), dtype=np.float32)
+    points[:, 1, 2] = 1.0
+    points[2, :, 0] = 5.0  # the last step moves away
+    viewer.add(PointsLayer("pts", points), group="g", offset=(0.0, 2.0, 0.0))
+    up = np.asarray(viewer.theme.up_vector)
+    position, look_at = viewer.aim()  # the current step only
+    for camera in (server.initial_camera, client.camera):
+        assert camera.fov == capture.FOV
+        np.testing.assert_allclose(camera.position, position)
+        np.testing.assert_allclose(camera.look_at, look_at)
+        assert camera.writes.index("position") < camera.writes.index("look_at")
+    assert 0.62 < max(_frame_fill(viewer._points([0]), position, look_at, up)) <= 0.701
+    position, look_at = viewer.aim(steps=range(3))  # the whole clip, the last step included
+    assert 0.62 < max(_frame_fill(viewer._points(range(3)), position, look_at, up)) <= 0.701
+
+
+def test_aim_skips_steps_with_nothing_visible() -> None:
+    viewer = Viewer(server=FakeServer())
+    points = np.zeros((3, 2, 3))
+    points[:, :, 0] = 5.0
+    points[:, 1, 2] = 1.0
+    viewer.add(PointsLayer("pts", points), valid=np.array([True, False, True]))
+    np.testing.assert_allclose(viewer.aim(steps=range(3)), viewer.aim(steps=[0, 2]))  # step 1 does not pull to 0
+    empty = capture.fit_camera(np.array([[1.0, 1.0, 1.0], [-1.0, -1.0, 0.0]]), up=viewer.theme.up_vector)
+    np.testing.assert_allclose(viewer.aim(steps=[1]), empty)  # nothing visible at all: the default box
 
 
 def _frame_fill(points: np.ndarray, position: np.ndarray, look_at: np.ndarray, up: np.ndarray) -> tuple[float, float]:

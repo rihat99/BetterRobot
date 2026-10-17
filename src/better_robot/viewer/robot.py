@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import torch
 
-from ._math import colormap
+from ._math import RGB, colormap
 from .layer import Layer
 from .layers.frames import FramesLayer
 from .layers.mesh import MeshSpec, RigidMeshLayer, SpheresLayer
@@ -122,16 +122,56 @@ def robot_skeleton(
     tau: torch.Tensor | None = None,
     theme: Theme = LIGHT,
     radius: float = 0.02,
+    bone_radius: float | np.ndarray | None = None,
 ) -> SkeletonLayer:
-    """Skeleton over joints 1.. of ``joint_poses (T, njoints, 7)``, one marker per joint kind (``skeleton_spec``)."""
+    """Skeleton over joints 1.. of ``joint_poses (T, njoints, 7)``, one marker per joint kind (``skeleton_spec``).
+
+    ``bone_radius`` is one float or ``(njoints - 1,)``, entry ``j`` for the bone into joint ``j + 1``; 0 hides a
+    bone, such as one to a massless sensor mount (``model.body_inertias[1:, 0] == 0``). ``None`` keeps
+    ``SkeletonLayer``'s default.
+    """
     parents = np.asarray(model.parents[1:], dtype=np.int64) - 1  # the universe becomes -1
     kinds, axes = skeleton_spec(model)
     colors: Any = theme.joint
     if tau is not None:
         colors = _torque_colors(model, tau.detach().cpu().numpy(), theme, joint_poses.shape[0])
     return SkeletonLayer(
-        name, joint_poses[:, 1:], parents, kinds=kinds, axes=axes, radius=radius, colors=colors, bone_color=theme.link
+        name,
+        joint_poses[:, 1:],
+        parents,
+        kinds=kinds,
+        axes=axes,
+        radius=radius,
+        bone_radius=bone_radius,
+        colors=colors,
+        bone_color=theme.link,
     )
+
+
+def torque_spheres(
+    model: Model,
+    joint_poses: np.ndarray,
+    *,
+    tau: torch.Tensor | np.ndarray,
+    name: str = "torques",
+    radius: tuple[float, float] = (0.015, 0.05),
+    theme: Theme = LIGHT,
+    over_limit: RGB = (1.0, 0.85, 0.0),
+) -> SkeletonLayer:
+    """Spheres at joints 1.. of ``joint_poses (T, njoints, 7)``, sized and coloured by ``|tau| / effort_limit``.
+
+    ``tau`` is ``(T, nv)`` or one ``(nv,)``; a joint shows the largest ratio over its dofs. Up to the limit the
+    radius grows from ``radius[0]`` to ``radius[1]`` and the colour blends from ``theme.joint`` to ``theme.force``;
+    past it the sphere keeps ``radius[1]`` and turns ``over_limit``. Joints without a dof of finite positive limit
+    (fixed joints, a free flyer) draw nothing.
+    """
+    ratio, limited = _torque_ratio(model, torch.as_tensor(tau).detach().cpu().numpy(), joint_poses.shape[0])
+    fill = np.minimum(ratio, 1.0)
+    radii = np.where(limited, radius[0] + (radius[1] - radius[0]) * fill, 0.0)
+    over = np.asarray(over_limit, dtype=np.float32)
+    colors = np.where((ratio > 1.0)[..., None], over, colormap(fill, theme.joint, theme.force))
+    parents = np.full(model.njoints - 1, -1)  # spheres only, no bones
+    return SkeletonLayer(name, joint_poses[:, 1:, :3], parents, radius=radii, colors=colors)
 
 
 def skeleton_spec(model: Model) -> tuple[list[str], np.ndarray]:
@@ -145,20 +185,27 @@ def skeleton_spec(model: Model) -> tuple[list[str], np.ndarray]:
 def _torque_colors(model: Model, tau: np.ndarray, theme: Theme, nsteps: int) -> np.ndarray:
     """``(T, njoints - 1, 3)`` colours from ``|tau_j| / effort_limit_j``; joints without a torque or a finite
     limit keep the base colour."""
+    return colormap(_torque_ratio(model, tau, nsteps)[0], theme.joint, theme.force)
+
+
+def _torque_ratio(model: Model, tau: np.ndarray, nsteps: int) -> tuple[np.ndarray, np.ndarray]:
+    """``|tau| / effort_limit`` ``(nsteps, njoints - 1)`` of joints 1.. for ``tau (nsteps or 1, nv)``, the largest
+    over each joint's dofs, and ``(njoints - 1,)`` whether a joint has a dof with a finite positive limit."""
     tau = tau.reshape(-1, model.nv)
     if tau.shape[0] not in (1, nsteps):
         raise ValueError(f"tau must have {nsteps} frames or one, got {tau.shape[0]}")
     limits = model.values.effort_limit.detach().cpu().numpy().reshape(-1)
-    # Joints without a finite effort limit (free-flyer, unbounded URDF joints) keep the base colour.
+    # Dofs without a finite effort limit (free-flyer, unbounded URDF joints) contribute a ratio of 0.
     finite = np.isfinite(limits) & (limits > 0)
     limits = np.where(finite, limits, np.inf)
     ratio = np.zeros((tau.shape[0], model.njoints - 1), dtype=np.float32)
+    limited = np.zeros(model.njoints - 1, dtype=bool)
     for joint, (start, count) in enumerate(zip(model.idx_vs[1:], model.nvs[1:])):
         if count:
             block = np.abs(tau[:, start : start + count]) / limits[start : start + count]
             ratio[:, joint] = block.max(axis=1)
-    colors = colormap(ratio, theme.joint, theme.force)
-    return np.broadcast_to(colors, (nsteps, *colors.shape[1:])).copy()
+            limited[joint] = finite[start : start + count].any()
+    return np.broadcast_to(ratio, (nsteps, ratio.shape[1])).copy(), limited
 
 
 def robot_meshes(model: Model, *, collision: bool = False, default_color: Any = (0.8, 0.8, 0.8)) -> list[MeshSpec]:

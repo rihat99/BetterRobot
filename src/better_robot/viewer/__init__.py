@@ -8,10 +8,11 @@ layers: ``show(k)`` pushes frame ``k``, ``show()`` re-pushes after in-place edit
 live scene in a headless Chromium into WebM, GIF or PNG frames (``viewer.capture``).
 
 ``robot_layers(model, q)`` and ``RobotView`` turn a ``Model`` and a clip ``q (T, nq)`` into mesh, skeleton, frame
-and sphere layers with one forward-kinematics pass. ``viewer.tools`` adds a draggable ``PoseGizmo`` and numpy
-picking (``ray_hit``, ``vertices_in_sphere``, ``vertices_in_rect``). ``LIGHT`` and ``DARK`` are the built-in
-``Theme``s; ``Theme(up="+y")`` sets the up axis of the browser scene and of the ``record`` camera. viser is
-imported only when a ``Viewer`` is created.
+and sphere layers with one forward-kinematics pass; ``robot_skeleton`` and ``torque_spheres`` (joints sized and
+coloured by ``|tau| / effort_limit``) build layers from joint poses already computed. ``viewer.tools`` adds a
+draggable ``PoseGizmo`` and numpy picking (``ray_hit``, ``vertices_in_sphere``, ``vertices_in_rect``). ``LIGHT``
+and ``DARK`` are the built-in ``Theme``s; ``Theme(up="+y")`` sets the up axis of the browser scene and of the
+``record`` camera. viser is imported only when a ``Viewer`` is created.
 
 ```python
 import numpy as np
@@ -32,7 +33,7 @@ from .layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from .layers.plot import PlotPanel
 from .layers.camera import CameraLayer
 from .layers.skinned import SkinnedMeshLayer
-from .robot import RobotView, robot_layers, robot_meshes, skeleton_spec
+from .robot import RobotView, robot_layers, robot_meshes, robot_skeleton, skeleton_spec, torque_spheres
 from .theme import DARK, LIGHT, Theme
 from .timeline import Timeline
 from .viewer import Viewer
@@ -60,5 +61,7 @@ __all__ = [
     "Viewer",
     "robot_layers",
     "robot_meshes",
+    "robot_skeleton",
     "skeleton_spec",
+    "torque_spheres",
 ]

@@ -18,7 +18,7 @@ One viewer on viser. Read `docs/concepts/viewer.md` first.
 - viser is imported in `viewer.py` only; trimesh in `robot.py` only; no pyrender/imageio
   (`tests/contract/test_layer_dependencies.py`). The core never imports BetterHuman.
 - Default host is `127.0.0.1`; tests use `tests/viewer/fake_server.py`, plus one loopback smoke test.
-- A layer that should frame `Viewer.record`'s camera implements `world_points(step)` (world positions
-  `(N, 3)`); the default `None` keeps it out of the fit.
+- A layer that should frame the camera of `Viewer.record` and `Viewer.aim` implements `world_points(step)` (world
+  positions `(N, 3)`); the default `None` keeps it out of the fit.
 
 Design contracts (rule IDs `C-*`, enforcement matrix, ADRs): `docs/contracts/00-index.md`.

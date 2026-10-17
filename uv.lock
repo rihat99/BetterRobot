@@ -133,7 +133,7 @@ requires-dist = [
     { name = "scipy", marker = "extra == 'dev'", specifier = ">=1.11" },
     { name = "torch", specifier = ">=2.4", index = "https://download.pytorch.org/whl/cu129" },
     { name = "trimesh", marker = "extra == 'meshes'", specifier = ">=4.0.0" },
-    { name = "viser", marker = "extra == 'viewer'", specifier = ">=0.2.0" },
+    { name = "viser", marker = "extra == 'viewer'", specifier = ">=1.0.18" },
     { name = "yourdfpy", specifier = ">=0.0.14" },
 ]
 provides-extras = ["viewer", "io-mjcf", "meshes", "demos", "dev"]

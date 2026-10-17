@@ -58,7 +58,7 @@ viewer.remove_group("debug")
 ```
 
 `add(..., offset=(x, y, z))` moves the whole group, in the browser and in `record`, which is how you put two
-clips side by side.
+clips side by side; `set_offset(group, (x, y, z))` moves it again later, such as from a spacing slider.
 
 ## One timeline drives every layer
 
@@ -131,6 +131,21 @@ viewer.show()
 Options of both: `visual` and `collision` meshes, `skeleton`, `frames` (names or ids), `tau` (colours the skeleton
 by joint torque), `spheres` (collision spheres), `theme`, `opacity`.
 
+When you already have the joint poses `(T, njoints, 7)` (`KinematicState.joint_pose`), two functions build layers
+from them without another kinematics pass. `robot_skeleton(model, joint_poses, bone_radius=...)` is the skeleton
+alone; a `bone_radius` of 0 hides a bone, such as the ones to massless sensor mounts
+(`model.body_inertias[1:, 0] == 0`). `torque_spheres(model, joint_poses, tau=tau)` puts a sphere on every joint
+with an effort limit, sized and coloured by `|tau| / effort_limit`: it grows from `radius[0]` to `radius[1]` and
+blends from the theme's joint colour to its force colour up to the limit, and turns `over_limit` (yellow) past it.
+
+```python
+from better_robot.viewer import torque_spheres
+
+poses = br.forward_kinematics_state(model, q).joint_pose.numpy()   # (30, njoints, 7)
+tau = 40.0 * torch.sin(phase + torch.arange(model.nv))              # (30, nv) N·m
+viewer.add(torque_spheres(model, poses, tau=tau), group="panda")
+```
+
 ## Tools: a gizmo and numpy picking
 
 `better_robot.viewer.tools` holds two things. `PoseGizmo(viewer, name, pose, on_change=...)` is a draggable
@@ -174,6 +189,12 @@ Without a `camera`, `record` fits a 3/4 view to the visible layers' `Layer.world
 steps, upright along the theme's `up` axis. Pass `camera=(position, look_at)` for a fixed view. The browser
 binary comes from `$BETTER_ROBOT_CHROME` or the `PATH`; the module docstring of `capture` explains the
 one-time setup.
+
+`viewer.aim(steps=...)` points the live browsers with the same 3/4 view: the connected ones and every new one
+(viser's initial camera, which "Reset View" returns to). It fits the bounding box of what is visible at each step,
+so a clip of robot meshes frames in milliseconds. It frames the current step by default; pass `steps`, such as
+`range(0, viewer.timeline.nsteps, 10)`, to frame a whole clip, and `azimuth=`/`elevation=` to look from another
+side.
 
 ## Themes and the up axis
 
