@@ -21,8 +21,9 @@ Optimization layer over named tensors. It imports only torch. Robot terms live i
 
 ## Invariants
 
-- Nothing inside a solver `step` reads a tensor back to Python (one exception: the validity check
-  of autodiff columns of shared variables in a time-local term); shapes never change. Done or
+- Nothing inside a solver `step` reads a tensor back to Python (two exceptions: the validity check
+  of autodiff columns of shared variables in a time-local term, and the `LBFGS` line search, which
+  stops once every problem has its step: one read per trial); shapes never change. Done or
   rejected batch elements keep their old values through `torch.where`.
 - Cached values are computed at most once per evaluation and stay inside the autodiff trace.
 - `window=` is trusted; `check_jacobian` is the test for it and for every analytic `jac`.

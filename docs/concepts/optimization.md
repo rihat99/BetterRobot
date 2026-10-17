@@ -134,7 +134,7 @@ count `it`, and `extra` for solver-owned values (damping, moments). Every solver
 |---|---|---|
 | `LevenbergMarquardt(damping=, gtol=, ftol=, xtol=)` | `linearize` | per-problem damping, Marquardt scaling; the default choice |
 | `GaussNewton(damping=0.0)` | `linearize` | full step, optional fixed damping; fast near a good start |
-| `LBFGS(history=10, line_search=8)` | `loss` gradient | tangent coordinates, per-problem history and Armijo backtracking |
+| `LBFGS(history=10, line_search=20)` | `loss` gradient | tangent coordinates, per-problem history; Armijo backtracking: each problem takes its first accepted step, the search stops once every problem has one; bounds by projection |
 | `TorchOptim(torch.optim.Adam, lr=...)` | `loss` | any `torch.optim` optimizer; projects onto manifolds and bounds after each step |
 
 Because a solver is two functions, you can drive it yourself:

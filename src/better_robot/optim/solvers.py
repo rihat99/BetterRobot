@@ -1,8 +1,9 @@
 """Solvers: ``init(problem, x) -> State`` and ``step(problem, state) -> State``.
 
 Every tensor in ``State`` is batch-first. A step computes all batch elements and keeps
-the old value where an element is done or its step was rejected, so shapes never change
-and nothing inside ``step`` reads a tensor back to Python.
+the old value where an element is done or its step was rejected, so shapes never change.
+``step`` itself reads no tensor back to Python, except the ``LBFGS`` line search: one flag
+per trial, to stop once every problem has its step.
 """
 
 from __future__ import annotations
@@ -171,26 +172,37 @@ class GaussNewton:
         )
 
 
+def _free(g: torch.Tensor, bounds: tuple[torch.Tensor, torch.Tensor] | None) -> torch.Tensor | bool:
+    """``(B, n)`` mask of the coordinates not held by an active step bound that the gradient ``g`` pushes against."""
+    if bounds is None:
+        return True
+    lower, upper = bounds
+    return ~(((lower >= -1e-9) & (g > 0)) | ((upper <= 1e-9) & (g < 0)))
+
+
 def _projected(g: torch.Tensor, bounds: tuple[torch.Tensor, torch.Tensor] | None) -> torch.Tensor:
     """Gradient ``(B, n)`` with the entries that push against an active step bound zeroed."""
-    if bounds is None:
-        return g
-    lower, upper = bounds
-    return g * ~(((lower >= -1e-9) & (g > 0)) | ((upper <= 1e-9) & (g < 0)))
+    return g * _free(g, bounds)
 
 
 class LBFGS:
     """Batched L-BFGS in tangent coordinates: per-problem history and backtracking line search.
 
-    Every step evaluates the loss at ``line_search`` step sizes (1, ½, ¼, ...) for all
-    problems and each problem takes the largest one that satisfies the Armijo condition.
-    A problem that finds none keeps its variables and drops its history. ``history`` is the
-    number of stored curvature pairs, ``armijo`` the sufficient-decrease constant and ``gtol``
-    bounds the largest gradient entry (``None`` takes the dtype default, as for LM).
+    Every step tries the step sizes 1, ½, ¼, ... (at most ``line_search`` of them) and each problem
+    takes the largest one that satisfies the Armijo condition on the step actually taken; the search
+    stops as soon as every problem has its step (one host read per trial). The plain gradient step
+    (no history yet) has length ``1 / |g|_1``, a guess: a stiff term that adds curvature but little
+    gradient (a residual near zero) can need 10 or more halvings of it. With bounds, a coordinate
+    held by an active bound that the gradient pushes against does not move and every step is clipped
+    to the bounds. A problem that finds no step keeps its variables and drops its history; when that
+    happens on a plain gradient step (no history to drop) it is done, as every later step would repeat
+    the same search. ``history`` is the number of stored curvature pairs, ``armijo`` the
+    sufficient-decrease constant and ``gtol`` bounds the largest gradient entry (``None`` takes the
+    dtype default, as for LM).
     """
 
     def __init__(
-        self, *, history: int = 10, line_search: int = 8, armijo: float = 1e-4, gtol: float | None = None
+        self, *, history: int = 10, line_search: int = 20, armijo: float = 1e-4, gtol: float | None = None
     ) -> None:
         self.history, self.line_search, self.armijo, self.gtol = history, line_search, armijo, gtol
 
@@ -223,14 +235,14 @@ class LBFGS:
     def step(self, problem: Problem, state: State) -> State:
         g, s, y, rho = (state.extra[key] for key in ("g", "s", "y", "rho"))
         bounds = problem.step_bounds(state.x)
-        g = _projected(g, bounds)
+        free = _free(g, bounds)
+        g = g * free
         if bounds is not None:
             lower, upper = bounds
-        direction = self._direction(g, s, y, rho)
+        direction = self._direction(g, s, y, rho) * free  # coordinates held by a bound stay put
         slope = (g * direction).sum(-1)
         uphill = slope >= 0
         direction = torch.where(uphill.unsqueeze(-1), -g, direction)
-        slope = torch.where(uphill, -(g * g).sum(-1), slope)
         first_step = (rho[:, -1] == 0) | uphill  # no curvature yet: scale the gradient step
         scale = torch.where(first_step, 1.0 / g.abs().sum(-1).clamp_min(1.0), 1.0)
         best_x, best_loss, best_step, best_terms = state.x, state.loss, torch.zeros_like(g), state.extra["terms"]
@@ -242,13 +254,18 @@ class LBFGS:
                     step = torch.minimum(torch.maximum(step, lower), upper)
                 candidate = problem.retract(state.x, step)
                 loss, terms, _ = problem.evaluate(candidate)
-                ok = (loss <= state.loss + self.armijo * 0.5**trial * scale * slope) & torch.isfinite(loss) & ~found
+                # Armijo on the step actually taken: a bound may have shortened it, even into a direction whose linear
+                # model rises (slope > 0); the clamp then asks for no increase at all.
+                slope = (g * step).sum(-1).clamp_max(0.0)
+                ok = (loss <= state.loss + self.armijo * slope) & torch.isfinite(loss) & ~found
                 ok &= ~state.done
                 best_x = select(ok, candidate, best_x)
                 best_loss = torch.where(ok, loss, best_loss)
                 best_step = torch.where(ok.unsqueeze(-1), step, best_step)
                 best_terms = _selected_terms(ok, terms, best_terms)
                 found |= ok
+                if bool((found | state.done).all()):  # bench-ok: later trials could change nothing
+                    break
         _, g_new = problem.gradient(best_x)
         change = g_new - state.extra["g"]
         curvature = (best_step * change).sum(-1)
@@ -260,7 +277,7 @@ class LBFGS:
         rho_new = torch.where(found[:, None], rho_new, torch.zeros_like(rho_new))  # failed search: forget history
         gtol, _, _ = _tolerances(g.dtype, self.gtol, None, None)
         grad_norm = _projected(g_new, problem.step_bounds(best_x)).abs().amax(-1)  # at the new point
-        done = state.done | (grad_norm < gtol)
+        done = state.done | (grad_norm < gtol) | (first_step & ~found)
         extra = {"g": g_new, "s": s_new, "y": y_new, "rho": rho_new, "grad_norm": grad_norm}
         extra.update(step_norm=best_step.abs().amax(-1), accepted=found, terms=best_terms)
         return State(x=best_x, loss=best_loss, done=done, it=state.it + 1, extra=extra)

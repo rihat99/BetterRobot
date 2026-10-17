@@ -10,7 +10,9 @@ There is no `C-PERF-1`: the first performance rule lives in `02` as `C-TENS-4`, 
 The performance reason for `C-TENS-4` (`02`): `.item()`, `.cpu()`, `bool(tensor)` and data-dependent Python
 control flow stall the GPU queue. Hot paths are the per-call code under `lie`, `kinematics`, `dynamics` and the
 solver step in `optim/solvers.py`; once-per-model setup (plan building) is not a hot path and is exempted with
-`# bench-ok`. This section has no rule ID of its own; `C-TENS-4` and its enforcer cover it.
+`# bench-ok`. So is the `LBFGS` line search, which reads one flag per trial: a trial is a full loss evaluation,
+dearer than the sync that skips the ones left once every problem has its step. This section has no rule ID of its
+own; `C-TENS-4` and its enforcer cover it.
 
 ## C-PERF-2 Batch, do not loop (MUST)
 

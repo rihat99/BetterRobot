@@ -74,7 +74,9 @@ if step_norm.item() < tol: break
 
 Enforcement: `tests/contract/test_hot_path_lint.py` (ast scan of `kinematics`, `dynamics`, `lie` and
 `optim/solvers.py`; a line marked `# bench-ok` is exempt, e.g. once-per-model plan building in
-`kinematics/_fk_lean.py`). Widening the scan to `spatial` and `terms` is `[planned: L-4]`.
+`kinematics/_fk_lean.py`). Widening the scan to `spatial` and `terms` is `[planned: L-4]`. In
+`optim/solvers.py` the one exempt read is the `LBFGS` line search: one flag per trial, to stop once every
+problem has its step instead of evaluating the loss at the remaining step sizes.
 
 ## C-TENS-5 Optimisation variables carry exactly one batch axis (MUST)
 
