@@ -5,6 +5,24 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- Optim: `LBFGS` stops its line search once every problem has a step (one host read per trial; the same iterates
+  on unbounded problems with 2-4x fewer evaluations). With bounds it holds the coordinates an active bound pins
+  and tests the Armijo condition on the clipped step, never taking one that raises the loss; the old search
+  stalled on bound-heavy problems (a nonnegative force fit stopped 0.4-4 % above its optimum, now within
+  0.01 %). A problem whose plain gradient step finds no decrease is done: every later step would repeat that
+  search. The search tries up to 20 step sizes (was 8): a stiff term with little gradient made the plain gradient
+  step need up to 11 trials on robot trajectories, and 8 left such problems done at their start point.
+- Terms: `finite_difference` takes any `order` (binomial stencil) and `world_translation=True`, which steps a
+  free flyer's position in its parent frame instead of the SE3 log's body-frame translation.
+  `velocity_limit(model, *, dt, fraction=1.0)` is the excess of the step velocity over the model's limits; a stored
+  limit of 0 (MJCF, URDF without `velocity`) is no limit.
+- Kinematics: `point_jacobian(model, state, *, frames, points)`, the `(B..., K, 3, nv)` world-velocity Jacobian of
+  points fixed to frames; `points` must match the state's dtype and device.
+- Viewer: `Viewer.set_offset(group, offset)` moves a group after it was added; `Viewer.aim(steps=, azimuth=,
+  elevation=)` points the live browsers (and viser's initial camera) at the visible layers, framed as `record`
+  frames them, skipping steps with nothing visible. `robot_skeleton(..., bone_radius=)` hides single bones;
+  `torque_spheres(model, joint_poses, tau=)` draws joint spheres sized and coloured by `|tau| / effort_limit`,
+  marked past the limit. `robot_skeleton` and `torque_spheres` are exported from `better_robot.viewer`.
 - Optim: a term may return `(value, info)`; `Problem.evaluate(x)` gives the loss, per-term losses and the
   `info` dicts from one evaluation. Every solver writes `State.extra["terms"]` (`TorchOptim` also
   `extra["info"]`), so `Phase.on_step` logs per-term losses without a second forward.
