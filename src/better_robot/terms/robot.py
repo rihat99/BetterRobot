@@ -7,6 +7,7 @@ so one forward-kinematics pass serves every term.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 
 import torch
@@ -111,21 +112,37 @@ def rest(model: Model, q_rest: torch.Tensor, *, q: str = "q") -> TermFn:
     return TermFn(fn=offset, reads=(q,), jac=_identity_jac(model, q, torch.ones_like))
 
 
-def finite_difference(model: Model, *, order: int, dt: float, q: str = "q") -> TermFn:
-    """Velocity (``order=1``) or acceleration (``order=2``) of a trajectory ``q: (B, T, nq)`` in tangent space.
+def finite_difference(
+    model: Model, *, order: int, dt: float, q: str = "q", world_translation: bool = False
+) -> TermFn:
+    """Time derivative of order ``order`` of a trajectory ``q: (B, T, nq)`` in tangent space, by finite differences.
 
-    Residual ``(B, T - order, nv)``; a time-local term with ``window = order + 1``.
+    The steps ``model.difference(q[t], q[t + 1]) / dt`` are differenced ``order - 1`` more times (the binomial
+    stencil), each time divided by ``dt``: velocity (1), acceleration (2), jerk (3), snap (4).
+    ``world_translation=True`` steps each free flyer's position in its parent frame (the world for a floating base)
+    instead of taking the translation of the SE3 log, which is expressed in the turning base frame; its rotation step
+    stays the body-frame log. Residual ``(B, T - order, nv)``; a time-local term with ``window = order + 1``.
     """
-    if order not in (1, 2):
-        raise ValueError(f"order must be 1 or 2, got {order}")
+    if order < 1:
+        raise ValueError(f"order must be at least 1, got {order}")
+    position_q = model.structure.manifold_free_flyer_q_indices[:, :3].reshape(-1)
+    position_v = model.structure.manifold_free_flyer_v_indices[:, :3].reshape(-1)
 
     def derivative(value: torch.Tensor) -> torch.Tensor:
-        out = model.difference(value[:, :-1], value[:, 1:]) / dt
-        return out if order == 1 else (out[:, 1:] - out[:, :-1]) / dt
+        out = model.difference(value[:, :-1], value[:, 1:])
+        if world_translation:
+            out = out.index_copy(-1, position_v, value[:, 1:, position_q] - value[:, :-1, position_q])
+        out = out / dt
+        for _ in range(order - 1):
+            out = (out[:, 1:] - out[:, :-1]) / dt
+        return out
 
     jac = None
     if model.nq == model.nv:
-        stencil = torch.tensor([-1.0, 1.0] if order == 1 else [1.0, -2.0, 1.0]) / dt**order
+        # Built in float64 and rounded once to the working dtype by ``.to(value)``; a float32 stencil was off by
+        # ~1e-7 (relative) in a float64 problem.
+        coefficients = [(-1.0) ** (order - i) * math.comb(order, i) for i in range(order + 1)]
+        stencil = torch.tensor(coefficients, dtype=torch.float64) / dt**order
 
         def jac(value: torch.Tensor) -> dict[str, torch.Tensor]:
             eye = torch.eye(model.nv, dtype=value.dtype, device=value.device)
@@ -133,6 +150,23 @@ def finite_difference(model: Model, *, order: int, dt: float, q: str = "q") -> T
             return {q: block.permute(1, 0, 2).expand(value.shape[0], value.shape[1] - order, -1, -1, -1)}
 
     return TermFn(fn=derivative, reads=(q,), jac=jac, window=order + 1)
+
+
+def velocity_limit(model: Model, *, dt: float, fraction: float = 1.0, q: str = "q") -> TermFn:
+    """Excess of the step velocity of ``q: (B, T, nq)`` over ``fraction`` of ``model.velocity_limit``, zero inside it.
+
+    Velocities are ``finite_difference(order=1)``, signed like them. A stored limit of 0 means unspecified (MJCF, URDF
+    without ``velocity``, continuous / planar / translation joints) and does not bind, like an infinite one.
+    Residual ``(B, T - 1, nv)``; ``window = 2``.
+    """
+    velocity = finite_difference(model, order=1, dt=dt, q=q).fn
+    limit = torch.where(model.velocity_limit > 0, fraction * model.velocity_limit, torch.inf)
+
+    def excess(value: torch.Tensor) -> torch.Tensor:
+        speed = velocity(value)
+        return (speed - limit).clamp_min(0.0) - (-limit - speed).clamp_min(0.0)
+
+    return TermFn(fn=excess, reads=(q,), window=2)
 
 
 __all__ = [
@@ -143,4 +177,5 @@ __all__ = [
     "joint_limits",
     "kinematic_state",
     "rest",
+    "velocity_limit",
 ]

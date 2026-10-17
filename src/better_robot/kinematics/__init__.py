@@ -12,6 +12,7 @@ from .state import (
     frame_jacobian_time_variation,
     joint_jacobian,
     joint_jacobian_time_variation,
+    point_jacobian,
 )
 
 # Public-internal (C-DEP-1): the joint-Jacobian column plan shared with ``dynamics``.
@@ -27,4 +28,5 @@ __all__ = [
     "frame_jacobian_time_variation",
     "joint_jacobian",
     "joint_jacobian_time_variation",
+    "point_jacobian",
 ]

@@ -1,6 +1,6 @@
 # `better_robot.kinematics`
 
-Forward kinematics returning an immutable `KinematicState`, and analytic joint and frame Jacobians and their time variation read from it.
+Forward kinematics returning an immutable `KinematicState`, and analytic joint, frame and point Jacobians and their time variation read from it.
 
 ::: better_robot.kinematics
     options:

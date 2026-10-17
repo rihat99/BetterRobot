@@ -86,6 +86,27 @@ print(torch.allclose(R @ J_local[..., :3, :], J_lwa[..., :3, :], atol=1e-5))   #
 True
 ```
 
+## A point fixed to a body has a 3-row Jacobian
+
+`point_jacobian(model, state, *, frames, points)` gives the world velocity of points fixed to frames,
+`(B..., K, 3, nv)`: point `k` sits at `points[..., k, :]` in the coordinates of `frames[k]`, with `points`
+`(K, 3)` or `(B..., K, 3)`. Its rows are the `local_world_aligned` linear rows moved to each point.
+`J.mT @ f` maps world forces `f: (B..., K, 3, 1)` at contact points to one generalized force per point;
+`(J.mT @ f).sum(-3)` is the generalized force of them all.
+
+```python
+from better_robot.kinematics import point_jacobian
+
+offsets = torch.tensor([[0.0, 0.0, 0.0], [0.0, 0.1, 0.0]])
+J_points = point_jacobian(model, state, frames=["tool", "tool"], points=offsets)
+print(J_points.shape)                        # torch.Size([16, 3, 2, 3, 2])
+print(torch.allclose(J_points[..., 0, :, :], J_lwa[..., :3, :], atol=1e-5))   # True
+```
+```output
+torch.Size([16, 3, 2, 3, 2])
+True
+```
+
 ## The time variation gives $\dot J$
 
 `frame_jacobian_time_variation(model, state, v=v, frame=frame, reference=...)` and

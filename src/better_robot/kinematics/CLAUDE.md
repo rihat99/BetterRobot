@@ -7,6 +7,8 @@
   `*_rotation` / `*_translation` and `frame_pose_of(id)` are views converted on first use
 - `frame_jacobian(model, state, *, frame, reference=...)` and `joint_jacobian(model, state, *, joint, reference=...)`
   — `(B..., 6, nv)`; both default to `local_world_aligned`
+- `point_jacobian(model, state, *, frames, points)` — `(B..., K, 3, nv)` world velocity of points fixed to frames
+  (the `local_world_aligned` linear rows moved to each point)
 - `frame_jacobian_time_variation(model, state, *, v, frame, reference=...)` and
   `joint_jacobian_time_variation(model, state, *, v, joint, reference=...)` — `J̇` for the same references
 - Raw kernels below them (`_fk_lean.py`, `_jacobian_columns.py`, `jacobian.py::*_time_variation_raw`)

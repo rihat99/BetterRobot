@@ -1,10 +1,11 @@
 """Robot cost terms for ``better_robot.optim``: plain functions with optional analytic Jacobians.
 
 Each factory returns a ``TermFn`` to register on a ``better_robot.optim.Problem``. ``kinematic_state`` is the cached
-forward-kinematics pass that ``frame_pose`` and ``frame_position`` read; ``joint_limits``, ``rest`` and
-``finite_difference`` act on the configuration ``q``; ``sphere_clearance`` and ``self_clearance`` keep collision
-spheres apart. ``RobotManifold`` steps ``q`` with ``Model.integrate``. ``ik_problem`` and ``solve_ik`` are the
-inverse-kinematics recipe built from these terms, and ``random_start`` samples restarts.
+forward-kinematics pass that ``frame_pose`` and ``frame_position`` read; ``joint_limits``, ``rest``,
+``finite_difference`` and ``velocity_limit`` act on the configuration ``q``; ``sphere_clearance`` and
+``self_clearance`` keep collision spheres apart. ``RobotManifold`` steps ``q`` with ``Model.integrate``.
+``ik_problem`` and ``solve_ik`` are the inverse-kinematics recipe built from these terms, and ``random_start``
+samples restarts.
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from .robot import (
     joint_limits,
     kinematic_state,
     rest,
+    velocity_limit,
 )
 
 __all__ = [
@@ -34,4 +36,5 @@ __all__ = [
     "self_clearance",
     "solve_ik",
     "sphere_clearance",
+    "velocity_limit",
 ]

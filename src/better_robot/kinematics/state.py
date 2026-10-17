@@ -8,6 +8,7 @@ code is written against. Poses in ``[t, q]`` layout are derived on request.
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -36,6 +37,7 @@ __all__ = [
     "frame_jacobian_time_variation",
     "joint_jacobian",
     "joint_jacobian_time_variation",
+    "point_jacobian",
 ]
 
 #: Tolerance used by the opt-in free-flyer quaternion debug check.
@@ -203,6 +205,38 @@ def frame_jacobian(
         state.frame_rotation[..., frame_id, :, :],
         reference,
     )
+
+
+def point_jacobian(
+    model: Model,
+    state: KinematicState,
+    *,
+    frames: Sequence[int | str],
+    points: torch.Tensor,
+) -> torch.Tensor:
+    """Jacobian of points fixed to frames. Returns ``(B..., K, 3, nv)``: the world velocity of each point.
+
+    Point ``k`` sits at ``points[..., k, :]`` in the coordinates of ``frames[k]`` (id or name); ``points`` is
+    ``(K, 3)`` or ``(B..., K, 3)``. The rows are the linear rows of a ``local_world_aligned`` frame Jacobian moved to
+    the point. ``J.mT @ f`` maps world forces ``f: (B..., K, 3, 1)`` at the points to one generalized force per point,
+    ``(B..., K, nv, 1)``; sum over ``K`` (``.sum(-3)``) for the generalized force of them all.
+    """
+    if not frames:
+        raise ValueError("frames is empty; point_jacobian needs at least one frame")
+    if points.dtype != state.q.dtype:
+        raise DtypeMismatchError(f"points.dtype={points.dtype} != state dtype {state.q.dtype}; cast points first")
+    if points.device != state.q.device:
+        raise DeviceMismatchError(f"points.device={points.device} != state device {state.q.device}; move points first")
+    if points.ndim < 2 or points.shape[-2:] != (len(frames), 3):
+        raise ShapeError(f"points has shape {tuple(points.shape)}; expected (..., {len(frames)}, 3), one per frame")
+    frame_ids = [model.frame_id(frame) for frame in frames]
+    joints = [model.structure.frame_parent_joint_ids[frame_id] for frame_id in frame_ids]
+    owners = sorted(set(joints))
+    world = torch.stack([_world_jacobian(model, state, joint) for joint in owners], dim=-3)  # (B..., U, 6, nv)
+    world = world[..., [owners.index(joint) for joint in joints], :, :]
+    transform = state.frame_transform[..., frame_ids, :, :]  # (B..., K, 3, 4)
+    position = (transform[..., :3] @ points.unsqueeze(-1)).squeeze(-1) + transform[..., 3]
+    return world[..., :3, :] - torch.linalg.cross(position.unsqueeze(-1), world[..., 3:, :], dim=-2)
 
 
 def joint_jacobian(

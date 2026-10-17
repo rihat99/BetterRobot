@@ -12,11 +12,12 @@ import math
 import pytest
 import torch
 
+from better_robot.exceptions import DtypeMismatchError
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.io.build_model import build_model
 from better_robot.kinematics.state import forward_kinematics_state
 from better_robot.terms import frame_pose
-from better_robot.kinematics import frame_jacobian, joint_jacobian
+from better_robot.kinematics import frame_jacobian, joint_jacobian, point_jacobian
 
 
 def _id7() -> torch.Tensor:
@@ -190,3 +191,38 @@ def panda_model():
     from better_robot.io import load  # noqa: PLC0415
 
     return load(panda_description.URDF_PATH)
+
+
+def test_point_jacobian_matches_finite_differences_on_a_floating_base():
+    pytest.importorskip("robot_descriptions")
+    from robot_descriptions import g1_description  # noqa: PLC0415
+
+    from better_robot.io import load  # noqa: PLC0415
+
+    model = load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
+    generator = torch.Generator().manual_seed(0)
+    q = model.integrate(model.q_neutral.expand(3, -1), 0.3 * torch.randn(3, model.nv, generator=generator, dtype=torch.float64))
+    frames = ["body_left_ankle_roll_link", "body_right_wrist_yaw_link", "body_left_ankle_roll_link", "body_pelvis"]
+    points = 0.1 * torch.randn(len(frames), 3, generator=generator, dtype=torch.float64)
+    ids = [model.frame_id(frame) for frame in frames]
+
+    def positions(configuration):
+        transform = forward_kinematics_state(model, configuration).frame_transform[..., ids, :, :]
+        return (transform[..., :3] @ points.unsqueeze(-1)).squeeze(-1) + transform[..., 3]
+
+    eps = 1e-6
+    numeric = torch.stack(
+        [
+            (positions(model.integrate(q, eps * e)) - positions(model.integrate(q, -eps * e))) / (2 * eps)
+            for e in torch.eye(model.nv, dtype=torch.float64)
+        ],
+        dim=-1,
+    )
+    state = forward_kinematics_state(model, q)
+    jacobian = point_jacobian(model, state, frames=frames, points=points)
+    assert jacobian.shape == (3, len(frames), 3, model.nv)
+    torch.testing.assert_close(jacobian, numeric, rtol=0, atol=1e-8)
+    with pytest.raises(DtypeMismatchError):
+        point_jacobian(model, state, frames=frames, points=points.float())
+    with pytest.raises(ValueError, match="empty"):
+        point_jacobian(model, state, frames=[], points=points[:0])
