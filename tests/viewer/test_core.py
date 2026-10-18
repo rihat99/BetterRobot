@@ -224,6 +224,29 @@ def test_solid_arrows_keep_a_fixed_head_and_hide_zero_and_invalid_vectors() -> N
     np.testing.assert_array_equal(shafts.batched_colors, np.full((3, 3), [0, 0, 255]))
 
 
+@pytest.mark.parametrize("shaft_radius", [None, 0.01], ids=["line", "solid"])
+def test_arrows_draw_nothing_up_to_min_length(shaft_radius: float | None) -> None:
+    """Zero and float-noise vectors (default ``min_length``), or ones up to a given ``min_length``, draw no head and no
+    shaft: no dot from a line's round caps, no lone solid head."""
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    lengths = np.array([0.0, 1e-7, 5e-3, 0.5], dtype=np.float32)
+    vectors = np.zeros((1, 4, 3), dtype=np.float32)
+    vectors[..., 2] = lengths
+    for name, min_length in (("default", {}), ("coarse", {"min_length": 0.01})):
+        viewer.add(
+            ArrowsLayer(name, np.ones((1, 4, 3)), vectors, head_size=0.03, shaft_radius=shaft_radius, **min_length)
+        )
+    viewer.show(0)
+    for name, shown in (("default", [False, False, True, True]), ("coarse", [False, False, False, True])):
+        heads, shafts = server.scene.nodes[f"/scene/{name}/heads"], server.scene.nodes[f"/scene/{name}/shafts"]
+        np.testing.assert_array_equal(heads.batched_scales.any(axis=-1), shown)
+        if shaft_radius is None:  # a hidden line is a zero-length segment
+            np.testing.assert_array_equal((shafts.points[:, 1] != shafts.points[:, 0]).any(axis=-1), shown)
+        else:  # a solid shaft also hides while the head covers the vector
+            np.testing.assert_array_equal(shafts.batched_scales.any(axis=-1), np.array(shown) & (lengths > 0.03))
+
+
 def test_spheres_and_arrows_take_per_step_colours() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)

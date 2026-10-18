@@ -156,6 +156,69 @@ def test_skeleton_markers_follow_joint_kind_and_axis() -> None:
     np.testing.assert_allclose(layer.world_points(0), layer.joints[0])
 
 
+def _every_axis_kind_model() -> br.Model:
+    """A chain over rx, ry, rz, px, py, pz, an oblique revolute and prismatic, and a spherical joint (no axis),
+    every joint placement rotated."""
+    builder = br.ModelBuilder("axes")
+    parent = builder.add_body("base")
+    oblique = {"axis": torch.tensor([1.0, 2.0, 2.0]) / 3.0}
+    joints = [
+        ("add_revolute_x", {}), ("add_revolute_y", {}), ("add_revolute_z", {}), ("add_revolute", oblique),
+        ("add_prismatic_x", {}), ("add_prismatic_y", {}), ("add_prismatic_z", {}), ("add_prismatic", oblique),
+    ]  # fmt: skip
+    for index, (method, kwargs) in enumerate(joints):
+        child = builder.add_body(f"link{index}", mass=1.0)
+        origin = torch.from_numpy(_random_poses((), seed=index))
+        getattr(builder, method)(f"joint{index}", parent=parent, child=child, origin=origin, **kwargs)
+        parent = child
+    builder.add_spherical("ball", parent=parent, child=builder.add_body("tip", mass=1.0))
+    return br.load(builder.finalize, dtype=torch.float64)
+
+
+@pytest.mark.parametrize("robot", ["every_axis_kind", "g1"])
+def test_skeleton_markers_lie_on_the_forward_kinematics_joint_axes(robot: str) -> None:
+    """Each revolute cylinder and prismatic box the skeleton sends lies along its joint's world axis, measured by
+    differentiating forward kinematics in that joint's coordinate (G1: rx / ry joints were drawn along z)."""
+    from better_robot.lie.se3 import inverse  # noqa: PLC0415
+    from better_robot.viewer import robot_skeleton  # noqa: PLC0415
+    from better_robot.viewer.robot import skeleton_spec  # noqa: PLC0415
+
+    if robot == "g1":
+        pytest.importorskip("robot_descriptions")
+        from robot_descriptions import g1_description  # noqa: PLC0415 - optional test dependency
+
+        model = br.load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
+    else:
+        model = _every_axis_kind_model()
+        kinds, axes = skeleton_spec(model)
+        np.testing.assert_array_equal(axes[kinds.index("spherical")], [0.0, 0.0, 1.0])  # no axis: +z
+    tangent = torch.randn(model.nv, generator=torch.Generator().manual_seed(0), dtype=torch.float64)
+    q = model.integrate(model.q_neutral, tangent)
+    joint_poses = br.forward_kinematics_state(model, q[None]).joint_pose.numpy().astype(np.float32)
+    layer = robot_skeleton(model, joint_poses)
+    server = FakeServer()
+    Viewer(server=server).add(layer)
+
+    checked = 0
+    for marker in ("cylinder", "box"):
+        if marker not in layer.groups:
+            continue
+        w, x, y, z = np.asarray(server.scene.nodes[f"/scene/skeleton/joints_{marker}"].batched_wxyzs, np.float64).T
+        drawn = np.stack([2 * (x * z + w * y), 2 * (y * z - w * x), 1 - 2 * (x * x + y * y)], axis=-1)  # R @ +z
+        for entry, joint in enumerate(layer.groups[marker] + 1):
+            step = torch.zeros(model.nv, dtype=torch.float64)
+            step[model.idx_vs[joint]] = 1e-6
+            plus = br.forward_kinematics_state(model, model.integrate(q, step)).joint_pose[joint]
+            minus = br.forward_kinematics_state(model, model.integrate(q, -step)).joint_pose[joint]
+            change = compose(plus, inverse(minus)).numpy()  # world-frame increment: [translation, quaternion xyzw]
+            true = change[3:6] if marker == "cylinder" else change[:3]
+            true /= np.linalg.norm(true)
+            angle = np.arctan2(np.linalg.norm(np.cross(drawn[entry], true)), drawn[entry] @ true)  # arccos: noisy at 0
+            assert angle < 1e-4, f"{model.joint_names[joint]}: drawn {drawn[entry]}, FK axis {true}"
+            checked += 1
+    assert checked == (8 if robot == "every_axis_kind" else 29)
+
+
 def test_robot_skeleton_hides_the_bones_given_a_zero_radius() -> None:
     pytest.importorskip("robot_descriptions")
     from robot_descriptions import g1_description  # noqa: PLC0415 - optional test dependency

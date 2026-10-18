@@ -39,7 +39,9 @@ video (`(T, H, W, 3)` uint8, or a callable `step -> image` with `nsteps=`). `Poi
 `SpheresLayer` and `ArrowsLayer` take one colour, one per element `(N, 3)`, or one per step `(T, N, 3)`, such as a
 contact turning red or green. `ArrowsLayer` draws line shafts `line_width` pixels wide by default; with
 `shaft_radius=` (metres) its arrows are solid, a cylinder and a cone of fixed length `head_size` and radius
-`head_radius`, so forces keep their thickness at any zoom. `SkeletonLayer` takes a joint `radius` per joint `(J,)`
+`head_radius`, so forces keep their thickness at any zoom. An arrow no longer than `min_length` metres (default
+`1e-6`: exact zeros and float noise) draws nothing in either mode, neither a dot nor a lone head; raise it to hide
+forces too small to read. `SkeletonLayer` takes a joint `radius` per joint `(J,)`
 or per step `(T, J)` (joints sized by torque) and a `bone_radius` per bone `(J,)`, entry `j` for the bone into joint
 `j` (thin finger bones); a radius of 0 hides that marker or bone. A new layer type subclasses `Layer` and implements
 `build` (create scene nodes once), `set_step` (move them to step `k`) and optionally `world_points` (positions
@@ -129,7 +131,9 @@ viewer.show()
 ```
 
 Options of both: `visual` and `collision` meshes, `skeleton`, `frames` (names or ids), `tau` (colours the skeleton
-by joint torque), `spheres` (collision spheres), `theme`, `opacity`.
+by joint torque), `spheres` (collision spheres), `theme`, `opacity`. The skeleton draws each revolute joint as a
+cylinder along its axis and each prismatic joint as a thin box along it, with the axes from
+`model.structure.joint_axes`.
 
 When you already have the joint poses `(T, njoints, 7)` (`KinematicState.joint_pose`), two functions build layers
 from them without another kinematics pass. `robot_skeleton(model, joint_poses, bone_radius=...)` is the skeleton

@@ -13,8 +13,9 @@ from ..layer import Layer
 class ArrowsLayer(Layer):
     """Arrows from ``origins (T, N, 3)`` along ``vectors (T, N, 3) * scale``.
 
-    Zero vectors draw nothing (their head scale is 0), so N stays fixed across frames; use
-    them for inactive contacts (a ``(T, N)`` ``valid`` in ``Viewer.add`` does the same).
+    An arrow is drawn only when its scaled length exceeds ``min_length`` (metres): shorter ones, exact
+    zeros included, draw nothing in either mode (no dot, no lone head), so N stays fixed across frames.
+    Use zero vectors for inactive contacts (a ``(T, N)`` ``valid`` in ``Viewer.add`` does the same).
     ``colors`` is one RGB, ``(N, 3)``, or ``(T, N, 3)`` per step.
 
     By default a shaft is a screen-space line ``line_width`` pixels wide and the cone head shrinks on
@@ -36,6 +37,7 @@ class ArrowsLayer(Layer):
         line_width: float = 3.0,
         shaft_radius: float | None = None,
         head_radius: float | None = None,
+        min_length: float = 1e-6,
     ) -> None:
         self.origins = as_frames(origins, 2)
         self.vectors = as_frames(vectors, 2) * np.float32(scale)
@@ -46,6 +48,7 @@ class ArrowsLayer(Layer):
         self.line_width = line_width
         self.shaft_radius = shaft_radius
         self.head_radius = head_size * 0.5 if head_radius is None else head_radius
+        self.min_length = min_length
         n_arrows = self._elements = self.origins.shape[1]
         colors = np.asarray(colors, dtype=np.float32)
         self._colors = rgb_uint8(colors, (n_arrows,)) if colors.ndim <= 2 else rgb_uint8(colors)
@@ -124,10 +127,13 @@ class ArrowsLayer(Layer):
         return np.concatenate([origins, tips])
 
     def _vectors(self, step: int) -> np.ndarray:
-        """Vectors ``(N, 3)`` drawn at ``step``: zero where a ``(T, N)`` ``valid`` marks the arrow invalid."""
-        if self.valid is None or self.valid.ndim == 1:
-            return self.vectors[step]
-        return self.vectors[step] * self.valid[step][:, None]
+        """Vectors ``(N, 3)`` drawn at ``step``: zero where a ``(T, N)`` ``valid`` marks the arrow invalid or the
+        vector is not longer than ``min_length``."""
+        vectors = self.vectors[step]
+        shown = np.linalg.norm(vectors, axis=-1) > self.min_length
+        if self.valid is not None and self.valid.ndim == 2:
+            shown &= self.valid[step]
+        return vectors * shown[:, None]
 
     def _segments(self, step: int) -> np.ndarray:
         tips = self.origins[step] + self._vectors(step)

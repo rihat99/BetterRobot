@@ -5,6 +5,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- Viewer: fixed the robot skeleton drawing the markers of `JointRX`/`JointRY` (and `JointPX`/`JointPY`) along the
+  joint's z axis, 90° off their true axis (22 of the G1's 29 joints); `skeleton_spec` reads
+  `model.structure.joint_axes` instead of `joint.axis`, which is `None` for the axis-aligned kinds.
+  `ArrowsLayer(..., min_length=1e-6)`: an arrow no longer than `min_length` metres draws nothing in line or solid
+  mode (tiny vectors drew a round-cap dot or a full solid head).
 - Optim: `LBFGS` stops its line search once every problem has a step (one host read per trial; the same iterates
   on unbounded problems with 2-4x fewer evaluations). With bounds it holds the coordinates an active bound pins
   and tests the Armijo condition on the clipped step, never taking one that raises the loss; the old search

@@ -177,9 +177,10 @@ def torque_spheres(
 def skeleton_spec(model: Model) -> tuple[list[str], np.ndarray]:
     """Joint kinds and axes ``(njoints - 1, 3)`` (joint frame; ``+z`` for joints without one) of joints 1..,
     for ``SkeletonLayer(kinds=, axes=)``."""
-    joints = model.joint_models[1:]
-    axes = [(0.0, 0.0, 1.0) if joint.axis is None else joint.axis.detach().cpu().tolist() for joint in joints]
-    return [joint.kind for joint in joints], np.asarray(axes, dtype=np.float32).reshape(-1, 3)
+    # The packed table, not ``joint.axis``: JointRX/RY/RZ and PX/PY/PZ keep their axis in a ClassVar (axis None).
+    axes = model.structure.joint_axes[1:].detach().cpu().numpy().astype(np.float32)
+    axes[~np.any(axes, axis=-1)] = (0.0, 0.0, 1.0)  # zero rows: spherical, free-flyer, planar, fixed, ...
+    return [joint.kind for joint in model.joint_models[1:]], axes
 
 
 def _torque_colors(model: Model, tau: np.ndarray, theme: Theme, nsteps: int) -> np.ndarray:
