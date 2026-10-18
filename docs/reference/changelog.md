@@ -10,6 +10,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `model.structure.joint_axes` instead of `joint.axis`, which is `None` for the axis-aligned kinds.
   `ArrowsLayer(..., min_length=1e-6)`: an arrow no longer than `min_length` metres draws nothing in line or solid
   mode (tiny vectors drew a round-cap dot or a full solid head).
+- Viewer: the skeleton draws co-located joints apart, textbook style: `spread_offsets(model)` slides each joint
+  marker that would overlap another along its own axis (computed once at `q_neutral`, for the thickest marker the
+  joint load draws), and bones join the drawn markers (`SkeletonLayer(offsets=)`; a zero-length bone draws nothing).
+  `robot_skeleton(..., tau=)` shows each joint's `|tau| / effort_limit` on its marker in colour (`Theme.torque_ramp`,
+  `Theme.over_limit` past the limit) and thickness (`SkeletonLayer(thickness=)`, the cross-section only).
+  `robot_skeleton(..., end_points={frame: point})` adds a bone from the frame's parent joint to a point in the frame,
+  such as a hand out to its contacts. `colormap` takes any number of colour stops. Solid `ArrowsLayer` heads take at
+  most 35 % of the arrow, so short arrows shrink as a whole instead of drawing a lone head. `Theme.force` is a
+  saturated red, `Theme.contact` green.
 - Optim: `LBFGS` stops its line search once every problem has a step (one host read per trial; the same iterates
   on unbounded problems with 2-4x fewer evaluations). With bounds it holds the coordinates an active bound pins
   and tests the Armijo condition on the clipped step, never taking one that raises the loss; the old search
@@ -26,8 +35,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Viewer: `Viewer.set_offset(group, offset)` moves a group after it was added; `Viewer.aim(steps=, azimuth=,
   elevation=)` points the live browsers (and viser's initial camera) at the visible layers, framed as `record`
   frames them, skipping steps with nothing visible. `robot_skeleton(..., bone_radius=)` hides single bones;
-  `torque_spheres(model, joint_poses, tau=)` draws joint spheres sized and coloured by `|tau| / effort_limit`,
-  marked past the limit. `robot_skeleton` and `torque_spheres` are exported from `better_robot.viewer`.
+  `robot_skeleton` is exported from `better_robot.viewer`.
 - Optim: a term may return `(value, info)`; `Problem.evaluate(x)` gives the loss, per-term losses and the
   `info` dicts from one evaluation. Every solver writes `State.extra["terms"]` (`TorchOptim` also
   `extra["info"]`), so `Phase.on_step` logs per-term losses without a second forward.

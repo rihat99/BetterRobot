@@ -20,10 +20,13 @@ class ArrowsLayer(Layer):
 
     By default a shaft is a screen-space line ``line_width`` pixels wide and the cone head shrinks on
     vectors shorter than ``head_size``. With ``shaft_radius`` (metres) the arrow is solid: a cylinder
-    shaft and a cone head of fixed length ``head_size`` and radius ``head_radius`` (default
-    ``head_size / 2``), the shaft filling the rest of the vector; a vector shorter than the head draws
-    the head alone.
+    shaft and a cone head of length ``head_size`` and radius ``head_radius`` (default
+    ``head_size / 2``), the shaft filling the rest of the vector. A head takes at most
+    ``HEAD_FRACTION`` of its vector: a shorter solid arrow is the long one scaled down (head and shaft
+    thinner too), so it still reads as an arrow, never as a lone head.
     """
+
+    HEAD_FRACTION = 0.35
 
     def __init__(
         self,
@@ -146,19 +149,26 @@ class ArrowsLayer(Layer):
         if self.shaft_radius is None:
             head = np.minimum(self.head_size, length)
             radius = head * 0.5
-        else:  # fixed size, hidden only on zero vectors
-            head = np.where(length > 0.0, self.head_size, 0.0).astype(np.float32)
-            radius = np.where(length > 0.0, self.head_radius, 0.0).astype(np.float32)
+        else:
+            shrink = self._shrink(length)
+            head = (self.head_size * shrink).astype(np.float32)
+            radius = (self.head_radius * shrink).astype(np.float32)
         base = self.origins[step] + vector - unit * head[:, None]
         scales = np.stack([radius, radius, head], axis=-1)
         return base, quat_z_to(vector), scales
 
+    def _shrink(self, length: np.ndarray) -> np.ndarray:
+        """Solid arrows: the scale ``(N,)`` of each arrow's head and thickness, 1 down to ``head_size /
+        HEAD_FRACTION`` and proportional to ``length`` below (0 hides a zero vector)."""
+        return np.minimum(1.0, length * self.HEAD_FRACTION / self.head_size)
+
     def _shaft_transforms(self, step: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Solid shafts: unit cylinders from each origin to its head's base, hidden when the head covers the vector."""
+        """Solid shafts: unit cylinders from each origin to its head's base."""
         vector = self._vectors(step)
         length = np.linalg.norm(vector, axis=-1)
-        shaft = np.maximum(length - self.head_size, 0.0)
-        radius = np.where(shaft > 0.0, self.shaft_radius, 0.0).astype(np.float32)
+        shrink = self._shrink(length)
+        shaft = np.maximum(length - self.head_size * shrink, 0.0)
+        radius = np.where(shaft > 0.0, self.shaft_radius * shrink, 0.0).astype(np.float32)
         unit = vector / np.maximum(length, 1e-9)[:, None]
         centre = self.origins[step] + unit * (shaft * 0.5)[:, None]
         return centre, quat_z_to(vector), np.stack([radius, radius, shaft], axis=-1).astype(np.float32)

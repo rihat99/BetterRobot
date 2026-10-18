@@ -21,8 +21,13 @@ class Theme:
     robot: RGB = (0.62, 0.63, 0.65)
     human: RGB = (0.85, 0.72, 0.62)
     point: RGB = (0.30, 0.32, 0.36)
-    force: RGB = (0.74, 0.32, 0.30)
+    force: RGB = (0.80, 0.10, 0.10)  # red: contact-force arrows
     torque: RGB = (0.82, 0.60, 0.30)
+    # Joint load |tau| / limit from 0 to 1 (dark navy, teal, green, yellow; saturated enough to survive viser's
+    # lights), and past the limit (magenta).
+    torque_ramp: tuple[RGB, ...] = ((0.03, 0.07, 0.20), (0.0, 0.38, 0.42), (0.25, 0.55, 0.10), (0.95, 0.75, 0.0))
+    over_limit: RGB = (0.80, 0.0, 0.70)
+    contact: RGB = (0.10, 0.75, 0.30)  # green: a contact point or frame in contact
     target: RGB = (0.27, 0.58, 0.47)
     grid_cell: RGB = (0.86, 0.87, 0.89)
     grid_section: RGB = (0.70, 0.72, 0.76)
@@ -57,4 +62,5 @@ DARK = Theme(
     grid_cell=(0.30, 0.30, 0.30),
     grid_section=(0.45, 0.45, 0.45),
     point=(0.80, 0.80, 0.80),
+    torque_ramp=((0.18, 0.28, 0.62), *LIGHT.torque_ramp[1:]),  # a brighter navy at zero load: visible on dark
 )

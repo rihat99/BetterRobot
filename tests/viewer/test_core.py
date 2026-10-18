@@ -194,7 +194,23 @@ def test_skeleton_takes_per_bone_radii_and_per_step_joint_radii() -> None:
         SkeletonLayer("bad", joints, parents=[-1, 0, 1], radius=np.ones((3, 3)))
 
 
-def test_solid_arrows_keep_a_fixed_head_and_hide_zero_and_invalid_vectors() -> None:
+def test_skeleton_thickness_widens_axial_markers_only_across_and_axis_less_ones_whole() -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    joints = np.array([[[0.0, 0.0, 0.0], [0.0, 0.0, 1.0]]] * 2, dtype=np.float32)
+    thickness = np.array([[1.0, 1.0], [2.0, 3.0]], dtype=np.float32)  # (T, J): per step
+    viewer.add(SkeletonLayer("s", joints, [-1, 0], kinds=["revolute", "spherical"], radius=0.1, thickness=thickness))
+    viewer.show(1)
+    nodes = server.scene.nodes
+    np.testing.assert_allclose(nodes["/scene/s/joints_cylinder"].batched_scales, [[0.16, 0.16, 0.25]], rtol=1e-6)
+    np.testing.assert_allclose(nodes["/scene/s/joints"].batched_scales, [[0.3, 0.3, 0.3]], rtol=1e-6)
+    with pytest.raises(ValueError, match="thickness"):
+        SkeletonLayer("bad", joints, [-1, 0], thickness=np.ones((3, 2)))
+    with pytest.raises(ValueError, match="offsets"):
+        SkeletonLayer("bad", joints, [-1, 0], offsets=np.zeros(6))  # flat: no longer reshaped
+
+
+def test_solid_arrows_keep_a_fixed_head_shrink_short_ones_whole_and_hide_zero_and_invalid_vectors() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
     vectors = np.array([[[0.0, 0.0, 2.0], [0.05, 0.0, 0.0], [0.0, 0.0, 0.0]]] * 2)
@@ -211,11 +227,12 @@ def test_solid_arrows_keep_a_fixed_head_and_hide_zero_and_invalid_vectors() -> N
     shafts, heads = server.scene.nodes["/scene/f/shafts"], server.scene.nodes["/scene/f/heads"]
     assert shafts.kind == "batched_meshes_simple"
     viewer.show(0)
-    # Long arrow: shaft up to the head's base, head of full size; short arrow: head alone, poking behind the origin.
-    np.testing.assert_allclose(shafts.batched_positions[0], [0.0, 0.0, 0.95], atol=1e-6)
-    np.testing.assert_allclose(shafts.batched_scales[:2], [[0.02, 0.02, 1.9], [0.0, 0.0, 0.0]], atol=1e-6)
-    np.testing.assert_allclose(heads.batched_positions[:2], [[0.0, 0.0, 1.9], [-0.05, 0.0, 0.0]], atol=1e-6)
-    np.testing.assert_allclose(heads.batched_scales[:2], [[0.04, 0.04, 0.1], [0.04, 0.04, 0.1]], atol=1e-6)
+    # Long arrow: shaft up to the head's base, head of full size. Short arrow (0.05 m, under head_size / 0.35): the
+    # long one scaled by 0.05 * 0.35 / 0.1 = 0.175, head 35 % of it, so still a shaft and a head.
+    np.testing.assert_allclose(shafts.batched_positions[:2], [[0.0, 0.0, 0.95], [0.01625, 0.0, 0.0]], atol=1e-6)
+    np.testing.assert_allclose(shafts.batched_scales[:2], [[0.02, 0.02, 1.9], [0.0035, 0.0035, 0.0325]], atol=1e-6)
+    np.testing.assert_allclose(heads.batched_positions[:2], [[0.0, 0.0, 1.9], [0.0325, 0.0, 0.0]], atol=1e-6)
+    np.testing.assert_allclose(heads.batched_scales[:2], [[0.04, 0.04, 0.1], [0.007, 0.007, 0.0175]], atol=1e-6)
     np.testing.assert_allclose(heads.batched_scales[2], 0.0)
     np.testing.assert_allclose(shafts.batched_scales[2], 0.0)
     viewer.show(1)  # the long arrow is invalid here; per-step colours reach the shafts too
@@ -243,8 +260,8 @@ def test_arrows_draw_nothing_up_to_min_length(shaft_radius: float | None) -> Non
         np.testing.assert_array_equal(heads.batched_scales.any(axis=-1), shown)
         if shaft_radius is None:  # a hidden line is a zero-length segment
             np.testing.assert_array_equal((shafts.points[:, 1] != shafts.points[:, 0]).any(axis=-1), shown)
-        else:  # a solid shaft also hides while the head covers the vector
-            np.testing.assert_array_equal(shafts.batched_scales.any(axis=-1), np.array(shown) & (lengths > 0.03))
+        else:  # a short solid arrow keeps its shaft
+            np.testing.assert_array_equal(shafts.batched_scales.any(axis=-1), shown)
 
 
 def test_spheres_and_arrows_take_per_step_colours() -> None:

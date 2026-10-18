@@ -13,6 +13,7 @@ from .._math import (
     axis_wxyz,
     quat_z_to,
     rgb_uint8,
+    rotate,
     unit_box,
     unit_cylinder,
     unit_sphere,
@@ -34,6 +35,27 @@ _MESHES = {
     "box": (unit_box, (0.6, 0.6, 3.0)),
     "cube": (unit_box, (1.4, 1.4, 1.4)),
 }
+# Marker -> (radius, half-length along the axis) per unit joint radius of the capsule that encloses it; the
+# free-flyer triad counts as its hub only (its arms are thin lines).
+_EXTENT = {
+    "cylinder": (0.8, 1.25),
+    "box": (0.3 * 2**0.5, 1.5),
+    "sphere": (1.0, 0.0),
+    "cube": (0.7 * 3**0.5, 0.0),
+    "axes": (0.5, 0.0),
+}
+
+
+def marker_of(kind: str) -> str | None:
+    """The marker a joint kind (``JointModel.kind`` or its prefix before ``_``) is drawn as: ``"cylinder"``,
+    ``"box"``, ``"sphere"``, ``"axes"``, ``"cube"``, or None for fixed joints (nothing drawn)."""
+    return _MARKER.get(kind, _MARKER.get(kind.split("_", 1)[0], "sphere"))
+
+
+def marker_extent(marker: str) -> tuple[float, float]:
+    """``(radius, half_length)`` per unit joint radius of the capsule enclosing ``marker``, the length along the
+    joint axis (0 for markers without one)."""
+    return _EXTENT[marker]
 
 
 class SkeletonLayer(Layer):
@@ -44,8 +66,12 @@ class SkeletonLayer(Layer):
     ``skeleton_spec``) and ``axes (J, 3)`` in the joint frame, revolute/helical joints are cylinders along
     the axis, prismatic thin boxes along the axis, spherical spheres, free-flyers small triads,
     planar/translation cubes, and fixed joints nothing. ``radius`` is one float, ``(J,)`` per joint, or
-    ``(T, J)`` per step (joints sized by torque; only then are marker scales written per step); a radius
-    of 0 hides the marker. ``bone_radius`` is one float or ``(J,)`` per bone, entry ``j`` for the bone
+    ``(T, J)`` per step; a radius of 0 hides the marker. ``thickness`` ``(J,)`` or ``(T, J)`` (a joint's
+    load, per step) multiplies each marker's cross-section but not its length along the axis; markers
+    without an axis grow whole. Marker scales are written per step only for a ``(T, J)`` radius or thickness.
+    ``offsets (J, 3)``, in each joint's frame (``robot.spread_offsets``), move a marker off its joint
+    origin, such as along its own axis; bones join the drawn marker centres, and a bone of zero length
+    draws nothing. ``bone_radius`` is one float or ``(J,)`` per bone, entry ``j`` for the bone
     from ``parents[j]`` to ``j`` (roots' entries unused); 0 hides the bone. ``colors`` is one RGB, ``(J, 3)``
     per joint, or ``(T, J, 3)`` per step (torque colouring), kept as uint8: edit it in place and call
     ``viewer.show()`` to recolour (per-step colours only). ``joints`` ``(T, J, 3)`` and ``rotations``
@@ -62,6 +88,8 @@ class SkeletonLayer(Layer):
         kinds: Sequence[str] | None = None,
         axes: np.ndarray | None = None,
         radius: float | np.ndarray = 0.02,
+        thickness: np.ndarray | None = None,
+        offsets: np.ndarray | None = None,
         bone_radius: float | np.ndarray | None = None,
         colors: np.ndarray | RGB = (0.20, 0.60, 1.00),
         bone_color: RGB = (0.72, 0.72, 0.72),
@@ -82,7 +110,7 @@ class SkeletonLayer(Layer):
         kinds = ["spherical"] * n_joints if kinds is None else list(kinds)
         if len(kinds) != n_joints:
             raise ValueError("kinds must have one entry per joint")
-        markers = [_MARKER.get(kind, _MARKER.get(kind.split("_")[0], "sphere")) for kind in kinds]
+        markers = [marker_of(kind) for kind in kinds]
         self.groups = {m: np.array([j for j in range(n_joints) if markers[j] == m]) for m in set(markers) - {None}}
         axes = (0.0, 0.0, 1.0) if axes is None else axes
         self.axes = np.broadcast_to(np.asarray(axes, dtype=np.float32), (n_joints, 3))
@@ -90,6 +118,12 @@ class SkeletonLayer(Layer):
         self.radius = radius if radius.ndim == 2 else np.broadcast_to(radius, (n_joints,))
         if self.radius.shape[-1] != n_joints or (radius.ndim == 2 and len(radius) != self.nsteps):
             raise ValueError(f"radius must be one float, (J,) or (T, J) = {self.joints.shape[:2]}, got {radius.shape}")
+        self.thickness = None if thickness is None else np.asarray(thickness, dtype=np.float32)
+        if self.thickness is not None and self.thickness.shape not in ((n_joints,), (self.nsteps, n_joints)):
+            raise ValueError(f"thickness must be (J,) or (T, J) = {self.joints.shape[:2]}, got {self.thickness.shape}")
+        self.offsets = None if offsets is None else np.asarray(offsets, dtype=np.float32)
+        if self.offsets is not None and self.offsets.shape != (n_joints, 3):
+            raise ValueError(f"offsets must be (J, 3) = ({n_joints}, 3), got {self.offsets.shape}")
         # A float or (J,) per bone, entry j for the bone into joint j; read at every step.
         self.bone_radius = float(self.radius.max()) * 0.6 if bone_radius is None else bone_radius
         self.bone_color = bone_color
@@ -102,6 +136,7 @@ class SkeletonLayer(Layer):
 
     def build(self, scene: Any, root: str) -> None:
         colors = self.colors if self.colors.ndim == 2 else self.colors[0]
+        centres = self._centres(0)
         for marker, index in self.groups.items():
             if marker == "axes":
                 length = float(self.radius[..., index].max()) * 4.0
@@ -109,14 +144,14 @@ class SkeletonLayer(Layer):
                     scene.add_batched_axes(
                         f"{root}/joints_axes",
                         batched_wxyzs=xyzw_to_wxyz(self.rotations[0, index]),
-                        batched_positions=self.joints[0, index],
+                        batched_positions=centres[index],
                         axes_length=length,
                         axes_radius=length * 0.05,
                     )
                 )
                 continue
             vertices, faces = _MESHES[marker][0]()
-            positions, wxyzs, scales = self._marker_transforms(marker, 0)
+            wxyzs, scales = self._marker_transforms(marker, 0)
             path = f"{root}/joints" if marker == "sphere" else f"{root}/joints_{marker}"
             self._nodes[marker] = self._track(
                 scene.add_batched_meshes_simple(
@@ -124,7 +159,7 @@ class SkeletonLayer(Layer):
                     vertices,
                     faces,
                     batched_wxyzs=wxyzs,
-                    batched_positions=positions,
+                    batched_positions=centres[index],
                     batched_scales=scales,
                     batched_colors=colors[index],
                     lod="off",
@@ -132,7 +167,7 @@ class SkeletonLayer(Layer):
             )
         if len(self._child):
             vertices, faces = unit_cylinder()
-            positions, wxyzs, scales = self._bone_transforms(0)
+            positions, wxyzs, scales = self._bone_transforms(centres)
             self._bones = self._track(
                 scene.add_batched_meshes_simple(
                     f"{root}/bones",
@@ -147,20 +182,22 @@ class SkeletonLayer(Layer):
             )
 
     def set_step(self, step: int) -> None:
+        centres = self._centres(step)
+        per_step_scale = self.radius.ndim == 2 or (self.thickness is not None and self.thickness.ndim == 2)
         for marker, node in self._nodes.items():
             index = self.groups[marker]
-            node.batched_positions = self.joints[step, index]
+            node.batched_positions = centres[index]
             if marker == "axes":
                 node.batched_wxyzs = xyzw_to_wxyz(self.rotations[step, index])
                 continue
-            _, wxyzs, scales = self._marker_transforms(marker, step)
+            wxyzs, scales = self._marker_transforms(marker, step)
             node.batched_wxyzs = wxyzs
-            if self.radius.ndim == 2:
+            if per_step_scale:
                 node.batched_scales = scales
             if self.colors.ndim == 3:
                 node.batched_colors = self.colors[step, index]
         if self._bones is not None:
-            positions, wxyzs, scales = self._bone_transforms(step)
+            positions, wxyzs, scales = self._bone_transforms(centres)
             self._bones.batched_positions = positions
             self._bones.batched_wxyzs = wxyzs
             self._bones.batched_scales = scales
@@ -169,19 +206,29 @@ class SkeletonLayer(Layer):
         """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
         return self.joints[step]
 
-    def _marker_transforms(self, marker: str, step: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Positions ``(N, 3)``, wxyz ``(N, 4)`` and scales ``(N, 3)`` of one marker group at ``step``."""
+    def _centres(self, step: int) -> np.ndarray:
+        """Drawn marker centres ``(J, 3)`` at ``step``: the joints moved by their ``offsets`` (joint frame)."""
+        if self.offsets is None:
+            return self.joints[step]
+        return self.joints[step] + rotate(self.rotations[step], self.offsets)
+
+    def _marker_transforms(self, marker: str, step: int) -> tuple[np.ndarray, np.ndarray]:
+        """wxyz ``(N, 4)`` and scales ``(N, 3)`` of one marker group at ``step``."""
         index = self.groups[marker]
         wxyzs = axis_wxyz(self.rotations[step, index], self.axes[index])
         radius = self.radius[step] if self.radius.ndim == 2 else self.radius
         scales = radius[index, None] * np.asarray(_MESHES[marker][1], dtype=np.float32)
-        return self.joints[step, index], wxyzs, scales
+        if self.thickness is not None:
+            factor = (self.thickness[step] if self.thickness.ndim == 2 else self.thickness)[index, None]
+            scales[:, : 3 if marker in ("sphere", "cube") else 2] *= factor  # markers without an axis grow whole
+        return wxyzs, scales
 
-    def _bone_transforms(self, step: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        start = self.joints[step, self._parent]
-        end = self.joints[step, self._child]
+    def _bone_transforms(self, centres: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        start = centres[self._parent]
+        end = centres[self._child]
         vector = end - start
         length = np.linalg.norm(vector, axis=-1)
         radius = np.broadcast_to(np.asarray(self.bone_radius, dtype=np.float32), self.parents.shape)[self._child]
+        radius = np.where(length > 1e-6, radius, 0.0)  # a zero-length bone would draw a flat disc
         scales = np.stack([radius, radius, length], axis=-1)
         return (start + end) * 0.5, quat_z_to(vector), scales

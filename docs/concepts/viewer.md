@@ -38,12 +38,15 @@ The built-in layers are `PointsLayer`, `SkeletonLayer`, `FramesLayer`, `ArrowsLa
 video (`(T, H, W, 3)` uint8, or a callable `step -> image` with `nsteps=`). `PointsLayer`, `SkeletonLayer`,
 `SpheresLayer` and `ArrowsLayer` take one colour, one per element `(N, 3)`, or one per step `(T, N, 3)`, such as a
 contact turning red or green. `ArrowsLayer` draws line shafts `line_width` pixels wide by default; with
-`shaft_radius=` (metres) its arrows are solid, a cylinder and a cone of fixed length `head_size` and radius
-`head_radius`, so forces keep their thickness at any zoom. An arrow no longer than `min_length` metres (default
+`shaft_radius=` (metres) its arrows are solid, a cylinder and a cone of length `head_size` and radius
+`head_radius`, so forces keep their thickness at any zoom; a head takes at most 35 % of its arrow, so a short solid
+arrow is the long one scaled down, never a lone head. An arrow no longer than `min_length` metres (default
 `1e-6`: exact zeros and float noise) draws nothing in either mode, neither a dot nor a lone head; raise it to hide
 forces too small to read. `SkeletonLayer` takes a joint `radius` per joint `(J,)`
-or per step `(T, J)` (joints sized by torque) and a `bone_radius` per bone `(J,)`, entry `j` for the bone into joint
-`j` (thin finger bones); a radius of 0 hides that marker or bone. A new layer type subclasses `Layer` and implements
+or per step `(T, J)`, a `thickness` `(J,)` or `(T, J)` that multiplies each marker's cross-section but not its
+length, `offsets (J, 3)` in each joint's frame that move a marker off its joint origin (bones then join the drawn
+centres), and a `bone_radius` per bone `(J,)`, entry `j` for the bone into joint `j` (thin finger bones); a radius of
+0 hides that marker or bone. A new layer type subclasses `Layer` and implements
 `build` (create scene nodes once), `set_step` (move them to step `k`) and optionally `world_points` (positions
 that `record`'s camera fits).
 
@@ -130,24 +133,32 @@ robot.update(q.flip(0))   # same length, played backwards
 viewer.show()
 ```
 
-Options of both: `visual` and `collision` meshes, `skeleton`, `frames` (names or ids), `tau` (colours the skeleton
-by joint torque), `spheres` (collision spheres), `theme`, `opacity`. The skeleton draws each revolute joint as a
+Options of both: `visual` and `collision` meshes, `skeleton`, `frames` (names or ids), `tau` (the joint load on the
+skeleton), `spheres` (collision spheres), `theme`, `opacity`. The skeleton draws each revolute joint as a
 cylinder along its axis and each prismatic joint as a thin box along it, with the axes from
-`model.structure.joint_axes`.
+`model.structure.joint_axes`. Joints that share a point, such as a hip's pitch, roll and yaw, are drawn apart as in
+a textbook kinematic diagram: `spread_offsets(model)` slides each marker that would overlap another along its own
+axis (so it stays on the true axis line), once at `model.q_neutral` and for markers at their thickest (see `tau`
+below), and the bones connect the drawn markers in chain order.
 
-When you already have the joint poses `(T, njoints, 7)` (`KinematicState.joint_pose`), two functions build layers
-from them without another kinematics pass. `robot_skeleton(model, joint_poses, bone_radius=...)` is the skeleton
-alone; a `bone_radius` of 0 hides a bone, such as the ones to massless sensor mounts
-(`model.body_inertias[1:, 0] == 0`). `torque_spheres(model, joint_poses, tau=tau)` puts a sphere on every joint
-with an effort limit, sized and coloured by `|tau| / effort_limit`: it grows from `radius[0]` to `radius[1]` and
-blends from the theme's joint colour to its force colour up to the limit, and turns `over_limit` (yellow) past it.
+When you already have the joint poses `(T, njoints, 7)` (`KinematicState.joint_pose`),
+`robot_skeleton(model, joint_poses, bone_radius=...)` builds the skeleton from them without another kinematics
+pass; a `bone_radius` of 0 hides a bone, such as the ones to massless sensor mounts
+(`model.body_inertias[1:, 0] == 0`). With `tau` `(T, nv)` each joint marker shows the joint's load
+`|tau| / effort_limit` in two ways: its colour runs through the theme's `torque_ramp` (navy, teal, green, yellow)
+up to the limit and turns `over_limit` (magenta) past it, and its cross-section grows from 0.8 to 1.8 times the
+default at the limit (its length stays, and the layout is spaced for the thickest, so no marker moves). Joints
+without a finite effort limit keep the plain look. `end_points` maps frames (names or ids) to a point in each
+frame; a bone runs from the frame's parent joint to that point, as thick as the bone into that joint, such as a
+hand past the last wrist joint out to where its contact forces act.
 
 ```python
-from better_robot.viewer import torque_spheres
+from better_robot.viewer import robot_skeleton
 
 poses = br.forward_kinematics_state(model, q).joint_pose.numpy()   # (30, njoints, 7)
 tau = 40.0 * torch.sin(phase + torch.arange(model.nv))              # (30, nv) N·m
-viewer.add(torque_spheres(model, poses, tau=tau), group="panda")
+fingers = {"body_panda_hand": (0.0, 0.0, 0.1)}                       # a bone out to the fingertips
+viewer.add(robot_skeleton(model, poses, name="panda load", tau=tau, end_points=fingers), group="panda")
 ```
 
 ## Tools: a gizmo and numpy picking

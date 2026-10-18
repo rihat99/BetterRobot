@@ -50,10 +50,14 @@ def rotate(q: np.ndarray, v: np.ndarray) -> np.ndarray:
     return v + w * t + np.cross(xyz, t)
 
 
-def colormap(values: np.ndarray, low: RGB, high: RGB) -> np.ndarray:
-    """Linear blend from ``low`` to ``high`` for ``values`` in ``[0, 1]`` (clamped): ``(..., 3)``."""
-    t = np.clip(np.asarray(values, dtype=np.float32), 0.0, 1.0)[..., None]
-    return (1.0 - t) * np.asarray(low, dtype=np.float32) + t * np.asarray(high, dtype=np.float32)
+def colormap(values: np.ndarray, *stops: RGB) -> np.ndarray:
+    """Piecewise-linear colours ``(..., 3)`` through evenly spaced ``stops`` (at least two) for ``values`` in
+    ``[0, 1]`` (clamped); two stops are a plain blend from the first to the second."""
+    stops_array = np.asarray(stops, dtype=np.float32)
+    position = np.clip(np.asarray(values, dtype=np.float32), 0.0, 1.0) * (len(stops_array) - 1)
+    segment = np.minimum(position.astype(np.int64), len(stops_array) - 2)
+    t = (position - segment)[..., None]
+    return (1.0 - t) * stops_array[segment] + t * stops_array[segment + 1]
 
 
 def quat_z_to(direction: np.ndarray) -> np.ndarray:

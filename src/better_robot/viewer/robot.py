@@ -6,17 +6,17 @@ layers receive numpy arrays and never touch the model again.
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
 
-from ._math import RGB, colormap
+from ._math import colormap, rotate
 from .layer import Layer
 from .layers.frames import FramesLayer
 from .layers.mesh import MeshSpec, RigidMeshLayer, SpheresLayer
-from .layers.skeleton import SkeletonLayer
+from .layers.skeleton import SkeletonLayer, marker_extent, marker_of
 from .theme import LIGHT, Theme
 
 if TYPE_CHECKING:
@@ -29,7 +29,7 @@ class RobotView:
     """Layers for one robot and a clip ``q (T, nq)``; ``update(q)`` rewrites them in place.
 
     ``visual``/``collision`` draw the URDF/MJCF geometry as ``RigidMeshLayer``s; ``skeleton``
-    draws joints and links, coloured by ``|tau| / effort_limit`` when ``tau (T, nv)`` is given;
+    draws joints and links, coloured and thickened by ``|tau| / effort_limit`` when ``tau (T, nv)`` is given;
     ``frames`` lists frame names or ids for a ``FramesLayer``; ``spheres`` draws a
     ``RobotSpheres`` collision model. Forward kinematics runs once per ``update``.
     """
@@ -114,64 +114,83 @@ def robot_layers(model: Model, q: torch.Tensor, **options: Any) -> list[Layer]:
     return RobotView(model, q, **options).layers
 
 
+_TORQUE_THICKNESS = (0.8, 1.8)  # a joint marker's cross-section, times its default, at zero load and at the limit
+
+
 def robot_skeleton(
     model: Model,
     joint_poses: np.ndarray,
     *,
     name: str = "skeleton",
-    tau: torch.Tensor | None = None,
+    tau: torch.Tensor | np.ndarray | None = None,
     theme: Theme = LIGHT,
     radius: float = 0.02,
     bone_radius: float | np.ndarray | None = None,
+    end_points: Mapping[str | int, Sequence[float]] | None = None,
 ) -> SkeletonLayer:
-    """Skeleton over joints 1.. of ``joint_poses (T, njoints, 7)``, one marker per joint kind (``skeleton_spec``).
+    """Skeleton over joints 1.. of ``joint_poses (T, njoints, 7)``, one marker per joint kind (``skeleton_spec``),
+    laid out by ``spread_offsets``: markers that would overlap slide apart along their own axes and bones join the
+    drawn marker centres.
+
+    ``tau`` ``(T, nv)`` or ``(nv,)`` shows each joint's load ``|tau| / effort_limit`` on its marker, in colour
+    (``theme.torque_ramp`` up to the limit, ``theme.over_limit`` past it) and thickness (its cross-section from 0.8
+    times the default at zero load to 1.8 times at the limit, its length unchanged); joints without a finite effort
+    limit keep the plain look.
 
     ``bone_radius`` is one float or ``(njoints - 1,)``, entry ``j`` for the bone into joint ``j + 1``; 0 hides a
     bone, such as one to a massless sensor mount (``model.body_inertias[1:, 0] == 0``). ``None`` keeps
-    ``SkeletonLayer``'s default.
+    ``SkeletonLayer``'s default. ``end_points`` maps frames (names or ids) to a point ``(3,)`` in each frame: a bone,
+    as thick as the one into the frame's parent joint, runs from that joint to the point, such as a hand out to where
+    its contacts are, past the last wrist joint.
     """
     parents = np.asarray(model.parents[1:], dtype=np.int64) - 1  # the universe becomes -1
     kinds, axes = skeleton_spec(model)
+    poses, offsets = joint_poses[:, 1:], spread_offsets(model, radius=radius)
+    if end_points:  # each end point joins the skeleton as a joint without a marker
+        ends, end_joints = _end_poses(model, joint_poses, end_points)
+        count = len(end_joints)
+        poses = np.concatenate([poses, ends], axis=1)
+        parents = np.concatenate([parents, end_joints - 1])
+        kinds += ["fixed"] * count
+        axes = np.concatenate([axes, np.tile(np.float32([0.0, 0.0, 1.0]), (count, 1))])
+        offsets = np.concatenate([offsets, np.zeros((count, 3), dtype=np.float32)])
+        if np.ndim(bone_radius):
+            bone_radius = np.concatenate([bone_radius, np.asarray(bone_radius)[end_joints - 1]])
     colors: Any = theme.joint
+    thickness = None
     if tau is not None:
-        colors = _torque_colors(model, tau.detach().cpu().numpy(), theme, joint_poses.shape[0])
+        ratio, limited = _torque_ratio(model, torch.as_tensor(tau).detach().cpu().numpy(), joint_poses.shape[0])
+        extra = len(kinds) - len(limited)  # end points carry no load
+        ratio, limited = np.pad(ratio, ((0, 0), (0, extra))), np.pad(limited, (0, extra))
+        colors = _torque_colors(ratio, limited, theme)
+        low, high = _TORQUE_THICKNESS
+        thickness = np.where(limited, low + (high - low) * np.minimum(ratio, 1.0), 1.0)
     return SkeletonLayer(
         name,
-        joint_poses[:, 1:],
+        poses,
         parents,
         kinds=kinds,
         axes=axes,
+        offsets=offsets,
         radius=radius,
+        thickness=thickness,
         bone_radius=bone_radius,
         colors=colors,
         bone_color=theme.link,
     )
 
 
-def torque_spheres(
-    model: Model,
-    joint_poses: np.ndarray,
-    *,
-    tau: torch.Tensor | np.ndarray,
-    name: str = "torques",
-    radius: tuple[float, float] = (0.015, 0.05),
-    theme: Theme = LIGHT,
-    over_limit: RGB = (1.0, 0.85, 0.0),
-) -> SkeletonLayer:
-    """Spheres at joints 1.. of ``joint_poses (T, njoints, 7)``, sized and coloured by ``|tau| / effort_limit``.
-
-    ``tau`` is ``(T, nv)`` or one ``(nv,)``; a joint shows the largest ratio over its dofs. Up to the limit the
-    radius grows from ``radius[0]`` to ``radius[1]`` and the colour blends from ``theme.joint`` to ``theme.force``;
-    past it the sphere keeps ``radius[1]`` and turns ``over_limit``. Joints without a dof of finite positive limit
-    (fixed joints, a free flyer) draw nothing.
-    """
-    ratio, limited = _torque_ratio(model, torch.as_tensor(tau).detach().cpu().numpy(), joint_poses.shape[0])
-    fill = np.minimum(ratio, 1.0)
-    radii = np.where(limited, radius[0] + (radius[1] - radius[0]) * fill, 0.0)
-    over = np.asarray(over_limit, dtype=np.float32)
-    colors = np.where((ratio > 1.0)[..., None], over, colormap(fill, theme.joint, theme.force))
-    parents = np.full(model.njoints - 1, -1)  # spheres only, no bones
-    return SkeletonLayer(name, joint_poses[:, 1:, :3], parents, radius=radii, colors=colors)
+def _end_poses(
+    model: Model, joint_poses: np.ndarray, end_points: Mapping[str | int, Sequence[float]]
+) -> tuple[np.ndarray, np.ndarray]:
+    """Poses ``(T, E, 7)`` of ``end_points`` (frame -> point in it) over ``joint_poses (T, njoints, 7)``, oriented as
+    the frames' parent joints, and those joints ``(E,)``."""
+    frames = [model.frames[model.frame_id(frame) if isinstance(frame, str) else int(frame)] for frame in end_points]
+    joints = np.array([frame.parent_joint for frame in frames], dtype=np.int64)
+    placement = np.stack([frame.joint_placement.detach().cpu().numpy() for frame in frames]).astype(np.float32)
+    local = placement[:, :3] + rotate(placement[:, 3:], np.asarray(list(end_points.values()), dtype=np.float32))
+    rotations = joint_poses[:, joints, 3:]
+    return np.concatenate([joint_poses[:, joints, :3] + rotate(rotations, local), rotations], axis=-1), joints
 
 
 def skeleton_spec(model: Model) -> tuple[list[str], np.ndarray]:
@@ -183,10 +202,98 @@ def skeleton_spec(model: Model) -> tuple[list[str], np.ndarray]:
     return [joint.kind for joint in model.joint_models[1:]], axes
 
 
-def _torque_colors(model: Model, tau: np.ndarray, theme: Theme, nsteps: int) -> np.ndarray:
-    """``(T, njoints - 1, 3)`` colours from ``|tau_j| / effort_limit_j``; joints without a torque or a finite
-    limit keep the base colour."""
-    return colormap(_torque_ratio(model, tau, nsteps)[0], theme.joint, theme.force)
+def spread_offsets(
+    model: Model, *, radius: float = 0.02, gap: float = 0.5, reach: float = 6.0, step: float = 0.05
+) -> np.ndarray:
+    """Marker offsets ``(njoints - 1, 3)`` in each joint's frame that draw co-located joints apart, textbook style.
+
+    Computed once at ``model.q_neutral`` for markers at their thickest (the cross-section ``robot_skeleton(tau=)``
+    draws at the effort limit), so showing joint loads moves no marker. Markers without an axis (spheres, the
+    free-flyer triad, cubes) stay on their joint; then each cylinder or box slides along its own axis (so it stays on
+    the true axis line) by the shortest multiple of ``step`` that leaves ``gap`` between it and every marker placed
+    before it, at most ``reach`` (all in units of the joint ``radius``; a marker that cannot clear stays put). The
+    order is a priority: joints with a marker further down their chain go first, leaves to root, then the chain ends
+    (an ankle, a wrist), which so give way to the joints above them; an inner joint still slides to clear the
+    markers placed before it.
+
+    Of the two equally short slides a joint takes the one away from the root joint along its axis or, when its
+    origin is within ``radius / 4`` of the plane through the root normal to the axis, the one along the axis's
+    largest component in the root joint's frame. So on a robot mirror-symmetric through a coordinate plane of that
+    frame (a humanoid's sagittal plane), mirror-image joints slide as mirror images whatever the signs of their
+    axes, unless a marker must clear its own mirror image or the second rule meets an axis whose largest component
+    is normal to that plane.
+    """
+    from ..kinematics.state import forward_kinematics_state  # noqa: PLC0415 - keep the core import-light
+
+    kinds, axes = skeleton_spec(model)
+    with torch.no_grad():
+        poses = forward_kinematics_state(model, model.q_neutral).joint_pose[1:].cpu().numpy().astype(np.float64)
+    origins = poses[:, :3]
+    directions = rotate(poses[:, 3:], axes.astype(np.float64))
+    # Tie sign: the axis's largest component in the root joint's frame positive (rounded, so mirror images agree).
+    in_root = np.round(rotate(poses[0, 3:] * (-1.0, -1.0, -1.0, 1.0), directions), 6)
+    tie_sign = np.sign(in_root[np.arange(len(in_root)), np.abs(in_root).argmax(axis=1)])
+    markers = [marker_of(kind) for kind in kinds]
+    extent = np.array([marker_extent(m) if m else (0.0, 0.0) for m in markers]) * radius  # (radius, half-length)
+    # The thickest cross-section the joint load draws (``robot_skeleton(tau=)``); the free-flyer triad never thickens.
+    extent[:, 0] *= np.where([marker == "axes" for marker in markers], 1.0, _TORQUE_THICKNESS[1])
+    # A marker counts as the capsule around its axis segment shortened by one radius at each end (a sphere when the
+    # marker is no longer than it is wide): exact side by side, a cylinder's rim at most 0.41 radius outside it.
+    extent[:, 1] = np.maximum(extent[:, 1] - extent[:, 0], 0.0)
+    slides = np.zeros(len(kinds))
+    axial = [marker in ("cylinder", "box") for marker in markers]
+    inner = np.zeros(len(markers), dtype=bool)  # a marker further down the chain (not a chain end)
+    for joint in reversed(range(len(markers))):
+        parent = model.parents[joint + 1] - 1
+        if parent >= 0:
+            inner[parent] |= inner[joint] or markers[joint] is not None
+    fixed = [joint for joint, marker in enumerate(markers) if marker and not axial[joint]]
+    sliding = [joint for joint in reversed(range(len(markers))) if axial[joint] and inner[joint]]
+    sliding += [joint for joint in reversed(range(len(markers))) if axial[joint] and not inner[joint]]
+    placed: list[int] = []
+    steps = np.arange(1, int(round(reach / step)) + 1) * step * radius
+    for joint in fixed + sliding:
+        if axial[joint] and placed:
+            away = float((origins[joint] - origins[0]) @ directions[joint])
+            sign = tie_sign[joint] if abs(away) <= radius / 4 else np.sign(away)
+            candidates = np.concatenate([[0.0], np.stack([sign * steps, -sign * steps], axis=1).reshape(-1)])
+            half = extent[joint, 1] * directions[joint]
+            centres = origins[joint] + candidates[:, None] * directions[joint]  # (S, 3)
+            others = np.asarray(placed)
+            other_centres = origins[others] + slides[others, None] * directions[others]
+            other_half = extent[others, 1, None] * directions[others]
+            distance = _segment_distance(
+                (centres - half)[:, None], (centres + half)[:, None],
+                (other_centres - other_half)[None], (other_centres + other_half)[None],
+            )  # fmt: skip
+            clear = (distance - extent[joint, 0] - extent[others, 0] >= gap * radius).all(axis=1)
+            slides[joint] = candidates[np.argmax(clear)] if clear.any() else 0.0
+        placed.append(joint)
+    return (slides[:, None] * axes).astype(np.float32)
+
+
+def _segment_distance(p1: np.ndarray, q1: np.ndarray, p2: np.ndarray, q2: np.ndarray) -> np.ndarray:
+    """Shortest distance between segments ``p1 q1`` and ``p2 q2`` (``(..., 3)``, broadcast; points allowed)."""
+    d1, d2, r = q1 - p1, q2 - p2, p1 - p2
+    a, e = (d1 * d1).sum(-1), (d2 * d2).sum(-1)
+    b, c, f = (d1 * d2).sum(-1), (d1 * r).sum(-1), (d2 * r).sum(-1)
+    tiny = 1e-12
+    a_safe, e_safe = np.where(a > tiny, a, 1.0), np.where(e > tiny, e, 1.0)
+    denom = a * e - b * b
+    s = np.where(denom > tiny, np.clip((b * f - c * e) / np.where(denom > tiny, denom, 1.0), 0.0, 1.0), 0.0)
+    s = np.where(e > tiny, s, np.where(a > tiny, np.clip(-c / a_safe, 0.0, 1.0), 0.0))
+    t = np.where(e > tiny, (b * s + f) / e_safe, 0.0)
+    s = np.where(t < 0.0, np.clip(-c / a_safe, 0.0, 1.0), np.where(t > 1.0, np.clip((b - c) / a_safe, 0.0, 1.0), s))
+    s = np.where(a > tiny, s, 0.0)
+    t = np.clip(t, 0.0, 1.0)
+    return np.linalg.norm(p1 + d1 * s[..., None] - p2 - d2 * t[..., None], axis=-1)
+
+
+def _torque_colors(ratio: np.ndarray, limited: np.ndarray, theme: Theme) -> np.ndarray:
+    """``(T, J, 3)`` colours of the loads ``ratio (T, J)`` (``|tau| / effort_limit``): ``theme.torque_ramp`` up to 1,
+    ``theme.over_limit`` past it, ``theme.joint`` on joints that are not ``limited (J,)``."""
+    colors = np.where((ratio > 1.0)[..., None], np.asarray(theme.over_limit), colormap(ratio, *theme.torque_ramp))
+    return np.where(limited[:, None], colors, np.asarray(theme.joint)).astype(np.float32)
 
 
 def _torque_ratio(model: Model, tau: np.ndarray, nsteps: int) -> tuple[np.ndarray, np.ndarray]:
