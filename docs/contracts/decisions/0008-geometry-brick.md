@@ -25,8 +25,9 @@ We will add geometry as its own brick, in the style of Pinocchio's `GeometryMode
   `visual_geoms`/`collision_geoms` lists) is frozen: loaders may fill more geometry, not rename or reshape it.
 
 ## Consequences
-- `RobotSpheres` remains the supported robot model until `RobotGeometry` replaces or wraps it; its
-  `frame_ids`/`offsets`/`radii` layout is what a sphere-only `RobotGeometry` lowers to.
+- `RobotSpheres` and `RobotCapsules` (built from a table, 2026-10-18) remain the supported robot models until
+  `RobotGeometry` replaces or wraps them; their `frame_ids`/`offsets`/`radii` and `frame_ids`/`starts`/`ends`/`radii`
+  layouts are what `RobotGeometry` lowers to.
 - The viewer keeps reading `meta["ir"]` meanwhile; when `RobotGeometry` lands it reads that instead.
 - Extending distances (new primitive pairs, closest points) is an additive change in `collision.distance`.
 

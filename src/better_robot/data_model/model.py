@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 import torch
 
 from .._validation import check_tensor
+from ..exceptions import ShapeError
 from ..lie import se3
 from .frame import Frame
 from .joint_models.base import JointModel
@@ -270,8 +271,9 @@ class Model:
         joint_placements: torch.Tensor | None = None,
         body_inertias: torch.Tensor | None = None,
         frame_placements: torch.Tensor | None = None,
+        armature: torch.Tensor | None = None,
     ) -> Model:
-        """Pair this topology with checked, optionally batched values."""
+        """Pair this topology with checked values; placements and inertias may be batched, ``armature (nv,)`` not."""
         current = self.values
         exemplar = current.joint_placements
         rebound = replace(
@@ -299,7 +301,10 @@ class Model:
                 exemplar,
                 normalize_pose=True,
             ),
+            armature=_checked_value("armature", armature, current.armature, (self.nv,), exemplar),
         )
+        if rebound.armature.ndim != 1:
+            raise ShapeError(f"armature.shape must be ({self.nv},), got {tuple(rebound.armature.shape)}")
         rebound._execution_batch_shape(rebound.q_neutral)
         return replace(self, values=rebound)
 

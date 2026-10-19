@@ -57,6 +57,7 @@ def inverse_dynamics(
 ) -> torch.Tensor:
     """``τ = M(q) a + C(q, v) v + g(q) - Jᵀ fext`` for ``v, a: (B..., nv)``. Returns ``(B..., nv)``.
 
+    ``M`` includes the motor armature: ``model.armature * a`` (``armature: (nv,)``) is added per coordinate.
     ``fext`` is an optional ``(B..., njoints, 6)`` wrench per joint in the joint's own frame.
     Bias forces are ``inverse_dynamics(model, state, v=v, a=zeros)``; gravity torque uses zeros twice.
     """
@@ -70,14 +71,17 @@ def inverse_dynamics(
         )
     gravity = values.gravity.broadcast_to(*batch, 6).reshape(count, 6)
     tau_full, _, _, _ = inverse_dynamics_full(kin, get_dynamics_plan(structure), gravity, v_full, a_full, fext)
-    return reduce_generalized_force(structure, tau_full).view(*batch, model.nv)
+    return reduce_generalized_force(structure, tau_full).view(*batch, model.nv) + values.armature * a
 
 
 def mass_matrix(model: Model, state: KinematicState) -> torch.Tensor:
-    """Joint-space inertia matrix ``M(q)``, ``(B..., nv, nv)``, symmetric positive definite."""
+    """Joint-space inertia matrix ``M(q)``, ``(B..., nv, nv)``, symmetric positive definite.
+
+    The motor armature ``model.armature (nv,)`` is added on the diagonal.
+    """
     kin, batch = _world(model, state)
     mass = mass_matrix_full(kin, get_dynamics_plan(model.structure))
-    return reduce_mass_matrix(model.structure, mass).view(*batch, model.nv, model.nv)
+    return reduce_mass_matrix(model.structure, mass).view(*batch, model.nv, model.nv) + torch.diag(model.armature)
 
 
 def forward_dynamics(

@@ -1,9 +1,10 @@
-"""Signed distances from spheres to spheres, capsules, half-spaces, oriented boxes and sampled SDF grids.
+"""Signed distances from spheres to spheres, capsules, half-spaces, oriented boxes and sampled SDF grids, and between
+two capsules.
 
-Each function takes a sphere ``center (..., 3)``, ``radius (...)`` and one shape, and returns ``(...)``: positive is
-the gap between surfaces, negative is penetration depth. Leading batch axes broadcast; all inputs are in one common
-frame (usually ``WORLD``). The norm has a zero (not NaN) gradient at a zero vector, so gradients stay finite even
-when a centre lies exactly on a segment or on another centre.
+Each function takes a sphere ``center (..., 3)``, ``radius (...)`` and one shape (``capsule_capsule`` two capsules),
+and returns ``(...)``: positive is the gap between surfaces, negative is penetration depth. Leading batch axes
+broadcast; all inputs are in one common frame (usually ``WORLD``). The norm has a zero (not NaN) gradient at a zero
+vector, so gradients stay finite even when a centre lies exactly on a segment or on another centre.
 """
 
 from __future__ import annotations
@@ -35,6 +36,45 @@ def sphere_capsule(
     t = ((center - start) * axis).sum(-1) / axis.square().sum(-1).clamp_min(1e-24)
     closest = start + t.clamp(0.0, 1.0)[..., None] * axis
     return _norm(center - closest) - radius - capsule_radius
+
+
+def _closest_parameters(
+    axis_a: torch.Tensor, axis_b: torch.Tensor, offset: torch.Tensor
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Parameters ``s, t (...)`` in ``[0, 1]`` of the closest points ``start_a + s axis_a``, ``start_b + t axis_b``.
+
+    ``offset = start_a - start_b``. Ericson (*Real-Time Collision Detection* 5.1.9) without branches: ``s`` from the
+    infinite lines, ``t`` closest to that point, ``s`` closest to the clamped ``t``. A zero denominator (a point, or
+    parallel segments) gives a clamped arbitrary value that the next step makes exact.
+    """
+    tiny = torch.finfo(offset.dtype).tiny
+    length_a, length_b = axis_a.square().sum(-1), axis_b.square().sum(-1)
+    cross, along_a, along_b = (axis_a * axis_b).sum(-1), (axis_a * offset).sum(-1), (axis_b * offset).sum(-1)
+    denominator = (length_a * length_b - cross.square()).clamp_min(tiny)
+    s = ((cross * along_b - along_a * length_b) / denominator).clamp(0.0, 1.0)
+    t = ((cross * s + along_b) / length_b.clamp_min(tiny)).clamp(0.0, 1.0)
+    s = ((cross * t - along_a) / length_a.clamp_min(tiny)).clamp(0.0, 1.0)
+    return s, t
+
+
+def capsule_capsule(
+    start_a: torch.Tensor,
+    end_a: torch.Tensor,
+    *,
+    radius_a: torch.Tensor,
+    start_b: torch.Tensor,
+    end_b: torch.Tensor,
+    radius_b: torch.Tensor,
+) -> torch.Tensor:
+    """Distance between the capsules around segments ``start_*, end_*: (..., 3)`` with radii ``radius_*: (...)``.
+
+    A zero-length segment is a sphere; parallel segments use one of their closest pairs. Returns ``(...)``.
+    """
+    axis_a, axis_b, offset = end_a - start_a, end_b - start_b, start_a - start_b
+    # The distance is stationary in s and t at the closest points, so detached parameters give its exact gradient
+    # and keep the near-parallel division out of every derivative.
+    s, t = _closest_parameters(axis_a.detach(), axis_b.detach(), offset.detach())
+    return _norm(offset + s[..., None] * axis_a - t[..., None] * axis_b) - radius_a - radius_b
 
 
 def sphere_halfspace(

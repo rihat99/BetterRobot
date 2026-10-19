@@ -1,7 +1,7 @@
 # Collision is signed distance between spheres and shapes
 
-After this page you can attach spheres to a robot's frames, compute signed distances to obstacles and
-between the robot's own links, and add clearance terms to an optimization problem. The code lives in
+After this page you can attach spheres or capsules to a robot's frames, compute signed distances to obstacles
+and between the robot's own links, and add clearance terms to an optimization problem. The code lives in
 `better_robot.collision` (geometry) and `better_robot.terms` (residual terms built on it).
 
 ## The robot is a set of spheres fixed to frames
@@ -95,6 +95,29 @@ tensor([0.2599, 0.3945], dtype=torch.float64)
 The sphere on `body_link2` and the `tool` sphere are on the same body, so they form no pair. The base
 and `link1` are joined by `j1`, so they would form none either.
 
+## Capsules cover long links with few primitives
+
+`RobotCapsules` approximates the robot by `C` capsules: capsule `c` is every point within `radii[c]` of the
+segment from `starts[c]` to `ends[c]`, both in the coordinates of frame `frame_ids[c]` (`frame_ids (C,)`,
+`starts, ends (C, 3)`, `radii (C,)`); equal end points make a sphere. `segments(state)` returns the end points
+in `WORLD`, `(B..., C, 3)` each. `capsule_capsule(start_a, end_a, *, radius_a, start_b, end_b, radius_b)` is the
+signed distance between two capsules from the closest points of their segments (Ericson's algorithm without
+branches; parallel and zero-length segments included). Its gradient is exact wherever the closest points are
+unique: the distance is stationary in the segment parameters there, so they are detached. `self_collision_pairs`
+takes capsules with the same rules as spheres, and `self_capsule_distances` returns `(B..., P)`.
+
+```python
+capsules = collision.RobotCapsules.from_frames(model, {
+    "body_base": [((0.0, 0.0, 0.0), (0.0, 0.0, 0.1), 0.05)],
+    "body_link2": [((0.0, 0.0, 0.05), (0.0, 0.0, 0.25), 0.03)],
+})
+capsule_pairs = collision.self_collision_pairs(model, capsules)
+print(collision.self_capsule_distances(capsules, state, pairs=capsule_pairs))   # base top to link2's lower end
+```
+```output
+tensor([0.1651], dtype=torch.float64)
+```
+
 ## Clearance terms go into a problem
 
 `terms.sphere_clearance(spheres, distance_fn, margin=...)` builds a residual `margin - distance` for
@@ -156,8 +179,8 @@ hard inequality to enforce it exactly.
 
 A new obstacle type is a new `distance_fn(centers: (B..., S, 3), radii: (S,)) -> (B..., S)` or `(B..., S, K)`
 for `sphere_clearance`; the term and the solvers do not change (contract
-[08, collision section](../contracts/08-extension-points.md)). Robot geometry beyond spheres (capsules, shapes
-fitted to meshes from the IR), closest points and contact follow
+[08, collision section](../contracts/08-extension-points.md)). Robot geometry built from the IR (capsules read
+from a model file, shapes fitted to meshes), closest points and contact follow
 [ADR 0008: geometry is a separate brick](../contracts/decisions/0008-geometry-brick.md).
 
 ## Where next

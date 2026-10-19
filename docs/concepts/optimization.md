@@ -61,7 +61,8 @@ print({name: tuple(value.shape) for name, value in problem.losses().items()})  #
 A term never touches the solver: it maps tensors to tensors, so the same function serves autograd,
 Gauss-Newton and your own loop. A term may also return `(value, info)`, where `info` is a dict of
 diagnostics (a contact count, an inlier ratio) that is detached and never enters the loss;
-`problem.evaluate(x)` returns the total loss, the per-term losses and these `info` dicts from one evaluation.
+`problem.evaluate(x)` returns the total loss, the per-term losses and these `info` dicts from one evaluation;
+`problem.gradient(x)` returns the loss, its gradient in tangent coordinates and the per-term losses, also from one.
 
 ### Analytic Jacobians and `TermFn`
 
@@ -134,7 +135,7 @@ count `it`, and `extra` for solver-owned values (damping, moments). Every solver
 |---|---|---|
 | `LevenbergMarquardt(damping=, gtol=, ftol=, xtol=)` | `linearize` | per-problem damping, Marquardt scaling; the default choice |
 | `GaussNewton(damping=0.0)` | `linearize` | full step, optional fixed damping; fast near a good start |
-| `LBFGS(history=10, line_search=20)` | `loss` gradient | tangent coordinates, per-problem history; Armijo backtracking: each problem takes its first accepted step, the search stops once every problem has one; bounds by projection |
+| `LBFGS(history=10, line_search=20)` | `loss` gradient | tangent coordinates, per-problem history; Armijo backtracking: each problem takes its first accepted step, the search stops once every problem has one; the first trial carries its gradient, so a step that every problem takes there costs one evaluation; bounds by projection |
 | `TorchOptim(torch.optim.Adam, lr=...)` | `loss` | any `torch.optim` optimizer; projects onto manifolds and bounds after each step |
 
 Because a solver is two functions, you can drive it yourself:

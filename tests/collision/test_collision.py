@@ -164,3 +164,149 @@ def test_spheres_to_and_batched_offsets(panda):
         assert torch.allclose(centers[b], single.centers(state)[b])
     pairs = collision.self_collision_pairs(panda, spheres)
     assert collision.self_distances(batched, state, pairs=pairs).shape == (2, pairs.shape[0])
+
+
+def _segment_distance_brute(start_a, end_a, start_b, end_b):
+    # Sample segment a densely and project every sample onto segment b exactly.
+    points = start_a + torch.linspace(0, 1, 20001, dtype=DT)[:, None, None] * (end_a - start_a)
+    axis = end_b - start_b
+    t = (((points - start_b) * axis).sum(-1) / axis.square().sum(-1).clamp_min(1e-300)).clamp(0, 1)
+    return (points - start_b - t[..., None] * axis).norm(dim=-1).amin(0)
+
+
+def _capsule_pairs():
+    start_a, end_a, start_b, end_b = (_randn(64, 3, seed=seed) for seed in (20, 21, 22, 23))
+    x, y = torch.tensor([1.0, 0, 0], dtype=DT), torch.tensor([0, 1.0, 0], dtype=DT)
+    special = [  # parallel, antiparallel, collinear overlapping / apart, nearly parallel, crossing, points
+        (0 * x, x, 0.3 * x + 0.5 * y, 1.8 * x + 0.5 * y),
+        (0 * x, x, 1.8 * x + 0.5 * y, 0.3 * x + 0.5 * y),
+        (0 * x, x, 0.5 * x, 2 * x),
+        (0 * x, x, 3 * x, 2 * x),
+        (0 * x, x, 0.2 * y - x, 0.2 * y + 2 * x + 1e-7 * y),
+        (-x, x, -y, y),
+        (0.2 * y, 0.2 * y, -x, x),
+        (-x, x, 0.3 * y + 2 * x, 0.3 * y + 2 * x),
+        (0.2 * y, 0.2 * y, x, x),
+    ]
+    for k, segments in enumerate(special):
+        for tensor, value in zip((start_a, end_a, start_b, end_b), segments):
+            tensor[k] = value
+    return start_a, end_a, start_b, end_b
+
+
+def test_capsule_capsule_matches_brute_force():
+    start_a, end_a, start_b, end_b = _capsule_pairs()
+    radius_a, radius_b = 0.3 * _randn(64, seed=24).abs(), 0.3 * _randn(64, seed=25).abs()
+    expected = _segment_distance_brute(start_a, end_a, start_b, end_b) - radius_a - radius_b
+    distance = collision.capsule_capsule(
+        start_a, end_a, radius_a=radius_a, start_b=start_b, end_b=end_b, radius_b=radius_b
+    )
+    assert (expected < 0).any() and (expected > 0).any()
+    assert torch.allclose(distance, expected, atol=1e-6)
+    closed_form = torch.tensor([0.5, 0.5, 0, 1, 0.2, 0, 0.2, 1.09**0.5, 1.04**0.5], dtype=DT)
+    assert torch.allclose(distance[:9] + radius_a[:9] + radius_b[:9], closed_form, atol=1e-6)
+
+
+def test_capsule_capsule_gradients():
+    start_a, end_a, start_b, end_b = _capsule_pairs()
+    radius = torch.tensor(0.1, dtype=DT)
+
+    def distance(*points):
+        return collision.capsule_capsule(
+            points[0], points[1], radius_a=radius, start_b=points[2], end_b=points[3], radius_b=radius
+        )
+
+    random = tuple(p[9:17].clone().requires_grad_() for p in (start_a, end_a, start_b, end_b))
+    assert torch.autograd.gradcheck(distance, random)  # the closest points are unique on random segments
+    jacobians = (
+        torch.func.jacrev(distance, argnums=(0, 1, 2, 3))(*random),
+        torch.func.jacfwd(distance, argnums=(0, 1, 2, 3))(*random),
+    )
+    assert all(torch.allclose(reverse, forward) for reverse, forward in zip(*jacobians))
+    special = tuple(p.clone().requires_grad_() for p in (start_a, end_a, start_b, end_b))  # parallel, crossing, points
+    assert all(torch.isfinite(grad).all() for grad in torch.autograd.grad(distance(*special).sum(), special))
+
+
+G1_CAPSULES = {  # a subset of mjlab's G1 collision capsules, torso geoms moved into the URDF torso frame (-10 mm)
+    "body_pelvis": [((0.0, 0.0, -0.08), (0.0, 0.0, -0.08), 0.07)],
+    "body_left_hip_roll_link": [((0.02, 0.0, 0.0), (0.02, 0.0, -0.08), 0.06)],
+    "body_right_hip_roll_link": [((0.02, 0.0, 0.0), (0.02, 0.0, -0.08), 0.06)],
+    "body_left_hip_yaw_link": [((0.0, 0.0, -0.03), (-0.06, 0.0, -0.17), 0.055)],
+    "body_torso_link": [((0.01, 0.0, 0.07), (0.01, 0.0, 0.19), 0.09), ((0.0, 0.0, 0.42), (0.0, 0.0, 0.42), 0.06)],
+    "body_left_elbow_link": [((-0.01, 0.0, -0.01), (0.08, 0.0, -0.01), 0.035)],
+    "body_left_wrist_pitch_link": [((-0.01, 0.0, 0.0), (0.06, 0.0, 0.0), 0.035)],
+    "body_left_wrist_yaw_link": [((0.07, 0.0, 0.0), (0.15, -0.02, 0.0), 0.035)],
+    "body_right_elbow_link": [((-0.01, 0.0, -0.01), (0.08, 0.0, -0.01), 0.035)],
+    "body_right_wrist_pitch_link": [((-0.01, 0.0, 0.0), (0.06, 0.0, 0.0), 0.035)],
+}
+
+
+def test_g1_capsules_pose_pair_and_overlap_where_the_meshes_do():
+    pytest.importorskip("robot_descriptions")
+    from robot_descriptions import g1_description  # noqa: PLC0415
+
+    g1 = br.load(g1_description.URDF_PATH, free_flyer=True, dtype=DT)
+    capsules = collision.RobotCapsules.from_frames(g1, G1_CAPSULES)
+    names = [g1.frame_names[frame].removeprefix("body_") for frame in capsules.frame_ids.tolist()]
+    q = torch.stack([g1.random_configuration(torch.Generator().manual_seed(seed)) for seed in range(3)])
+    state = forward_kinematics_state(g1, q)
+    starts, ends = capsules.segments(state)
+    for c, frame in enumerate(capsules.frame_ids.tolist()):
+        transform = state.frame_transform[:, frame]
+        assert torch.allclose(starts[:, c], transform[..., :3] @ capsules.starts[c] + transform[..., 3])
+        assert torch.allclose(ends[:, c], transform[..., :3] @ capsules.ends[c] + transform[..., 3])
+    pairs = collision.self_collision_pairs(g1, capsules)
+    named = {(names[i], names[j]) for i, j in pairs.tolist()}
+    # same body (the two torso capsules) and one-joint neighbours never pair
+    assert ("torso_link", "torso_link") not in named and ("left_hip_roll_link", "left_hip_yaw_link") not in named
+    assert ("left_elbow_link", "left_wrist_pitch_link") in named and ("pelvis", "left_hip_yaw_link") in named
+    assert collision.self_capsule_distances(capsules, state, pairs=pairs).shape == (3, pairs.shape[0])
+    neutral = collision.self_capsule_distances(capsules, forward_kinematics_state(g1, g1.q_neutral), pairs=pairs)
+    overlapping = {(names[i], names[j]) for (i, j), d in zip(pairs.tolist(), neutral.tolist()) if d < 0}
+    assert overlapping == {
+        ("pelvis", "left_hip_roll_link"),
+        ("pelvis", "right_hip_roll_link"),
+        ("left_elbow_link", "left_wrist_pitch_link"),
+        ("right_elbow_link", "right_wrist_pitch_link"),
+    }
+
+
+@pytest.mark.cuda
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is unavailable")
+def test_cuda_backward_is_bitwise_reproducible():
+    """Posing many points per frame and RNEA's per-column gathers repeat an index: advanced indexing keeps their CUDA
+    backward free of atomics (index_select's adds with them), so two backward passes agree to the bit."""
+    pytest.importorskip("robot_descriptions")
+    from robot_descriptions import g1_description  # noqa: PLC0415
+
+    g1 = br.load(g1_description.URDF_PATH, free_flyer=True, dtype=DT, device="cuda")
+    generator = torch.Generator(device="cuda").manual_seed(0)
+
+    def randn(*shape):
+        return torch.randn(*shape, dtype=DT, device="cuda", generator=generator)
+
+    frame_ids = collision.RobotCapsules.from_frames(g1, G1_CAPSULES).frame_ids.repeat_interleave(20)  # 660 on 18
+    radii = torch.zeros(len(frame_ids), dtype=DT, device="cuda")
+    spheres = collision.RobotSpheres(frame_ids=frame_ids, offsets=0.1 * randn(len(frame_ids), 3), radii=radii)
+    capsules = collision.RobotCapsules(
+        frame_ids=frame_ids, starts=0.1 * randn(len(frame_ids), 3), ends=0.1 * randn(len(frame_ids), 3), radii=radii
+    )
+    q = g1.q_neutral.expand(64, -1).clone()
+    q[:, 7:] += 0.3 * randn(64, g1.nq - 7)
+    v, a = randn(64, g1.nv), randn(64, g1.nv)
+    cases = {
+        "centers": (lambda q: spheres.centers(forward_kinematics_state(g1, q)).square().sum(), (q,)),
+        "segments": (lambda q: sum(s.square().sum() for s in capsules.segments(forward_kinematics_state(g1, q))), (q,)),
+        "inverse_dynamics": (
+            lambda q, v, a: br.inverse_dynamics(g1, forward_kinematics_state(g1, q), v=v, a=a).square().sum(),
+            (q, v, a),
+        ),
+    }
+
+    def gradients(fn, inputs):
+        leaves = [x.clone().requires_grad_(True) for x in inputs]
+        return torch.autograd.grad(fn(*leaves), leaves)
+
+    for name, (fn, inputs) in cases.items():
+        first, second = gradients(fn, inputs), gradients(fn, inputs)
+        assert all(torch.equal(x, y) for x, y in zip(first, second)), name

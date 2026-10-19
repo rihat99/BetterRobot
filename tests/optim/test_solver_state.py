@@ -175,7 +175,12 @@ def test_lbfgs_line_search_stops_once_every_problem_has_a_step() -> None:
     for _ in range(3):
         before = len(calls)
         state = solver.step(problem, state)
-        assert len(calls) - before == 2  # the first trial is accepted, then one gradient
+        assert len(calls) - before == 1  # the first trial is accepted: its evaluation also gives the gradient
+
+
+def test_lbfgs_rejects_a_line_search_without_trials() -> None:
+    with pytest.raises(ValueError, match="line_search"):
+        optim.LBFGS(line_search=0)
 
 
 def test_lbfgs_is_done_when_a_plain_gradient_step_finds_no_decrease() -> None:

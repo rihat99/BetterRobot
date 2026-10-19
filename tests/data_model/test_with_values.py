@@ -56,12 +56,20 @@ def test_with_values_reuses_structure_and_normalizes_placements() -> None:
         ("joint_placements", (2, 7)),
         ("body_inertias", (2, 9)),
         ("frame_placements", (2, 8)),
+        ("armature", (3,)),
     ),
 )
 def test_with_values_rejects_wrong_event_shapes(name: str, shape: tuple[int, ...]) -> None:
     model = _model()
     with pytest.raises(ShapeError, match=rf"{name}\.shape must end in .* got"):
         model.with_values(**{name: torch.zeros(shape)})
+
+
+def test_with_values_armature_is_unbatched() -> None:
+    model = _model()
+    assert model.with_values(armature=torch.tensor([0.1])).armature.tolist() == pytest.approx([0.1])
+    with pytest.raises(ShapeError, match=r"armature\.shape must be \(1,\)"):
+        model.with_values(armature=torch.zeros(2, 1))
 
 
 def test_with_values_rejects_dtype_device_and_incompatible_value_batches() -> None:

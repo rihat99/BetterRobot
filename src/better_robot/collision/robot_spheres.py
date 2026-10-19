@@ -9,12 +9,16 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import torch
 
 from ..data_model.model import Model
 from ..kinematics.state import KinematicState
 from .distance import sphere_sphere
+
+if TYPE_CHECKING:
+    from .robot_capsules import RobotCapsules
 
 
 @dataclass(frozen=True)
@@ -65,15 +69,20 @@ class RobotSpheres:
 
     def centers(self, state: KinematicState) -> torch.Tensor:
         """Sphere centres ``(B..., S, 3)`` in ``WORLD``, from the frame poses in ``state`` (``KinematicState``)."""
+        # A product-sum: a batched 3x3 matmul was 2.5x slower forward + backward. Advanced indexing, not index_select,
+        # whose CUDA backward adds with atomics and so is not bitwise reproducible.
         rotation = state.frame_rotation[..., self.frame_ids, :, :]
         translation = state.frame_translation[..., self.frame_ids, :]
-        return translation + (rotation @ self.offsets[..., None])[..., 0]
+        return translation + (rotation * self.offsets[..., None, :]).sum(-1)
 
 
 def self_collision_pairs(
-    model: Model, spheres: RobotSpheres, *, ignore: Iterable[tuple[int | str, int | str]] | None = None
+    model: Model,
+    spheres: RobotSpheres | RobotCapsules,
+    *,
+    ignore: Iterable[tuple[int | str, int | str]] | None = None,
 ) -> torch.Tensor:
-    """Sphere index pairs ``(P, 2)`` (``i < j``) that can move relative to each other.
+    """Sphere (or capsule) index pairs ``(P, 2)`` (``i < j``) that can move relative to each other.
 
     Excluded: spheres on the same rigid body (frames joined only by fixed joints), on bodies
     joined by one moving joint, which touch by construction, and on the frame pairs in ``ignore``

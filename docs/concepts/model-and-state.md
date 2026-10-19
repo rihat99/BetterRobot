@@ -70,9 +70,10 @@ models are frozen
 
 ## `with_values` returns a changed copy
 
-`with_values(joint_placements=..., body_inertias=..., frame_placements=...)` pairs the same structure
-with new tensors. It checks each tensor's trailing shape, dtype and device against the current values and
-normalizes the quaternion part of placements. Any argument you leave out keeps its current tensor.
+`with_values(joint_placements=..., body_inertias=..., frame_placements=..., armature=...)` pairs the same
+structure with new tensors. It checks each tensor's trailing shape, dtype and device against the current values
+and normalizes the quaternion part of placements. Any argument you leave out keeps its current tensor.
+`armature (nv,)`, the motor inertia that [dynamics](dynamics.md) adds per coordinate, takes no batch axes.
 
 Values may carry leading batch axes. A batch of 8 models with different link lengths is one `Model`:
 

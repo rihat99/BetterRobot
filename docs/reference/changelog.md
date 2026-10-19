@@ -5,6 +5,26 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- Dynamics: `model.armature (nv,)` (motor inertia; MJCF `armature`, zero from URDF) enters `inverse_dynamics`
+  (`+ armature * a`) and `mass_matrix` (`+ diag(armature)`), so `forward_dynamics` too, as in Pinocchio; it was
+  read but unused. `Model.with_values(armature=)` sets it (unbatched).
+- Dynamics: `inverse_dynamics` and `forward_dynamics` gradients are bitwise reproducible on CUDA (they differed by
+  ~1e-13 run to run; `mass_matrix` and `centroidal_map` were already): the core gathers per-column joint quantities by
+  advanced indexing, not `index_select`, whose CUDA backward adds a free flyer's six repeated columns with atomics.
+  `tests/collision/test_collision.py::test_cuda_backward_is_bitwise_reproducible` pins this, with
+  `RobotSpheres.centers` and `RobotCapsules.segments` (many points per frame), by running backward twice on CUDA.
+- Collision: `RobotCapsules` (frame-attached segments with a radius, `segments(state)`), `capsule_capsule`
+  (segment closest points, exact gradient with the segment parameters detached) and `self_capsule_distances`;
+  `self_collision_pairs` takes capsules with the same pair rules.
+- Fixed: the MJCF parser dropped capsule and cylinder `fromto` (length 0 at the body origin); it now places them
+  as MuJoCo's compiler does.
+- Viewer: skeleton bones with a cylinder or box marker at either end run, textbook style, as up to three legs along
+  the axes of the parent joint's frame (parent's axis first, child's axis last, legs under 1 cm folded), joined by
+  spheres (`bone_corners` node); bones between axis-less joints, and bones over 15 cm from a joint with one child
+  (a thigh), stay straight. `robot_skeleton` draws a revolute joint as a cylinder of radius 25 mm (`radius=0.025`)
+  and length 60 mm (was 16 x 50 mm), bones 8 mm (`bone_radius=0.008`, was `SkeletonLayer`'s 0.6 `radius`), the
+  load thickness 0.8-1.5x (was 1.8x), and `spread_offsets` spaces markers for the plain thickness (was the
+  thickest), so a heavily loaded marker may touch its neighbour.
 - Viewer: fixed the robot skeleton drawing the markers of `JointRX`/`JointRY` (and `JointPX`/`JointPY`) along the
   joint's z axis, 90° off their true axis (22 of the G1's 29 joints); `skeleton_spec` reads
   `model.structure.joint_axes` instead of `joint.axis`, which is `None` for the axis-aligned kinds.
@@ -19,6 +39,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   such as a hand out to its contacts. `colormap` takes any number of colour stops. Solid `ArrowsLayer` heads take at
   most 35 % of the arrow, so short arrows shrink as a whole instead of drawing a lone head. `Theme.force` is a
   saturated red, `Theme.contact` green.
+- Optim: `LBFGS` evaluates the first trial of its line search together with its gradient and keeps that gradient
+  when every problem takes the trial, so such a step costs one evaluation instead of two, and `init` one instead
+  of two; the iterates are unchanged. On BetterRetarget's trajectory problems (97-100 % of steps take the first
+  trial) a step is 15 % (78 frames) to 30 % (1014 frames) faster. A step where some problem rejects the first
+  trial costs one backward pass more than before: the nonnegative force fit of BetterRetarget (about half its steps)
+  runs -1 to +15 % per step, a batched B=16 IK with bounds +11-18 % on the CPU. `Problem.gradient(x)` returns
+  `(loss, g, terms)`, adding the per-term losses of the same evaluation.
+- Collision: `RobotSpheres.centers` poses with an elementwise product-sum instead of a batched 3x3 matmul: forward +
+  backward 2.5x faster on the GPU (G1, 1014 frames x 10475 points: 37 -> 15 ms), the same values, still bitwise
+  reproducible (advanced indexing; an `index_select` would be faster still, but its CUDA backward adds with atomics).
 - Optim: `LBFGS` stops its line search once every problem has a step (one host read per trial; the same iterates
   on unbounded problems with 2-4x fewer evaluations). With bounds it holds the coordinates an active bound pins
   and tests the Armijo condition on the clipped step, never taking one that raises the loss; the old search

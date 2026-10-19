@@ -84,8 +84,9 @@ offset.
 
 ### Collision today
 
-Robots are approximated by spheres (`collision.RobotSpheres`). Sphere-to-sphere,
-sphere-to-capsule, sphere-to-box, sphere-to-half-space and sphere-to-SDF
+Robots are approximated by spheres (`collision.RobotSpheres`) or capsules
+(`collision.RobotCapsules`, from a table). Sphere-to-sphere, sphere-to-capsule,
+capsule-to-capsule, sphere-to-box, sphere-to-half-space and sphere-to-SDF
 distances are live, as are self-distances over `self_collision_pairs`; the
 `terms.self_clearance` and `terms.sphere_clearance` terms build on them. Mesh-to-mesh
 distance and convex decomposition are not provided.
@@ -149,7 +150,7 @@ BetterHuman as extensions; BetterRobot stays generic.
 | Brick | Why | Prerequisite | When |
 |---|---|---|---|
 | `collision.RobotGeometry` built from the IR, meshes through lazy `trimesh` | geometry for every new robot | ADR 0008 (now) | next |
-| Capsule robot approximation | humanoids, thin links | `RobotGeometry` | next |
+| Capsule robots read from the IR (`RobotCapsules` takes a table today) | humanoids, thin links | `RobotGeometry` | next |
 | `fit_spheres(geometry)`; sampled collision matrix and SRDF import | new robots without hand-made spheres | `RobotGeometry` | next |
 | Closest point and normal as separate functions; generic contact for dynamics | contact terms and contact Jacobians | none | next |
 | `terms.swept_clearance` and `collision.Scene` | trajectories, planning | closest-point functions | next |

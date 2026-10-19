@@ -229,7 +229,9 @@ def inverse_dynamics_full(
     """
     column_support = plan.column_support.to(kin.columns.dtype)
     velocity = body_velocities(kin, plan, v_full)
-    owner_velocity = velocity.index_select(-2, plan.jacobian.column_owner)  # (N, nv_full, 6)
+    # Advanced indexing, not index_select: column_owner repeats a joint per column (a free flyer six times), and
+    # index_select's CUDA backward adds the repeats with atomics, so its gradients are not bitwise reproducible.
+    owner_velocity = velocity[..., plan.jacobian.column_owner, :]  # (N, nv_full, 6)
     column_rate = cross_motion(owner_velocity, kin.columns.mT).mT  # (N, 6, nv_full)
     weighted = kin.columns * a_full.unsqueeze(-2) + column_rate * v_full.unsqueeze(-2)
     # Gravity is given about the world origin; move its linear part to the reference origin.
@@ -245,7 +247,7 @@ def inverse_dynamics_full(
     wrench = kin.to_world_force(local_wrench)
     # Right-multiplying by the constant support matrix folds the batch into one large mm.
     subtree_wrench = (wrench.mT @ plan.support.to(wrench.dtype)).mT  # (N, njoints, 6)
-    column_wrench = subtree_wrench.index_select(-2, plan.jacobian.column_owner)  # (N, nv_full, 6)
+    column_wrench = subtree_wrench[..., plan.jacobian.column_owner, :]  # (N, nv_full, 6)
     tau_full = (kin.columns.mT * column_wrench).sum(-1)
     return tau_full, velocity, acceleration, subtree_wrench
 
@@ -257,7 +259,7 @@ def momentum_columns(kin: WorldKinematics, plan: DynamicsPlan) -> torch.Tensor:
     """
     inertia = kin.world_inertia()
     composite = (inertia.flatten(-2, -1).mT @ plan.support.to(inertia.dtype)).mT  # (N, njoints, 36)
-    composite = composite.reshape(*inertia.shape).index_select(-3, plan.jacobian.column_owner)  # (N, nv_full, 6, 6)
+    composite = composite.reshape(*inertia.shape)[..., plan.jacobian.column_owner, :, :]  # (N, nv_full, 6, 6)
     return (composite @ kin.columns.mT.unsqueeze(-1)).squeeze(-1).mT
 
 

@@ -387,6 +387,6 @@ def test_scalar_term_that_reads_only_data_linearizes():
     problem.residual("fit", lambda x: x - 1.0)
     problem.scalar("const", lambda a: (a**2).sum(-1))
     normal, loss = problem.linearize()
-    expected_loss, expected_g = problem.gradient()
+    expected_loss, expected_g, _ = problem.gradient()
     torch.testing.assert_close(loss, expected_loss)
     torch.testing.assert_close(normal.g, expected_g)

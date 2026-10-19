@@ -45,8 +45,9 @@ assert model.nq == br.load(builder.finalize).nq == 1
 !!! warning "MJCF support is experimental"
     The MJCF parser reads the uncompiled `MjSpec` and has known gaps: a jointed body's own `pos`/`quat`
     is dropped, joint `range` is not converted from degrees, `limited="auto"` is read as limited, inertia
-    ignores `iquat`/`fullinertia` and geom-derived mass, and `euler`/`axisangle`/`xyaxes`/`zaxis`
-    orientations are ignored. Check MJCF-loaded kinematics against MuJoCo before relying on them.
+    ignores `iquat`/`fullinertia` and geom-derived mass, `euler`/`axisangle`/`xyaxes`/`zaxis`
+    orientations are ignored, and geom `fromto` is read for capsules and cylinders only (centre, MuJoCo's
+    orientation and length). Check MJCF-loaded kinematics against MuJoCo before relying on them.
 
 ## Load a robot description
 

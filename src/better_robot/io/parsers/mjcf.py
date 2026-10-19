@@ -13,7 +13,8 @@ remain. A jointed body's own ``pos``/``quat`` is dropped (only ``jnt.pos``
 is used); joint ``range`` is not converted from degrees under the default
 ``compiler angle="degree"``; ``limited="auto"`` is read as limited;
 inertia ignores ``iquat``/``fullinertia`` and geom-derived mass;
-``euler``/``axisangle``/``xyaxes``/``zaxis`` orientations are ignored.
+``euler``/``axisangle``/``xyaxes``/``zaxis`` orientations are ignored;
+geom ``fromto`` is read for capsules and cylinders only.
 Check MJCF-loaded kinematics against MuJoCo before relying on them.
 
 See ``docs/concepts/parsers_and_ir.md §5``.
@@ -54,6 +55,21 @@ def _pos_quat_to_se3(pos: np.ndarray | None, quat: np.ndarray | None) -> torch.T
         q = torch.tensor([x, y, z, w])
 
     return torch.cat([t, q])
+
+
+def _fromto_frame(fromto: np.ndarray) -> tuple[np.ndarray, np.ndarray, float]:
+    """Centre ``(3,)``, quat ``(4,)`` (w, x, y, z) and half-length of a capsule or cylinder ``fromto (6,)``.
+
+    As MuJoCo's compiler (``mjuu_z2quat``): the minimal rotation taking +z to ``from - to``, about x when antiparallel.
+    """
+    start, end = fromto[:3], fromto[3:]
+    axis = start - end
+    turn = np.cross([0.0, 0.0, 1.0], axis)
+    sine = float(np.linalg.norm(turn))
+    turn = turn / sine if sine >= 1e-10 else np.array([1.0, 0.0, 0.0])
+    angle = np.arctan2(sine, axis[2])
+    quat = np.concatenate(([np.cos(angle / 2)], np.sin(angle / 2) * turn))
+    return 0.5 * (start + end), quat, 0.5 * float(np.linalg.norm(axis))
 
 
 def parse_mjcf(
@@ -111,10 +127,13 @@ def parse_mjcf(
             gtype = int(g.type) if hasattr(g, "type") else -1
             gpos = np.array(g.pos, dtype=np.float64) if hasattr(g, "pos") else np.zeros(3, np.float64)
             gquat = np.array(g.quat, dtype=np.float64) if hasattr(g, "quat") else np.array([1., 0., 0., 0.], np.float64)
-            placement = _pos_quat_to_se3(gpos, gquat)
             gsize = np.array(g.size, dtype=np.float64) if hasattr(g, "size") else np.zeros(3, np.float64)
+            fromto = np.array(g.fromto, dtype=np.float64) if hasattr(g, "fromto") else np.full(6, np.nan)
 
             # mujoco geom types: 0=plane,1=hfield,2=sphere,3=capsule,4=ellipsoid,5=cylinder,6=box,7=mesh
+            if gtype in (3, 5) and not np.isnan(fromto[0]):  # fromto replaces pos, quat and the half-length
+                gpos, gquat, gsize[1] = _fromto_frame(fromto)
+            placement = _pos_quat_to_se3(gpos, gquat)
             if gtype == 2:  # sphere
                 collision_geoms.append(IRGeom("sphere", {"radius": float(gsize[0])}, placement))
             elif gtype == 3:  # capsule

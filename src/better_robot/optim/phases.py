@@ -141,7 +141,7 @@ def solve_layer(
         raise ValueError(f"solve_layer supports residual terms only; active scalar terms: {scalars}")
     result = solve(problem, solver, iters=iters, x=x)
     normal, _ = problem.linearize(result.x)
-    _, g = problem.gradient(result.x, create_graph=True)
+    _, g, _ = problem.gradient(result.x, create_graph=True)
     bounds = problem.step_bounds(result.x)
     if bounds is not None:
         lower, upper = bounds

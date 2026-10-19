@@ -190,28 +190,30 @@ class LBFGS:
 
     Every step tries the step sizes 1, ½, ¼, ... (at most ``line_search`` of them) and each problem
     takes the largest one that satisfies the Armijo condition on the step actually taken; the search
-    stops as soon as every problem has its step (one host read per trial). The plain gradient step
-    (no history yet) has length ``1 / |g|_1``, a guess: a stiff term that adds curvature but little
-    gradient (a residual near zero) can need 10 or more halvings of it. With bounds, a coordinate
+    stops as soon as every problem has its step (one host read per trial). The first trial is evaluated
+    with its gradient: when every problem takes it, that is the step's only evaluation; otherwise the
+    gradient is evaluated again at the new points. The plain gradient step (no history yet) has length
+    ``1 / |g|_1``, a guess: a stiff term that adds curvature but little gradient (a residual near
+    zero) can need 10 or more halvings of it. With bounds, a coordinate
     held by an active bound that the gradient pushes against does not move and every step is clipped
     to the bounds. A problem that finds no step keeps its variables and drops its history; when that
     happens on a plain gradient step (no history to drop) it is done, as every later step would repeat
-    the same search. ``history`` is the number of stored curvature pairs, ``armijo`` the
-    sufficient-decrease constant and ``gtol`` bounds the largest gradient entry (``None`` takes the
-    dtype default, as for LM).
+    the same search. ``history`` is the number of stored curvature pairs, ``line_search`` (at least 1)
+    the most trials per step, ``armijo`` the sufficient-decrease constant and ``gtol`` bounds the largest
+    gradient entry (``None`` takes the dtype default, as for LM).
     """
 
     def __init__(
         self, *, history: int = 10, line_search: int = 20, armijo: float = 1e-4, gtol: float | None = None
     ) -> None:
+        if line_search < 1:
+            raise ValueError(f"line_search must be at least 1, got {line_search}")
         self.history, self.line_search, self.armijo, self.gtol = history, line_search, armijo, gtol
 
     warm_keys = ("s", "y", "rho")
 
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
-        loss, g = problem.gradient(x)
-        with torch.no_grad():
-            _, terms, _ = problem.evaluate(x)
+        loss, g, terms = problem.gradient(x)
         memory = g.new_zeros(g.shape[0], self.history, g.shape[1])
         extra = {"g": g, "s": memory, "y": memory.clone(), "rho": g.new_zeros(g.shape[0], self.history), "terms": terms}
         return State(x=dict(x), loss=loss, done=torch.zeros_like(loss, dtype=torch.bool), extra=extra)
@@ -253,7 +255,10 @@ class LBFGS:
                 if bounds is not None:
                     step = torch.minimum(torch.maximum(step, lower), upper)
                 candidate = problem.retract(state.x, step)
-                loss, terms, _ = problem.evaluate(candidate)
+                if trial == 0:  # usually accepted: its gradient is then the one at the new point
+                    loss, g_first, terms = problem.gradient(candidate)
+                else:
+                    loss, terms, _ = problem.evaluate(candidate)
                 # Armijo on the step actually taken: a bound may have shortened it, even into a direction whose linear
                 # model rises (slope > 0); the clamp then asks for no increase at all.
                 slope = (g * step).sum(-1).clamp_max(0.0)
@@ -266,7 +271,10 @@ class LBFGS:
                 found |= ok
                 if bool((found | state.done).all()):  # bench-ok: later trials could change nothing
                     break
-        _, g_new = problem.gradient(best_x)
+        if trial == 0:  # every problem kept its start point or took the first trial
+            g_new = torch.where(found.unsqueeze(-1), g_first, state.extra["g"])
+        else:
+            _, g_new, _ = problem.gradient(best_x)
         change = g_new - state.extra["g"]
         curvature = (best_step * change).sum(-1)
         keep = found & (curvature > 1e-10 * (change * change).sum(-1))

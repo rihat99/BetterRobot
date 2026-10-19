@@ -15,8 +15,8 @@ $$
 
 | Function | Returns | Shape | Algorithm |
 |----------|---------|-------|-----------|
-| `inverse_dynamics(model, state, *, v, a, fext=None)` | $\tau$ for acceleration `a` | `(B..., nv)` | recursive Newton–Euler (RNEA) |
-| `mass_matrix(model, state)` | $M(q)$, symmetric positive definite | `(B..., nv, nv)` | composite rigid body (CRBA) |
+| `inverse_dynamics(model, state, *, v, a, fext=None)` | $\tau$ for acceleration `a` | `(B..., nv)` | recursive Newton–Euler (RNEA), plus armature |
+| `mass_matrix(model, state)` | $M(q)$, symmetric positive definite | `(B..., nv, nv)` | composite rigid body (CRBA), plus armature |
 | `forward_dynamics(model, state, *, v, tau, fext=None)` | $\dot v$ | `(B..., nv)` | bias by RNEA, then a Cholesky solve with $M$ |
 | `center_of_mass(model, state)` | whole-body COM, world frame | `(B..., 3)` | mass-weighted sum |
 | `centroidal_map(model, state)` | $A_g(q)$ with $h_g = A_g v$ | `(B..., 6, nv)` | per-body momentum at the COM |
@@ -86,6 +86,24 @@ Gravity is a model value, `model.gravity (6,)`, laid out as a spatial accelerati
 Set its linear part when you build the model (`ModelBuilder(..., gravity=[gx, gy, gz])`); the default,
 also used by the URDF and MJCF loaders, is `[0, 0, -9.81, 0, 0, 0]`.
 
+## Motor armature adds to the diagonal
+
+A geared motor's rotor inertia, reflected through the gear, acts on its own joint coordinate only. It is
+`model.armature (nv,)`: zero unless the model sets it (MJCF `armature` is read; URDF has no such field), set
+with `model.with_values(armature=...)`. `inverse_dynamics` adds `armature * a` and `mass_matrix` adds
+`diag(armature)`, as Pinocchio does, so $M(q)$ above includes it and `forward_dynamics` follows. The
+centroidal quantities exclude it.
+
+```python
+geared = model.with_values(armature=torch.tensor([0.01, 0.02], dtype=torch.float64))
+print(torch.allclose(inverse_dynamics(geared, state, v=v, a=a), tau + geared.armature * a))     # True
+print(torch.allclose(mass_matrix(geared, state), M + torch.diag(geared.armature)))             # True
+```
+```output
+True
+True
+```
+
 ## External wrenches enter per joint
 
 `fext (B..., njoints, 6)` is one wrench `[force, torque]` per joint, expressed in that joint's own frame.
@@ -123,6 +141,7 @@ entries of `tau` are the wrench the base would need, which is zero for a physica
 |----------|-----------|-----------------------------|
 | RNEA | `tests/test_pinocchio/test_rnea_matches_pinocchio.py` | `1e-10`–`1e-12` (float32: `2e-5`) |
 | CRBA | `test_crba_matches_pinocchio.py` | `1e-10`–`1e-12` |
+| Armature in RNEA and CRBA | `test_crba_matches_pinocchio.py` | `1e-10` |
 | Forward dynamics vs ABA | `test_aba_matches_pinocchio.py` | `1e-9`–`1e-12` |
 | COM, centroidal map | `test_centroidal.py` | `1e-7`–`1e-12` |
 

@@ -88,3 +88,19 @@ def test_state_reuse_sees_edited_inertias_and_other_models(g1: br.Model) -> None
     finally:
         g1.values.body_inertias[..., 0].mul_(0.5)
     torch.testing.assert_close(inverse_dynamics(g1, state, v=v, a=a), before)
+
+
+def test_armature_adds_to_the_torque_and_the_mass_matrix_diagonal(g1: br.Model) -> None:
+    q, v, fext = _inputs(g1, (2, 3), seed=5)
+    generator = torch.Generator().manual_seed(6)
+    a = torch.randn(2, 3, g1.nv, dtype=torch.float64, generator=generator)
+    armature = torch.cat((torch.zeros(6), 0.03 * torch.rand(g1.nv - 6, generator=generator))).double()  # free flyer: 0
+    geared = g1.with_values(armature=armature)
+    state = forward_kinematics_state(g1, q)
+    tau = inverse_dynamics(geared, state, v=v, a=a, fext=fext)
+    torch.testing.assert_close(tau, inverse_dynamics(g1, state, v=v, a=a, fext=fext) + armature * a)
+    mass = mass_matrix(geared, state)
+    torch.testing.assert_close(mass, mass_matrix(g1, state) + torch.diag(armature))
+    torch.testing.assert_close(mass, mass.mT, rtol=0, atol=1e-12)
+    assert (torch.linalg.eigvalsh(mass) > 0).all()
+    torch.testing.assert_close(forward_dynamics(geared, state, v=v, tau=tau, fext=fext), a, rtol=1e-9, atol=1e-9)
