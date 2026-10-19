@@ -114,7 +114,7 @@ def robot_layers(model: Model, q: torch.Tensor, **options: Any) -> list[Layer]:
     return RobotView(model, q, **options).layers
 
 
-_TORQUE_THICKNESS = (0.8, 1.8)  # a joint marker's cross-section, times its default, at zero load and at the limit
+_TORQUE_THICKNESS = (0.8, 1.5)  # a joint marker's cross-section, times its default, at zero load and at the limit
 
 
 def robot_skeleton(
@@ -124,24 +124,24 @@ def robot_skeleton(
     name: str = "skeleton",
     tau: torch.Tensor | np.ndarray | None = None,
     theme: Theme = LIGHT,
-    radius: float = 0.02,
-    bone_radius: float | np.ndarray | None = None,
+    radius: float = 0.025,
+    bone_radius: float | np.ndarray = 0.008,
     end_points: Mapping[str | int, Sequence[float]] | None = None,
 ) -> SkeletonLayer:
-    """Skeleton over joints 1.. of ``joint_poses (T, njoints, 7)``, one marker per joint kind (``skeleton_spec``),
-    laid out by ``spread_offsets``: markers that would overlap slide apart along their own axes and bones join the
-    drawn marker centres.
+    """Skeleton over joints 1.. of ``joint_poses (T, njoints, 7)``, one marker per joint kind (``skeleton_spec``;
+    a revolute joint is a cylinder of ``radius`` and length 2.4 ``radius``), laid out by ``spread_offsets``: markers
+    that would overlap slide apart along their own axes, and bones join the drawn marker centres as axis-aligned legs
+    (``SkeletonLayer``).
 
     ``tau`` ``(T, nv)`` or ``(nv,)`` shows each joint's load ``|tau| / effort_limit`` on its marker, in colour
     (``theme.torque_ramp`` up to the limit, ``theme.over_limit`` past it) and thickness (its cross-section from 0.8
-    times the default at zero load to 1.8 times at the limit, its length unchanged); joints without a finite effort
+    times the default at zero load to 1.5 times at the limit, its length unchanged); joints without a finite effort
     limit keep the plain look.
 
     ``bone_radius`` is one float or ``(njoints - 1,)``, entry ``j`` for the bone into joint ``j + 1``; 0 hides a
-    bone, such as one to a massless sensor mount (``model.body_inertias[1:, 0] == 0``). ``None`` keeps
-    ``SkeletonLayer``'s default. ``end_points`` maps frames (names or ids) to a point ``(3,)`` in each frame: a bone,
-    as thick as the one into the frame's parent joint, runs from that joint to the point, such as a hand out to where
-    its contacts are, past the last wrist joint.
+    bone, such as one to a massless sensor mount (``model.body_inertias[1:, 0] == 0``). ``end_points`` maps frames
+    (names or ids) to a point ``(3,)`` in each frame: a bone, as thick as the one into the frame's parent joint, runs
+    from that joint to the point, such as a hand out to where its contacts are, past the last wrist joint.
     """
     parents = np.asarray(model.parents[1:], dtype=np.int64) - 1  # the universe becomes -1
     kinds, axes = skeleton_spec(model)
@@ -203,18 +203,18 @@ def skeleton_spec(model: Model) -> tuple[list[str], np.ndarray]:
 
 
 def spread_offsets(
-    model: Model, *, radius: float = 0.02, gap: float = 0.5, reach: float = 6.0, step: float = 0.05
+    model: Model, *, radius: float = 0.025, gap: float = 0.5, reach: float = 6.0, step: float = 0.05
 ) -> np.ndarray:
     """Marker offsets ``(njoints - 1, 3)`` in each joint's frame that draw co-located joints apart, textbook style.
 
-    Computed once at ``model.q_neutral`` for markers at their thickest (the cross-section ``robot_skeleton(tau=)``
-    draws at the effort limit), so showing joint loads moves no marker. Markers without an axis (spheres, the
-    free-flyer triad, cubes) stay on their joint; then each cylinder or box slides along its own axis (so it stays on
-    the true axis line) by the shortest multiple of ``step`` that leaves ``gap`` between it and every marker placed
-    before it, at most ``reach`` (all in units of the joint ``radius``; a marker that cannot clear stays put). The
-    order is a priority: joints with a marker further down their chain go first, leaves to root, then the chain ends
-    (an ankle, a wrist), which so give way to the joints above them; an inner joint still slides to clear the
-    markers placed before it.
+    Computed once at ``model.q_neutral`` for markers of the plain thickness (``robot_skeleton`` without ``tau``), so
+    showing joint loads moves no marker (markers thickened by a large load may touch). Markers without an axis
+    (spheres, the free-flyer triad, cubes) stay on their joint; then each cylinder or box slides along its own axis
+    (so it stays on the true axis line) by the shortest multiple of ``step`` that leaves ``gap`` between it and every
+    marker placed before it, at most ``reach`` (all in units of the joint ``radius``; a marker that cannot clear stays
+    put). The order is a priority: joints with a marker further down their chain go first, leaves to root, then the
+    chain ends (an ankle, a wrist), which so give way to the joints above them; an inner joint still slides to clear
+    the markers placed before it.
 
     Of the two equally short slides a joint takes the one away from the root joint along its axis or, when its
     origin is within ``radius / 4`` of the plane through the root normal to the axis, the one along the axis's
@@ -235,8 +235,6 @@ def spread_offsets(
     tie_sign = np.sign(in_root[np.arange(len(in_root)), np.abs(in_root).argmax(axis=1)])
     markers = [marker_of(kind) for kind in kinds]
     extent = np.array([marker_extent(m) if m else (0.0, 0.0) for m in markers]) * radius  # (radius, half-length)
-    # The thickest cross-section the joint load draws (``robot_skeleton(tau=)``); the free-flyer triad never thickens.
-    extent[:, 0] *= np.where([marker == "axes" for marker in markers], 1.0, _TORQUE_THICKNESS[1])
     # A marker counts as the capsule around its axis segment shortened by one radius at each end (a sphere when the
     # marker is no longer than it is wide): exact side by side, a cylinder's rim at most 0.41 radius outside it.
     extent[:, 1] = np.maximum(extent[:, 1] - extent[:, 0], 0.0)

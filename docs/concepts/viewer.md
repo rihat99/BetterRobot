@@ -46,7 +46,9 @@ forces too small to read. `SkeletonLayer` takes a joint `radius` per joint `(J,)
 or per step `(T, J)`, a `thickness` `(J,)` or `(T, J)` that multiplies each marker's cross-section but not its
 length, `offsets (J, 3)` in each joint's frame that move a marker off its joint origin (bones then join the drawn
 centres), and a `bone_radius` per bone `(J,)`, entry `j` for the bone into joint `j` (thin finger bones); a radius of
-0 hides that marker or bone. A new layer type subclasses `Layer` and implements
+0 hides that marker or bone. Given joint `kinds`, a bone with an axis marker at either end bends at right angles
+(see the robot skeleton below); bones between axis-less joints, such as every bone of a positions-only skeleton,
+are straight. A new layer type subclasses `Layer` and implements
 `build` (create scene nodes once), `set_step` (move them to step `k`) and optionally `world_points` (positions
 that `record`'s camera fits).
 
@@ -135,19 +137,25 @@ viewer.show()
 
 Options of both: `visual` and `collision` meshes, `skeleton`, `frames` (names or ids), `tau` (the joint load on the
 skeleton), `spheres` (collision spheres), `theme`, `opacity`. The skeleton draws each revolute joint as a
-cylinder along its axis and each prismatic joint as a thin box along it, with the axes from
-`model.structure.joint_axes`. Joints that share a point, such as a hip's pitch, roll and yaw, are drawn apart as in
-a textbook kinematic diagram: `spread_offsets(model)` slides each marker that would overlap another along its own
-axis (so it stays on the true axis line), once at `model.q_neutral` and for markers at their thickest (see `tau`
-below), and the bones connect the drawn markers in chain order.
+cylinder along its axis (radius 25 mm, length 60 mm) and each prismatic joint as a thin box along it, with the axes
+from `model.structure.joint_axes`. Joints that share a point, such as a hip's pitch, roll and yaw, are drawn apart
+as in a textbook kinematic diagram: `spread_offsets(model)` slides each marker that would overlap another along its
+own axis (so it stays on the true axis line), once at `model.q_neutral` and for markers of the plain thickness, and
+the bones (8 mm) connect the drawn markers in chain order. A bone bends at right angles instead of running
+diagonally: it is up to three legs along the axes of its parent joint's frame, first along the parent's axis, last
+along the child's (so it enters a cylinder along its axis or across it, never at a slant), the rest between,
+joined by spheres; a leg under 1 cm folds into the longest. A bone over 15 cm from a joint with one child, such as a
+humanoid's thigh, stays straight, since a long bone's small offsets would otherwise draw a long jog. The routing is
+chosen once; each step the legs split the bone's current centre difference, so they always meet the child.
 
 When you already have the joint poses `(T, njoints, 7)` (`KinematicState.joint_pose`),
 `robot_skeleton(model, joint_poses, bone_radius=...)` builds the skeleton from them without another kinematics
 pass; a `bone_radius` of 0 hides a bone, such as the ones to massless sensor mounts
 (`model.body_inertias[1:, 0] == 0`). With `tau` `(T, nv)` each joint marker shows the joint's load
 `|tau| / effort_limit` in two ways: its colour runs through the theme's `torque_ramp` (navy, teal, green, yellow)
-up to the limit and turns `over_limit` (magenta) past it, and its cross-section grows from 0.8 to 1.8 times the
-default at the limit (its length stays, and the layout is spaced for the thickest, so no marker moves). Joints
+up to the limit and turns `over_limit` (magenta) past it, and its cross-section grows from 0.8 to 1.5 times the
+default at the limit (its length stays, and no marker moves; the layout is spaced for the plain thickness, so a
+heavily loaded marker may touch its neighbour). Joints
 without a finite effort limit keep the plain look. `end_points` maps frames (names or ids) to a point in each
 frame; a bone runs from the frame's parent joint to that point, as thick as the bone into that joint, such as a
 hand past the last wrist joint out to where its contact forces act.

@@ -46,8 +46,13 @@ def compose_poses(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 def rotate(q: np.ndarray, v: np.ndarray) -> np.ndarray:
     """Rotate vectors ``v (..., 3)`` by unit quaternions ``q (..., 4)`` in xyzw order."""
     xyz, w = q[..., :3], q[..., 3:4]
-    t = 2.0 * np.cross(xyz, v)
-    return v + w * t + np.cross(xyz, t)
+    t = 2.0 * _cross(xyz, v)
+    return v + w * t + _cross(xyz, t)
+
+
+def _cross(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """``a x b`` over the last axis, broadcasting; cheaper per call than ``np.cross`` on the viewer's small arrays."""
+    return a[..., [1, 2, 0]] * b[..., [2, 0, 1]] - a[..., [2, 0, 1]] * b[..., [1, 2, 0]]
 
 
 def colormap(values: np.ndarray, *stops: RGB) -> np.ndarray:

@@ -23,6 +23,10 @@ from ..layer import Layer
 
 _IDENTITY = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
 _IDENTITY_XYZW = np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float32)
+_CONJUGATE = np.array([-1.0, -1.0, -1.0, 1.0], dtype=np.float32)
+_FOLD = 0.01  # m: a bone leg shorter than this folds into the bone's longest leg
+_STRAIGHT = 0.15  # m: a longer bone from a joint with one child stays straight (a thigh)
+_CORNER = 0.98  # corner sphere radius per bone radius: inside the bone's 16 flat sides, so no scalloped seam
 # Joint kind (``JointModel.kind`` or its prefix before ``_``) -> marker; fixed joints draw nothing.
 _MARKER = {
     "revolute": "cylinder", "helical": "cylinder", "mimic": "cylinder", "prismatic": "box",
@@ -31,14 +35,14 @@ _MARKER = {
 # Marker -> (unit mesh, scale per unit joint radius); the mesh's +z is laid along the joint axis.
 _MESHES = {
     "sphere": (unit_sphere, (1.0, 1.0, 1.0)),
-    "cylinder": (unit_cylinder, (0.8, 0.8, 2.5)),
+    "cylinder": (unit_cylinder, (1.0, 1.0, 2.4)),
     "box": (unit_box, (0.6, 0.6, 3.0)),
     "cube": (unit_box, (1.4, 1.4, 1.4)),
 }
 # Marker -> (radius, half-length along the axis) per unit joint radius of the capsule that encloses it; the
 # free-flyer triad counts as its hub only (its arms are thin lines).
 _EXTENT = {
-    "cylinder": (0.8, 1.25),
+    "cylinder": (1.0, 1.2),
     "box": (0.3 * 2**0.5, 1.5),
     "sphere": (1.0, 0.0),
     "cube": (0.7 * 3**0.5, 0.0),
@@ -76,7 +80,16 @@ class SkeletonLayer(Layer):
     per joint, or ``(T, J, 3)`` per step (torque colouring), kept as uint8: edit it in place and call
     ``viewer.show()`` to recolour (per-step colours only). ``joints`` ``(T, J, 3)`` and ``rotations``
     ``(T, J, 4)`` are views of the input (kept by reference). Per step only instance transforms are
-    written: one batched node per marker kind plus the bones.
+    written: one batched node per marker kind plus the bones (and their corners).
+
+    A bone with an axis marker (cylinder or box) at either end runs, textbook style, as up to three legs along
+    the axes of its parent joint's frame, joined by spheres as thick as the bone: first along the parent's
+    joint axis, last along the frame axis nearest the child's joint axis, the remaining axes between them,
+    longest first (when both are the same frame axis, only the last leg runs along it). A leg shorter than
+    1 cm folds into the bone's longest leg. The routing is chosen once, from step 0; each step the legs split
+    the bone's current centre difference, in its parent's frame, over those axes, so they always end on the
+    child's marker. Bones between joints without an axis marker (every bone without ``kinds``) and bones
+    longer than 15 cm from a joint with one child (a thigh) stay straight.
     """
 
     def __init__(
@@ -131,8 +144,10 @@ class SkeletonLayer(Layer):
         self._parent = self.parents[self._child]
         colors = np.asarray(colors, dtype=np.float32)
         self.colors = rgb_uint8(colors, (n_joints,)) if colors.ndim <= 2 else rgb_uint8(colors)
+        self._legs = self._route(np.array([marker in ("cylinder", "box") for marker in markers]))
         self._nodes: dict[str, Any] = {}
         self._bones: Any = None
+        self._corners: Any = None
 
     def build(self, scene: Any, root: str) -> None:
         colors = self.colors if self.colors.ndim == 2 else self.colors[0]
@@ -167,7 +182,7 @@ class SkeletonLayer(Layer):
             )
         if len(self._child):
             vertices, faces = unit_cylinder()
-            positions, wxyzs, scales = self._bone_transforms(centres)
+            positions, wxyzs, scales, corners, corner_scales = self._bone_transforms(centres, 0)
             self._bones = self._track(
                 scene.add_batched_meshes_simple(
                     f"{root}/bones",
@@ -180,6 +195,20 @@ class SkeletonLayer(Layer):
                     lod="off",
                 )
             )
+            if len(corners):
+                vertices, faces = unit_sphere(3)  # finer than the bones' facets: a smooth elbow, no jagged seam
+                self._corners = self._track(
+                    scene.add_batched_meshes_simple(
+                        f"{root}/bone_corners",
+                        vertices,
+                        faces,
+                        batched_wxyzs=np.tile(_IDENTITY, (len(corners), 1)),
+                        batched_positions=corners,
+                        batched_scales=corner_scales,
+                        batched_colors=rgb_uint8(self.bone_color),
+                        lod="off",
+                    )
+                )
 
     def set_step(self, step: int) -> None:
         centres = self._centres(step)
@@ -197,10 +226,13 @@ class SkeletonLayer(Layer):
             if self.colors.ndim == 3:
                 node.batched_colors = self.colors[step, index]
         if self._bones is not None:
-            positions, wxyzs, scales = self._bone_transforms(centres)
+            positions, wxyzs, scales, corners, corner_scales = self._bone_transforms(centres, step)
             self._bones.batched_positions = positions
             self._bones.batched_wxyzs = wxyzs
             self._bones.batched_scales = scales
+            if self._corners is not None:
+                self._corners.batched_positions = corners
+                self._corners.batched_scales = corner_scales
 
     def world_points(self, step: int) -> np.ndarray | None:
         """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
@@ -223,12 +255,52 @@ class SkeletonLayer(Layer):
             scales[:, : 3 if marker in ("sphere", "cube") else 2] *= factor  # markers without an axis grow whole
         return wxyzs, scales
 
-    def _bone_transforms(self, centres: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def _route(self, axial: np.ndarray) -> np.ndarray:
+        """``(B, L, 3)`` 0/1 per bone ``B`` (``parents >= 0``): the components, in the parent joint's frame, of the
+        bone's centre difference that leg ``k`` carries, from step 0 and ``axial (J,)`` (joints with an axis
+        marker); ``L`` is the most legs any bone has (1 when every bone is straight)."""
+        child, parent = self._child, self._parent
+        inverse = self.rotations[0, parent] * _CONJUGATE
+        centres = self._centres(0)
+        lengths = np.abs(rotate(inverse, centres[child] - centres[parent]))  # (B, 3)
+        child_axes = rotate(inverse, rotate(self.rotations[0, child], self.axes[child]))  # (B, 3) parent frame
+        children = np.bincount(parent, minlength=len(self.parents))
+        legs = np.zeros((len(child), 3, 3), dtype=np.float32)
+        for bone, (size, p, c) in enumerate(zip(lengths, parent, child)):
+            first = int(np.argmax(np.abs(self.axes[p]))) if axial[p] else None
+            last = int(np.argmax(np.abs(child_axes[bone]))) if axial[c] else None
+            if (first is None and last is None) or (np.linalg.norm(size) > _STRAIGHT and children[p] == 1):
+                legs[bone, 0] = 1.0
+                continue
+            first = None if first == last else first
+            middle = sorted({0, 1, 2} - {first, last}, key=lambda k: -size[k])
+            order = [k for k in (first, *middle, last) if k is not None]
+            kept = [k for k in order if size[k] >= _FOLD] or [max(order, key=lambda k: size[k])]
+            longest = max(kept, key=lambda k: size[k])
+            for k in order:
+                legs[bone, kept.index(k if k in kept else longest), k] = 1.0
+        return legs[:, : max(1, int(legs.any(axis=2).sum(axis=1).max(initial=1)))]
+
+    def _bone_transforms(
+        self, centres: np.ndarray, step: int
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Leg positions, wxyz and scales ``(B * L, 3 | 4 | 3)`` and corner positions ``(B * (L - 1), 3)`` and
+        radii ``(B * (L - 1),)`` at ``step``; unused legs and corners have scale 0 (fixed instance counts)."""
         start = centres[self._parent]
-        end = centres[self._child]
-        vector = end - start
-        length = np.linalg.norm(vector, axis=-1)
+        rotation = self.rotations[step, self._parent]
+        local = rotate(rotation * _CONJUGATE, centres[self._child] - start)  # (B, 3) parent joint frame
+        legs = rotate(rotation[:, None], self._legs * local[:, None])  # (B, L, 3) world
+        ends = start[:, None] + np.cumsum(legs, axis=1)
+        starts = np.concatenate([start[:, None], ends[:, :-1]], axis=1)
+        length = np.linalg.norm(legs, axis=-1)  # (B, L)
         radius = np.broadcast_to(np.asarray(self.bone_radius, dtype=np.float32), self.parents.shape)[self._child]
-        radius = np.where(length > 1e-6, radius, 0.0)  # a zero-length bone would draw a flat disc
-        scales = np.stack([radius, radius, length], axis=-1)
-        return (start + end) * 0.5, quat_z_to(vector), scales
+        drawn = length > 1e-6  # a zero-length leg would draw a flat disc
+        leg_radius = np.where(drawn, radius[:, None], 0.0)
+        scales = np.stack([leg_radius, leg_radius, length], axis=-1).reshape(-1, 3)
+        corner_radius = np.where(drawn[:, :-1] & drawn[:, 1:], radius[:, None] * _CORNER, 0.0).reshape(-1)
+        positions = ((starts + ends) * 0.5).reshape(-1, 3)
+        # A cylinder drawn either way round is the same: laid along each leg's largest component's positive side,
+        # coaxial legs of two bones get the same facets, so where they overlap they do not stripe.
+        directions = legs.reshape(-1, 3)
+        directions = directions * np.sign(np.take_along_axis(directions, np.abs(directions).argmax(-1)[:, None], -1))
+        return positions, quat_z_to(directions), scales, ends[:, :-1].reshape(-1, 3), corner_radius

@@ -202,7 +202,7 @@ def test_skeleton_thickness_widens_axial_markers_only_across_and_axis_less_ones_
     viewer.add(SkeletonLayer("s", joints, [-1, 0], kinds=["revolute", "spherical"], radius=0.1, thickness=thickness))
     viewer.show(1)
     nodes = server.scene.nodes
-    np.testing.assert_allclose(nodes["/scene/s/joints_cylinder"].batched_scales, [[0.16, 0.16, 0.25]], rtol=1e-6)
+    np.testing.assert_allclose(nodes["/scene/s/joints_cylinder"].batched_scales, [[0.2, 0.2, 0.24]], rtol=1e-6)
     np.testing.assert_allclose(nodes["/scene/s/joints"].batched_scales, [[0.3, 0.3, 0.3]], rtol=1e-6)
     with pytest.raises(ValueError, match="thickness"):
         SkeletonLayer("bad", joints, [-1, 0], thickness=np.ones((3, 2)))
