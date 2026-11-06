@@ -1,10 +1,12 @@
 """Rigid-body inertia packed as a ``(..., 10)`` tensor: its spatial matrix and its constructors.
 
 Layout ``[mass, cx, cy, cz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]``: mass, centre of mass ``c`` in the body frame, and the
-symmetric rotational inertia about the centre of mass (not the frame origin), in body-frame axes. The 6x6 matrix
-acting on linear-first twists is ``[[m I3, -m hat(c)], [m hat(c), I_c - m hat(c)^2]]``. Every function is
-differentiable in its tensor inputs and broadcasts leading axes. The constructors check types, shapes, dtypes and
-devices and read no tensor value, except ``inertia_of_mesh(..., check_mesh=True)``.
+symmetric rotational inertia about the centre of mass (not the frame origin), in body-frame axes, its six entries in
+MuJoCo's ``fullinertia`` order. It is not Pinocchio's ``Inertia.toDynamicParameters``, which holds ``m c`` and the
+inertia about the frame origin as ``[Ixx, Ixy, Iyy, Ixz, Iyz, Izz]``. The 6x6 matrix acting on linear-first twists
+is ``[[m I3, -m hat(c)], [m hat(c), I_c - m hat(c)^2]]``. Every function is differentiable in its tensor inputs and
+broadcasts leading axes. The constructors check types, shapes, dtypes and devices and read no tensor value, except
+``inertia_of_mesh(..., check_mesh=True)``.
 """
 
 from __future__ import annotations

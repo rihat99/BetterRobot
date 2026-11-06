@@ -4,7 +4,8 @@
   `cross_motion` and `cross_force` are the spatial cross products; `transform_motion`, `transform_force` and
   `transform_inertia` re-express a quantity in another frame, taking the pose first like ``se3.act(pose, point)``.
 - Inertia ``(..., 10)`` = ``[mass, cx, cy, cz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]``: the centre of mass ``c`` and the
-  rotational inertia about it, both in the body frame. `inertia_matrix` gives the ``(..., 6, 6)`` matrix;
+  rotational inertia about it, both in the body frame, in MuJoCo's ``fullinertia`` order (not Pinocchio's
+  ``toDynamicParameters``, which is about the frame origin). `inertia_matrix` gives the ``(..., 6, 6)`` matrix;
   `inertia_from_mass_com` and ``inertia_of_sphere``, ``_box``, ``_capsule``, ``_ellipsoid``, ``_mesh`` build one.
 - Mesh helpers on the integer face table: `validate_closed_manifold`, `orient_faces_consistently`,
   `orient_faces_by_component` (inputs for `inertia_of_mesh`).
