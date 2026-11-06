@@ -29,6 +29,7 @@ def test_reports_untracked_paths_undefined_symbols_and_line_numbers(tmp_path: Pa
                 "`BetterHuman/src/m.py`, `../src/gone.py` and `notes/src/gone.py` belong to someone else.\n"
             ),
             "notes.txt": "src/gone.py is not read: .txt is not a cited text kind.\n",
+            "tests/contract/ratchets/citations.json": '{"docs/page.md: src/gone.py": "a ratchet lists dead citations"}\n',
         },
     )
     assert dead_citations(root) == [

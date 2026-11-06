@@ -4,8 +4,8 @@ A unit is a first-level subpackage or module; the root ``__init__`` is the unit 
 every other unit. A unit imports only the units its ``ALLOWED`` row lists, and a unit without a row imports none.
 Every import counts, wherever it sits: module level, inside a function, under ``TYPE_CHECKING``. The edges that
 exist today without being allowed sit in ``ratchets/edges.json`` (``"from -> to"`` with a ``path::symbol``
-witness); the ratchet only shrinks, and the fix that removes an edge removes its entry. Third-party imports are
-``test_optional_imports.py``'s job. See ``docs/concepts/architecture.md``.
+witness); the ratchet only shrinks, and the fix that removes an edge removes its entry. Imports from outside the
+package are ``test_optional_imports.py``'s job. See ``docs/concepts/architecture.md``.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ def _forbidden_edges() -> set[str]:
         f"{unit} -> {imported}"
         for unit, imports in edges.items()
         if unit != ROOT
-        for imported in imports - ALLOWED.get(unit, set())
+        for imported in (imports & edges.keys()) - ALLOWED.get(unit, set())
     }
 
 

@@ -37,13 +37,31 @@ def test_every_kind_of_import_is_an_edge(tmp_path: Path) -> None:
     }
 
 
-def test_imports_of_itself_and_of_other_packages_are_dropped(tmp_path: Path) -> None:
+def test_imports_of_itself_and_of_the_standard_library_are_dropped(tmp_path: Path) -> None:
     root = _write(
         tmp_path,
         {
             "__init__.py": "from pkg import name_in_root\n",
-            "a/__init__.py": "from . import b\nfrom pkg.a.b import c\nimport torch\nfrom other.pkg import d\n",
-            "a/b.py": "",
+            "io/__init__.py": "from . import b\nfrom pkg.io.b import c\nimport io\nfrom os import path\n",
+            "io/b.py": "",
         },
     )
-    assert imported_packages(root, "pkg") == {"pkg": set(), "a": set()}
+    assert imported_packages(root, "pkg") == {"pkg": set(), "io": set()}
+
+
+def test_imports_from_outside_name_the_package_or_the_better_robot_unit(tmp_path: Path) -> None:
+    root = _write(
+        tmp_path,
+        {
+            "__init__.py": "",
+            "a.py": (
+                "import numpy as np\nfrom torch.nn import functional\nimport better_robot\n"
+                "from better_robot import kinematics, Model\nfrom better_robot.io import load\n"
+                "def f():\n    import better_robot.lie.so3\n"
+            ),
+        },
+    )
+    assert imported_packages(root, "pkg") == {
+        "pkg": set(),
+        "a": {"numpy", "torch", "better_robot", "better_robot.kinematics", "better_robot.io", "better_robot.lie"},
+    }
