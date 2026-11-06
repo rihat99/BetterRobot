@@ -33,8 +33,8 @@ defined, not at a distant dispatch. Every class in `model.joints` and `model.man
 kinds are data, not a hierarchy. There is no joint registry: the kind is passed to `ModelBuilder.add_joint(kind=)`
 and the built model keeps that object (record [0025](decisions/0025-extension-model.md)). Consumers that need a
 kind's class (`src/better_robot/kinematics/_fk.py`, the viewer's markers) test the final classes; any other kind takes the
-generic path through `placement`. A new file format is a function returning `IRModel`, passed to `io.build_model`
-(`io.register_parser` remains until the io rewrite removes it).
+generic path through `placement`. A new file format is a function returning `IRModel`, passed to `io.build_model`; there is no
+parser registry (`tests/contract/test_extension_points.py`).
 
 ```python { .no-run }
 # good: a kind subclasses the base and is passed where it is used

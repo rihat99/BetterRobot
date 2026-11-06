@@ -20,8 +20,8 @@ MJCF file  --parse_mjcf-->   IRModel  --build_model-->  Model
 ModelBuilder.finalize() -->  /
 ```
 
-`better_robot.load(source, ...)` does both stages. It picks the parser from the file suffix, the argument
-type, or an explicit `format="urdf" | "mjcf" | "builder"`.
+`better_robot.load(source, ...)` does both stages. It picks the parser from the file suffix or an explicit
+`format="urdf" | "mjcf"`; an unknown suffix raises `ModelError`.
 
 `better_robot.io.parse(source, format=...)` runs only the first stage and returns the `IRModel`.
 Composition lives on the IR: parse several sources, merge or edit their `bodies`, `joints` and `frames`

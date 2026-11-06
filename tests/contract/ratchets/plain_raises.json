@@ -1,6 +1,4 @@
 {
-  "src/better_robot/io/__init__.py::_detect_format": "raises a builtin; R6 rewrites io on the error tree (record 0020)",
-  "src/better_robot/io/__init__.py::parse": "raises a builtin; R6 rewrites io on the error tree (record 0020)",
   "src/better_robot/io/builders/kinematic_tree.py::_normalize_mass": "raises a builtin; R6 rewrites io on the error tree (record 0020)",
   "src/better_robot/io/builders/kinematic_tree.py::_normalize_com": "raises a builtin; R6 rewrites io on the error tree (record 0020)",
   "src/better_robot/io/builders/kinematic_tree.py::_normalize_inertia": "raises a builtin; R6 rewrites io on the error tree (record 0020)",

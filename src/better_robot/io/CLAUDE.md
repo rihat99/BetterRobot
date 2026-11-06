@@ -19,7 +19,7 @@ joint objects may use the builder's opaque payload, but file formats must use
 serializable joint fields. Mimic tags stay on supported concrete scalar joints
 and are resolved centrally by `build_model`.
 
-For a new format, add a parser returning `IRModel` and register its suffix with
-`register_parser`; downstream model construction should not change.
+For a new format, write a function returning `IRModel` and pass its result to
+`build_model`; there is no registry, and model construction does not change.
 
 Design contracts (rule IDs `C-*`, enforcement matrix, ADRs): `docs/contracts/00-index.md`.

@@ -8,10 +8,11 @@ See ``docs/concepts/parsers_and_ir.md``.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Callable, Literal
+from typing import Callable, Literal
 
 import torch
 
+from ..exceptions import ModelError
 from ..model.geometry import Geometry
 from ..model.joints import JointModel
 from ..model.model import Model
@@ -26,36 +27,21 @@ from .ir import (
 )
 from .parsers import ModelBuilder, parse_mjcf, parse_urdf
 
-_PARSERS: dict[str, Callable[..., IRModel]] = {
-    "urdf": parse_urdf,
-    "mjcf": parse_mjcf,
-    "xml": parse_mjcf,
-}
 
-
-def register_parser(suffix: str, fn: Callable[..., IRModel]) -> None:
-    """Register a new format parser at runtime. See docs/concepts/parsers_and_ir.md §7."""
-    _PARSERS[suffix] = fn
-
-
-def _detect_format(source: Any, hint: str) -> str:
-    """Infer the format string from the source path or explicit hint."""
-    if hint != "auto":
-        return hint
-    if isinstance(source, (str, Path)):
-        suffix = Path(source).suffix.lstrip(".").lower()
-        if suffix in _PARSERS:
-            return suffix
-        raise ValueError(
-            f"Cannot infer format from suffix {suffix!r}; pass format= explicitly. Known: {list(_PARSERS)}"
-        )
-    raise ValueError("Cannot infer format for non-path source; pass format= explicitly.")
+def _parser(path: str | Path, format: str) -> Callable[[str | Path], IRModel]:
+    """The parser of ``path``: by the explicit ``format``, else by its suffix (``.urdf``; ``.xml`` or ``.mjcf``)."""
+    suffix = format if format != "auto" else Path(path).suffix.lstrip(".").lower()
+    if suffix == "urdf":
+        return parse_urdf
+    if suffix in ("mjcf", "xml"):
+        return parse_mjcf
+    raise ModelError(f"{path}: no parser for the format {suffix!r}; pass format='urdf' or format='mjcf'")
 
 
 def parse(
     source: str | Path | Callable[[], IRModel],
     *,
-    format: Literal["auto", "urdf", "mjcf", "builder"] = "auto",
+    format: Literal["auto", "urdf", "mjcf"] = "auto",
 ) -> IRModel:
     """Parse a robot description (a file path, or a callable returning the IR) into an editable ``IRModel``.
 
@@ -67,15 +53,15 @@ def parse(
         # Programmatic builder: callable that returns an IRModel
         ir = source()
         if not isinstance(ir, IRModel):
-            raise ValueError(f"Programmatic builder must return an IRModel, got {type(ir)}")
+            raise ModelError(f"a callable source must return an IRModel, got {type(ir).__name__}")
         return ir
-    return _PARSERS[_detect_format(source, format)](source)
+    return _parser(source, format)(source)
 
 
 def load(
     source: str | Path | Callable[[], IRModel],
     *,
-    format: Literal["auto", "urdf", "mjcf", "builder"] = "auto",
+    format: Literal["auto", "urdf", "mjcf"] = "auto",
     root_joint: JointModel | None = None,
     free_flyer: bool = False,
     preserve_joint_order: bool = False,
@@ -122,7 +108,6 @@ __all__ = [
     "load_geometry",
     "build_model",
     "build_geometry",
-    "register_parser",
     "IRModel",
     "IRBody",
     "IRJoint",
