@@ -54,7 +54,7 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 | C-ERR-3 | `[review]` |
 | C-ERR-4 | `[ruff:BLE001,E722]`, `[review]` |
 | C-ERR-5 | `tests/optim/test_problem.py::test_unknown_read_fails_at_registration` |
-| C-DEP-1 | `tests/contract/test_layer_dependencies.py` |
+| C-DEP-1 | `tests/contract/test_layer_dependencies.py`, `tests/contract/test_optional_imports.py` |
 | C-DEP-2 | `tests/contract/test_optional_imports.py`, `[ruff:PLC0415]` |
 | C-DEP-3 | `[ruff:TID251]` |
 | C-DEP-4 | `[review]` |

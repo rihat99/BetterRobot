@@ -60,7 +60,7 @@ A parity failure means the library changed its answer. Fix the code, not the tol
 | `test_boundary_validation_count.py` | public functions validate inputs once; raw passes below do not re-validate |
 | `test_hot_path_lint.py` | no `torch.compile`-breaking patterns (host syncs, `.item()`, Python branching on tensors) in kinematics and dynamics |
 | `test_naming.py` | old Pinocchio-style storage names do not come back |
-| `test_optional_imports.py` | each optional package is imported only in its boundary module |
+| `test_optional_imports.py` | each package imports only the outside packages `pyproject.toml` declares for it; `lie`, `spatial` and `optim` import torch only |
 | `test_no_skips.py` | the conftest hooks fail every skip and xfail, whatever spells it |
 | `test_pytest_config.py` | pytest runs strictly: unknown markers and config keys, passing xfails, empty parameter sets and new warnings fail |
 | `test_python_version.py` | `.python-version`, `requires-python` and ruff's target agree on Python 3.12 |

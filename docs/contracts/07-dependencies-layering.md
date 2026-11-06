@@ -36,7 +36,8 @@ from better_robot.model import Model          # optim must not know robots
 
 Enforcement: `tests/contract/test_layer_dependencies.py` (every import of every module, function-level and
 `TYPE_CHECKING` ones included, checked against the `ALLOWED` table through
-`src/better_robot/testing/import_edges.py::imported_packages`).
+`src/better_robot/testing/import_edges.py::imported_packages`); `tests/contract/test_optional_imports.py` (`lie`,
+`spatial` and `optim` import no outside package but torch).
 
 ## C-DEP-2 Optional dependencies are imported lazily at their boundary (MUST)
 
@@ -59,9 +60,10 @@ import trimesh
 No compute-backend registry exists today; an optional compiled backend would sit behind the same public
 signatures and report its missing package with `better_robot.exceptions.OptionalDependencyError`.
 
-Enforcement: `tests/contract/test_optional_imports.py` (subprocess with `sys.modules[name] = None` for each
-extra, then `import better_robot` and the core packages); `tests/contract/test_optional_imports.py`;
-Lazy imports inside functions trip `[ruff:PLC0415]`; each intended one carries `# noqa: PLC0415`.
+Enforcement: `tests/contract/test_optional_imports.py` (every outside import of every unit, through the same
+walker, against `BOUNDARY`: each package `pyproject.toml` declares is allowed in the units its `IMPORTERS` row names,
+an extra's packages in one unit, an undeclared package nowhere). Lazy imports inside functions trip
+`[ruff:PLC0415]`; each intended one carries `# noqa: PLC0415`.
 
 ## C-DEP-3 No process-wide torch settings (MUST)
 

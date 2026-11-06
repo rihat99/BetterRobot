@@ -1,0 +1,3 @@
+{
+  "viewer -> PIL": "src/better_robot/viewer/capture.py::write_frames imports Pillow, which pyproject.toml does not declare (it arrives through viser -> imageio): declare it in the viewer extra (C-DEP-4) or write the frames without it"
+}
