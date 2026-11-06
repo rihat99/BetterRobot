@@ -13,6 +13,7 @@ coordinates and take no part.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import final
 
 import torch
 
@@ -22,6 +23,7 @@ from ..model.manifolds import Manifold
 from ..model.model import Model
 
 
+@final
 @dataclass(frozen=True)
 class MimicPlan:
     """Affine map between public and full coordinates: ``q_full = q @ q_expansion.mT + q_offset``."""
@@ -95,6 +97,7 @@ def reduced_mass_matrix(model: Model, mass_full: torch.Tensor) -> torch.Tensor:
     return expansion.mT @ mass_full @ expansion
 
 
+@final
 @dataclass(frozen=True)
 class ManifoldPlan:
     """Coordinate columns of each manifold on one device: ``(manifold, q columns (n, nq), v columns (n, nv))``."""

@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, final
 
 import torch
 from torch.utils import _pytree
@@ -31,6 +31,7 @@ _TENSOR_FIELDS = (
 _BATCHED_FIELDS = ("joint_placements", "body_inertias", "frame_placements")
 
 
+@final
 @dataclass(frozen=True, eq=False, repr=False)
 class Model:
     """A robot: static topology plus the tensors that parametrize it. Build one with ``better_robot.load``.

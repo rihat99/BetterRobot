@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, TypeVar
+from typing import Any, TypeVar, final
 
 import torch
 
@@ -29,6 +29,7 @@ def _poses(transforms: torch.Tensor) -> torch.Tensor:
     return torch.cat([transforms[..., 3], so3.from_matrix(transforms[..., :3])], dim=-1)
 
 
+@final
 @dataclass(frozen=True, eq=False)
 class KinematicState:
     """World placements of every joint and frame at one configuration batch, as ``[R | p]`` matrices.

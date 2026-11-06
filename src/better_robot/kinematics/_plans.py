@@ -8,6 +8,7 @@ mask. Both are built once per model, dtype and device through ``Model._plan`` an
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import final
 
 import torch
 
@@ -32,6 +33,7 @@ _QUATERNION_TERMS = {
 }
 
 
+@final
 @dataclass(frozen=True)
 class FkPlan:
     """Constants of the FK kernel for one topology, dtype and device. Joints are stored in level order."""
@@ -56,6 +58,7 @@ class FkPlan:
     frame_parents: torch.Tensor  #: ``(nframes,)`` long: parent joint of each frame.
 
 
+@final
 @dataclass(frozen=True)
 class JacobianPlan:
     """Static, device-resident schedule of the shared Jacobian column table."""
