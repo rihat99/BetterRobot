@@ -5,7 +5,7 @@ See ``docs/concepts/parsers_and_ir.md``.
 
 from __future__ import annotations
 
-from .mjcf import parse_mjcf
+from ..parser_mjcf import parse_mjcf
 from .programmatic import ModelBuilder
 from .urdf import parse_urdf
 
