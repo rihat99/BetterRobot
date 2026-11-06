@@ -23,7 +23,7 @@ from . import exceptions as exceptions, io as io, spatial as spatial, testing as
 from ._version import __version__ as __version__
 from .model import Model
 from .io import ModelBuilder, load
-from .dynamics.state import (
+from .dynamics import (
     center_of_mass,
     centroidal_map,
     centroidal_momentum,

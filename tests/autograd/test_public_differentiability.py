@@ -8,7 +8,7 @@ import pytest
 import torch
 
 import better_robot as br
-from better_robot.dynamics.state import center_of_mass
+from better_robot.dynamics import center_of_mass
 from tests.support.robots import panda_urdf
 
 

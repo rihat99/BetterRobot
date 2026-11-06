@@ -131,7 +131,7 @@ The [API reference](api/better_robot.md) is the exact signature source.
 | Contact Jacobians, including offset contact points with their `r × f` moment | legged robots, human contact | contact frames on the model | next |
 | Analytic RNEA/ABA derivatives (Carpentier–Mansard) behind the same signatures | speed | autograd derivatives and parity tests | later |
 | O(n) ABA; loop closures | long chains, musculoskeletal models | none | later |
-| Force-plate / ground-reaction input feeding `fext` | gait biomechanics | contact Jacobians | later |
+| Force-plate / ground-reaction input feeding `external_forces` | gait biomechanics | contact Jacobians | later |
 | Warp kernel backend behind `OptionalDependencyError` | throughput | a measured bottleneck | maybe |
 | Constrained dynamics (KKT forward dynamics, impulses) and its derivatives | contact-implicit trajectory optimization | contact Jacobians | far future |
 

@@ -2,7 +2,7 @@
 
 After this page you can compute joint torques for a motion, the joint-space mass matrix, accelerations
 under given torques, and the centre of mass and centroidal momentum, all batched and differentiable.
-Every function lives in `better_robot.dynamics.state` and takes `(model, state, ...)`, where `state` comes
+Every function lives in `better_robot.dynamics` and takes `(model, state, ...)`, where `state` comes
 from [`forward_kinematics`](kinematics-and-jacobians.md).
 
 ## The equation of motion
@@ -15,9 +15,9 @@ $$
 
 | Function | Returns | Shape | Algorithm |
 |----------|---------|-------|-----------|
-| `inverse_dynamics(model, state, *, v, a, fext=None)` | $\tau$ for acceleration `a` | `(B..., nv)` | recursive Newton–Euler (RNEA), plus armature |
+| `inverse_dynamics(model, state, *, v, a, external_forces=None)` | $\tau$ for acceleration `a` | `(B..., nv)` | recursive Newton–Euler (RNEA), plus armature |
 | `mass_matrix(model, state)` | $M(q)$, symmetric positive definite | `(B..., nv, nv)` | composite rigid body (CRBA), plus armature |
-| `forward_dynamics(model, state, *, v, tau, fext=None)` | $\dot v$ | `(B..., nv)` | bias by RNEA, then a Cholesky solve with $M$ |
+| `forward_dynamics(model, state, *, v, tau, external_forces=None)` | $\dot v$ | `(B..., nv)` | bias by RNEA, then a Cholesky solve with $M$ |
 | `center_of_mass(model, state)` | whole-body COM, world frame | `(B..., 3)` | mass-weighted sum |
 | `centroidal_map(model, state)` | $A_g(q)$ with $h_g = A_g v$ | `(B..., 6, nv)` | per-body momentum at the COM |
 | `centroidal_momentum(model, state, v=v)` | $h_g$, world axes at the COM | `(B..., 6)` | $A_g v$ |
@@ -31,7 +31,7 @@ $C v + g - J^\top f_\text{ext}$ with one RNEA pass at zero acceleration, factors
 import torch
 from better_robot.io import ModelBuilder, build_model
 from better_robot.kinematics import forward_kinematics
-from better_robot.dynamics.state import (
+from better_robot.dynamics import (
     inverse_dynamics, mass_matrix, forward_dynamics,
     center_of_mass, centroidal_map, centroidal_momentum,
 )
@@ -106,13 +106,13 @@ True
 
 ## External wrenches enter per joint
 
-`fext (B..., njoints, 6)` is one wrench `[force, torque]` per joint, expressed in that joint's own frame.
+`external_forces (B..., njoints, 6)` is one wrench `[force, torque]` per joint, expressed in that joint's own frame.
 Both `inverse_dynamics` and `forward_dynamics` accept it as a keyword argument.
 
 ```python
-fext = torch.zeros(32, model.njoints, 6, dtype=torch.float64)
-fext[:, -1, 2] = 5.0                           # 5 N along z of the last joint's frame
-tau_contact = inverse_dynamics(model, state, v=v, a=a, fext=fext)
+external_forces = torch.zeros(32, model.njoints, 6, dtype=torch.float64)
+external_forces[:, -1, 2] = 5.0                # 5 N along z of the last joint's frame
+tau_contact = inverse_dynamics(model, state, v=v, a=a, external_forces=external_forces)
 ```
 
 ## Centroidal quantities live at the centre of mass

@@ -11,7 +11,7 @@ and how to use `torch.func.jacrev` for full Jacobians. Tests in `tests/autograd/
 import torch
 import better_robot as br
 from better_robot import kinematics
-from better_robot.dynamics import state as dyn
+from better_robot import dynamics as dyn
 from robot_descriptions import panda_description
 
 model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
@@ -49,9 +49,9 @@ tensor(True)
 
 ## Gradients with respect to `v` and `a`
 
-`better_robot.dynamics.state` takes the same `KinematicState`, so one forward pass serves both
+`better_robot.dynamics` takes the same `KinematicState`, so one forward pass serves both
 kinematics and dynamics. Its outputs are differentiable in `q` (through the state), `v`, `a` and the
-external wrenches `fext`.
+external wrenches `external_forces`.
 
 ```python
 v = torch.zeros(4, model.nv, dtype=torch.float64, requires_grad=True)

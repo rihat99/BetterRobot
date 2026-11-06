@@ -6,7 +6,7 @@ import pytest
 import torch
 
 from better_robot import load
-from better_robot.dynamics.state import inverse_dynamics, mass_matrix
+from better_robot.dynamics import inverse_dynamics, mass_matrix
 from better_robot.exceptions import QuaternionNormError
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder

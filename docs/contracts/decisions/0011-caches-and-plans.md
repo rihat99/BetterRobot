@@ -31,6 +31,19 @@ A cache changes cost, never a result, and no hidden input remains. Each FK call 
 to matrices again (two small ops). If the FK benchmark at batch 1 and 4096 shows that conversion above the threshold,
 a value-side memo on `Model`, keyed by grad mode, is added by its own record with the measurement (5.6).
 
+## Note 2026-11-06
+The world geometry is memoised on the state after all, through its one writer:
+`src/better_robot/dynamics/_world.py::world_kinematics` stores `world_geometry` (the state's Jacobian columns moved to
+the first joint, the joint rotations, their origins relative to it and that origin) under `"world_geometry"` with
+`KinematicState._memoised`, keyed by grad mode; the inertias are still read from the model on every call. Deriving it
+per call put crba 10-16 % and aba 11-15 % behind R4 at batch 1 (CPU, one thread, float32, Panda and G1, interleaved
+runs on one core), and `forward_dynamics` derived it twice: above the 10 % threshold that made record 0040 add the
+model memo. With the memo `forward_dynamics` derives it once (Panda 287 -> 272 operators per call, aba at batch 1
+8-11 % behind R4); one `mass_matrix` or `inverse_dynamics` call per state costs what it did (crba 11-16 % behind
+R4). The rest of that gap is the geometry's route (the state's 16-operator column table plus a 15-operator shift,
+where R4 built its own table about the first joint in 20) and the packed world inertia (14 operators: spatial's
+`inertia_matrix_raw` takes the packed form only).
+
 ## Alternatives
 A declared value-side memo from the start: it adds a cache before a measurement asks for one. A `DynamicsState` type
 for the world geometry: a new type for one subtraction. Keeping the `_version`-keyed caches behind a declared field:

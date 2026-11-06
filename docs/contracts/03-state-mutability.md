@@ -73,7 +73,7 @@ state, keyed by `(name, grad mode)` and written only by `KinematicState._memoise
 | `"joint_poses"` | `KinematicState.joint_poses` | `(B..., njoints, 7)` world poses |
 | `"frame_poses"` | `KinematicState.frame_poses` | `(B..., nframes, 7)` world poses |
 | `"jacobian_columns"` | `KinematicState.jacobian_columns` | `(B..., 6, nv_full)` world Jacobian column table |
-| `"world_geometry"` | `src/better_robot/dynamics/state.py` (`WorldGeometry`) | per-joint world rotations, translations, columns |
+| `"world_geometry"` | `src/better_robot/dynamics/_world.py::world_kinematics` | `(N, 6, nv_full)` columns, joint rotations, translations and origin about the first joint |
 
 A new name is added to this table in the same change that writes it. The model-side cache is `Model._plans`:
 constant tensors derived from the static fields, keyed by kind, dtype and device. `Model._memo` holds values

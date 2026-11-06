@@ -9,9 +9,7 @@ documented exception, never a default. See ADR [0001](decisions/0001-torch-only.
 Gradients flow from every output to every float input (`q`, `v`, model parameters) unless the docstring has a
 `Differentiability` section saying what is cut and why. No `.detach()`, `torch.no_grad()` or
 `requires_grad_(False)` inside library math. Documented exceptions: `optim.Problem` detaches while solving
-(`optim/problem.py:278-303`; `solve` is not differentiable, `solve_layer` is, and both docstrings say so),
-and `dynamics/state_manifold.py:64,72` detaches a manifold projection, which needs a `Differentiability`
-section or a fix `[planned: L-6]`.
+(`optim/problem.py:278-303`; `solve` is not differentiable, `solve_layer` is, and both docstrings say so).
 
 ```python { .no-run }
 # good  (illustrative)

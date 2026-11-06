@@ -43,7 +43,9 @@ def checked_names(monkeypatch: pytest.MonkeyPatch) -> list[str]:
         importlib.import_module("better_robot.kinematics.forward_kinematics"),  # the function shadows the module
         kinematics.jacobians,
         kinematics.configuration,
-        dynamics.state,
+        importlib.import_module("better_robot.dynamics.inverse_dynamics"),
+        importlib.import_module("better_robot.dynamics.mass_matrix"),
+        dynamics.centroidal,
     )
     for module in boundaries:
         monkeypatch.setattr(module, "check_tensor", counted)

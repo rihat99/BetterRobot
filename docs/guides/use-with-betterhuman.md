@@ -16,7 +16,7 @@ start, so you can tell which package owns which step.
 
 Everything below the human layer is BetterRobot: the configuration `q (B, nq)` is a free-flyer root
 followed by spherical joints, so `kinematics.integrate`, `forward_kinematics`, the dynamics in
-`better_robot.dynamics.state` and the solvers in `better_robot.optim` apply unchanged. Because shape
+`better_robot.dynamics` and the solvers in `better_robot.optim` apply unchanged. Because shape
 lives in the model's tensor fields, gradients reach the shape parameters the same way they reach any model tensor
 (see [Differentiate](differentiate.md)).
 
