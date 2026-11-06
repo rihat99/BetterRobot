@@ -10,6 +10,7 @@ kind written outside the package enters without a registry. A description that c
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import final
 
 import torch
 
@@ -35,6 +36,7 @@ def _axis(axis: Sequence[float] | torch.Tensor) -> tuple[float, ...]:
     return tuple(float(value) for value in axis)
 
 
+@final
 class ModelBuilder:
     """Collects bodies, joints, frames and shapes by name and emits one ``IRModel`` from ``finalize``.
 
