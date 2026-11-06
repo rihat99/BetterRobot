@@ -2,7 +2,9 @@
 
 The ``yourdfpy`` import is confined to this file. Mimic joints, continuous
 joints, and multi-child links are handled at IR level. Free-flyer is not
-added here — ``build_model(root_joint=JointFreeFlyer())`` adds it.
+added here — ``build_model(root_joint=JointFreeFlyer())`` adds it. A joint
+axis is normalised here (a file may carry one of any length); the joint
+kinds themselves accept unit axes only.
 
 See ``docs/concepts/parsers_and_ir.md §4``.
 """

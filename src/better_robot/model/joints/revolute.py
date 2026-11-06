@@ -9,7 +9,7 @@ import torch
 
 from ...lie import se3
 from ..manifolds import CIRCLE, EUCLIDEAN, Manifold
-from .base import JointModel, _axis_column
+from .base import JointModel, _axis_column, check_axis
 
 
 def _random_angle(generator: torch.Generator | None, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
@@ -28,6 +28,9 @@ class JointRevolute(JointModel):
     nq: ClassVar[int] = 1
     nv: ClassVar[int] = 1
     manifold: ClassVar[Manifold] = EUCLIDEAN
+
+    def __post_init__(self) -> None:
+        check_axis(self.axis)
 
     def placement(self, q: torch.Tensor) -> torch.Tensor:
         return se3.from_axis_angle(q.new_tensor(self.axis), q[..., 0])
@@ -51,6 +54,9 @@ class JointRevoluteUnbounded(JointModel):
     nq: ClassVar[int] = 2
     nv: ClassVar[int] = 1
     manifold: ClassVar[Manifold] = CIRCLE
+
+    def __post_init__(self) -> None:
+        check_axis(self.axis)
 
     def placement(self, q: torch.Tensor) -> torch.Tensor:
         return se3.from_axis_angle(q.new_tensor(self.axis), torch.atan2(q[..., 1], q[..., 0]))

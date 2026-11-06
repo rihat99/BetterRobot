@@ -9,7 +9,7 @@ import torch
 
 from ...lie import se3
 from ..manifolds import EUCLIDEAN, Manifold
-from .base import JointModel
+from .base import JointModel, check_axis
 
 
 @final
@@ -22,6 +22,9 @@ class JointHelical(JointModel):
     nq: ClassVar[int] = 1
     nv: ClassVar[int] = 1
     manifold: ClassVar[Manifold] = EUCLIDEAN
+
+    def __post_init__(self) -> None:
+        check_axis(self.axis)
 
     def placement(self, q: torch.Tensor) -> torch.Tensor:
         axis, angle = q.new_tensor(self.axis), q[..., 0]

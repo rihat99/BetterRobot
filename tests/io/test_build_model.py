@@ -174,7 +174,7 @@ def _unaligned_model():
     b.add_body("base")
     b.add_body("child")
     b.add_revolute(
-        "j1", parent="base", child="child", axis=torch.tensor([0.707, 0.707, 0.0]), origin=_id7(), lower=-1.0, upper=1.0
+        "j1", parent="base", child="child", axis=torch.tensor([0.6, 0.8, 0.0]), origin=_id7(), lower=-1.0, upper=1.0
     )
     return build_model(b.finalize())
 

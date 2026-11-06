@@ -131,9 +131,9 @@ class _Slider(JointModel):
     "factory",
     [
         pytest.param(JointFixed, id="fixed"),
-        pytest.param(lambda: JointRevolute(axis=(1.0, 1.0, 0.0)), id="revolute"),
+        pytest.param(lambda: JointRevolute(axis=(0.6, 0.8, 0.0)), id="revolute"),
         pytest.param(lambda: JointRevoluteUnbounded(axis=(0.0, 0.0, 1.0)), id="continuous"),
-        pytest.param(lambda: JointPrismatic(axis=(1.0, 1.0, 0.0)), id="prismatic"),
+        pytest.param(lambda: JointPrismatic(axis=(0.6, 0.8, 0.0)), id="prismatic"),
         pytest.param(JointSpherical, id="spherical"),
         pytest.param(JointFreeFlyer, id="free_flyer"),
         pytest.param(JointPlanar, id="planar"),

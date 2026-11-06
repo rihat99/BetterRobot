@@ -9,7 +9,7 @@ import torch
 
 from ...lie import se3
 from ..manifolds import EUCLIDEAN, Manifold
-from .base import JointModel, _axis_column
+from .base import JointModel, _axis_column, check_axis
 
 
 @final
@@ -21,6 +21,9 @@ class JointPrismatic(JointModel):
     nq: ClassVar[int] = 1
     nv: ClassVar[int] = 1
     manifold: ClassVar[Manifold] = EUCLIDEAN
+
+    def __post_init__(self) -> None:
+        check_axis(self.axis)
 
     def placement(self, q: torch.Tensor) -> torch.Tensor:
         return se3.from_translation(q.new_tensor(self.axis) * q)

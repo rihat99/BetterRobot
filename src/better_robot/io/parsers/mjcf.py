@@ -5,7 +5,9 @@ sites — so the MJCF parser fills more of the IR than the URDF parser.
 ``mujoco`` is imported lazily so ``import better_robot`` does not require
 it.
 
-Covered: bodies, joints (hinge/slide/ball/free), sites (→ frames).
+Covered: bodies, joints (hinge/slide/ball/free), sites (→ frames). A joint
+axis is normalised here (a file may carry one of any length); the joint
+kinds themselves accept unit axes only.
 Not covered (deferred to future work): mesh loading, tendons, actuators.
 
 Experimental: the parser reads the uncompiled ``MjSpec``, so known gaps

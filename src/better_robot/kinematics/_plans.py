@@ -102,7 +102,7 @@ def _feature_map(
         return out
 
     for index, (joint, _) in enumerate(rotary):  # R = (I + K²) + sin · K - cos · K²
-        K = _hat(axes[joint] / axes[joint].norm())  # Rodrigues needs a unit axis; builders may pass any length
+        K = _hat(axes[joint] / axes[joint].norm())  # unit within 1e-6 (joints.check_axis); exact here, in float64
         bias[slot[joint], :3, :3] += K @ K
         entries[slot[joint]] += [(index, block(K)), (n_rot + index, block(-K @ K))]
     base = 2 * n_rot

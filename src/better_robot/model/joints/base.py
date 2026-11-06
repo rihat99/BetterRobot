@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import math
 from abc import ABC, abstractmethod
 from typing import ClassVar
 
 import torch
 
+from ...exceptions import ArgumentError
 from ..manifolds import Manifold
 
 
@@ -15,8 +17,9 @@ class JointModel(ABC):
 
     A kind declares ``nq`` (the width of its configuration slice), ``nv`` (the width of its tangent slice),
     ``manifold`` (how ``kinematics.integrate`` and ``kinematics.difference`` step its coordinates) and ``axis`` (the
-    axis in the joint frame of a revolute, prismatic or helical joint, ``None`` for the other kinds). The kinds are
-    final frozen dataclasses whose fields are the joint's data (record 0013): two joints with equal fields are equal.
+    axis in the joint frame of a revolute, prismatic or helical joint, a tuple of three finite floats of unit norm
+    checked by `check_axis` at construction, ``None`` for the other kinds). The kinds are final frozen dataclasses
+    whose fields are the joint's data (record 0013): two joints with equal fields are equal.
     ``q`` and ``v`` below are the joint's own slices, ``(B..., nq)`` and ``(B..., nv)``; every method broadcasts over
     the leading axes and returns tensors on the dtype and device of ``q``.
     """
@@ -42,6 +45,21 @@ class JointModel(ABC):
     def random(self, generator: torch.Generator | None, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
         """A configuration ``(nq,)`` drawn inside ``lower, upper: (nq,)`` where the kind has limits; rotations and
         angles without finite limits are drawn uniformly over their full range."""
+
+
+def check_axis(axis: object) -> None:
+    """Raise ``ArgumentError`` unless ``axis`` is a tuple of three finite floats with unit norm (within ``1e-6``).
+
+    A list or a tensor is rejected too: the kinds are hashable values, and a non-unit axis would scale the placement
+    and the Jacobian column it builds.
+    """
+    if not (isinstance(axis, tuple) and len(axis) == 3) or not all(
+        isinstance(c, (int, float)) and not isinstance(c, bool) and math.isfinite(c) for c in axis
+    ):
+        raise ArgumentError(f"axis must be a tuple of three finite floats, got {axis!r}; pass tuple(axis)")
+    norm = math.sqrt(sum(c * c for c in axis))
+    if abs(norm - 1.0) > 1e-6:
+        raise ArgumentError(f"axis {axis!r} has norm {norm:.8g}; pass a unit axis (divide by its norm)")
 
 
 def _axis_column(axis: torch.Tensor, batch: torch.Size, *, row: int) -> torch.Tensor:

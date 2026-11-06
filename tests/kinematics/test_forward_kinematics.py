@@ -76,7 +76,7 @@ def test_state_is_differentiable_in_model_values_and_under_torch_func():
 
 
 def test_state_review_regressions():
-    """Non-unit joint axis, a moved placement in a new model after a call, first call in inference mode."""
+    """An unaligned joint axis, a moved placement in a new model after a call, first call in inference mode."""
     builder = ModelBuilder("axis")
     base = builder.add_body("base", mass=1.0)
     link = builder.add_body("link", mass=1.0)
@@ -84,7 +84,7 @@ def test_state_review_regressions():
         "joint",
         parent=base,
         child=link,
-        axis=torch.tensor([1.2, 1.6, 0.0]),
+        axis=torch.tensor([0.6, 0.8, 0.0]),
         origin=torch.tensor([0.1, 0.2, 0.3, 0.0, 0.0, 0.0, 1.0]),
     )
     model = build_model(builder.finalize(), dtype=torch.float64)

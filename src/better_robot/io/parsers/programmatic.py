@@ -235,7 +235,9 @@ class ModelBuilder:
 
         ``unbounded=True`` selects URDF-``continuous`` semantics
         (no lower/upper) and produces a
-        `JointRevoluteUnbounded`.
+        `JointRevoluteUnbounded`. ``axis`` is passed through
+        unchanged: a non-unit axis fails at ``build_model`` with
+        the joint kind's message.
         """
         return self._push_joint(
             name,
@@ -280,7 +282,7 @@ class ModelBuilder:
         velocity_limit: float | None = None,
         effort_limit: float | None = None,
     ) -> str:
-        """Generic 1-DoF prismatic joint with explicit ``axis``."""
+        """Generic 1-DoF prismatic joint with explicit ``axis`` (passed through unchanged; unit, or the build fails)."""
         return self._push_joint(
             name,
             kind="prismatic",
@@ -370,7 +372,8 @@ class ModelBuilder:
         lower: float | None = None,
         upper: float | None = None,
     ) -> str:
-        """Helical / screw joint along ``axis`` with linear/angular ratio ``pitch``."""
+        """Helical / screw joint along ``axis`` (passed through unchanged; unit, or the build fails) with
+        linear/angular ratio ``pitch``."""
         return self._push_joint(
             name,
             kind="helical",
