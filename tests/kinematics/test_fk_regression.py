@@ -28,6 +28,7 @@ import pytest
 import torch
 
 import better_robot as br
+from tests.support.robots import g1_urdf, panda_urdf
 
 REF_PATH = Path(__file__).parent / "fk_reference.npz"
 
@@ -49,14 +50,12 @@ def _sign_align_poses(actual: np.ndarray, reference: np.ndarray) -> np.ndarray:
 
 
 def _load_panda():
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import panda_description
     from better_robot.io import build_model, parse_urdf
 
     # The frozen oracle predates reduced mimic coordinates and contains two
     # independent finger entries. Keep it as an explicit full-space algorithm
     # regression; constrained behavior has dedicated reduced-map tests.
-    ir = parse_urdf(panda_description.URDF_PATH)
+    ir = parse_urdf(panda_urdf())
     ir.joints = [
         dataclasses.replace(
             joint,
@@ -70,10 +69,7 @@ def _load_panda():
 
 
 def _load_g1():
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import g1_description
-
-    return br.load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
+    return br.load(g1_urdf(), free_flyer=True, dtype=torch.float64)
 
 
 @pytest.fixture(scope="module")

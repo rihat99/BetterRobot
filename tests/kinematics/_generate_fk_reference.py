@@ -27,6 +27,7 @@ import numpy as np
 import torch
 
 import better_robot as br
+from tests.support.robots import g1_urdf, panda_urdf
 
 ORACLE_VERSION = "4"
 GENERATION_SEED = 0
@@ -34,13 +35,12 @@ N_CONFIGS = 32  # keep small — < 200 KB total
 
 
 def _panda():
-    from robot_descriptions import panda_description
     from better_robot.io import build_model, parse_urdf
 
     # Keep the historical oracle in full coordinates. Public Panda loading now
     # reduces the gripper mimic target, while test_fk_regression deliberately
     # strips that metadata to preserve this algorithm-regression fixture.
-    ir = parse_urdf(panda_description.URDF_PATH)
+    ir = parse_urdf(panda_urdf())
     ir.joints = [
         dataclasses.replace(
             joint,
@@ -54,9 +54,7 @@ def _panda():
 
 
 def _g1():
-    from robot_descriptions import g1_description
-
-    return br.load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
+    return br.load(g1_urdf(), free_flyer=True, dtype=torch.float64)
 
 
 def _sample_qs(model, n: int, *, seed: int) -> torch.Tensor:

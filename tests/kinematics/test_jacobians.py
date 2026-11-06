@@ -18,6 +18,7 @@ from better_robot.io.build_model import build_model
 from better_robot.kinematics.state import forward_kinematics_state
 from better_robot.terms import frame_pose
 from better_robot.kinematics import frame_jacobian, joint_jacobian, point_jacobian
+from tests.support.robots import g1_urdf, panda_urdf
 
 
 def _id7() -> torch.Tensor:
@@ -188,20 +189,15 @@ def test_analytic_vs_finite_diff_chain_j1(chain):
 
 @pytest.fixture(scope="module")
 def panda_model():
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import panda_description  # noqa: PLC0415
     from better_robot.io import load  # noqa: PLC0415
 
-    return load(panda_description.URDF_PATH)
+    return load(panda_urdf())
 
 
 def test_point_jacobian_matches_finite_differences_on_a_floating_base():
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import g1_description  # noqa: PLC0415
-
     from better_robot.io import load  # noqa: PLC0415
 
-    model = load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
+    model = load(g1_urdf(), free_flyer=True, dtype=torch.float64)
     generator = torch.Generator().manual_seed(0)
     q = model.integrate(
         model.q_neutral.expand(3, -1), 0.3 * torch.randn(3, model.nv, generator=generator, dtype=torch.float64)

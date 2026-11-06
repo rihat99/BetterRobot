@@ -6,13 +6,11 @@ import torch
 import better_robot as br
 from better_robot import dynamics, kinematics
 from better_robot.lie import so3
+from tests.support.robots import panda_urdf
 
 
 def test_state_matches_data_api_and_autograd():
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import panda_description
-
-    model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
+    model = br.load(panda_urdf(), dtype=torch.float64)
     generator = torch.Generator().manual_seed(0)
     q = torch.stack([model.random_configuration(generator) for _ in range(4)])
     frame = "body_panda_hand"
@@ -43,10 +41,7 @@ def test_state_matches_data_api_and_autograd():
 
 
 def test_state_is_differentiable_in_model_values_and_under_torch_func():
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import panda_description
-
-    model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
+    model = br.load(panda_urdf(), dtype=torch.float64)
     q = model.q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit).expand(2, -1)
     hand = model.frame_id("body_panda_hand")
     kinematics.forward_kinematics_state(model, q)  # fills the constant-placement cache
@@ -117,9 +112,8 @@ def test_state_review_regressions():
 
 def test_empty_batch_flows_through_fk_and_dynamics():
     """A zero-size batch must not hit ``reshape(0, -1)``, which cannot infer the trailing size."""
-    panda_description = pytest.importorskip("robot_descriptions.panda_description")
 
-    model = br.load(panda_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
+    model = br.load(panda_urdf(), free_flyer=True, dtype=torch.float64)
     state = br.forward_kinematics_state(model, model.q_neutral.expand(0, -1))
     v = torch.zeros(0, model.nv, dtype=torch.float64)
     assert state.frame_pose.shape == (0, model.nframes, 7)

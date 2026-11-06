@@ -16,6 +16,7 @@ from better_robot.data_model.joint_models import (
 from better_robot.exceptions import DeviceMismatchError, ShapeError
 from better_robot.io import ModelBuilder, build_model, load
 from tests.support.branching_tree import make_branching_tree_model
+from tests.support.robots import g1_urdf, panda_urdf
 
 
 def _loop_integrate(model, q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
@@ -83,15 +84,10 @@ def _load_named_model(name: str, dtype: torch.dtype):
     if name == "branching_tree":
         return make_branching_tree_model(dtype=dtype)
 
-    pytest.importorskip("robot_descriptions")
     if name == "panda":
-        from robot_descriptions import panda_description  # noqa: PLC0415 - optional fixture
-
-        return load(panda_description.URDF_PATH, dtype=dtype)
+        return load(panda_urdf(), dtype=dtype)
     if name == "g1":
-        from robot_descriptions import g1_description  # noqa: PLC0415 - optional fixture
-
-        return load(g1_description.URDF_PATH, free_flyer=True, dtype=dtype)
+        return load(g1_urdf(), free_flyer=True, dtype=dtype)
     raise ValueError(name)
 
 

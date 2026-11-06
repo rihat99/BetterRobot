@@ -12,19 +12,16 @@ runtime manageable on CPU.
 
 from __future__ import annotations
 
-import pytest
 import torch
 
 import better_robot as br
 from better_robot.dynamics.state import forward_dynamics, inverse_dynamics, mass_matrix
 from better_robot.kinematics import forward_kinematics_state
+from tests.support.robots import panda_urdf
 
 
 def _panda():
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import panda_description  # noqa: PLC0415
-
-    return br.load(panda_description.URDF_PATH, dtype=torch.float64)
+    return br.load(panda_urdf(), dtype=torch.float64)
 
 
 def test_rnea_gradcheck():

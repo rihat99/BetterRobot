@@ -9,14 +9,12 @@ import torch
 
 import better_robot as br
 from better_robot.dynamics.state import center_of_mass
+from tests.support.robots import panda_urdf
 
 
 @pytest.fixture(scope="module")
 def panda():
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import panda_description  # noqa: PLC0415
-
-    return br.load(panda_description.URDF_PATH, dtype=torch.float64)
+    return br.load(panda_urdf(), dtype=torch.float64)
 
 
 def _configuration(model) -> torch.Tensor:

@@ -14,6 +14,7 @@ from better_robot.viewer.robot import robot_layers, robot_meshes
 from better_robot.viewer.viewer import Viewer
 
 from .fake_server import FakeServer
+from tests.support.robots import g1_urdf, panda_urdf
 
 
 def _random_poses(shape: tuple[int, ...], seed: int = 0) -> np.ndarray:
@@ -58,17 +59,15 @@ def test_rigid_mesh_layer_moves_each_mesh_with_its_body() -> None:
     assert scene.nodes["/r/s/spheres"].props["batched_scales"].shape == (4,)
 
 
-@pytest.mark.skipif(pytest.importorskip("robot_descriptions") is None, reason="needs robot_descriptions")
 def test_panda_layers_follow_forward_kinematics() -> None:
-    from robot_descriptions import panda_description  # noqa: PLC0415 - optional test dependency
-
-    pytest.importorskip("trimesh")
-    model = br.load(panda_description.URDF_PATH)
+    """The tracked Panda ships its collision meshes only, so the mesh layer draws those."""
+    model = br.load(panda_urdf())
     q = torch.stack([model.random_configuration(torch.Generator().manual_seed(i)) for i in range(5)])
     tau = torch.randn(5, model.nv)
-    layers = {layer.name: layer for layer in robot_layers(model, q, skeleton=True, tau=tau, frames=["body_panda_hand"])}
-    assert set(layers) == {"robot", "robot skeleton", "robot frames"}
-    assert len(robot_meshes(model)) == 11
+    options = {"visual": False, "collision": True, "skeleton": True, "tau": tau, "frames": ["body_panda_hand"]}
+    layers = {layer.name: layer for layer in robot_layers(model, q, **options)}
+    assert set(layers) == {"robot collision", "robot skeleton", "robot frames"}
+    assert len(robot_meshes(model, collision=True)) == 17  # nine STL meshes and eight finger boxes
 
     from better_robot.kinematics import forward_kinematics_state  # noqa: PLC0415
 
@@ -85,21 +84,17 @@ def test_panda_layers_follow_forward_kinematics() -> None:
     for layer in layers.values():
         viewer.add(layer, group="panda")
     viewer.show(4)
-    hand_mesh = next(i for i, spec in enumerate(layers["robot"].meshes) if spec.body == model.body_id("panda_hand"))
-    node = server.scene.nodes[f"/panda/robot/mesh_{hand_mesh}"]
-    expected = compose_poses(
-        state.joint_pose[4, model.body_id("panda_hand")].numpy(), layers["robot"].meshes[hand_mesh].origin
-    )
+    meshes = layers["robot collision"].meshes
+    hand_mesh = next(i for i, spec in enumerate(meshes) if spec.body == model.body_id("panda_hand"))
+    node = server.scene.nodes[f"/panda/robot collision/mesh_{hand_mesh}"]
+    expected = compose_poses(state.joint_pose[4, model.body_id("panda_hand")].numpy(), meshes[hand_mesh].origin)
     np.testing.assert_allclose(node.position, expected[:3], atol=1e-5)
 
 
 def test_robot_view_update_rewrites_layer_arrays_in_place() -> None:
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import panda_description  # noqa: PLC0415 - optional test dependency
-
     from better_robot.viewer.robot import RobotView  # noqa: PLC0415
 
-    model = br.load(panda_description.URDF_PATH)
+    model = br.load(panda_urdf())
     q0, q1 = (model.random_configuration(torch.Generator().manual_seed(i)) for i in range(2))
     view = RobotView(model, q0, visual=False, skeleton=True, frames=["body_panda_hand"])
     server = FakeServer()
@@ -167,10 +162,7 @@ def test_skeleton_markers_lie_on_the_forward_kinematics_joint_axes(robot: str) -
     from better_robot.viewer.robot import skeleton_spec  # noqa: PLC0415
 
     if robot == "g1":
-        pytest.importorskip("robot_descriptions")
-        from robot_descriptions import g1_description  # noqa: PLC0415 - optional test dependency
-
-        model = br.load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
+        model = br.load(g1_urdf(), free_flyer=True, dtype=torch.float64)
     else:
         model = _every_axis_kind_model()
         kinds, axes = skeleton_spec(model)
@@ -203,12 +195,9 @@ def test_skeleton_markers_lie_on_the_forward_kinematics_joint_axes(robot: str) -
 
 
 def test_robot_skeleton_hides_the_bones_given_a_zero_radius() -> None:
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import g1_description  # noqa: PLC0415 - optional test dependency
-
     from better_robot.viewer import robot_skeleton  # noqa: PLC0415
 
-    model = br.load(g1_description.URDF_PATH, free_flyer=True)
+    model = br.load(g1_urdf(), free_flyer=True)
     poses = _random_poses((2, model.njoints))
     massless = (model.body_inertias[1:, 0] == 0).numpy()  # the G1's IMU / camera mounts
     assert massless.any()
@@ -225,10 +214,7 @@ def test_robot_skeleton_hides_the_bones_given_a_zero_radius() -> None:
 
 
 def _g1() -> br.Model:
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import g1_description  # noqa: PLC0415 - optional test dependency
-
-    return br.load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
+    return br.load(g1_urdf(), free_flyer=True, dtype=torch.float64)
 
 
 def _drawn_markers(layer, server: FakeServer, marker: str) -> tuple[np.ndarray, np.ndarray]:  # noqa: ANN001

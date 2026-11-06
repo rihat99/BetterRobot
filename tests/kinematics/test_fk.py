@@ -14,6 +14,7 @@ from better_robot.exceptions import DtypeMismatchError
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics import forward_kinematics_state
+from tests.support.robots import panda_urdf
 
 
 def _id7() -> torch.Tensor:
@@ -113,8 +114,6 @@ def test_body_frame_is_at_joint(arm):
 
 @pytest.fixture(scope="module")
 def panda_model():
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import panda_description  # noqa: PLC0415
     from better_robot.io import load  # noqa: PLC0415
 
-    return load(panda_description.URDF_PATH)
+    return load(panda_urdf())

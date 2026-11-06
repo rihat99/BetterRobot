@@ -6,16 +6,14 @@ import torch
 import better_robot as br
 from better_robot import collision, optim, terms
 from better_robot.kinematics import forward_kinematics_state
+from tests.support.robots import g1_urdf, panda_urdf
 
 DT = torch.float64
 
 
 @pytest.fixture(scope="module")
 def panda():
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import panda_description  # noqa: PLC0415
-
-    return br.load(panda_description.URDF_PATH, dtype=DT)
+    return br.load(panda_urdf(), dtype=DT)
 
 
 def _randn(*shape, seed=0):
@@ -272,10 +270,7 @@ G1_CAPSULES = {  # a subset of mjlab's G1 collision capsules, torso geoms moved 
 
 
 def test_g1_capsules_pose_pair_and_overlap_where_the_meshes_do():
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import g1_description  # noqa: PLC0415
-
-    g1 = br.load(g1_description.URDF_PATH, free_flyer=True, dtype=DT)
+    g1 = br.load(g1_urdf(), free_flyer=True, dtype=DT)
     capsules = collision.RobotCapsules.from_frames(g1, G1_CAPSULES)
     names = [g1.frame_names[frame].removeprefix("body_") for frame in capsules.frame_ids.tolist()]
     q = torch.stack([g1.random_configuration(torch.Generator().manual_seed(seed)) for seed in range(3)])
@@ -306,10 +301,8 @@ def test_g1_capsules_pose_pair_and_overlap_where_the_meshes_do():
 def test_cuda_backward_is_bitwise_reproducible():
     """Posing many points per frame and RNEA's per-column gathers repeat an index: advanced indexing keeps their CUDA
     backward free of atomics (index_select's adds with them), so two backward passes agree to the bit."""
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import g1_description  # noqa: PLC0415
 
-    g1 = br.load(g1_description.URDF_PATH, free_flyer=True, dtype=DT, device="cuda")
+    g1 = br.load(g1_urdf(), free_flyer=True, dtype=DT, device="cuda")
     generator = torch.Generator(device="cuda").manual_seed(0)
 
     def randn(*shape):

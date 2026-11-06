@@ -6,22 +6,17 @@ import pytest
 import torch
 
 import better_robot as br
+from tests.support.robots import g1_urdf, panda_urdf
 
 
 @pytest.fixture(scope="session")
 def panda():
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import panda_description
-
-    return br.load(panda_description.URDF_PATH, dtype=torch.float32)
+    return br.load(panda_urdf(), dtype=torch.float32)
 
 
 @pytest.fixture(scope="session")
 def g1():
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import g1_description
-
-    return br.load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float32)
+    return br.load(g1_urdf(), free_flyer=True, dtype=torch.float32)
 
 
 @pytest.fixture

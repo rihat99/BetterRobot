@@ -11,14 +11,14 @@ from torch.utils import _pytree
 from better_robot.data_model.model_values import packed_inertias_to_6x6
 from better_robot.io import load
 from tests.support.branching_tree import make_branching_tree_body
+from tests.support.robots import panda_urdf
 
 
 @pytest.fixture(scope="module", params=("panda", "smpl"))
 def model(request):
     if request.param == "smpl":
         return load(make_branching_tree_body)
-    panda_description = pytest.importorskip("robot_descriptions.panda_description")
-    return load(panda_description.URDF_PATH)
+    return load(panda_urdf())
 
 
 def test_dual_topology_representations_are_consistent(model):

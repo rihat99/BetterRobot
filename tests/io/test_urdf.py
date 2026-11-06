@@ -14,31 +14,14 @@ import torch
 
 from better_robot.io import load
 from better_robot.io.parsers.urdf import parse_urdf
-
-
-# ── helpers ──────────────────────────────────────────────────────────────────
-
-
-def _get_panda_urdf():
-    """Load the panda URDF path via robot_descriptions."""
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import panda_description
-
-    return panda_description.URDF_PATH
-
-
-def _get_g1_urdf():
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import g1_description
-
-    return getattr(g1_description, "URDF_PATH", None) or pytest.skip("g1 URDF not available")
+from tests.support.robots import g1_urdf, panda_urdf
 
 
 # ── parse_urdf unit tests ────────────────────────────────────────────────────
 
 
 def test_parse_urdf_root_body_has_no_incoming_joint():
-    path = _get_panda_urdf()
+    path = panda_urdf()
     ir = parse_urdf(path)
     child_bodies = {j.child_body for j in ir.joints}
     assert ir.root_body not in child_bodies
@@ -49,13 +32,13 @@ def test_parse_urdf_root_body_has_no_incoming_joint():
 
 @pytest.fixture(scope="module")
 def panda_model():
-    path = _get_panda_urdf()
+    path = panda_urdf()
     return load(path)
 
 
 @pytest.fixture(scope="module")
 def panda_ir():
-    path = _get_panda_urdf()
+    path = panda_urdf()
     return parse_urdf(path)
 
 
@@ -112,8 +95,8 @@ def test_load_accepts_yourdfpy_object():
     pytest.importorskip("yourdfpy")
     import yourdfpy
 
-    path = _get_panda_urdf()
-    urdf = yourdfpy.URDF.load(path)
+    path = panda_urdf()
+    urdf = yourdfpy.URDF.load(str(path))
     model = load(urdf)
     assert model.nq == 8
     assert model.nq_full == 9
@@ -124,7 +107,7 @@ def test_load_accepts_yourdfpy_object():
 
 @pytest.fixture(scope="module")
 def g1_model():
-    path = _get_g1_urdf()
+    path = g1_urdf()
     return load(path, free_flyer=True)
 
 
@@ -144,7 +127,7 @@ def test_g1_dims(g1_model, attr, expected):
 
 
 def test_load_dtype_and_device_kwargs():
-    model = load(_get_panda_urdf(), dtype=torch.float64, device=torch.device("cpu"))
+    model = load(panda_urdf(), dtype=torch.float64, device=torch.device("cpu"))
     assert model.values.joint_placements.dtype == torch.float64
     assert model.values.joint_placements.device.type == "cpu"
 

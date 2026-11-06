@@ -20,19 +20,16 @@ the per-body twists, then compares to ``centroidal_momentum``.
 
 from __future__ import annotations
 
-import pytest
 import torch
 
 import better_robot as br
 from better_robot.dynamics.state import center_of_mass, centroidal_map, centroidal_momentum
 from better_robot.kinematics import forward_kinematics_state
+from tests.support.robots import g1_urdf, panda_urdf
 
 
 def _panda(dtype=torch.float64):
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import panda_description  # noqa: PLC0415
-
-    return br.load(panda_description.URDF_PATH, dtype=dtype)
+    return br.load(panda_urdf(), dtype=dtype)
 
 
 def _sample_q(model, count: int, seed: int) -> torch.Tensor:
@@ -90,10 +87,8 @@ def test_zero_velocity_gives_zero_momentum():
 
 def test_centroidal_g1_free_flyer():
     """G1 free-flyer: a unit base translation produces ``total_mass · ê_x`` linear momentum."""
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import g1_description  # noqa: PLC0415
 
-    model = br.load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
+    model = br.load(g1_urdf(), free_flyer=True, dtype=torch.float64)
     q = model.q_neutral.clone()
     # Free-flyer first 6 v slots: [vx, vy, vz, wx, wy, wz]; pure x-translation.
     v = torch.zeros(model.nv, dtype=torch.float64)

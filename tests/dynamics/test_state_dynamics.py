@@ -8,15 +8,12 @@ import torch
 import better_robot as br
 from better_robot.dynamics.state import centroidal_map, forward_dynamics, inverse_dynamics, mass_matrix
 from better_robot.kinematics.state import forward_kinematics_state
-
-robot_descriptions = pytest.importorskip("robot_descriptions")
+from tests.support.robots import g1_urdf
 
 
 @pytest.fixture(scope="module")
 def g1() -> br.Model:
-    from robot_descriptions import g1_description  # noqa: PLC0415 - optional test dependency
-
-    return br.load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
+    return br.load(g1_urdf(), free_flyer=True, dtype=torch.float64)
 
 
 def _inputs(model: br.Model, batch: tuple[int, ...], seed: int = 0):

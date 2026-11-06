@@ -12,6 +12,7 @@ from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics import forward_kinematics_state
 from better_robot.kinematics._fk_lean import lean_core, placement_matrices
+from tests.support.robots import panda_urdf
 
 
 @pytest.fixture(scope="module")
@@ -61,10 +62,7 @@ def test_free_flyer_quaternion_norm_check_is_opt_in(free_flyer_model):
 
 @pytest.fixture(scope="module")
 def panda64():
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import panda_description  # noqa: PLC0415 - optional test dependency
-
-    return load(panda_description.URDF_PATH, dtype=torch.float64)
+    return load(panda_urdf(), dtype=torch.float64)
 
 
 def _fk(model, q):

@@ -20,6 +20,7 @@ from better_robot.dynamics.state import forward_dynamics, inverse_dynamics
 from better_robot.kinematics import forward_kinematics_state
 
 from .conftest import sample_panda_q
+from tests.support.robots import g1_urdf
 
 pin = pytest.importorskip("pinocchio")
 
@@ -56,10 +57,8 @@ def test_aba_inverse_of_rnea_panda(panda_both):
 
 def test_aba_inverse_of_rnea_g1():
     """Same identity on the G1 humanoid (free-flyer base)."""
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import g1_description
 
-    model = br.load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
+    model = br.load(g1_urdf(), free_flyer=True, dtype=torch.float64)
     rng = torch.Generator().manual_seed(0)
     q = model.q_neutral.clone()
     v = (torch.rand(model.nv, generator=rng, dtype=torch.float64) - 0.5) * 0.2

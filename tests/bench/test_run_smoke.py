@@ -7,13 +7,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_benchmarks_run_py_runs_one_tiny_config(tmp_path):
-    pytest.importorskip("robot_descriptions")
     out = tmp_path / "run.json"
     command = [
         sys.executable,

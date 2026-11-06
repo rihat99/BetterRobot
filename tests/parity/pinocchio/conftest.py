@@ -11,6 +11,7 @@ import pytest
 import torch
 
 import better_robot as br
+from tests.support.robots import g1_urdf, panda_urdf
 
 pin = pytest.importorskip("pinocchio", reason="dev-only dependency")
 
@@ -52,15 +53,13 @@ def panda_both():
         br_model, pin_model, pin_data, frame_map
         where frame_map[br_frame_name] = pin_frame_id
     """
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import panda_description
     from better_robot.io import build_model, parse_urdf
 
     # Pinocchio's default URDF loader leaves mimic coordinates independent.
     # Make the BR side explicitly unconstrained too, preserving this suite as
     # a full-space recursion oracle. Dedicated mimic tests assert G-projected
     # kinematics and dynamics instead of claiming default-loader parity.
-    ir = parse_urdf(panda_description.URDF_PATH)
+    ir = parse_urdf(panda_urdf())
     ir.joints = [
         dataclasses.replace(
             joint,
@@ -71,7 +70,7 @@ def panda_both():
         for joint in ir.joints
     ]
     br_model = build_model(ir, dtype=torch.float64)
-    pin_model = pin.buildModelFromUrdf(panda_description.URDF_PATH)
+    pin_model = pin.buildModelFromUrdf(str(panda_urdf()))
     pin_data = pin_model.createData()
 
     # BetterRobot frames are prefixed with "body_". Strip prefix to get URDF link name.
@@ -113,11 +112,9 @@ def sample_panda_v(n: int = 16, seed: int = 1) -> torch.Tensor:
 @pytest.fixture(scope="module")
 def g1_both():
     """Load G1 with free-flyer in both libraries (nq != nv fixture)."""
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import g1_description
 
-    br_m = br.load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
-    pin_m = pin.buildModelFromUrdf(g1_description.URDF_PATH, pin.JointModelFreeFlyer())
+    br_m = br.load(g1_urdf(), free_flyer=True, dtype=torch.float64)
+    pin_m = pin.buildModelFromUrdf(str(g1_urdf()), pin.JointModelFreeFlyer())
     pin_d = pin_m.createData()
     return br_m, pin_m, pin_d
 

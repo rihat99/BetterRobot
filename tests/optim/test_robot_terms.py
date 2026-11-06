@@ -9,16 +9,14 @@ import better_robot as br
 from better_robot import optim, terms
 from better_robot.kinematics import forward_kinematics_state
 from better_robot.lie import so3
+from tests.support.robots import g1_urdf, panda_urdf
 
 FRAME = "body_panda_hand"
 
 
 @pytest.fixture(scope="module")
 def panda():
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import panda_description  # noqa: PLC0415
-
-    return br.load(panda_description.URDF_PATH, dtype=torch.float64)
+    return br.load(panda_urdf(), dtype=torch.float64)
 
 
 def _random_q(model, batch, seed):
@@ -69,10 +67,7 @@ def test_robot_manifold_accepts_an_empty_batch(panda):
 
 @pytest.fixture(scope="module")
 def g1():
-    pytest.importorskip("robot_descriptions")
-    from robot_descriptions import g1_description  # noqa: PLC0415
-
-    return br.load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
+    return br.load(g1_urdf(), free_flyer=True, dtype=torch.float64)
 
 
 def test_finite_difference_any_order_in_world_translation_and_velocity_limit(g1):
