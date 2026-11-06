@@ -170,8 +170,6 @@
   "tests/kinematics/test_jacobians.py: docs/concepts/kinematics_and_jacobians.md": "cites a docs page of the old layout that no longer exists",
   "tests/lie/test_interpolation.py: lie/se3.py": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",
   "tests/lie/test_interpolation.py: lie/so3.py": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",
-  "tests/lie/test_se3.py: lie/se3.py": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",
-  "tests/lie/test_so3.py: lie/so3.py": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",
   "tests/lie/test_tangents.py: lie/tangents.py": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",
   "tests/model/test_model_data.py: model/model.py": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",
   "tests/model/test_topology.py: model/topology.py": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",
