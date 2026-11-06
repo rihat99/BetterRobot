@@ -1,21 +1,44 @@
-"""World-frame dynamics core behind the ``KinematicState`` dynamics API.
+"""World-frame dynamics core behind `inverse_dynamics`, `mass_matrix`, `forward_dynamics` and `centroidal_map`.
 
-Everything is expressed in the world frame, so every ancestor or descendant sum over the
-tree is one matmul with a constant support matrix instead of a Python loop over joints:
+Everything is expressed in the world frame, so every ancestor or descendant sum over the tree is one matmul with a
+constant support matrix (`DynamicsPlan`, a plan on the model) instead of a Python loop over joints:
 
-* ``C (N, 6, nv_full)`` — world Jacobian columns, shared with ``frame_jacobian``;
+* ``C (N, 6, nv_full)``: world Jacobian columns, the state's `KinematicState.jacobian_columns`;
 * body velocity ``V_i = Σ_{a supports i} C_a v_a``;
-* body acceleration ``A_i = -g + Σ_{a supports i} (C_a a_a + (V_a × C_a) v_a)``
-  (``V_a × C_a`` is the time derivative of a world column);
-* body wrench ``f_i = I_i A_i + V_i ×* I_i V_i - fext_i`` with ``I_i`` the world spatial inertia;
+* body acceleration ``A_i = -g + Σ_{a supports i} (C_a a_a + (V_a × C_a) v_a)`` (``V_a × C_a`` is the time
+  derivative of a world column);
+* body wrench ``f_i = I_i A_i + V_i ×* I_i V_i - f_ext,i`` with ``I_i`` the spatial inertia of body ``i``;
 * torque ``τ_a = C_a · Σ_{i in subtree(a)} f_i``;
-* mass matrix ``M[r, c] = C_r · I^c_{owner(c)} C_c`` for ``r`` on the path of ``c``, ``I^c`` the
-  composite inertia of the subtree (one matmul with the support matrix).
+* mass matrix ``M[r, c] = C_r · I^c_{owner(c)} C_c`` for ``r`` on the path of ``c``, ``I^c`` the composite inertia of
+  the subtree (one matmul with the support matrix).
 
-Operator counts are independent of the joint count; the support matmuls cost
-``O(njoints²)`` flops per batch element, negligible up to a few hundred joints. Forward
-dynamics solves ``M ddq = τ - b`` by Cholesky: the articulated-body recursion is sequential in
-the tree depth and gains nothing in batched torch for ``nv`` up to a few hundred.
+Operator counts are independent of the joint count; the support matmuls cost ``O(njoints²)`` flops per batch element,
+negligible up to a few hundred joints. Forward dynamics solves ``M ddq = τ - b`` by Cholesky: the articulated-body
+recursion is sequential in the tree depth and gains nothing in batched torch for ``nv`` up to a few hundred, and with
+mimic joints the projected equations are the only correct form.
+
+The world geometry (`world_geometry`) is the state's memoised column table (about the world origin) moved to a
+reference origin with one cross product, with the joint rotations and origins; it is memoised on the state through
+its one writer, keyed by grad mode, so dynamics calls on one state (`forward_dynamics` makes two) derive it once
+(record 0011, note 2026-11-06). All world quantities are taken about that origin, the first joint's position in each
+sample, so lever arms stay of the robot's size and float32 accuracy does not degrade far from the world origin (G1 at
+100 m: mass matrix within 4.8e-6 of float64).
+
+* RNEA forms wrenches in the joint frames, where the inertia is constant; CRBA needs the world inertia (`spatial`'s
+  packed inertia rotated by ``R I_c Rᵀ``, then its 6x6 matrix).
+* Twists and wrenches change frame with the joint's rotation matrix and origin (two ``3x3`` products and a cross
+  product), not through a ``6x6`` adjoint and not through `spatial.transform_motion`/`transform_force`, which take
+  quaternion poses: on one CPU thread those cost 2-3x the matrix form (41 joints at batch 4096: 30.5 against 15.7 ms
+  per twist change, 18.9 against 7.4 ms per wrench change) plus 24.8 ms to convert the state's matrices to
+  quaternions (0.16 ms at batch 1).
+* Cross products and inertia matrices are `spatial`'s unchecked ``*_raw`` twins: the public wrappers check every input
+  once, and the checked forms add 2.2-3.1 us per call at batch 1.
+* Constant matrices multiply from the right (``x.mT @ support``) so torch folds the batch into one ``mm``; a left
+  multiply becomes a slow batched ``bmm``.
+
+Cost model: at batch 1 and in backward the operator count dominates. At large CPU batches every operator streams an
+``(N, njoints, 6)`` tensor through memory, so a per-joint loop on cache-resident slices is not much slower in forward
+mode; the mass matrix ``(N, nv, nv)`` is then the cost (tree200 at 4096 is 655 MB).
 """
 
 from __future__ import annotations
@@ -25,43 +48,12 @@ from dataclasses import dataclass
 
 import torch
 
-from ..kinematics._jacobian import world_column_table
+from ..kinematics import KinematicState
 from ..kinematics._plans import JacobianPlan, jacobian_plan
-from ..lie.tangents import hat_so3
 from ..model.model import Model
 from ..model.topology import build_supports
-
-
-def inertia_about_com(sym: torch.Tensor) -> torch.Tensor:
-    """Expand packed ``(..., 6)`` symmetric entries ``[ixx, iyy, izz, ixy, ixz, iyz]`` to ``(..., 3, 3)``."""
-    ixx, iyy, izz, ixy, ixz, iyz = sym.unbind(dim=-1)
-    row0 = torch.stack((ixx, ixy, ixz), dim=-1)
-    row1 = torch.stack((ixy, iyy, iyz), dim=-1)
-    row2 = torch.stack((ixz, iyz, izz), dim=-1)
-    return torch.stack((row0, row1, row2), dim=-2)
-
-
-def spatial_inertia_matrix(mass: torch.Tensor, com: torch.Tensor, inertia_com: torch.Tensor) -> torch.Tensor:
-    """Linear-first ``(..., 6, 6)`` spatial inertia from ``mass (...)``, ``com (..., 3)`` and ``inertia_com (..., 3, 3)``.
-
-    ``com`` and ``inertia_com`` are expressed in the frame the result refers to; ``com`` is the centre of mass
-    relative to that frame's origin.
-    """
-    hat_com = hat_so3(com)
-    inertia_origin = inertia_com - mass[..., None, None] * (hat_com @ hat_com)
-    eye = torch.eye(3, dtype=mass.dtype, device=mass.device)
-    mass_eye = mass[..., None, None] * eye
-    mass_hat = mass[..., None, None] * hat_com
-    top = torch.cat((mass_eye, -mass_hat), dim=-1)
-    bottom = torch.cat((mass_hat, inertia_origin), dim=-1)
-    return torch.cat((top, bottom), dim=-2)
-
-
-def packed_inertias_to_6x6(body_inertias: torch.Tensor) -> torch.Tensor:
-    """Expand ``(..., 10)`` packed inertias to linear-first ``(..., 6, 6)``."""
-    return spatial_inertia_matrix(
-        body_inertias[..., 0], body_inertias[..., 1:4], inertia_about_com(body_inertias[..., 4:10])
-    )
+from ..spatial.algebra import cross_force_raw, cross_motion_raw
+from ..spatial.inertia import inertia_matrix_raw, rotational_inertia_raw
 
 
 @dataclass(frozen=True)
@@ -89,7 +81,7 @@ def build_plan(model: Model, dtype: torch.dtype, device: torch.device) -> Dynami
     support = torch.zeros((model.njoints, model.njoints), dtype=torch.bool, device=device)
     for joint, chain in enumerate(build_supports(model.parents)):
         support[joint, list(chain)] = True
-    support[0, 0] = False  # the universe transmits its children's wrenches only, never its own fext
+    support[0, 0] = False  # the universe transmits its children's wrenches only, never its own external force
     column_support = jacobian.support_mask.squeeze(-2)
     upper = column_support.index_select(0, jacobian.column_owner).mT.contiguous()
     return DynamicsPlan(jacobian, support, column_support, upper, upper.mT & ~upper)
@@ -100,194 +92,171 @@ def dynamics_plan(model: Model, *, dtype: torch.dtype, device: torch.device) -> 
     return model._plan("dynamics", build_plan, dtype=dtype, device=device)
 
 
-def cross_motion(v: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
-    """``ad(v) u`` for twists ``(..., 6)`` in ``[linear, angular]`` layout."""
-    v_lin, v_ang = v[..., :3], v[..., 3:]
-    u_lin, u_ang = u[..., :3], u[..., 3:]
-    return torch.cat(
-        (torch.linalg.cross(v_ang, u_lin) + torch.linalg.cross(v_lin, u_ang), torch.linalg.cross(v_ang, u_ang)), dim=-1
-    )
-
-
-def cross_force(v: torch.Tensor, f: torch.Tensor) -> torch.Tensor:
-    """``ad*(v) f`` for a twist and a wrench ``(..., 6)`` in ``[linear, angular]`` layout."""
-    v_lin, v_ang = v[..., :3], v[..., 3:]
-    f_lin, f_ang = f[..., :3], f[..., 3:]
-    return torch.cat(
-        (torch.linalg.cross(v_ang, f_lin), torch.linalg.cross(v_ang, f_ang) + torch.linalg.cross(v_lin, f_lin)), dim=-1
-    )
-
-
-def adjoint_inverse(rotation: torch.Tensor, translation: torch.Tensor) -> torch.Tensor:
-    """``Ad(T⁻¹)`` of the transform with world rotation ``(..., 3, 3)`` and origin ``(..., 3)``: ``(..., 6, 6)``."""
-    rotation_t = rotation.mT
-    top = torch.cat((rotation_t, -(rotation_t @ hat_so3(translation))), dim=-1)
-    bottom = torch.cat((torch.zeros_like(rotation_t), rotation_t), dim=-1)
-    return torch.cat((top, bottom), dim=-2)
-
-
-@dataclass(frozen=True)
-class WorldGeometry:
-    """Model-independent part of `WorldKinematics` (memoised on a ``KinematicState``)."""
-
-    columns: torch.Tensor
-    rotation: torch.Tensor
-    translation: torch.Tensor
-    origin: torch.Tensor
-
-
 @dataclass(frozen=True)
 class WorldKinematics:
-    """World-frame quantities of one configuration that every dynamics pass reads.
+    """World-frame quantities of one state that every dynamics pass reads, the batch flattened to ``N``.
 
-    Twists and wrenches move between the world and a joint frame with the rotation and origin
-    directly (two ``3x3`` products and one cross product), never through a ``6x6`` adjoint.
-
-    All world quantities are taken about ``origin``, the first joint's position in each sample,
-    not the world origin: lever arms stay of the robot's size, so float32 accuracy does not
-    degrade when the robot is far from the world origin. Torques, mass and centroidal matrices
-    are invariant to this choice; callers shifting twists or points must use ``origin``.
+    All world quantities are taken about ``origin``, the first joint's position in each sample, not the world origin.
+    Torques, mass and centroidal matrices are invariant to this choice; callers shifting twists or points use
+    ``origin``.
     """
 
+    batch: tuple[int, ...]  #: the state's batch shape ``B...``; ``N = prod(batch)``.
+    plan: DynamicsPlan  #: support masks of the model's tree.
     columns: torch.Tensor  #: ``(N, 6, nv_full)`` world Jacobian columns about ``origin``.
-    rotation: torch.Tensor  #: ``(N, njoints, 3, 3)`` world rotation of every joint frame.
-    translation: torch.Tensor  #: ``(N, njoints, 3)`` position of every joint frame relative to ``origin``.
+    rotations: torch.Tensor  #: ``(N, njoints, 3, 3)`` world rotation of every joint frame.
+    translations: torch.Tensor  #: ``(N, njoints, 3)`` position of every joint frame relative to ``origin``.
     origin: torch.Tensor  #: ``(N, 3)`` reference point of the world quantities.
-    inertia: torch.Tensor  #: ``(njoints, 6, 6)`` or ``(N, njoints, 6, 6)`` spatial inertia in the joint frame.
-    packed: (
-        torch.Tensor
-    )  #: ``(njoints, 10)`` or ``(N, njoints, 10)`` packed body inertias (mass, com, symmetric inertia).
+    inertias: torch.Tensor  #: ``(njoints, 6, 6)`` or ``(N, njoints, 6, 6)`` spatial inertia in each joint frame.
+    body_inertias: torch.Tensor  #: ``(njoints, 10)`` or ``(N, njoints, 10)`` packed body inertias.
 
-    def to_joint_frames(self, motion: torch.Tensor) -> torch.Tensor:
+    def to_joint_frames(self, motions: torch.Tensor) -> torch.Tensor:
         """Express world twists ``(N, njoints, 6)`` in each joint's own frame (``Ad(oMi⁻¹)``)."""
-        rotation_t = self.rotation.mT
-        linear = motion[..., :3] - torch.linalg.cross(self.translation, motion[..., 3:])
-        return torch.cat((rotation_t @ linear.unsqueeze(-1), rotation_t @ motion[..., 3:, None]), dim=-2).squeeze(-1)
+        rotations_t = self.rotations.mT
+        linear = motions[..., :3] - torch.linalg.cross(self.translations, motions[..., 3:])
+        return torch.cat((rotations_t @ linear.unsqueeze(-1), rotations_t @ motions[..., 3:, None]), dim=-2).squeeze(-1)
 
-    def to_joint_frames_force(self, wrench: torch.Tensor) -> torch.Tensor:
-        """Express world wrenches ``(N, njoints, 6)`` in each joint's own frame (``Ad(oMi)ᵀ``)."""
-        rotation_t = self.rotation.mT
-        angular = wrench[..., 3:] - torch.linalg.cross(self.translation, wrench[..., :3])
-        return torch.cat((rotation_t @ wrench[..., :3, None], rotation_t @ angular.unsqueeze(-1)), dim=-2).squeeze(-1)
-
-    def to_world_force(self, wrench: torch.Tensor) -> torch.Tensor:
+    def to_world_force(self, wrenches: torch.Tensor) -> torch.Tensor:
         """Express joint-frame wrenches ``(N, njoints, 6)`` in the world frame (``Ad(oMi)⁻ᵀ``)."""
-        linear = (self.rotation @ wrench[..., :3, None]).squeeze(-1)
-        angular = (self.rotation @ wrench[..., 3:, None]).squeeze(-1) + torch.linalg.cross(self.translation, linear)
+        linear = (self.rotations @ wrenches[..., :3, None]).squeeze(-1)
+        angular = (self.rotations @ wrenches[..., 3:, None]).squeeze(-1) + torch.linalg.cross(self.translations, linear)
         return torch.cat((linear, angular), dim=-1)
 
-    def world_inertia(self) -> torch.Tensor:
-        """Spatial inertia of every body about the world origin, ``(N, njoints, 6, 6)``.
+    def world_inertias(self) -> torch.Tensor:
+        """Spatial inertia of every body about ``origin`` in world axes, ``(N, njoints, 6, 6)``.
 
-        Assembled from the rotated centre of mass and ``R I_com Rᵀ`` with ``3x3`` products; the
-        ``6x6`` congruence with the adjoint costs several times more memory traffic.
+        The packed inertia's centre of mass and rotational inertia rotated with ``3x3`` products (``R c + p``,
+        ``R I_c Rᵀ``); the ``6x6`` congruence with the adjoint costs several times more memory traffic. The rotated
+        inertia is packed from its diagonal and upper triangle: `inertia_from_mass_com_raw`'s symmetrisation and
+        per-entry stack cost 14 more operators per call.
         """
-        mass, com, sym = self.packed[..., 0], self.packed[..., 1:4], self.packed[..., 4:10]
-        com_world = (self.rotation @ com.unsqueeze(-1)).squeeze(-1) + self.translation
-        inertia_com = self.rotation @ inertia_about_com(sym) @ self.rotation.mT
-        return spatial_inertia_matrix(mass.expand(com_world.shape[:-1]), com_world, inertia_com)
+        com_world = (self.rotations @ self.body_inertias[..., 1:4, None]).squeeze(-1) + self.translations
+        rotational = self.rotations @ rotational_inertia_raw(self.body_inertias) @ self.rotations.mT
+        mass = self.body_inertias[..., :1].expand(*com_world.shape[:-1], 1)
+        upper = (rotational.diagonal(dim1=-2, dim2=-1), rotational[..., 0, 1:], rotational[..., 1, 2:])
+        return inertia_matrix_raw(torch.cat((mass, com_world, *upper), dim=-1))
 
 
-def world_geometry(model: Model, transform: torch.Tensor, plan: DynamicsPlan) -> WorldGeometry:
-    """Columns, rotations and shifted origins from world joint transforms ``(N, njoints, 3, 4)``."""
-    rotation = transform[..., :3]
-    origin = transform[:, min(1, model.njoints - 1), :, 3]
-    translation = transform[..., 3] - origin.unsqueeze(-2)
-    columns = world_column_table(rotation, translation, plan.jacobian)
-    return WorldGeometry(columns, rotation, translation, origin)
+def world_geometry(
+    model: Model, state: KinematicState
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """The state-only fields of `WorldKinematics`: ``(columns, rotations, translations, origin)``.
+
+    Shapes ``(N, 6, nv_full)``, ``(N, njoints, 3, 3)``, ``(N, njoints, 3)`` and ``(N, 3)``, the state's batch flattened
+    to ``N``. The columns are the state's memoised `KinematicState.jacobian_columns` (about the world origin) moved to
+    the reference origin with one cross product: a column's linear part is the velocity of the point at the world
+    origin, so at ``origin`` it is ``linear + angular × origin``.
+    """
+    count, nj = math.prod(state.q.shape[:-1]), model.njoints
+    transforms = state.joint_transforms.reshape(count, nj, 3, 4)
+    origin = transforms[:, min(1, nj - 1), :, 3]
+    columns = state.jacobian_columns.reshape(count, 6, model.nv_full)
+    linear = columns[:, :3] + torch.linalg.cross(columns[:, 3:], origin.unsqueeze(-1), dim=-2)
+    columns = torch.cat((linear, columns[:, 3:]), dim=-2)
+    return columns, transforms[..., :3], transforms[..., 3] - origin.unsqueeze(-2), origin
 
 
-def world_kinematics(geometry: WorldGeometry, model: Model, batch: tuple[int, ...]) -> WorldKinematics:
-    """Attach the model's inertias (``6x6`` memoised by grad mode, record 0040; broadcast to the flattened batch ``N``)."""
-    packed = model.body_inertias
-    inertia = model._value("spatial_inertias", lambda m: packed_inertias_to_6x6(m.body_inertias))
-    if packed.ndim > 2:
-        count, nj = math.prod(batch), model.njoints
-        packed = packed.broadcast_to(*batch, nj, 10).reshape(count, nj, 10)
-        inertia = inertia.broadcast_to(*batch, nj, 6, 6).reshape(count, nj, 6, 6)
-    return WorldKinematics(geometry.columns, geometry.rotation, geometry.translation, geometry.origin, inertia, packed)
+def world_kinematics(model: Model, state: KinematicState) -> WorldKinematics:
+    """World-frame quantities of ``state`` about each sample's first joint.
+
+    The geometry (`world_geometry`) is memoised on the state under ``"world_geometry"`` by its one writer, keyed by
+    grad mode. The inertias come from ``model`` on every call (their ``6x6`` form memoised on the model by grad mode,
+    record 0040); a batched model's inertias are broadcast to the flattened batch.
+    """
+    batch = tuple(state.q.shape[:-1])
+    columns, rotations, translations, origin = state._memoised("world_geometry", lambda: world_geometry(model, state))
+    count, nj = math.prod(batch), model.njoints
+    body_inertias = model.body_inertias
+    inertias = model._value("spatial_inertias", lambda m: inertia_matrix_raw(m.body_inertias))
+    if body_inertias.ndim > 2:
+        body_inertias = body_inertias.broadcast_to(*batch, nj, 10).reshape(count, nj, 10)
+        inertias = inertias.broadcast_to(*batch, nj, 6, 6).reshape(count, nj, 6, 6)
+    return WorldKinematics(
+        batch=batch,
+        plan=dynamics_plan(model, dtype=state.q.dtype, device=state.q.device),
+        columns=columns,
+        rotations=rotations,
+        translations=translations,
+        origin=origin,
+        inertias=inertias,
+        body_inertias=body_inertias,
+    )
 
 
-def apply_inertia(inertia: torch.Tensor, motion: torch.Tensor) -> torch.Tensor:
+def apply_inertias(inertias: torch.Tensor, motions: torch.Tensor) -> torch.Tensor:
     """``I v`` for ``(njoints, 6, 6)`` or ``(N, njoints, 6, 6)`` inertias and ``(N, njoints, 6)`` twists."""
-    if inertia.ndim == 3:
+    if inertias.ndim == 3:
         # einsum batches over joints without materialising the broadcast inertia.
-        return torch.einsum("jab,njb->nja", inertia, motion)
-    return (inertia @ motion.unsqueeze(-1)).squeeze(-1)
-
-
-def body_velocities(kin: WorldKinematics, plan: DynamicsPlan, v_full: torch.Tensor) -> torch.Tensor:
-    """World spatial velocity of every joint frame, ``(N, njoints, 6)``."""
-    weighted = kin.columns * v_full.unsqueeze(-2)  # (N, 6, nv_full)
-    return (weighted @ plan.column_support.to(weighted.dtype).mT).mT
+        return torch.einsum("jab,njb->nja", inertias, motions)
+    return (inertias @ motions.unsqueeze(-1)).squeeze(-1)
 
 
 def inverse_dynamics_full(
     kin: WorldKinematics,
-    plan: DynamicsPlan,
     gravity: torch.Tensor,
     v_full: torch.Tensor,
     a_full: torch.Tensor,
-    fext: torch.Tensor | None,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Inverse dynamics in the world frame.
+    external_forces: torch.Tensor | None,
+) -> torch.Tensor:
+    """Joint torques over the full tangent, ``(N, nv_full)``, by the world-frame recursive Newton-Euler sums.
 
     :param gravity: ``(N, 6)`` spatial gravity about the world origin; the base accelerates at ``-gravity``.
-    :param fext: ``(N, njoints, 6)`` external wrench per joint in the joint frame, or ``None``.
-    :returns: ``(tau_full (N, nv_full), V, A, f)`` — world body velocities, accelerations and the
-        wrench each joint transmits to its subtree, all ``(N, njoints, 6)``.
+    :param v_full: ``(N, nv_full)`` velocity; ``a_full`` the acceleration, same shape.
+    :param external_forces: ``(N, njoints, 6)`` external wrench per joint in the joint frame, or ``None``.
     """
+    plan = kin.plan
     column_support = plan.column_support.to(kin.columns.dtype)
-    velocity = body_velocities(kin, plan, v_full)
+    weighted = kin.columns * v_full.unsqueeze(-2)  # (N, 6, nv_full)
+    velocities = (weighted @ column_support.mT).mT  # (N, njoints, 6)
     # Advanced indexing, not index_select: column_owner repeats a joint per column (a free flyer six times), and
     # index_select's CUDA backward adds the repeats with atomics, so its gradients are not bitwise reproducible.
-    owner_velocity = velocity[..., plan.jacobian.column_owner, :]  # (N, nv_full, 6)
-    column_rate = cross_motion(owner_velocity, kin.columns.mT).mT  # (N, 6, nv_full)
-    weighted = kin.columns * a_full.unsqueeze(-2) + column_rate * v_full.unsqueeze(-2)
+    owner_velocities = velocities[..., plan.jacobian.column_owner, :]  # (N, nv_full, 6)
+    column_rates = cross_motion_raw(owner_velocities, kin.columns.mT).mT  # (N, 6, nv_full)
+    weighted = kin.columns * a_full.unsqueeze(-2) + column_rates * v_full.unsqueeze(-2)
     # Gravity is given about the world origin; move its linear part to the reference origin.
     gravity = torch.cat((gravity[:, :3] + torch.linalg.cross(gravity[:, 3:], kin.origin), gravity[:, 3:]), dim=-1)
-    acceleration = (weighted @ column_support.mT).mT - gravity.unsqueeze(-2)
+    accelerations = (weighted @ column_support.mT).mT - gravity.unsqueeze(-2)
     # Body wrenches in the joint frames (the inertia lives there), then back to the world frame.
-    local_velocity = kin.to_joint_frames(velocity)
-    local_acceleration = kin.to_joint_frames(acceleration)
-    momentum = apply_inertia(kin.inertia, local_velocity)
-    local_wrench = apply_inertia(kin.inertia, local_acceleration) + cross_force(local_velocity, momentum)
-    if fext is not None:
-        local_wrench = local_wrench - fext
-    wrench = kin.to_world_force(local_wrench)
+    local_velocities = kin.to_joint_frames(velocities)
+    momenta = apply_inertias(kin.inertias, local_velocities)
+    local_wrenches = apply_inertias(kin.inertias, kin.to_joint_frames(accelerations))
+    local_wrenches = local_wrenches + cross_force_raw(local_velocities, momenta)
+    if external_forces is not None:
+        local_wrenches = local_wrenches - external_forces
+    wrenches = kin.to_world_force(local_wrenches)
     # Right-multiplying by the constant support matrix folds the batch into one large mm.
-    subtree_wrench = (wrench.mT @ plan.support.to(wrench.dtype)).mT  # (N, njoints, 6)
-    column_wrench = subtree_wrench[..., plan.jacobian.column_owner, :]  # (N, nv_full, 6)
-    tau_full = (kin.columns.mT * column_wrench).sum(-1)
-    return tau_full, velocity, acceleration, subtree_wrench
+    subtree_wrenches = (wrenches.mT @ plan.support.to(wrenches.dtype)).mT  # (N, njoints, 6)
+    column_wrenches = subtree_wrenches[..., plan.jacobian.column_owner, :]  # (N, nv_full, 6)
+    return (kin.columns.mT * column_wrenches).sum(-1)
 
 
-def momentum_columns(kin: WorldKinematics, plan: DynamicsPlan) -> torch.Tensor:
+def momentum_columns(kin: WorldKinematics) -> torch.Tensor:
     """World spatial momentum of the subtree per unit velocity of each column, ``(N, 6, nv_full)``.
 
     Column ``c`` is ``I^c_{owner(c)} C_c`` with ``I^c`` the composite inertia of the subtree.
     """
-    inertia = kin.world_inertia()
-    composite = (inertia.flatten(-2, -1).mT @ plan.support.to(inertia.dtype)).mT  # (N, njoints, 36)
-    composite = composite.reshape(*inertia.shape)[..., plan.jacobian.column_owner, :, :]  # (N, nv_full, 6, 6)
+    plan = kin.plan
+    inertias = kin.world_inertias()
+    composite = (inertias.flatten(-2, -1).mT @ plan.support.to(inertias.dtype)).mT  # (N, njoints, 36)
+    composite = composite.reshape(*inertias.shape)[..., plan.jacobian.column_owner, :, :]  # (N, nv_full, 6, 6)
     return (composite @ kin.columns.mT.unsqueeze(-1)).squeeze(-1).mT
 
 
-def mass_matrix_full(kin: WorldKinematics, plan: DynamicsPlan) -> torch.Tensor:
+def mass_matrix_full(kin: WorldKinematics) -> torch.Tensor:
     """Joint-space inertia matrix over the full tangent, ``(N, nv_full, nv_full)``."""
-    products = kin.columns.mT @ momentum_columns(kin, plan)  # (N, nv_full, nv_full)
+    products = kin.columns.mT @ momentum_columns(kin)  # (N, nv_full, nv_full)
     # Two passes over the (large) matrix: keep the entries whose row is on the column's path,
     # mirror them below, zero the rest.
-    return torch.where(plan.upper, products, torch.where(plan.lower, products.mT, 0.0))
+    return torch.where(kin.plan.upper, products, torch.where(kin.plan.lower, products.mT, 0.0))
 
 
-def centroidal_map_full(kin: WorldKinematics, plan: DynamicsPlan, com: torch.Tensor) -> torch.Tensor:
+def centroidal_map_full(kin: WorldKinematics, com: torch.Tensor) -> torch.Tensor:
     """Centroidal momentum matrix over the full tangent, ``(N, 6, nv_full)``.
 
-    World momentum columns moved to the frame with world axes at the centre of mass ``com (N, 3)``
-    (given in world coordinates).
+    World momentum columns moved to the frame with world axes at the centre of mass ``com (N, 3)`` (given in world
+    coordinates).
     """
-    columns = momentum_columns(kin, plan)
+    columns = momentum_columns(kin)
     linear = columns[..., :3, :]
     lever = (com - kin.origin).unsqueeze(-1)
     angular = columns[..., 3:, :] - torch.linalg.cross(lever, linear, dim=-2)
@@ -296,21 +265,13 @@ def centroidal_map_full(kin: WorldKinematics, plan: DynamicsPlan, com: torch.Ten
 
 __all__ = [
     "DynamicsPlan",
-    "WorldGeometry",
     "WorldKinematics",
-    "adjoint_inverse",
-    "apply_inertia",
-    "body_velocities",
+    "apply_inertias",
     "centroidal_map_full",
-    "cross_force",
-    "cross_motion",
     "dynamics_plan",
-    "inertia_about_com",
     "inverse_dynamics_full",
     "mass_matrix_full",
     "momentum_columns",
-    "packed_inertias_to_6x6",
-    "spatial_inertia_matrix",
     "world_geometry",
     "world_kinematics",
 ]

@@ -17,7 +17,7 @@ import pinocchio as pin
 import pytest
 import torch
 
-from better_robot.dynamics.state import inverse_dynamics
+from better_robot.dynamics import inverse_dynamics
 from better_robot.kinematics import forward_kinematics
 from better_robot.model.joints import JointFixed, JointRevolute, JointSpherical
 

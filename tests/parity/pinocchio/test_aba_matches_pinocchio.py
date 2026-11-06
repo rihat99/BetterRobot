@@ -16,7 +16,7 @@ import pinocchio as pin
 import torch
 
 import better_robot as br
-from better_robot.dynamics.state import forward_dynamics, inverse_dynamics
+from better_robot.dynamics import forward_dynamics, inverse_dynamics
 from better_robot.kinematics import forward_kinematics
 
 from .conftest import sample_panda_q

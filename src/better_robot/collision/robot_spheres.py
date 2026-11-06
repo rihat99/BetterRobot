@@ -44,10 +44,14 @@ class RobotSpheres:
     def from_frames(
         cls, model: Model, spheres: Mapping[str | int, Sequence[tuple[Sequence[float], float]]]
     ) -> RobotSpheres:
-        """Build from ``{frame name or id: [(offset xyz, radius), ...]}``, in the model's dtype and device."""
+        """Build from ``{frame name or id: [(offset xyz, radius), ...]}``, in the model's dtype and device.
+
+        Frames resolve through `Model.frame_id`: an unknown name raises ``UnknownNameError``, an id outside
+        ``[0, nframes)`` raises ``ArgumentError``.
+        """
         frame_ids, offsets, radii = [], [], []
         for frame, entries in spheres.items():
-            frame_id = model.frame_id(frame) if isinstance(frame, str) else frame
+            frame_id = model.frame_id(frame)
             for offset, radius in entries:
                 frame_ids.append(frame_id)
                 offsets.append(list(offset))

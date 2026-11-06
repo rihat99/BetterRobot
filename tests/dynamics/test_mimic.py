@@ -7,7 +7,7 @@ import dataclasses
 import torch
 
 from better_robot.kinematics.configuration import full_configuration, full_tangent, mimic_plan
-from better_robot.dynamics.state import (
+from better_robot.dynamics import (
     centroidal_map,
     centroidal_momentum,
     forward_dynamics,
