@@ -29,15 +29,11 @@ def free_flyer_model():
 
 def test_free_flyer_fk_kernel_compiles_fullgraph(free_flyer_model):
     """The FK kernel under ``forward_kinematics_state`` traces as one graph (the public wrapper validates and caches)."""
-    compile_fn = getattr(torch, "compile", None)
-    if compile_fn is None:
-        pytest.skip("torch.compile is unavailable")
-
     q = free_flyer_model.q_neutral.unsqueeze(0).expand(2, -1).clone()
     q_full = free_flyer_model.expand_configuration(q)
     placements, _ = placement_matrices(free_flyer_model.values)
     expected_world, expected_local = lean_core(free_flyer_model.structure, q_full, placements)
-    compiled_core = compile_fn(lean_core, fullgraph=True)
+    compiled_core = torch.compile(lean_core, fullgraph=True)
     actual_world, actual_local = compiled_core(free_flyer_model.structure, q_full, placements)
 
     torch.testing.assert_close(actual_world, expected_world)

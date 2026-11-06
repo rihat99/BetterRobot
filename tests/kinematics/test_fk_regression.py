@@ -74,8 +74,6 @@ def _load_g1():
 
 @pytest.fixture(scope="module")
 def reference():
-    if not REF_PATH.exists():
-        pytest.skip(f"oracle file {REF_PATH.name} not present; run _generate_fk_reference.py")
     return np.load(REF_PATH)
 
 

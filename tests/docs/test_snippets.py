@@ -114,8 +114,7 @@ def test_getting_started_outputs_fresh(page: Path) -> None:
     """The first line of each output pane matches what the preceding block really prints (cheap staleness guard)."""
     text = page.read_text()
     fences = [(m.start(), m["body"]) for m in OUTPUT_FENCE.finditer(text)]
-    if not fences:
-        pytest.skip("no output fences")
+    assert fences, f"{page.relative_to(REPO)} shows no output: a tutorial prints what its code prints"
     blocks = [(m.end(), m["body"], "no-run" in m["info"]) for m in FENCE.finditer(text)]
     runnable = [body for _, body, skip in blocks if not skip]
     env = {
