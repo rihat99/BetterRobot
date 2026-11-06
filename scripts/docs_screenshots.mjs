@@ -3,7 +3,7 @@
 // Needs BETTER_ROBOT_CHROME=<chromium / headless-shell binary or wrapper> (same variable as viewer/capture.py).
 // Node 22 built-in WebSocket + CDP, no npm deps. The headless shell dlopens libasound.so.2, which this machine
 // lacks: wrap the binary in a script that sets LD_LIBRARY_PATH to a directory holding an extracted libasound2 .deb
-// (see agent_notes/.../p0_assets/chrome.sh) and point BETTER_ROBOT_CHROME at the wrapper.
+// (docs/contributing/testing.md describes it) and point BETTER_ROBOT_CHROME at the wrapper.
 import { spawn, spawnSync } from "node:child_process"; import fs from "node:fs"; import path from "node:path"; import http from "node:http";
 const args = process.argv.slice(2); const out = path.resolve(args[0]); const repo = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const site = path.join(repo, "site");
