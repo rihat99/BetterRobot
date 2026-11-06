@@ -25,9 +25,12 @@ from tests.support.robots import panda_urdf
 REPO = Path(__file__).resolve().parents[2]
 SRC = REPO / "src" / "better_robot"
 SETATTR_ALLOWED: set[Path] = set()
-MEMO_WRITERS = {
-    "src/better_robot/model/model.py": {"_plan", "_value"},
-    "src/better_robot/kinematics/forward_kinematics.py": {"_memoised"},
+CACHE_WRITERS = {
+    "_plans": {("src/better_robot/model/model.py", "_plan")},
+    "_memo": {
+        ("src/better_robot/model/model.py", "_value"),
+        ("src/better_robot/kinematics/forward_kinematics.py", "_memoised"),
+    },
 }
 
 
@@ -169,23 +172,26 @@ def test_state_memo_is_bypassed_under_inference_mode() -> None:
     torch.testing.assert_close(gradient(True), gradient(False), rtol=0, atol=0)
 
 
-def _memo_writers(tree: ast.AST) -> set[str]:
-    """Names of the functions that assign into a ``_memo`` or ``_plans`` subscript."""
-    writers: set[str] = set()
-    for function in ast.walk(tree):
-        if not isinstance(function, ast.FunctionDef):
-            continue
-        for node in ast.walk(function):
-            if not isinstance(node, ast.Assign):
-                continue
-            for target in node.targets:
-                if (
-                    isinstance(target, ast.Subscript)
-                    and isinstance(target.value, ast.Attribute)
-                    and target.value.attr in {"_memo", "_plans"}
-                ):
-                    writers.add(function.name)
-    return writers
+def _cache_reaches(tree: ast.AST) -> list[tuple[str, str | None, int]]:
+    """``(cache, enclosing function or None, line)`` for every ``_memo`` or ``_plans`` reached by attribute or string.
+
+    Any reach counts, read or write, so one rule covers every spelling of a write (augmented, annotated or tuple
+    assignment, ``setdefault``, ``update``, ``__setitem__``, ``clear``, ``del``, an alias, ``getattr(x, "_memo")``,
+    ``vars(x)["_memo"]``, an ``async def``, module level): only a cache's writer touches it at all.
+    """
+    reaches: list[tuple[str, str | None, int]] = []
+
+    def visit(node: ast.AST, function: str | None) -> None:
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            function = node.name
+        name = node.attr if isinstance(node, ast.Attribute) else node.value if isinstance(node, ast.Constant) else None
+        if isinstance(name, str) and name in CACHE_WRITERS:
+            reaches.append((name, function, node.lineno))
+        for child in ast.iter_child_nodes(node):
+            visit(child, function)
+
+    visit(tree, None)
+    return reaches
 
 
 def _violations() -> list[str]:
@@ -193,8 +199,9 @@ def _violations() -> list[str]:
     for file in SRC.rglob("*.py"):
         tree = ast.parse(file.read_text())
         relative = file.relative_to(REPO).as_posix()
-        for writer in sorted(_memo_writers(tree) - MEMO_WRITERS.get(relative, set())):
-            found.append(f"{relative} {writer} writes a cache; only {MEMO_WRITERS} may")
+        for cache, function, line in _cache_reaches(tree):
+            if (relative, function) not in CACHE_WRITERS[cache]:
+                found.append(f"{relative}:{line} {function} reaches {cache}; only {sorted(CACHE_WRITERS[cache])} may")
         for node in ast.walk(tree):
             if not isinstance(node, ast.Attribute):
                 continue
