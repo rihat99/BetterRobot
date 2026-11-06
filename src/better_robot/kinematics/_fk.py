@@ -96,6 +96,9 @@ def world_transforms(
     world = torch.cat(levels, dim=1)
     if plan.inverse_order is not None:
         world = world.index_select(1, plan.inverse_order)
+    # Free the kernel's temporaries before the frame products so these reuse their memory instead of faulting in
+    # fresh pages: Panda FK at batch 4096, one CPU thread, 15.7 -> 12.6 ms.
+    del features, gathered, local, levels
     parents = world.index_select(1, plan.frame_parents)
     # einsum is several times faster than a broadcast matmul on CPU when one side has no batch axis.
     frame_world = torch.einsum("nfab,fbc->nfac", parents, frames) if frames.ndim == 3 else parents @ frames
