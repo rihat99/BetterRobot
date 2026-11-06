@@ -19,6 +19,7 @@ from better_robot.spatial import (
     inertia_of_capsule,
     inertia_of_ellipsoid,
     inertia_of_sphere,
+    rotational_inertia,
 )
 
 SEEDS = [0, 1, 2]
@@ -64,6 +65,14 @@ def test_inertia_from_mass_com_stores_the_symmetric_part_and_broadcasts() -> Non
     )
     assert inertia.shape == (4, 10)
     torch.testing.assert_close(inertia[0, 4:10], torch.tensor([1.0, 2.0, 3.0, 0.3, 0.0, 0.0], dtype=F64))
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_rotational_inertia_unpacks_the_stored_entries(seed: int) -> None:
+    """``rotational_inertia`` inverts the packing of a symmetric ``rotational_inertia``, bit for bit."""
+    mass, com, rotational = _random_inertia(seed)
+    inertia = inertia_from_mass_com(mass, com, rotational_inertia=rotational)
+    assert torch.equal(rotational_inertia(inertia), rotational)
 
 
 @pytest.mark.parametrize("seed", SEEDS)

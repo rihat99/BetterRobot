@@ -10,7 +10,7 @@ import pytest
 import torch
 import trimesh
 
-from better_robot.spatial import inertia_of_mesh
+from better_robot.spatial import inertia_of_mesh, rotational_inertia
 
 
 def _box_mesh(
@@ -50,13 +50,6 @@ def _box_mesh(
         dtype=torch.long,
     )
     return vertices, faces
-
-
-def _rotational(inertia: torch.Tensor) -> torch.Tensor:
-    """Rotational inertia ``(..., 3, 3)`` from the packed entries ``inertia[..., 4:10]``."""
-    ixx, iyy, izz, ixy, ixz, iyz = inertia[..., 4:10].unbind(-1)
-    rows = (torch.stack((ixx, ixy, ixz), -1), torch.stack((ixy, iyy, iyz), -1), torch.stack((ixz, iyz, izz), -1))
-    return torch.stack(rows, -2)
 
 
 def test_box_matches_closed_form_with_translation_and_density() -> None:
@@ -151,7 +144,7 @@ def test_matches_trimesh_reference() -> None:
 
     np.testing.assert_allclose(actual[0].numpy(), reference.mass, atol=1e-12, rtol=1e-12)
     np.testing.assert_allclose(actual[1:4].numpy(), reference.center_mass, atol=1e-12, rtol=1e-12)
-    np.testing.assert_allclose(_rotational(actual).numpy(), reference.moment_inertia, atol=1e-12, rtol=1e-12)
+    np.testing.assert_allclose(rotational_inertia(actual).numpy(), reference.moment_inertia, atol=1e-12, rtol=1e-12)
 
 
 def _flat_mesh() -> tuple[torch.Tensor, torch.Tensor]:

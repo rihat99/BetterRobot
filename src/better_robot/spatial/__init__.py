@@ -5,7 +5,8 @@
   `transform_inertia` re-express a quantity in another frame, taking the pose first like ``se3.act(pose, point)``.
 - Inertia ``(..., 10)`` = ``[mass, cx, cy, cz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]``: the centre of mass ``c`` and the
   rotational inertia about it, both in the body frame, in MuJoCo's ``fullinertia`` order (not Pinocchio's
-  ``toDynamicParameters``, which is about the frame origin). `inertia_matrix` gives the ``(..., 6, 6)`` matrix;
+  ``toDynamicParameters``, which is about the frame origin). `inertia_matrix` gives the ``(..., 6, 6)`` matrix
+  about the frame origin and `rotational_inertia` the ``(..., 3, 3)`` matrix about the centre of mass;
   `inertia_from_mass_com`, `inertia_of_sphere`, `inertia_of_box`, `inertia_of_capsule`, `inertia_of_ellipsoid` and
   `inertia_of_mesh` build one.
 - Mesh helpers on the integer face table: `validate_closed_manifold`, `orient_faces_consistently`,
@@ -26,6 +27,7 @@ from .inertia import (
     inertia_of_ellipsoid,
     inertia_of_mesh,
     inertia_of_sphere,
+    rotational_inertia,
 )
 from .mesh import orient_faces_by_component, orient_faces_consistently, validate_closed_manifold
 from .motion import Motion
@@ -38,6 +40,7 @@ __all__ = [
     "transform_force",
     "transform_inertia",
     "inertia_matrix",
+    "rotational_inertia",
     "inertia_from_mass_com",
     "inertia_of_sphere",
     "inertia_of_box",

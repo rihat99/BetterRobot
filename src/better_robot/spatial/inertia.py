@@ -28,13 +28,30 @@ def inertia_matrix(inertia: torch.Tensor) -> torch.Tensor:
     """
     mass, com = inertia[..., 0], inertia[..., 1:4]
     hat_com = hat_so3(com)
-    inertia_origin = _rotational_inertia(inertia) - mass[..., None, None] * (hat_com @ hat_com)
+    inertia_origin = rotational_inertia(inertia) - mass[..., None, None] * (hat_com @ hat_com)
     eye = torch.eye(3, dtype=inertia.dtype, device=inertia.device)
     mass_eye = mass[..., None, None] * eye
     mass_hat = mass[..., None, None] * hat_com
     top = torch.cat((mass_eye, -mass_hat), dim=-1)
     bottom = torch.cat((mass_hat, inertia_origin), dim=-1)
     return torch.cat((top, bottom), dim=-2)
+
+
+def rotational_inertia(inertia: torch.Tensor) -> torch.Tensor:
+    """Rotational inertia ``(..., 3, 3)`` of packed inertias ``inertia: (..., 10)``, about the centre of mass.
+
+    The symmetric matrix of the six stored entries, in body-frame axes; `inertia_matrix` adds the parallel-axis shift
+    to the frame origin.
+    """
+    ixx, iyy, izz, ixy, ixz, iyz = inertia[..., 4:10].unbind(dim=-1)
+    return torch.stack(
+        (
+            torch.stack((ixx, ixy, ixz), dim=-1),
+            torch.stack((ixy, iyy, iyz), dim=-1),
+            torch.stack((ixz, iyz, izz), dim=-1),
+        ),
+        dim=-2,
+    )
 
 
 def inertia_from_mass_com(mass: torch.Tensor, com: torch.Tensor, *, rotational_inertia: torch.Tensor) -> torch.Tensor:
@@ -47,7 +64,30 @@ def inertia_from_mass_com(mass: torch.Tensor, com: torch.Tensor, *, rotational_i
     _check_tensors(mass=mass, com=com, rotational_inertia=rotational_inertia)
     _check_trailing_shape("com", com, (3,))
     _check_trailing_shape("rotational_inertia", rotational_inertia, (3, 3))
-    return _pack(mass, com, rotational_inertia)
+    return inertia_from_mass_com_raw(mass, com, rotational_inertia=rotational_inertia)
+
+
+def inertia_from_mass_com_raw(
+    mass: torch.Tensor, com: torch.Tensor, *, rotational_inertia: torch.Tensor
+) -> torch.Tensor:
+    """`inertia_from_mass_com` without input checks, for callers whose inputs are already checked.
+
+    ``mass (...)``, ``com (..., 3)``, ``rotational_inertia (..., 3, 3)`` → ``(..., 10)``.
+    """
+    batch = torch.broadcast_shapes(mass.shape, com.shape[:-1], rotational_inertia.shape[:-2])
+    symmetric = (rotational_inertia + rotational_inertia.mT) * 0.5
+    entries = torch.stack(
+        (
+            symmetric[..., 0, 0],
+            symmetric[..., 1, 1],
+            symmetric[..., 2, 2],
+            symmetric[..., 0, 1],
+            symmetric[..., 0, 2],
+            symmetric[..., 1, 2],
+        ),
+        dim=-1,
+    )
+    return torch.cat((mass.expand(batch).unsqueeze(-1), com.expand(*batch, 3), entries.expand(*batch, 6)), dim=-1)
 
 
 def inertia_of_sphere(mass: torch.Tensor, *, radius: torch.Tensor) -> torch.Tensor:
@@ -174,7 +214,9 @@ def inertia_of_mesh(
         central_second_per_density.diagonal(dim1=-2, dim2=-1).sum(dim=-1)[..., None, None] * eye
         - central_second_per_density
     )
-    return _pack(rho * volume, com_local + integration_origin, rho[..., None, None] * inertia_per_density)
+    return inertia_from_mass_com_raw(
+        rho * volume, com_local + integration_origin, rotational_inertia=rho[..., None, None] * inertia_per_density
+    )
 
 
 def _check_mesh_structure(vertices: torch.Tensor, faces: torch.Tensor) -> None:
@@ -242,42 +284,11 @@ def _check_trailing_shape(name: str, tensor: torch.Tensor, shape: tuple[int, ...
         raise ValueError(f"{name} must have shape (..., {trailing}), got {tuple(tensor.shape)}")
 
 
-def _pack(mass: torch.Tensor, com: torch.Tensor, rotational_inertia: torch.Tensor) -> torch.Tensor:
-    """`inertia_from_mass_com` without checks: ``(...), (..., 3), (..., 3, 3) → (..., 10)``."""
-    batch = torch.broadcast_shapes(mass.shape, com.shape[:-1], rotational_inertia.shape[:-2])
-    symmetric = (rotational_inertia + rotational_inertia.mT) * 0.5
-    entries = torch.stack(
-        (
-            symmetric[..., 0, 0],
-            symmetric[..., 1, 1],
-            symmetric[..., 2, 2],
-            symmetric[..., 0, 1],
-            symmetric[..., 0, 2],
-            symmetric[..., 1, 2],
-        ),
-        dim=-1,
-    )
-    return torch.cat((mass.expand(batch).unsqueeze(-1), com.expand(*batch, 3), entries.expand(*batch, 6)), dim=-1)
-
-
 def _principal(mass: torch.Tensor, ixx: torch.Tensor, iyy: torch.Tensor, izz: torch.Tensor) -> torch.Tensor:
     """Packed inertia ``(..., 10)`` with the centre of mass at the origin and principal axes along x, y, z."""
     mass, ixx, iyy, izz = torch.broadcast_tensors(mass, ixx, iyy, izz)
     zero = torch.zeros_like(mass)
     return torch.stack((mass, zero, zero, zero, ixx, iyy, izz, zero, zero, zero), dim=-1)
-
-
-def _rotational_inertia(inertia: torch.Tensor) -> torch.Tensor:
-    """Rotational inertia about the centre of mass ``(..., 3, 3)`` of packed inertias ``(..., 10)``."""
-    ixx, iyy, izz, ixy, ixz, iyz = inertia[..., 4:10].unbind(dim=-1)
-    return torch.stack(
-        (
-            torch.stack((ixx, ixy, ixz), dim=-1),
-            torch.stack((ixy, iyy, iyz), dim=-1),
-            torch.stack((ixz, iyz, izz), dim=-1),
-        ),
-        dim=-2,
-    )
 
 
 @dataclass(frozen=True)

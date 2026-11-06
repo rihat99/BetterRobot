@@ -11,7 +11,7 @@ from __future__ import annotations
 import torch
 
 from ..lie import so3
-from .inertia import _pack, _rotational_inertia
+from .inertia import inertia_from_mass_com_raw, rotational_inertia
 
 
 def cross_motion(twist: torch.Tensor, other: torch.Tensor) -> torch.Tensor:
@@ -87,4 +87,6 @@ def transform_inertia(pose: torch.Tensor, inertia: torch.Tensor) -> torch.Tensor
     pose, inertia = pose.expand(*batch, 7), inertia.expand(*batch, 10)
     rotation = so3.to_matrix(pose[..., 3:7])
     com = (rotation @ inertia[..., 1:4, None]).squeeze(-1) + pose[..., :3]
-    return _pack(inertia[..., 0], com, rotation @ _rotational_inertia(inertia) @ rotation.mT)
+    return inertia_from_mass_com_raw(
+        inertia[..., 0], com, rotational_inertia=rotation @ rotational_inertia(inertia) @ rotation.mT
+    )

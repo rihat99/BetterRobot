@@ -34,6 +34,7 @@ from better_robot.spatial import (
     inertia_of_mesh,
     inertia_of_sphere,
     ops,
+    rotational_inertia,
     transform_force,
     transform_inertia,
     transform_motion,
@@ -74,12 +75,6 @@ def _close(actual: torch.Tensor, expected: torch.Tensor) -> None:
 
 def _matvec(matrix: torch.Tensor, vector: torch.Tensor) -> torch.Tensor:
     return (matrix @ vector.unsqueeze(-1)).squeeze(-1)
-
-
-def _rotational_about_com(inertia: torch.Tensor) -> torch.Tensor:
-    """The old 3x3 ``Inertia.inertia_matrix``: the 6x6 block about the origin once the centre of mass sits there."""
-    centred = torch.cat((inertia[..., :1], torch.zeros_like(inertia[..., 1:4]), inertia[..., 4:]), dim=-1)
-    return inertia_matrix(centred)[..., 3:, 3:]
 
 
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
@@ -143,7 +138,7 @@ def test_inertia_accessors_and_algebra_equal_the_packed_tensor(seed: int, dtype:
     inertia, motion = sample["inertia"], sample["motion"]
     assert torch.equal(Inertia(inertia).mass, inertia[..., 0])
     assert torch.equal(Inertia(inertia).com, inertia[..., 1:4])
-    assert torch.equal(Inertia(inertia).inertia_matrix, _rotational_about_com(inertia))
+    assert torch.equal(Inertia(inertia).inertia_matrix, rotational_inertia(inertia))
     assert torch.equal(Inertia(inertia)._to_6x6(), inertia_matrix(inertia))
     assert torch.equal(Inertia(inertia).apply(Motion(motion)).data, _matvec(inertia_matrix(inertia), motion))
     assert torch.equal(Inertia(inertia).add(Inertia(inertia.flip(0))).data, inertia + inertia.flip(0))
@@ -199,7 +194,7 @@ def test_symmetric3_is_the_packed_rotational_inertia(seed: int, dtype: torch.dty
     inertia, rotational = sample["inertia"], sample["rotational"]
     packed = inertia[..., 4:10]
     assert torch.equal(Symmetric3.from_matrix(rotational).data, packed)
-    assert torch.equal(Symmetric3(packed).to_matrix(), _rotational_about_com(inertia))
+    assert torch.equal(Symmetric3(packed).to_matrix(), rotational_inertia(inertia))
     assert torch.equal(Symmetric3(packed).add(Symmetric3(packed.flip(0))).data, packed + packed.flip(0))
     assert torch.equal(Symmetric3.zero(batch_shape=(2,), dtype=dtype).data, torch.zeros(2, 6, dtype=dtype))
 
