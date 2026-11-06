@@ -84,9 +84,9 @@ def main() -> None:
         joint_poses = []
         frame_poses = []
         for i in range(N_CONFIGS):
-            state = br.forward_kinematics_state(model, qs[i])
-            joint_poses.append(state.joint_pose.detach().cpu().numpy())
-            frame_poses.append(state.frame_pose.detach().cpu().numpy())
+            state = br.forward_kinematics(model, qs[i])
+            joint_poses.append(state.joint_poses.detach().cpu().numpy())
+            frame_poses.append(state.frame_poses.detach().cpu().numpy())
         payload[f"{name}_q"] = qs.numpy()
         payload[f"{name}_joint_pose_world"] = np.stack(joint_poses)
         payload[f"{name}_frame_pose_world"] = np.stack(frame_poses)
@@ -95,7 +95,7 @@ def main() -> None:
         [
             f"oracle_version={ORACLE_VERSION}",
             f"generation_seed={GENERATION_SEED}",
-            "generated_with=better_robot.forward_kinematics_state(compute_frames=True)",
+            "generated_with=better_robot.forward_kinematics(compute_frames=True)",
             "fk_dtype=float64",
             f"generated_at={_dt.datetime.utcnow().strftime('%Y-%m-%d')}",
         ]

@@ -11,10 +11,10 @@ pytestmark = pytest.mark.bench
 
 def test_fk_panda_unbatched(benchmark, panda) -> None:
     q = panda.q_neutral.clone()
-    benchmark(lambda: br.forward_kinematics_state(panda, q))
+    benchmark(lambda: br.forward_kinematics(panda, q))
 
 
 @pytest.mark.parametrize("batch", [16, 256])
 def test_fk_panda_batched(benchmark, panda, batch) -> None:
     q = panda.q_neutral.expand(batch, -1).contiguous()
-    benchmark(lambda: br.forward_kinematics_state(panda, q))
+    benchmark(lambda: br.forward_kinematics(panda, q))

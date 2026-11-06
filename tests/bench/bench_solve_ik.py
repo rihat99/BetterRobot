@@ -15,6 +15,6 @@ def test_solve_ik_panda(benchmark, panda, panda_state) -> None:
         if "body_panda_hand" in panda.frame_names
         else panda.frame_id(panda.frame_names[-1])
     )
-    target = panda_state.frame_pose[frame_id].clone()
+    target = panda_state.frame_poses[frame_id].clone()
     target[..., 0] += 0.02
     benchmark(lambda: solve_ik(panda, {panda.frame_names[-1]: target[None]}, q0=panda.q_neutral[None]))

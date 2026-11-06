@@ -16,7 +16,7 @@ import torch
 
 import better_robot as br
 from better_robot.dynamics.state import forward_dynamics, inverse_dynamics, mass_matrix
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 from tests.support.robots import panda_urdf
 
 
@@ -32,7 +32,7 @@ def test_rnea_gradcheck():
     a = (torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1).requires_grad_(True)
 
     def f(q_, v_, a_):
-        return inverse_dynamics(model, forward_kinematics_state(model, q_), v=v_, a=a_)
+        return inverse_dynamics(model, forward_kinematics(model, q_), v=v_, a=a_)
 
     assert torch.autograd.gradcheck(f, (q, v, a), eps=1e-6, atol=1e-4, rtol=1e-3)
 
@@ -45,7 +45,7 @@ def test_aba_gradcheck():
     tau = (torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1).requires_grad_(True)
 
     def f(q_, v_, tau_):
-        return forward_dynamics(model, forward_kinematics_state(model, q_), v=v_, tau=tau_)
+        return forward_dynamics(model, forward_kinematics(model, q_), v=v_, tau=tau_)
 
     assert torch.autograd.gradcheck(f, (q, v, tau), eps=1e-6, atol=1e-4, rtol=1e-3)
 
@@ -59,10 +59,10 @@ def test_dtau_da_matches_crba():
     a = torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1
 
     dtau_da = torch.autograd.functional.jacobian(
-        lambda acceleration: inverse_dynamics(model, forward_kinematics_state(model, q), v=v, a=acceleration),
+        lambda acceleration: inverse_dynamics(model, forward_kinematics(model, q), v=v, a=acceleration),
         a,
     )
-    M = mass_matrix(model, forward_kinematics_state(model, q))
+    M = mass_matrix(model, forward_kinematics(model, q))
     torch.testing.assert_close(dtau_da, M, rtol=1e-10, atol=1e-10)
 
 
@@ -75,9 +75,9 @@ def test_dadtau_matches_minverse():
     tau = torch.rand(model.nv, generator=rng, dtype=torch.float64) * 0.1
 
     da_dtau = torch.autograd.functional.jacobian(
-        lambda torque: forward_dynamics(model, forward_kinematics_state(model, q), v=v, tau=torque),
+        lambda torque: forward_dynamics(model, forward_kinematics(model, q), v=v, tau=torque),
         tau,
     )
-    M = mass_matrix(model, forward_kinematics_state(model, q))
+    M = mass_matrix(model, forward_kinematics(model, q))
     M_inv = torch.linalg.inv(M)
     torch.testing.assert_close(da_dtau, M_inv, rtol=1e-9, atol=1e-9)

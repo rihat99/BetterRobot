@@ -8,7 +8,7 @@ import torch
 
 from better_robot.kinematics.configuration import full_configuration, full_tangent, mimic_plan
 from better_robot.io import ModelBuilder, build_model
-from better_robot.kinematics import forward_kinematics_state, joint_jacobian, joint_jacobian_time_variation
+from better_robot.kinematics import forward_kinematics, joint_jacobian, joint_jacobian_time_variation
 
 
 def _model_pair():
@@ -51,17 +51,17 @@ def test_batched_fk_and_jacobians_equal_full_twin_with_chain_rule() -> None:
     q = torch.linspace(-0.3, 0.3, 6, dtype=torch.float64).reshape(2, 3, 1)
     q_full = full_configuration(constrained, q)
 
-    constrained_state = forward_kinematics_state(constrained, q)
-    full_state = forward_kinematics_state(full, q_full)
+    constrained_state = forward_kinematics(constrained, q)
+    full_state = forward_kinematics(full, q_full)
     torch.testing.assert_close(
-        constrained_state.joint_pose,
-        full_state.joint_pose,
+        constrained_state.joint_poses,
+        full_state.joint_poses,
         rtol=1e-12,
         atol=1e-12,
     )
     torch.testing.assert_close(
-        constrained_state.frame_pose,
-        full_state.frame_pose,
+        constrained_state.frame_poses,
+        full_state.frame_poses,
         rtol=1e-12,
         atol=1e-12,
     )
@@ -90,8 +90,8 @@ def test_batched_jacobian_time_variation_equals_full_twin_with_chain_rule() -> N
     v = torch.linspace(0.4, -0.6, 6, dtype=torch.float64).reshape(2, 3, 1)
     v_full = full_tangent(constrained, v)
 
-    constrained_state = forward_kinematics_state(constrained, q)
-    full_state = forward_kinematics_state(full, q_full)
+    constrained_state = forward_kinematics(constrained, q)
+    full_state = forward_kinematics(full, q_full)
     expected = (
         torch.stack(
             [

@@ -31,9 +31,9 @@ from .dynamics.state import (
     inverse_dynamics,
     mass_matrix,
 )
-from .kinematics.state import (
+from .kinematics import (
     KinematicState,
-    forward_kinematics_state,
+    forward_kinematics,
     frame_jacobian,
     frame_jacobian_time_variation,
     joint_jacobian,
@@ -47,7 +47,7 @@ __all__ = [
     "load",
     "ModelBuilder",
     # kinematics
-    "forward_kinematics_state",
+    "forward_kinematics",
     "KinematicState",
     "frame_jacobian",
     "frame_jacobian_time_variation",

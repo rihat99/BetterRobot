@@ -24,7 +24,7 @@ REQUIRED: frozenset[str] = frozenset(
         "ModelBuilder",
         # kinematics
         "KinematicState",
-        "forward_kinematics_state",
+        "forward_kinematics",
         "frame_jacobian",
         "joint_jacobian",
         "frame_jacobian_time_variation",

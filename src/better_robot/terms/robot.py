@@ -16,7 +16,7 @@ from ..exceptions import ArgumentError
 from ..model.manifolds import EUCLIDEAN, RIGID
 from ..model.model import Model
 from ..kinematics.configuration import difference, integrate, manifold_plan
-from ..kinematics.state import KinematicState, forward_kinematics_state, frame_jacobian
+from ..kinematics import KinematicState, forward_kinematics, frame_jacobian
 from ..lie import se3
 from ..lie.tangents import right_jacobian_inverse_se3
 from ..optim import CacheRef, TermFn
@@ -56,7 +56,7 @@ class RobotManifold:
 
 def kinematic_state(model: Model, *, q: str = "q") -> TermFn:
     """Cached value: forward kinematics of variable ``q``. Register with ``problem.cached(..., name="state")``."""
-    return TermFn(fn=lambda value: forward_kinematics_state(model, value), reads=(q,))
+    return TermFn(fn=lambda value: forward_kinematics(model, value), reads=(q,))
 
 
 def frame_pose(model: Model, *, frame: int | str, target: str, state: CacheRef | str = "state", q: str = "q") -> TermFn:
@@ -80,7 +80,7 @@ def frame_position(
     frame_id = model.frame_id(frame)
 
     def error(kinematics: KinematicState, goal: torch.Tensor) -> torch.Tensor:
-        return kinematics.frame_translation[..., frame_id, :] - goal
+        return kinematics.frame_translations[..., frame_id, :] - goal
 
     def jac(kinematics: KinematicState, goal: torch.Tensor) -> dict[str, torch.Tensor]:
         return {q: frame_jacobian(model, kinematics, frame=frame_id)[..., :3, :]}

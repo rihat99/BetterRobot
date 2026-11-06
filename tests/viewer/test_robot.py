@@ -69,13 +69,13 @@ def test_panda_layers_follow_forward_kinematics() -> None:
     assert set(layers) == {"robot collision", "robot skeleton", "robot frames"}
     assert len(robot_meshes(model, collision=True)) == 17  # nine STL meshes and eight finger boxes
 
-    from better_robot.kinematics import forward_kinematics_state  # noqa: PLC0415
+    from better_robot.kinematics import forward_kinematics  # noqa: PLC0415
 
-    state = forward_kinematics_state(model, q)
-    hand = state.frame_pose[:, model.frame_id("body_panda_hand")].numpy()
+    state = forward_kinematics(model, q)
+    hand = state.frame_poses[:, model.frame_id("body_panda_hand")].numpy()
     np.testing.assert_allclose(layers["robot frames"].poses[:, 0], hand, atol=1e-6)
     skeleton = layers["robot skeleton"]
-    np.testing.assert_allclose(skeleton.joints, state.joint_pose[:, 1:, :3].numpy(), atol=1e-6)
+    np.testing.assert_allclose(skeleton.joints, state.joint_poses[:, 1:, :3].numpy(), atol=1e-6)
     assert skeleton.parents[0] == -1 and list(skeleton.parents[1:]) == [p - 1 for p in model.parents[2:]]
     assert skeleton.colors.shape == (5, model.njoints - 1, 3)
 
@@ -87,7 +87,7 @@ def test_panda_layers_follow_forward_kinematics() -> None:
     meshes = layers["robot collision"].meshes
     hand_mesh = next(i for i, spec in enumerate(meshes) if spec.body == model.body_id("panda_hand"))
     node = server.scene.nodes[f"/panda/robot collision/mesh_{hand_mesh}"]
-    expected = compose_poses(state.joint_pose[4, model.body_id("panda_hand")].numpy(), meshes[hand_mesh].origin)
+    expected = compose_poses(state.joint_poses[4, model.body_id("panda_hand")].numpy(), meshes[hand_mesh].origin)
     np.testing.assert_allclose(node.position, expected[:3], atol=1e-5)
 
 
@@ -169,7 +169,7 @@ def test_skeleton_markers_lie_on_the_forward_kinematics_joint_axes(robot: str) -
         np.testing.assert_array_equal(axes[kinds.index("spherical")], [0.0, 0.0, 1.0])  # no axis: +z
     tangent = torch.randn(model.nv, generator=torch.Generator().manual_seed(0), dtype=torch.float64)
     q = br.kinematics.integrate(model, model.q_neutral, tangent)
-    joint_poses = br.forward_kinematics_state(model, q[None]).joint_pose.numpy().astype(np.float32)
+    joint_poses = br.forward_kinematics(model, q[None]).joint_poses.numpy().astype(np.float32)
     layer = robot_skeleton(model, joint_poses)
     server = FakeServer()
     Viewer(server=server).add(layer)
@@ -183,8 +183,8 @@ def test_skeleton_markers_lie_on_the_forward_kinematics_joint_axes(robot: str) -
         for entry, joint in enumerate(layer.groups[marker] + 1):
             step = torch.zeros(model.nv, dtype=torch.float64)
             step[model.idx_vs[joint]] = 1e-6
-            plus = br.forward_kinematics_state(model, br.kinematics.integrate(model, q, step)).joint_pose[joint]
-            minus = br.forward_kinematics_state(model, br.kinematics.integrate(model, q, -step)).joint_pose[joint]
+            plus = br.forward_kinematics(model, br.kinematics.integrate(model, q, step)).joint_poses[joint]
+            minus = br.forward_kinematics(model, br.kinematics.integrate(model, q, -step)).joint_poses[joint]
             change = compose(plus, inverse(minus)).numpy()  # world-frame increment: [translation, quaternion xyzw]
             true = change[3:6] if marker == "cylinder" else change[:3]
             true /= np.linalg.norm(true)
@@ -229,7 +229,7 @@ def _drawn_skeleton(model: br.Model, q: torch.Tensor, radius: float = 0.025, tau
     """The skeleton of ``model`` at ``q (nq,)`` sent to a fake server: poses, layer, server, cylinder centres, axes."""
     from better_robot.viewer import robot_skeleton  # noqa: PLC0415
 
-    poses = br.forward_kinematics_state(model, q[None]).joint_pose.numpy().astype(np.float32)
+    poses = br.forward_kinematics(model, q[None]).joint_poses.numpy().astype(np.float32)
     layer = robot_skeleton(model, poses, radius=radius, tau=tau)
     server = FakeServer()
     Viewer(server=server).add(layer)
@@ -368,7 +368,7 @@ def test_spread_layout_slides_joints_with_mirrored_axis_signs_as_mirror_images()
         builder.add_revolute(f"{side}_roll", parent=f"{side}_upper", child=f"{side}_lower",
                              axis=torch.tensor([sign, 0.0, 0.0]), effort_limit=10.0)  # fmt: skip
     model = br.load(builder.finalize, free_flyer=True, dtype=torch.float64)
-    poses = br.forward_kinematics_state(model, model.q_neutral).joint_pose[1:].numpy()
+    poses = br.forward_kinematics(model, model.q_neutral).joint_poses[1:].numpy()
     drawn = dict(zip(model.joint_names[1:], poses[:, :3] + rotate(poses[:, 3:], spread_offsets(model))))
     assert drawn["left_roll"][0] > 0.02  # slid off its pitch joint, to +x
     np.testing.assert_allclose(drawn["right_roll"], drawn["left_roll"] * [1.0, -1.0, 1.0], atol=1e-6)
@@ -430,16 +430,16 @@ def test_robot_skeleton_end_points_add_a_bone_from_the_frames_joint_to_the_point
     builder.add_frame("palm", parent_body=hand, placement=torch.from_numpy(_random_poses((), seed=2)))
     model = br.load(builder.finalize, dtype=torch.float64)
     q = torch.stack([model.random_configuration(generator=torch.Generator().manual_seed(i)) for i in range(2)])
-    state = br.forward_kinematics_state(model, q)
+    state = br.forward_kinematics(model, q)
     point = torch.tensor([0.05, -0.02, 0.1], dtype=torch.float64)
     tau = np.full((2, model.nv), 20.0)  # past the limits
     radii = np.arange(1, model.njoints) * 0.002  # entry j: the bone into joint j + 1
 
-    layer = robot_skeleton(model, state.joint_pose.numpy().astype(np.float32), tau=tau, bone_radius=radii,
+    layer = robot_skeleton(model, state.joint_poses.numpy().astype(np.float32), tau=tau, bone_radius=radii,
                            end_points={"palm": point.tolist()})  # fmt: skip
     wrist = model.joint_names.index("wrist") - 1
     assert layer.parents[-1] == wrist and len(layer.parents) == model.njoints
-    expected = act(state.frame_pose[:, model.frame_id("palm")], point).numpy()  # (2, 3)
+    expected = act(state.frame_poses[:, model.frame_id("palm")], point).numpy()  # (2, 3)
     np.testing.assert_allclose(layer.joints[:, -1], expected, atol=1e-5)
     np.testing.assert_array_equal(layer.colors[:, -1], rgb_uint8(np.tile(LIGHT.joint, (2, 1))))
     np.testing.assert_allclose(layer.thickness[:, -1], 1.0)

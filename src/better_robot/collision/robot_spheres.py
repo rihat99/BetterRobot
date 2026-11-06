@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 import torch
 
 from ..model.model import Model
-from ..kinematics.state import KinematicState
+from ..kinematics import KinematicState
 from .distance import sphere_sphere
 
 if TYPE_CHECKING:
@@ -32,7 +32,7 @@ class RobotSpheres:
 
     ```python
     spheres = RobotSpheres.from_frames(model, {"body_panda_link7": [((0.0, 0.0, 0.05), 0.06)]})
-    centers = spheres.centers(forward_kinematics_state(model, q))  # (B..., S, 3), WORLD
+    centers = spheres.centers(forward_kinematics(model, q))  # (B..., S, 3), WORLD
     ```
     """
 
@@ -70,8 +70,8 @@ class RobotSpheres:
         """Sphere centres ``(B..., S, 3)`` in ``WORLD``, from the frame poses in ``state`` (``KinematicState``)."""
         # A product-sum: a batched 3x3 matmul was 2.5x slower forward + backward. Advanced indexing, not index_select,
         # whose CUDA backward adds with atomics and so is not bitwise reproducible.
-        rotation = state.frame_rotation[..., self.frame_ids, :, :]
-        translation = state.frame_translation[..., self.frame_ids, :]
+        rotation = state.frame_rotations[..., self.frame_ids, :, :]
+        translation = state.frame_translations[..., self.frame_ids, :]
         return translation + (rotation * self.offsets[..., None, :]).sum(-1)
 
 

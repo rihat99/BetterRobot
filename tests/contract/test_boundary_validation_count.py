@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import importlib
+
 import pytest
 import torch
 
@@ -16,7 +18,7 @@ _CPU = torch.device("cpu")
 #: take plain tensors). ``forward_dynamics`` checks ``v``, the zero acceleration of its bias call and ``tau``;
 #: ``integrate`` and ``difference`` check their two configuration-space inputs.
 EXPECTED_CHECKS = {
-    "forward_kinematics_state": 1,
+    "forward_kinematics": 1,
     "frame_jacobian_time_variation": 1,
     "joint_jacobian_time_variation": 1,
     "inverse_dynamics": 2,
@@ -37,7 +39,13 @@ def checked_names(monkeypatch: pytest.MonkeyPatch) -> list[str]:
         names.append(name)
         return original(name, value, **kwargs)
 
-    for module in (kinematics.state, kinematics.configuration, dynamics.state):
+    boundaries = (
+        importlib.import_module("better_robot.kinematics.forward_kinematics"),  # the function shadows the module
+        kinematics.jacobians,
+        kinematics.configuration,
+        dynamics.state,
+    )
+    for module in boundaries:
         monkeypatch.setattr(module, "check_tensor", counted)
     return names
 
@@ -54,5 +62,5 @@ def test_dynamics_on_a_fresh_state_validates_q_once_and_its_own_inputs(checked_n
     _, (model, _), kwargs = build_case("inverse_dynamics", torch.float64, _CPU)
     q = torch.tensor([0.3, -0.4], dtype=torch.float64)
     checked_names.clear()
-    dynamics.inverse_dynamics(model, kinematics.forward_kinematics_state(model, q), **kwargs)
+    dynamics.inverse_dynamics(model, kinematics.forward_kinematics(model, q), **kwargs)
     assert checked_names == ["q", "v", "a"]

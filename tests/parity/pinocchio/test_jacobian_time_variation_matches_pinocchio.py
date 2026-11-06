@@ -42,7 +42,7 @@ PANDA_TARGET_FRAME = ("body_panda_hand", "panda_hand")
 
 def _fk_both(br_model, pin_model, pin_data, q, v):
     """Run BR forward kinematics + set velocity, and the Pinocchio J̇ oracle."""
-    state = br.forward_kinematics_state(br_model, q)
+    state = br.forward_kinematics(br_model, q)
     q_pin = q.detach().cpu().double().numpy()
     v_pin = v.detach().cpu().double().numpy()
     pin.computeJointJacobiansTimeVariation(pin_model, pin_data, q_pin, v_pin)
@@ -103,7 +103,7 @@ def test_joint_time_variation_batched_matches_pinocchio(panda_both, batch_shape,
     qs = sample_panda_q(n=count, seed=31).reshape(*batch_shape, br_model.nq)
     vs = sample_panda_v(n=count, seed=37).reshape(*batch_shape, br_model.nv)
 
-    state = br.forward_kinematics_state(br_model, qs)
+    state = br.forward_kinematics(br_model, qs)
     br_jid = br_model.joint_id("panda_joint7")
     pin_jid = pin_model.getJointId("panda_joint7")
     J_br = (
@@ -144,7 +144,7 @@ def test_joint_time_variation_free_flyer_matches_pinocchio(g1_both, reference, p
     br_model, pin_model, pin_data = g1_both
     q, v = _sample_g1(br_model, seed=7)
 
-    state = br.forward_kinematics_state(br_model, q)
+    state = br.forward_kinematics(br_model, q)
     pin.computeJointJacobiansTimeVariation(pin_model, pin_data, q.numpy(), v.numpy())
 
     for joint_name in ["root_joint", "left_hip_yaw_joint", "right_wrist_yaw_joint"]:
@@ -179,7 +179,7 @@ def test_joint_time_variation_spherical_matches_pinocchio():
     br_model, pin_model, pin_data = _build_spherical_chain()
     q, v = _sample_spherical(seed=11)
 
-    state = br.forward_kinematics_state(br_model, q)
+    state = br.forward_kinematics(br_model, q)
     pin.computeJointJacobiansTimeVariation(pin_model, pin_data, q.numpy(), v.numpy())
 
     for joint_name in ["j_sph", "j_rz"]:

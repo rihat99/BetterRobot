@@ -12,7 +12,7 @@ from collections.abc import Callable
 import torch
 
 from ..collision import RobotSpheres, self_distances
-from ..kinematics.state import KinematicState
+from ..kinematics import KinematicState
 from ..optim import CacheRef, TermFn
 
 

@@ -10,7 +10,7 @@ from torch.utils import _pytree
 
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 from better_robot.model import Model
 
 
@@ -57,7 +57,7 @@ def test_vmap_over_batched_placements_matches_with_values_loop() -> None:
     q = torch.tensor([0.3, -0.4], dtype=torch.float64)
 
     def tip_position(sample: Model) -> torch.Tensor:
-        return forward_kinematics_state(sample, q).frame_translation[-1]
+        return forward_kinematics(sample, q).frame_translations[-1]
 
     batched = model.with_values(joint_placements=joint_placements, frame_placements=frame_placements)
     in_dims = _pytree.tree_unflatten(
@@ -72,7 +72,7 @@ def test_vmap_over_batched_placements_matches_with_values_loop() -> None:
         ]
     )
     torch.testing.assert_close(by_vmap, by_loop)
-    torch.testing.assert_close(by_vmap, forward_kinematics_state(batched, q).frame_translation[:, -1])
+    torch.testing.assert_close(by_vmap, forward_kinematics(batched, q).frame_translations[:, -1])
 
 
 def _tensor_names(model: Model) -> list[str]:

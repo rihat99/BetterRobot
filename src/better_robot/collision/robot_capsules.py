@@ -13,7 +13,7 @@ from dataclasses import dataclass
 import torch
 
 from ..model.model import Model
-from ..kinematics.state import KinematicState
+from ..kinematics import KinematicState
 from .distance import capsule_capsule
 
 
@@ -27,7 +27,7 @@ class RobotCapsules:
 
     ```python
     capsules = RobotCapsules.from_frames(model, {"body_left_knee_link": [((0.01, 0, 0), (0.01, 0, -0.15), 0.045)]})
-    starts, ends = capsules.segments(forward_kinematics_state(model, q))  # (B..., C, 3) each, WORLD
+    starts, ends = capsules.segments(forward_kinematics(model, q))  # (B..., C, 3) each, WORLD
     ```
     """
 
@@ -58,8 +58,8 @@ class RobotCapsules:
     def segments(self, state: KinematicState) -> tuple[torch.Tensor, torch.Tensor]:
         """End points ``(starts, ends)``, each ``(B..., C, 3)`` in ``WORLD``, from the frame poses in ``state``."""
         # Advanced indexing, as in RobotSpheres.centers: index_select's CUDA backward is not bitwise reproducible.
-        rotation = state.frame_rotation[..., self.frame_ids, :, :]
-        translation = state.frame_translation[..., self.frame_ids, :]
+        rotation = state.frame_rotations[..., self.frame_ids, :, :]
+        translation = state.frame_translations[..., self.frame_ids, :]
         starts = translation + (rotation * self.starts[..., None, :]).sum(-1)
         return starts, translation + (rotation * self.ends[..., None, :]).sum(-1)
 

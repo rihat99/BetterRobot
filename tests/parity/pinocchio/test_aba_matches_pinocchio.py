@@ -17,7 +17,7 @@ import torch
 
 import better_robot as br
 from better_robot.dynamics.state import forward_dynamics, inverse_dynamics
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 
 from .conftest import sample_panda_q
 from tests.support.robots import g1_urdf
@@ -35,7 +35,7 @@ def test_aba_matches_pinocchio(panda_both):
         q = qs[i]
         v = torch.rand(br_model.nv, generator=rng, dtype=torch.float64) - 0.5
         tau = torch.rand(br_model.nv, generator=rng, dtype=torch.float64) - 0.5
-        ddq_br = forward_dynamics(br_model, forward_kinematics_state(br_model, q), v=v, tau=tau).detach().cpu().numpy()
+        ddq_br = forward_dynamics(br_model, forward_kinematics(br_model, q), v=v, tau=tau).detach().cpu().numpy()
         ddq_pin = np.asarray(pin.aba(pin_model, pin_data, q.numpy(), v.numpy(), tau.numpy()))
         np.testing.assert_allclose(ddq_br, ddq_pin, rtol=_RTOL, atol=_ATOL)
 
@@ -49,8 +49,8 @@ def test_aba_inverse_of_rnea_panda(panda_both):
         q = qs[i]
         v = (torch.rand(br_model.nv, generator=rng, dtype=torch.float64) - 0.5) * 2.0
         a = (torch.rand(br_model.nv, generator=rng, dtype=torch.float64) - 0.5) * 2.0
-        tau = inverse_dynamics(br_model, forward_kinematics_state(br_model, q), v=v, a=a)
-        ddq = forward_dynamics(br_model, forward_kinematics_state(br_model, q), v=v, tau=tau)
+        tau = inverse_dynamics(br_model, forward_kinematics(br_model, q), v=v, a=a)
+        ddq = forward_dynamics(br_model, forward_kinematics(br_model, q), v=v, tau=tau)
         torch.testing.assert_close(ddq, a, rtol=1e-10, atol=1e-10)
 
 
@@ -62,8 +62,8 @@ def test_aba_inverse_of_rnea_g1():
     q = model.q_neutral.clone()
     v = (torch.rand(model.nv, generator=rng, dtype=torch.float64) - 0.5) * 0.2
     a = (torch.rand(model.nv, generator=rng, dtype=torch.float64) - 0.5) * 0.2
-    tau = inverse_dynamics(model, forward_kinematics_state(model, q), v=v, a=a)
-    ddq = forward_dynamics(model, forward_kinematics_state(model, q), v=v, tau=tau)
+    tau = inverse_dynamics(model, forward_kinematics(model, q), v=v, a=a)
+    ddq = forward_dynamics(model, forward_kinematics(model, q), v=v, tau=tau)
     torch.testing.assert_close(ddq, a, rtol=1e-9, atol=1e-9)
 
 
@@ -75,7 +75,7 @@ def test_aba_batched(panda_both):
     vs = torch.rand(4, br_model.nv, generator=rng, dtype=torch.float64) - 0.5
     taus = torch.rand(4, br_model.nv, generator=rng, dtype=torch.float64) - 0.5
 
-    ddq_batch = forward_dynamics(br_model, forward_kinematics_state(br_model, qs), v=vs, tau=taus)
+    ddq_batch = forward_dynamics(br_model, forward_kinematics(br_model, qs), v=vs, tau=taus)
     for k in range(qs.shape[0]):
-        ddq_k = forward_dynamics(br_model, forward_kinematics_state(br_model, qs[k]), v=vs[k], tau=taus[k])
+        ddq_k = forward_dynamics(br_model, forward_kinematics(br_model, qs[k]), v=vs[k], tau=taus[k])
         torch.testing.assert_close(ddq_batch[k], ddq_k, rtol=1e-12, atol=1e-12)

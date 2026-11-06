@@ -61,10 +61,10 @@ def _kinematic_cases(dtype: torch.dtype, device: torch.device) -> dict[str, Case
     q = torch.tensor([0.3, -0.4], dtype=dtype, device=device)
     v = torch.tensor([0.5, 0.2], dtype=dtype, device=device)
     a = torch.tensor([-0.1, 0.4], dtype=dtype, device=device)
-    state = kinematics.forward_kinematics_state(model, q)
+    state = kinematics.forward_kinematics(model, q)
     frame = model.frame_names[-1]
     return {
-        "forward_kinematics_state": (kinematics.forward_kinematics_state, (model, q), {}),
+        "forward_kinematics": (kinematics.forward_kinematics, (model, q), {}),
         "frame_jacobian": (kinematics.frame_jacobian, (model, state), {"frame": frame}),
         "joint_jacobian": (kinematics.joint_jacobian, (model, state), {"joint": 2}),
         "frame_jacobian_time_variation": (

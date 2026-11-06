@@ -14,7 +14,7 @@ from better_robot.dynamics.state import (
     inverse_dynamics,
     mass_matrix,
 )
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 from better_robot.io import ModelBuilder, build_model
 
 
@@ -64,8 +64,8 @@ def test_rnea_crba_centroidal_and_aba_use_one_reduced_map() -> None:
     acceleration_full = full_tangent(constrained, acceleration)
     expansion = mimic_plan(constrained, dtype=torch.float64, device=torch.device("cpu")).v_expansion
 
-    state = forward_kinematics_state(constrained, q)
-    state_full = forward_kinematics_state(full, q_full)
+    state = forward_kinematics(constrained, q)
+    state_full = forward_kinematics(full, q_full)
     tau = inverse_dynamics(constrained, state, v=v, a=acceleration)
     tau_full = inverse_dynamics(full, state_full, v=v_full, a=acceleration_full)
     torch.testing.assert_close(tau, tau_full @ expansion, rtol=1e-11, atol=1e-11)
@@ -101,12 +101,12 @@ def test_projected_aba_matches_reduced_mass_and_bias_solve() -> None:
     v_full = full_tangent(constrained, v)
     expansion = mimic_plan(constrained, dtype=torch.float64, device=torch.device("cpu")).v_expansion
 
-    state_full = forward_kinematics_state(full, q_full)
+    state_full = forward_kinematics(full, q_full)
     mass_full = mass_matrix(full, state_full)
     bias_full = inverse_dynamics(full, state_full, v=v_full, a=torch.zeros_like(v_full))
     reduced_mass = expansion.mT @ mass_full @ expansion
     reduced_bias = bias_full @ expansion
     expected = torch.linalg.solve(reduced_mass, (tau - reduced_bias).unsqueeze(-1)).squeeze(-1)
 
-    actual = forward_dynamics(constrained, forward_kinematics_state(constrained, q), v=v, tau=tau)
+    actual = forward_dynamics(constrained, forward_kinematics(constrained, q), v=v, tau=tau)
     torch.testing.assert_close(actual, expected, rtol=1e-11, atol=1e-11)

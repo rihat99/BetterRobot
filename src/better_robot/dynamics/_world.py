@@ -25,7 +25,8 @@ from dataclasses import dataclass
 
 import torch
 
-from ..kinematics import _jacobian as jacobian_columns
+from ..kinematics._jacobian import world_column_table
+from ..kinematics._plans import JacobianPlan, jacobian_plan
 from ..lie.tangents import hat_so3
 from ..model.model import Model
 from ..model.topology import build_supports
@@ -67,7 +68,7 @@ def packed_inertias_to_6x6(body_inertias: torch.Tensor) -> torch.Tensor:
 class DynamicsPlan:
     """Constant support masks derived from the topology (a plan on the model)."""
 
-    jacobian: jacobian_columns.JointJacobianPlan
+    jacobian: JacobianPlan
     support: (
         torch.Tensor
     )  #: ``(njoints, njoints)`` bool — ``[i, a]`` True when joint ``a`` is on the path of joint ``i``.
@@ -84,7 +85,7 @@ class DynamicsPlan:
 
 def build_plan(model: Model, dtype: torch.dtype, device: torch.device) -> DynamicsPlan:
     """Derive the support masks from the topology, on top of the Jacobian plan."""
-    jacobian = jacobian_columns.jacobian_plan(model, dtype=dtype, device=device)
+    jacobian = jacobian_plan(model, dtype=dtype, device=device)
     support = torch.zeros((model.njoints, model.njoints), dtype=torch.bool, device=device)
     for joint, chain in enumerate(build_supports(model.parents)):
         support[joint, list(chain)] = True
@@ -192,9 +193,7 @@ def world_geometry(model: Model, transform: torch.Tensor, plan: DynamicsPlan) ->
     rotation = transform[..., :3]
     origin = transform[:, min(1, model.njoints - 1), :, 3]
     translation = transform[..., 3] - origin.unsqueeze(-2)
-    columns = jacobian_columns.world_column_table_from_matrices(
-        rotation, translation, plan.jacobian, device=transform.device, dtype=transform.dtype
-    )
+    columns = world_column_table(rotation, translation, plan.jacobian)
     return WorldGeometry(columns, rotation, translation, origin)
 
 

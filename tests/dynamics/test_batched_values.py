@@ -15,7 +15,7 @@ from better_robot.dynamics.state import (
 from better_robot.exceptions import ShapeError
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 
 
 def _pose(x: float = 0.0) -> torch.Tensor:
@@ -59,7 +59,7 @@ def _inertia_batch(model, batch_shape: tuple[int, ...]) -> torch.Tensor:
 
 def test_centroidal_map_and_momentum_shapes() -> None:
     model = _model()
-    state = forward_kinematics_state(model, model.q_neutral)
+    state = forward_kinematics(model, model.q_neutral)
     velocity = torch.zeros(model.nv, dtype=model.q_neutral.dtype)
 
     assert centroidal_map(model, state).shape == (6, model.nv)
@@ -79,7 +79,7 @@ def test_batched_inertias_match_scalar_dynamics_loop(
     a = torch.tensor([-0.4], dtype=inertias.dtype)
 
     def evaluate(current_model):
-        state = forward_kinematics_state(current_model, q)
+        state = forward_kinematics(current_model, q)
         tau = inverse_dynamics(current_model, state, v=v, a=a)
         mass = mass_matrix(current_model, state)
         ddq = forward_dynamics(current_model, state, v=v, tau=tau)
@@ -114,7 +114,7 @@ def test_batched_inertia_autograd_reaches_leaf() -> None:
     q = torch.tensor([0.35], dtype=inertias.dtype)
     v = torch.tensor([0.1], dtype=inertias.dtype)
     a = torch.tensor([0.2], dtype=inertias.dtype)
-    tau = inverse_dynamics(rebound, forward_kinematics_state(rebound, q), v=v, a=a)
+    tau = inverse_dynamics(rebound, forward_kinematics(rebound, q), v=v, a=a)
     tau.square().sum().backward()
 
     assert delta.grad is not None
@@ -132,4 +132,4 @@ def test_dynamics_value_batch_mismatch_is_an_honest_shape_error() -> None:
         ShapeError,
         match=r"cannot broadcast q batch \(2, 3\) with body_inertias batch \(2,\)",
     ):
-        inverse_dynamics(rebound, forward_kinematics_state(rebound, q), v=v, a=v)
+        inverse_dynamics(rebound, forward_kinematics(rebound, q), v=v, a=v)

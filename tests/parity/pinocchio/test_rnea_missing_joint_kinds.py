@@ -10,7 +10,7 @@ import torch
 from better_robot.model.joints import JointHelical, JointPlanar, JointRevolute, JointRevoluteUnbounded, JointTranslation
 from better_robot.io import ModelBuilder, build_model
 from better_robot.dynamics.state import inverse_dynamics
-from better_robot.kinematics import difference, forward_kinematics_state, integrate
+from better_robot.kinematics import difference, forward_kinematics, integrate
 
 from .conftest import rot_matrix_from_pose
 
@@ -115,10 +115,10 @@ def missing_joint_pair(request):
 
 def test_missing_joint_fk_matches_pinocchio(missing_joint_pair):
     br_model, pin_model, pin_data, pin_joint_id, q, _ = missing_joint_pair
-    br_state = forward_kinematics_state(br_model, q)
+    br_state = forward_kinematics(br_model, q)
     pin.forwardKinematics(pin_model, pin_data, q.numpy())
 
-    pose_br = br_state.joint_pose[2]
+    pose_br = br_state.joint_poses[2]
     np.testing.assert_allclose(
         pose_br[:3].numpy(),
         np.asarray(pin_data.oMi[pin_joint_id].translation),
@@ -145,7 +145,7 @@ def test_missing_joint_rnea_matches_pinocchio(missing_joint_pair):
     tau_br = (
         inverse_dynamics(
             br_model,
-            forward_kinematics_state(br_model, q),
+            forward_kinematics(br_model, q),
             v=v,
             a=acceleration,
         )

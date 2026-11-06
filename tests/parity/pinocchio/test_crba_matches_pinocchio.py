@@ -15,7 +15,7 @@ import pinocchio as pin
 import torch
 
 from better_robot.dynamics.state import inverse_dynamics, mass_matrix
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 
 from .conftest import sample_panda_q
 
@@ -29,7 +29,7 @@ def test_crba_matches_pinocchio(panda_both):
     qs = sample_panda_q(8, seed=0)
     for i in range(qs.shape[0]):
         q = qs[i]
-        M_br = mass_matrix(br_model, forward_kinematics_state(br_model, q)).detach().cpu().numpy()
+        M_br = mass_matrix(br_model, forward_kinematics(br_model, q)).detach().cpu().numpy()
         M_pin = np.asarray(pin.crba(pin_model, pin_data, q.numpy()))
         # Pinocchio fills only the upper triangle by default; mirror it.
         M_pin_full = np.triu(M_pin) + np.triu(M_pin, k=1).T
@@ -47,7 +47,7 @@ def test_armature_matches_pinocchio(panda_both):
     rng = torch.Generator().manual_seed(4)
     q = sample_panda_q(1, seed=4)[0]
     v, a = torch.rand(2, br_model.nv, generator=rng, dtype=torch.float64) - 0.5
-    state = forward_kinematics_state(br_model, q)
+    state = forward_kinematics(br_model, q)
     tau_pin = pin.rnea(pin_model, pin_data, q.numpy(), v.numpy(), a.numpy())
     np.testing.assert_allclose(
         inverse_dynamics(br_model, state, v=v, a=a).numpy(),
@@ -73,11 +73,11 @@ def test_crba_consistent_with_rnea(panda_both):
         v = (torch.rand(br_model.nv, generator=rng, dtype=torch.float64) - 0.5) * 2.0
         a = (torch.rand(br_model.nv, generator=rng, dtype=torch.float64) - 0.5) * 2.0
 
-        M = mass_matrix(br_model, forward_kinematics_state(br_model, q))
+        M = mass_matrix(br_model, forward_kinematics(br_model, q))
 
-        b = inverse_dynamics(br_model, forward_kinematics_state(br_model, q), v=v, a=torch.zeros_like(v))
+        b = inverse_dynamics(br_model, forward_kinematics(br_model, q), v=v, a=torch.zeros_like(v))
 
-        tau = inverse_dynamics(br_model, forward_kinematics_state(br_model, q), v=v, a=a)
+        tau = inverse_dynamics(br_model, forward_kinematics(br_model, q), v=v, a=a)
 
         lhs = (M @ a.unsqueeze(-1)).squeeze(-1) + b
         torch.testing.assert_close(lhs, tau, rtol=1e-10, atol=1e-10)
@@ -87,7 +87,7 @@ def test_crba_neutral_is_spd(panda_both):
     """``M(q_neutral)`` is symmetric positive-definite."""
     br_model, _, _, _ = panda_both
     q = br_model.q_neutral.clamp(br_model.lower_position_limit, br_model.upper_position_limit)
-    M = mass_matrix(br_model, forward_kinematics_state(br_model, q)).detach().cpu().double()
+    M = mass_matrix(br_model, forward_kinematics(br_model, q)).detach().cpu().double()
     # Symmetric:
     torch.testing.assert_close(M, M.transpose(-1, -2), rtol=1e-12, atol=1e-12)
     # Positive-definite (Cholesky succeeds):
@@ -98,7 +98,7 @@ def test_crba_batched(panda_both):
     """Batched CRBA matches a per-sample loop."""
     br_model, _, _, _ = panda_both
     qs = sample_panda_q(4, seed=3)  # (4, nq)
-    M_batch = mass_matrix(br_model, forward_kinematics_state(br_model, qs))
+    M_batch = mass_matrix(br_model, forward_kinematics(br_model, qs))
     for k in range(qs.shape[0]):
-        M_k = mass_matrix(br_model, forward_kinematics_state(br_model, qs[k]))
+        M_k = mass_matrix(br_model, forward_kinematics(br_model, qs[k]))
         torch.testing.assert_close(M_batch[k], M_k, rtol=1e-12, atol=1e-12)

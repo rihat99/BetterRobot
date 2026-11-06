@@ -23,7 +23,7 @@ TARGET_PIN_FRAME = "panda_hand"
 
 
 def _fk_both(br_model, pin_model, pin_data, q):
-    state = br.forward_kinematics_state(br_model, q)
+    state = br.forward_kinematics(br_model, q)
     q_pin = q.detach().cpu().double().numpy()
     pin.forwardKinematics(pin_model, pin_data, q_pin)
     pin.updateFramePlacements(pin_model, pin_data)
@@ -103,7 +103,7 @@ def test_frame_jacobian_batched_matches_pinocchio(
         br_model.nq,
     )
 
-    state = br.forward_kinematics_state(br_model, qs)
+    state = br.forward_kinematics(br_model, qs)
     br_fid = br_model.frame_id(TARGET_FRAME)
     pin_fid = pin_model.getFrameId(TARGET_PIN_FRAME)
     J_br = (

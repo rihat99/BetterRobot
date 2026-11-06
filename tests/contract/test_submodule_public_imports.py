@@ -140,7 +140,7 @@ SUBMODULE_PATHS: list[tuple[str, str]] = [
     ("better_robot.spatial", "validate_closed_manifold"),
     # kinematics
     ("better_robot.kinematics", "KinematicState"),
-    ("better_robot.kinematics", "forward_kinematics_state"),
+    ("better_robot.kinematics", "forward_kinematics"),
     ("better_robot.kinematics", "frame_jacobian"),
     ("better_robot.kinematics", "joint_jacobian"),
     ("better_robot.kinematics", "frame_jacobian_time_variation"),

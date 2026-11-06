@@ -85,8 +85,8 @@ def run(label: str, batches: tuple[int, ...], warmup: int, samples: int) -> dict
             a = torch.zeros_like(v)
 
             cases: tuple[tuple[str, Callable[[], object]], ...] = (
-                ("forward_kinematics", lambda: br.forward_kinematics_state(model, q)),
-                ("rnea", lambda: br.inverse_dynamics(model, br.forward_kinematics_state(model, q), v=v, a=a)),
+                ("forward_kinematics", lambda: br.forward_kinematics(model, q)),
+                ("rnea", lambda: br.inverse_dynamics(model, br.forward_kinematics(model, q), v=v, a=a)),
             )
             for operation, function in cases:
                 measurements.append(

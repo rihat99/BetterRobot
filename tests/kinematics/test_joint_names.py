@@ -9,7 +9,7 @@ from better_robot.exceptions import UnknownNameError
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics import (
-    forward_kinematics_state,
+    forward_kinematics,
     subtree,
     support,
     joint_jacobian,
@@ -31,7 +31,7 @@ def test_joint_names_match_ids() -> None:
     model = _two_link()
     q = torch.tensor([[0.3, -0.7]], dtype=torch.float64)
     v = torch.tensor([[0.2, 0.5]], dtype=torch.float64)
-    state = forward_kinematics_state(model, q)
+    state = forward_kinematics(model, q)
     joint = model.joint_id("j2")
     torch.testing.assert_close(joint_jacobian(model, state, joint="j2"), joint_jacobian(model, state, joint=joint))
     torch.testing.assert_close(

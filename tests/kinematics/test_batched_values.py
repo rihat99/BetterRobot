@@ -8,7 +8,7 @@ import torch
 from better_robot.exceptions import ShapeError
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
-from better_robot.kinematics import forward_kinematics_state, frame_jacobian
+from better_robot.kinematics import forward_kinematics, frame_jacobian
 
 
 def _pose(x: float = 0.0, y: float = 0.0) -> torch.Tensor:
@@ -58,18 +58,18 @@ def test_value_batched_fk_matches_scalar_loop(
     )
 
     def batched_call():
-        state = forward_kinematics_state(rebound, model.q_neutral)
+        state = forward_kinematics(rebound, model.q_neutral)
         assert state.q.shape[:-1] == batch_shape
-        assert state.frame_pose is not None
-        return state.joint_pose, state.frame_pose
+        assert state.frame_poses is not None
+        return state.joint_poses, state.frame_poses
 
     def loop_call(index: tuple[int, ...]):
         scalar = model.with_values(
             joint_placements=placements[index],
             frame_placements=frames[index],
         )
-        state = forward_kinematics_state(scalar, model.q_neutral)
-        return state.joint_pose, state.frame_pose
+        state = forward_kinematics(scalar, model.q_neutral)
+        return state.joint_poses, state.frame_poses
 
     value_batch_loop_oracle(
         batched_call,
@@ -89,12 +89,12 @@ def test_person_time_broadcast_requires_explicit_singleton_axis() -> None:
         ShapeError,
         match=r"cannot broadcast q batch \(2, 3\) with joint_placements batch \(2,\)",
     ):
-        forward_kinematics_state(model.with_values(joint_placements=placements), q)
+        forward_kinematics(model.with_values(joint_placements=placements), q)
 
     rebound = model.with_values(joint_placements=placements[:, None])
-    state = forward_kinematics_state(rebound, q)
+    state = forward_kinematics(rebound, q)
     assert state.q.shape == (2, 3, model.nq)
-    assert state.joint_pose.shape == (2, 3, model.njoints, 7)
+    assert state.joint_poses.shape == (2, 3, model.njoints, 7)
 
 
 def test_frame_only_batch_expands_data_and_jacobian_uses_frame_table() -> None:
@@ -102,14 +102,14 @@ def test_frame_only_batch_expands_data_and_jacobian_uses_frame_table() -> None:
     frames = model.frame_placements.repeat(2, 1, 1)
     frames[:, -1, 0] += torch.tensor([0.1, 0.4], dtype=frames.dtype)
     rebound = model.with_values(frame_placements=frames)
-    state = forward_kinematics_state(rebound, model.q_neutral)
+    state = forward_kinematics(rebound, model.q_neutral)
 
     assert state.q.shape[:-1] == (2,)
     assert state.q.shape == (2, model.nq)
-    assert state.frame_pose is not None
+    assert state.frame_poses is not None
     assert not torch.allclose(
-        state.frame_pose[0, -1],
-        state.frame_pose[1, -1],
+        state.frame_poses[0, -1],
+        state.frame_poses[1, -1],
     )
     jacobian = frame_jacobian(rebound, state, frame=rebound.frame_id("tip"))
     assert jacobian.shape == (2, 6, model.nv)
@@ -127,8 +127,8 @@ def test_batched_joint_placement_autograd_reaches_leaf() -> None:
     )
     placements = model.joint_placements + delta
     rebound = model.with_values(joint_placements=placements)
-    state = forward_kinematics_state(rebound, model.q_neutral)
-    loss = state.joint_pose[..., 2, :3].square().sum()
+    state = forward_kinematics(rebound, model.q_neutral)
+    loss = state.joint_poses[..., 2, :3].square().sum()
     loss.backward()
 
     assert delta.grad is not None

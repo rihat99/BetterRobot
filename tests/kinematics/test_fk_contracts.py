@@ -1,4 +1,4 @@
-"""Contracts for the batched forward-kinematics pass behind ``forward_kinematics_state``.
+"""Contracts for the batched forward-kinematics pass behind ``forward_kinematics``.
 
 Parity against a hand-computed chain, the canonical-sign quaternion property,
 ``torch.func`` (jacrev/jacfwd) agreement on a mixed-kind model, batched
@@ -16,7 +16,7 @@ import torch
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.lie import so3
-from better_robot.kinematics import forward_kinematics_state, integrate
+from better_robot.kinematics import forward_kinematics, integrate
 
 
 def _pose(x: float = 0.0, y: float = 0.0, z: float = 0.0) -> torch.Tensor:
@@ -62,12 +62,12 @@ def test_matrix_fk_matches_hand_computed_two_link_chain() -> None:
 
     theta1, theta2 = 0.5, -0.7
     q = torch.tensor([theta1, theta2], dtype=torch.float32)
-    result = forward_kinematics_state(model, q)
+    result = forward_kinematics(model, q)
 
     j1 = model.joint_id("j1")
     j2 = model.joint_id("j2")
-    world1 = result.joint_pose[j1]
-    world2 = result.joint_pose[j2]
+    world1 = result.joint_poses[j1]
+    world2 = result.joint_poses[j2]
 
     torch.testing.assert_close(world1[:3], torch.tensor([0.2, 0.0, 0.0]), atol=1e-5, rtol=1e-5)
     torch.testing.assert_close(so3.to_matrix(world1[3:7]), _rot_z(theta1), atol=1e-5, rtol=1e-5)
@@ -90,9 +90,9 @@ def test_matrix_fk_emits_canonical_sign_quaternions() -> None:
     # Large tangents so world rotations exceed the qw>0 hemisphere and exercise
     # multiple Shepperd branches / sign flips.
     q = _random_config(model, batch=(8,), scale=2.5, seed=3)
-    result = forward_kinematics_state(model, q)
+    result = forward_kinematics(model, q)
 
-    for poses in (result.joint_pose, result.frame_pose):
+    for poses in (result.joint_poses, result.frame_poses):
         quaternion = poses[..., 3:7]
         canonical = so3.from_matrix(so3.to_matrix(quaternion))
         torch.testing.assert_close(quaternion, canonical, atol=1e-5, rtol=1e-5)
@@ -106,8 +106,8 @@ def test_matrix_fk_jacrev_equals_jacfwd_on_mixed_kinds() -> None:
     q = _random_config(model, scale=1.0, seed=5)
 
     def scalar(config: torch.Tensor) -> torch.Tensor:
-        result = forward_kinematics_state(model, config)
-        return result.joint_pose.sum() + result.frame_pose.sum()
+        result = forward_kinematics(model, config)
+        return result.joint_poses.sum() + result.frame_poses.sum()
 
     reverse = torch.func.jacrev(scalar)(q)
     forward = torch.func.jacfwd(scalar)(q)
@@ -127,18 +127,18 @@ def test_matrix_fk_batched_joint_placements_forward_and_grad() -> None:
     batched_placements = model.joint_placements.unsqueeze(0) + offsets
 
     placements = batched_placements.detach().clone().requires_grad_()
-    result = forward_kinematics_state(model.with_values(joint_placements=placements), q)
-    assert result.joint_pose.shape == (batch, njoints, 7)
+    result = forward_kinematics(model.with_values(joint_placements=placements), q)
+    assert result.joint_poses.shape == (batch, njoints, 7)
 
-    gradient = torch.autograd.grad(result.joint_pose.sum(), placements)[0]
+    gradient = torch.autograd.grad(result.joint_poses.sum(), placements)[0]
     assert gradient.shape == (batch, njoints, 7)
     assert torch.isfinite(gradient).all()
 
     for index in range(batch):
-        element = forward_kinematics_state(model.with_values(joint_placements=batched_placements[index]), q[index])
+        element = forward_kinematics(model.with_values(joint_placements=batched_placements[index]), q[index])
         torch.testing.assert_close(
-            result.joint_pose[index],
-            element.joint_pose,
+            result.joint_poses[index],
+            element.joint_poses,
             atol=1e-5,
             rtol=1e-5,
         )

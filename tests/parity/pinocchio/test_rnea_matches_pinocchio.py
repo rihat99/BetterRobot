@@ -8,7 +8,7 @@ import pytest
 import torch
 
 from better_robot.dynamics.state import inverse_dynamics
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 
 from .conftest import sample_panda_q
 
@@ -62,7 +62,7 @@ def test_rnea_gravity_matches_pinocchio(panda_both, i):
     zeros_v = torch.zeros(br_model.nv, dtype=torch.float64)
 
     tau_br = (
-        inverse_dynamics(br_model, forward_kinematics_state(br_model, q), v=zeros_v, a=zeros_v).detach().cpu().numpy()
+        inverse_dynamics(br_model, forward_kinematics(br_model, q), v=zeros_v, a=zeros_v).detach().cpu().numpy()
     )
     tau_pin = np.asarray(pin.computeGeneralizedGravity(pin_model, pin_data, q.detach().cpu().numpy()))
     np.testing.assert_allclose(tau_br, tau_pin, atol=1e-10, rtol=_RTOL)
@@ -76,7 +76,7 @@ def test_rnea_bias_matches_pinocchio(panda_both, i):
     v = _random_v(br_model.nv, seed=100 + i)
 
     tau_br = (
-        inverse_dynamics(br_model, forward_kinematics_state(br_model, q), v=v, a=torch.zeros_like(v))
+        inverse_dynamics(br_model, forward_kinematics(br_model, q), v=v, a=torch.zeros_like(v))
         .detach()
         .cpu()
         .numpy()
@@ -93,7 +93,7 @@ def test_rnea_full_matches_pinocchio(panda_both, i):
     v = _random_v(br_model.nv, seed=200 + i)
     a = _random_v(br_model.nv, seed=300 + i)
 
-    tau_br = inverse_dynamics(br_model, forward_kinematics_state(br_model, q), v=v, a=a).detach().cpu().numpy()
+    tau_br = inverse_dynamics(br_model, forward_kinematics(br_model, q), v=v, a=a).detach().cpu().numpy()
     tau_pin = np.asarray(
         pin.rnea(pin_model, pin_data, q.detach().cpu().numpy(), v.detach().cpu().numpy(), a.detach().cpu().numpy())
     )
@@ -110,7 +110,7 @@ def test_rnea_with_fext_matches_pinocchio(panda_both, i):
     br_fext, fext_pin = _random_matched_fext(br_model, pin_model, seed=600 + i)
 
     tau_br = (
-        inverse_dynamics(br_model, forward_kinematics_state(br_model, q), v=v, a=a, fext=br_fext).detach().cpu().numpy()
+        inverse_dynamics(br_model, forward_kinematics(br_model, q), v=v, a=a, fext=br_fext).detach().cpu().numpy()
     )
 
     tau_pin = np.asarray(
@@ -128,8 +128,8 @@ def test_rnea_bias_forces_matches_rnea_zero_accel(panda_both):
     v = _random_v(br_model.nv, seed=42)
     zeros_v = torch.zeros_like(v)
 
-    tau_bias = inverse_dynamics(br_model, forward_kinematics_state(br_model, q), v=v, a=torch.zeros_like(v))
-    tau_rnea = inverse_dynamics(br_model, forward_kinematics_state(br_model, q), v=v, a=zeros_v)
+    tau_bias = inverse_dynamics(br_model, forward_kinematics(br_model, q), v=v, a=torch.zeros_like(v))
+    tau_rnea = inverse_dynamics(br_model, forward_kinematics(br_model, q), v=v, a=zeros_v)
 
     assert torch.allclose(tau_bias, tau_rnea, atol=1e-12)
 
@@ -141,10 +141,10 @@ def test_rnea_batched(panda_both):
     vs = torch.stack([_random_v(br_model.nv, s) for s in (10, 11, 12)])
     as_ = torch.stack([_random_v(br_model.nv, s) for s in (20, 21, 22)])
 
-    tau_batch = inverse_dynamics(br_model, forward_kinematics_state(br_model, qs), v=vs, a=as_)
+    tau_batch = inverse_dynamics(br_model, forward_kinematics(br_model, qs), v=vs, a=as_)
 
     for k in range(3):
-        tau_k = inverse_dynamics(br_model, forward_kinematics_state(br_model, qs[k]), v=vs[k], a=as_[k])
+        tau_k = inverse_dynamics(br_model, forward_kinematics(br_model, qs[k]), v=vs[k], a=as_[k])
         assert torch.allclose(tau_batch[k], tau_k, atol=1e-12), f"mismatch at batch {k}"
 
 
@@ -160,7 +160,7 @@ def test_rnea_full_fp32_matches_pinocchio(panda_both):
         tau_br = (
             inverse_dynamics(
                 br_model,
-                forward_kinematics_state(br_model, q),
+                forward_kinematics(br_model, q),
                 v=v,
                 a=a,
             )
@@ -187,7 +187,7 @@ def test_rnea_autograd_runs(panda_both):
     v = _random_v(br_model.nv, seed=3).requires_grad_(True)
     a = _random_v(br_model.nv, seed=4).requires_grad_(True)
 
-    tau = inverse_dynamics(br_model, forward_kinematics_state(br_model, q), v=v, a=a)
+    tau = inverse_dynamics(br_model, forward_kinematics(br_model, q), v=v, a=a)
     loss = tau.pow(2).sum()
     loss.backward()
 

@@ -7,7 +7,7 @@ import torch
 
 import better_robot as br
 from better_robot.dynamics.state import centroidal_map, forward_dynamics, inverse_dynamics, mass_matrix
-from better_robot.kinematics.state import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 from tests.support.robots import g1_urdf
 
 
@@ -28,7 +28,7 @@ def _inputs(model: br.Model, batch: tuple[int, ...], seed: int = 0):
 def test_forward_dynamics_inverts_inverse_dynamics_with_leading_batch_axes(g1: br.Model) -> None:
     q, v, fext = _inputs(g1, (2, 3))
     a = torch.randn(2, 3, g1.nv, dtype=torch.float64)
-    state = forward_kinematics_state(g1, q)
+    state = forward_kinematics(g1, q)
     tau = inverse_dynamics(g1, state, v=v, a=a, fext=fext)
     assert tau.shape == (2, 3, g1.nv)
     torch.testing.assert_close(forward_dynamics(g1, state, v=v, tau=tau, fext=fext), a, rtol=1e-9, atol=1e-9)
@@ -37,7 +37,7 @@ def test_forward_dynamics_inverts_inverse_dynamics_with_leading_batch_axes(g1: b
 def test_mass_matrix_is_the_acceleration_jacobian_of_inverse_dynamics(g1: br.Model) -> None:
     # The mass matrix comes from composite inertias, the torque from body wrenches: two formulas.
     q, v, _ = _inputs(g1, (2,), seed=1)
-    state = forward_kinematics_state(g1, q)
+    state = forward_kinematics(g1, q)
     mass = mass_matrix(g1, state)
     torch.testing.assert_close(mass, mass.mT, rtol=0, atol=1e-12)
     assert (torch.linalg.eigvalsh(mass) > 0).all()
@@ -55,7 +55,7 @@ def test_inverse_dynamics_gradcheck_through_the_state(g1: br.Model) -> None:
     a = torch.randn(1, g1.nv, dtype=torch.float64)
 
     def function(q_: torch.Tensor, v_: torch.Tensor, a_: torch.Tensor) -> torch.Tensor:
-        return inverse_dynamics(g1, forward_kinematics_state(g1, q_), v=v_, a=a_, fext=fext)
+        return inverse_dynamics(g1, forward_kinematics(g1, q_), v=v_, a=a_, fext=fext)
 
     # q is a point on the free-flyer manifold; gradcheck perturbs it in the ambient space, which
     # is fine for finite differences of a smooth map.
@@ -67,9 +67,9 @@ def test_float32_accuracy_does_not_depend_on_distance_from_the_world_origin(g1: 
     q, v, _ = _inputs(g1, (4,), seed=3)
     q = q.clone()
     q[:, :3] += torch.tensor([100.0, 50.0, 0.8], dtype=torch.float64)
-    reference = mass_matrix(g1, forward_kinematics_state(g1, q))
+    reference = mass_matrix(g1, forward_kinematics(g1, q))
     g1_32 = g1.to(dtype=torch.float32)
-    mass = mass_matrix(g1_32, forward_kinematics_state(g1_32, q.float()))
+    mass = mass_matrix(g1_32, forward_kinematics(g1_32, q.float()))
     assert (torch.linalg.eigvalsh(mass) > 0).all()
     assert ((mass.double() - reference).abs().max() / reference.abs().max()) < 1e-5
 
@@ -77,13 +77,13 @@ def test_float32_accuracy_does_not_depend_on_distance_from_the_world_origin(g1: 
 def test_state_reuse_sees_the_inertias_of_another_model(g1: br.Model) -> None:
     q, v, _ = _inputs(g1, (1,), seed=4)
     a = torch.zeros(1, g1.nv, dtype=torch.float64)
-    state = forward_kinematics_state(g1, q)
+    state = forward_kinematics(g1, q)
     before = inverse_dynamics(g1, state, v=v, a=a)
     doubled_mass = g1.body_inertias * torch.tensor([2.0] + [1.0] * 9, dtype=torch.float64)
     heavier = g1.with_values(body_inertias=doubled_mass)
     edited = inverse_dynamics(heavier, state, v=v, a=a)
     assert not torch.allclose(edited, before)
-    torch.testing.assert_close(edited, inverse_dynamics(heavier, forward_kinematics_state(heavier, q), v=v, a=a))
+    torch.testing.assert_close(edited, inverse_dynamics(heavier, forward_kinematics(heavier, q), v=v, a=a))
     torch.testing.assert_close(inverse_dynamics(g1, state, v=v, a=a), before)
 
 
@@ -93,7 +93,7 @@ def test_armature_adds_to_the_torque_and_the_mass_matrix_diagonal(g1: br.Model) 
     a = torch.randn(2, 3, g1.nv, dtype=torch.float64, generator=generator)
     armature = torch.cat((torch.zeros(6), 0.03 * torch.rand(g1.nv - 6, generator=generator))).double()  # free flyer: 0
     geared = g1.with_values(armature=armature)
-    state = forward_kinematics_state(g1, q)
+    state = forward_kinematics(g1, q)
     tau = inverse_dynamics(geared, state, v=v, a=a, fext=fext)
     torch.testing.assert_close(tau, inverse_dynamics(g1, state, v=v, a=a, fext=fext) + armature * a)
     mass = mass_matrix(geared, state)

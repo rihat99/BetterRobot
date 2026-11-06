@@ -25,7 +25,7 @@ import torch
 from torch.profiler import ProfilerActivity, profile
 
 import better_robot as br
-from better_robot.kinematics import forward_kinematics_state, frame_jacobian
+from better_robot.kinematics import forward_kinematics, frame_jacobian
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 
@@ -33,8 +33,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DTYPE = torch.float32
 ROW_BUDGET_S = 2.0
 WARMUP = 1  # one warm-up call (plan caches); the profiled call is a second warm-up before timing
-# Library Jacobian benchmarked: forward_kinematics_state + frame_jacobian(last frame, "local_world_aligned").
-JACOBIAN_FN = "frame_jacobian(model, forward_kinematics_state(model, q), frame=nframes-1)"
+# Library Jacobian benchmarked: forward_kinematics + frame_jacobian(last frame, "local_world_aligned").
+JACOBIAN_FN = "frame_jacobian(model, forward_kinematics(model, q), frame=nframes-1)"
 
 
 def urdf_path(name: str) -> str:
@@ -91,21 +91,21 @@ def algo_fn(algo: str, model: br.Model, inputs: dict[str, torch.Tensor]) -> Call
     """Return ``f(q) -> tensor`` for one library algorithm; v / a / tau are held fixed."""
     v, a, tau = inputs["v"], inputs["a"], inputs["tau"]
     if algo == "fk":
-        return lambda q: forward_kinematics_state(model, q).joint_pose
+        return lambda q: forward_kinematics(model, q).joint_poses
     if algo == "jacobian":
         frame_id = model.nframes - 1
-        return lambda q: frame_jacobian(model, forward_kinematics_state(model, q), frame=frame_id)
+        return lambda q: frame_jacobian(model, forward_kinematics(model, q), frame=frame_id)
     if algo == "fk_state":
-        return lambda q: forward_kinematics_state(model, q).joint_transform
+        return lambda q: forward_kinematics(model, q).joint_transforms
     if algo == "jacobian_state":
         frame_id = model.nframes - 1
-        return lambda q: frame_jacobian(model, forward_kinematics_state(model, q), frame=frame_id)
+        return lambda q: frame_jacobian(model, forward_kinematics(model, q), frame=frame_id)
     if algo == "rnea":
-        return lambda q: br.inverse_dynamics(model, forward_kinematics_state(model, q), v=v, a=a)
+        return lambda q: br.inverse_dynamics(model, forward_kinematics(model, q), v=v, a=a)
     if algo == "crba":
-        return lambda q: br.mass_matrix(model, forward_kinematics_state(model, q))
+        return lambda q: br.mass_matrix(model, forward_kinematics(model, q))
     if algo == "aba":
-        return lambda q: br.forward_dynamics(model, forward_kinematics_state(model, q), v=v, tau=tau)
+        return lambda q: br.forward_dynamics(model, forward_kinematics(model, q), v=v, tau=tau)
     raise ValueError(f"unknown algo {algo!r}")
 
 

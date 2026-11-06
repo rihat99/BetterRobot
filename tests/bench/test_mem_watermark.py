@@ -16,7 +16,7 @@ pytestmark = [pytest.mark.bench, pytest.mark.slow]
 
 
 def test_solve_ik_peak_memory(panda, panda_state) -> None:
-    target = panda_state.frame_pose[panda.frame_id(panda.frame_names[-1])].clone()
+    target = panda_state.frame_poses[panda.frame_id(panda.frame_names[-1])].clone()
     target[..., 0] += 0.02
     before = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     _ = solve_ik(panda, {panda.frame_names[-1]: target[None]}, q0=panda.q_neutral[None])

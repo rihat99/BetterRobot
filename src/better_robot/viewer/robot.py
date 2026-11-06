@@ -106,16 +106,16 @@ class RobotView:
             self.spheres.centers[:] = centers
 
     def _kinematics(self, q: torch.Tensor) -> tuple[np.ndarray, np.ndarray | None, np.ndarray | None]:
-        from ..kinematics.state import forward_kinematics_state  # noqa: PLC0415 - keep the core import-light
+        from ..kinematics import forward_kinematics  # noqa: PLC0415 - keep the core import-light
 
         if q.ndim == 1:
             q = q[None]
         if q.ndim != 2:
             raise ValueError("q must be (T, nq) or (nq,)")
         with torch.no_grad():
-            state = forward_kinematics_state(self.model, q)
-            joint_poses = state.joint_pose.cpu().numpy().astype(np.float32)
-            frame_poses = state.frame_pose[:, self.frame_ids].cpu().numpy() if self.frame_ids else None
+            state = forward_kinematics(self.model, q)
+            joint_poses = state.joint_poses.cpu().numpy().astype(np.float32)
+            frame_poses = state.frame_poses[:, self.frame_ids].cpu().numpy() if self.frame_ids else None
             centers = self.sphere_model.centers(state).cpu().numpy() if self.sphere_model is not None else None
         return joint_poses, frame_poses, centers
 
@@ -245,11 +245,11 @@ def spread_offsets(
     axes, unless a marker must clear its own mirror image or the second rule meets an axis whose largest component
     is normal to that plane.
     """
-    from ..kinematics.state import forward_kinematics_state  # noqa: PLC0415 - keep the core import-light
+    from ..kinematics import forward_kinematics  # noqa: PLC0415 - keep the core import-light
 
     kinds, axes = skeleton_spec(model)
     with torch.no_grad():
-        poses = forward_kinematics_state(model, model.q_neutral).joint_pose[1:].cpu().numpy().astype(np.float64)
+        poses = forward_kinematics(model, model.q_neutral).joint_poses[1:].cpu().numpy().astype(np.float64)
     origins = poses[:, :3]
     directions = rotate(poses[:, 3:], axes.astype(np.float64))
     # Tie sign: the axis's largest component in the root joint's frame positive (rounded, so mirror images agree).

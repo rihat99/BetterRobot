@@ -34,7 +34,7 @@ PANDA_TARGET_JOINTS = ["panda_joint1", "panda_joint4", "panda_joint7"]
 
 
 def _fk_both(br_model, pin_model, pin_data, q):
-    state = br.forward_kinematics_state(br_model, q)
+    state = br.forward_kinematics(br_model, q)
     q_pin = q.detach().cpu().double().numpy()
     pin.forwardKinematics(pin_model, pin_data, q_pin)
     pin.computeJointJacobians(pin_model, pin_data, q_pin)
@@ -71,7 +71,7 @@ def test_joint_jacobian_batched_matches_pinocchio(panda_both, batch_shape, refer
     br_model, pin_model, pin_data, _ = panda_both
     qs = sample_panda_q(n=int(np.prod(batch_shape)), seed=31).reshape(*batch_shape, br_model.nq)
 
-    state = br.forward_kinematics_state(br_model, qs)
+    state = br.forward_kinematics(br_model, qs)
     br_jid = br_model.joint_id("panda_joint7")
     pin_jid = pin_model.getJointId("panda_joint7")
     J_br = joint_jacobian(br_model, state, joint=br_jid, reference=reference).detach().cpu().numpy()
@@ -111,7 +111,7 @@ def test_joint_jacobian_free_flyer_matches_pinocchio(g1_both, reference, pin_ref
     br_model, pin_model, pin_data = g1_both
     q = _sample_g1_q(br_model, seed=7)
 
-    state = br.forward_kinematics_state(br_model, q)
+    state = br.forward_kinematics(br_model, q)
     q_pin = q.detach().cpu().numpy()
     pin.forwardKinematics(pin_model, pin_data, q_pin)
     pin.computeJointJacobians(pin_model, pin_data, q_pin)
@@ -140,7 +140,7 @@ def test_joint_jacobian_spherical_matches_pinocchio():
     br_model, pin_model, pin_data = _build_spherical_chain()
     q = _sample_spherical_q(seed=11)
 
-    state = br.forward_kinematics_state(br_model, q)
+    state = br.forward_kinematics(br_model, q)
     q_pin = q.detach().cpu().numpy()
     pin.forwardKinematics(pin_model, pin_data, q_pin)
     pin.computeJointJacobians(pin_model, pin_data, q_pin)

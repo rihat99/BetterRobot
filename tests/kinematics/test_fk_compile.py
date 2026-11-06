@@ -1,4 +1,4 @@
-"""Compilation and opt-in validation contracts for forward kinematics."""
+"""The public forward kinematics traces as one graph; its quaternion check is opt-in."""
 
 from __future__ import annotations
 
@@ -10,8 +10,7 @@ from better_robot.dynamics.state import inverse_dynamics, mass_matrix
 from better_robot.exceptions import QuaternionNormError
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
-from better_robot.kinematics import forward_kinematics_state, full_configuration
-from better_robot.kinematics._fk import lean_core, placement_matrices
+from better_robot.kinematics import forward_kinematics
 from tests.support.robots import panda_urdf
 
 
@@ -27,33 +26,24 @@ def free_flyer_model():
     return build_model(builder.finalize())
 
 
-def test_free_flyer_fk_kernel_compiles_fullgraph(free_flyer_model):
-    """The FK kernel under ``forward_kinematics_state`` traces as one graph (the public wrapper validates and caches)."""
+def test_free_flyer_fk_compiles_fullgraph(free_flyer_model):
+    """The public wrapper (validation, memoised placements, the kernel) traces as one graph for a quaternion joint."""
+    torch._dynamo.reset()
     q = free_flyer_model.q_neutral.unsqueeze(0).expand(2, -1).clone()
-    q_full = full_configuration(free_flyer_model, q)
-    placements, _ = placement_matrices(free_flyer_model)
-    expected_world, expected_local = lean_core(free_flyer_model, q_full, placements)
-    compiled_core = torch.compile(lean_core, fullgraph=True)
-    actual_world, actual_local = compiled_core(free_flyer_model, q_full, placements)
-
-    torch.testing.assert_close(actual_world, expected_world)
-    torch.testing.assert_close(actual_local, expected_local)
-    torch.testing.assert_close(forward_kinematics_state(free_flyer_model, q).joint_transform, expected_world)
+    expected = forward_kinematics(free_flyer_model, q)
+    actual = torch.compile(lambda q: forward_kinematics(free_flyer_model, q).joint_transforms, fullgraph=True)(q)
+    torch.testing.assert_close(actual, expected.joint_transforms)
 
 
-def test_free_flyer_quaternion_norm_check_is_opt_in(free_flyer_model):
+def test_quaternion_norm_check_is_opt_in(free_flyer_model):
     q = free_flyer_model.q_neutral.clone()
     q[3:7] = 0.0
 
     # The default public path trusts the pre-normalized-input contract.
-    forward_kinematics_state(free_flyer_model, q)
+    forward_kinematics(free_flyer_model, q)
 
     with pytest.raises(QuaternionNormError, match="quaternion norm"):
-        forward_kinematics_state(
-            free_flyer_model,
-            q,
-            check_quaternion_norm=True,
-        )
+        forward_kinematics(free_flyer_model, q, check_quaternion_norm=True)
 
 
 @pytest.fixture(scope="module")
@@ -62,20 +52,20 @@ def panda64():
 
 
 def _fk(model, q):
-    return forward_kinematics_state(model, q).joint_transform
+    return forward_kinematics(model, q).joint_transforms
 
 
 def _rnea(model, q, v, a):
-    return inverse_dynamics(model, forward_kinematics_state(model, q), v=v, a=a)
+    return inverse_dynamics(model, forward_kinematics(model, q), v=v, a=a)
 
 
 def _crba(model, q):
-    return mass_matrix(model, forward_kinematics_state(model, q))
+    return mass_matrix(model, forward_kinematics(model, q))
 
 
 @pytest.mark.parametrize("fn", [_fk, _rnea, _crba], ids=["fk", "rnea", "crba"])
 def test_public_fk_rnea_crba_compile_fullgraph(panda64, fn):
-    """Public FK, RNEA and CRBA trace as one graph (placement/inertia caches step aside) and match eager."""
+    """Public FK, RNEA and CRBA trace as one graph (the memos step aside) and match eager."""
     torch._dynamo.reset()
     generator = torch.Generator().manual_seed(0)
     nv = panda64.nv

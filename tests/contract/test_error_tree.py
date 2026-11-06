@@ -17,7 +17,7 @@ import torch
 from better_robot import exceptions as exc
 from better_robot.io import ModelBuilder, build_model, load
 from better_robot.io.build_model import _check_topology_invariants
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 
 SRC = Path(__file__).resolve().parents[2] / "src" / "better_robot"
 BASES: dict[type, type] = {
@@ -95,7 +95,7 @@ def free_flyer_model():
 @pytest.mark.parametrize("batch_shape, extra", [((), 3), ((4,), 1)], ids=["unbatched", "batched"])
 def test_wrong_nq_raises_shape_error(arm_model, batch_shape, extra) -> None:
     with pytest.raises(exc.ShapeError):
-        forward_kinematics_state(arm_model, torch.zeros(*batch_shape, arm_model.nq + extra))
+        forward_kinematics(arm_model, torch.zeros(*batch_shape, arm_model.nq + extra))
 
 
 def test_unknown_name_lists_the_valid_names(arm_model) -> None:
@@ -110,7 +110,7 @@ def test_unknown_name_lists_the_valid_names(arm_model) -> None:
 @pytest.mark.cuda
 def test_device_mismatch_between_a_cpu_model_and_a_cuda_configuration(arm_model) -> None:
     with pytest.raises(exc.DeviceMismatchError, match="device"):
-        forward_kinematics_state(arm_model, torch.zeros(arm_model.nq, device="cuda"))
+        forward_kinematics(arm_model, torch.zeros(arm_model.nq, device="cuda"))
 
 
 def test_id_out_of_range_raises_argument_error(arm_model) -> None:
@@ -122,12 +122,12 @@ def test_quaternion_norm_is_checked_only_on_request(free_flyer_model, arm_model)
     q = free_flyer_model.q_neutral.clone()
     q[3:7] = 0.0
     with pytest.raises(exc.QuaternionNormError, match="quaternion norm"):
-        forward_kinematics_state(free_flyer_model, q, check_quaternion_norm=True)
-    forward_kinematics_state(free_flyer_model, q)
+        forward_kinematics(free_flyer_model, q, check_quaternion_norm=True)
+    forward_kinematics(free_flyer_model, q)
     drifted = free_flyer_model.q_neutral.clone()
     drifted[3:7] *= 1.02
-    forward_kinematics_state(free_flyer_model, drifted, check_quaternion_norm=True)
-    forward_kinematics_state(arm_model, arm_model.q_neutral, check_quaternion_norm=True)
+    forward_kinematics(free_flyer_model, drifted, check_quaternion_norm=True)
+    forward_kinematics(arm_model, arm_model.q_neutral, check_quaternion_norm=True)
 
 
 @pytest.mark.parametrize(

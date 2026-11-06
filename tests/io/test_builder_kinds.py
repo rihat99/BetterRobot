@@ -10,7 +10,7 @@ import pytest
 import torch
 
 from better_robot.io import ModelBuilder, build_model
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 from better_robot.lie import se3
 from better_robot.model.joints import (
     JointFixed,
@@ -28,9 +28,9 @@ from better_robot.model.manifolds import EUCLIDEAN, Manifold
 
 
 def _assert_fk_runs(model) -> None:
-    state = forward_kinematics_state(model, model.q_neutral)
-    assert state.joint_pose.shape == (model.njoints, 7)
-    assert torch.isfinite(state.joint_pose).all()
+    state = forward_kinematics(model, model.q_neutral)
+    assert state.joint_poses.shape == (model.njoints, 7)
+    assert torch.isfinite(state.joint_poses).all()
     assert model.lower_position_limit.shape == (model.nq,)
     assert model.upper_position_limit.shape == (model.nq,)
     assert model.velocity_limit.shape == (model.nv,)
@@ -162,9 +162,9 @@ def test_custom_kind_runs_through_fk():
     builder.add_joint("joint", kind=_Slider(), parent=base, child=tip)
     model = build_model(builder.finalize())
 
-    state = forward_kinematics_state(model, torch.tensor([0.4]))
+    state = forward_kinematics(model, torch.tensor([0.4]))
 
-    assert state.joint_pose[2, 2].item() == pytest.approx(-0.4)
+    assert state.joint_poses[2, 2].item() == pytest.approx(-0.4)
 
 
 def test_named_helical_preserves_pitch_in_fk():
@@ -181,7 +181,7 @@ def test_named_helical_preserves_pitch_in_fk():
     model = build_model(builder.finalize())
 
     q = torch.tensor([0.4])
-    state = forward_kinematics_state(model, q)
+    state = forward_kinematics(model, q)
 
     assert model.joints[2] == JointHelical(axis=(0.0, 0.0, 1.0), pitch=0.25)
-    assert state.joint_pose[2, 2].item() == pytest.approx(0.1)
+    assert state.joint_poses[2, 2].item() == pytest.approx(0.1)

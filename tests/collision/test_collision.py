@@ -5,7 +5,7 @@ import torch
 
 import better_robot as br
 from better_robot import collision, optim, terms
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 from tests.support.robots import g1_urdf, panda_urdf
 
 DT = torch.float64
@@ -121,10 +121,10 @@ def test_centers_match_manual_fk_and_pairs(panda):
     q = panda.lower_position_limit + torch.rand(5, panda.nq, dtype=DT) * (
         panda.upper_position_limit - panda.lower_position_limit
     )
-    state = forward_kinematics_state(panda, q)
+    state = forward_kinematics(panda, q)
     centers = spheres.centers(state)
     for s, frame in enumerate(spheres.frame_ids.tolist()):
-        transform = state.frame_transform[:, frame]
+        transform = state.frame_transforms[:, frame]
         manual = transform[..., :3] @ spheres.offsets[s] + transform[..., 3]
         assert torch.allclose(centers[:, s], manual)
     pairs = collision.self_collision_pairs(panda, spheres)
@@ -161,7 +161,7 @@ def test_terms_pass_check_jacobian(panda):
     problem = optim.Problem({"q": q}, manifolds={"q": terms.RobotManifold(panda)}, time=("q",))
     problem.cached(terms.kinematic_state(panda), name="state")
     world = terms.sphere_clearance(spheres, to_obstacle, margin=2.0)
-    assert world.fn(forward_kinematics_state(panda, q)).shape == (1, 6, 4)
+    assert world.fn(forward_kinematics(panda, q)).shape == (1, 6, 4)
     problem.residual("world", world, window=1)
     pairs = collision.self_collision_pairs(panda, spheres)
     problem.residual("self", terms.self_clearance(spheres, pairs=pairs, margin=2.0), window=1)
@@ -184,7 +184,7 @@ def test_spheres_to_and_batched_offsets(panda):
     assert spheres.to(device="cpu", dtype=DT).offsets.dtype == DT
     # Per-sample offsets (B, S, 3) broadcast against a (B,) state: sample b uses its own offsets.
     q = 0.3 * _randn(2, panda.nq, seed=3)
-    state = forward_kinematics_state(panda, q)
+    state = forward_kinematics(panda, q)
     offsets = torch.stack([spheres.offsets, spheres.offsets + 0.1])
     batched = collision.RobotSpheres(frame_ids=spheres.frame_ids, offsets=offsets, radii=spheres.radii)
     centers = batched.centers(state)
@@ -276,10 +276,10 @@ def test_g1_capsules_pose_pair_and_overlap_where_the_meshes_do():
     capsules = collision.RobotCapsules.from_frames(g1, G1_CAPSULES)
     names = [g1.frame_names[frame].removeprefix("body_") for frame in capsules.frame_ids.tolist()]
     q = torch.stack([g1.random_configuration(generator=torch.Generator().manual_seed(seed)) for seed in range(3)])
-    state = forward_kinematics_state(g1, q)
+    state = forward_kinematics(g1, q)
     starts, ends = capsules.segments(state)
     for c, frame in enumerate(capsules.frame_ids.tolist()):
-        transform = state.frame_transform[:, frame]
+        transform = state.frame_transforms[:, frame]
         assert torch.allclose(starts[:, c], transform[..., :3] @ capsules.starts[c] + transform[..., 3])
         assert torch.allclose(ends[:, c], transform[..., :3] @ capsules.ends[c] + transform[..., 3])
     pairs = collision.self_collision_pairs(g1, capsules)
@@ -288,7 +288,7 @@ def test_g1_capsules_pose_pair_and_overlap_where_the_meshes_do():
     assert ("torso_link", "torso_link") not in named and ("left_hip_roll_link", "left_hip_yaw_link") not in named
     assert ("left_elbow_link", "left_wrist_pitch_link") in named and ("pelvis", "left_hip_yaw_link") in named
     assert collision.self_capsule_distances(capsules, state, pairs=pairs).shape == (3, pairs.shape[0])
-    neutral = collision.self_capsule_distances(capsules, forward_kinematics_state(g1, g1.q_neutral), pairs=pairs)
+    neutral = collision.self_capsule_distances(capsules, forward_kinematics(g1, g1.q_neutral), pairs=pairs)
     overlapping = {(names[i], names[j]) for (i, j), d in zip(pairs.tolist(), neutral.tolist()) if d < 0}
     assert overlapping == {
         ("pelvis", "left_hip_roll_link"),
@@ -319,10 +319,10 @@ def test_cuda_backward_is_bitwise_reproducible():
     q[:, 7:] += 0.3 * randn(64, g1.nq - 7)
     v, a = randn(64, g1.nv), randn(64, g1.nv)
     cases = {
-        "centers": (lambda q: spheres.centers(forward_kinematics_state(g1, q)).square().sum(), (q,)),
-        "segments": (lambda q: sum(s.square().sum() for s in capsules.segments(forward_kinematics_state(g1, q))), (q,)),
+        "centers": (lambda q: spheres.centers(forward_kinematics(g1, q)).square().sum(), (q,)),
+        "segments": (lambda q: sum(s.square().sum() for s in capsules.segments(forward_kinematics(g1, q))), (q,)),
         "inverse_dynamics": (
-            lambda q, v, a: br.inverse_dynamics(g1, forward_kinematics_state(g1, q), v=v, a=a).square().sum(),
+            lambda q, v, a: br.inverse_dynamics(g1, forward_kinematics(g1, q), v=v, a=a).square().sum(),
             (q, v, a),
         ),
     }

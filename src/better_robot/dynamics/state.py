@@ -1,7 +1,7 @@
 """Dynamics on a `KinematicState`.
 
 ``inverse_dynamics``, ``mass_matrix`` and ``forward_dynamics`` read the world transforms of a state computed by
-`forward_kinematics_state`; the world-frame geometry they share (Jacobian columns) is built once per state and
+`forward_kinematics`; the world-frame geometry they share (Jacobian columns) is built once per state and
 memoised on it. See `_world` for the formulas.
 """
 
@@ -12,7 +12,7 @@ import math
 import torch
 
 from ..kinematics.configuration import full_tangent, reduced_columns, reduced_mass_matrix
-from ..kinematics.state import KinematicState
+from ..kinematics import KinematicState
 from ..model._checks import check_tensor, expand_batch
 from ..model.model import Model
 from ._world import (
@@ -38,7 +38,7 @@ def _world(model: Model, state: KinematicState) -> tuple[WorldKinematics, tuple[
     """
     batch = tuple(state.q.shape[:-1])
     if "world_geometry" not in state._memo:
-        transform = state.joint_transform.reshape(math.prod(batch), model.njoints, 3, 4)
+        transform = state.joint_transforms.reshape(math.prod(batch), model.njoints, 3, 4)
         state._memo["world_geometry"] = world_geometry(model, transform, _plan(model, state))
     return world_kinematics(state._memo["world_geometry"], model, batch), batch
 
@@ -95,7 +95,7 @@ def center_of_mass(model: Model, state: KinematicState) -> torch.Tensor:
     """Whole-body centre of mass in the world frame, ``(B..., 3)``."""
     inertias = model.body_inertias  # (..., njoints, 10): mass, com, inertia
     masses, com_local = inertias[..., 0], inertias[..., 1:4]
-    com_world = (state.joint_rotation @ com_local.unsqueeze(-1)).squeeze(-1) + state.joint_translation
+    com_world = (state.joint_rotations @ com_local.unsqueeze(-1)).squeeze(-1) + state.joint_translations
     return (masses.unsqueeze(-1) * com_world).sum(-2) / masses.sum(-1).unsqueeze(-1)
 
 
