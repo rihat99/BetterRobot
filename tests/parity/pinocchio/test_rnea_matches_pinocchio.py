@@ -61,9 +61,7 @@ def test_rnea_gravity_matches_pinocchio(panda_both, i):
     q = sample_panda_q(n=4)[i]
     zeros_v = torch.zeros(br_model.nv, dtype=torch.float64)
 
-    tau_br = (
-        inverse_dynamics(br_model, forward_kinematics(br_model, q), v=zeros_v, a=zeros_v).detach().cpu().numpy()
-    )
+    tau_br = inverse_dynamics(br_model, forward_kinematics(br_model, q), v=zeros_v, a=zeros_v).detach().cpu().numpy()
     tau_pin = np.asarray(pin.computeGeneralizedGravity(pin_model, pin_data, q.detach().cpu().numpy()))
     np.testing.assert_allclose(tau_br, tau_pin, atol=1e-10, rtol=_RTOL)
 
@@ -76,10 +74,7 @@ def test_rnea_bias_matches_pinocchio(panda_both, i):
     v = _random_v(br_model.nv, seed=100 + i)
 
     tau_br = (
-        inverse_dynamics(br_model, forward_kinematics(br_model, q), v=v, a=torch.zeros_like(v))
-        .detach()
-        .cpu()
-        .numpy()
+        inverse_dynamics(br_model, forward_kinematics(br_model, q), v=v, a=torch.zeros_like(v)).detach().cpu().numpy()
     )
     tau_pin = np.asarray(pin.nonLinearEffects(pin_model, pin_data, q.detach().cpu().numpy(), v.detach().cpu().numpy()))
     np.testing.assert_allclose(tau_br, tau_pin, atol=1e-10, rtol=_RTOL)
@@ -109,9 +104,7 @@ def test_rnea_with_fext_matches_pinocchio(panda_both, i):
     a = _random_v(br_model.nv, seed=500 + i)
     br_fext, fext_pin = _random_matched_fext(br_model, pin_model, seed=600 + i)
 
-    tau_br = (
-        inverse_dynamics(br_model, forward_kinematics(br_model, q), v=v, a=a, fext=br_fext).detach().cpu().numpy()
-    )
+    tau_br = inverse_dynamics(br_model, forward_kinematics(br_model, q), v=v, a=a, fext=br_fext).detach().cpu().numpy()
 
     tau_pin = np.asarray(
         pin.rnea(

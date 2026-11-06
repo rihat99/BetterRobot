@@ -3,7 +3,7 @@
 BetterRobot is a PyTorch-native robotics library for batched kinematics,
 dynamics, residual modeling, and nonlinear least squares. Fixed- and
 floating-base robots use the same state API
-(`forward_kinematics_state(model, q) -> KinematicState`, then Jacobians and
+(`forward_kinematics(model, q) -> KinematicState`, then Jacobians and
 `dynamics.state` functions on that state); a floating base is a
 `JointFreeFlyer` in the model topology.
 
