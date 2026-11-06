@@ -1,11 +1,7 @@
-"""The two tracked test robots (decision record 0049), loaded by path so that every test runs offline.
+"""The two tracked test robots (decision record 0039), loaded by path so that every test runs offline.
 
-- Panda, ``tests/fixtures/robots/panda/``: ``robots/panda_description`` of example-robot-data at commit
-  ``d0d9098``, under the description's own Apache-2.0 licence. The nine collision meshes are tracked and the URDF's
-  collision ``filename`` attributes name them relative to the URDF (upstream writes ``package://`` URIs); the visual
-  COLLADA meshes (11 MB) are not tracked, so the visual entries resolve to no file.
-- G1, ``tests/fixtures/robots/g1/``: ``robots/g1_description/g1_29dof.urdf`` of unitree_ros at commit ``267182b``,
-  under its BSD-3-Clause licence, without meshes (24 of them exceed the 1 MiB file limit, principle 9.3).
+Source, licence and changes of each robot: ``tests/fixtures/robots/panda/README.md``,
+``tests/fixtures/robots/g1/README.md``.
 """
 
 from __future__ import annotations
