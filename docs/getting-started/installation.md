@@ -38,7 +38,7 @@ code runs on CPU and GPU, chosen by the device of your tensors (see [GPU and bat
 Run the fast test tier (seconds; the other tiers are in [Testing](../contributing/testing.md)):
 
 ```bash
-uv run pytest tests/contract -q -m "not slow"
+uv run pytest tests/contract -q -m "not slow and not cuda"
 ```
 
 Or load a robot in Python. This needs the `demos` extra:

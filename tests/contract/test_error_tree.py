@@ -107,6 +107,12 @@ def test_unknown_name_lists_the_valid_names(arm_model) -> None:
     assert str(exc.UnknownNameError("frame", "x", [str(i) for i in range(21)])) == "unknown frame 'x'; 21 frames"
 
 
+@pytest.mark.cuda
+def test_device_mismatch_between_a_cpu_model_and_a_cuda_configuration(arm_model) -> None:
+    with pytest.raises(exc.DeviceMismatchError, match="device"):
+        forward_kinematics_state(arm_model, torch.zeros(arm_model.nq, device="cuda"))
+
+
 def test_id_out_of_range_raises_argument_error(arm_model) -> None:
     with pytest.raises(exc.ArgumentError, match="out of range"):
         arm_model.frame_id(arm_model.nframes)

@@ -17,8 +17,8 @@ repos:
         types: [python]
         stages: [pre-commit]
       - id: fast-tier
-        name: fast tier (tests/contract, not slow)
-        entry: uv run pytest tests/contract -q -m "not slow"
+        name: fast tier (tests/contract, not slow, not cuda)
+        entry: uv run pytest tests/contract -q -m "not slow and not cuda"
         language: system
         pass_filenames: false
         stages: [pre-commit]

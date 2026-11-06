@@ -11,7 +11,7 @@ tools and the `test-oracles` group with Pinocchio and SciPy). Then each tier is 
 
 | Tier | Command | Time | Run by |
 |------|---------|------|--------|
-| fast | `uv run pytest tests/contract -q -m "not slow"` | about 2 s | the pre-commit hook, after every edit |
+| fast | `uv run pytest tests/contract -q -m "not slow and not cuda"` | about 2 s | the pre-commit hook, after every edit |
 | full | `uv run pytest tests -q -m "not bench and not cuda"` | about 3 min (184 s) | the pre-push hook |
 | CUDA | `CUDA_VISIBLE_DEVICES=<gpu> uv run pytest tests -q -m cuda` | seconds | by hand on a machine with a GPU |
 
