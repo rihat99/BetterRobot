@@ -10,8 +10,9 @@ before you add a module or move a function.
 
 *Each package imports only from its own row or the rows below; nothing imports the viewer.*
 
-A module may import from its own rank or any lower rank, never from a higher one. The ranks live in
-`tests/contract/test_layer_dependencies.py`, which parses every source file and fails on an upward import.
+A module may import only the packages its row of the `ALLOWED` table in
+`tests/contract/test_layer_dependencies.py` lists, all on its own rank or below; the test parses every source file
+and fails on any other import.
 
 | Rank | Package | Job |
 |------|---------|-----|
@@ -23,9 +24,9 @@ A module may import from its own rank or any lower rank, never from a higher one
 | 2 | `lie` | SO(3) and SE(3) formulas on plain tensors |
 | 1 | `_typing` | shared type aliases |
 
-Packages on one rank may import each other, so `dynamics` reuses the raw forward-kinematics helpers of
-`kinematics`. `optim` imports only `torch`: it knows nothing about robots, and `terms` adapts robots to it.
-Imports guarded by `TYPE_CHECKING` are exempt because they never run.
+`dynamics` may import `kinematics` on its own rank, so it reuses the raw forward-kinematics helpers. `optim`
+imports only `torch`: it knows nothing about robots, and `terms` adapts robots to it. Imports inside functions and
+under `TYPE_CHECKING` count too: each is a dependency a reader has to know about.
 
 The layering buys three things. The core (`lie` up to `dynamics`) never loads optional dependencies such as
 `viser`, so `import better_robot` stays light. A lower layer can change its internals without breaking a

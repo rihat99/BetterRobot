@@ -14,9 +14,9 @@ io    dynamics   collision
    data_model -> spatial -> lie
 ```
 
-Ranks in `tests/contract/test_layer_dependencies.py:23` (higher imports lower; equal rank may import each
-other today): `_typing` 1, `lie` 2, `spatial` 3, `optim` 3, `data_model` 4, `io` / `kinematics` / `dynamics` /
-`collision` 5, `terms` 6, `viewer` 7. Splitting `dynamics` above `kinematics` is `[planned: L-3]`.
+The allowed edges are the `ALLOWED` table in `tests/contract/test_layer_dependencies.py`: one row per package,
+naming the packages it may import; a package without a row imports none. The edges that exist today outside the
+table are listed with a `path::symbol` witness in `tests/contract/ratchets/edges.json`, which only shrinks.
 
 ## C-DEP-1 Imports follow the DAG; no cycles, no same-rank imports (MUST)
 
@@ -34,8 +34,9 @@ from better_robot.kinematics import frame_jacobian
 from better_robot.data_model import Model          # optim must not know robots
 ```
 
-Enforcement: `tests/contract/test_layer_dependencies.py` (ast walk of every module; edges checked against the
-`LAYER_RANK` table in the test).
+Enforcement: `tests/contract/test_layer_dependencies.py` (every import of every module, function-level and
+`TYPE_CHECKING` ones included, checked against the `ALLOWED` table through
+`src/better_robot/testing/import_edges.py::imported_packages`).
 
 ## C-DEP-2 Optional dependencies are imported lazily at their boundary (MUST)
 

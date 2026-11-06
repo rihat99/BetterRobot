@@ -68,8 +68,8 @@ Enforcement: `[review]`; changelog entry checked in review.
 - Viewer layer: subclass `viewer.Layer` (`viewer/layer.py:25`); implement `build(scene, root)` and `set_step(step)`;
   override `build_gui`, `apply_theme`, `geometry` and `dispose` only when needed; set `listed = False` to keep it out
   of the sidebar.
-- Package: add it to `LAYER_RANK` in `tests/contract/test_layer_dependencies.py:23` at its rank in the `07` DAG and
-  to the diagram in `07`; this needs an ADR (`00-index`, "When to write an ADR").
+- Package: add its row to `ALLOWED` in `tests/contract/test_layer_dependencies.py` and the package to the diagram
+  in `07`; this needs an ADR (`00-index`, "When to write an ADR").
 
 Enforcement: `tests/contract/test_protocols.py`; `tests/contract/test_layer_dependencies.py`; `[review]`.
 

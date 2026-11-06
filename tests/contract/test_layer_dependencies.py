@@ -1,231 +1,60 @@
-"""Layer-dependency linter — enforces the architectural DAG.
+"""Imports between the first-level units of ``better_robot`` follow one edge table.
 
-Walks every ``.py`` file under ``src/better_robot``, parses its
-top-level imports, and fails if any layer imports from a strictly higher
-layer. Imports guarded by ``if TYPE_CHECKING:`` are ignored (they don't
-cross layer boundaries at runtime).
-
-See ``docs/concepts/architecture.md §Dependency rule``.
+A unit is a first-level subpackage or module; the root ``__init__`` is the unit ``better_robot`` and re-exports
+every other unit. A unit imports only the units its ``ALLOWED`` row lists, and a unit without a row imports none.
+Every import counts, wherever it sits: module level, inside a function, under ``TYPE_CHECKING``. The edges that
+exist today without being allowed sit in ``ratchets/edges.json`` (``"from -> to"`` with a ``path::symbol``
+witness); the ratchet only shrinks, and the fix that removes an edge removes its entry. Third-party imports are
+``test_optional_imports.py``'s job. See ``docs/concepts/architecture.md``.
 """
 
 from __future__ import annotations
 
-import ast
+import json
 from pathlib import Path
-from typing import Iterable
 
-PKG = "better_robot"
-# Tests live at tests/contract/<file>.py; src/ is two levels up.
-SRC = Path(__file__).resolve().parents[2] / "src" / PKG
+from better_robot.testing import imported_packages
 
-# Higher number = higher in the stack. A file at rank K may only import from
-# ranks <= K; equal-rank cross-package imports are allowed.
-LAYER_RANK: dict[str, int] = {
-    "_typing": 1,
-    "lie": 2,
-    "spatial": 3,
-    "data_model": 4,
-    "io": 5,
-    "kinematics": 5,
-    "dynamics": 5,
-    "collision": 5,
-    "optim": 3,
-    "terms": 6,
-    "viewer": 7,
+ROOT = "better_robot"
+SRC = Path(__file__).resolve().parents[2] / "src"
+EDGE_RATCHET: dict[str, str] = json.loads((Path(__file__).parent / "ratchets" / "edges.json").read_text())
+
+ALLOWED: dict[str, set[str]] = {
+    "exceptions": set(),
+    "lie": set(),
+    "spatial": {"lie"},
+    "data_model": {"exceptions", "lie", "spatial"},
+    "kinematics": {"exceptions", "lie", "data_model"},
+    "dynamics": {"exceptions", "lie", "spatial", "data_model", "kinematics"},
+    "collision": {"exceptions", "data_model", "kinematics"},
+    "io": {"exceptions", "lie", "data_model"},
+    "optim": {"exceptions"},
+    "terms": {"exceptions", "lie", "data_model", "kinematics", "collision", "optim"},
+    "viewer": {"exceptions", "lie", "data_model", "kinematics", "collision"},
+    "testing": {"exceptions", "data_model"},
 }
 
 
-def _layer_of(module_parts: tuple[str, ...]) -> str | None:
-    """Return the top-level sub-package name, or ``None`` for the root."""
-    if not module_parts:
-        return None
-    return module_parts[0]
+def _forbidden_edges() -> set[str]:
+    edges = imported_packages(SRC, ROOT)
+    return {
+        f"{unit} -> {imported}"
+        for unit, imports in edges.items()
+        if unit != ROOT
+        for imported in imports - ALLOWED.get(unit, set())
+    }
 
 
-def _iter_py_files() -> Iterable[Path]:
-    yield from sorted(SRC.rglob("*.py"))
+def test_imports_follow_the_edge_table() -> None:
+    """Every import between units is in ``ALLOWED`` or, until its fix lands, in the edge ratchet."""
+    new = sorted(_forbidden_edges() - EDGE_RATCHET.keys())
+    assert not new, (
+        "imports outside the edge table of tests/contract/test_layer_dependencies.py: move the code to a unit the "
+        "importer may import, or change the table with a decision record:\n  " + "\n  ".join(new)
+    )
 
 
-def _file_to_module_parts(path: Path) -> tuple[str, ...]:
-    rel = path.relative_to(SRC).with_suffix("")
-    parts = tuple(rel.parts)
-    if parts and parts[-1] == "__init__":
-        parts = parts[:-1]
-    return parts
-
-
-def _resolve_import(
-    file_parts: tuple[str, ...],
-    node: ast.ImportFrom,
-) -> tuple[str, ...] | None:
-    """Return the absolute module parts for an ``ImportFrom`` node, or ``None``
-    if the import is not inside ``better_robot``.
-    """
-    if node.level == 0:
-        # absolute import
-        if not node.module or not node.module.startswith(PKG):
-            return None
-        rest = node.module[len(PKG) :].lstrip(".")
-        return tuple(rest.split(".")) if rest else ()
-    # relative import
-    base = file_parts[: -node.level] if node.level <= len(file_parts) else ()
-    if node.module:
-        base = base + tuple(node.module.split("."))
-    return base
-
-
-def _resolve_plain_import(module: str) -> tuple[str, ...] | None:
-    if not module.startswith(PKG):
-        return None
-    rest = module[len(PKG) :].lstrip(".")
-    return tuple(rest.split(".")) if rest else ()
-
-
-def _is_typecheck_block(node: ast.stmt) -> bool:
-    if not isinstance(node, ast.If):
-        return False
-    test = node.test
-    if isinstance(test, ast.Name) and test.id == "TYPE_CHECKING":
-        return True
-    if isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING":
-        return True
-    return False
-
-
-def _top_level_imports(tree: ast.Module) -> list[ast.stmt]:
-    """Collect top-level Import / ImportFrom nodes, skipping TYPE_CHECKING blocks."""
-    out: list[ast.stmt] = []
-    for node in tree.body:
-        if _is_typecheck_block(node):
-            continue
-        if isinstance(node, (ast.Import, ast.ImportFrom)):
-            out.append(node)
-    return out
-
-
-def _is_violation(
-    importer_layer: str | None,
-    importee_layer: str | None,
-) -> bool:
-    """Return True iff ``importer_layer`` is forbidden from depending on ``importee_layer``."""
-    if importer_layer is None or importee_layer is None:
-        return False
-    if importer_layer == importee_layer:
-        return False  # same sub-package
-    if importer_layer not in LAYER_RANK or importee_layer not in LAYER_RANK:
-        return False  # unknown sub-package — stay silent
-    return LAYER_RANK[importee_layer] > LAYER_RANK[importer_layer]
-
-
-def test_no_upward_imports() -> None:
-    violations: list[str] = []
-    for path in _iter_py_files():
-        file_parts = _file_to_module_parts(path)
-        importer_layer = _layer_of(file_parts)
-        tree = ast.parse(path.read_text(), filename=str(path))
-        for node in _top_level_imports(tree):
-            if isinstance(node, ast.ImportFrom):
-                target = _resolve_import(file_parts, node)
-            else:
-                targets: list[tuple[str, ...] | None] = [_resolve_plain_import(alias.name) for alias in node.names]
-                # process every alias separately
-                for t in targets:
-                    if t is not None:
-                        importee_layer = _layer_of(t)
-                        if _is_violation(importer_layer, importee_layer):
-                            violations.append(
-                                f"{path.relative_to(SRC)} imports {'.'.join(t)} ({importer_layer} → {importee_layer})"
-                            )
-                continue
-            if target is None:
-                continue
-            importee_layer = _layer_of(target)
-            if _is_violation(importer_layer, importee_layer):
-                violations.append(
-                    f"{path.relative_to(SRC)} imports {'.'.join(target)} ({importer_layer} → {importee_layer})"
-                )
-    assert not violations, "layer violations:\n  " + "\n  ".join(violations)
-
-
-def test_retired_compute_backends_package_is_absent() -> None:
-    """The old per-operation backend registry must not grow back."""
-    assert not (SRC / "backends").exists()
-
-
-def test_retired_costs_package_is_absent() -> None:
-    """The retired compatibility package must not grow back."""
-    assert "costs" not in LAYER_RANK
-    assert not (SRC / "costs").exists()
-
-
-def test_no_pypose_imports() -> None:
-    """No module under ``src/`` may ``import pypose`` after P10-D.
-
-    The direct pure-Torch code in ``lie/so3.py`` and ``lie/se3.py`` is the
-    only Lie implementation.
-    """
-    offenders: list[str] = []
-    for path in _iter_py_files():
-        text = path.read_text()
-        for lineno, line in enumerate(text.splitlines(), start=1):
-            stripped = line.strip()
-            if stripped.startswith("import pypose") or stripped.startswith("from pypose"):
-                offenders.append(f"{path.relative_to(SRC)}:{lineno}: {stripped}")
-    assert not offenders, "modules importing pypose after P10-D drop:\n  " + "\n  ".join(offenders)
-
-
-# ---------------------------------------------------------------------------
-# Viewer dependency hygiene (docs/concepts/viewer.md, "Dependency hygiene")
-# ---------------------------------------------------------------------------
-
-
-def _check_forbidden_import(allowed_file_suffix: str | tuple[str, ...], forbidden_pkg: str) -> list[str]:
-    """Return offenders: files (other than *allowed_file_suffix*) that contain a
-    top-level import of *forbidden_pkg*.
-    """
-    offenders: list[str] = []
-    for path in _iter_py_files():
-        if allowed_file_suffix and str(path).endswith(allowed_file_suffix):
-            continue
-        text = path.read_text()
-        for lineno, line in enumerate(text.splitlines(), start=1):
-            stripped = line.strip()
-            if stripped.startswith(f"import {forbidden_pkg}") or stripped.startswith(f"from {forbidden_pkg}"):
-                offenders.append(f"{path.relative_to(SRC)}:{lineno}: {stripped}")
-    return offenders
-
-
-def test_only_viser_backend_imports_viser() -> None:
-    """Only the viewer core (``viewer/viewer.py``) may import viser; layers and tools use handles.
-
-    See ``docs/concepts/viewer.md`` ("Dependency hygiene").
-    """
-    offenders = _check_forbidden_import("viewer/viewer.py", "viser")
-    assert not offenders, "files other than viewer/viewer.py importing viser:\n  " + "\n  ".join(offenders)
-
-
-def test_only_offscreen_backend_imports_pyrender() -> None:
-    """Nothing imports pyrender: offline rendering is the torch rasterizer in ``viewer/render``.
-
-    See ``docs/concepts/viewer.md`` ("Dependency hygiene").
-    """
-    offenders = _check_forbidden_import((), "pyrender")
-    assert not offenders, "files importing pyrender:\n  " + "\n  ".join(offenders)
-
-
-def test_only_urdf_mesh_imports_trimesh() -> None:
-    """Only the robot adapter ``viewer/robot.py`` may import trimesh (mesh files and primitives).
-
-    See ``docs/concepts/viewer.md`` ("Dependency hygiene").
-    """
-    offenders = _check_forbidden_import("viewer/robot.py", "trimesh")
-    assert not offenders, "files other than viewer/robot.py importing trimesh:\n  " + "\n  ".join(offenders)
-
-
-def test_only_recorder_imports_imageio() -> None:
-    """Nothing imports imageio: recordings go through PIL and, for MP4, the ``ffmpeg`` binary.
-
-    See ``docs/concepts/viewer.md`` ("Dependency hygiene").
-    """
-    offenders = _check_forbidden_import((), "imageio")
-    assert not offenders, "files importing imageio:\n  " + "\n  ".join(offenders)
+def test_edge_ratchet_has_no_stale_entries() -> None:
+    """An edge that no longer exists leaves ``ratchets/edges.json`` in the commit that removes it."""
+    stale = sorted(EDGE_RATCHET.keys() - _forbidden_edges())
+    assert not stale, "remove these edges from tests/contract/ratchets/edges.json:\n  " + "\n  ".join(stale)
