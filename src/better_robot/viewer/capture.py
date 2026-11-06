@@ -3,7 +3,6 @@
 The browser is found via ``$BETTER_ROBOT_CHROME``, else ``chromium``, ``google-chrome`` or ``chrome-headless-shell``
 on ``PATH``. A machine without ``libasound.so.2`` (common on headless servers) makes Chromium exit at start; put a
 copy of the library on ``LD_LIBRARY_PATH`` (e.g. extracted from the ``libasound2`` package) before recording.
-``scripts/chrome_headless.sh`` in the repository is such a wrapper for development.
 """
 
 from __future__ import annotations

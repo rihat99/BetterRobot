@@ -75,10 +75,6 @@ def test_find_chrome_reports_how_to_install(monkeypatch: pytest.MonkeyPatch) -> 
 
 @pytest.mark.slow
 def test_record_screenshots_a_real_scene(tmp_path: Path) -> None:
-    try:
-        capture.find_chrome()
-    except RuntimeError:
-        pytest.skip("no Chromium binary on this machine")
     viewer = Viewer(port=int(os.environ.get("BETTER_ROBOT_TEST_PORT", "8094")))
     try:
         viewer.add(PointsLayer("pts", np.zeros((2, 1, 3), dtype=np.float32)))
