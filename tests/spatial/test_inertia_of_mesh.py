@@ -1,4 +1,7 @@
-"""Differentiable signed-tetrahedron mesh inertia integration."""
+"""Differentiable signed-tetrahedron mesh inertia, ``better_robot.spatial.inertia_of_mesh``.
+
+Oracles: the closed-form inertia of a box, and ``trimesh.Trimesh`` mass properties on the same mesh.
+"""
 
 from __future__ import annotations
 
@@ -7,7 +10,7 @@ import pytest
 import torch
 import trimesh
 
-from better_robot.spatial import Inertia
+from better_robot.spatial import inertia_of_mesh
 
 
 def _box_mesh(
@@ -49,15 +52,21 @@ def _box_mesh(
     return vertices, faces
 
 
+def _rotational(inertia: torch.Tensor) -> torch.Tensor:
+    """Rotational inertia ``(..., 3, 3)`` from the packed entries ``inertia[..., 4:10]``."""
+    ixx, iyy, izz, ixy, ixz, iyz = inertia[..., 4:10].unbind(-1)
+    rows = (torch.stack((ixx, ixy, ixz), -1), torch.stack((ixy, iyy, iyz), -1), torch.stack((ixz, iyz, izz), -1))
+    return torch.stack(rows, -2)
+
+
 def test_box_matches_closed_form_with_translation_and_density() -> None:
     size = (2.0, 3.0, 4.0)
     vertices, faces = _box_mesh(size)
     translation = torch.tensor([1000.0, -2000.0, 3000.0], dtype=torch.float64)
     density = 2.5
-    inertia = Inertia.from_mesh(vertices + translation, faces, density)
+    inertia = inertia_of_mesh(vertices + translation, faces, density=density)
 
-    volume = size[0] * size[1] * size[2]
-    mass = density * volume
+    mass = density * size[0] * size[1] * size[2]
     expected_diagonal = torch.tensor(
         [
             mass * (size[1] ** 2 + size[2] ** 2) / 12.0,
@@ -66,22 +75,17 @@ def test_box_matches_closed_form_with_translation_and_density() -> None:
         ],
         dtype=torch.float64,
     )
-    torch.testing.assert_close(inertia.mass, torch.tensor(mass, dtype=torch.float64))
-    torch.testing.assert_close(inertia.com, translation, atol=1e-12, rtol=1e-12)
-    torch.testing.assert_close(inertia.inertia_matrix.diagonal(), expected_diagonal, atol=1e-10, rtol=1e-12)
-    torch.testing.assert_close(
-        inertia.inertia_matrix - torch.diag(inertia.inertia_matrix.diagonal()),
-        torch.zeros(3, 3, dtype=torch.float64),
-        atol=1e-10,
-        rtol=0.0,
-    )
+    torch.testing.assert_close(inertia[0], torch.tensor(mass, dtype=torch.float64))
+    torch.testing.assert_close(inertia[1:4], translation, atol=1e-12, rtol=1e-12)
+    torch.testing.assert_close(inertia[4:7], expected_diagonal, atol=1e-10, rtol=1e-12)
+    torch.testing.assert_close(inertia[7:10], torch.zeros(3, dtype=torch.float64), atol=1e-10, rtol=0.0)
 
 
 def test_global_face_winding_is_orientation_invariant() -> None:
     vertices, faces = _box_mesh()
-    forward = Inertia.from_mesh(vertices, faces, density=1.7)
-    reversed_winding = Inertia.from_mesh(vertices, faces.flip(-1), density=1.7)
-    torch.testing.assert_close(reversed_winding.data, forward.data, atol=1e-12, rtol=1e-12)
+    forward = inertia_of_mesh(vertices, faces, density=1.7)
+    reversed_winding = inertia_of_mesh(vertices, faces.flip(-1), density=1.7)
+    torch.testing.assert_close(reversed_winding, forward, atol=1e-12, rtol=1e-12)
 
 
 def test_multi_axis_batch_and_density_match_per_element_loop() -> None:
@@ -92,31 +96,38 @@ def test_multi_axis_batch_and_density_match_per_element_loop() -> None:
     batched_vertices = batched_vertices + translations[..., None, :]
     density = torch.linspace(0.8, 1.8, 6, dtype=torch.float32).reshape(2, 3)
 
-    actual = Inertia.from_mesh(batched_vertices, faces, density).data
+    actual = inertia_of_mesh(batched_vertices, faces, density=density)
     expected = torch.stack(
-        [Inertia.from_mesh(batched_vertices[i, j], faces, density[i, j]).data for i in range(2) for j in range(3)]
+        [inertia_of_mesh(batched_vertices[i, j], faces, density=density[i, j]) for i in range(2) for j in range(3)]
     ).reshape(2, 3, 10)
     assert actual.shape == (2, 3, 10)
     torch.testing.assert_close(actual, expected, atol=2e-5, rtol=2e-5)
+
+
+def test_number_and_tensor_density_agree_and_default_to_unit_density() -> None:
+    vertices, faces = _box_mesh()
+    torch.testing.assert_close(
+        inertia_of_mesh(vertices, faces, density=2),
+        inertia_of_mesh(vertices, faces, density=torch.tensor(2.0, dtype=torch.float64)),
+        atol=0.0,
+        rtol=0.0,
+    )
+    assert float(inertia_of_mesh(vertices, faces)[0]) == pytest.approx(24.0)
 
 
 def test_vertex_and_density_autograd() -> None:
     vertices, faces = _box_mesh()
     vertices = vertices.requires_grad_(True)
     density = torch.tensor(1.3, dtype=torch.float64, requires_grad=True)
-    inertia = Inertia.from_mesh(vertices, faces, density)
-    loss = inertia.mass + inertia.com.square().sum() + inertia.inertia_matrix.diagonal().sum()
+    inertia = inertia_of_mesh(vertices, faces, density=density)
+    loss = inertia[0] + inertia[1:4].square().sum() + inertia[4:7].sum()
     vertex_grad, density_grad = torch.autograd.grad(loss, (vertices, density))
 
     assert torch.isfinite(vertex_grad).all()
     assert torch.count_nonzero(vertex_grad) > 0
     assert torch.isfinite(density_grad)
-    volume = 24.0
-    density_mass_grad = torch.autograd.grad(
-        Inertia.from_mesh(vertices.detach(), faces, density).mass,
-        density,
-    )[0]
-    torch.testing.assert_close(density_mass_grad, torch.tensor(volume, dtype=torch.float64))
+    (density_mass_grad,) = torch.autograd.grad(inertia_of_mesh(vertices.detach(), faces, density=density)[0], density)
+    torch.testing.assert_close(density_mass_grad, torch.tensor(24.0, dtype=torch.float64))
 
 
 def test_float64_vertex_gradcheck() -> None:
@@ -124,7 +135,7 @@ def test_float64_vertex_gradcheck() -> None:
     vertices = vertices + torch.linspace(-0.01, 0.01, vertices.numel(), dtype=torch.float64).reshape_as(vertices)
     vertices.requires_grad_(True)
     assert torch.autograd.gradcheck(
-        lambda value: Inertia.from_mesh(value, faces, density=1.2).data,
+        lambda value: inertia_of_mesh(value, faces, density=1.2),
         (vertices,),
         eps=1e-6,
         atol=2e-6,
@@ -136,18 +147,77 @@ def test_float64_vertex_gradcheck() -> None:
 def test_matches_trimesh_reference() -> None:
     vertices, faces = _box_mesh()
     reference = trimesh.Trimesh(vertices=vertices.numpy(), faces=faces.numpy(), process=False)
-    actual = Inertia.from_mesh(vertices, faces)
+    actual = inertia_of_mesh(vertices, faces)
 
-    np.testing.assert_allclose(actual.mass.numpy(), reference.mass, atol=1e-12, rtol=1e-12)
-    np.testing.assert_allclose(actual.com.numpy(), reference.center_mass, atol=1e-12, rtol=1e-12)
-    np.testing.assert_allclose(actual.inertia_matrix.numpy(), reference.moment_inertia, atol=1e-12, rtol=1e-12)
+    np.testing.assert_allclose(actual[0].numpy(), reference.mass, atol=1e-12, rtol=1e-12)
+    np.testing.assert_allclose(actual[1:4].numpy(), reference.center_mass, atol=1e-12, rtol=1e-12)
+    np.testing.assert_allclose(_rotational(actual).numpy(), reference.moment_inertia, atol=1e-12, rtol=1e-12)
 
 
-def test_degenerate_mesh_fails_fast() -> None:
+def _flat_mesh() -> tuple[torch.Tensor, torch.Tensor]:
     vertices = torch.tensor(
         [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [1.0, 1.0, 0.0]],
         dtype=torch.float64,
     )
-    faces = torch.tensor([[0, 1, 2], [1, 3, 2]], dtype=torch.long)
+    return vertices, torch.tensor([[0, 1, 2], [1, 3, 2]], dtype=torch.long)
+
+
+def test_degenerate_mesh_raises_only_when_checked() -> None:
+    vertices, faces = _flat_mesh()
     with pytest.raises(ValueError, match="degenerate enclosed volume"):
-        Inertia.from_mesh(vertices, faces)
+        inertia_of_mesh(vertices, faces, check_mesh=True)
+    assert not torch.isfinite(inertia_of_mesh(vertices, faces)).all()
+
+
+@pytest.mark.parametrize(
+    ("edit", "match"),
+    [
+        pytest.param(
+            lambda v, f, d: (v.index_fill(0, torch.tensor([0]), torch.nan), f, d), "finite values", id="nan-vertex"
+        ),
+        pytest.param(
+            lambda v, f, d: (v, f.index_fill(0, torch.tensor([0]), 8), d), "outside the vertices", id="face-high"
+        ),
+        pytest.param(
+            lambda v, f, d: (v, f.index_fill(0, torch.tensor([0]), -1), d), "outside the vertices", id="face-low"
+        ),
+        pytest.param(lambda v, f, d: (v, f, -d), "finite positive", id="negative-density"),
+    ],
+)
+def test_check_mesh_reads_the_values(edit, match: str) -> None:
+    vertices, faces, density = edit(*_box_mesh(), torch.tensor(1.0, dtype=torch.float64))
+    with pytest.raises(ValueError, match=match):
+        inertia_of_mesh(vertices, faces, density=density, check_mesh=True)
+
+
+def test_unchecked_call_reads_no_values() -> None:
+    """A NaN vertex and a negative density pass through without a host-side check."""
+    vertices, faces = _box_mesh()
+    vertices = vertices.index_fill(0, torch.tensor([0]), torch.nan)
+    assert torch.isnan(inertia_of_mesh(vertices, faces, density=-1.0)).any()
+
+
+@pytest.mark.parametrize(
+    ("vertices", "faces", "density", "error", "match"),
+    [
+        pytest.param(
+            torch.zeros(8, 3, dtype=torch.int64), None, 1.0, TypeError, "vertices must be a floating", id="int-vertices"
+        ),
+        pytest.param(torch.zeros(8, 2), None, 1.0, ValueError, r"shape \(\.\.\., V, 3\)", id="vertex-shape"),
+        pytest.param(torch.zeros(3, 3), None, 1.0, ValueError, "at least four points", id="three-vertices"),
+        pytest.param(None, torch.zeros(12, 3), 1.0, TypeError, "faces must be a torch.int32", id="float-faces"),
+        pytest.param(None, torch.zeros(12, 4, dtype=torch.long), 1.0, ValueError, r"shape \(F, 3\)", id="face-shape"),
+        pytest.param(None, torch.zeros(0, 3, dtype=torch.long), 1.0, ValueError, r"shape \(F, 3\)", id="no-faces"),
+        pytest.param(None, None, True, TypeError, "density must be a real number", id="bool-density"),
+        pytest.param(None, None, torch.tensor(1.0), ValueError, "density.dtype=torch.float32", id="density-dtype"),
+        pytest.param(
+            None, None, torch.ones(2, dtype=torch.float64), ValueError, "mesh batch shape", id="density-shape"
+        ),
+    ],
+)
+def test_structure_is_checked(vertices, faces, density, error: type, match: str) -> None:
+    box_vertices, box_faces = _box_mesh()
+    with pytest.raises(error, match=match):
+        inertia_of_mesh(
+            box_vertices if vertices is None else vertices, box_faces if faces is None else faces, density=density
+        )

@@ -6,7 +6,7 @@ import pytest
 import torch
 
 from better_robot.spatial import (
-    Inertia,
+    inertia_of_mesh,
     orient_faces_by_component,
     orient_faces_consistently,
     validate_closed_manifold,
@@ -74,18 +74,18 @@ def _mix_winding(faces: torch.Tensor, flipped: tuple[int, ...]) -> torch.Tensor:
 @pytest.mark.parametrize("device", _DEVICES)
 def test_reorient_matches_reference_inertia_and_beats_the_mixed_input(device: str) -> None:
     vertices, faces = _box_mesh(device=device)
-    reference = Inertia.from_mesh(vertices, faces, density=2.5)
+    reference = inertia_of_mesh(vertices, faces, density=2.5)
 
     mixed = _mix_winding(faces, (0, 3, 5, 8, 11))
-    # The mixed table is still a closed manifold, so ``from_mesh`` accepts it and
+    # The mixed table is still a closed manifold, so ``inertia_of_mesh`` accepts it and
     # returns a plausible but wrong result — the bug this tool exists to repair.
-    wrong = Inertia.from_mesh(vertices, mixed, density=2.5)
-    assert not torch.allclose(wrong.data, reference.data, atol=1e-3)
+    wrong = inertia_of_mesh(vertices, mixed, density=2.5)
+    assert not torch.allclose(wrong, reference, atol=1e-3)
 
     oriented = orient_faces_consistently(mixed)
-    repaired = Inertia.from_mesh(vertices, oriented, density=2.5)
-    torch.testing.assert_close(repaired.data, reference.data, atol=1e-5, rtol=1e-5)
-    assert repaired.mass > 0.0
+    repaired = inertia_of_mesh(vertices, oriented, density=2.5)
+    torch.testing.assert_close(repaired, reference, atol=1e-5, rtol=1e-5)
+    assert repaired[0] > 0.0
 
 
 @pytest.mark.parametrize("device", _DEVICES)
@@ -268,24 +268,24 @@ def test_by_component_repairs_mixed_winding_on_an_irregular_mesh(device: str) ->
     # A non-symmetric mesh: unlike the box, summation order cannot mask a partial
     # inconsistency behind cancellation.
     vertices, faces = _perturbed_icosahedron(device=device)
-    reference = Inertia.from_mesh(vertices, faces)
+    reference = inertia_of_mesh(vertices, faces)
 
     mask = torch.rand(faces.shape[0], generator=torch.Generator().manual_seed(3)) < 0.4
     mixed = faces.clone()
     mixed[mask.to(device)] = mixed[mask.to(device)].flip(-1)
 
-    repaired = Inertia.from_mesh(vertices, orient_faces_by_component(vertices, mixed))
-    torch.testing.assert_close(repaired.data, reference.data, atol=1e-4, rtol=1e-4)
-    assert repaired.mass > 0.0
+    repaired = inertia_of_mesh(vertices, orient_faces_by_component(vertices, mixed))
+    torch.testing.assert_close(repaired, reference, atol=1e-4, rtol=1e-4)
+    assert repaired[0] > 0.0
 
 
 @pytest.mark.parametrize("device", _DEVICES)
 def test_by_component_matches_strict_orienter_on_a_clean_manifold(device: str) -> None:
     vertices, faces = _perturbed_icosahedron(device=device)
     mixed = _mix_winding(faces, (0, 4, 9, 15))
-    by_component = Inertia.from_mesh(vertices, orient_faces_by_component(vertices, mixed))
-    strict = Inertia.from_mesh(vertices, orient_faces_consistently(mixed))
-    torch.testing.assert_close(by_component.data, strict.data, atol=1e-5, rtol=1e-5)
+    by_component = inertia_of_mesh(vertices, orient_faces_by_component(vertices, mixed))
+    strict = inertia_of_mesh(vertices, orient_faces_consistently(mixed))
+    torch.testing.assert_close(by_component, strict, atol=1e-5, rtol=1e-5)
 
 
 @pytest.mark.parametrize("device", _DEVICES)
@@ -297,9 +297,9 @@ def test_by_component_orients_disjoint_shells_outward_and_conserves_volume(devic
     mixed = _mix_winding(faces, (0, 3, 5))  # break winding of one shell
 
     oriented = orient_faces_by_component(vertices, mixed)
-    both_boxes = Inertia.from_mesh(vertices, oriented)
+    both_boxes = inertia_of_mesh(vertices, oriented)
     torch.testing.assert_close(
-        both_boxes.mass, torch.tensor(48.0, dtype=vertices.dtype, device=device), atol=1e-3, rtol=1e-4
+        both_boxes[0], torch.tensor(48.0, dtype=vertices.dtype, device=device), atol=1e-3, rtol=1e-4
     )
 
     # Both shells outward means every half-edge appears once with its reverse once.

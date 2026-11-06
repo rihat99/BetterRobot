@@ -1,122 +1,192 @@
-"""Numerical correctness tests for ``Inertia.apply`` and ``Inertia.se3_action``.
+"""Packed ``(..., 10)`` inertias of ``better_robot.spatial``: the spatial matrix, packing, and shape constructors.
 
-Covers the linear-first 6×6 block layout of ``Inertia._to_6x6`` — regression
-guard for the former angular-first mix-up that silently falsified every
-``I @ v`` call whenever ``com`` was non-zero.
+Oracles: Pinocchio 3 (``pin.Inertia.FromSphere``, ``FromBox``, ``FromCapsule``, ``FromEllipsoid``) for the shape
+constructors, compared in float64, and Pinocchio's closed form of ``Inertia * Motion`` for the matrix. Random cases
+draw from a ``torch.Generator`` seeded by the ``seed`` in the test id.
 """
 
 from __future__ import annotations
 
+import numpy as np
+import pinocchio as pin
+import pytest
 import torch
 
-from better_robot.lie import se3
-from better_robot.spatial.inertia import Inertia
-from better_robot.spatial.motion import Motion
+from better_robot.spatial import (
+    inertia_from_mass_com,
+    inertia_matrix,
+    inertia_of_box,
+    inertia_of_capsule,
+    inertia_of_ellipsoid,
+    inertia_of_sphere,
+)
+
+SEEDS = [0, 1, 2]
+TOLERANCE = 1e-12
+F64 = torch.float64
 
 
-def _inertia_apply_closed_form(
-    mass: torch.Tensor,
-    com: torch.Tensor,
-    I_c: torch.Tensor,
-    v: torch.Tensor,
-) -> torch.Tensor:
-    """Reference ``f = I · v`` expanded without the 6×6 matrix.
-
-    Matches Pinocchio's ``Inertia::__mult__(v, h)``::
-
-        f_lin = m · (v_lin − c × ω)
-        f_ang = I_c · ω + c × f_lin
-    """
-    v_lin, omega = v[..., :3], v[..., 3:]
-    c_cross_w = torch.linalg.cross(com, omega)
-    f_lin = mass * (v_lin - c_cross_w)
-    f_ang = (I_c @ omega.unsqueeze(-1)).squeeze(-1) + torch.linalg.cross(com, f_lin)
-    return torch.cat([f_lin, f_ang], dim=-1)
+def _random_inertia(seed: int, batch: int = 5) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Seeded ``mass (batch,)``, ``com (batch, 3)`` and symmetric positive ``rotational_inertia (batch, 3, 3)``."""
+    generator = torch.Generator().manual_seed(seed)
+    spread = torch.randn(batch, 3, 3, generator=generator, dtype=F64)
+    mass = torch.rand(batch, generator=generator, dtype=F64) + 0.5
+    com = torch.randn(batch, 3, generator=generator, dtype=F64)
+    return mass, com, spread @ spread.mT + 0.1 * torch.eye(3, dtype=F64)
 
 
-def test_inertia_apply_matches_closed_form_nonzero_com():
-    mass = torch.tensor(3.0, dtype=torch.float64)
-    com = torch.tensor([0.1, -0.2, 0.3], dtype=torch.float64)
-    I_c = torch.diag(torch.tensor([0.5, 0.7, 0.9], dtype=torch.float64))
-
-    sym3 = torch.tensor([0.5, 0.7, 0.9, 0.0, 0.0, 0.0], dtype=torch.float64)
-    I = Inertia.from_mass_com_sym3(mass, com, sym3)  # noqa: E741
-
-    torch.manual_seed(0)
-    v = Motion(torch.randn(6, dtype=torch.float64))
-
-    f_actual = I.apply(v).data
-    f_expected = _inertia_apply_closed_form(mass, com, I_c, v.data)
-
-    assert torch.allclose(f_actual, f_expected, atol=1e-12)
+def _momentum_closed_form(mass: torch.Tensor, com: torch.Tensor, rotational: torch.Tensor, twist: torch.Tensor):
+    """``I * v`` written out as Pinocchio's ``Inertia::__mult__``: ``f = m (v - c × w)``, ``n = I_c w + c × f``."""
+    linear = mass[..., None] * (twist[..., :3] - torch.linalg.cross(com, twist[..., 3:]))
+    angular = (rotational @ twist[..., 3:, None]).squeeze(-1) + torch.linalg.cross(com, linear)
+    return torch.cat([linear, angular], dim=-1)
 
 
-def test_inertia_apply_matches_closed_form_zero_com():
-    """Sanity: with c=0 the formula collapses to diag(m·I3, I_c)."""
-    mass = torch.tensor(2.0, dtype=torch.float64)
-    com = torch.zeros(3, dtype=torch.float64)
-    I_c = torch.diag(torch.tensor([0.4, 0.5, 0.6], dtype=torch.float64))
+def _principal_moments(inertia: torch.Tensor) -> np.ndarray:
+    return inertia[..., 4:7].numpy()
 
-    sym3 = torch.tensor([0.4, 0.5, 0.6, 0.0, 0.0, 0.0], dtype=torch.float64)
-    I = Inertia.from_mass_com_sym3(mass, com, sym3)  # noqa: E741
 
-    v = Motion(torch.tensor([1.0, 2.0, 3.0, 0.1, 0.2, 0.3], dtype=torch.float64))
-    f = I.apply(v).data
+@pytest.mark.parametrize("seed", SEEDS)
+def test_inertia_from_mass_com_packs_the_layout(seed: int) -> None:
+    mass, com, rotational = _random_inertia(seed)
+    inertia = inertia_from_mass_com(mass, com, rotational_inertia=rotational)
+    assert inertia.shape == (5, 10)
+    assert torch.equal(inertia[:, 0], mass)
+    assert torch.equal(inertia[:, 1:4], com)
+    upper = rotational[:, [0, 1, 2, 0, 0, 1], [0, 1, 2, 1, 2, 2]]
+    torch.testing.assert_close(inertia[:, 4:10], upper, atol=1e-15, rtol=0.0)
 
-    expected = torch.tensor(
-        [2.0 * 1.0, 2.0 * 2.0, 2.0 * 3.0, 0.4 * 0.1, 0.5 * 0.2, 0.6 * 0.3],
-        dtype=torch.float64,
+
+def test_inertia_from_mass_com_stores_the_symmetric_part_and_broadcasts() -> None:
+    rotational = torch.tensor([[1.0, 0.2, 0.0], [0.4, 2.0, 0.0], [0.0, 0.0, 3.0]], dtype=F64)
+    inertia = inertia_from_mass_com(
+        torch.tensor(2.0, dtype=F64), torch.zeros(4, 3, dtype=F64), rotational_inertia=rotational
     )
-    assert torch.allclose(f, expected, atol=1e-12)
+    assert inertia.shape == (4, 10)
+    torch.testing.assert_close(inertia[0, 4:10], torch.tensor([1.0, 2.0, 3.0, 0.3, 0.0, 0.0], dtype=F64))
 
 
-def test_inertia_apply_batched():
-    """Batched call matches per-element closed form."""
-    torch.manual_seed(1)
-    B = 5
-    mass = torch.tensor(3.0, dtype=torch.float64)
-    com = torch.tensor([0.1, -0.2, 0.3], dtype=torch.float64)
-    I_c = torch.diag(torch.tensor([0.5, 0.7, 0.9], dtype=torch.float64))
-
-    sym3 = torch.tensor([0.5, 0.7, 0.9, 0.0, 0.0, 0.0], dtype=torch.float64)
-    I = Inertia.from_mass_com_sym3(mass, com, sym3)  # noqa: E741
-
-    v_data = torch.randn(B, 6, dtype=torch.float64)
-    f = I.apply(Motion(v_data)).data
-    for b in range(B):
-        expected = _inertia_apply_closed_form(mass, com, I_c, v_data[b])
-        assert torch.allclose(f[b], expected, atol=1e-12), f"mismatch at batch {b}"
+@pytest.mark.parametrize("seed", SEEDS)
+def test_inertia_matrix_times_twist_is_the_momentum(seed: int) -> None:
+    mass, com, rotational = _random_inertia(seed)
+    twist = torch.randn(5, 6, generator=torch.Generator().manual_seed(seed + 100), dtype=F64)
+    inertia = inertia_from_mass_com(mass, com, rotational_inertia=rotational)
+    momentum = (inertia_matrix(inertia) @ twist.unsqueeze(-1)).squeeze(-1)
+    error = float((momentum - _momentum_closed_form(mass, com, rotational, twist)).abs().max())
+    assert error <= TOLERANCE
 
 
-def test_inertia_se3_action_roundtrip():
-    """I.se3_action(T).se3_action(T^-1) ≈ I — composition identity."""
-    torch.manual_seed(2)
-    mass = torch.tensor(2.5, dtype=torch.float64)
-    com = torch.tensor([0.3, -0.1, 0.25], dtype=torch.float64)
-    sym3 = torch.tensor([0.4, 0.6, 0.8, 0.05, -0.02, 0.01], dtype=torch.float64)
-    I = Inertia.from_mass_com_sym3(mass, com, sym3)  # noqa: E741
-
-    xi = torch.tensor([0.1, 0.2, -0.15, 0.3, -0.2, 0.1], dtype=torch.float64)
-    T = se3.exp(xi)
-    T_inv = se3.inverse(T)
-
-    I_back = I.se3_action(T).se3_action(T_inv)
-    assert torch.allclose(I_back.data, I.data, atol=1e-10)
+def test_inertia_matrix_with_the_com_at_the_origin_is_block_diagonal() -> None:
+    inertia = inertia_from_mass_com(
+        torch.tensor(2.0, dtype=F64),
+        torch.zeros(3, dtype=F64),
+        rotational_inertia=torch.diag(torch.tensor([0.4, 0.5, 0.6], dtype=F64)),
+    )
+    expected = torch.diag(torch.tensor([2.0, 2.0, 2.0, 0.4, 0.5, 0.6], dtype=F64))
+    assert torch.equal(inertia_matrix(inertia), expected)
 
 
-def test_inertia_se3_action_translation_preserves_mass_and_inertia_c():
-    """Pure translation: mass unchanged, inertia-about-COM unchanged, com shifts."""
-    mass = torch.tensor(4.0, dtype=torch.float64)
-    com = torch.tensor([0.1, 0.2, 0.3], dtype=torch.float64)
-    sym3 = torch.tensor([0.5, 0.6, 0.7, 0.0, 0.0, 0.0], dtype=torch.float64)
-    I = Inertia.from_mass_com_sym3(mass, com, sym3)  # noqa: E741
+@pytest.mark.parametrize("seed", SEEDS)
+def test_shapes_match_pinocchio(seed: int) -> None:
+    generator = torch.Generator().manual_seed(seed)
+    mass, radius, length = (torch.rand(3, generator=generator, dtype=F64) + 0.2).unbind()
+    size = torch.rand(3, generator=generator, dtype=F64) + 0.1
+    radii = torch.rand(3, generator=generator, dtype=F64) + 0.1
+    m, r, h = float(mass), float(radius), float(length)
+    cases = {
+        "sphere": (inertia_of_sphere(mass, radius=radius), pin.Inertia.FromSphere(m, r)),
+        "box": (inertia_of_box(mass, size=size), pin.Inertia.FromBox(m, *size.tolist())),
+        "capsule": (inertia_of_capsule(mass, radius=radius, length=length), pin.Inertia.FromCapsule(m, r, h)),
+        "ellipsoid": (inertia_of_ellipsoid(mass, radii=radii), pin.Inertia.FromEllipsoid(m, *radii.tolist())),
+    }
+    for name, (inertia, oracle) in cases.items():
+        assert inertia.shape == (10,), name
+        assert float(inertia[0]) == m, name
+        assert torch.equal(inertia[1:4], torch.zeros(3, dtype=F64)), name
+        assert torch.equal(inertia[7:10], torch.zeros(3, dtype=F64)), name
+        error = float(np.abs(_principal_moments(inertia) - np.diag(oracle.inertia)).max())
+        assert error <= TOLERANCE, name
 
-    # Pure translation by t: T = [t, identity quat]
-    t = torch.tensor([1.0, -0.5, 2.0], dtype=torch.float64)
-    T = torch.cat([t, torch.tensor([0.0, 0.0, 0.0, 1.0], dtype=torch.float64)])
 
-    I_new = I.se3_action(T)
+def test_shape_limits_reduce_to_the_sphere() -> None:
+    """A capsule of length 0 and an ellipsoid with equal semi-axes are spheres of the same mass and radius."""
+    mass, radius = torch.tensor(3.0, dtype=F64), torch.tensor(0.7, dtype=F64)
+    sphere = inertia_of_sphere(mass, radius=radius)
+    torch.testing.assert_close(inertia_of_capsule(mass, radius=radius, length=torch.tensor(0.0, dtype=F64)), sphere)
+    torch.testing.assert_close(inertia_of_ellipsoid(mass, radii=radius.expand(3)), sphere)
+    cube = inertia_of_box(mass, size=torch.full((3,), 2.0, dtype=F64))
+    torch.testing.assert_close(cube[4:7], torch.full((3,), 3.0 * 8.0 / 12.0, dtype=F64))
 
-    assert torch.allclose(I_new.mass, mass, atol=1e-12)
-    # Under a pure translation, the inertia-about-COM is unchanged.
-    assert torch.allclose(I_new.inertia_matrix, I.inertia_matrix, atol=1e-10)
+
+def test_shapes_broadcast_and_keep_the_dtype() -> None:
+    mass = torch.tensor([1.0, 2.0])
+    assert inertia_of_sphere(mass, radius=torch.tensor(0.5)).shape == (2, 10)
+    assert inertia_of_box(mass[:, None], size=torch.ones(3, 3)).shape == (2, 3, 10)
+    assert inertia_of_capsule(mass, radius=torch.tensor(0.1), length=torch.tensor([0.2, 0.3])).shape == (2, 10)
+    ellipsoid = inertia_of_ellipsoid(mass, radii=torch.ones(2, 3))
+    assert ellipsoid.shape == (2, 10)
+    assert ellipsoid.dtype == torch.float32
+
+
+def test_shapes_are_differentiable() -> None:
+    mass, radius, length = (torch.tensor(value, dtype=F64, requires_grad=True) for value in (1.5, 0.3, 0.8))
+    assert torch.autograd.gradcheck(lambda m, r, h: inertia_of_capsule(m, radius=r, length=h), (mass, radius, length))
+    radii = torch.tensor([0.2, 0.3, 0.4], dtype=F64, requires_grad=True)
+    assert torch.autograd.gradcheck(lambda m, a: inertia_of_ellipsoid(m, radii=a), (mass, radii))
+
+
+@pytest.mark.parametrize(
+    ("build", "error", "match"),
+    [
+        pytest.param(
+            lambda: inertia_of_sphere(1.0, radius=torch.tensor(0.1)),
+            TypeError,
+            "mass must be a floating",
+            id="python-float",
+        ),
+        pytest.param(
+            lambda: inertia_of_sphere(torch.tensor(1), radius=torch.tensor(0.1)), TypeError, "torch.int64", id="integer"
+        ),
+        pytest.param(
+            lambda: inertia_of_sphere(torch.tensor(1.0), radius=torch.tensor(0.1, dtype=F64)),
+            ValueError,
+            r"radius.dtype=torch.float64 differs from mass.dtype=torch.float32",
+            id="dtype",
+        ),
+        pytest.param(
+            lambda: inertia_of_box(torch.tensor(1.0), size=torch.ones(2)),
+            ValueError,
+            r"size must have shape \(..., 3\)",
+            id="box-size",
+        ),
+        pytest.param(
+            lambda: inertia_of_ellipsoid(torch.tensor(1.0), radii=torch.ones(())),
+            ValueError,
+            "radii must have shape",
+            id="radii",
+        ),
+        pytest.param(
+            lambda: inertia_from_mass_com(torch.tensor(1.0), torch.zeros(3), rotational_inertia=torch.eye(4)),
+            ValueError,
+            r"rotational_inertia must have shape \(..., 3, 3\)",
+            id="rotational-inertia",
+        ),
+        pytest.param(
+            lambda: inertia_from_mass_com(
+                torch.tensor(1.0), torch.zeros(3, dtype=F64), rotational_inertia=torch.eye(3)
+            ),
+            ValueError,
+            "com.dtype",
+            id="com-dtype",
+        ),
+    ],
+)
+def test_constructors_reject_wrong_types_shapes_and_dtypes(build, error: type, match: str) -> None:
+    with pytest.raises(error, match=match):
+        build()
+
+
+@pytest.mark.cuda
+def test_constructors_reject_mixed_devices() -> None:
+    with pytest.raises(ValueError, match="radius is on cuda"):
+        inertia_of_sphere(torch.tensor(1.0), radius=torch.tensor(0.1, device="cuda"))
