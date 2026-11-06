@@ -48,7 +48,6 @@
   "docs/contracts/decisions/0016-geometry-out-of-model.md: tests/io/test_geometry.py": "the record's enforcement test, written by the work package that implements the record",
   "docs/contracts/decisions/0018-frame-names.md: tests/io/test_frame_names.py": "the record's enforcement test, written by the work package that implements the record",
   "docs/contracts/decisions/0019-root-namespace.md: tests/contract/test_public_surface.py": "the record's enforcement test, written by the work package that implements the record",
-  "docs/contracts/decisions/0020-error-tree.md: tests/contract/test_error_tree.py": "the record's enforcement test, written by the work package that implements the record",
   "docs/contracts/decisions/0020-error-tree.md: tests/contract/test_public_surface.py": "the record's enforcement test, written by the work package that implements the record",
   "docs/contracts/decisions/0021-validation-ladder.md: tests/contract/test_internal_checks.py": "the record's enforcement test, written by the work package that implements the record",
   "docs/contracts/decisions/0022-viewer-boundary.md: tests/contract/test_no_probing.py": "the record's enforcement test, written by the work package that implements the record",
@@ -88,7 +87,6 @@
   "src/better_robot/data_model/joint_models/spherical.py: docs/concepts/joints_bodies_frames.md": "cites a docs page of the old layout that no longer exists",
   "src/better_robot/data_model/joint_models/translation.py: docs/concepts/joints_bodies_frames.md": "cites a docs page of the old layout that no longer exists",
   "src/better_robot/data_model/topology.py: docs/concepts/model_and_data.md": "cites a docs page of the old layout that no longer exists",
-  "src/better_robot/exceptions.py: docs/conventions/contracts.md": "cites a docs page of the old layout that no longer exists",
   "src/better_robot/io/__init__.py: docs/concepts/parsers_and_ir.md": "cites a docs page of the old layout that no longer exists",
   "src/better_robot/io/assets.py: docs/concepts/parsers_and_ir.md": "cites a docs page of the old layout that no longer exists",
   "src/better_robot/io/build_model.py: docs/concepts/parsers_and_ir.md": "cites a docs page of the old layout that no longer exists",
@@ -123,7 +121,5 @@
   "tests/kinematics/test_fk.py: docs/concepts/kinematics_and_jacobians.md": "cites a docs page of the old layout that no longer exists",
   "tests/kinematics/test_fk_regression.py: docs/conventions/testing.md": "cites a docs page of the old layout that no longer exists",
   "tests/kinematics/test_jacobian_time_variation.py: docs/concepts/kinematics_and_jacobians.md": "cites a docs page of the old layout that no longer exists",
-  "tests/kinematics/test_jacobians.py: docs/concepts/kinematics_and_jacobians.md": "cites a docs page of the old layout that no longer exists",
-  "tests/test_exceptions.py: docs/conventions/contracts.md": "cites a docs page of the old layout that no longer exists",
-  "tests/test_exceptions_wired.py: docs/conventions/contracts.md": "cites a docs page of the old layout that no longer exists"
+  "tests/kinematics/test_jacobians.py: docs/concepts/kinematics_and_jacobians.md": "cites a docs page of the old layout that no longer exists"
 }

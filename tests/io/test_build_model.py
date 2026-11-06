@@ -14,7 +14,7 @@ import torch
 import better_robot.io as br_io
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
-from better_robot.io.ir import IRError
+from better_robot.exceptions import ModelError
 from better_robot.data_model.joint_models import JointFreeFlyer
 
 
@@ -310,7 +310,7 @@ def test_mimic_bad_source_raises():
         "j1", parent="root", child="child", origin=_id7(), lower=-1.0, upper=1.0, mimic_source="nonexistent_joint"
     )
     ir = b.finalize()
-    with pytest.raises(IRError, match="Mimic source"):
+    with pytest.raises(ModelError, match="Mimic source"):
         build_model(ir)
 
 

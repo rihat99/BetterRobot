@@ -24,7 +24,6 @@ from .assets import (
 from .build_model import build_model
 from .ir import (
     IRBody,
-    IRError,
     IRFrame,
     IRGeom,
     IRJoint,
@@ -141,7 +140,6 @@ __all__ = [
     "IRJoint",
     "IRFrame",
     "IRGeom",
-    "IRError",
     "ModelBuilder",
     "AssetResolver",
     "FilesystemResolver",

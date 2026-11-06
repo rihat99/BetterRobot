@@ -13,6 +13,7 @@ from collections.abc import Callable
 import torch
 
 from ..data_model.model import Model
+from ..exceptions import ArgumentError
 from ..kinematics.state import KinematicState, forward_kinematics_state, frame_jacobian
 from ..lie import se3
 from ..lie.tangents import right_jacobian_inv_se3
@@ -124,7 +125,7 @@ def finite_difference(model: Model, *, order: int, dt: float, q: str = "q", worl
     stays the body-frame log. Residual ``(B, T - order, nv)``; a time-local term with ``window = order + 1``.
     """
     if order < 1:
-        raise ValueError(f"order must be at least 1, got {order}")
+        raise ArgumentError(f"order must be at least 1, got {order}")
     position_q = model.structure.manifold_free_flyer_q_indices[:, :3].reshape(-1)
     position_v = model.structure.manifold_free_flyer_v_indices[:, :3].reshape(-1)
 

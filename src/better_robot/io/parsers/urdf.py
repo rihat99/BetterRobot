@@ -157,11 +157,9 @@ def parse_urdf(
     try:
         import yourdfpy
     except ImportError as exc:
-        from ...exceptions import BackendNotAvailableError
+        from ...exceptions import OptionalDependencyError
 
-        raise BackendNotAvailableError(
-            "URDF parsing requires `yourdfpy`. Reinstall with `pip install better-robot`."
-        ) from exc
+        raise OptionalDependencyError("yourdfpy", install="uv sync") from exc
 
     if isinstance(source, (str, Path)):
         urdf = yourdfpy.URDF.load(str(source))

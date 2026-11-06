@@ -14,6 +14,7 @@ from ..data_model.execution_batch import broadcast_to_execution_batch
 from ..data_model.model_structure import ModelStructure
 from ..data_model.model_values import ModelValues
 from ..data_model.reduced_coordinates import reduce_jacobian
+from ..exceptions import ArgumentError
 from ..lie import se3
 from ..lie.tangents import hat_so3
 from ._jacobian_columns import get_plan, world_column_table
@@ -154,7 +155,7 @@ def _time_variation_in_reference(
         )
         return dot_local - correction
 
-    raise ValueError(f"Unsupported reference frame: {reference!r}")
+    raise ArgumentError(f"Unsupported reference frame: {reference!r}")
 
 
 def frame_jacobian_time_variation_raw(

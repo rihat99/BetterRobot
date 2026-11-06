@@ -4,6 +4,7 @@ import pytest
 import torch
 
 from better_robot.data_model.model import Model
+from better_robot.exceptions import ArgumentError
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics import forward_kinematics_state
@@ -37,7 +38,7 @@ def test_ids_accept_int_or_name():
     assert model.joint_id(model.joint_id("j1")) == 2
     assert model.body_id(1) == 1
     assert model.frame_id(0) == 0
-    with pytest.raises(IndexError):
+    with pytest.raises(ArgumentError):
         model.frame_id(model.nframes)
 
 

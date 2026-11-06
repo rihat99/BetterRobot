@@ -17,7 +17,7 @@ from typing import Mapping
 
 import torch
 
-from ..exceptions import DeviceMismatchError, ShapeError, UnknownNameError
+from ..exceptions import ArgumentError, DeviceMismatchError, ShapeError, UnknownNameError
 from ..lie import se3, so3
 from .frame import FrameType
 from .joint_models.base import JointModel
@@ -169,10 +169,10 @@ class ModelStructure:
 
         if isinstance(joint, str):
             if joint not in self.joint_name_to_id:
-                raise UnknownNameError(f"unknown joint name {joint!r}")
+                raise UnknownNameError("joint", joint, self.joint_names)
             return self.joint_name_to_id[joint]
         if not 0 <= joint < self.njoints:
-            raise IndexError(f"joint id {joint} out of range [0, {self.njoints})")
+            raise ArgumentError(f"joint id {joint} out of range [0, {self.njoints})")
         return joint
 
     def frame_id(self, frame: int | str) -> int:
@@ -180,10 +180,10 @@ class ModelStructure:
 
         if isinstance(frame, str):
             if frame not in self.frame_name_to_id:
-                raise UnknownNameError(f"unknown frame name {frame!r}")
+                raise UnknownNameError("frame", frame, self.frame_names)
             return self.frame_name_to_id[frame]
         if not 0 <= frame < self.nframes:
-            raise IndexError(f"frame id {frame} out of range [0, {self.nframes})")
+            raise ArgumentError(f"frame id {frame} out of range [0, {self.nframes})")
         return frame
 
     def body_id(self, body: int | str) -> int:
@@ -191,10 +191,10 @@ class ModelStructure:
 
         if isinstance(body, str):
             if body not in self.body_name_to_id:
-                raise UnknownNameError(f"unknown body name {body!r}")
+                raise UnknownNameError("body", body, self.body_names)
             return self.body_name_to_id[body]
         if not 0 <= body < self.nbodies:
-            raise IndexError(f"body id {body} out of range [0, {self.nbodies})")
+            raise ArgumentError(f"body id {body} out of range [0, {self.nbodies})")
         return body
 
     def get_subtree(self, joint_id: int | str) -> tuple[int, ...]:
@@ -227,11 +227,11 @@ class ModelStructure:
                 duplicates.append(name)
             seen.add(name)
         if duplicates:
-            raise ValueError(f"other_joint_order contains duplicate joint names: {duplicates}")
+            raise ArgumentError(f"other_joint_order contains duplicate joint names: {duplicates}")
 
         unknown = [name for name in order if name not in self.joint_name_to_id]
         if unknown:
-            raise UnknownNameError(f"other_joint_order contains unknown joint names: {unknown}")
+            raise UnknownNameError("joint", unknown[0], self.joint_names)
 
         provided = set(order)
         missing = [
@@ -240,7 +240,7 @@ class ModelStructure:
             if (self.nqs[joint_id] > 0 or self.nvs[joint_id] > 0) and name not in provided
         ]
         if missing:
-            raise ValueError(f"other_joint_order is missing joints with public q/v slices: {missing}")
+            raise ArgumentError(f"other_joint_order is missing joints with public q/v slices: {missing}")
 
         q_starts: dict[str, int] = {}
         v_starts: dict[str, int] = {}

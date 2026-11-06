@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import torch
 
+from ...exceptions import OptionalDependencyError
 from ..ir import IRBody, IRFrame, IRGeom, IRJoint, IRModel
 
 if TYPE_CHECKING:
@@ -99,7 +100,7 @@ def parse_mjcf(
     try:
         import mujoco
     except ImportError as exc:
-        raise ImportError("mujoco is required to parse MJCF files. Install with: pip install mujoco") from exc
+        raise OptionalDependencyError("mujoco", install="uv sync --extra io-mjcf") from exc
 
     source = str(source)
     spec = mujoco.MjSpec.from_file(source)

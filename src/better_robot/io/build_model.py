@@ -11,7 +11,7 @@ from dataclasses import dataclass
 import torch
 
 from ..data_model.frame import Frame
-from ..exceptions import ModelInconsistencyError
+from ..exceptions import ModelError
 from ..data_model.joint_models import (
     JointFixed,
     JointFreeFlyer,
@@ -35,7 +35,7 @@ from ..data_model.model import Model
 from ..data_model.model_structure import JOINT_KIND_CODES, ModelStructure, _flatten_rows
 from ..data_model.model_values import ModelValues
 from ..data_model.topology import build_children, build_subtrees, build_supports, topo_sort
-from .ir import IRBody, IRJoint, IRModel, IRError
+from .ir import IRBody, IRJoint, IRModel
 
 # ──────────────────────────────── constants ──────────────────────────────────
 
@@ -106,30 +106,30 @@ def _check_topology_invariants(
 ) -> None:
     """Validate the four topology invariants from ``docs/conventions/contracts.md §1.5``.
 
-    Raises `ModelInconsistencyError` at
+    Raises `ModelError` at
     build time so the caller never sees a ``Model`` in an inconsistent
     state.
     """
     # 1. Universe joint is rooted at -1.
     if parents[0] != -1:
-        raise ModelInconsistencyError(f"parents[0] must be -1 (universe), got {parents[0]}")
+        raise ModelError(f"parents[0] must be -1 (universe), got {parents[0]}")
     # 2. Topologically sorted: parents[i] < i for i > 0.
     for i, p in enumerate(parents[1:], start=1):
         if p >= i:
-            raise ModelInconsistencyError(f"parents[{i}]={p} >= {i}; topological sort violated")
+            raise ModelError(f"parents[{i}]={p} >= {i}; topological sort violated")
     # 3. sum(nqs) == nq, sum(nvs) == nv.
     if sum(nqs) != nq_total:
-        raise ModelInconsistencyError(f"sum(nqs)={sum(nqs)} != nq={nq_total}")
+        raise ModelError(f"sum(nqs)={sum(nqs)} != nq={nq_total}")
     if sum(nvs) != nv_total:
-        raise ModelInconsistencyError(f"sum(nvs)={sum(nvs)} != nv={nv_total}")
+        raise ModelError(f"sum(nvs)={sum(nvs)} != nv={nv_total}")
     # 4. Contiguous slicing: idx_qs[i] + nqs[i] == idx_qs[i+1] (and same for v).
     for i in range(len(nqs) - 1):
         if idx_qs[i] + nqs[i] != idx_qs[i + 1]:
-            raise ModelInconsistencyError(
+            raise ModelError(
                 f"idx_qs[{i}] + nqs[{i}] = {idx_qs[i] + nqs[i]} != idx_qs[{i + 1}]={idx_qs[i + 1]} (q-slicing gap)"
             )
         if idx_vs[i] + nvs[i] != idx_vs[i + 1]:
-            raise ModelInconsistencyError(
+            raise ModelError(
                 f"idx_vs[{i}] + nvs[{i}] = {idx_vs[i] + nvs[i]} != idx_vs[{i + 1}]={idx_vs[i + 1]} (v-slicing gap)"
             )
 
@@ -224,11 +224,11 @@ def _build_mimic_reduction(  # noqa: PLR0912, PLR0913, PLR0915 - one build-time 
     for target in mimic_targets:
         source = mimic_source[target]
         if source == target:
-            raise IRError(f"Mimic cycle detected: joint {joint_names[target]!r} references itself")
+            raise ModelError(f"Mimic cycle detected: joint {joint_names[target]!r} references itself")
         for role, joint_id in (("target", target), ("source", source)):
             joint = joint_models[joint_id]
             if not isinstance(joint, _SUPPORTED_MIMIC_JOINTS):
-                raise IRError(
+                raise ModelError(
                     f"Mimic {role} joint {joint_names[joint_id]!r} has unsupported "
                     f"kind {joint.kind!r}; reduced mimic coordinates currently "
                     "require concrete scalar Euclidean revolute, prismatic, or "
@@ -255,7 +255,7 @@ def _build_mimic_reduction(  # noqa: PLR0912, PLR0913, PLR0915 - one build-time 
         if state[joint_id] == 1:
             cycle = (*path, joint_id)
             names = " -> ".join(joint_names[index] for index in cycle)
-            raise IRError(f"Mimic cycle detected: {names}")
+            raise ModelError(f"Mimic cycle detected: {names}")
         if state[joint_id] == 2:
             result = resolved[joint_id]
             assert result is not None
@@ -332,7 +332,7 @@ def _build_mimic_reduction(  # noqa: PLR0912, PLR0913, PLR0915 - one build-time 
         hi = float(upper_full[full_iq])
         if scale == 0.0:
             if offset < lo or offset > hi:
-                raise IRError(
+                raise ModelError(
                     f"Constant mimic joint {joint_names[target]!r} has offset "
                     f"{offset}, outside its position limits [{lo}, {hi}]"
                 )
@@ -344,7 +344,7 @@ def _build_mimic_reduction(  # noqa: PLR0912, PLR0913, PLR0915 - one build-time 
         lower[reduced_iq] = torch.maximum(lower[reduced_iq], lower.new_tensor(mapped_lo))
         upper[reduced_iq] = torch.minimum(upper[reduced_iq], upper.new_tensor(mapped_hi))
         if float(lower[reduced_iq]) > float(upper[reduced_iq]):
-            raise IRError(
+            raise ModelError(
                 f"Mimic limits for source joint {joint_names[root]!r} are empty "
                 f"after applying target {joint_names[target]!r}"
             )
@@ -385,9 +385,11 @@ def _kind_to_joint_model(ir_joint: IRJoint) -> JointModel:  # noqa: PLR0911, PLR
     joint_model = getattr(ir_joint, "joint_model", None)
     if joint_model is not None:
         if not isinstance(joint_model, JointModel):
-            raise IRError(f"joint_model payload for joint {ir_joint.name!r} does not implement the JointModel protocol")
+            raise ModelError(
+                f"joint_model payload for joint {ir_joint.name!r} does not implement the JointModel protocol"
+            )
         if joint_model.kind != kind:
-            raise IRError(
+            raise ModelError(
                 f"joint_model payload kind {joint_model.kind!r} does not match "
                 f"IR kind {kind!r} for joint {ir_joint.name!r}"
             )
@@ -414,7 +416,7 @@ def _kind_to_joint_model(ir_joint: IRJoint) -> JointModel:  # noqa: PLR0911, PLR
         return JointRZ()
     if kind == "revolute_unaligned":
         if axis is None:
-            raise IRError(f"Joint {ir_joint.name!r} with kind {kind!r} requires an axis")
+            raise ModelError(f"Joint {ir_joint.name!r} with kind {kind!r} requires an axis")
         return JointRevoluteUnaligned(axis=axis.float())
     if kind == "revolute_unbounded":
         _ax = axis if axis is not None else torch.tensor([0.0, 0.0, 1.0])
@@ -450,7 +452,7 @@ def _kind_to_joint_model(ir_joint: IRJoint) -> JointModel:  # noqa: PLR0911, PLR
         return JointPZ()
     if kind == "prismatic_unaligned":
         if axis is None:
-            raise IRError(f"Joint {ir_joint.name!r} with kind {kind!r} requires an axis")
+            raise ModelError(f"Joint {ir_joint.name!r} with kind {kind!r} requires an axis")
         return JointPrismaticUnaligned(axis=axis.float())
 
     if kind in ("spherical", "ball"):
@@ -470,13 +472,13 @@ def _kind_to_joint_model(ir_joint: IRJoint) -> JointModel:  # noqa: PLR0911, PLR
         return JointHelical(axis=_ax.float(), pitch=ir_joint.pitch)
 
     if kind == "composite":
-        raise IRError(
+        raise ModelError(
             f"Composite joint {ir_joint.name!r} is missing its programmatic "
             f"JointComposite payload; construct it with "
             f"ModelBuilder.add_joint(kind=JointComposite(...))"
         )
 
-    raise IRError(f"Unknown joint kind {kind!r} for joint {ir_joint.name!r}")
+    raise ModelError(f"Unknown joint kind {kind!r} for joint {ir_joint.name!r}")
 
 
 def _pack_inertia(ir_body: IRBody, dtype: torch.dtype) -> torch.Tensor:
@@ -515,14 +517,14 @@ def _ir_topo_sort(
         for ji in reversed(sorted(parent_to_joints.get(body, []))):
             child = ir.joints[ji].child_body
             if child in visited:
-                raise IRError(f"Cycle detected: body {child!r} reachable via multiple paths")
+                raise ModelError(f"Cycle detected: body {child!r} reachable via multiple paths")
             visited.add(child)
             stack.append((child, ji))
 
     if len(sorted_indices) != len(ir_indices):
         disconnected = set(ir_indices) - set(sorted_indices)
         names = [ir.joints[i].name for i in disconnected]
-        raise IRError(f"Disconnected joints (not reachable from root): {names}")
+        raise ModelError(f"Disconnected joints (not reachable from root): {names}")
 
     return sorted_indices
 
@@ -552,7 +554,7 @@ def _ir_stable_topo_sort(
         joint_index = heapq.heappop(ready)
         child_body = ir.joints[joint_index].child_body
         if child_body in visited_bodies:
-            raise IRError(f"Cycle detected: body {child_body!r} reachable via multiple paths")
+            raise ModelError(f"Cycle detected: body {child_body!r} reachable via multiple paths")
         visited_bodies.add(child_body)
         sorted_indices.append(joint_index)
         for child_index in parent_to_joints.get(child_body, ()):
@@ -561,7 +563,7 @@ def _ir_stable_topo_sort(
     if len(sorted_indices) != len(ir_indices):
         selected = set(sorted_indices)
         names = [ir.joints[index].name for index in ir_indices if index not in selected]
-        raise IRError(f"Disconnected joints (not reachable from root): {names}")
+        raise ModelError(f"Disconnected joints (not reachable from root): {names}")
 
     return sorted_indices
 
@@ -613,7 +615,7 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
     if world_ir_idxs:
         # IR has an explicit joint connecting world → root_body.
         if len(world_ir_idxs) > 1:
-            raise IRError(
+            raise ModelError(
                 f"Multiple joints with parent_body='world' is not supported; "
                 f"found: {[ir.joints[i].name for i in world_ir_idxs]}"
             )
@@ -634,11 +636,11 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
         if ir.root_body:
             root_body = ir.root_body
             if root_body not in {b.name for b in ir.bodies}:
-                raise IRError(f"root_body {root_body!r} not found in IR bodies")
+                raise ModelError(f"root_body {root_body!r} not found in IR bodies")
         else:
             candidates = [b.name for b in ir.bodies if b.name not in child_bodies]
             if len(candidates) != 1:
-                raise IRError(f"Expected exactly 1 root body, found {len(candidates)}: {candidates}")
+                raise ModelError(f"Expected exactly 1 root body, found {len(candidates)}: {candidates}")
             root_body = candidates[0]
 
         _root_jm = root_joint if root_joint is not None else JointFixed()
@@ -864,7 +866,7 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
         if ir_j.mimic_source is not None:
             src = ir_joint_name_to_mjidx.get(ir_j.mimic_source)
             if src is None:
-                raise IRError(f"Mimic source {ir_j.mimic_source!r} not found (referenced by joint {ir_j.name!r})")
+                raise ModelError(f"Mimic source {ir_j.mimic_source!r} not found (referenced by joint {ir_j.name!r})")
             mimic_targets.add(mjidx)
             mimic_src_list[mjidx] = src
             mimic_mult[mjidx] = ir_j.mimic_multiplier

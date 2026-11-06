@@ -23,7 +23,8 @@ from better_robot.data_model.reduced_coordinates import (
     expand_configuration,
     expand_tangent,
 )
-from better_robot.io import IRError, ModelBuilder, build_model
+from better_robot.exceptions import ModelError
+from better_robot.io import ModelBuilder, build_model
 
 
 _IDENTITY = torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
@@ -195,7 +196,7 @@ def test_cycles_and_unsupported_manifold_mimics_fail_at_build() -> None:
     b = cycle.add_body("b")
     cycle.add_revolute_z("a_joint", parent=root, child=a, mimic_source="b_joint")
     cycle.add_revolute_z("b_joint", parent=root, child=b, mimic_source="a_joint")
-    with pytest.raises(IRError, match="cycle"):
+    with pytest.raises(ModelError, match="cycle"):
         build_model(cycle.finalize())
 
     ir = _mimic_ir()
@@ -205,7 +206,7 @@ def test_cycles_and_unsupported_manifold_mimics_fail_at_build() -> None:
         kind="spherical",
         joint_model=JointSpherical(),
     )
-    with pytest.raises(IRError, match="scalar Euclidean"):
+    with pytest.raises(ModelError, match="scalar Euclidean"):
         build_model(ir)
 
 
@@ -214,7 +215,7 @@ def test_zero_multiplier_is_constant_only_when_offset_satisfies_target_limits() 
     q_full = expand_configuration(model.structure, torch.tensor([0.8]))
     torch.testing.assert_close(q_full, torch.tensor([0.8, 0.3]))
 
-    with pytest.raises(IRError, match="outside its position limits"):
+    with pytest.raises(ModelError, match="outside its position limits"):
         build_model(_mimic_ir(multiplier=0.0, offset=2.0))
 
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 import torch
 
-from better_robot.exceptions import UnknownNameError
+from better_robot.exceptions import ArgumentError, UnknownNameError
 from better_robot.io import ModelBuilder, build_model
 
 
@@ -101,9 +101,9 @@ def test_q_permutation_identity_accepts_zero_dof_names(mixed_dof_model):
 @pytest.mark.parametrize(
     ("order", "error", "match"),
     [
-        (("root", "ball", "hinge", "plane", "ball"), ValueError, "duplicate"),
+        (("root", "ball", "hinge", "plane", "ball"), ArgumentError, "duplicate"),
         (("root", "ball", "hinge", "plane", "ghost"), UnknownNameError, "unknown"),
-        (("root", "ball", "hinge"), ValueError, "missing"),
+        (("root", "ball", "hinge"), ArgumentError, "missing"),
     ],
 )
 def test_q_permutation_rejects_invalid_joint_orders(

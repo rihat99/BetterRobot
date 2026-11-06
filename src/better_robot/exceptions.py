@@ -1,108 +1,70 @@
-"""Typed exceptions raised by ``better_robot``.
+"""One error tree under ``BetterRobotError`` (decision record 0020).
 
-See ``docs/conventions/contracts.md §2`` for the normative taxonomy.
-
-All library-raised errors inherit from `BetterRobotError`. Where
-possible, they also inherit from a standard-library exception class
-(``ValueError``, ``RuntimeError``, ``ImportError``) so existing
-``except ValueError`` / ``except RuntimeError`` blocks keep catching the
-common cases.
-
-Usage::
-
-    from better_robot.exceptions import ShapeError
-
-    if q.shape[-1] != model.nq:
-        raise ShapeError(f"q has trailing size {q.shape[-1]}, expected {model.nq}")
+Every error the library raises derives from ``BetterRobotError`` and from the builtin a caller already knows:
+``ValueError`` for a wrong structure or argument, ``KeyError`` for an unknown name, ``ImportError`` for a missing
+optional package. This module imports nothing, so every package, ``optim`` included, may import it.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 
 class BetterRobotError(Exception):
-    """Root of every exception raised by ``better_robot``.
-
-    Catch this to distinguish library errors from arbitrary exceptions
-    bubbling up from user code or from ``torch`` internals.
-    """
-
-
-class ModelInconsistencyError(BetterRobotError, ValueError):
-    """Parsed ``Model`` violates one of the topology invariants.
-
-    Invariants (see ``docs/conventions/contracts.md §1.5``):
-
-    * ``parents[0] == -1`` — joint 0 is the universe.
-    * ``parents[i] < i`` for ``i > 0`` — topologically sorted.
-    * ``sum(nqs) == nq`` and ``sum(nvs) == nv``.
-    * ``idx_qs[i] + nqs[i] == idx_qs[i+1]`` — contiguous slicing.
-
-    Raised at *build* time (``io.build_model``), never at query time.
-    """
-
-
-class DeviceMismatchError(BetterRobotError, ValueError):
-    """A ``q`` / ``v`` / ``tau`` tensor lives on a different device than
-    the ``Model``.
-
-    Remediation: ``model.to(q.device)`` or ``q.to(model.device)``.
-    """
-
-
-class DtypeMismatchError(BetterRobotError, ValueError):
-    """A query tensor has a dtype incompatible with the model's dtype.
-
-    ``float16`` is unsupported anywhere in the library. Cast to
-    ``float32`` or ``float64`` before the call.
-    """
-
-
-class QuaternionNormError(BetterRobotError, ValueError):
-    """Input quaternion's norm is outside ``[0.9, 1.1]``.
-
-    Norms inside that window are re-normalised silently (floating-point
-    drift tolerance). Outside it, the input is clearly not meant to be a
-    unit quaternion and the library refuses to guess.
-    """
+    """Root of every error raised by ``better_robot``."""
 
 
 class ShapeError(BetterRobotError, ValueError):
-    """A public input has the wrong trailing-axis size.
-
-    The message names the offending argument and the expected shape.
-    """
+    """A tensor has the wrong trailing shape, or batch shapes do not broadcast."""
 
 
-class BackendNotAvailableError(BetterRobotError, ImportError):
-    """An optional integration dependency is not importable.
+class DtypeMismatchError(BetterRobotError, ValueError):
+    """A tensor's dtype differs from the model's."""
 
-    Example::
 
-        load("robot.urdf")  # raises if the optional `yourdfpy` parser is absent
+class DeviceMismatchError(BetterRobotError, ValueError):
+    """A tensor's device differs from the model's."""
 
-    The name is reserved for a future kernel brick (an optional compiled
-    backend behind the same public signatures); today it only reports a missing
-    optional integration dependency. It is not evidence of a runtime
-    compute-backend registry.
-    """
+
+class ArgumentError(BetterRobotError, ValueError):
+    """A non-tensor argument is out of its accepted set: an id out of range, an unsupported reference frame."""
+
+
+class ModelError(BetterRobotError, ValueError):
+    """A robot description cannot become a model, or a model lacks what an operation needs."""
+
+
+class QuaternionNormError(BetterRobotError, ValueError):
+    """A quaternion in ``q`` has a norm outside ``[0.9, 1.1]`` (checked only on request)."""
 
 
 class UnknownNameError(BetterRobotError, KeyError):
-    """A joint, frame or body name is not in the model.
+    """A joint, frame or body name is not in the model; the message lists the valid names when there are at most 20."""
 
-    Example::
+    def __init__(self, kind: str, name: str, valid: Sequence[str]) -> None:
+        names = f"valid {kind}s: {list(valid)}" if len(valid) <= 20 else f"{len(valid)} {kind}s"
+        super().__init__(f"unknown {kind} {name!r}; {names}")
 
-        model.joint_id("no_such_joint")  # raises; ids may be ``int`` or ``str`` everywhere
-    """
+    def __str__(self) -> str:
+        # KeyError.__str__ would wrap the message in quotes.
+        return self.args[0]
+
+
+class OptionalDependencyError(BetterRobotError, ImportError):
+    """An optional package is not installed; the message carries the install line."""
+
+    def __init__(self, package: str, *, install: str) -> None:
+        super().__init__(f"{package} is not installed; run: {install}")
 
 
 __all__ = [
     "BetterRobotError",
-    "ModelInconsistencyError",
-    "DeviceMismatchError",
-    "DtypeMismatchError",
-    "QuaternionNormError",
     "ShapeError",
+    "DtypeMismatchError",
+    "DeviceMismatchError",
+    "ArgumentError",
+    "ModelError",
+    "QuaternionNormError",
     "UnknownNameError",
-    "BackendNotAvailableError",
+    "OptionalDependencyError",
 ]

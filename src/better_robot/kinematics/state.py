@@ -20,7 +20,7 @@ from ..data_model.model import Model
 from ..data_model.model_structure import ModelStructure
 from ..data_model.model_values import ModelValues
 from ..data_model.reduced_coordinates import expand_configuration, reduce_jacobian
-from ..exceptions import DeviceMismatchError, DtypeMismatchError, QuaternionNormError, ShapeError
+from ..exceptions import ArgumentError, DeviceMismatchError, DtypeMismatchError, QuaternionNormError, ShapeError
 from ..lie import so3
 from ._fk_lean import lean_core, placement_matrices
 from ._jacobian_columns import get_plan, world_column_table_from_matrices
@@ -222,7 +222,7 @@ def point_jacobian(
     ``(B..., K, nv, 1)``; sum over ``K`` (``.sum(-3)``) for the generalized force of them all.
     """
     if not frames:
-        raise ValueError("frames is empty; point_jacobian needs at least one frame")
+        raise ArgumentError("frames is empty; point_jacobian needs at least one frame")
     if points.dtype != state.q.dtype:
         raise DtypeMismatchError(f"points.dtype={points.dtype} != state dtype {state.q.dtype}; cast points first")
     if points.device != state.q.device:
@@ -319,4 +319,4 @@ def _express(world: torch.Tensor, position: torch.Tensor, rotation: torch.Tensor
     if reference == "local":
         rotation = rotation.mT
         return torch.cat((rotation @ aligned[..., :3, :], rotation @ aligned[..., 3:, :]), dim=-2)
-    raise ValueError(f"Unsupported reference frame: {reference!r}")
+    raise ArgumentError(f"Unsupported reference frame: {reference!r}")

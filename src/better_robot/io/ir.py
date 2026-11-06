@@ -15,8 +15,6 @@ from typing import TYPE_CHECKING, Optional
 
 import torch
 
-from ..exceptions import BetterRobotError
-
 if TYPE_CHECKING:
     from ..data_model.joint_models.base import JointModel
 
@@ -98,7 +96,3 @@ class IRModel:
     )
     #: Free-form parser metadata, e.g. ``{"asset_resolver": ..., "source_path": ...}``.
     meta: dict = field(default_factory=dict)
-
-
-class IRError(BetterRobotError, ValueError):
-    """Raised by ``build_model`` when the IR is structurally invalid."""
