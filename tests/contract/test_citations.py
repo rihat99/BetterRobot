@@ -33,6 +33,9 @@ FROZEN_RECORD_CITATIONS: dict[str, str] = {
     "docs/contracts/decisions/0003-terms-plain-functions.md: tests/contract/test_protocols.py": (
         "trashed with the JointModel protocol (0013); C-EXT-1 is review-enforced"
     ),
+    "docs/contracts/decisions/0040-model-value-memo.md: src/better_robot/kinematics/_fk_lean.py::placement_matrices": (
+        "now src/better_robot/kinematics/_fk.py::placement_matrices"
+    ),
 }
 
 

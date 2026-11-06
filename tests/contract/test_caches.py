@@ -15,7 +15,7 @@ import torch
 
 from better_robot import load
 from better_robot.kinematics import forward_kinematics_state
-from better_robot.kinematics._fk_lean import placement_matrices
+from better_robot.kinematics._fk import placement_matrices
 from better_robot.kinematics.state import KinematicState
 from better_robot.model import Model
 from tests.support.robots import panda_urdf

@@ -32,7 +32,7 @@ A joint kind is a final frozen dataclass under `src/better_robot/model/joints/ba
 defined, not at a distant dispatch. Every class in `model.joints` and `model.manifolds` is abstract or `@final`:
 kinds are data, not a hierarchy. There is no joint registry: the kind is passed to `ModelBuilder.add_joint(kind=)`
 and the built model keeps that object (record [0025](decisions/0025-extension-model.md)). Consumers that need a
-kind's class (`src/better_robot/kinematics/_fk_lean.py`, the viewer's markers) test the final classes; any other kind takes the
+kind's class (`src/better_robot/kinematics/_fk.py`, the viewer's markers) test the final classes; any other kind takes the
 generic path through `placement`. A new file format is a function returning `IRModel`, passed to `io.build_model`
 (`io.register_parser` remains until the io rewrite removes it).
 

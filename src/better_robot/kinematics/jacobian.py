@@ -15,7 +15,7 @@ from ..lie import se3
 from ..lie.tangents import hat_so3
 from ..model._checks import expand_batch
 from ..model.model import Model
-from ._jacobian_columns import jacobian_plan, world_column_table
+from ._jacobian import jacobian_plan, world_column_table
 from .configuration import reduced_columns
 
 _ReferenceFrame = Literal["world", "local", "local_world_aligned"]
@@ -60,7 +60,7 @@ def joint_jacobians_time_variation_raw(
     reduced ``v`` (identical to the full-width product); the owner-keyed
     transport is valid on **full-width** columns only — a reduced mimic column
     blends distinct owners — so the shared full-width table
-    (`_jacobian_columns.world_column_table`) always drives it and mimic
+    (`_jacobian.world_column_table`) always drives it and mimic
     reduction is applied last, exactly like the plain joint Jacobian.
 
     A supplied ``joint_jacobians`` (reduced, ``(B..., njoints, 6, nv)``) is

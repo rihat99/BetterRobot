@@ -25,7 +25,7 @@ from dataclasses import dataclass
 
 import torch
 
-from ..kinematics import _jacobian_columns as jacobian_columns
+from ..kinematics import _jacobian as jacobian_columns
 from ..lie.tangents import hat_so3
 from ..model.model import Model
 from ..model.topology import build_supports

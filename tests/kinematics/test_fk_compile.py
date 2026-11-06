@@ -11,7 +11,7 @@ from better_robot.exceptions import QuaternionNormError
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics import forward_kinematics_state, full_configuration
-from better_robot.kinematics._fk_lean import lean_core, placement_matrices
+from better_robot.kinematics._fk import lean_core, placement_matrices
 from tests.support.robots import panda_urdf
 
 

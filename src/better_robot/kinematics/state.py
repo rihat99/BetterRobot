@@ -18,8 +18,8 @@ from ..lie import so3
 from ..model._checks import batch_shape, check_tensor, expand_batch
 from ..model.joints import JointFreeFlyer
 from ..model.model import Model
-from ._fk_lean import fk_plan, lean_core, placement_matrices
-from ._jacobian_columns import jacobian_plan, world_column_table_from_matrices
+from ._fk import fk_plan, lean_core, placement_matrices
+from ._jacobian import jacobian_plan, world_column_table_from_matrices
 from .configuration import full_configuration, reduced_columns
 from .jacobian import (
     _time_variation_in_reference,

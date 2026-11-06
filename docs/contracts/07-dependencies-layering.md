@@ -25,7 +25,7 @@ listed with a `path::symbol` witness in `tests/contract/ratchets/edges.json`, wh
 
 A package imports only the packages its row names. No row names `viewer`, `terms` or `testing`: no other package
 depends on them. `dynamics` and `collision` import `kinematics`: `dynamics` builds its world-frame Jacobians
-on the private `src/better_robot/kinematics/_jacobian_columns.py`, which becomes a public-internal
+on the private `src/better_robot/kinematics/_jacobian.py`, which becomes a public-internal
 `kinematics.jacobian_columns` `[planned: L-3]`. Outside the package, `lie`, `spatial` and `optim` import torch and
 nothing else: `optim` knows nothing about robots, and `terms` adapts robots to it.
 

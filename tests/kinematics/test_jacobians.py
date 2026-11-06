@@ -79,7 +79,7 @@ def chain():
 
 def test_joint_jacobian_plan_rebuilds_after_to(chain):
     """The Jacobian plan lives on the model instance; ``Model.to`` mints a record with no plans."""
-    from better_robot.kinematics._jacobian_columns import jacobian_plan  # noqa: PLC0415
+    from better_robot.kinematics._jacobian import jacobian_plan  # noqa: PLC0415
 
     def world_jacobians(model):
         state = forward_kinematics_state(model, model.q_neutral)
